@@ -1,0 +1,38 @@
+{
+  "$id": "urn:idp:IntrospectionResponse",
+  "type": "object",
+  "additionalProperties": false,
+  "description": "/introspect レスポンス (RFC 7662 §2.2)。トークンの active 状態と有効時のメタデータを返す。",
+  "properties": {
+    "active": {
+      "type": "boolean"
+    },
+    "scope": {
+      "type": "string"
+    },
+    "client_id": {
+      "type": "string"
+    },
+    "sub": {
+      "type": "string"
+    },
+    "exp": {
+      "type": "integer"
+    },
+    "iat": {
+      "type": "integer"
+    },
+    "token_type": {
+      "type": "string"
+    },
+    "jti": {
+      "type": "string"
+    },
+    "cnf": {
+      "$ref": "#/components/schemas/SenderConstraintCnf"
+    }
+  },
+  "required": [
+    "active"
+  ]
+}

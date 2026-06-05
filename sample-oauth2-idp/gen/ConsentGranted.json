@@ -1,0 +1,33 @@
+{
+  "$id": "urn:idp:ConsentGranted",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "ConsentGranted",
+      "type": "string"
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "sub": {
+      "type": "string"
+    },
+    "clientId": {
+      "type": "string"
+    },
+    "scopes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "type",
+    "occurredAt",
+    "sub",
+    "clientId",
+    "scopes"
+  ]
+}

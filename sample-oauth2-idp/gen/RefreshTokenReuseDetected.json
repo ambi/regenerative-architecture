@@ -1,0 +1,29 @@
+{
+  "$id": "urn:idp:RefreshTokenReuseDetected",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "RefreshTokenReuseDetected",
+      "type": "string"
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "familyId": {
+      "type": "string"
+    },
+    "tokenId": {
+      "type": "string"
+    },
+    "clientId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "type",
+    "occurredAt",
+    "familyId",
+    "tokenId"
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "$id": "urn:idp:TokenRevoked",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "TokenRevoked",
+      "type": "string"
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "tokenType": {
+      "type": "string",
+      "enum": [
+        "access_token",
+        "refresh_token"
+      ]
+    },
+    "tokenId": {
+      "type": "string"
+    },
+    "reason": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "type",
+    "occurredAt",
+    "tokenType",
+    "tokenId"
+  ]
+}

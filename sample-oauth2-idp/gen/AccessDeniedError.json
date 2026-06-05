@@ -1,0 +1,13 @@
+{
+  "$id": "urn:idp:AccessDeniedError",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "AccessDeniedError",
+      "type": "string"
+    }
+  },
+  "required": [
+    "type"
+  ]
+}

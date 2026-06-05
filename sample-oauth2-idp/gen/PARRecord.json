@@ -1,0 +1,44 @@
+{
+  "$id": "urn:idp:PARRecord",
+  "type": "object",
+  "additionalProperties": false,
+  "description": "Pushed Authorization Request の格納レコード。状態は PARRecordLifecycle に従う。",
+  "properties": {
+    "request_uri": {
+      "type": "string"
+    },
+    "client_id": {
+      "type": "string"
+    },
+    "parameters": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "stored",
+        "used",
+        "expired"
+      ]
+    },
+    "issued_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "request_uri",
+    "client_id",
+    "parameters",
+    "state",
+    "issued_at",
+    "expires_at"
+  ]
+}

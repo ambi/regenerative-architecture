@@ -1,0 +1,54 @@
+{
+  "$id": "urn:idp:SigningKey",
+  "type": "object",
+  "additionalProperties": false,
+  "description": "トークン署名用の非対称鍵。Active 1本＋Verifying 過去鍵 0本以上を JWKS に並べる（ADR-009 / SigningKeyMinJwksOverlap）。",
+  "properties": {
+    "kid": {
+      "type": "string",
+      "minLength": 1
+    },
+    "alg": {
+      "type": "string",
+      "enum": [
+        "PS256",
+        "ES256"
+      ]
+    },
+    "public_jwk": {
+      "$ref": "#/components/schemas/JWK"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "active",
+        "verifying",
+        "retired",
+        "archived"
+      ]
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "activated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "retired_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "archived_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "kid",
+    "alg",
+    "public_jwk",
+    "state",
+    "created_at"
+  ]
+}

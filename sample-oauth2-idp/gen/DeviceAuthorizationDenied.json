@@ -1,0 +1,25 @@
+{
+  "$id": "urn:idp:DeviceAuthorizationDenied",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "DeviceAuthorizationDenied",
+      "type": "string"
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "clientId": {
+      "type": "string"
+    },
+    "sub": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "type",
+    "occurredAt",
+    "clientId"
+  ]
+}

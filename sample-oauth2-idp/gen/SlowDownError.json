@@ -1,0 +1,13 @@
+{
+  "$id": "urn:idp:SlowDownError",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "SlowDownError",
+      "type": "string"
+    }
+  },
+  "required": [
+    "type"
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "$id": "urn:idp:TokenRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "description": "application/x-www-form-urlencoded で送信される token endpoint リクエスト。",
+  "properties": {
+    "grant_type": {
+      "type": "string",
+      "enum": [
+        "authorization_code",
+        "refresh_token",
+        "client_credentials",
+        "urn:ietf:params:oauth:grant-type:device_code"
+      ]
+    },
+    "code": {
+      "type": "string"
+    },
+    "redirect_uri": {
+      "type": "string"
+    },
+    "code_verifier": {
+      "type": "string"
+    },
+    "refresh_token": {
+      "type": "string"
+    },
+    "device_code": {
+      "type": "string"
+    },
+    "client_id": {
+      "type": "string"
+    },
+    "client_secret": {
+      "type": "string"
+    },
+    "client_assertion": {
+      "type": "string"
+    },
+    "client_assertion_type": {
+      "type": "string"
+    },
+    "scope": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "grant_type"
+  ]
+}

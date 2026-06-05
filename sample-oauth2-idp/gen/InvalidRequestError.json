@@ -1,0 +1,16 @@
+{
+  "$id": "urn:idp:InvalidRequestError",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "InvalidRequestError",
+      "type": "string"
+    },
+    "reason": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "type"
+  ]
+}

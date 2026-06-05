@@ -1,0 +1,49 @@
+{
+  "name": "sample-oauth2-idp",
+  "version": "0.3.0",
+  "private": true,
+  "scripts": {
+    "dev": "bun --watch main.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "migrate:up": "bun run adapters/persistence/postgres/migrate.ts up",
+    "migrate:status": "bun run adapters/persistence/postgres/migrate.ts status",
+    "rotate:key": "bun run infra/scripts/rotate-signing-key.ts",
+    "event-relay": "bun run infra/event-relay/main.ts",
+    "gen:scl": "bun run infra/scripts/gen-from-scl.ts",
+    "gen:scl-html": "bun run ../tools/scl-to-html/src/main.ts spec/scl.yaml gen/scl.html",
+    "gen:prometheus": "bun run infra/scripts/gen-prometheus-rules.ts",
+    "gen:grafana": "bun run infra/scripts/gen-grafana-dashboard.ts",
+    "gen:k6": "bun run infra/scripts/gen-k6-thresholds.ts",
+    "gen:all": "bun run gen:scl && bun run gen:prometheus && bun run gen:grafana && bun run gen:k6",
+    "check:coherence": "bun run infra/scripts/check-spec-coherence.ts"
+  },
+  "dependencies": {
+    "@hono/zod-validator": "^0.4.0",
+    "hono": "^4.6.0",
+    "jose": "^5.9.0",
+    "zod": "^3.23.0"
+  },
+  "optionalDependencies": {
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/exporter-metrics-otlp-http": "^0.205.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.205.0",
+    "@opentelemetry/resources": "^2.1.0",
+    "@opentelemetry/sdk-metrics": "^2.1.0",
+    "@opentelemetry/sdk-node": "^0.205.0",
+    "@opentelemetry/semantic-conventions": "^1.38.0",
+    "ioredis": "^5.4.0",
+    "kafkajs": "^2.2.4",
+    "pg": "^8.13.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.16",
+    "@types/bun": "latest",
+    "@types/pg": "^8.11.0",
+    "fast-check": "^3.23.0",
+    "typescript": "^5.6.0"
+  }
+}

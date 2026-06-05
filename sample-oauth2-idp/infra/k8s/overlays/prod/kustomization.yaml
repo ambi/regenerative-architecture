@@ -1,0 +1,45 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: oauth2-idp
+
+resources:
+  - ../../base
+  - ../../base/rollout.yaml      # prod のみ Argo Rollouts canary 有効化
+
+images:
+  - name: ghcr.io/example/oauth2-idp
+    newTag: stable
+
+configMapGenerator:
+  - name: oauth2-idp-config
+    behavior: replace
+    literals:
+      - issuer=https://idp.example.com
+
+# secrets は External Secrets Operator 経由で AWS Secrets Manager から注入する想定。
+# 本サンプルではプレースホルダ。
+secretGenerator:
+  - name: oauth2-idp-secrets
+    literals:
+      - database_url=postgres://idp:placeholder@postgres-prod:5432/idp
+      - redis_url=redis://redis-prod:6379
+
+patches:
+  # prod は Deployment ではなく Rollout を使う
+  - patch: |
+      $patch: delete
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: oauth2-idp
+    target:
+      kind: Deployment
+      name: oauth2-idp
+  - patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 4
+    target:
+      kind: Rollout
+      name: oauth2-idp

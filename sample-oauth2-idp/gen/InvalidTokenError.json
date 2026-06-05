@@ -1,0 +1,13 @@
+{
+  "$id": "urn:idp:InvalidTokenError",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "InvalidTokenError",
+      "type": "string"
+    }
+  },
+  "required": [
+    "type"
+  ]
+}

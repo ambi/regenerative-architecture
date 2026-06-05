@@ -1,0 +1,13 @@
+{
+  "$id": "urn:idp:ServerError",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "ServerError",
+      "type": "string"
+    }
+  },
+  "required": [
+    "type"
+  ]
+}

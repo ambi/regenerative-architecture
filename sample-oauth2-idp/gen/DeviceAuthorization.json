@@ -1,0 +1,71 @@
+{
+  "$id": "urn:idp:DeviceAuthorization",
+  "type": "object",
+  "additionalProperties": false,
+  "description": "RFC 8628 デバイス認可レコード。device_code はハッシュのみで保存する。",
+  "properties": {
+    "device_code_hash": {
+      "type": "string"
+    },
+    "user_code": {
+      "type": "string"
+    },
+    "client_id": {
+      "type": "string"
+    },
+    "scopes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "issued",
+        "user_code_entered",
+        "authorization_pending",
+        "approved",
+        "denied",
+        "exchanged",
+        "expired"
+      ]
+    },
+    "sub": {
+      "type": "string"
+    },
+    "auth_time": {
+      "type": "integer"
+    },
+    "interval_seconds": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "last_polled_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "issued_family_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "issued_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "device_code_hash",
+    "user_code",
+    "client_id",
+    "scopes",
+    "state",
+    "interval_seconds",
+    "issued_at",
+    "expires_at"
+  ]
+}

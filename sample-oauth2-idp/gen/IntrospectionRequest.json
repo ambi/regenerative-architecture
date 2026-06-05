@@ -1,0 +1,21 @@
+{
+  "$id": "urn:idp:IntrospectionRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "description": "/introspect リクエスト (RFC 7662 §2.1)。ResourceServer がトークンの有効性を AuthorizationServer に問い合わせる。",
+  "properties": {
+    "token": {
+      "type": "string"
+    },
+    "token_type_hint": {
+      "type": "string",
+      "enum": [
+        "access_token",
+        "refresh_token"
+      ]
+    }
+  },
+  "required": [
+    "token"
+  ]
+}

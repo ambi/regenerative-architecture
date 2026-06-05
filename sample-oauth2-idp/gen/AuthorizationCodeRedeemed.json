@@ -1,0 +1,26 @@
+{
+  "$id": "urn:idp:AuthorizationCodeRedeemed",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "AuthorizationCodeRedeemed",
+      "type": "string"
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "clientId": {
+      "type": "string"
+    },
+    "sub": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "type",
+    "occurredAt",
+    "clientId",
+    "sub"
+  ]
+}

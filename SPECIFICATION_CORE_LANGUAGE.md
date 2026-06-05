@@ -1,0 +1,778 @@
+# Specification Core Language (SCL)
+
+Specification Core Language (SCL) は、Regenerative Architecture の第1層 *Specification Core* を記述するための単一の形式である。SCL に書かれたものだけが保存対象であり、それ以外の契約・コード・図・テスト・監視ルールはすべて SCL からの派生物として扱われる。
+
+## 1 目的
+
+第1層には、契約・状態機械・行動仕様・不変条件・認可・非機能目標という多面性のすべてが必要である。これらを別々の形式（OpenAPI / JSON Schema / Protobuf / Gherkin / EARS / Cedar / Rego / OpenSLO / TLA+ など）で並行して手書き保守すると、ドリフトが生まれ、どれが真実か分からなくなる。SCL はこの並行保守を排除し、第1層を単一の上流ソースに集約する。
+
+SCL は以下を満たす。
+
+- 実装言語・フレームワーク・データベース・ランタイムに依存しない
+- 機械実行可能（生成・検証・実行の合否が判定可能）
+- AI が解釈・生成・変換可能
+- 人間が読める
+- 長期保存可能（ベンダ依存の形式を採らない）
+- 単一上流ソース（下流のワイヤ形式・言語バインディング・実装・図はここから派生する）
+
+## 2 文書構造
+
+SCL ドキュメントは先頭にシステム識別子と SCL 自身のバージョンを置き、続いて 8 つのセクションを持つ。
+
+```yaml
+system: TaskTracker        # 必須: システム名
+spec_version: "1.0"        # 必須: SCL バージョン
+annotations: { ... }       # 任意: 文書全体への補助情報
+
+vocabulary:     { ... }    # 用語の定義
+models:         { ... }    # データの形と同一性
+interfaces:     { ... }    # 外部との契約（インターフェース）
+state_machines: { ... }    # 状態と遷移
+properties:     { ... }    # 普遍的に成り立つ不変条件
+scenarios:      { ... }    # 自然文ステップで書く受け入れ例
+permissions:    { ... }    # 認可ルール
+objectives:     { ... }    # 非機能目標
+```
+
+すべてのセクションで現れる名前（モデル名・フィールド名・状態名・イベント名・アクション名）はそのコンテキストの `vocabulary` に登録された語彙と一対一で対応していなければならない。CIで名前の整合性を自動検証する。
+
+`annotations` は 8 つのセクションには含めない。文書全体に対する任意の補助情報であり、型は [§3.2 Annotation](#32-models--ドメインモデル) と同じ `map[string, any]` とする。
+
+## 3 セクションリファレンス
+
+### 3.1 vocabulary — 意味の語彙
+
+ユビキタス言語の定義。第1層の他セクションに現れる全ての概念名はここに登録される。
+
+```yaml
+vocabulary:
+  Task:
+    definition: 担当者一名により独立に完了可能な作業単位
+    aliases: [タスク]
+    not_to_confuse_with:
+      - term: Project
+        reason: Project は複数の Task を束ねるが、それ自体は完了状態を持たない
+  Backlog:
+    definition: 着手前のタスクが置かれる状態
+  Order:
+    context: Sales
+    definition: 顧客が確定した購入意思
+  Order:
+    context: Fulfillment
+    definition: 倉庫に対する出荷指示
+```
+
+**マップキー**: 用語名 (`<Name>`)。PascalCase を推奨。マルチコンテキストで同名を区別する必要があるときは `context` で分け、両エントリを並べる。
+
+**プロパティ**:
+
+| プロパティ                     | 型         | 必須 | 説明                                               |
+| ------------------------------ | ---------- | ---- | -------------------------------------------------- |
+| `definition`                   | `string`   | ✓    | 用語の定義                                         |
+| `description`                  | `string`   | -    | 用語の説明。通常 `definition` で十分なので省略する |
+| `aliases`                      | `string[]` | –    | 別表記・略称・他言語表記のリスト                   |
+| `context`                      | `string`   | –    | コンテキスト名（マルチコンテキスト時のみ）         |
+| `not_to_confuse_with`          | `object[]` | –    | 混同しやすい類義語                                 |
+| `not_to_confuse_with[].term`   | `string`   | ✓    | 混同しやすい用語の名前                             |
+| `not_to_confuse_with[].reason` | `string`   | ✓    | なぜ混同してはいけないか                           |
+| `annotations`                  | `Annotation` | –  | 用語への補助情報                                   |
+
+### 3.2 models — ドメインモデル
+
+エンティティ・値オブジェクト・イベント・列挙・エラーの宣言。
+
+```yaml
+models:
+  Task:
+    kind: entity
+    identity: id
+    fields:
+      id:    { type: UUID }
+      title: { type: String, constraints: [non_empty, { max_length: 200 }] }
+      state: { type: TaskState }
+      assignee_id: { type: UserId, optional: true }
+      created_at:  { type: Timestamp }
+
+  TaskState:
+    kind: enum
+    values: [Backlog, InProgress, Done]
+
+  TaskStarted:
+    kind: event
+    payload:
+      task_id: { type: UUID }
+      started_by: { type: UserId }
+      at: { type: Timestamp }
+
+  NotFound:
+    kind: error
+    payload:
+      target: { type: String }
+```
+
+**マップキー**: モデル名。`vocabulary` に登録されていなければならない。
+
+**プロパティ（共通）**:
+
+| プロパティ    | 型                                                         | 必須 | 説明         |
+| ------------- | ---------------------------------------------------------- | ---- | ------------ |
+| `kind`        | `entity` \| `value_object` \| `event` \| `enum` \| `error` | ✓    | モデルの種別 |
+| `description` | `string`                                                   | 推奨 | モデルの説明 |
+| `annotations` | `Annotation`                                               | –    | モデル全体への補助情報 |
+
+**`kind: entity` 固有**:
+
+| プロパティ | 型                      | 必須 | 説明                         |
+| ---------- | ----------------------- | ---- | ---------------------------- |
+| `identity` | `string`                | ✓    | 同一性を判定するフィールド名 |
+| `fields`   | `map[string, FieldDef]` | ✓    | フィールド定義               |
+
+**`kind: value_object` 固有**:
+
+| プロパティ | 型                      | 必須 | 説明                                               |
+| ---------- | ----------------------- | ---- | -------------------------------------------------- |
+| `fields`   | `map[string, FieldDef]` | ✓    | フィールド定義（全フィールドの値が等しければ等価） |
+
+**`kind: enum` 固有**:
+
+| プロパティ | 型         | 必須 | 説明                                                               |
+| ---------- | ---------- | ---- | ------------------------------------------------------------------ |
+| `values`   | `string[]` | ✓    | 列挙値のリスト。各値は `vocabulary` に登録されていなければならない |
+
+**`kind: event` / `kind: error` 固有**:
+
+| プロパティ | 型                      | 必須 | 説明                     |
+| ---------- | ----------------------- | ---- | ------------------------ |
+| `payload`  | `map[string, FieldDef]` | –    | 付随情報のフィールド定義 |
+
+**FieldDef**:
+
+| プロパティ    | 型             | 必須 | 説明                                                    |
+| ------------- | -------------- | ---- | ------------------------------------------------------- |
+| `type`        | `<Type>`       | ✓    | フィールドの型（[§4 型システム](#4-型システム) 参照）   |
+| `optional`    | `bool`         | –    | 値なし許容。既定 `false`                                |
+| `default`     | `any`          | –    | 既定値                                                  |
+| `constraints` | `Constraint[]` | –    | 値制約のリスト（[§4.3 制約](#43-制約-constraint) 参照） |
+| `description` | `string`       | –    | 補足説明                                                |
+| `annotations` | `Annotation`   | -    | アノテーション                                          |
+
+**Annotation**:
+
+生成・検証・ドキュメント化のための任意の補助情報。SCL の中核意味論を変更しない。型は `map[string, any]` とする。SCL 処理系は、認識しないキーを無視してよい。ただし、特定の処理系や生成器が解釈するキーは、その処理系側の仕様または ADR に記録する。
+
+### 3.3 interfaces — 外部との契約
+
+外部世界に対する入出力の契約。HTTP・gRPC・CLI・メッセージング・GraphQL などのワイヤ形式はここから生成される。インターフェースは **論理的な契約（input / output / errors / emits）** と、それを露出する **トランスポート（bindings）** に分かれる。同一の論理インターフェースを複数トランスポートで同時に露出してよい。
+
+```yaml
+interfaces:
+  StartTask:
+    description: バックログのタスクを開始する
+    steps:
+      - "{task} を開始する"
+    input:
+      task_id: { type: UUID }
+      actor:   { type: UserId }
+    output:
+      task: { type: Task }
+    errors: [NotFound, InvalidTransition, Forbidden]
+    emits:  [TaskStarted]
+    idempotent: true
+    bindings:
+      - kind: http
+        method: POST
+        path: /tasks/{task_id}/start
+        successful_status_codes: ["200"]
+      - kind: grpc
+        service: TaskService
+        method: StartTask
+      - kind: cli
+        command: task start
+        args:
+          - { name: task_id, position: 1 }
+        flags:
+          - { name: actor, short: a, required: true }
+        exit_codes: { success: 0, NotFound: 64, InvalidTransition: 65, Forbidden: 77 }
+```
+
+**マップキー**: インターフェース名。`vocabulary` に登録されていなければならない。
+
+**プロパティ**:
+
+| プロパティ         | 型                       | 必須 | 説明                                                         |
+| ------------- | ----------------------- | -- | ---------------------------------------------------------- |
+| `description` | `string`                | 推奨 | このインターフェースが何を行うか                                           |
+| `steps`       | `string[]`              | –  | scenarios の自然文ステップが束縛する文テンプレートの列。`{field}`=input、`{result}`=出力束縛。同一インターフェースが文脈により異なる自然文で参照される場合は複数並べてよい |
+| `input`       | `map[string, FieldDef]` | –  | 入力パラメータ                                                    |
+| `output`      | `map[string, FieldDef]` | –  | 正常系の出力                                                     |
+| `errors`      | `string[]`              | –  | 発生しうるエラー。各要素は `kind: error` のモデル名                          |
+| `emits`       | `string[]`              | –  | 発行するイベント。各要素は `kind: event` のモデル名                          |
+| `idempotent`  | `bool`                  | –  | 同一入力での再実行が安全か。既定 `false`                                   |
+| `read_only`   | `bool`                  | –  | 状態を変更しないか。既定 `false`                                       |
+| `bindings`    | `Binding[]`             | –  | このインターフェースを公開するトランスポート群（0 個以上）                             |
+| `annotations` | `Annotation`            | –  | インターフェース全体への補助情報                                           |
+
+`bindings` を空にしておくと「設計段階の論理インターフェース」を意味する。露出時にトランスポートを追加する。
+
+**Binding（共通）**:
+
+| プロパティ         | 型                                                                        | 必須 | 説明             |
+| ------------- | ------------------------------------------------------------------------ | -- | -------------- |
+| `kind`        | `http` \| `grpc` \| `cli` \| `event` \| `graphql` \| `sdk` \| `schedule` | ✓  | バインディング種別      |
+| `description` | `string`                                                                 | –  | このバインディング固有の補足 |
+
+**`kind: http` 固有**:
+
+| プロパティ                | 型                              | 必須 | 説明                                              |
+| ------------------------- | ------------------------------- | ---- | ------------------------------------------------- |
+| `method`                  | `string`                        | ✓    | HTTP メソッド (`GET`, `POST` など)                |
+| `path`                    | `string`                        | ✓    | URL パス（テンプレ可、例 `/tasks/{task_id}`）     |
+| `successful_status_codes` | `string[]`                      | –    | 正常応答ステータス                                |
+| `request_form`            | `body` \| `query` \| `form`     | –    | 入力の搬送形式。既定 `body`                       |
+| `headers`                 | `map[string, FieldDef]`         | –    | リクエストヘッダ                                  |
+
+**`kind: grpc` 固有**:
+
+| プロパティ  | 型                                          | 必須 | 説明                              |
+| ----------- | ------------------------------------------- | ---- | --------------------------------- |
+| `service`   | `string`                                    | ✓    | gRPC サービス名                   |
+| `method`    | `string`                                    | ✓    | RPC メソッド名                    |
+| `streaming` | `unary` \| `client` \| `server` \| `bidi`   | –    | ストリーミング種別。既定 `unary`  |
+
+**`kind: cli` 固有**:
+
+| プロパティ   | 型                  | 必須 | 説明                                                       |
+| ------------ | ------------------- | ---- | ---------------------------------------------------------- |
+| `command`    | `string`            | ✓    | コマンド名。サブコマンド含む（例 `task start`）           |
+| `args`       | `Arg[]`             | –    | 位置引数                                                   |
+| `flags`      | `Flag[]`            | –    | 名前付きフラグ                                             |
+| `stdin`      | `<Type>`            | –    | 標準入力で受け取る型                                       |
+| `stdout`     | `<Type>`            | –    | 標準出力で返す型                                           |
+| `exit_codes` | `map[string, int]`  | –    | `success` または `errors[]` のメンバー名 → 終了コード      |
+
+**Arg / Flag**:
+
+| プロパティ   | 型       | 必須        | 説明                                  |
+| ------------ | -------- | ----------- | ------------------------------------- |
+| `name`       | `string` | ✓           | input の対応フィールド名              |
+| `position`   | `int`    | Arg のみ ✓ | 1-based の位置                        |
+| `short`      | `string` | –           | 短縮形（例 `a` → `-a`）               |
+| `required`   | `bool`   | –           | 必須フラグ。既定はフィールド定義に従う |
+| `repeatable` | `bool`   | –           | 繰り返し可能か。既定 `false`          |
+
+**`kind: event` 固有** (pub/sub・メッセージキュー):
+
+| プロパティ      | 型                                                    | 必須 | 説明                                |
+| --------------- | ----------------------------------------------------- | ---- | ----------------------------------- |
+| `channel`       | `string`                                              | ✓    | トピック / キュー / Subject 名      |
+| `direction`     | `produce` \| `consume`                                | ✓    | 発行か購読か                        |
+| `delivery`      | `at_most_once` \| `at_least_once` \| `exactly_once`   | –    | 配送保証。既定 `at_least_once`      |
+| `ordering`      | `none` \| `per_key` \| `global`                       | –    | 順序保証                            |
+| `partition_key` | `string`                                              | –    | input フィールド名                  |
+
+**`kind: graphql` 固有**:
+
+| プロパティ  | 型                                        | 必須 | 説明                          |
+| ----------- | ----------------------------------------- | ---- | ----------------------------- |
+| `operation` | `query` \| `mutation` \| `subscription`   | ✓    | 操作種別                      |
+| `field`     | `string`                                  | ✓    | スキーマ上のフィールド名      |
+
+**`kind: sdk` 固有** (プロセス内関数 / ライブラリ API):
+
+| プロパティ | 型       | 必須 | 説明                                              |
+| ---------- | -------- | ---- | ------------------------------------------------- |
+| `function` | `string` | ✓    | パッケージ修飾の関数識別子（例 `tasks.start`）   |
+
+**`kind: schedule` 固有** (定期起動 / cron):
+
+| プロパティ | 型         | 必須   | 説明                                                  |
+| ---------- | ---------- | ------ | ----------------------------------------------------- |
+| `cron`     | `string`   | 条件付 | cron 式（例 `* * * * *`）。`cron`・`every` のいずれか |
+| `every`    | `Duration` | 条件付 | 起動間隔（例 `1m`, `1h`）。`cron`・`every` のいずれか |
+
+`kind: schedule` は input を取らない（暗黙の「現在時刻」のみ）。発火は scenarios の clock 刺激で検証する。
+
+### 3.4 state_machines — 状態遷移
+
+状態を持つモデルの遷移を宣言的に記述する。`switch` 文や workflow DSL に埋め込まない。
+
+```yaml
+state_machines:
+  TaskLifecycle:
+    target: Task
+    initial: Backlog
+    transitions:
+      - { from: Backlog,    event: Start,    to: InProgress }
+      - { from: InProgress, event: Complete, to: Done }
+      - { from: InProgress, event: Cancel,   to: Backlog,
+          guard: { not: { exists: assignee_id } } }
+```
+
+**マップキー**: 状態機械名。
+
+**プロパティ**:
+
+| プロパティ    | 型             | 必須 | 説明                                                 |
+| ------------- | -------------- | ---- | ---------------------------------------------------- |
+| `description` | `string`       | 推奨 | この状態機械の説明                                   |
+| `target`      | `string`       | ✓    | 対象となる `kind: entity` のモデル                   |
+| `initial`     | `string`       | ✓    | 初期状態のステート名。対応する `kind: enum` の値     |
+| `terminal`    | `string[]`     | -    | 終端状態のステート名一覧。対応する `kind: enum` の値 |
+| `transitions` | `Transition[]` | ✓    | 遷移のリスト                                         |
+| `annotations` | `Annotation`   | -    | 状態機械全体への補助情報                             |
+
+**Transition**:
+
+| プロパティ | 型           | 必須 | 説明                                                        |
+| ---------- | ------------ | ---- | ----------------------------------------------------------- |
+| `from`     | `string`     | ✓    | 遷移元の状態のステート名                                    |
+| `event`    | `string`     | ✓    | 引き金となるイベント名。`vocabulary` に登録                 |
+| `to`       | `string`     | ✓    | 遷移先の状態のステート名                                    |
+| `guard`    | `Expression` | –    | 遷移を許可する条件（[§5 式](#5-式-expression-の文法) 参照） |
+| `effect`   | `string[]`   | –    | 遷移時に発行されるイベント                                  |
+
+`from`・`to` の状態名は、`target` モデルの状態フィールドが参照する `kind: enum` の値と一致しなければならない。
+
+### 3.5 properties — 不変条件と liveness
+
+「どんな入力・どんな実行履歴でも常に成り立つべき性質」を述べる。プロパティベーステスト・監査ルール・フォーマル検証の証明義務がここから派生する。
+
+性質は二系統に分かれる:
+
+- **safety** — *悪いことは決して起こらない*。`always`（常に真）/ `never`（決して真でない）で書く。
+- **liveness** — *良いことはいずれ必ず起こる*。`eventually` で書き、必要なら `within` で上限時間を与える。
+
+各主張には `assuming`（前提条件）を付けられる。前提が偽の場合は vacuously true。
+
+```yaml
+properties:
+
+  # safety: 不変
+  StateAlwaysValid:
+    description: いかなるイベント列を適用しても状態は宣言された集合に留まる
+    target: Task
+    always: { in: [state, TaskState.values] }
+
+  DoneIsTerminal:
+    description: Done に到達した Task は他の状態に戻らない
+    target: Task
+    always:
+      not: { and: ["prev.state == Done", "state != Done"] }
+
+  AuthorizationCodeSingleUse:
+    target: AuthorizationCode
+    never: { and: ["state == Redeemed", "event == RedeemCode"] }
+
+  # 前提付き safety
+  AccessTokenIssuedOnlyAfterConsent:
+    description: AccessToken は、対応する Consent が granted である Client にのみ発行される
+    assuming: "event == AccessTokenIssued"
+    always:
+      exists:
+        in: Consents
+        satisfies: "x.client_id == event.client_id and x.state == Granted"
+
+  # 集合に対する全称量化
+  AllAccessTokensCarryAudience:
+    target: AccessToken
+    always:
+      forall:
+        in: audience
+        satisfies: "x != null and x != ''"
+
+  # liveness: いずれ必ず到達する（上限時間つき）
+  AuthorizationCodeEventuallyResolves:
+    description: 発行された AuthorizationCode は Redeemed または Expired のいずれかに必ず到達する
+    target: AuthorizationCode
+    eventually: { in: [state, [Redeemed, Expired]] }
+    within: 60s
+
+  # 多重主張: 同じ前提下で同時に課す
+  RefreshTokenRotationIsAtomic:
+    assuming: "event == RefreshTokenExchanged"
+    always: "next.old_token.state == Revoked"
+    eventually: "exists(next.new_token) and next.new_token.state == Active"
+    within: 1s
+```
+
+**マップキー**: プロパティ名。
+
+**プロパティ**:
+
+| プロパティ    | 型                  | 必須 | 説明                                                                           |
+| ------------- | ------------------- | ---- | ------------------------------------------------------------------------------ |
+| `description` | `string`            | 推奨 | 性質の意図                                                                     |
+| `target`      | `string`            | –    | 対象モデル名または `interfaces.<name>`。省略時はシステム全体                   |
+| `assuming`    | `Expression`        | –    | 前提条件。真であるときのみ後続の主張を評価する                                 |
+| `always`      | `Expression`        | †   | 常に真である式（safety）                                                       |
+| `never`       | `Expression`        | †   | 決して真にならない式（safety、`always: { not: ... }` の糖衣）                  |
+| `eventually`  | `Expression`        | †   | いずれ真になる式（liveness）                                                   |
+| `within`      | `Duration`          | –    | `eventually` の上限時間。省略時は無限                                          |
+| `severity`    | `must` \| `should`  | –    | 違反時の扱い。既定 `must`                                                      |
+| `annotations` | `Annotation`        | –    | プロパティへの補助情報                                                        |
+
+† `always` / `never` / `eventually` のうち少なくとも 1 つが必要。複数同時に書けば同じ `assuming` 配下での AND になる。
+
+### 3.6 scenarios — 受け入れ例
+
+特定の状況での期待振る舞いを、**受け入れテストとして人間が読める自然文ステップ**で記述する。`properties` が *普遍*（常に成り立つ法則）を、`scenarios` が *個別*（具体的な振る舞いの例）を表し、両者は補完関係にある。
+
+scenarios は**ブラックボックス**である。内部のデータモデルの値を直接組み立て・直接覗くことはしない。観測できるのは **インターフェースを通したものだけ**——呼び出しの応答・エラー・発行イベント——であり、事前状態も「作成」系インターフェースの呼び出しで組む。これにより内部表現を変えてもシナリオは壊れない。
+
+各ステップは1つの文（文字列）であり、次のいずれかに決定的に解決される。
+
+- **行動 (action)** — システムへの刺激。`interfaces` の `steps` テンプレートに束縛される。グルーコードは不要で、interface 定義そのものが step 定義になる。刺激は2種類：
+  - **invoke** — interface の呼び出し（API・到来イベントの配信・スケジュール処理の直接呼び出し）。`steps` のいずれかのテンプレートにマッチする。
+  - **clock** — 時間を進める。満期のスケジュール・TTL が発火する。組み込み形 `時刻が "<ts>" になる` / `"<duration>" 経過する`。
+- **表明 (assertion)** — 観測結果の確認。model・event・error 定義から導かれる少数固定の形にだけ束縛される。
+- **逃がし弁** — 重い事前準備のための `seed`（内部モデルを直接構築）と、外部依存の応答を用意する `stub`。
+
+ステップ内の引数は `"…"` で括る。`where` を添えるとデータ表になり、ステップ内で `<列名>` として参照する。
+
+```yaml
+scenarios:
+
+  # ── 基本：作成し、操作し、観測する ──────────────────
+  Backlog のタスクを開始すると InProgress になる:
+    steps:
+      - タスク "買い物" を作成して "t" とする
+      - "t" を開始する
+      - "t" の状態は "InProgress"
+      - "TaskStarted" が発行される
+
+  # ── 逃がし弁（seed）とエラー ────────────────────────
+  完了済みのタスクは開始できない:
+    steps:
+      - 状態が "Done" のタスクを "t" として用意する
+      - "t" を開始すると エラー "InvalidTransition"
+
+  # ── clock（定期バッチ・TTL）───────────────────────
+  期限切れのタスクは毎分のバッチで Expired になる:
+    steps:
+      - 状態 "InProgress"・期限 "2026-01-01T00:00:00Z" のタスクを "t" として用意する
+      - 時刻が "2026-01-01T00:01:00Z" になる
+      - "TaskExpired" が発行される
+      - "t" の状態は "Expired"
+
+  # ── データ表（where）で網羅 ────────────────────────
+  Backlog 以外のタスクは開始できない:
+    where:
+      - { 状態: Done }
+      - { 状態: InProgress }
+    steps:
+      - 状態が "<状態>" のタスクを "t" として用意する
+      - "t" を開始すると エラー "InvalidTransition"
+
+  # ── 多段・外部依存（stub）──────────────────────────
+  Introspect は上流 IdP に委譲する:
+    steps:
+      - アクセストークン "tok" を用意する
+      - 上流 "UpstreamIdp.Introspect" が "{ active: true, scope: read }" を返すようにする
+      - "tok" を Introspect して "r" とする
+      - "r" は "{ active: true }"
+```
+
+**マップキー**: シナリオ名。**自然文の見出し**（受け入れ基準そのもの）を推奨する。
+
+**プロパティ**:
+
+| プロパティ    | 型         | 必須 | 説明                                                           |
+| ------------- | ---------- | ---- | -------------------------------------------------------------- |
+| `steps`       | `string[]` | ✓    | 自然文ステップの列。上から順に実行・評価される                 |
+| `where`       | `object[]` | –    | データ表。各行で `<列名>` を束縛し、行ごとに `steps` を反復する |
+| `tags`        | `string[]` | –    | 分類タグ                                                       |
+| `description` | `string`   | –    | シナリオの補足説明                                             |
+| `annotations` | `Annotation` | –  | シナリオへの補助情報                                           |
+
+**ステップの種別**: 各ステップ文字列は次のいずれかに解決される。
+
+| 種別             | 束縛先                                | 例                                                         |
+| ---------------- | ------------------------------------- | ---------------------------------------------------------- |
+| invoke           | `interfaces.<name>.steps` のいずれか   | `タスク "買い物" を作成して "t" とする`                    |
+| clock            | 組み込み形                            | `時刻が "2026-01-01T00:01:00Z" になる` / `"120s" 経過する` |
+| seed（逃がし弁） | 組み込み形（内部モデルを直接構築）    | `状態が "Done" のタスクを "t" として用意する`              |
+| stub（逃がし弁） | 組み込み形（外部応答を用意）          | `上流 "UpstreamIdp.Introspect" が "…" を返すようにする`    |
+| 表明             | model / event / error から導く固定形  | 下表                                                       |
+
+**表明形**: 観測できるものだけを表明する（表明したい状態は、それを返す取得インターフェースが存在しなければならない）。すべて既定で **部分マッチ**。
+
+| 形                                  | 意味                                                     |
+| ----------------------------------- | -------------------------------------------------------- |
+| `"<alias>" の状態は "<value>"`      | 観測した状態の一致                                       |
+| `"<alias>" の <field> は "<value>"` | 観測したフィールド値の一致                               |
+| `"<alias>" は "<partial>"`          | 応答の部分マッチ                                         |
+| `"<Event>" が発行される`            | イベント発行（ペイロード条件は `… で "<expr>"` を付与）  |
+| `… すると エラー "<Error>"`         | 直前の行動がそのエラーで失敗する（行動文への接尾糖衣）   |
+
+**結果の参照**: 行動文の `{result}` スロット（interface の `steps` で宣言）に `"<alias>"` を与えると、その応答を後続ステップから参照できる。`{result}` の値は input フィールドではなく、scenarios 側で任意に与えるエイリアス名。一方それ以外の `{field}` 部分はすべて input フィールド名と一致する。
+
+### 3.7 permissions — 認可ルール
+
+誰がどのリソースに対してどの操作を行えるかを宣言する。下流のポリシーエンジン（Cedar / OPA / Cerbos など）と認可 API（AuthZEN など）はここから生成される。
+
+```yaml
+permissions:
+  TaskOwnerCanComplete:
+    actor: User
+    action: Complete
+    resource: Task
+    allow_when: resource.assignee_id == actor.id
+
+  AdminCanForceCancel:
+    actor: User
+    action: Cancel
+    resource: Task
+    allow_when: actor.role == Admin
+
+  ReadAllowedInOwnTenant:
+    actor: User
+    action: Read
+    resource: Task
+    allow_when: resource.tenant_id == actor.tenant_id
+```
+
+**マップキー**: ルール名 (`<Name>`)。
+
+**プロパティ**:
+
+| プロパティ    | 型           | 必須 | 説明                                                               |
+| ------------- | ------------ | ---- | ------------------------------------------------------------------ |
+| `actor`       | `string`     | ✓    | 主体のモデル名                                                     |
+| `action`      | `string`     | ✓    | アクション名（`vocabulary` に登録、`interfaces` 名と対応してよい） |
+| `resource`    | `string`     | ✓    | 対象リソースのモデル名                                             |
+| `allow_when`  | `Expression` | –    | 許可する条件。省略時は無条件許可                                   |
+| `deny_when`   | `Expression` | –    | 拒否する条件（`allow_when` より優先）                              |
+| `description` | `string`     | 推奨 | 認可ルールの説明                                                   |
+| `annotations` | `Annotation` | –    | 認可ルールへの補助情報                                             |
+
+「認可をどう呼ぶか」（API 形式）と「どう判定するか」（ポリシー）の双方が SCL から導出されるため、ポリシーエンジンの差し替えは `permissions` の保存性を損なわない。
+
+### 3.8 objectives — 非機能目標
+
+SLO・性能・保持・ライフタイム・セキュリティなどの非機能要件。負荷テスト・監視ルール・アラート設定・保管ポリシーがここから派生する。`kind` によって複数系統に分かれる。
+
+```yaml
+objectives:
+  StartTaskLatency:
+    kind: slo
+    metric: latency_p95
+    interface: StartTask
+    target: "<200ms"
+    window: 30d
+
+  AvailabilityCore:
+    kind: slo
+    metric: availability
+    target: ">=99.9%"
+    window: 30d
+
+  TaskRetention:
+    kind: retention
+    target: Task
+    policy: keep_indefinitely
+
+  AuditLogIntegrity:
+    kind: retention
+    target: TaskStarted
+    policy: append_only
+    retention: "7y"
+
+  TaskLifetime:
+    kind: lifetime
+    target: Task
+    ttl: 30d
+
+  TaskRateLimit:
+    kind: security
+    policy: rate_limit_per_minute
+    target: StartTask
+    value: 60
+```
+
+**マップキー**: 目標名。
+
+**プロパティ（共通）**:
+
+| プロパティ    | 型                   | 必須 | 説明             |
+| ------------- | -------------------- | ---- | ---------------- |
+| `kind`        | `slo` \| `retention` \| `lifetime` \| `security` | ✓    | 目標の種別       |
+| `description` | `string`             | 推奨 | 非機能目標の説明 |
+| `annotations` | `Annotation`         | –    | 目標への補助情報 |
+
+**`kind: slo` 固有**:
+
+| プロパティ  | 型                                                                                                | 必須 | 説明                                               |
+| ----------- | ------------------------------------------------------------------------------------------------- | ---- | -------------------------------------------------- |
+| `metric`    | `latency_p50` \| `latency_p95` \| `latency_p99` \| `availability` \| `error_rate` \| `throughput` | ✓    | 計測する指標                                       |
+| `target`    | `string`                                                                                          | ✓    | 比較式（例: `"<200ms"`, `">=99.9%"`）              |
+| `interface` | `string`                                                                                          | –    | 計測対象のインターフェース名。省略時はシステム全体 |
+| `window`    | `string`                                                                                          | –    | 評価期間（例: `30d`, `7d`）                        |
+
+**`kind: retention` 固有**:
+
+| プロパティ  | 型                                                                        | 必須   | 説明                                                                |
+| ----------- | ------------------------------------------------------------------------- | ------ | ------------------------------------------------------------------- |
+| `target`    | `string`                                                                  | ✓      | 対象モデル名                                                        |
+| `policy`    | `keep_indefinitely` \| `keep` \| `append_only` \| `delete_after` \| `purge_pii_after` \| `archive_after` \| `archive` | ✓      | 保持ポリシー                                                        |
+| `retention` | `string`                                                                  | 条件付 | 保持期間（例: `30d`, `7d`）。有限期間を持つ `append_only`・`keep`・`delete_after`・`purge_pii_after`・`archive_after`・`archive` で必須。`keep_indefinitely` では不要 |
+
+**`kind: lifetime` 固有**:
+
+| プロパティ   | 型         | 必須 | 説明                             |
+| ------------ | ---------- | ---- | -------------------------------- |
+| `target`     | `string`   | ✓    | 対象モデル名                     |
+| `ttl`        | `Duration` | ✓    | 有効期間                         |
+| `single_use` | `bool`     | –    | 一度だけ使用可能か。既定 `false` |
+| `reference`  | `string`   | –    | RFC・ADR・規制などの根拠         |
+
+**`kind: security` 固有**:
+
+| プロパティ  | 型       | 必須 | 説明                                                 |
+| ----------- | -------- | ---- | ---------------------------------------------------- |
+| `policy`    | `string` | ✓    | セキュリティ方針名（例 `rate_limit_per_minute`）     |
+| `target`    | `string` | –    | 対象モデル・インターフェース・イベント               |
+| `value`     | `any`    | ✓    | 方針のしきい値または設定値                           |
+| `reference` | `string` | –    | 根拠となる ADR・標準                                 |
+
+`security.policy` はアプリケーション・業界規格・組織ルールに依存するため、SCL コアでは列挙しない。特定の処理系やサンプルが解釈する policy 名は、その処理系側の仕様または ADR に記録する。
+
+### 3.9 複数コンテキスト
+
+機能数が増え、変更の主軸が機能側に移ったシステムは、境界づけられたコンテキストに縦割りできる。各コンテキストは §2 冒頭の8セクション構造をそのまま持つ独立した SCL ドキュメントであり、コンテキスト間の関係は1つのコンテキストマップが宣言する。コンテキストが1つだけのシステムにはマップは不要。
+
+**マップキー**: コンテキスト名。各コンテキストの SCL ドキュメントの `system` と対応する。
+
+| プロパティ              | 型                                                                                                       | 必須 | 説明                                                                        |
+| ----------------------- | -------------------------------------------------------------------------------------------------------- | ---- | --------------------------------------------------------------------------- |
+| `publishes`             | `string[]`                                                                                               | -    | 他コンテキストが `Context.Name` で参照してよい名前。既定は空＝全面非公開    |
+| `depends_on`            | `map[string, Dependency]`                                                                                | -    | 依存する上流コンテキスト。キーは上流コンテキスト名                          |
+| `depends_on.<ctx>.uses` | `string[]`                                                                                               | ✓    | 実際に参照する名前。各要素は上流の `publishes` に含まれていなければならない |
+| `depends_on.<ctx>.via`  | `shared_kernel` \| `published_language` \| `customer_supplier` \| `conformist` \| `anticorruption_layer` | -    | 統合パターン（助言的）                                                      |
+
+## 4 型システム
+
+### 4.1 組み込み型
+
+| 型          | 説明                         |
+| ----------- | ---------------------------- |
+| `String`    | 文字列                       |
+| `Integer`   | 整数                         |
+| `Float`     | 浮動小数点数                 |
+| `Boolean`   | 真偽                         |
+| `UUID`      | UUID v4                      |
+| `Date`      | 日付 (ISO 8601)              |
+| `Timestamp` | 時刻 (RFC 3339, UTC)         |
+| `Duration`  | 期間 (例: `30d`, `5m`, `7y`) |
+| `JSON`      | 任意の JSON 値               |
+| `Bytes`     | バイト列                     |
+
+### 4.2 パラメトリック型
+
+文字列形式で書く。
+
+| 表記        | 説明                      |
+| ----------- | ------------------------- |
+| `T[]`       | `T` の順序付きリスト      |
+| `Set<T>`    | `T` の集合                |
+| `Map<K, V>` | キー `K`・値 `V` のマップ |
+
+ユーザ定義型（`models` 内のキー）も `type:` の値として直接書ける。
+
+### 4.3 制約 (Constraint)
+
+`FieldDef.constraints` に書ける制約。短いものは文字列、パラメータを取るものはマップで書く。
+
+| 制約                 | 適用型                 | 説明                                      |
+| -------------------- | ---------------------- | ----------------------------------------- |
+| `non_empty`          | String, List, Set, Map | 長さ 1 以上                               |
+| `{ max_length: N }`  | String, List, Set      | 最大長                                    |
+| `{ min_length: N }`  | String, List, Set      | 最小長                                    |
+| `{ min: N }`         | Integer, Float         | 最小値                                    |
+| `{ max: N }`         | Integer, Float         | 最大値                                    |
+| `{ pattern: regex }` | String                 | 正規表現マッチ                            |
+| `{ format: name }`   | String                 | 名前付き形式（`email`, `url`, `e164` 等） |
+| `unique`             | List, Set              | 要素重複なし                              |
+
+## 5 式 (Expression) の文法
+
+`properties.always` / `properties.never`、`state_machines.transitions.guard`、`permissions.allow_when` / `permissions.deny_when` に書ける式。式は次の3形式のいずれかで書ける。
+
+- **文字列式**: `"actor.role == Admin"`
+- **構造化論理式**: `{ and: [...] }`, `{ or: [...] }`, `{ not: ... }`
+- **構造化述語**: `{ in: [field, set] }`, `{ exists: field }`, etc.
+
+文字列式と構造化形式は混在可能。
+
+### 5.1 演算子・述語
+
+| 形式                                                | 説明                                                                |
+| --------------------------------------------------- | ------------------------------------------------------------------- |
+| `==`, `!=`, `>`, `<`, `>=`, `<=`                    | 比較（文字列式内）                                                  |
+| `+`, `-`, `*`, `/`                                  | 算術（文字列式内）                                                  |
+| `and: [expr, ...]`                                  | 論理積                                                              |
+| `or: [expr, ...]`                                   | 論理和                                                              |
+| `not: expr`                                         | 否定                                                                |
+| `in: [value, collection]`                           | 集合包含                                                            |
+| `not_in: [value, collection]`                       | 集合非包含                                                          |
+| `exists: <field>`                                   | フィールドが値を持つ（`null`/未設定でない）                         |
+| `not_exists: <field>`                               | フィールドが値を持たない                                            |
+| `equals: [a, b]`                                    | 等価（構造化形式）                                                  |
+| `forall: { in: <collection>, satisfies: <expr> }`   | 集合の全要素について真。各要素は `satisfies` 内で `x` として参照可  |
+| `exists: { in: <collection>, satisfies: <expr> }`   | 集合のいずれかの要素について真。要素は `x` で参照可                 |
+| `count: <collection>`                               | 要素数（数値式。比較やしきい値に使う）                              |
+| `len: <collection-or-string>`                       | 長さ（コレクションまたは文字列）                                    |
+
+`exists` は単独で文字列を取ればフィールド存在チェック、`{ in, satisfies }` を取れば集合の存在量化子になる（引数の形で曖昧性なく解釈される）。`<collection>` にはフィールド参照（`audience`）、モデル名（`Consents`）、リテラル（`[1, 2, 3]`）のいずれも書ける。
+
+### 5.2 変数
+
+**`properties` 内**:
+
+| 変数              | 説明                                |
+| ----------------- | ----------------------------------- |
+| `<field>`         | `target` モデルの現在のフィールド値 |
+| `prev.<field>`    | イベント適用前の値                  |
+| `next.<field>`    | イベント適用後の値                  |
+| `event`           | 現在のイベント名                    |
+| `<Model>.values`  | enum モデルの値の集合               |
+| `<Model>.<field>` | 他モデルへの参照                    |
+
+**`state_machines.guard` 内**:
+
+| 変数            | 説明                          |
+| --------------- | ----------------------------- |
+| `<field>`       | `target` モデルのフィールド値 |
+| `input.<field>` | 遷移を引き起こした入力        |
+
+**`permissions` 内**:
+
+| 変数               | 説明                            |
+| ------------------ | ------------------------------- |
+| `actor.<field>`    | アクター（呼び出し主体）の属性  |
+| `resource.<field>` | リソースの属性                  |
+| `context.<field>`  | 呼び出し時の文脈（時刻・IP 等） |
+
+## 6 派生関係
+
+SCL は単一の上流ソースである。下流は3層の生成チェーンを成し、保存するのは (1) のみ。(2) (3) はいつでも作り直される。
+
+1. **SCL（保存対象）** — 上記 8 セクション
+2. **ワイヤ形式・ポリシー・ルール（生成物）** — OpenAPI / JSON Schema / Protobuf / AsyncAPI / Cedar / OPA Rego / OpenSLO 監視ルール / Mermaid 状態機械図 / シーケンス図
+3. **言語バインディング・実装・テスト（生成物）** — TypeScript の Zod、Python の Pydantic、Go の構造体、プロパティテスト、行動テスト
+
+## 7 記法と保存形式
+
+SCL の本質はその抽象構造であり、シリアライズ形式は次の要件を満たすものを選ぶ。
+
+- 構造化（list / map / 型付き値）
+- スキーマ検証可能
+- バージョン管理可能（テキスト diff が取れる）
+- 長期保存可能（ベンダ独自形式を採らない）
+
+現時点での実装形式として **YAML** を推奨する。代替として JSON・CUE も可。重要なのは選んだ形式自体ではなく、SCL の抽象構造を逸脱しないことである。
+
+## 8 変更管理とデータ連続性
+
+SCL の変更は本質的にビジネスルールの変更である。各変更は第2層 ADR と対で進める。SCL は「現時点の何を保存するか」、ADR は「なぜそう保存することにしたか」を保持し、両者は一体である。
+
+SCL は現時点の定義のみを保持し、バージョン間の変遷履歴は持たない。変更の意図・後方互換性・段階展開の方針は ADR に記録される。実際のデータマイグレーション——旧スキーマから新スキーマへの変換ロジック・バックフィル・後方互換アダプタ——は、新旧 SCL の差分と ADR を入力として第3層・第4層が導出・実行する。

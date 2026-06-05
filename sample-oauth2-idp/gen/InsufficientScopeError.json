@@ -1,0 +1,13 @@
+{
+  "$id": "urn:idp:InsufficientScopeError",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "InsufficientScopeError",
+      "type": "string"
+    }
+  },
+  "required": [
+    "type"
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "$id": "urn:idp:TokenIntrospected",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "TokenIntrospected",
+      "type": "string"
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "rsClientId": {
+      "type": "string"
+    },
+    "tokenId": {
+      "type": "string"
+    },
+    "active": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "type",
+    "occurredAt",
+    "rsClientId",
+    "tokenId",
+    "active"
+  ]
+}

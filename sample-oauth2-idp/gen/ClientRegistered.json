@@ -1,0 +1,29 @@
+{
+  "$id": "urn:idp:ClientRegistered",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "ClientRegistered",
+      "type": "string"
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "clientId": {
+      "type": "string"
+    },
+    "clientType": {
+      "type": "string",
+      "enum": [
+        "public",
+        "confidential"
+      ]
+    }
+  },
+  "required": [
+    "type",
+    "occurredAt",
+    "clientId"
+  ]
+}

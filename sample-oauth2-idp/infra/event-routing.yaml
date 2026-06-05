@@ -1,0 +1,101 @@
+# infra/event-routing.yaml
+#
+# Layer 5 — 運用契約
+#
+# ドメインイベント (spec/scl.yaml の event models) の配送経路。
+# どのイベントをどの Kafka topic に流し、何で partition するかの**運用契約**を保持する。
+# at-least-once 配送、partition key により ordering 保証。
+#
+# 消費者:
+#   - adapters/persistence/postgres/outbox-event-sink.ts (event → topic 解決)
+#   - adapters/event-sink/kafka-relay.ts (partition key, topic config)
+#   - infra/scripts/check-spec-coherence.ts (drift 検知: gen/DomainEvent.json ⇔ event_to_topic)
+#   - src/spec-bindings/invariants.test.ts (同上)
+
+# -------------------------------------------------------------------
+# Topic 定義: Kafka 側の運用設定
+# -------------------------------------------------------------------
+topics:
+  oauth2.client.lifecycle.v1:
+    partition_key: clientId
+    partitions: 3
+    replicas: 3
+    description: クライアント登録・メタデータ更新イベント
+
+  oauth2.authentication.v1:
+    partition_key: sub_or_hashed_source
+    partitions: 12     # 認証イベントは高スループット (introspect の RPS 20k)
+    replicas: 3
+    description: 認証成功・失敗イベント (SIEM の主要 source)
+
+  oauth2.consent.v1:
+    partition_key: sub
+    partitions: 3
+    replicas: 3
+    description: コンセント発行・取消イベント (GDPR 監査 source)
+
+  oauth2.authorization-code.v1:
+    partition_key: sub
+    partitions: 12
+    replicas: 3
+    description: 認可コード発行・交換イベント
+
+  oauth2.token.v1:
+    partition_key: sub
+    partitions: 24     # 最大スループット (リフレッシュ系列の ordering 保証)
+    replicas: 3
+    description: アクセストークン・リフレッシュトークン関連イベント
+
+  oauth2.security-incident.v1:
+    partition_key: familyId
+    partitions: 3
+    replicas: 3
+    description: |
+      セキュリティインシデント系イベント。
+      consumer (SIEM / PagerDuty) は 60 秒以内に通知
+      (slo.yaml refresh_reuse_alert_window_seconds)。
+
+  oauth2.key-management.v1:
+    partition_key: kid
+    partitions: 1      # 厳密順序が必要
+    replicas: 3
+    description: 署名鍵ローテーションイベント (ADR-009)
+
+  oauth2.par.v1:
+    partition_key: clientId
+    partitions: 3
+    replicas: 3
+    description: Pushed Authorization Request 格納イベント (低頻度・FAPI 監査用)
+
+  oauth2.device-authorization.v1:
+    partition_key: clientId
+    partitions: 3
+    replicas: 3
+    description: |
+      デバイス認可グラント (RFC 8628) のライフサイクルイベント。
+      user_code への総当たり検知 (SIEM) と承認監査に使う。
+
+# -------------------------------------------------------------------
+# Event → Topic mapping
+# -------------------------------------------------------------------
+# gen/DomainEvent.json の oneOf に登場するすべての type が、
+# 必ず1つの topic にマップされなければならない (check-spec-coherence が検証)。
+event_to_topic:
+  ClientRegistered:             oauth2.client.lifecycle.v1
+  UserAuthenticated:            oauth2.authentication.v1
+  AuthenticationFailed:         oauth2.authentication.v1
+  ConsentGranted:               oauth2.consent.v1
+  ConsentRevoked:               oauth2.consent.v1
+  AuthorizationCodeIssued:      oauth2.authorization-code.v1
+  AuthorizationCodeRedeemed:    oauth2.authorization-code.v1
+  AccessTokenIssued:            oauth2.token.v1
+  RefreshTokenIssued:           oauth2.token.v1
+  RefreshTokenRotated:          oauth2.token.v1
+  TokenRevoked:                 oauth2.token.v1
+  TokenIntrospected:            oauth2.token.v1
+  RefreshTokenReuseDetected:    oauth2.security-incident.v1
+  SigningKeyRotated:            oauth2.key-management.v1
+  PARStored:                    oauth2.par.v1
+  DeviceAuthorizationRequested: oauth2.device-authorization.v1
+  DeviceAuthorizationApproved:  oauth2.device-authorization.v1
+  DeviceAuthorizationDenied:    oauth2.device-authorization.v1

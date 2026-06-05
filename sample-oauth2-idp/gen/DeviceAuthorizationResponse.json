@@ -1,0 +1,34 @@
+{
+  "$id": "urn:idp:DeviceAuthorizationResponse",
+  "type": "object",
+  "additionalProperties": false,
+  "description": "/device_authorization レスポンス (RFC 8628 §3.2)。device_code・user_code・verification_uri を返し、デバイスはポーリングへ移行する。",
+  "properties": {
+    "device_code": {
+      "type": "string"
+    },
+    "user_code": {
+      "type": "string"
+    },
+    "verification_uri": {
+      "type": "string",
+      "format": "uri"
+    },
+    "verification_uri_complete": {
+      "type": "string",
+      "format": "uri"
+    },
+    "expires_in": {
+      "type": "integer"
+    },
+    "interval": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "device_code",
+    "user_code",
+    "verification_uri",
+    "expires_in"
+  ]
+}

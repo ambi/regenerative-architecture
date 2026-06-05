@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: oauth2-idp
+  labels:
+    app.kubernetes.io/name: oauth2-idp
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: oauth2-idp
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: oauth2-idp
+  labels:
+    app.kubernetes.io/name: oauth2-idp
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: oauth2-idp-config
+data:
+  issuer: https://idp.example.com   # overlay で上書き

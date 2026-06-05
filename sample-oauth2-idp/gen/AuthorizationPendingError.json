@@ -1,0 +1,13 @@
+{
+  "$id": "urn:idp:AuthorizationPendingError",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "AuthorizationPendingError",
+      "type": "string"
+    }
+  },
+  "required": [
+    "type"
+  ]
+}

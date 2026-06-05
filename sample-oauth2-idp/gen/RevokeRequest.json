@@ -1,0 +1,21 @@
+{
+  "$id": "urn:idp:RevokeRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "description": "/revoke リクエスト (RFC 7009 §2.1)。指定したトークンを失効させる。",
+  "properties": {
+    "token": {
+      "type": "string"
+    },
+    "token_type_hint": {
+      "type": "string",
+      "enum": [
+        "access_token",
+        "refresh_token"
+      ]
+    }
+  },
+  "required": [
+    "token"
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "$id": "urn:idp:RefreshTokenRotated",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "RefreshTokenRotated",
+      "type": "string"
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "oldTokenId": {
+      "type": "string"
+    },
+    "newTokenId": {
+      "type": "string"
+    },
+    "familyId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "type",
+    "occurredAt",
+    "oldTokenId",
+    "newTokenId",
+    "familyId"
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "$id": "urn:idp:domain-events",
+  "oneOf": [
+    {
+      "$ref": "ClientRegistered.json"
+    },
+    {
+      "$ref": "UserAuthenticated.json"
+    },
+    {
+      "$ref": "AuthenticationFailed.json"
+    },
+    {
+      "$ref": "ConsentGranted.json"
+    },
+    {
+      "$ref": "ConsentRevoked.json"
+    },
+    {
+      "$ref": "AuthorizationCodeIssued.json"
+    },
+    {
+      "$ref": "AuthorizationCodeRedeemed.json"
+    },
+    {
+      "$ref": "AccessTokenIssued.json"
+    },
+    {
+      "$ref": "RefreshTokenIssued.json"
+    },
+    {
+      "$ref": "RefreshTokenRotated.json"
+    },
+    {
+      "$ref": "TokenRevoked.json"
+    },
+    {
+      "$ref": "TokenIntrospected.json"
+    },
+    {
+      "$ref": "RefreshTokenReuseDetected.json"
+    },
+    {
+      "$ref": "SigningKeyRotated.json"
+    },
+    {
+      "$ref": "PARStored.json"
+    },
+    {
+      "$ref": "DeviceAuthorizationRequested.json"
+    },
+    {
+      "$ref": "DeviceAuthorizationApproved.json"
+    },
+    {
+      "$ref": "DeviceAuthorizationDenied.json"
+    }
+  ]
+}

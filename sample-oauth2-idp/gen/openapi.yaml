@@ -1,0 +1,1912 @@
+openapi: 3.0.3
+info:
+  title: "OAuth2 / OIDC IdP"
+  version: "1.0"
+paths:
+  /register:
+    post:
+      operationId: registerClient
+      summary: Dynamic Client Registration (RFC 7591)
+      responses:
+        200:
+          description: Dynamic Client Registration (RFC 7591)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuth2Client"
+        400:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthError"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClientRegistrationRequest"
+  /authorize:
+    get:
+      operationId: authorize
+      summary: Authorization endpoint (RFC 6749 §4.1.1)
+      responses:
+        302:
+          description: Authorization endpoint (RFC 6749 §4.1.1)
+        400:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthError"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthorizeParameters"
+  /par:
+    post:
+      operationId: pushAuthorizationRequest
+      summary: Pushed Authorization Request (RFC 9126)
+      responses:
+        200:
+          description: Pushed Authorization Request (RFC 9126)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ParResponse"
+        400:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthError"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ParRequest"
+  /token:
+    post:
+      operationId: token
+      summary: Token endpoint (RFC 6749 §3.2 + 9068 + 9449)
+      responses:
+        200:
+          description: Token endpoint (RFC 6749 §3.2 + 9068 + 9449)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenResponse"
+        400:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthError"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TokenRequest"
+  /introspect:
+    post:
+      operationId: introspect
+      summary: Token Introspection (RFC 7662)
+      responses:
+        200:
+          description: Token Introspection (RFC 7662)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntrospectionResponse"
+        400:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthError"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IntrospectionRequest"
+  /revoke:
+    post:
+      operationId: revoke
+      summary: Token Revocation (RFC 7009)
+      responses:
+        200:
+          description: Token Revocation (RFC 7009)
+        400:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthError"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RevokeRequest"
+  /userinfo:
+    get:
+      operationId: userInfo
+      summary: UserInfo (OIDC Core §5.3)
+      responses:
+        200:
+          description: UserInfo (OIDC Core §5.3)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserInfoResponse"
+        400:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthError"
+  /device_authorization:
+    post:
+      operationId: deviceAuthorization
+      summary: Device Authorization Request (RFC 8628 §3.1)
+      responses:
+        200:
+          description: Device Authorization Request (RFC 8628 §3.1)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceAuthorizationResponse"
+        400:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthError"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeviceAuthorizationRequest"
+  /jwks:
+    get:
+      operationId: getJwks
+      summary: JWKS (RFC 7517)
+      responses:
+        200:
+          description: JWKS (RFC 7517)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JWKS"
+  /.well-known/openid-configuration:
+    get:
+      operationId: getOpenidConfiguration
+      summary: OIDC Discovery
+      responses:
+        200:
+          description: OIDC Discovery
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscoveryDocument"
+  /.well-known/oauth-authorization-server:
+    get:
+      operationId: getOauthAuthorizationServer
+      summary: OAuth 2.0 Authorization Server Metadata (RFC 8414)
+      responses:
+        200:
+          description: OAuth 2.0 Authorization Server Metadata (RFC 8414)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscoveryDocument"
+  /health:
+    get:
+      operationId: health
+      summary: Health check
+      responses:
+        200:
+          description: Health check
+components:
+  schemas:
+    ClientType:
+      type: string
+      enum:
+        - public
+        - confidential
+    GrantType:
+      type: string
+      enum:
+        - authorization_code
+        - refresh_token
+        - client_credentials
+        - "urn:ietf:params:oauth:grant-type:device_code"
+    TokenEndpointAuthMethod:
+      type: string
+      enum:
+        - client_secret_basic
+        - client_secret_post
+        - private_key_jwt
+        - tls_client_auth
+        - none
+    ResponseType:
+      type: string
+      enum:
+        - code
+    ResponseMode:
+      type: string
+      enum:
+        - Query
+        - FormPost
+    SignatureAlgorithm:
+      type: string
+      enum:
+        - PS256
+        - ES256
+    FapiProfile:
+      type: string
+      enum:
+        - none
+        - fapi_2_security_profile
+    TokenType:
+      type: string
+      enum:
+        - access_token
+        - refresh_token
+    SenderConstraintKind:
+      type: string
+      enum:
+        - dpop
+        - mtls
+    AccessTokenSenderConstraint:
+      type: string
+      enum:
+        - none
+        - dpop
+        - mtls
+    CodeChallengeMethod:
+      type: string
+      enum:
+        - S256
+    AuthorizationCodeState:
+      type: string
+      enum:
+        - received
+        - authentication_pending
+        - authenticated
+        - consent_pending
+        - consented
+        - code_issued
+        - exchanged
+        - rejected
+        - expired
+    DeviceCodeState:
+      type: string
+      enum:
+        - issued
+        - user_code_entered
+        - authorization_pending
+        - approved
+        - denied
+        - exchanged
+        - expired
+    RefreshTokenState:
+      type: string
+      enum:
+        - active
+        - rotated
+        - revoked
+        - expired
+    AuthorizationCodeRecordState:
+      type: string
+      enum:
+        - issued
+        - redeemed
+        - expired
+    ConsentState:
+      type: string
+      enum:
+        - granted
+        - revoked
+        - expired
+    PARRecordState:
+      type: string
+      enum:
+        - stored
+        - used
+        - expired
+    SigningKeyState:
+      type: string
+      enum:
+        - active
+        - verifying
+        - retired
+        - archived
+    OAuthErrorCode:
+      type: string
+      enum:
+        - InvalidRequest
+        - InvalidClient
+        - InvalidGrant
+        - UnauthorizedClient
+        - UnsupportedGrantType
+        - InvalidScope
+        - InvalidToken
+        - ServerError
+        - InvalidDpopProof
+        - AccessDenied
+        - ExpiredToken
+        - slow_down
+        - InsufficientScope
+        - authorization_pending
+    OAuth2Client:
+      type: object
+      additionalProperties: false
+      description: RFC 7591 + FAPI 2.0 拡張のクライアント。
+      properties:
+        client_id:
+          type: string
+          minLength: 1
+          maxLength: 128
+        client_secret_hash:
+          type: string
+        client_name:
+          type: string
+          maxLength: 200
+        client_type:
+          type: string
+          enum:
+            - public
+            - confidential
+        redirect_uris:
+          type: array
+          items:
+            type: string
+            format: uri
+          minItems: 1
+        grant_types:
+          type: array
+          items:
+            type: string
+            enum:
+              - authorization_code
+              - refresh_token
+              - client_credentials
+              - "urn:ietf:params:oauth:grant-type:device_code"
+          minItems: 1
+        response_types:
+          type: array
+          items:
+            type: string
+            enum:
+              - code
+        token_endpoint_auth_method:
+          type: string
+          enum:
+            - client_secret_basic
+            - client_secret_post
+            - private_key_jwt
+            - tls_client_auth
+            - none
+        scope:
+          type: string
+        jwks_uri:
+          type: string
+          format: uri
+        jwks: {}
+        tls_client_auth_subject_dn:
+          type: string
+        id_token_signed_response_alg:
+          type: string
+          enum:
+            - PS256
+            - ES256
+        require_pushed_authorization_requests:
+          type: boolean
+        dpop_bound_access_tokens:
+          type: boolean
+        fapi_profile:
+          type: string
+          enum:
+            - none
+            - fapi_2_security_profile
+        created_at:
+          type: string
+          format: "date-time"
+      required:
+        - client_id
+        - client_type
+        - redirect_uris
+        - grant_types
+        - response_types
+        - token_endpoint_auth_method
+        - scope
+        - id_token_signed_response_alg
+        - require_pushed_authorization_requests
+        - dpop_bound_access_tokens
+        - fapi_profile
+        - created_at
+    User:
+      type: object
+      additionalProperties: false
+      description: OIDC Core §5.1 標準クレーム + PII 注釈付きユーザー。
+      properties:
+        sub:
+          type: string
+          minLength: 1
+        preferred_username:
+          type: string
+          minLength: 1
+          maxLength: 100
+        password_hash:
+          type: string
+        name:
+          type: string
+        given_name:
+          type: string
+        family_name:
+          type: string
+        email:
+          type: string
+          format: email
+        email_verified:
+          type: boolean
+        mfa_enrolled:
+          type: boolean
+        created_at:
+          type: string
+          format: "date-time"
+        updated_at:
+          type: string
+          format: "date-time"
+        deleted_at:
+          type: string
+          format: "date-time"
+      required:
+        - sub
+        - preferred_username
+        - password_hash
+        - email_verified
+        - mfa_enrolled
+        - created_at
+    Consent:
+      type: object
+      additionalProperties: false
+      description: GDPR 同意取得記録。状態は ConsentLifecycle 状態機械に従う。
+      properties:
+        sub:
+          type: string
+        client_id:
+          type: string
+        scopes:
+          type: array
+          items:
+            type: string
+          minItems: 1
+          uniqueItems: true
+        state:
+          type: string
+          enum:
+            - granted
+            - revoked
+            - expired
+        granted_at:
+          type: string
+          format: "date-time"
+        expires_at:
+          type: string
+          format: "date-time"
+        revoked_at:
+          type: string
+          format: "date-time"
+      required:
+        - sub
+        - client_id
+        - scopes
+        - state
+        - granted_at
+        - expires_at
+    RefreshTokenRecord:
+      type: object
+      additionalProperties: false
+      description: リフレッシュトークンのストアレコード。プレーン値は保存しない。状態は RefreshTokenLifecycle 状態機械に従う。
+      properties:
+        id:
+          type: string
+          format: uuid
+        hash:
+          type: string
+        family_id:
+          type: string
+          format: uuid
+        parent_id:
+          type: string
+          format: uuid
+        client_id:
+          type: string
+        sub:
+          type: string
+        scopes:
+          type: array
+          items:
+            type: string
+        state:
+          type: string
+          enum:
+            - active
+            - rotated
+            - revoked
+            - expired
+        issued_at:
+          type: string
+          format: "date-time"
+        expires_at:
+          type: string
+          format: "date-time"
+        absolute_expires_at:
+          type: string
+          format: "date-time"
+        sender_constraint:
+          $ref: "#/components/schemas/RefreshTokenSenderConstraint"
+      required:
+        - id
+        - hash
+        - family_id
+        - client_id
+        - sub
+        - scopes
+        - state
+        - issued_at
+        - expires_at
+        - absolute_expires_at
+    AuthorizationRequest:
+      type: object
+      additionalProperties: false
+      description: フロー追跡用のサーバー内部中間ステート。
+      properties:
+        id:
+          type: string
+          format: uuid
+        state:
+          type: string
+          enum:
+            - received
+            - authentication_pending
+            - authenticated
+            - consent_pending
+            - consented
+            - code_issued
+            - exchanged
+            - rejected
+            - expired
+        client_id:
+          type: string
+        redirect_uri:
+          type: string
+          format: uri
+        response_type:
+          type: string
+          enum:
+            - code
+        scope:
+          type: string
+        state_param:
+          type: string
+        nonce:
+          type: string
+        code_challenge:
+          type: string
+        code_challenge_method:
+          type: string
+          enum:
+            - S256
+        prompt:
+          type: string
+        max_age:
+          type: integer
+          minimum: 0
+        par_request_uri:
+          type: string
+        sub:
+          type: string
+        auth_time:
+          type: integer
+        created_at:
+          type: string
+          format: "date-time"
+        expires_at:
+          type: string
+          format: "date-time"
+      required:
+        - id
+        - state
+        - client_id
+        - redirect_uri
+        - response_type
+        - scope
+        - code_challenge
+        - code_challenge_method
+        - created_at
+        - expires_at
+    AuthorizationCodeRecord:
+      type: object
+      additionalProperties: false
+      description: 発行済み認可コードの永続レコード。code 本体は短命。状態は AuthorizationCodeRecordLifecycle に従う（AuthorizationCodeFlow とは別軸でコード自体のライフサイクルを表す）。
+      properties:
+        code:
+          type: string
+        authorization_request_id:
+          type: string
+          format: uuid
+        client_id:
+          type: string
+        sub:
+          type: string
+        scopes:
+          type: array
+          items:
+            type: string
+        redirect_uri:
+          type: string
+          format: uri
+        code_challenge:
+          type: string
+        code_challenge_method:
+          type: string
+          enum:
+            - S256
+        nonce:
+          type: string
+        auth_time:
+          type: integer
+        state:
+          type: string
+          enum:
+            - issued
+            - redeemed
+            - expired
+        issued_at:
+          type: string
+          format: "date-time"
+        expires_at:
+          type: string
+          format: "date-time"
+        redeemed_at:
+          type: string
+          format: "date-time"
+        issued_family_id:
+          type: string
+          format: uuid
+      required:
+        - code
+        - authorization_request_id
+        - client_id
+        - sub
+        - scopes
+        - redirect_uri
+        - code_challenge
+        - code_challenge_method
+        - auth_time
+        - state
+        - issued_at
+        - expires_at
+    PARRecord:
+      type: object
+      additionalProperties: false
+      description: Pushed Authorization Request の格納レコード。状態は PARRecordLifecycle に従う。
+      properties:
+        request_uri:
+          type: string
+        client_id:
+          type: string
+        parameters:
+          type: object
+          additionalProperties:
+            type: string
+        state:
+          type: string
+          enum:
+            - stored
+            - used
+            - expired
+        issued_at:
+          type: string
+          format: "date-time"
+        expires_at:
+          type: string
+          format: "date-time"
+      required:
+        - request_uri
+        - client_id
+        - parameters
+        - state
+        - issued_at
+        - expires_at
+    DeviceAuthorization:
+      type: object
+      additionalProperties: false
+      description: RFC 8628 デバイス認可レコード。device_code はハッシュのみで保存する。
+      properties:
+        device_code_hash:
+          type: string
+        user_code:
+          type: string
+        client_id:
+          type: string
+        scopes:
+          type: array
+          items:
+            type: string
+        state:
+          type: string
+          enum:
+            - issued
+            - user_code_entered
+            - authorization_pending
+            - approved
+            - denied
+            - exchanged
+            - expired
+        sub:
+          type: string
+        auth_time:
+          type: integer
+        interval_seconds:
+          type: integer
+          minimum: 1
+        last_polled_at:
+          type: string
+          format: "date-time"
+        issued_family_id:
+          type: string
+          format: uuid
+        issued_at:
+          type: string
+          format: "date-time"
+        expires_at:
+          type: string
+          format: "date-time"
+      required:
+        - device_code_hash
+        - user_code
+        - client_id
+        - scopes
+        - state
+        - interval_seconds
+        - issued_at
+        - expires_at
+    SigningKey:
+      type: object
+      additionalProperties: false
+      description: "トークン署名用の非対称鍵。Active 1本＋Verifying 過去鍵 0本以上を JWKS に並べる（ADR-009 / SigningKeyMinJwksOverlap）。"
+      properties:
+        kid:
+          type: string
+          minLength: 1
+        alg:
+          type: string
+          enum:
+            - PS256
+            - ES256
+        public_jwk:
+          $ref: "#/components/schemas/JWK"
+        state:
+          type: string
+          enum:
+            - active
+            - verifying
+            - retired
+            - archived
+        created_at:
+          type: string
+          format: "date-time"
+        activated_at:
+          type: string
+          format: "date-time"
+        retired_at:
+          type: string
+          format: "date-time"
+        archived_at:
+          type: string
+          format: "date-time"
+      required:
+        - kid
+        - alg
+        - public_jwk
+        - state
+        - created_at
+    SenderConstraintCnf:
+      type: object
+      additionalProperties: false
+      description: "Sender-Constrained 証明 (RFC 7800)。"
+      properties:
+        jkt:
+          type: string
+        x5t_s256:
+          type: string
+    RefreshTokenSenderConstraint:
+      type: object
+      additionalProperties: false
+      description: RefreshToken に紐づくセンダー制約。発行時のバインド先（DPoP 鍵サムプリントまたは mTLS 証明書サムプリント）を保持する。
+      properties:
+        type:
+          type: string
+          enum:
+            - dpop
+            - mtls
+        jkt:
+          type: string
+        x5t_s256:
+          type: string
+      required:
+        - type
+    AccessTokenClaims:
+      type: object
+      additionalProperties: false
+      description: JWT Access Token クレーム (RFC 9068)。TTL 600 秒。
+      properties:
+        iss:
+          type: string
+          format: uri
+        sub:
+          type: string
+        aud:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: string
+        client_id:
+          type: string
+        scope:
+          type: string
+        exp:
+          type: integer
+        iat:
+          type: integer
+        nbf:
+          type: integer
+        jti:
+          type: string
+        auth_time:
+          type: integer
+        acr:
+          type: string
+        amr:
+          type: array
+          items:
+            type: string
+        cnf:
+          $ref: "#/components/schemas/SenderConstraintCnf"
+      required:
+        - iss
+        - sub
+        - aud
+        - client_id
+        - scope
+        - exp
+        - iat
+        - jti
+    IdTokenClaims:
+      type: object
+      additionalProperties: false
+      description: OIDC ID Token クレーム。TTL 3600 秒。
+      properties:
+        iss:
+          type: string
+          format: uri
+        sub:
+          type: string
+        aud:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: string
+        exp:
+          type: integer
+        iat:
+          type: integer
+        auth_time:
+          type: integer
+        nonce:
+          type: string
+        acr:
+          type: string
+        amr:
+          type: array
+          items:
+            type: string
+        azp:
+          type: string
+        at_hash:
+          type: string
+        c_hash:
+          type: string
+        name:
+          type: string
+        preferred_username:
+          type: string
+        email:
+          type: string
+          format: email
+        email_verified:
+          type: boolean
+      required:
+        - iss
+        - sub
+        - aud
+        - exp
+        - iat
+        - auth_time
+    Audience:
+      type: object
+      additionalProperties: false
+      description: 文字列または1つ以上の文字列の配列（JWT RFC 7519 §4.1.3）。
+      properties:
+        one_or_many: {}
+      required:
+        - one_or_many
+    Uri:
+      type: object
+      additionalProperties: false
+      description: URI 形式の文字列。
+      properties:
+        value:
+          type: string
+          format: uri
+      required:
+        - value
+    JWK:
+      type: object
+      additionalProperties: false
+      description: JSON Web Key (RFC 7517)。kid で識別される 1 件の公開鍵情報。
+      properties:
+        kty:
+          type: string
+        use:
+          type: string
+        kid:
+          type: string
+        alg:
+          type: string
+        extra: {}
+      required:
+        - kty
+        - kid
+    JWKS:
+      type: object
+      additionalProperties: false
+      description: JWK Set (RFC 7517 §5)。/jwks エンドポイントが返す公開鍵集合。クライアントがトークン署名を検証する際に取得する。
+      properties:
+        keys:
+          type: array
+          items:
+            $ref: "#/components/schemas/JWK"
+      required:
+        - keys
+    DiscoveryDocument:
+      type: object
+      additionalProperties: false
+      description: RFC 8414 / OIDC Discovery 1.0 メタデータ。
+      properties:
+        issuer:
+          type: string
+          format: uri
+        authorization_endpoint:
+          type: string
+          format: uri
+        token_endpoint:
+          type: string
+          format: uri
+        userinfo_endpoint:
+          type: string
+          format: uri
+        jwks_uri:
+          type: string
+          format: uri
+        introspection_endpoint:
+          type: string
+          format: uri
+        revocation_endpoint:
+          type: string
+          format: uri
+        pushed_authorization_request_endpoint:
+          type: string
+          format: uri
+        device_authorization_endpoint:
+          type: string
+          format: uri
+        registration_endpoint:
+          type: string
+          format: uri
+        end_session_endpoint:
+          type: string
+          format: uri
+        scopes_supported:
+          type: array
+          items:
+            type: string
+        response_types_supported:
+          type: array
+          items:
+            type: string
+            enum:
+              - code
+        response_modes_supported:
+          type: array
+          items:
+            type: string
+            enum:
+              - Query
+              - FormPost
+        grant_types_supported:
+          type: array
+          items:
+            type: string
+            enum:
+              - authorization_code
+              - refresh_token
+              - client_credentials
+              - "urn:ietf:params:oauth:grant-type:device_code"
+        token_endpoint_auth_methods_supported:
+          type: array
+          items:
+            type: string
+            enum:
+              - client_secret_basic
+              - client_secret_post
+              - private_key_jwt
+              - tls_client_auth
+              - none
+        id_token_signing_alg_values_supported:
+          type: array
+          items:
+            type: string
+            enum:
+              - PS256
+              - ES256
+        code_challenge_methods_supported:
+          type: array
+          items:
+            type: string
+            enum:
+              - S256
+        require_pushed_authorization_requests:
+          type: boolean
+        require_pkce:
+          type: boolean
+        dpop_signing_alg_values_supported:
+          type: array
+          items:
+            type: string
+            enum:
+              - PS256
+              - ES256
+        tls_client_certificate_bound_access_tokens:
+          type: boolean
+        claims_supported:
+          type: array
+          items:
+            type: string
+      required:
+        - issuer
+        - authorization_endpoint
+        - token_endpoint
+        - userinfo_endpoint
+        - jwks_uri
+        - introspection_endpoint
+        - revocation_endpoint
+        - pushed_authorization_request_endpoint
+        - device_authorization_endpoint
+        - registration_endpoint
+        - scopes_supported
+        - response_types_supported
+        - grant_types_supported
+        - token_endpoint_auth_methods_supported
+        - id_token_signing_alg_values_supported
+        - code_challenge_methods_supported
+        - require_pushed_authorization_requests
+        - require_pkce
+    ClientRegistrationRequest:
+      type: object
+      additionalProperties: false
+      description: /register への動的クライアント登録リクエスト本体 (RFC 7591)。登録後の OAuth2Client は本リクエストの内容から派生する。
+      properties:
+        redirect_uris:
+          type: array
+          items:
+            type: string
+            format: uri
+          minItems: 1
+        client_name:
+          type: string
+        client_type:
+          type: string
+          enum:
+            - public
+            - confidential
+        grant_types:
+          type: array
+          items:
+            type: string
+            enum:
+              - authorization_code
+              - refresh_token
+              - client_credentials
+              - "urn:ietf:params:oauth:grant-type:device_code"
+          minItems: 1
+        response_types:
+          type: array
+          items:
+            type: string
+            enum:
+              - code
+        token_endpoint_auth_method:
+          type: string
+          enum:
+            - client_secret_basic
+            - client_secret_post
+            - private_key_jwt
+            - tls_client_auth
+            - none
+        scope:
+          type: string
+        jwks_uri:
+          type: string
+          format: uri
+        jwks: {}
+        id_token_signed_response_alg:
+          type: string
+          enum:
+            - PS256
+            - ES256
+        fapi_profile:
+          type: string
+          enum:
+            - none
+            - fapi_2_security_profile
+      required:
+        - redirect_uris
+        - grant_types
+    TokenRequest:
+      type: object
+      additionalProperties: false
+      description: "application/x-www-form-urlencoded で送信される token endpoint リクエスト。"
+      properties:
+        grant_type:
+          type: string
+          enum:
+            - authorization_code
+            - refresh_token
+            - client_credentials
+            - "urn:ietf:params:oauth:grant-type:device_code"
+        code:
+          type: string
+        redirect_uri:
+          type: string
+        code_verifier:
+          type: string
+        refresh_token:
+          type: string
+        device_code:
+          type: string
+        client_id:
+          type: string
+        client_secret:
+          type: string
+        client_assertion:
+          type: string
+        client_assertion_type:
+          type: string
+        scope:
+          type: string
+      required:
+        - grant_type
+    TokenResponse:
+      type: object
+      additionalProperties: false
+      description: /token 成功時のレスポンスボディ (RFC 6749 §5.1)。発行されたトークン一式と種別を返す。
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+        expires_in:
+          type: integer
+        refresh_token:
+          type: string
+        id_token:
+          type: string
+        scope:
+          type: string
+      required:
+        - access_token
+        - token_type
+    IntrospectionRequest:
+      type: object
+      additionalProperties: false
+      description: /introspect リクエスト (RFC 7662 §2.1)。ResourceServer がトークンの有効性を AuthorizationServer に問い合わせる。
+      properties:
+        token:
+          type: string
+        token_type_hint:
+          type: string
+          enum:
+            - access_token
+            - refresh_token
+      required:
+        - token
+    IntrospectionResponse:
+      type: object
+      additionalProperties: false
+      description: /introspect レスポンス (RFC 7662 §2.2)。トークンの active 状態と有効時のメタデータを返す。
+      properties:
+        active:
+          type: boolean
+        scope:
+          type: string
+        client_id:
+          type: string
+        sub:
+          type: string
+        exp:
+          type: integer
+        iat:
+          type: integer
+        token_type:
+          type: string
+        jti:
+          type: string
+        cnf:
+          $ref: "#/components/schemas/SenderConstraintCnf"
+      required:
+        - active
+    RevokeRequest:
+      type: object
+      additionalProperties: false
+      description: /revoke リクエスト (RFC 7009 §2.1)。指定したトークンを失効させる。
+      properties:
+        token:
+          type: string
+        token_type_hint:
+          type: string
+          enum:
+            - access_token
+            - refresh_token
+      required:
+        - token
+    ParRequest:
+      type: object
+      additionalProperties: false
+      description: 任意の authorize パラメータを form で受け取る。
+      properties:
+        parameters:
+          type: object
+          additionalProperties:
+            type: string
+      required:
+        - parameters
+    ParResponse:
+      type: object
+      additionalProperties: false
+      description: /par レスポンス (RFC 9126 §2.2)。短命の request_uri を発行し、後続の /authorize から参照される。
+      properties:
+        request_uri:
+          type: string
+        expires_in:
+          type: integer
+      required:
+        - request_uri
+        - expires_in
+    DeviceAuthorizationRequest:
+      type: object
+      additionalProperties: false
+      description: /device_authorization リクエスト (RFC 8628 §3.1)。入力制約のあるデバイスからのフロー開始要求。
+      properties:
+        scope:
+          type: string
+        client_id:
+          type: string
+        client_secret:
+          type: string
+        client_assertion:
+          type: string
+        client_assertion_type:
+          type: string
+    DeviceAuthorizationResponse:
+      type: object
+      additionalProperties: false
+      description: /device_authorization レスポンス (RFC 8628 §3.2)。device_code・user_code・verification_uri を返し、デバイスはポーリングへ移行する。
+      properties:
+        device_code:
+          type: string
+        user_code:
+          type: string
+        verification_uri:
+          type: string
+          format: uri
+        verification_uri_complete:
+          type: string
+          format: uri
+        expires_in:
+          type: integer
+        interval:
+          type: integer
+      required:
+        - device_code
+        - user_code
+        - verification_uri
+        - expires_in
+    AuthorizeParameters:
+      type: object
+      additionalProperties: false
+      description: GET /authorize クエリパラメータ。
+      properties:
+        response_type:
+          type: string
+          enum:
+            - code
+        client_id:
+          type: string
+        redirect_uri:
+          type: string
+        scope:
+          type: string
+        state:
+          type: string
+        nonce:
+          type: string
+        code_challenge:
+          type: string
+        code_challenge_method:
+          type: string
+          enum:
+            - S256
+        prompt:
+          type: string
+        max_age:
+          type: integer
+        request_uri:
+          type: string
+      required:
+        - response_type
+        - client_id
+        - redirect_uri
+        - code_challenge
+        - code_challenge_method
+    UserInfoResponse:
+      type: object
+      additionalProperties: false
+      description: OIDC Core §5.3。可変な OIDC クレームを含む。
+      properties:
+        sub:
+          type: string
+        claims: {}
+      required:
+        - sub
+    OAuthError:
+      type: object
+      properties:
+        type:
+          const: OAuthError
+          type: string
+        error:
+          type: string
+          enum:
+            - InvalidRequest
+            - InvalidClient
+            - InvalidGrant
+            - UnauthorizedClient
+            - UnsupportedGrantType
+            - InvalidScope
+            - InvalidToken
+            - ServerError
+            - InvalidDpopProof
+            - AccessDenied
+            - ExpiredToken
+            - slow_down
+            - InsufficientScope
+            - authorization_pending
+        error_description:
+          type: string
+        error_uri:
+          type: string
+      required:
+        - type
+        - error
+    InvalidRequestError:
+      type: object
+      properties:
+        type:
+          const: InvalidRequestError
+          type: string
+        reason:
+          type: string
+      required:
+        - type
+    InvalidClientError:
+      type: object
+      properties:
+        type:
+          const: InvalidClientError
+          type: string
+      required:
+        - type
+    InvalidGrantError:
+      type: object
+      properties:
+        type:
+          const: InvalidGrantError
+          type: string
+        reason:
+          type: string
+      required:
+        - type
+    UnauthorizedClientError:
+      type: object
+      properties:
+        type:
+          const: UnauthorizedClientError
+          type: string
+      required:
+        - type
+    UnsupportedGrantTypeError:
+      type: object
+      properties:
+        type:
+          const: UnsupportedGrantTypeError
+          type: string
+      required:
+        - type
+    InvalidScopeError:
+      type: object
+      properties:
+        type:
+          const: InvalidScopeError
+          type: string
+      required:
+        - type
+    InvalidTokenError:
+      type: object
+      properties:
+        type:
+          const: InvalidTokenError
+          type: string
+      required:
+        - type
+    InvalidDpopProofError:
+      type: object
+      properties:
+        type:
+          const: InvalidDpopProofError
+          type: string
+      required:
+        - type
+    InsufficientScopeError:
+      type: object
+      properties:
+        type:
+          const: InsufficientScopeError
+          type: string
+      required:
+        - type
+    AccessDeniedError:
+      type: object
+      properties:
+        type:
+          const: AccessDeniedError
+          type: string
+      required:
+        - type
+    ExpiredTokenError:
+      type: object
+      properties:
+        type:
+          const: ExpiredTokenError
+          type: string
+      required:
+        - type
+    SlowDownError:
+      type: object
+      properties:
+        type:
+          const: SlowDownError
+          type: string
+      required:
+        - type
+    AuthorizationPendingError:
+      type: object
+      properties:
+        type:
+          const: AuthorizationPendingError
+          type: string
+      required:
+        - type
+    ServerError:
+      type: object
+      properties:
+        type:
+          const: ServerError
+          type: string
+      required:
+        - type
+    ClientRegistered:
+      type: object
+      properties:
+        type:
+          const: ClientRegistered
+          type: string
+        occurredAt:
+          type: string
+          format: "date-time"
+        clientId:
+          type: string
+        clientType:
+          type: string
+          enum:
+            - public
+            - confidential
+      required:
+        - type
+        - occurredAt
+        - clientId
+    UserAuthenticated:
+      type: object
+      properties:
+        type:
+          const: UserAuthenticated
+          type: string
+        occurredAt:
+          type: string
+          format: "date-time"
+        sub:
+          type: string
+        amr:
+          type: array
+          items:
+            type: string
+      required:
+        - type
+        - occurredAt
+        - sub
+    AuthenticationFailed:
+      type: object
+      properties:
+        type:
+          const: AuthenticationFailed
+          type: string
+        occurredAt:
+          type: string
+          format: "date-time"
+        username:
+          type: string
+        reason:
+          type: string
+      required:
+        - type
+        - occurredAt
+    ConsentGranted:
+      type: object
+      properties:
+        type:
+          const: ConsentGranted
+          type: string
+        occurredAt:
+          type: string
+          format: "date-time"
+        sub:
+          type: string
+        clientId:
+          type: string
+        scopes:
+          type: array
+          items:
+            type: string
+      required:
+        - type
+        - occurredAt
+        - sub
+        - clientId
+        - scopes
+    ConsentRevoked:
+      type: object
+      properties:
+        type:
+          const: ConsentRevoked
+          type: string
+        occurredAt:
+          type: string
+          format: "date-time"
+        sub:
+          type: string
+        clientId:
+          type: string
+      required:
+        - type
+        - occurredAt
+        - sub
+        - clientId
+    AuthorizationCodeIssued:
+      type: object
+      properties:
+        type:
+          const: AuthorizationCodeIssued
+          type: string
+        occurredAt:
+          type: string
+          format: "date-time"
+        clientId:
+          type: string
+        sub:
+          type: string
+        scopes:
+          type: array
+          items:
+            type: string
+        codeChallengeMethod:
+          type: string
+      required:
+        - type
+        - occurredAt
+        - clientId
+        - sub
+        - scopes
+    AuthorizationCodeRedeemed:
+      type: object
+      properties:
+        type:
+          const: AuthorizationCodeRedeemed
+          type: string
+        occurredAt:
+          type: string
+          format: "date-time"
+        clientId:
+          type: string
+        sub:
+          type: string
+      required:
+        - type
+        - occurredAt
+        - clientId
+        - sub
+    AccessTokenIssued:
+      type: object
+      properties:
+        type:
+          const: AccessTokenIssued
+          type: string
+        occurredAt:
+          type: string
+          format: "date-time"
+        jti:
+          type: string
+        clientId:
+          type: string
+        sub:
+          type: string
+        scopes:
+          type: array
+          items:
+            type: string
+        senderConstraint:
+          type: string
+          enum:
+            - none
+            - dpop
+            - mtls
+      required:
+        - type
+        - occurredAt
+        - jti
+        - clientId
+        - sub
+        - scopes
+        - senderConstraint
+    RefreshTokenIssued:
+      type: object
+      properties:
+        type:
+          const: RefreshTokenIssued
+          type: string
+        occurredAt:
+          type: string
+          format: "date-time"
+        tokenId:
+          type: string
+        familyId:
+          type: string
+        parentId:
+          type: string
+        clientId:
+          type: string
+        sub:
+          type: string
+      required:
+        - type
+        - occurredAt
+        - tokenId
+        - familyId
+        - clientId
+        - sub
+    RefreshTokenRotated:
+      type: object
+      properties:
+        type:
+          const: RefreshTokenRotated
+          type: string
+        occurredAt:
+          type: string
+          format: "date-time"
+        oldTokenId:
+          type: string
+        newTokenId:
+          type: string
+        familyId:
+          type: string
+      required:
+        - type
+        - occurredAt
+        - oldTokenId
+        - newTokenId
+        - familyId
+    TokenRevoked:
+      type: object
+      properties:
+        type:
+          const: TokenRevoked
+          type: string
+        occurredAt:
+          type: string
+          format: "date-time"
+        tokenType:
+          type: string
+          enum:
+            - access_token
+            - refresh_token
+        tokenId:
+          type: string
+        reason:
+          type: string
+      required:
+        - type
+        - occurredAt
+        - tokenType
+        - tokenId
+    TokenIntrospected:
+      type: object
+      properties:
+        type:
+          const: TokenIntrospected
+          type: string
+        occurredAt:
+          type: string
+          format: "date-time"
+        rsClientId:
+          type: string
+        tokenId:
+          type: string
+        active:
+          type: boolean
+      required:
+        - type
+        - occurredAt
+        - rsClientId
+        - tokenId
+        - active
+    RefreshTokenReuseDetected:
+      type: object
+      properties:
+        type:
+          const: RefreshTokenReuseDetected
+          type: string
+        occurredAt:
+          type: string
+          format: "date-time"
+        familyId:
+          type: string
+        tokenId:
+          type: string
+        clientId:
+          type: string
+      required:
+        - type
+        - occurredAt
+        - familyId
+        - tokenId
+    SigningKeyRotated:
+      type: object
+      properties:
+        type:
+          const: SigningKeyRotated
+          type: string
+        occurredAt:
+          type: string
+          format: "date-time"
+        newKid:
+          type: string
+        previousKid:
+          type: string
+      required:
+        - type
+        - occurredAt
+        - newKid
+    PARStored:
+      type: object
+      properties:
+        type:
+          const: PARStored
+          type: string
+        occurredAt:
+          type: string
+          format: "date-time"
+        requestUri:
+          type: string
+        clientId:
+          type: string
+      required:
+        - type
+        - occurredAt
+        - requestUri
+        - clientId
+    DeviceAuthorizationRequested:
+      type: object
+      properties:
+        type:
+          const: DeviceAuthorizationRequested
+          type: string
+        occurredAt:
+          type: string
+          format: "date-time"
+        clientId:
+          type: string
+        scopes:
+          type: array
+          items:
+            type: string
+      required:
+        - type
+        - occurredAt
+        - clientId
+        - scopes
+    DeviceAuthorizationApproved:
+      type: object
+      properties:
+        type:
+          const: DeviceAuthorizationApproved
+          type: string
+        occurredAt:
+          type: string
+          format: "date-time"
+        clientId:
+          type: string
+        sub:
+          type: string
+      required:
+        - type
+        - occurredAt
+        - clientId
+        - sub
+    DeviceAuthorizationDenied:
+      type: object
+      properties:
+        type:
+          const: DeviceAuthorizationDenied
+          type: string
+        occurredAt:
+          type: string
+          format: "date-time"
+        clientId:
+          type: string
+        sub:
+          type: string
+      required:
+        - type
+        - occurredAt
+        - clientId

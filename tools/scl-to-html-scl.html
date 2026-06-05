@@ -1,0 +1,686 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>scl-to-html — SCL</title>
+<style>
+:root { color-scheme: light dark;
+  --bg:#fbfbfd; --surface:#ffffff; --surface-2:#f4f4f7;
+  --fg:#1c1c1f; --fg-soft:#54545a; --muted:#8a8a92;
+  --border:#e5e5ea; --accent:#5b5be6; --accent-soft:#eeeefb;
+  --ok:#117a3d; --ok-soft:rgba(17,122,61,.12);
+  --warn:#a25400; --warn-soft:rgba(162,84,0,.14);
+  --danger:#b3261e; --danger-soft:rgba(179,38,30,.1);
+  --code-bg:#f1f1f5; --shadow:0 1px 2px rgba(0,0,0,.04),0 4px 16px rgba(0,0,0,.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:#0f1115; --surface:#16181f; --surface-2:#1c1f27;
+    --fg:#e6e6ea; --fg-soft:#b0b0b8; --muted:#7a7a85;
+    --border:#2a2d36; --accent:#8b8bff; --accent-soft:#1f2030;
+    --ok:#5bcc8d; --ok-soft:rgba(91,204,141,.15);
+    --warn:#e0a04f; --warn-soft:rgba(224,160,79,.15);
+    --danger:#ff7a72; --danger-soft:rgba(255,122,114,.15);
+    --code-bg:#1c1f27; --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 16px rgba(0,0,0,.3);
+  }
+}
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px; line-height: 1.6; -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code, pre, .name, .path, .type, .chip, .expr {
+  font-family: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+}
+code { background: var(--code-bg); padding: 1px 6px; border-radius: 4px; font-size: 0.88em; }
+
+/* layout */
+.layout {
+  display: grid; grid-template-columns: 240px minmax(0,1fr); gap: 40px;
+  max-width: 1280px; margin: 0 auto; padding: 32px 24px 96px;
+}
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; padding: 16px; gap: 24px; }
+  .toc { position: static !important; max-height: none !important; }
+}
+.toc {
+  position: sticky; top: 24px; align-self: start;
+  max-height: calc(100vh - 48px); overflow-y: auto; font-size: 14px;
+}
+.toc-title {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 12px;
+}
+.toc ol { list-style: none; padding: 0; margin: 0; }
+.toc li { padding: 4px 0; }
+.toc a {
+  display: block; padding: 4px 8px 4px 10px; border-radius: 6px;
+  color: var(--fg-soft); border-left: 2px solid transparent;
+  transition: background-color .12s, color .12s, border-color .12s;
+}
+.toc a:hover { background: var(--surface-2); color: var(--fg); text-decoration: none; }
+.toc a.active {
+  background: var(--accent-soft); color: var(--accent); font-weight: 600;
+  border-left-color: var(--accent);
+}
+main { min-width: 0; }
+section { margin-bottom: 56px; scroll-margin-top: 24px; }
+
+/* overview */
+.page-header { margin-bottom: 24px; }
+.eyebrow {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--accent); margin-bottom: 4px;
+}
+.page-header h1 { font-size: 38px; letter-spacing: -0.02em; margin: 0 0 8px; }
+.page-meta { display: flex; gap: 8px; flex-wrap: wrap; }
+.stats {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px; margin-top: 8px;
+}
+.stat {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  padding: 14px; color: var(--fg); display: flex; flex-direction: column; gap: 2px;
+  transition: border-color .15s, transform .15s;
+}
+.stat:hover { border-color: var(--accent); text-decoration: none; transform: translateY(-1px); }
+.stat-num { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+.stat-label { font-size: 12px; color: var(--muted); text-transform: capitalize; }
+
+section > h2 {
+  font-size: 26px; margin: 0 0 6px; letter-spacing: -0.01em;
+  border-bottom: 1px solid var(--border); padding-bottom: 10px;
+  display: flex; align-items: baseline; gap: 10px;
+}
+section > h2 .count, .grp-title .count {
+  font-size: 13px; font-weight: 500; color: var(--muted);
+  background: var(--surface-2); padding: 2px 8px; border-radius: 999px;
+  border: 1px solid var(--border);
+}
+.lead { color: var(--fg-soft); margin: 8px 0 20px; }
+
+.group { margin-top: 24px; }
+.grp-title {
+  font-size: 14px; font-weight: 600; color: var(--fg-soft); text-transform: capitalize;
+  margin: 16px 0 12px; display: flex; align-items: baseline; gap: 8px;
+}
+.grp-title .count { font-size: 11px; padding: 1px 7px; }
+
+/* card */
+.cards { display: grid; gap: 14px; }
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  padding: 18px 20px; box-shadow: var(--shadow);
+  transition: border-color .15s, box-shadow .15s;
+}
+.card:target {
+  border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow);
+}
+.card header {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px;
+}
+.card header h3 { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
+.desc { color: var(--fg-soft); margin: 4px 0 12px; white-space: pre-wrap; }
+.label {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); margin: 10px 0 4px;
+}
+.label.ok { color: var(--ok); }
+.label.danger { color: var(--danger); }
+
+/* badges */
+.badge {
+  display: inline-block; font-size: 11px; font-weight: 600;
+  padding: 2px 8px; border-radius: 999px;
+  background: var(--accent-soft); color: var(--accent);
+  letter-spacing: 0.02em; border: 1px solid transparent;
+}
+.badge-required { background: var(--danger-soft); color: var(--danger); }
+.badge-optional { background: var(--surface-2); color: var(--muted); border-color: var(--border); }
+.badge-readonly, .badge-idempotent {
+  background: var(--surface-2); color: var(--fg-soft); border-color: var(--border);
+}
+.badge-version {
+  background: var(--surface-2); color: var(--fg-soft); border-color: var(--border);
+}
+.badge-context { background: var(--warn-soft); color: var(--warn); }
+.badge-kind-entity { background: rgba(91,91,230,.14); color: var(--accent); }
+.badge-kind-value_object {
+  background: var(--surface-2); color: var(--fg-soft); border: 1px solid var(--border);
+}
+.badge-kind-enum { background: var(--ok-soft); color: var(--ok); }
+.badge-kind-event { background: var(--warn-soft); color: var(--warn); }
+.badge-kind-error { background: var(--danger-soft); color: var(--danger); }
+.badge-kind-slo, .badge-kind-lifetime, .badge-kind-security, .badge-kind-retention {
+  background: var(--accent-soft); color: var(--accent);
+}
+.badge-method-get { background: var(--ok-soft); color: var(--ok); }
+.badge-method-post { background: rgba(91,91,230,.14); color: var(--accent); }
+.badge-method-put, .badge-method-patch { background: var(--warn-soft); color: var(--warn); }
+.badge-method-delete { background: var(--danger-soft); color: var(--danger); }
+.badge-method-cli {
+  background: var(--surface-2); color: var(--fg-soft); border-color: var(--border);
+}
+.badge-severity-must { background: var(--danger-soft); color: var(--danger); }
+.badge-severity-should { background: var(--warn-soft); color: var(--warn); }
+
+/* chips */
+.chip {
+  display: inline-block; background: var(--surface-2); color: var(--fg-soft);
+  border: 1px solid var(--border); padding: 1px 8px; border-radius: 6px;
+  margin: 2px 2px 2px 0; font-size: 12px;
+}
+a.chip { transition: border-color .15s, color .15s; }
+a.chip:hover { color: var(--accent); border-color: var(--accent); text-decoration: none; }
+.chip-alias { background: var(--surface-2); }
+.chip-constraint { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+.chip-annotation { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+.chip-default { background: var(--surface-2); color: var(--muted); }
+.chip-enum { background: var(--ok-soft); color: var(--ok); border-color: transparent; }
+.chip-event-ref { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+.chip-error-ref { background: var(--danger-soft); color: var(--danger); border-color: transparent; }
+.chip-iface-ref {
+  background: rgba(91,91,230,.14); color: var(--accent); border-color: transparent;
+}
+.chip-initial {
+  background: rgba(91,91,230,.14); color: var(--accent); border-color: transparent; font-weight: 600;
+}
+.chip-terminal { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+.chip-tag { background: var(--surface-2); color: var(--fg-soft); }
+.chip-hint { background: var(--surface-2); color: var(--muted); }
+
+.name { color: var(--fg); font-weight: 600; }
+.type { color: var(--fg-soft); }
+.path {
+  background: var(--surface-2); border: 1px solid var(--border);
+  padding: 2px 8px; border-radius: 6px; font-size: 13px;
+}
+.muted { color: var(--muted); }
+.text { color: var(--fg); }
+
+/* kv list */
+.kv {
+  display: grid; grid-template-columns: minmax(120px, max-content) 1fr;
+  gap: 4px 14px; align-items: baseline; margin: 6px 0;
+}
+.kv dt { color: var(--muted); font-size: 13px; font-weight: 500; padding-top: 2px; }
+.kv dd { margin: 0; min-width: 0; color: var(--fg); }
+.kv dl.kv { margin: 0; }
+.vlist { margin: 4px 0 0; padding-left: 18px; }
+.vlist li { margin: 3px 0; }
+.chip-row { display: flex; flex-wrap: wrap; gap: 4px; }
+
+/* fields tables */
+table.fields { width: 100%; border-collapse: collapse; font-size: 14px; margin: 8px 0; }
+table.fields th, table.fields td {
+  text-align: left; padding: 8px 10px;
+  border-bottom: 1px solid var(--border); vertical-align: top;
+}
+table.fields thead th {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); border-bottom: 2px solid var(--border);
+}
+table.fields tbody tr:last-child td { border-bottom: none; }
+.enum-vals { display: flex; flex-wrap: wrap; gap: 4px; }
+
+/* vocabulary */
+.vocab-list { display: grid; gap: 12px; margin-top: 12px; }
+.vocab-entry {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  padding: 14px 18px;
+  display: grid; grid-template-columns: minmax(160px, 200px) 1fr; gap: 18px;
+  align-items: start;
+}
+.vocab-entry:target {
+  border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft);
+}
+@media (max-width: 720px) { .vocab-entry { grid-template-columns: 1fr; } }
+.vocab-name { padding-top: 2px; display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
+.vocab-name .name { font-size: 15px; }
+.def { margin: 0 0 8px; color: var(--fg); }
+.aliases { font-size: 13px; color: var(--fg-soft); }
+.aliases-label {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); margin-right: 6px;
+}
+.ntcw {
+  margin-top: 10px; padding: 8px 10px;
+  background: var(--warn-soft); border-radius: 8px; font-size: 13px;
+}
+.ntcw-label {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--warn); margin-bottom: 4px;
+}
+.ntcw ul { margin: 0; padding-left: 18px; color: var(--fg-soft); }
+.ntcw li { margin: 2px 0; }
+
+/* state machine */
+.sm-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: baseline; margin: 6px 0 8px; }
+.sm-row .label { min-width: 100px; margin: 0; }
+.sub { margin-top: 10px; }
+.io { margin-top: 10px; }
+
+/* scenarios: natural-language steps */
+.iface-step { margin: 6px 0 2px; }
+.step-tpl { color: var(--fg-soft); }
+.scn-steps { margin: 8px 0 0; padding-left: 26px; }
+.scn-step { padding: 3px 0; line-height: 1.7; }
+.scn-step::marker { color: var(--muted); font-size: 0.85em; }
+.step-arg {
+  background: var(--surface-2); color: var(--fg); border: 1px solid var(--border);
+  padding: 0 5px; border-radius: 4px;
+}
+.chip-ref { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+
+/* clauses & expressions */
+.clause {
+  margin: 10px 0; padding: 10px 12px; background: var(--surface-2); border-radius: 8px;
+}
+.clause-label {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 6px;
+}
+.clause-label.ok { color: var(--ok); }
+.clause-label.danger { color: var(--danger); }
+.expr {
+  display: inline-block; padding: 2px 8px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
+  font-size: 13px;
+}
+.expr-list { margin: 0; padding-left: 18px; }
+.expr-list li { margin: 4px 0; }
+.expr-op { margin: 6px 0 6px 12px; }
+.expr-op-label {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: var(--accent);
+  margin-bottom: 4px;
+}
+.expr-quant {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  margin: 4px 0 4px 12px; padding: 4px 8px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+}
+.expr-quant-sym { color: var(--accent); font-weight: 700; font-size: 14px; }
+
+/* property clauses (extension: assuming / eventually) */
+.clause-assuming { background: var(--surface); border: 1px solid var(--border); }
+.clause-eventually { background: var(--accent-soft); }
+.clause-label.accent { color: var(--accent); }
+.clause-label.muted { color: var(--muted); }
+.within { font-size: 11px; font-weight: 500; color: var(--muted); text-transform: none; letter-spacing: 0; margin-left: 6px; }
+
+/* bindings */
+.bindings { display: grid; gap: 10px; margin-top: 6px; }
+.binding {
+  display: grid; grid-template-columns: minmax(80px, max-content) 1fr; gap: 12px;
+  align-items: start; padding: 10px 12px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+}
+.binding-kind { padding-top: 2px; }
+.binding-body { min-width: 0; }
+.binding-head { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.binding-body .io { margin-top: 8px; }
+.binding-body .kv { margin: 6px 0; }
+.badge-bkind-http { background: rgba(91,91,230,.14); color: var(--accent); }
+.badge-bkind-grpc { background: var(--ok-soft); color: var(--ok); }
+.badge-bkind-cli { background: var(--warn-soft); color: var(--warn); }
+.badge-bkind-event { background: rgba(91,91,230,.10); color: var(--accent); }
+.badge-bkind-graphql { background: var(--danger-soft); color: var(--danger); }
+.badge-bkind-sdk { background: var(--surface); color: var(--fg-soft); border: 1px solid var(--border); }
+.badge-direction-produce { background: var(--accent-soft); color: var(--accent); }
+.badge-direction-consume { background: var(--ok-soft); color: var(--ok); }
+.badge-gql-query { background: var(--ok-soft); color: var(--ok); }
+.badge-gql-mutation { background: rgba(91,91,230,.14); color: var(--accent); }
+.badge-gql-subscription { background: var(--warn-soft); color: var(--warn); }
+.sub-label { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 6px 0 2px; }
+
+/* interface step label (reused by scenarios cross-refs) */
+.step-kind-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+  padding: 2px 6px; border-radius: 4px;
+  background: var(--surface-2); color: var(--muted);
+}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="toc" aria-label="Contents">
+    <div class="toc-title">Contents</div>
+    <ol><li><a href="#overview">Overview</a></li><li><a href="#vocabulary">Vocabulary</a></li><li><a href="#models">Models</a></li><li><a href="#interfaces">Interfaces</a></li><li><a href="#properties">Properties</a></li><li><a href="#scenarios">Scenarios</a></li><li><a href="#objectives">Objectives</a></li></ol>
+  </nav>
+<main>
+<section id="overview">
+    <header class="page-header">
+      <div class="eyebrow">Specification Core Language</div>
+      <h1>scl-to-html</h1>
+      <div class="page-meta"><span class="badge badge-version">spec 1.0</span></div>
+    </header>
+    <div class="stats"><a class="stat" href="#vocabulary"><span class="stat-num">5</span><span class="stat-label">vocabulary</span></a><a class="stat" href="#models"><span class="stat-num">3</span><span class="stat-label">models</span></a><a class="stat" href="#interfaces"><span class="stat-num">1</span><span class="stat-label">interfaces</span></a><a class="stat" href="#properties"><span class="stat-num">9</span><span class="stat-label">properties</span></a><a class="stat" href="#scenarios"><span class="stat-num">2</span><span class="stat-label">scenarios</span></a><a class="stat" href="#objectives"><span class="stat-num">1</span><span class="stat-label">objectives</span></a></div>
+  </section>
+<section id="vocabulary">
+    <h2>Vocabulary <span class="count">5</span></h2>
+    <p class="lead">本仕様で使うドメイン用語の定義。PascalCase が正準名、aliases は実装上の別表記。</p>
+    <div class="vocab-list"><article class="vocab-entry" id="vocab-scldocument">
+      <div class="vocab-name"><code class="name">SclDocument</code></div>
+      <div class="vocab-body">
+        <p class="def">入力となる SCL 形式の YAML 文書。</p>
+        <div class="aliases"><span class="aliases-label">aliases</span> <span class="chip chip-alias">scl</span></div>
+        
+      </div>
+    </article>
+<article class="vocab-entry" id="vocab-htmldocument">
+      <div class="vocab-name"><code class="name">HtmlDocument</code></div>
+      <div class="vocab-body">
+        <p class="def">SclDocument から派生する単一の HTML 文書。</p>
+        <div class="aliases"><span class="aliases-label">aliases</span> <span class="chip chip-alias">html</span></div>
+        
+      </div>
+    </article>
+<article class="vocab-entry" id="vocab-section">
+      <div class="vocab-name"><code class="name">Section</code></div>
+      <div class="vocab-body">
+        <p class="def">SCL 文書の論理単位。
+vocabulary / models / interfaces / state_machines /
+properties / scenarios / permissions / objectives の 8 種。
+</p>
+        <div class="aliases"><span class="aliases-label">aliases</span> <span class="muted">—</span></div>
+        
+      </div>
+    </article>
+<article class="vocab-entry" id="vocab-render">
+      <div class="vocab-name"><code class="name">Render</code></div>
+      <div class="vocab-body">
+        <p class="def">SclDocument を HtmlDocument に変換する射影。決定的で副作用を持たない。</p>
+        <div class="aliases"><span class="aliases-label">aliases</span> <span class="muted">—</span></div>
+        
+      </div>
+    </article>
+<article class="vocab-entry" id="vocab-crossreference">
+      <div class="vocab-name"><code class="name">CrossReference</code></div>
+      <div class="vocab-body">
+        <p class="def">ある宣言が他の宣言を名前で参照する関係。
+interfaces.errors / interfaces.emits、および scenarios の自然文ステップ中に
+引用された既知の名前（interface / model）が該当する。
+</p>
+        <div class="aliases"><span class="aliases-label">aliases</span> <span class="chip chip-alias">xref</span> <span class="chip chip-alias">cross-ref</span></div>
+        
+      </div>
+    </article></div>
+  </section>
+<section id="models">
+    <h2>Models <span class="count">3</span></h2>
+    
+    <div class="group">
+      <h3 class="grp-title">value object <span class="count">2</span></h3>
+      <div class="cards"><article class="card" id="model-scldocument">
+    <header><h3>SclDocument</h3><span class="badge badge-kind-value_object">value object</span></header>
+    <p class="desc">本ツールが解釈する SCL 文書の最小構造。各 Section の中身は SCL 自身が再帰的に定義する。</p>
+    
+    <table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">system</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="chip chip-constraint">non empty</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">spec_version</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="chip chip-constraint">non empty</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">vocabulary</code></td>
+    <td><code class="type">Map</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">models</code></td>
+    <td><code class="type">Map</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">interfaces</code></td>
+    <td><code class="type">Map</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">state_machines</code></td>
+    <td><code class="type">Map</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">properties</code></td>
+    <td><code class="type">Map</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">scenarios</code></td>
+    <td><code class="type">Map</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">permissions</code></td>
+    <td><code class="type">Map</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">objectives</code></td>
+    <td><code class="type">Map</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="model-htmldocument">
+    <header><h3>HtmlDocument</h3><span class="badge badge-kind-value_object">value object</span></header>
+    
+    
+    <table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">content</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="chip chip-constraint">non empty</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article></div>
+    </div>
+<div class="group">
+      <h3 class="grp-title">enum <span class="count">1</span></h3>
+      <div class="cards"><article class="card" id="model-sectionkind">
+    <header><h3>SectionKind</h3><span class="badge badge-kind-enum">enum</span></header>
+    
+    
+    <div class="enum-vals"><span class="chip chip-enum">vocabulary</span> <span class="chip chip-enum">models</span> <span class="chip chip-enum">interfaces</span> <span class="chip chip-enum">state_machines</span> <span class="chip chip-enum">properties</span> <span class="chip chip-enum">scenarios</span> <span class="chip chip-enum">permissions</span> <span class="chip chip-enum">objectives</span></div>
+  </article></div>
+    </div>
+  </section>
+<section id="interfaces">
+    <h2>Interfaces <span class="count">1</span></h2>
+    <p class="lead">外部との契約。入力・出力・エラー・発行イベントと、それを露出する複数のトランスポート（bindings）。</p>
+    <div class="cards"><article class="card" id="iface-render">
+    <header><h3>Render</h3><span class="badge badge-readonly">read-only</span><span class="badge badge-idempotent">idempotent</span></header>
+    <p class="desc">入力 SCL YAML を読み込み、単一の HtmlDocument を返す。</p>
+    <div class="iface-step"><span class="step-kind-label">STEP</span> <code class="step-tpl">{input_path} を HTML に変換する</code></div>
+    <div class="io">
+    <div class="label">Input</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">input_path</code></td>
+    <td><code class="type">Path</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td>入力 SCL YAML のパス</td>
+  </tr><tr>
+    <td><code class="name">output_path</code></td>
+    <td><code class="type">Path</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td>未指定なら標準出力へ</td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io">
+    <div class="label">Output</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">html</code></td>
+    <td><code class="type">HtmlDocument</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-cli">
+    <div class="binding-kind"><span class="badge badge-bkind-cli">cli</span></div>
+    <div class="binding-body"><div class="binding-head"><code class="path">scl-to-html</code></div><div class="io"><div class="label">Args (positional)</div><table class="fields"><thead><tr><th>Name</th><th>Position</th><th>Presence</th><th>Note</th></tr></thead><tbody><tr>
+            <td><code class="name">input_path</code></td>
+            <td><span class="chip chip-hint">pos 1</span></td>
+            <td><span class="badge badge-optional">optional</span></td>
+            <td></td>
+          </tr><tr>
+            <td><code class="name">output_path</code></td>
+            <td><span class="chip chip-hint">pos 2</span></td>
+            <td><span class="badge badge-optional">optional</span></td>
+            <td></td>
+          </tr></tbody></table></div><dl class="kv"><dt>stdout</dt><dd><code>HtmlDocument</code></dd><dt>exit codes</dt><dd>success: <code>0</code></dd></dl></div>
+  </div></div></div>
+  </article></div>
+  </section>
+<section id="properties">
+    <h2>Properties <span class="count">9</span></h2>
+    <p class="lead">入力に依らず常に成り立つ不変条件、または決して起きてはならない事象。</p>
+    <div class="cards"><article class="card" id="prop-presence-preserved">
+    <header><h3>presence_preserved</h3><span class="badge badge-severity-must">must</span></header>
+    <p class="desc">入力に存在するセクションは、出力に対応する &lt;section id=&quot;...&quot;&gt; を持つ。</p>
+    <dl class="kv"><dt>target</dt><dd><code>Render</code></dd></dl>
+    <div class="clause clause-always"><div class="clause-label ok">always (invariant)</div><code class="expr">∀ S ∈ keys(scl) ∩ SectionKind : output contains '&lt;section id=&quot;S&quot;&gt;'</code></div>
+  </article>
+<article class="card" id="prop-absence-preserved">
+    <header><h3>absence_preserved</h3><span class="badge badge-severity-must">must</span></header>
+    <p class="desc">入力に存在しないセクションは、出力にも現れない。</p>
+    <dl class="kv"><dt>target</dt><dd><code>Render</code></dd></dl>
+    <div class="clause clause-never"><div class="clause-label danger">never (forbidden)</div><code class="expr">output contains '&lt;section id=&quot;S&quot;&gt;' where S ∉ keys(scl)</code></div>
+  </article>
+<article class="card" id="prop-user-text-escaped">
+    <header><h3>user_text_escaped</h3><span class="badge badge-severity-must">must</span></header>
+    <p class="desc">入力 SCL 由来の文字列は HTML として安全にエスケープされる。</p>
+    <dl class="kv"><dt>target</dt><dd><code>Render</code></dd></dl>
+    <div class="clause clause-never"><div class="clause-label danger">never (forbidden)</div><code class="expr">output contains unescaped '&lt;' '&gt;' '&amp;' or '&quot;' originating from scl values</code></div>
+  </article>
+<article class="card" id="prop-deterministic">
+    <header><h3>deterministic</h3><span class="badge badge-severity-must">must</span></header>
+    <p class="desc">同一入力からは常に同一の HTML を返す。時刻・乱数・環境変数に依存しない。</p>
+    <dl class="kv"><dt>target</dt><dd><code>Render</code></dd></dl>
+    <div class="clause clause-always"><div class="clause-label ok">always (invariant)</div><code class="expr">Render(x) ≡ Render(x)</code></div>
+  </article>
+<article class="card" id="prop-self-contained">
+    <header><h3>self_contained</h3><span class="badge badge-severity-must">must</span></header>
+    <p class="desc">HtmlDocument は単一ファイルで表示でき、外部資産（ネットワーク / 別ファイル）に依存しない。</p>
+    <dl class="kv"><dt>target</dt><dd><code>Render</code></dd></dl>
+    <div class="clause clause-always"><div class="clause-label ok">always (invariant)</div><code class="expr">rendering HtmlDocument requires no external network resource or sidecar file</code></div>
+  </article>
+<article class="card" id="prop-navigable-to-each-section">
+    <header><h3>navigable_to_each_section</h3><span class="badge badge-severity-must">must</span></header>
+    <p class="desc">閲覧者は HtmlDocument 上の任意の地点から、入力に存在する各 Section に直接遷移できる。</p>
+    <dl class="kv"><dt>target</dt><dd><code>Render</code></dd></dl>
+    <div class="clause clause-always"><div class="clause-label ok">always (invariant)</div><code class="expr">from any point in HtmlDocument, the reader can reach each present Section without leaving the document</code></div>
+  </article>
+<article class="card" id="prop-cross-references-are-navigable">
+    <header><h3>cross_references_are_navigable</h3><span class="badge badge-severity-must">must</span></header>
+    <p class="desc">CrossReference は閲覧者がひとつの操作で参照先定義へ遷移できる形で描画される。</p>
+    <dl class="kv"><dt>target</dt><dd><code>Render</code></dd></dl>
+    <div class="clause clause-always"><div class="clause-label ok">always (invariant)</div><code class="expr">∀ CrossReference c : c is presented as a control that navigates the reader to the definition of c</code></div>
+  </article>
+<article class="card" id="prop-reading-position-is-indicated">
+    <header><h3>reading_position_is_indicated</h3><span class="badge badge-severity-must">must</span></header>
+    <p class="desc">閲覧者が長い HtmlDocument 上を移動するとき、現在読まれている Section がナビゲーション側で視覚的に区別される。</p>
+    <dl class="kv"><dt>target</dt><dd><code>Render</code></dd></dl>
+    <div class="clause clause-always"><div class="clause-label ok">always (invariant)</div><code class="expr">the Section currently in view is visually distinguished within the navigation</code></div>
+  </article>
+<article class="card" id="prop-color-scheme-adapts-to-reader">
+    <header><h3>color_scheme_adapts_to_reader</h3><span class="badge badge-severity-must">must</span></header>
+    <p class="desc">HtmlDocument の配色は、閲覧者の環境が示すライト/ダーク設定に追随する。</p>
+    <dl class="kv"><dt>target</dt><dd><code>Render</code></dd></dl>
+    <div class="clause clause-always"><div class="clause-label ok">always (invariant)</div><code class="expr">HtmlDocument's visual presentation follows the reader's light/dark preference</code></div>
+  </article></div>
+  </section>
+<section id="scenarios">
+    <h2>Scenarios <span class="count">2</span></h2>
+    <p class="lead">受け入れ例。自然文ステップで書かれた振る舞いの具体例。引用された既知の名前は定義へリンクする。</p>
+    <div class="cards"><article class="card scenario" id="scn-scl-html">
+    <header><h3>最小の SCL でも HTML になり、無いセクションは出力されない</h3></header>
+    
+    <ol class="scn-steps"><li class="scn-step">vocabulary だけを持つ最小の SCL を用意して変換する</li><li class="scn-step">出力に vocabulary セクションが含まれる</li><li class="scn-step">出力に models セクションは現れない</li></ol>
+    
+  </article>
+<article class="card scenario" id="scn-html">
+    <header><h3>ユーザ文字列の HTML 特殊文字はエスケープされる</h3></header>
+    
+    <ol class="scn-steps"><li class="scn-step">definition に特殊文字 <code class="step-arg">&lt;script&gt;</code> を含む SCL を用意して変換する</li><li class="scn-step">出力では特殊文字がエスケープされている</li><li class="scn-step">出力に生の script タグは現れない</li></ol>
+    
+  </article></div>
+  </section>
+<section id="objectives">
+    <h2>Objectives <span class="count">1</span></h2>
+    
+    <div class="group">
+      <h3 class="grp-title">slo <span class="count">1</span></h3>
+      <div class="cards"><article class="card" id="obj-fast-render">
+    <header><h3>fast_render</h3><span class="badge badge-kind-slo">slo</span></header>
+    <p class="desc">数百 KiB 以下の SCL を p95 100ms 以内で変換する。</p>
+    <dl class="kv"><dt>metric</dt><dd><span class="text">latency_p95</span></dd><dt>target</dt><dd><span class="text">100ms</span></dd><dt>interface</dt><dd><span class="text">Render</span></dd></dl>
+  </article></div>
+    </div>
+  </section>
+</main>
+</div>
+<script>
+(() => {
+  const sections = Array.from(document.querySelectorAll('main section[id]'));
+  if (!sections.length) return;
+  const links = new Map();
+  for (const a of document.querySelectorAll('.toc a')) {
+    const href = a.getAttribute('href');
+    if (href && href.startsWith('#')) links.set(href.slice(1), a);
+  }
+  const setActive = (id) => {
+    for (const a of links.values()) a.classList.remove('active');
+    const a = links.get(id);
+    if (a) a.classList.add('active');
+  };
+  const TRIGGER = 120;
+  let raf = 0;
+  const update = () => {
+    raf = 0;
+    let current = sections[0];
+    for (const s of sections) {
+      if (s.getBoundingClientRect().top - TRIGGER <= 0) current = s;
+      else break;
+    }
+    setActive(current.id);
+  };
+  const onScroll = () => { if (!raf) raf = requestAnimationFrame(update); };
+  addEventListener('scroll', onScroll, { passive: true });
+  addEventListener('resize', onScroll, { passive: true });
+  update();
+})();
+</script>
+</body>
+</html>

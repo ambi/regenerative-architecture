@@ -1,0 +1,13 @@
+{
+  "$id": "urn:idp:UnauthorizedClientError",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "UnauthorizedClientError",
+      "type": "string"
+    }
+  },
+  "required": [
+    "type"
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "$id": "urn:idp:AccessTokenIssued",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "AccessTokenIssued",
+      "type": "string"
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "jti": {
+      "type": "string"
+    },
+    "clientId": {
+      "type": "string"
+    },
+    "sub": {
+      "type": "string"
+    },
+    "scopes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "senderConstraint": {
+      "type": "string",
+      "enum": [
+        "none",
+        "dpop",
+        "mtls"
+      ]
+    }
+  },
+  "required": [
+    "type",
+    "occurredAt",
+    "jti",
+    "clientId",
+    "sub",
+    "scopes",
+    "senderConstraint"
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "$id": "urn:idp:OAuthError",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "OAuthError",
+      "type": "string"
+    },
+    "error": {
+      "type": "string",
+      "enum": [
+        "InvalidRequest",
+        "InvalidClient",
+        "InvalidGrant",
+        "UnauthorizedClient",
+        "UnsupportedGrantType",
+        "InvalidScope",
+        "InvalidToken",
+        "ServerError",
+        "InvalidDpopProof",
+        "AccessDenied",
+        "ExpiredToken",
+        "slow_down",
+        "InsufficientScope",
+        "authorization_pending"
+      ]
+    },
+    "error_description": {
+      "type": "string"
+    },
+    "error_uri": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "type",
+    "error"
+  ]
+}

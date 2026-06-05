@@ -1,0 +1,26 @@
+{
+  "$id": "urn:idp:ConsentRevoked",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "ConsentRevoked",
+      "type": "string"
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "sub": {
+      "type": "string"
+    },
+    "clientId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "type",
+    "occurredAt",
+    "sub",
+    "clientId"
+  ]
+}

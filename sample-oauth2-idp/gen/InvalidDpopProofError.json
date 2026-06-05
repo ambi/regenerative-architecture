@@ -1,0 +1,13 @@
+{
+  "$id": "urn:idp:InvalidDpopProofError",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "InvalidDpopProofError",
+      "type": "string"
+    }
+  },
+  "required": [
+    "type"
+  ]
+}

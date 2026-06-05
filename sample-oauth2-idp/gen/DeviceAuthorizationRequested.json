@@ -1,0 +1,29 @@
+{
+  "$id": "urn:idp:DeviceAuthorizationRequested",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "DeviceAuthorizationRequested",
+      "type": "string"
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "clientId": {
+      "type": "string"
+    },
+    "scopes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "type",
+    "occurredAt",
+    "clientId",
+    "scopes"
+  ]
+}

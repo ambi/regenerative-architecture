@@ -1,0 +1,71 @@
+{
+  "$id": "urn:idp:AccessTokenClaims",
+  "type": "object",
+  "additionalProperties": false,
+  "description": "JWT Access Token クレーム (RFC 9068)。TTL 600 秒。",
+  "properties": {
+    "iss": {
+      "type": "string",
+      "format": "uri"
+    },
+    "sub": {
+      "type": "string"
+    },
+    "aud": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "client_id": {
+      "type": "string"
+    },
+    "scope": {
+      "type": "string"
+    },
+    "exp": {
+      "type": "integer"
+    },
+    "iat": {
+      "type": "integer"
+    },
+    "nbf": {
+      "type": "integer"
+    },
+    "jti": {
+      "type": "string"
+    },
+    "auth_time": {
+      "type": "integer"
+    },
+    "acr": {
+      "type": "string"
+    },
+    "amr": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "cnf": {
+      "$ref": "#/components/schemas/SenderConstraintCnf"
+    }
+  },
+  "required": [
+    "iss",
+    "sub",
+    "aud",
+    "client_id",
+    "scope",
+    "exp",
+    "iat",
+    "jti"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "$id": "urn:idp:Uri",
+  "type": "object",
+  "additionalProperties": false,
+  "description": "URI 形式の文字列。",
+  "properties": {
+    "value": {
+      "type": "string",
+      "format": "uri"
+    }
+  },
+  "required": [
+    "value"
+  ]
+}

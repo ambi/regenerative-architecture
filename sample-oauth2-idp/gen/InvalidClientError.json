@@ -1,0 +1,13 @@
+{
+  "$id": "urn:idp:InvalidClientError",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "InvalidClientError",
+      "type": "string"
+    }
+  },
+  "required": [
+    "type"
+  ]
+}

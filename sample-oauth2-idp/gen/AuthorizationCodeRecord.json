@@ -1,0 +1,84 @@
+{
+  "$id": "urn:idp:AuthorizationCodeRecord",
+  "type": "object",
+  "additionalProperties": false,
+  "description": "発行済み認可コードの永続レコード。code 本体は短命。状態は AuthorizationCodeRecordLifecycle に従う（AuthorizationCodeFlow とは別軸でコード自体のライフサイクルを表す）。",
+  "properties": {
+    "code": {
+      "type": "string"
+    },
+    "authorization_request_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "client_id": {
+      "type": "string"
+    },
+    "sub": {
+      "type": "string"
+    },
+    "scopes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "redirect_uri": {
+      "type": "string",
+      "format": "uri"
+    },
+    "code_challenge": {
+      "type": "string"
+    },
+    "code_challenge_method": {
+      "type": "string",
+      "enum": [
+        "S256"
+      ]
+    },
+    "nonce": {
+      "type": "string"
+    },
+    "auth_time": {
+      "type": "integer"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "issued",
+        "redeemed",
+        "expired"
+      ]
+    },
+    "issued_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "redeemed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "issued_family_id": {
+      "type": "string",
+      "format": "uuid"
+    }
+  },
+  "required": [
+    "code",
+    "authorization_request_id",
+    "client_id",
+    "sub",
+    "scopes",
+    "redirect_uri",
+    "code_challenge",
+    "code_challenge_method",
+    "auth_time",
+    "state",
+    "issued_at",
+    "expires_at"
+  ]
+}

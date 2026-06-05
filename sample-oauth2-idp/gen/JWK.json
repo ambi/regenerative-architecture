@@ -1,0 +1,25 @@
+{
+  "$id": "urn:idp:JWK",
+  "type": "object",
+  "additionalProperties": false,
+  "description": "JSON Web Key (RFC 7517)。kid で識別される 1 件の公開鍵情報。",
+  "properties": {
+    "kty": {
+      "type": "string"
+    },
+    "use": {
+      "type": "string"
+    },
+    "kid": {
+      "type": "string"
+    },
+    "alg": {
+      "type": "string"
+    },
+    "extra": {}
+  },
+  "required": [
+    "kty",
+    "kid"
+  ]
+}

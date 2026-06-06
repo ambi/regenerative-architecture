@@ -2328,6 +2328,16 @@ objectives:
 
 annotations:
 
+  password_policy:
+    description: |
+      プレーンパスワードがシステムに導入されるすべての経路（registration / change-password /
+      admin による作成 / demo seed）に適用される。NIST SP 800-63B-3 §5.1.1.2 に従い長さのみを
+      強制し、文字種混在ルールは課さない（NIST は文字種ルールが予測可能なパターンを誘発する
+      とする）。漏洩パスワード検査は password_policy とは別に Phase 0.4 で BreachedPasswordChecker
+      port を経由して行う。
+    min_length: 12
+    max_length: 128
+
   discovery_template:
     scopes_supported: [openid, profile, email, offline_access]
     subject_types_supported: [public]

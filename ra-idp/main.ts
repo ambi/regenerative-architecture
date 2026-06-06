@@ -75,7 +75,11 @@ import type { SessionStore } from './src/authentication/ports/session-store'
 import { DEVICE_CODE_TTL_SECONDS } from './src/oauth2/domain/device-authorization'
 import type { EventSink } from './src/shared/ports/event-sink'
 import type { Observer } from './src/shared/ports/observer'
-import { Sha256PasswordVerifier } from './src/authentication/usecases/password-verifier'
+import { Argon2idPasswordHasher } from './adapters/crypto/argon2id-password-hasher'
+import {
+  PasswordPolicyError,
+  validatePassword,
+} from './src/authentication/usecases/password-policy'
 import { LoginSessionManager } from './src/authentication/usecases/session-manager'
 import { DemoHeaderResolver } from './src/authentication/usecases/demo-header-resolver'
 import type { AuthenticationContextResolver } from './src/authentication/domain/authentication-context'
@@ -231,6 +235,8 @@ function emit(event: DomainEvent): void {
   })
 }
 
+const passwordHasher = new Argon2idPasswordHasher()
+
 // ---------------------------------------------------------------
 // 初期データ (デモ用)
 // 本番想定で SKIP_DEMO_SEED が設定されていればスキップ。
@@ -260,10 +266,13 @@ if (!process.env.SKIP_DEMO_SEED) {
   })
   await deps.clientRepo.save(demoClient)
 
+  const demoPassword = process.env.DEMO_USER_PASSWORD ?? 'alice-password'
+  const policy = validatePassword(demoPassword)
+  if (!policy.ok) throw new PasswordPolicyError(policy.violations)
   const demoUser = UserSchema.parse({
     sub: 'user_alice',
     preferred_username: 'alice',
-    password_hash: createHash('sha256').update('alice-password').digest('hex'),
+    password_hash: await passwordHasher.hash(demoPassword),
     name: 'Alice Demo',
     given_name: 'Alice',
     family_name: 'Demo',
@@ -291,7 +300,7 @@ app.route(
   '/',
   createAuthenticationRoutes({
     userRepo: deps.userRepo,
-    passwordVerifier: new Sha256PasswordVerifier(),
+    passwordHasher,
     sessionManager,
     continuation: createAuthorizationLoginContinuation(authorizeRouteDeps),
     emit,

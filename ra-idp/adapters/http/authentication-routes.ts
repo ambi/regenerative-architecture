@@ -14,7 +14,7 @@ import {
   SESSION_TTL_SECONDS,
   type SessionManager,
 } from '../../src/authentication/usecases/session-manager'
-import type { PasswordVerifier } from '../../src/authentication/usecases/password-verifier'
+import type { PasswordHasher } from '../../src/authentication/ports/password-hasher'
 import type { UserRepository } from '../../src/authentication/ports/user-repository'
 import type { DomainEvent } from '../../src/spec-bindings/schemas'
 import {
@@ -28,7 +28,7 @@ import { oauthErrorResponse } from './error-response'
 
 export interface AuthenticationRoutesDeps {
   userRepo: UserRepository
-  passwordVerifier: PasswordVerifier
+  passwordHasher: PasswordHasher
   sessionManager: SessionManager
   continuation: LoginContinuation
   emit: (e: DomainEvent) => void
@@ -46,7 +46,7 @@ export function createAuthenticationRoutes(deps: AuthenticationRoutesDeps) {
       assertCsrf(c.req.header('Cookie'), String(body.csrf ?? ''))
 
       const user = await deps.userRepo.findByUsername(username)
-      if (!user || !deps.passwordVerifier.verify(password, user.password_hash)) {
+      if (!user || !(await deps.passwordHasher.verify(password, user.password_hash))) {
         deps.emit({
           type: 'AuthenticationFailed',
           occurredAt: new Date().toISOString(),

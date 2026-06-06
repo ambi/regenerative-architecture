@@ -19,7 +19,7 @@ import { InMemoryClientRepository } from '../persistence/memory/client-repo'
 import { InMemoryConsentRepository } from '../persistence/memory/consent-repo'
 import { InMemorySessionStore } from '../persistence/memory/session-store'
 import { InMemoryUserRepository } from '../persistence/memory/user-repo'
-import { Sha256PasswordVerifier } from '../../src/authentication/usecases/password-verifier'
+import { Argon2idPasswordHasher } from '../crypto/argon2id-password-hasher'
 import { LoginSessionManager } from '../../src/authentication/usecases/session-manager'
 import { DemoHeaderResolver } from '../../src/authentication/usecases/demo-header-resolver'
 import type { AuthenticationContextResolver } from '../../src/authentication/domain/authentication-context'
@@ -58,6 +58,7 @@ async function setup() {
   const parStore = new InMemoryPARStore()
   const sessionStore = new InMemorySessionStore()
   const sessionManager = new LoginSessionManager(sessionStore)
+  const passwordHasher = new Argon2idPasswordHasher()
   const demoHeaderResolver = new DemoHeaderResolver(userRepo)
   const authenticationContextResolver: AuthenticationContextResolver = {
     async resolve(headers) {
@@ -72,7 +73,7 @@ async function setup() {
     UserSchema.parse({
       sub: 'user_alice',
       preferred_username: 'alice',
-      password_hash: createHash('sha256').update('pw').digest('hex'),
+      password_hash: await passwordHasher.hash('pw'),
       email: 'alice@example.com',
       email_verified: true,
       mfa_enrolled: false,
@@ -105,7 +106,7 @@ async function setup() {
     '/',
     createAuthenticationRoutes({
       userRepo,
-      passwordVerifier: new Sha256PasswordVerifier(),
+      passwordHasher,
       sessionManager,
       continuation: createAuthorizationLoginContinuation(authorizeDeps),
       emit,

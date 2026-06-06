@@ -38,6 +38,7 @@ type Deps struct {
 	SessionManager             *authusecases.SessionManager
 	AuthnResolver              authdomain.AuthenticationContextResolver
 	Emit                       func(spec.DomainEvent)
+	HealthInfo                 HealthInfo
 }
 
 func Register(e *echo.Echo, d Deps) {
@@ -58,4 +59,5 @@ func Register(e *echo.Echo, d Deps) {
 	e.POST("/device", d.handleDeviceVerification)
 	e.GET("/.well-known/openid-configuration", d.handleDiscovery)
 	e.GET("/jwks", d.handleJWKS)
+	e.GET("/health", d.handleHealth)
 }

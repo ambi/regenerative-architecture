@@ -108,14 +108,12 @@ func run() error {
 		Authorizer: authorizer, JWKResolver: jwkResolver,
 		PasswordHasher: hasher, SessionManager: sessionManager, AuthnResolver: sessionManager,
 		Emit: emit,
-	})
-	e.GET("/health", func(c *echo.Context) error {
-		return c.JSON(http.StatusOK, map[string]string{
-			"status": "ok", "persistence": envDefault("PERSISTENCE", "memory"),
-			"event_sink":    envDefault("EVENT_SINK", "console"),
-			"observability": envDefault("OBSERVABILITY", "noop"),
-			"authzen":       envDefault("AUTHZEN", "local"),
-		})
+		HealthInfo: httpadapter.HealthInfo{
+			Persistence:   envDefault("PERSISTENCE", "memory"),
+			EventSink:     envDefault("EVENT_SINK", "console"),
+			Observability: envDefault("OBSERVABILITY", "noop"),
+			AuthZEN:       envDefault("AUTHZEN", "local"),
+		},
 	})
 
 	log.Printf("ra-idp-go listening on %s (issuer=%s)", addr, issuer)
@@ -136,11 +134,9 @@ func run() error {
 func assemble(ctx context.Context) (*assembled, error) {
 	switch envDefault("PERSISTENCE", "memory") {
 	case "memory":
-		clientRepo := memory.NewClientRepository()
-		userRepo := memory.NewUserRepository()
-		console := eventsink.NewConsole()
 		return &assembled{
-			clientRepo: clientRepo, userRepo: userRepo,
+			clientRepo:   memory.NewClientRepository(),
+			userRepo:     memory.NewUserRepository(),
 			consentRepo:  memory.NewConsentRepository(),
 			requestStore: memory.NewAuthorizationRequestStore(), codeStore: memory.NewAuthorizationCodeStore(),
 			parStore: memory.NewPARStore(), refreshStore: memory.NewRefreshTokenStore(),
@@ -148,7 +144,7 @@ func assemble(ctx context.Context) (*assembled, error) {
 			clientAssertionReplay: memory.NewClientAssertionReplayStore(),
 			sessionStore:          memory.NewSessionStore(),
 			keyStore:              mustMemoryKeyStore(),
-			eventSink:             consoleSink{console},
+			eventSink:             eventsink.NewConsoleSink(),
 			close:                 func() {},
 		}, nil
 	case "postgres":
@@ -187,7 +183,7 @@ func assemblePostgres(ctx context.Context) (*assembled, error) {
 	var sink oauthports.EventSink
 	switch envDefault("EVENT_SINK", "console") {
 	case "console":
-		sink = consoleSink{eventsink.NewConsole()}
+		sink = eventsink.NewConsoleSink()
 	case "outbox":
 		sink = &postgres.OutboxEventSink{Pool: pool}
 	default:
@@ -213,13 +209,6 @@ func assemblePostgres(ctx context.Context) (*assembled, error) {
 			pool.Close()
 		},
 	}, nil
-}
-
-type consoleSink struct{ console *eventsink.Console }
-
-func (s consoleSink) Emit(_ context.Context, event spec.DomainEvent) error {
-	s.console.Emit(event)
-	return nil
 }
 
 func assembleAuthorizer() (oauthports.Authorizer, error) {

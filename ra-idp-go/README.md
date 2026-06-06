@@ -51,6 +51,12 @@ cd ..
 go run ./cmd/ra-idp-go
 ```
 
+別ターミナルから主要な OAuth 2.0 / OpenID Connect フローを実行する:
+
+```bash
+./demo.sh
+```
+
 ### 本番アダプタ構成
 
 ```bash

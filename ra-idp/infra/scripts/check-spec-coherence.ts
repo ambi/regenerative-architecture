@@ -13,7 +13,7 @@
  * 実行: bun run check:coherence
  */
 
-import { readFile } from 'fs/promises'
+import { readFile, readdir } from 'fs/promises'
 import { join } from 'path'
 
 import sclDoc from '../../spec/scl.yaml'
@@ -208,7 +208,18 @@ function checkEventRoutingVsScl() {
 // 3. Migrations ↔ SCL entities
 // ---------------------------------------------------------------
 async function checkMigrationsVsScl() {
-  const sql = await readFile(join(import.meta.dir, '../migrations/0001_init.sql'), 'utf-8')
+  // infra/migrations/README.md §「加法的変更を原則とする」より、後続マイグレーションは
+  // 連番不変で ALTER TABLE で列を足す。CREATE TABLE と ALTER TABLE ADD COLUMN を
+  // 通番でマージして SCL と突き合わせる。
+  const migrationsDir = join(import.meta.dir, '../migrations')
+  const files = (await readdir(migrationsDir))
+    .filter((f) => f.endsWith('.sql'))
+    .sort()
+  const composed: Record<string, Set<string>> = {}
+  for (const file of files) {
+    const sql = await readFile(join(migrationsDir, file), 'utf-8')
+    mergeColumns(composed, sql)
+  }
 
   type Mapping = { table: string; model: string }
   const tables: Mapping[] = [
@@ -216,7 +227,7 @@ async function checkMigrationsVsScl() {
     { table: 'users', model: 'User' },
   ]
   for (const { table, model } of tables) {
-    const cols = extractColumns(sql, table)
+    const cols = composed[table] ?? new Set()
     const m = scl.models[model]
     if (m?.kind !== 'entity') {
       bad(`SCL に ${model} (entity) が見つからない`)
@@ -230,20 +241,31 @@ async function checkMigrationsVsScl() {
   }
 }
 
-function extractColumns(sql: string, table: string): Set<string> {
-  const re = new RegExp(`CREATE TABLE (?:IF NOT EXISTS )?${table}\\s*\\(([\\s\\S]*?)\\n\\);`, 'i')
-  const m = sql.match(re)
-  if (!m) return new Set()
-  const body = m[1]
-  const cols = new Set<string>()
-  for (const line of body.split('\n')) {
-    const t = line.trim()
-    if (!t || t.startsWith('--') || /^(CHECK|PRIMARY|FOREIGN|UNIQUE|CONSTRAINT|COMMENT)/i.test(t))
-      continue
-    const m2 = t.match(/^([a-zA-Z_][a-zA-Z0-9_]*)/)
-    if (m2) cols.add(m2[1])
+function mergeColumns(into: Record<string, Set<string>>, sql: string): void {
+  // CREATE TABLE 全体
+  const createRe = /CREATE TABLE (?:IF NOT EXISTS )?([a-zA-Z_][a-zA-Z0-9_]*)\s*\(([\s\S]*?)\n\);/gi
+  let m: RegExpExecArray | null
+  while ((m = createRe.exec(sql)) !== null) {
+    const table = m[1]
+    const cols = into[table] ?? new Set<string>()
+    for (const line of m[2].split('\n')) {
+      const t = line.trim()
+      if (!t || t.startsWith('--') || /^(CHECK|PRIMARY|FOREIGN|UNIQUE|CONSTRAINT|COMMENT)/i.test(t))
+        continue
+      const m2 = t.match(/^([a-zA-Z_][a-zA-Z0-9_]*)/)
+      if (m2) cols.add(m2[1])
+    }
+    into[table] = cols
   }
-  return cols
+  // ALTER TABLE … ADD COLUMN
+  const alterRe = /ALTER TABLE\s+([a-zA-Z_][a-zA-Z0-9_]*)\s+ADD COLUMN(?:\s+IF NOT EXISTS)?\s+([a-zA-Z_][a-zA-Z0-9_]*)/gi
+  while ((m = alterRe.exec(sql)) !== null) {
+    const table = m[1]
+    const col = m[2]
+    const cols = into[table] ?? new Set<string>()
+    cols.add(col)
+    into[table] = cols
+  }
 }
 
 // ---------------------------------------------------------------

@@ -20,8 +20,8 @@ export interface CreateAuthorizationRequestInput {
   scope: string
   state_param?: string
   nonce?: string
-  code_challenge: string
-  code_challenge_method: 'S256'
+  code_challenge?: string
+  code_challenge_method?: 'S256'
   prompt?: string
   max_age?: number
   id_token_hint?: string

@@ -107,6 +107,53 @@ describe('authorize:initiate', () => {
     expect(res.decision).toBe('Permit')
   })
 
+  it('require_pkce=false の confidential client は code_challenge 無しでも Permit', () => {
+    const req: AuthZENRequest = {
+      subject: {
+        type: 'Client',
+        id: 'legacy-web-app',
+        properties: {
+          clientType: 'confidential',
+          scopes: ['openid'],
+          redirectUris: ['https://app.example.com/cb'],
+          requirePkce: false,
+        },
+      },
+      action: { name: 'authorize:initiate' },
+      resource: {
+        type: 'AuthorizationRequest',
+        properties: { scopes: ['openid'] }, // code_challenge 無し
+      },
+      context: { redirectUri: 'https://app.example.com/cb', now },
+    }
+    const res = evaluate(req)
+    expect(res.decision).toBe('Permit')
+  })
+
+  it('require_pkce=true (public client) は code_challenge 必須', () => {
+    const req: AuthZENRequest = {
+      subject: {
+        type: 'Client',
+        id: 'spa',
+        properties: {
+          clientType: 'public',
+          scopes: ['openid'],
+          redirectUris: ['https://app.example.com/cb'],
+          requirePkce: true,
+        },
+      },
+      action: { name: 'authorize:initiate' },
+      resource: {
+        type: 'AuthorizationRequest',
+        properties: { scopes: ['openid'] }, // code_challenge 無し
+      },
+      context: { redirectUri: 'https://app.example.com/cb', now },
+    }
+    const res = evaluate(req)
+    expect(res.decision).toBe('Deny')
+    expect(res.reasons).toContain('pkce_present')
+  })
+
   it('要求スコープがクライアント宣言の部分集合でないと Deny', () => {
     const req: AuthZENRequest = {
       subject: {

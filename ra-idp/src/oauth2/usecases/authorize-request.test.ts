@@ -210,3 +210,81 @@ describe('authorizeRequestUseCase — PAR policy', () => {
     expect(result.request.state).toBe('authentication_pending')
   })
 })
+
+describe('authorizeRequestUseCase — PKCE staging (ADR-002 改訂)', () => {
+  const AUTH_INPUT_NO_PKCE = {
+    client_id: 'web-app',
+    redirect_uri: 'https://app.example.com/cb',
+    response_type: 'code' as const,
+    scope: 'openid profile',
+  }
+
+  it('confidential client で require_pkce=false なら code_challenge 無しで通る', async () => {
+    const { clientRepo, consentRepo, requestStore } = await setup({
+      client_type: 'confidential',
+      require_pkce: false,
+    })
+
+    const result = await authorizeRequestUseCase(
+      { clientRepo, consentRepo, requestStore },
+      { ...AUTH_INPUT_NO_PKCE, par_used: false },
+    )
+    expect(result.request.state).toBe('authentication_pending')
+    expect(result.request.code_challenge).toBeUndefined()
+  })
+
+  it('confidential client (require_pkce 未指定) は default false で code_challenge 無しでも通る', async () => {
+    const { clientRepo, consentRepo, requestStore } = await setup({
+      client_type: 'confidential',
+    })
+
+    const result = await authorizeRequestUseCase(
+      { clientRepo, consentRepo, requestStore },
+      { ...AUTH_INPUT_NO_PKCE, par_used: false },
+    )
+    expect(result.request.state).toBe('authentication_pending')
+  })
+
+  it('public client は code_challenge が無いと拒否される (default true)', async () => {
+    const { clientRepo, consentRepo, requestStore } = await setup({
+      client_type: 'public',
+      token_endpoint_auth_method: 'none',
+      client_secret_hash: undefined,
+    })
+
+    await expect(
+      authorizeRequestUseCase(
+        { clientRepo, consentRepo, requestStore },
+        { ...AUTH_INPUT_NO_PKCE, par_used: false },
+      ),
+    ).rejects.toThrow(/pkce_present/)
+  })
+
+  it('FAPI client は require_pkce 未指定でも default true で code_challenge 必須', async () => {
+    const { clientRepo, consentRepo, requestStore } = await setup({
+      fapi_profile: 'fapi_2_security_profile',
+      require_pushed_authorization_requests: true,
+    })
+
+    await expect(
+      authorizeRequestUseCase(
+        { clientRepo, consentRepo, requestStore },
+        { ...AUTH_INPUT_NO_PKCE, par_used: true },
+      ),
+    ).rejects.toThrow(/pkce_present/)
+  })
+
+  it('require_pkce=true (明示) の confidential client は code_challenge 必須', async () => {
+    const { clientRepo, consentRepo, requestStore } = await setup({
+      client_type: 'confidential',
+      require_pkce: true,
+    })
+
+    await expect(
+      authorizeRequestUseCase(
+        { clientRepo, consentRepo, requestStore },
+        { ...AUTH_INPUT_NO_PKCE, par_used: false },
+      ),
+    ).rejects.toThrow(/pkce_present/)
+  })
+})

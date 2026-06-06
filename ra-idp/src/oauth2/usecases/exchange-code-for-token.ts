@@ -91,9 +91,16 @@ export async function exchangeCodeForTokenUseCase(
     throw new OAuthError('invalid_grant', '認可コードはすでに使用済みまたは期限切れです')
   }
 
-  // PKCE 検証
-  if (!verifyPkce(input.code_verifier, code.code_challenge, code.code_challenge_method)) {
-    throw new OAuthError('invalid_grant', 'PKCE 検証に失敗しました')
+  // PKCE 検証 (ADR-002 改訂後)
+  // - code に challenge が無いなら PKCE 省略クライアント (require_pkce=false の confidential)
+  //   とみなし、verifier が一緒に来ていたらそれは拒否 (downgrade を防ぐ)
+  // - challenge があるなら必ず verifier と一致確認
+  if (code.code_challenge) {
+    if (!verifyPkce(input.code_verifier, code.code_challenge, code.code_challenge_method ?? 'S256')) {
+      throw new OAuthError('invalid_grant', 'PKCE 検証に失敗しました')
+    }
+  } else if (input.code_verifier) {
+    throw new OAuthError('invalid_grant', '認可コードに code_challenge が無いため code_verifier は不正です')
   }
 
   // ポリシー評価（認可ポリシーがすべての制約を一括チェック）

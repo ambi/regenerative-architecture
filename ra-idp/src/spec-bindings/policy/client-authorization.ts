@@ -26,6 +26,9 @@ export interface AuthZENSubject {
     scopes?: string[]
     redirectUris?: string[]
     requirePAR?: boolean
+    /** PKCE が必須か。client metadata `require_pkce` (RFC 9700 / OAuth 2.1 階段化)。
+     *  public / FAPI クライアントは true、confidential は明示 false で opt-out 可。 */
+    requirePkce?: boolean
     authenticated?: boolean
   }
 }
@@ -147,7 +150,10 @@ const ruleEvaluators: Record<string, RuleEvaluator> = {
   pkce_verification_passed(req) {
     const verifier = req.context?.codeVerifier
     const challenge = req.resource.properties?.codeChallenge
-    if (!verifier || !challenge) return false
+    // challenge 不在は require_pkce=false で発行された code (PKCE 省略合意)。
+    // この場合 verifier も来ていなければ OK。来ていれば downgrade とみなし上流で拒否済み。
+    if (!challenge) return !verifier
+    if (!verifier) return false
     return true
   },
 
@@ -220,6 +226,10 @@ const ruleEvaluators: Record<string, RuleEvaluator> = {
   },
 
   pkce_present(req) {
+    // require_pkce が明示 false なら code_challenge 不要 (legacy confidential client)。
+    // 未指定 or true なら必須。public / FAPI クライアントの require_pkce は
+    // authorize-request use case 側で true に確定させてからこの policy に流す。
+    if (req.subject.properties?.requirePkce === false) return true
     return !!req.resource.properties?.codeChallenge
   },
 

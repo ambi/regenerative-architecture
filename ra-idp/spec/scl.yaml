@@ -505,6 +505,7 @@ models:
       tls_client_auth_subject_dn:             { type: String, optional: true }
       id_token_signed_response_alg:           { type: SignatureAlgorithm, default: PS256 }
       require_pushed_authorization_requests:  { type: Boolean, default: false }
+      require_pkce:                           { type: Boolean, optional: true }
       dpop_bound_access_tokens:               { type: Boolean, default: false }
       fapi_profile:                           { type: FapiProfile, default: None }
       created_at:                             { type: Timestamp }
@@ -801,6 +802,7 @@ models:
       jwks:                           { type: JSON, optional: true }
       id_token_signed_response_alg:   { type: SignatureAlgorithm, optional: true }
       fapi_profile:                   { type: FapiProfile, optional: true }
+      require_pkce:                   { type: Boolean, optional: true }
 
   TokenRequest:
     kind: value_object
@@ -2085,7 +2087,7 @@ permissions:
         - "actor.registered == true"
         - "context.redirect_uri in actor.redirect_uris"
         - "subset(context.requested_scopes, actor.scopes)"
-        - "context.code_challenge != null"
+        - "(actor.require_pkce == false) or (context.code_challenge != null)"
         - "(actor.require_pushed_authorization_requests == false) or (context.par_used == true)"
 
 

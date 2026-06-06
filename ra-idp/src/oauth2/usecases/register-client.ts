@@ -24,6 +24,7 @@ export interface RegisterClientInput {
   /** private_key_jwt クライアントの JWKS エンドポイント。 */
   jwks_uri?: string
   require_pushed_authorization_requests?: boolean
+  require_pkce?: boolean
   dpop_bound_access_tokens?: boolean
   fapi_profile?: Client['fapi_profile']
 }
@@ -74,6 +75,7 @@ export async function registerClientUseCase(
     jwks_uri: input.jwks_uri,
     scope: input.scope ?? 'openid profile email',
     require_pushed_authorization_requests: input.require_pushed_authorization_requests ?? false,
+    require_pkce: input.require_pkce,
     dpop_bound_access_tokens: input.dpop_bound_access_tokens ?? false,
     fapi_profile: input.fapi_profile ?? 'none',
     created_at: now.toISOString(),

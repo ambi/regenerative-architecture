@@ -19,8 +19,8 @@ export function generateAuthorizationCode(input: {
   sub: string
   scopes: string[]
   redirect_uri: string
-  code_challenge: string
-  code_challenge_method: 'S256'
+  code_challenge?: string
+  code_challenge_method?: 'S256'
   nonce?: string
   auth_time: number
   ttl_seconds?: number

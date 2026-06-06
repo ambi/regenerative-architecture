@@ -26,6 +26,7 @@ function rowToClient(row: any): Client {
     tls_client_auth_subject_dn: row.tls_client_auth_subject_dn ?? undefined,
     id_token_signed_response_alg: row.id_token_signed_response_alg,
     require_pushed_authorization_requests: row.require_pushed_authorization_requests,
+    require_pkce: row.require_pkce ?? undefined,
     dpop_bound_access_tokens: row.dpop_bound_access_tokens,
     fapi_profile: row.fapi_profile,
     created_at: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
@@ -55,11 +56,12 @@ export class PostgresClientRepository implements ClientRepository {
         jwks_uri, jwks, tls_client_auth_subject_dn,
         id_token_signed_response_alg,
         require_pushed_authorization_requests,
+        require_pkce,
         dpop_bound_access_tokens, fapi_profile,
         created_at
       ) VALUES (
         $1, $2, $3, $4, $5::jsonb, $6::jsonb, $7::jsonb, $8, $9,
-        $10, $11::jsonb, $12, $13, $14, $15, $16, $17
+        $10, $11::jsonb, $12, $13, $14, $15, $16, $17, $18
       )
       ON CONFLICT (client_id) DO UPDATE SET
         client_secret_hash = COALESCE(EXCLUDED.client_secret_hash, clients.client_secret_hash),
@@ -75,6 +77,7 @@ export class PostgresClientRepository implements ClientRepository {
         tls_client_auth_subject_dn = EXCLUDED.tls_client_auth_subject_dn,
         id_token_signed_response_alg = EXCLUDED.id_token_signed_response_alg,
         require_pushed_authorization_requests = EXCLUDED.require_pushed_authorization_requests,
+        require_pkce = EXCLUDED.require_pkce,
         dpop_bound_access_tokens = EXCLUDED.dpop_bound_access_tokens,
         fapi_profile = EXCLUDED.fapi_profile
       `,
@@ -93,6 +96,7 @@ export class PostgresClientRepository implements ClientRepository {
         client.tls_client_auth_subject_dn ?? null,
         client.id_token_signed_response_alg,
         client.require_pushed_authorization_requests,
+        client.require_pkce ?? null,
         client.dpop_bound_access_tokens,
         client.fapi_profile,
         client.created_at,

@@ -78,14 +78,16 @@ export function createAuthorizeRoutes(deps: AuthorizeRoutesDeps) {
         parUsed = true
       }
 
-      const required = ['client_id', 'redirect_uri', 'response_type', 'code_challenge']
+      // client_id / redirect_uri 不在は redirect 不能 → error response。
+      // code_challenge の有無は policy (pkce_present) が require_pkce 込みで判定する。
+      const required = ['client_id', 'redirect_uri', 'response_type']
       for (const k of required) {
         if (!params[k]) throw new OAuthError('invalid_request', `${k} が必要です`)
       }
       if (params.response_type !== 'code') {
         throw new OAuthError('unsupported_response_type', 'code のみサポート')
       }
-      if (params.code_challenge_method !== 'S256') {
+      if (params.code_challenge && params.code_challenge_method !== 'S256') {
         throw new OAuthError('invalid_request', 'code_challenge_method は S256 のみ')
       }
 
@@ -96,8 +98,8 @@ export function createAuthorizeRoutes(deps: AuthorizeRoutesDeps) {
         scope: params.scope ?? 'openid',
         state_param: params.state,
         nonce: params.nonce,
-        code_challenge: params.code_challenge,
-        code_challenge_method: 'S256',
+        code_challenge: params.code_challenge || undefined,
+        code_challenge_method: params.code_challenge ? 'S256' : undefined,
         prompt: params.prompt,
         max_age: params.max_age ? Number(params.max_age) : undefined,
         id_token_hint: params.id_token_hint,

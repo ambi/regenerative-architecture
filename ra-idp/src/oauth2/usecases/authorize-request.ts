@@ -23,6 +23,21 @@ import type { ConsentRepository } from '../ports/consent-repository'
 import type { AuthorizationRequestStore } from '../ports/authorization-store'
 import { OAuthError } from '../protocol/oauth-error'
 
+/**
+ * client metadata `require_pkce` の解決規則 (ADR-002 改訂 / RFC 9700 / OAuth 2.1)。
+ * - 明示 true/false が登録されていればそれを採用
+ * - 未指定なら client_type と fapi_profile から決める:
+ *   - public client → true (PKCE が唯一の防御)
+ *   - FAPI client → true (FAPI 2.0 §5.1 で MUST)
+ *   - confidential client → false (RFC 9700 推奨だが原仕様では任意。明示 opt-in 設計)
+ */
+export function resolveRequirePkce(client: Client): boolean {
+  if (typeof client.require_pkce === 'boolean') return client.require_pkce
+  if (client.client_type === 'public') return true
+  if (client.fapi_profile && client.fapi_profile !== 'none') return true
+  return false
+}
+
 export interface AuthorizeInput extends CreateAuthorizationRequestInput {
   /** PAR を経由したか。アダプター層が判定する */
   par_used: boolean
@@ -56,9 +71,11 @@ export async function authorizeRequestUseCase(
       type: 'Client',
       id: client.client_id,
       properties: {
+        clientType: client.client_type,
         scopes: clientScopes,
         redirectUris: client.redirect_uris,
         requirePAR: client.require_pushed_authorization_requests,
+        requirePkce: resolveRequirePkce(client),
       },
     },
     action: { name: 'authorize:initiate' },

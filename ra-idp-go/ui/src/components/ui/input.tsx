@@ -6,9 +6,9 @@ export function Input({ className, type, ...props }: InputHTMLAttributes<HTMLInp
     <input
       type={type}
       className={cn(
-        'h-11 w-full rounded-md border bg-white px-3 py-2 text-sm outline-none transition',
-        'placeholder:text-slate-400 focus:border-indigo-500 focus:ring-3 focus:ring-indigo-500/10',
-        'disabled:cursor-not-allowed disabled:opacity-50',
+        'h-12 w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-[0.925rem] text-slate-950 outline-none transition-[border-color,box-shadow,background-color]',
+        'placeholder:text-slate-400 hover:border-slate-400 focus:border-blue-600 focus:ring-3 focus:ring-blue-600/10',
+        'disabled:cursor-not-allowed disabled:bg-slate-100 disabled:opacity-60',
         className,
       )}
       {...props}

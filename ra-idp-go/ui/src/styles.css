@@ -2,12 +2,12 @@
 
 @theme {
   --font-sans: "Inter", "Noto Sans JP", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --color-primary: #4f46e5;
+  --color-primary: #3155d9;
   --color-primary-foreground: #ffffff;
-  --color-muted: #f1f5f9;
-  --color-muted-foreground: #64748b;
-  --color-border: #e2e8f0;
-  --color-destructive: #dc2626;
+  --color-muted: #f3f5f8;
+  --color-muted-foreground: #667085;
+  --color-border: #dfe3ea;
+  --color-destructive: #c93737;
   --color-destructive-foreground: #ffffff;
   --radius-md: 0.625rem;
   --radius-lg: 0.875rem;
@@ -24,81 +24,103 @@
   }
 
   body {
-    @apply m-0 min-h-screen min-w-80 bg-slate-100 font-sans text-slate-800 antialiased;
+    @apply m-0 min-h-screen min-w-80 bg-slate-100 font-sans text-slate-950 antialiased;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
   }
 
   button,
   input {
     font: inherit;
   }
+
+  ::selection {
+    @apply bg-blue-100 text-blue-950;
+  }
 }
 
 @layer components {
   .auth-background {
-    @apply relative min-h-screen overflow-hidden;
-    background:
-      radial-gradient(circle at 8% 10%, rgb(99 102 241 / 14%), transparent 30rem),
-      radial-gradient(circle at 92% 86%, rgb(6 182 212 / 12%), transparent 28rem),
-      linear-gradient(145deg, #f8faff 0%, #eef2f8 100%);
-  }
-
-  .auth-background::before,
-  .auth-background::after {
-    @apply pointer-events-none absolute rounded-full border border-indigo-500/10 content-[''];
+    @apply relative min-h-screen overflow-hidden bg-[#eef1f5];
+    background-image:
+      radial-gradient(circle at 12% 12%, rgb(49 85 217 / 8%), transparent 28rem),
+      radial-gradient(circle at 88% 92%, rgb(14 116 144 / 6%), transparent 24rem);
   }
 
   .auth-background::before {
-    @apply -right-32 -top-52 size-[26rem];
-  }
-
-  .auth-background::after {
-    @apply -bottom-36 -left-20 size-72;
+    @apply pointer-events-none absolute inset-0 content-[''];
+    background-image:
+      linear-gradient(rgb(15 23 42 / 3%) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(15 23 42 / 3%) 1px, transparent 1px);
+    background-size: 40px 40px;
+    mask-image: linear-gradient(to bottom, black, transparent 72%);
   }
 
   .auth-container {
-    @apply relative z-10 mx-auto flex min-h-screen max-w-[1060px] items-center px-4 py-8;
+    @apply relative z-10 mx-auto flex min-h-screen max-w-[1160px] items-center px-6 py-10;
   }
 
   .auth-frame {
-    @apply grid min-h-[650px] w-full grid-cols-[minmax(0,0.95fr)_minmax(420px,1.05fr)] overflow-hidden rounded-[28px] border-white/80 bg-white/90 shadow-2xl backdrop-blur-xl;
+    @apply grid min-h-[680px] w-full grid-cols-[minmax(0,0.92fr)_minmax(440px,1.08fr)] overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-[0_24px_80px_-28px_rgb(15_23_42/28%)];
   }
 
   .auth-aside {
-    @apply flex flex-col p-10 text-white;
-    background: linear-gradient(155deg, rgb(49 46 129 / 97%), rgb(67 56 202 / 90%)), #3730a3;
+    @apply relative isolate flex flex-col overflow-hidden bg-[#0d1b36] p-11 text-white;
+  }
+
+  .auth-aside::before {
+    @apply pointer-events-none absolute -right-28 -top-28 -z-10 size-96 rounded-full content-[''];
+    background: radial-gradient(circle, rgb(71 111 255 / 28%), transparent 68%);
+  }
+
+  .auth-aside::after {
+    @apply pointer-events-none absolute inset-0 -z-10 content-[''];
+    background-image:
+      linear-gradient(rgb(255 255 255 / 4%) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(255 255 255 / 4%) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: linear-gradient(to bottom right, black, transparent 72%);
   }
 
   .auth-aside-copy {
-    @apply my-auto flex flex-col gap-6;
+    @apply my-auto flex flex-col gap-6 py-12;
   }
 
   .aside-title {
-    @apply m-0 max-w-96 text-[clamp(2rem,4vw,3.25rem)] font-bold leading-[1.12] tracking-[-0.045em] text-white;
+    @apply m-0 max-w-[27rem] text-[clamp(2rem,3.6vw,3.15rem)] font-semibold leading-[1.15] tracking-[-0.04em] text-white;
   }
 
   .aside-text {
-    @apply max-w-[25rem] text-base leading-7 text-white/75;
+    @apply max-w-[27rem] text-[0.95rem] leading-7 text-slate-300;
   }
 
   .eyebrow {
-    @apply text-xs font-bold uppercase tracking-[0.13em] text-indigo-600;
+    @apply text-[0.7rem] font-bold uppercase tracking-[0.16em] text-primary;
   }
 
   .auth-main {
-    @apply mx-auto flex w-full max-w-[31rem] flex-col justify-center p-12;
+    @apply mx-auto flex w-full max-w-[33rem] flex-col justify-center px-14 py-12;
   }
 
   .mobile-brand {
     @apply mb-12 hidden;
   }
 
-  @media (max-width: 800px) {
+  .page-title {
+    @apply text-[1.75rem] font-semibold leading-tight tracking-[-0.025em] text-slate-950;
+  }
+
+  .page-description {
+    @apply text-[0.925rem] leading-6 text-slate-600;
+  }
+
+  @media (max-width: 900px) {
     .auth-container {
-      @apply p-0;
+      @apply max-w-[620px] px-5 py-6;
     }
 
     .auth-frame {
-      @apply min-h-screen grid-cols-1 rounded-none border-0;
+      @apply min-h-0 grid-cols-1;
     }
 
     .auth-aside {
@@ -106,11 +128,40 @@
     }
 
     .auth-main {
-      @apply px-6 py-8;
+      @apply max-w-none px-10 py-10;
     }
 
     .mobile-brand {
       @apply block;
+    }
+  }
+
+  @media (max-width: 520px) {
+    .auth-container {
+      @apply min-h-screen p-0;
+    }
+
+    .auth-frame {
+      @apply min-h-screen rounded-none border-0;
+    }
+
+    .auth-main {
+      @apply px-6 py-8;
+    }
+
+    .mobile-brand {
+      @apply mb-10;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      scroll-behavior: auto;
+      transition-duration: 0.01ms;
+      animation-duration: 0.01ms;
+      animation-iteration-count: 1;
     }
   }
 }

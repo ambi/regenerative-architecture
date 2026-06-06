@@ -41,6 +41,7 @@ go run ./cmd/ra-idp-go
 認証UIは TypeScript + Vite + React + Tailwind CSS + Radix UI + shadcn/ui +
 TanStack Router / Table で実装し、
 production bundle をGoバイナリに埋め込んでいる。UIを変更した場合は先にbuildする。
+デザインと実装の判断基準は [`ui/README.md`](ui/README.md) に記載する。
 
 ```bash
 cd ui

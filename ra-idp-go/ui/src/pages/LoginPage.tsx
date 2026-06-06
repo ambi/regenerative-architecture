@@ -1,4 +1,13 @@
-import { IconAlertCircle, IconArrowRight, IconAt, IconLock } from '@tabler/icons-react'
+import {
+  IconAlertCircle,
+  IconArrowRight,
+  IconAt,
+  IconEye,
+  IconEyeOff,
+  IconLock,
+  IconShieldLock,
+} from '@tabler/icons-react'
+import { useState } from 'react'
 import { AuthShell } from '../components/AuthShell'
 import { Alert } from '../components/ui/alert'
 import { Button } from '../components/ui/button'
@@ -7,21 +16,29 @@ import { Label } from '../components/ui/label'
 import type { LoginPage as LoginPageData } from '../types'
 
 export function LoginPage({ requestId, error }: LoginPageData) {
+  const [showPassword, setShowPassword] = useState(false)
+
   return (
     <AuthShell>
-      <div className="flex flex-col gap-8">
-        <div className="flex flex-col gap-2">
-          <p className="eyebrow">Welcome back</p>
-          <h2 className="text-2xl font-bold tracking-tight">アカウントにログイン</h2>
-          <p className="text-slate-500">続行するには認証情報を入力してください。</p>
-        </div>
+      <div className="flex flex-col gap-7">
+        <header className="flex flex-col gap-2.5">
+          <p className="eyebrow">Sign in</p>
+          <h2 className="page-title">アカウントにログイン</h2>
+          <p className="page-description">
+            組織から発行された認証情報を入力して、安全に続行してください。
+          </p>
+        </header>
 
         {error ? (
-          <Alert className="flex gap-3">
-            <IconAlertCircle className="mt-0.5 shrink-0" size={18} />
+          <Alert className="flex gap-3" aria-live="polite">
+            <IconAlertCircle
+              className="mt-0.5 shrink-0 text-red-600"
+              size={19}
+              aria-hidden="true"
+            />
             <div>
               <p className="font-semibold">ログインできません</p>
-              <p className="mt-1 text-sm">{error}</p>
+              <p className="mt-1 text-sm leading-5 text-red-800">{error}</p>
             </div>
           </Alert>
         ) : null}
@@ -34,45 +51,71 @@ export function LoginPage({ requestId, error }: LoginPageData) {
               <div className="relative">
                 <IconAt
                   aria-hidden="true"
-                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                  className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
                   size={18}
                 />
                 <Input
                   id="username"
                   name="username"
-                  placeholder="your.name"
+                  placeholder="例: your.name"
                   className="pl-10"
                   autoComplete="username"
+                  spellCheck={false}
                   required
                   autoFocus
                 />
               </div>
             </div>
+
             <div className="flex flex-col gap-2">
-              <Label htmlFor="password">パスワード</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">パスワード</Label>
+                <span className="text-xs text-slate-500">大文字・小文字を区別します</span>
+              </div>
               <div className="relative">
                 <IconLock
                   aria-hidden="true"
-                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                  className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
                   size={18}
                 />
                 <Input
                   id="password"
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   name="password"
                   placeholder="パスワードを入力"
-                  className="pl-10"
+                  className="px-10"
                   autoComplete="current-password"
                   required
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((visible) => !visible)}
+                  className="absolute right-2.5 top-1/2 flex size-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600/30"
+                  aria-label={showPassword ? 'パスワードを隠す' : 'パスワードを表示'}
+                  aria-pressed={showPassword}
+                >
+                  {showPassword ? (
+                    <IconEyeOff size={18} aria-hidden="true" />
+                  ) : (
+                    <IconEye size={18} aria-hidden="true" />
+                  )}
+                </button>
               </div>
             </div>
+
             <Button type="submit" size="lg" className="mt-1 w-full">
-              ログイン
-              <IconArrowRight size={18} />
+              ログインして続行
+              <IconArrowRight size={18} aria-hidden="true" />
             </Button>
           </div>
         </form>
+
+        <div className="flex items-start gap-3 rounded-xl bg-slate-50 p-3.5 text-xs leading-5 text-slate-600">
+          <IconShieldLock className="mt-0.5 shrink-0 text-slate-500" size={17} aria-hidden="true" />
+          <p>
+            認証情報は保護された接続で送信されます。共有端末では、利用後に必ずログアウトしてください。
+          </p>
+        </div>
       </div>
     </AuthShell>
   )

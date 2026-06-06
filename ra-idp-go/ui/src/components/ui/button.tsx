@@ -4,18 +4,19 @@ import type { ButtonHTMLAttributes } from 'react'
 import { cn } from '../../lib/utils'
 
 const buttonVariants = cva(
-  'inline-flex cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-indigo-500/20 disabled:pointer-events-none disabled:opacity-50',
+  'inline-flex cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-semibold transition-[background-color,border-color,color,box-shadow,transform] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-blue-600/20 active:translate-y-px disabled:pointer-events-none disabled:opacity-45',
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground hover:bg-indigo-700',
-        secondary: 'bg-muted text-slate-700 hover:bg-slate-200',
-        ghost: 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
-        outline: 'border bg-white text-slate-700 hover:bg-slate-50',
+        default:
+          'bg-primary text-primary-foreground shadow-sm shadow-blue-900/10 hover:bg-[#2849c7]',
+        secondary: 'bg-slate-100 text-slate-800 hover:bg-slate-200',
+        ghost: 'text-slate-600 hover:bg-slate-100 hover:text-slate-950',
+        outline: 'border-slate-300 bg-white text-slate-800 shadow-xs hover:bg-slate-50',
       },
       size: {
-        default: 'h-10 px-4 py-2',
-        lg: 'h-11 px-6',
+        default: 'h-10 px-4',
+        lg: 'h-12 px-5',
       },
     },
     defaultVariants: {

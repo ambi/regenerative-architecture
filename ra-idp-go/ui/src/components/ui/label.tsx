@@ -5,7 +5,7 @@ import { cn } from '../../lib/utils'
 export function Label({ className, ...props }: ComponentProps<typeof LabelPrimitive.Root>) {
   return (
     <LabelPrimitive.Root
-      className={cn('text-sm font-medium leading-none text-slate-700', className)}
+      className={cn('text-sm font-semibold leading-none text-slate-800', className)}
       {...props}
     />
   )

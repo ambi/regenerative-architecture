@@ -92,6 +92,7 @@ export function composeApp(input: ComposeAppInput): Hono {
       deviceCodeStore: deps.deviceCodeStore,
       tokenIssuer: tokenSigner,
       dpopReplayStore: deps.dpopReplayStore,
+      dpopNonceService: deps.dpopNonceService,
       clientAssertionReplayStore: deps.clientAssertionReplayStore,
       emit,
     }),
@@ -136,6 +137,7 @@ export function composeApp(input: ComposeAppInput): Hono {
       introspector: tokenSigner,
       userRepo: deps.userRepo,
       dpopReplayStore: deps.dpopReplayStore,
+      dpopNonceService: deps.dpopNonceService,
       accessTokenDenylist: deps.accessTokenDenylist,
     }),
   )

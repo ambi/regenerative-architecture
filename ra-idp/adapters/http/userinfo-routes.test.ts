@@ -18,6 +18,7 @@ import { createUserInfoRoutes } from './userinfo-routes'
 import { InMemoryDpopReplayStore } from '../persistence/memory/dpop-replay-store'
 import { InMemoryUserRepository } from '../persistence/memory/user-repo'
 import { InMemoryKeyStore } from '../crypto/in-memory-key-store'
+import { HmacDpopNonceService } from '../crypto/hmac-dpop-nonce-service'
 import { JoseTokenSigner } from '../crypto/jwt-signer'
 import { ClientSchema, UserSchema, type Client } from '../../src/spec-bindings/schemas'
 
@@ -46,6 +47,7 @@ async function setup() {
   const keyStore = await InMemoryKeyStore.create('PS256')
   const signer = new JoseTokenSigner(ISSUER, keyStore)
   const dpopReplayStore = new InMemoryDpopReplayStore()
+  const dpopNonceService = HmacDpopNonceService.withRandomSecret(60)
   const client = makeClient()
   await userRepo.save(
     UserSchema.parse({
@@ -67,10 +69,11 @@ async function setup() {
       introspector: signer,
       userRepo,
       dpopReplayStore,
+      dpopNonceService,
     }),
   )
 
-  return { app, signer, client }
+  return { app, signer, client, dpopNonceService }
 }
 
 async function makeDpopKey() {
@@ -87,10 +90,12 @@ async function makeDpopProof(opts: {
   htm: string
   htu: string
   ath?: string
+  nonce?: string
   jti?: string
 }): Promise<string> {
   const payload: Record<string, unknown> = { htm: opts.htm, htu: opts.htu }
   if (opts.ath) payload.ath = opts.ath
+  if (opts.nonce) payload.nonce = opts.nonce
   return new SignJWT(payload)
     .setProtectedHeader({ typ: 'dpop+jwt', alg: 'ES256', jwk: opts.jwk })
     .setIssuedAt()
@@ -99,8 +104,8 @@ async function makeDpopProof(opts: {
 }
 
 describe('/userinfo + DPoP-bound access token', () => {
-  it('成功: 有効な DPoP proof で 200 を返す', async () => {
-    const { app, signer, client } = await setup()
+  it('成功: 有効な DPoP proof + nonce で 200 を返す', async () => {
+    const { app, signer, client, dpopNonceService } = await setup()
     const dpop = await makeDpopKey()
     const { token } = await signer.signAccessToken({
       sub: 'user_alice',
@@ -116,12 +121,14 @@ describe('/userinfo + DPoP-bound access token', () => {
       htm: 'GET',
       htu: `${ISSUER}/userinfo`,
       ath,
+      nonce: dpopNonceService.issue(),
     })
     const res = await app.request('/userinfo', {
       method: 'GET',
       headers: { Authorization: `DPoP ${token}`, DPoP: proof },
     })
     expect(res.status).toBe(200)
+    expect(res.headers.get('DPoP-Nonce')).toBeTruthy()
     const body = (await res.json()) as Record<string, unknown>
     expect(body.sub).toBe('user_alice')
   })
@@ -145,7 +152,7 @@ describe('/userinfo + DPoP-bound access token', () => {
   })
 
   it('ath 不一致は invalid_dpop_proof で拒否される', async () => {
-    const { app, signer, client } = await setup()
+    const { app, signer, client, dpopNonceService } = await setup()
     const dpop = await makeDpopKey()
     const { token } = await signer.signAccessToken({
       sub: 'user_alice',
@@ -161,6 +168,7 @@ describe('/userinfo + DPoP-bound access token', () => {
       htm: 'GET',
       htu: `${ISSUER}/userinfo`,
       ath: wrongAth,
+      nonce: dpopNonceService.issue(),
     })
     const res = await app.request('/userinfo', {
       method: 'GET',
@@ -172,7 +180,7 @@ describe('/userinfo + DPoP-bound access token', () => {
   })
 
   it('別の DPoP 鍵で署名された proof は jkt 不一致で拒否される', async () => {
-    const { app, signer, client } = await setup()
+    const { app, signer, client, dpopNonceService } = await setup()
     const bound = await makeDpopKey()
     const attacker = await makeDpopKey()
     const { token } = await signer.signAccessToken({
@@ -189,12 +197,69 @@ describe('/userinfo + DPoP-bound access token', () => {
       htm: 'GET',
       htu: `${ISSUER}/userinfo`,
       ath,
+      nonce: dpopNonceService.issue(),
     })
     const res = await app.request('/userinfo', {
       method: 'GET',
       headers: { Authorization: `DPoP ${token}`, DPoP: proof },
     })
     expect(res.status).toBe(400)
+  })
+
+  it('nonce 無しの DPoP proof は use_dpop_nonce + DPoP-Nonce ヘッダー付きで拒否される', async () => {
+    const { app, signer, client } = await setup()
+    const dpop = await makeDpopKey()
+    const { token } = await signer.signAccessToken({
+      sub: 'user_alice',
+      client,
+      scopes: ['openid'],
+      senderConstraint: { type: 'dpop', jkt: dpop.jkt },
+      authTime: Math.floor(Date.now() / 1000),
+    })
+    const ath = createHash('sha256').update(token).digest('base64url')
+    const proof = await makeDpopProof({
+      privateKey: dpop.privateKey,
+      jwk: dpop.jwk,
+      htm: 'GET',
+      htu: `${ISSUER}/userinfo`,
+      ath,
+    })
+    const res = await app.request('/userinfo', {
+      method: 'GET',
+      headers: { Authorization: `DPoP ${token}`, DPoP: proof },
+    })
+    expect(res.status).toBe(400)
+    const body = (await res.json()) as { error: string }
+    expect(body.error).toBe('use_dpop_nonce')
+    expect(res.headers.get('DPoP-Nonce')).toBeTruthy()
+  })
+
+  it('改ざんされた nonce は use_dpop_nonce で拒否される', async () => {
+    const { app, signer, client } = await setup()
+    const dpop = await makeDpopKey()
+    const { token } = await signer.signAccessToken({
+      sub: 'user_alice',
+      client,
+      scopes: ['openid'],
+      senderConstraint: { type: 'dpop', jkt: dpop.jkt },
+      authTime: Math.floor(Date.now() / 1000),
+    })
+    const ath = createHash('sha256').update(token).digest('base64url')
+    const proof = await makeDpopProof({
+      privateKey: dpop.privateKey,
+      jwk: dpop.jwk,
+      htm: 'GET',
+      htu: `${ISSUER}/userinfo`,
+      ath,
+      nonce: 'forged-nonce',
+    })
+    const res = await app.request('/userinfo', {
+      method: 'GET',
+      headers: { Authorization: `DPoP ${token}`, DPoP: proof },
+    })
+    expect(res.status).toBe(400)
+    const body = (await res.json()) as { error: string }
+    expect(body.error).toBe('use_dpop_nonce')
   })
 
   it('cnf 無し (非バインド) AT は Bearer scheme で従来通り通る', async () => {

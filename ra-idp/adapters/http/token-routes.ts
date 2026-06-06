@@ -25,6 +25,7 @@ import type { AuthorizationCodeStore } from '../../src/oauth2/ports/authorizatio
 import type { RefreshTokenStore } from '../../src/oauth2/ports/refresh-token-store'
 import type { DeviceCodeStore } from '../../src/oauth2/ports/device-code-store'
 import type { TokenIssuer } from '../../src/oauth2/ports/token-issuer'
+import type { DpopNonceService } from '../../src/oauth2/ports/dpop-nonce-service'
 import type { DpopReplayStore } from '../../src/oauth2/ports/dpop-replay-store'
 import type { ClientAssertionReplayStore } from '../../src/oauth2/ports/client-assertion-replay-store'
 import type { DomainEvent } from '../../src/spec-bindings/schemas'
@@ -40,6 +41,7 @@ export interface TokenRoutesDeps {
   deviceCodeStore: DeviceCodeStore
   tokenIssuer: TokenIssuer
   dpopReplayStore: DpopReplayStore
+  dpopNonceService: DpopNonceService
   clientAssertionReplayStore: ClientAssertionReplayStore
   emit: (e: DomainEvent) => void
 }
@@ -48,6 +50,8 @@ export function createTokenRoutes(deps: TokenRoutesDeps) {
   const app = new Hono()
 
   app.post('/token', async (c) => {
+    // RFC 9449 §8: 任意のレスポンスで新 nonce を提示してローテーションする
+    c.header('DPoP-Nonce', deps.dpopNonceService.issue())
     try {
       const body = Object.fromEntries(new URLSearchParams(await c.req.text()).entries())
       const auth = await authenticateClient(c, body, deps.clientRepo, {
@@ -64,12 +68,13 @@ export function createTokenRoutes(deps: TokenRoutesDeps) {
         throw new OAuthError('unauthorized_client', '宣言外の grant_type です')
       }
 
-      // DPoP ヘッダーがあれば検証
+      // DPoP ヘッダーがあれば検証 (RFC 9449 §8 nonce 必須)
       const dpop = c.req.header('DPoP')
       const tokenUrl = `${deps.issuer}/token`
       const dpopResult = dpop
         ? await verifyDpopProof(dpop, 'POST', tokenUrl, {
             replayStore: deps.dpopReplayStore,
+            nonceService: deps.dpopNonceService,
           })
         : null
 

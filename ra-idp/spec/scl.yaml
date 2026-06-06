@@ -2296,6 +2296,7 @@ objectives:
   DpopProofClockSkewPast:                      { kind: security, policy: clock_skew_seconds, value: 60 }
   DpopProofClockSkewFuture:                    { kind: security, policy: clock_skew_seconds, value: 5 }
   DpopJtiReplayWindow:                         { kind: security, policy: replay_window_minutes, value: 10 }
+  DpopNonceLifetime:                           { kind: security, policy: ttl_seconds, value: 60 }
   RefreshReuseAlertWindow:                     { kind: security, policy: alert_window_seconds, value: 60 }
 
   # ---------- データ保持 (GDPR / コンプライアンス) ----------

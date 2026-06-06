@@ -17,6 +17,7 @@ import {
 import { InMemoryRefreshTokenStore } from '../adapters/persistence/memory/refresh-store'
 import { InMemoryDpopReplayStore } from '../adapters/persistence/memory/dpop-replay-store'
 import { InMemoryAccessTokenDenylist } from '../adapters/persistence/memory/access-token-denylist'
+import { HmacDpopNonceService } from '../adapters/crypto/hmac-dpop-nonce-service'
 import { InMemoryClientAssertionReplayStore } from '../adapters/persistence/memory/client-assertion-replay-store'
 import { InMemoryDeviceCodeStore } from '../adapters/persistence/memory/device-code-store'
 import { InMemorySessionStore } from '../adapters/persistence/memory/session-store'
@@ -24,6 +25,7 @@ import { InMemoryKeyStore } from '../adapters/crypto/in-memory-key-store'
 import { ConsoleEventSink } from '../adapters/event-sink/console'
 
 import type { AccessTokenDenylist } from '../src/oauth2/ports/access-token-denylist'
+import type { DpopNonceService } from '../src/oauth2/ports/dpop-nonce-service'
 import type { ClientRepository } from '../src/oauth2/ports/client-repository'
 import type { UserRepository } from '../src/authentication/ports/user-repository'
 import type { ConsentRepository } from '../src/oauth2/ports/consent-repository'
@@ -57,9 +59,12 @@ export interface AssembledDeps {
   sessionStore: SessionStore
   keyStore: KeyStore
   accessTokenDenylist: AccessTokenDenylist
+  dpopNonceService: DpopNonceService
   eventSink: EventSink
   collectedConsoleEvents?: ConsoleEventSink
 }
+
+const DPOP_NONCE_TTL_SECONDS = 60
 
 export async function assemble(config: RuntimeConfig): Promise<AssembledDeps> {
   if (config.persistenceMode === 'memory') {
@@ -78,6 +83,7 @@ export async function assemble(config: RuntimeConfig): Promise<AssembledDeps> {
       sessionStore: new InMemorySessionStore(),
       keyStore: await InMemoryKeyStore.create('PS256'),
       accessTokenDenylist: new InMemoryAccessTokenDenylist(),
+      dpopNonceService: HmacDpopNonceService.withRandomSecret(DPOP_NONCE_TTL_SECONDS),
       eventSink: consoleSink,
       collectedConsoleEvents: consoleSink,
     }
@@ -137,6 +143,17 @@ export async function assemble(config: RuntimeConfig): Promise<AssembledDeps> {
     sessionStore: new RedisSessionStore(redis),
     keyStore: await PostgresKeyStore.create(pool, 'PS256'),
     accessTokenDenylist: new RedisAccessTokenDenylist(redis),
+    dpopNonceService: makeDpopNonceService(),
     eventSink,
   }
+}
+
+function makeDpopNonceService(): DpopNonceService {
+  // 複数インスタンス間で nonce を相互に受理するため共有秘密が要る。
+  // DPOP_NONCE_SECRET 未設定時はランダム生成 (単一インスタンス前提)。
+  const env = process.env.DPOP_NONCE_SECRET
+  if (env && env.length >= 32) {
+    return new HmacDpopNonceService(Buffer.from(env, 'utf8'), DPOP_NONCE_TTL_SECONDS)
+  }
+  return HmacDpopNonceService.withRandomSecret(DPOP_NONCE_TTL_SECONDS)
 }

@@ -11,6 +11,7 @@ import { oauthErrorResponse } from './error-response'
 import { userInfoUseCase } from '../../src/oauth2/usecases/userinfo'
 import { verifyDpopProof } from '../crypto/dpop-verifier'
 import type { AccessTokenDenylist } from '../../src/oauth2/ports/access-token-denylist'
+import type { DpopNonceService } from '../../src/oauth2/ports/dpop-nonce-service'
 import type { DpopReplayStore } from '../../src/oauth2/ports/dpop-replay-store'
 import type { TokenIntrospector } from '../../src/oauth2/ports/token-introspector'
 import type { UserRepository } from '../../src/authentication/ports/user-repository'
@@ -20,6 +21,7 @@ export interface UserInfoRoutesDeps {
   introspector: TokenIntrospector
   userRepo: UserRepository
   dpopReplayStore: DpopReplayStore
+  dpopNonceService: DpopNonceService
   accessTokenDenylist?: AccessTokenDenylist
 }
 
@@ -28,6 +30,7 @@ export function createUserInfoRoutes(deps: UserInfoRoutesDeps) {
   const resourceUri = `${deps.issuer.replace(/\/$/, '')}/userinfo`
 
   const handler = async (c: import('hono').Context) => {
+    c.header('DPoP-Nonce', deps.dpopNonceService.issue())
     try {
       const authHeader = c.req.header('Authorization')
       if (!authHeader?.startsWith('Bearer ') && !authHeader?.startsWith('DPoP ')) {
@@ -63,6 +66,7 @@ export function createUserInfoRoutes(deps: UserInfoRoutesDeps) {
         const proof = await verifyDpopProof(c.req.header('DPoP'), c.req.method, resourceUri, {
           replayStore: deps.dpopReplayStore,
           expectedAth,
+          nonceService: deps.dpopNonceService,
         })
         if (!proof || proof.jkt !== boundJkt) {
           c.header('WWW-Authenticate', 'DPoP error="invalid_token"')

@@ -10,6 +10,7 @@
 import { jwtVerify, importJWK, calculateJwkThumbprint } from 'jose'
 import type { JWK } from 'jose'
 import { OAuthError } from '../../src/oauth2/protocol/oauth-error'
+import type { DpopNonceService } from '../../src/oauth2/ports/dpop-nonce-service'
 import type { DpopReplayStore } from '../../src/oauth2/ports/dpop-replay-store'
 
 const CLOCK_SKEW_PAST_SECONDS = 60
@@ -31,6 +32,11 @@ export async function verifyDpopProof(
      * Protected resource (例: /userinfo) で DPoP-bound AT を検証する時のみ指定する。
      */
     expectedAth?: string
+    /**
+     * RFC 9449 §8: 指定すると proof.payload.nonce が必須となり、
+     * nonceService.verify を通らない場合 use_dpop_nonce で拒否する。
+     */
+    nonceService?: DpopNonceService
   },
   now: Date = new Date(),
 ): Promise<DpopProofValidationResult | null> {
@@ -88,6 +94,11 @@ export async function verifyDpopProof(
     }
     if (payload.ath !== options.expectedAth) {
       throw new OAuthError('invalid_dpop_proof', 'DPoP ath がアクセストークンと一致しません')
+    }
+  }
+  if (options.nonceService) {
+    if (typeof payload.nonce !== 'string' || !options.nonceService.verify(payload.nonce, now)) {
+      throw new OAuthError('use_dpop_nonce', 'DPoP-Nonce が必要です')
     }
   }
   const isNew = await options.replayStore.recordIfNew(jti, JTI_REPLAY_WINDOW_SECONDS, now)

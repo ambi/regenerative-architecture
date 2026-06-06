@@ -2,6 +2,7 @@
 package http
 
 import (
+	"errors"
 	"net/http"
 	"net/url"
 	"strings"
@@ -122,6 +123,10 @@ func (d Deps) issueCodeAndRedirect(c *echo.Context, req *spec.AuthorizationReque
 		CodeStore:    d.CodeStore,
 	}, usecases.CompleteLoginInput{RequestID: req.ID, Sub: sub, AuthTime: authTime})
 	if err != nil {
+		var oauthErr *usecases.OAuthError
+		if errors.As(err, &oauthErr) {
+			return redirectAuthorizationError(c, req, oauthErr)
+		}
 		return writeOAuthError(c, err)
 	}
 	if d.Emit != nil {
@@ -134,6 +139,21 @@ func (d Deps) issueCodeAndRedirect(c *echo.Context, req *spec.AuthorizationReque
 		qry.Set("state", *out.Request.StateParam)
 	}
 	u.RawQuery = qry.Encode()
+	return c.Redirect(http.StatusFound, u.String())
+}
+
+func redirectAuthorizationError(c *echo.Context, req *spec.AuthorizationRequest, oauthErr *usecases.OAuthError) error {
+	u, err := url.Parse(req.RedirectURI)
+	if err != nil {
+		return writeOAuthError(c, oauthErr)
+	}
+	q := u.Query()
+	q.Set("error", oauthErr.Code)
+	q.Set("error_description", oauthErr.Description)
+	if req.StateParam != nil {
+		q.Set("state", *req.StateParam)
+	}
+	u.RawQuery = q.Encode()
 	return c.Redirect(http.StatusFound, u.String())
 }
 

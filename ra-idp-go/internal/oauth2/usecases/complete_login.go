@@ -43,6 +43,12 @@ func CompleteLogin(ctx context.Context, deps CompleteLoginDeps, in CompleteLogin
 		_ = deps.RequestStore.UpdateState(ctx, req.ID, spec.AuthFlowExpired)
 		return nil, NewOAuthError("invalid_request", "authorization request 期限切れ")
 	}
+	if req.State != spec.AuthFlowReceived {
+		return nil, NewOAuthError(
+			"invalid_request",
+			"authorization request は処理済みです。クライアントから認可をやり直してください",
+		)
+	}
 
 	// received → authentication_pending → authenticated → code_issued の最短経路
 	if err := deps.RequestStore.UpdateState(ctx, req.ID, spec.AuthFlowAuthenticationPending); err != nil {

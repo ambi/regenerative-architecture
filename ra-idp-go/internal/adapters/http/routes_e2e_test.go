@@ -233,6 +233,68 @@ func TestAuthorizationCodeFlowHappyPath(t *testing.T) {
 	}
 }
 
+func TestCompletedLoginFormCannotBeReused(t *testing.T) {
+	srv := newServer(t)
+	defer srv.Close()
+
+	verifier := "verifier-for-stale-login-form-reuse-test-123456789"
+	q := url.Values{
+		"client_id":             {demoClientID},
+		"redirect_uri":          {demoRedirectURI},
+		"response_type":         {"code"},
+		"scope":                 {"openid"},
+		"state":                 {"stale-form-state"},
+		"code_challenge":        {pkceS256(verifier)},
+		"code_challenge_method": {"S256"},
+	}
+	resp, err := http.Get(srv.URL + "/authorize?" + q.Encode())
+	if err != nil {
+		t.Fatalf("GET /authorize: %v", err)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	requestID := extractRequestID(string(body))
+	if requestID == "" {
+		t.Fatal("login page did not contain request ID")
+	}
+
+	client := &http.Client{
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}
+	form := url.Values{
+		"request_id": {requestID},
+		"username":   {demoUsername},
+		"password":   {demoPassword},
+	}
+	resp, err = client.PostForm(srv.URL+"/login", form)
+	if err != nil {
+		t.Fatalf("first POST /login: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusFound {
+		t.Fatalf("first POST /login: status=%d, want 302", resp.StatusCode)
+	}
+
+	resp, err = client.PostForm(srv.URL+"/login", form)
+	if err != nil {
+		t.Fatalf("reused POST /login: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusFound {
+		t.Fatalf("reused POST /login: status=%d, want 302", resp.StatusCode)
+	}
+	location, err := resp.Location()
+	if err != nil {
+		t.Fatalf("reused POST /login missing Location: %v", err)
+	}
+	if location.Query().Get("error") != "invalid_request" {
+		t.Fatalf("reused POST /login: error=%q, want invalid_request", location.Query().Get("error"))
+	}
+	if location.Query().Get("state") != "stale-form-state" {
+		t.Fatalf("reused POST /login: state=%q, want stale-form-state", location.Query().Get("state"))
+	}
+}
+
 func TestAuthorizeRejectsUnknownClient(t *testing.T) {
 	srv := newServer(t)
 	defer srv.Close()

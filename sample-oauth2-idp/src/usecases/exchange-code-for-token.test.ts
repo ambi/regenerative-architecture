@@ -59,7 +59,7 @@ function makeClient(overrides: Partial<Client> = {}): Client {
     grant_types: ['authorization_code', 'refresh_token'],
     response_types: ['code'],
     token_endpoint_auth_method: 'client_secret_basic',
-    scope: 'openid profile',
+    scope: 'openid profile offline_access',
     id_token_signed_response_alg: 'PS256',
     require_pushed_authorization_requests: false,
     dpop_bound_access_tokens: false,
@@ -101,7 +101,7 @@ async function setup() {
     authorization_request_id: '00000000-0000-0000-0000-000000000001',
     client_id: client.client_id,
     sub: user.sub,
-    scopes: ['openid', 'profile'],
+    scopes: ['openid', 'profile', 'offline_access'],
     redirect_uri: client.redirect_uris[0],
     code_challenge: CHALLENGE,
     code_challenge_method: 'S256',
@@ -131,11 +131,13 @@ describe('exchangeCodeForTokenUseCase — 成功パス', () => {
       },
     )
 
+    const refreshToken = result.response.refresh_token
     expect(result.response.access_token).toMatch(/^fake-at-/)
-    expect(result.response.refresh_token.length).toBeGreaterThan(40)
+    expect(refreshToken).toBeDefined()
+    expect(refreshToken!.length).toBeGreaterThan(40)
     expect(result.response.id_token).toBe('fake-id-token')
     expect(result.response.token_type).toBe('Bearer')
-    expect(result.response.scope).toBe('openid profile')
+    expect(result.response.scope).toBe('openid profile offline_access')
 
     // 監査情報がアダプター層に露出している（要件 §13）
     expect(result.audit.sub).toBe('user_alice')
@@ -239,7 +241,9 @@ describe('exchangeCodeForTokenUseCase — 認可コード再利用検出', () =>
     }
 
     // 1 回目に発行された refresh_token はファミリー失効により revoked = true
-    const refreshHash = createHash('sha256').update(first.response.refresh_token).digest('hex')
+    const refreshToken = first.response.refresh_token
+    expect(refreshToken).toBeDefined()
+    const refreshHash = createHash('sha256').update(refreshToken!).digest('hex')
     const refreshRecord = await refreshStore.findByHash(refreshHash)
     expect(refreshRecord?.revoked).toBe(true)
     expect(refreshRecord?.family_id).toBe(first.audit.refreshFamilyId)
@@ -328,6 +332,39 @@ describe('exchangeCodeForTokenUseCase — id_token は openid スコープのみ
       },
     )
     expect(result.response.id_token).toBeUndefined()
+  })
+})
+
+describe('exchangeCodeForTokenUseCase — refresh_token は offline_access スコープのみ発行', () => {
+  it('offline_access を含まないスコープでは refresh_token を返さない', async () => {
+    const { clientRepo, userRepo, codeStore, refreshStore, tokenIssuer, client, user } =
+      await setup()
+
+    const noOfflineAccessCode = generateAuthorizationCode({
+      authorization_request_id: '00000000-0000-0000-0000-000000000003',
+      client_id: client.client_id,
+      sub: user.sub,
+      scopes: ['openid', 'profile'],
+      redirect_uri: client.redirect_uris[0],
+      code_challenge: CHALLENGE,
+      code_challenge_method: 'S256',
+      auth_time: 1700000000,
+    })
+    await codeStore.save(noOfflineAccessCode)
+
+    const result = await exchangeCodeForTokenUseCase(
+      { clientRepo, userRepo, codeStore, refreshStore, tokenIssuer },
+      {
+        client_id: client.client_id,
+        code: noOfflineAccessCode.code,
+        code_verifier: VERIFIER,
+        redirect_uri: noOfflineAccessCode.redirect_uri,
+      },
+    )
+
+    expect(result.response.refresh_token).toBeUndefined()
+    expect(result.audit.refreshTokenId).toBeUndefined()
+    expect(result.audit.refreshFamilyId).toBeUndefined()
   })
 })
 

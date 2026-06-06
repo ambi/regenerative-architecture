@@ -21,19 +21,48 @@ import eventRouting from '../event-routing.yaml'
 import { loadSlo, loadObservability } from './load-specs'
 
 type SclLike = {
+  annotations?: {
+    scenario_coverage?: Record<
+      string,
+      {
+        status: 'covered' | 'partial' | 'manual' | 'missing'
+        evidence?: Array<{ file: string; test?: string }>
+        note?: string
+      }
+    >
+  }
   vocabulary: Record<string, { aliases?: string[] }>
   models: Record<
     string,
     {
       kind: string
+      values?: string[]
       fields?: Record<string, { type: string; optional?: boolean }>
       payload?: Record<string, { type: string; optional?: boolean }>
     }
   >
   interfaces: Record<
     string,
-    { bindings?: Array<{ kind: string; method?: string; path?: string }>; emits?: string[] }
+    {
+      bindings?: Array<{
+        kind: string
+        method?: string
+        path?: string
+        request_form?: 'body' | 'query' | 'form'
+      }>
+      input?: Record<string, { type: string; optional?: boolean }>
+      emits?: string[]
+    }
   >
+  state_machines: Record<
+    string,
+    {
+      initial: string
+      terminal?: string[]
+      transitions: Array<{ from: string; event: string; to: string }>
+    }
+  >
+  scenarios: Record<string, unknown>
 }
 
 const scl = sclDoc as unknown as SclLike
@@ -49,6 +78,45 @@ const bad = (m: string) => results.push({ ok: false, message: m })
 
 function httpBinding(iface: SclLike['interfaces'][string]) {
   return iface.bindings?.find((binding) => binding.kind === 'http')
+}
+
+function operationId(interfaceName: string): string {
+  return interfaceName[0].toLowerCase() + interfaceName.slice(1)
+}
+
+// ---------------------------------------------------------------
+// 0. Vocabulary ↔ semantic names
+// ---------------------------------------------------------------
+function checkVocabularyCompleteness() {
+  const vocabulary = new Set(Object.keys(scl.vocabulary))
+  for (const [modelName, model] of Object.entries(scl.models)) {
+    if (model.kind !== 'enum') continue
+    for (const value of model.values ?? []) {
+      if (vocabulary.has(value)) ok(`vocabulary ⊇ enum ${modelName}.${value}`)
+      else bad(`vocabulary に enum ${modelName}.${value} がない`)
+    }
+  }
+
+  for (const [machineName, machine] of Object.entries(scl.state_machines)) {
+    const names = new Set<string>([machine.initial, ...(machine.terminal ?? [])])
+    for (const transition of machine.transitions) {
+      names.add(transition.from)
+      names.add(transition.event)
+      names.add(transition.to)
+    }
+    for (const name of names) {
+      if (vocabulary.has(name)) ok(`vocabulary ⊇ state_machine ${machineName}.${name}`)
+      else bad(`vocabulary に state_machine ${machineName}.${name} がない`)
+    }
+  }
+}
+
+function openApiOperationBlock(openapi: string, interfaceName: string): string | null {
+  const marker = `operationId: ${operationId(interfaceName)}`
+  const start = openapi.indexOf(marker)
+  if (start < 0) return null
+  const nextPath = openapi.indexOf('\n  /', start + marker.length)
+  return openapi.slice(start, nextPath < 0 ? undefined : nextPath)
 }
 
 // ---------------------------------------------------------------
@@ -74,6 +142,39 @@ async function checkOpenApiVsSclInterfaces() {
   }
   for (const p of paths) {
     if (!expected.has(p)) bad(`gen/openapi.yaml の path ${p} が SCL interfaces にない`)
+  }
+
+  for (const [name, iface] of Object.entries(scl.interfaces)) {
+    const http = httpBinding(iface)
+    if (!http?.method || !http.path) continue
+    const block = openApiOperationBlock(openapi, name)
+    if (!block) {
+      bad(`gen/openapi.yaml に operationId ${operationId(name)} がない`)
+      continue
+    }
+    const method = http.method.toLowerCase()
+    if (openapi.includes(`  ${http.path}:\n    ${method}:`)) {
+      ok(`gen/openapi.yaml ${http.method} ${http.path} ↔ SCL ${name}`)
+    } else {
+      bad(`gen/openapi.yaml に SCL ${name} の ${http.method} ${http.path} がない`)
+    }
+
+    if (!iface.input) continue
+    const requestForm = http.request_form ?? 'body'
+    if (requestForm === 'query') {
+      if (block.includes('parameters:')) ok(`gen/openapi.yaml ${name} request_form=query`)
+      else bad(`gen/openapi.yaml ${name} が query parameters を生成していない`)
+      if (block.includes('requestBody:'))
+        bad(`gen/openapi.yaml ${name} に不要な requestBody がある`)
+    } else if (requestForm === 'form') {
+      if (block.includes('application/x-www-form-urlencoded:'))
+        ok(`gen/openapi.yaml ${name} request_form=form`)
+      else bad(`gen/openapi.yaml ${name} が form requestBody を生成していない`)
+    } else if (block.includes('application/json:')) {
+      ok(`gen/openapi.yaml ${name} request_form=body`)
+    } else {
+      bad(`gen/openapi.yaml ${name} が JSON requestBody を生成していない`)
+    }
   }
 }
 
@@ -179,13 +280,69 @@ function checkObservabilityVsSlo() {
 }
 
 // ---------------------------------------------------------------
+// 5. SCL scenarios ↔ executable/manual coverage
+// ---------------------------------------------------------------
+async function checkScenarioCoverage() {
+  const coverage = scl.annotations?.scenario_coverage ?? {}
+  const scenarioNames = Object.keys(scl.scenarios)
+  const knownScenarios = new Set(scenarioNames)
+
+  for (const name of scenarioNames) {
+    const entry = coverage[name]
+    if (!entry) {
+      bad(`annotations.scenario_coverage に SCL scenario "${name}" がない`)
+      continue
+    }
+    if (!['covered', 'partial', 'manual', 'missing'].includes(entry.status)) {
+      bad(`scenario_coverage.${name}.status が不正: ${entry.status}`)
+      continue
+    }
+    if (entry.status === 'missing') {
+      ok(`scenario_coverage.${name} は missing として明示`)
+      continue
+    }
+    if (!entry.evidence?.length) {
+      bad(`scenario_coverage.${name} に evidence がない`)
+      continue
+    }
+    for (const evidence of entry.evidence) {
+      const path = join(import.meta.dir, '../..', evidence.file)
+      let content: string
+      try {
+        content = await readFile(path, 'utf-8')
+      } catch {
+        bad(`scenario_coverage.${name}.evidence.file が存在しない: ${evidence.file}`)
+        continue
+      }
+      if (evidence.test && !content.includes(evidence.test)) {
+        bad(
+          `scenario_coverage.${name}.evidence.test が ${evidence.file} に見つからない: ${evidence.test}`,
+        )
+      } else {
+        ok(
+          `scenario_coverage.${name} ↔ ${evidence.file}${evidence.test ? `#${evidence.test}` : ''}`,
+        )
+      }
+    }
+  }
+
+  for (const name of Object.keys(coverage)) {
+    if (!knownScenarios.has(name)) {
+      bad(`annotations.scenario_coverage に SCL scenarios に存在しない "${name}" がある`)
+    }
+  }
+}
+
+// ---------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------
 async function main() {
+  checkVocabularyCompleteness()
   await checkOpenApiVsSclInterfaces()
   checkEventRoutingVsScl()
   await checkMigrationsVsScl()
   checkObservabilityVsSlo()
+  await checkScenarioCoverage()
 
   const failed = results.filter((r) => !r.ok)
   const passed = results.length - failed.length

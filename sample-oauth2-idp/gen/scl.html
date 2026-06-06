@@ -359,10 +359,10 @@ table.fields tbody tr:last-child td { border-bottom: none; }
       <h1>oauth2-idp</h1>
       <div class="page-meta"><span class="badge badge-version">spec 1.0</span></div>
     </header>
-    <div class="stats"><a class="stat" href="#vocabulary"><span class="stat-num">79</span><span class="stat-label">vocabulary</span></a><a class="stat" href="#models"><span class="stat-num">82</span><span class="stat-label">models</span></a><a class="stat" href="#interfaces"><span class="stat-num">12</span><span class="stat-label">interfaces</span></a><a class="stat" href="#state_machines"><span class="stat-num">7</span><span class="stat-label">state machines</span></a><a class="stat" href="#properties"><span class="stat-num">19</span><span class="stat-label">properties</span></a><a class="stat" href="#scenarios"><span class="stat-num">44</span><span class="stat-label">scenarios</span></a><a class="stat" href="#permissions"><span class="stat-num">8</span><span class="stat-label">permissions</span></a><a class="stat" href="#objectives"><span class="stat-num">46</span><span class="stat-label">objectives</span></a></div>
+    <div class="stats"><a class="stat" href="#vocabulary"><span class="stat-num">94</span><span class="stat-label">vocabulary</span></a><a class="stat" href="#models"><span class="stat-num">82</span><span class="stat-label">models</span></a><a class="stat" href="#interfaces"><span class="stat-num">12</span><span class="stat-label">interfaces</span></a><a class="stat" href="#state_machines"><span class="stat-num">7</span><span class="stat-label">state machines</span></a><a class="stat" href="#properties"><span class="stat-num">19</span><span class="stat-label">properties</span></a><a class="stat" href="#scenarios"><span class="stat-num">44</span><span class="stat-label">scenarios</span></a><a class="stat" href="#permissions"><span class="stat-num">8</span><span class="stat-label">permissions</span></a><a class="stat" href="#objectives"><span class="stat-num">46</span><span class="stat-label">objectives</span></a></div>
   </section>
 <section id="vocabulary">
-    <h2>Vocabulary <span class="count">79</span></h2>
+    <h2>Vocabulary <span class="count">94</span></h2>
     <p class="lead">本仕様で使うドメイン用語の定義。PascalCase が正準名、aliases は実装上の別表記。</p>
     <div class="vocab-list"><article class="vocab-entry" id="vocab-resourceowner">
       <div class="vocab-name"><code class="name">ResourceOwner</code></div>
@@ -667,11 +667,146 @@ table.fields tbody tr:last-child td { border-bottom: none; }
         
       </div>
     </article>
+<article class="vocab-entry" id="vocab-s256">
+      <div class="vocab-name"><code class="name">S256</code></div>
+      <div class="vocab-body">
+        <p class="def">PKCE code_challenge_method=S256。code_challenge は BASE64URL-ENCODE(SHA256(code_verifier))。</p>
+        <div class="aliases"><span class="aliases-label">aliases</span> <span class="chip chip-alias">S256</span></div>
+        
+        
+      </div>
+    </article>
 <article class="vocab-entry" id="vocab-code">
       <div class="vocab-name"><code class="name">Code</code></div>
       <div class="vocab-body">
         <p class="def">response_type=code。本サンプルが対応する唯一のレスポンスタイプ。</p>
         <div class="aliases"><span class="aliases-label">aliases</span> <span class="chip chip-alias">code</span></div>
+        
+        
+      </div>
+    </article>
+<article class="vocab-entry" id="vocab-query">
+      <div class="vocab-name"><code class="name">Query</code></div>
+      <div class="vocab-body">
+        <p class="def">authorization response parameters を redirect_uri の query component で返す response_mode。</p>
+        <div class="aliases"><span class="aliases-label">aliases</span> <span class="chip chip-alias">query</span></div>
+        
+        
+      </div>
+    </article>
+<article class="vocab-entry" id="vocab-formpost">
+      <div class="vocab-name"><code class="name">FormPost</code></div>
+      <div class="vocab-body">
+        <p class="def">authorization response parameters を自動送信 HTML form で返す response_mode。</p>
+        <div class="aliases"><span class="aliases-label">aliases</span> <span class="chip chip-alias">form_post</span></div>
+        
+        
+      </div>
+    </article>
+<article class="vocab-entry" id="vocab-invalidrequest">
+      <div class="vocab-name"><code class="name">InvalidRequest</code></div>
+      <div class="vocab-body">
+        <p class="def">OAuth error code invalid_request。必須パラメータ欠落、不正値、重複などのリクエスト不備。</p>
+        <div class="aliases"><span class="aliases-label">aliases</span> <span class="chip chip-alias">invalid_request</span></div>
+        
+        
+      </div>
+    </article>
+<article class="vocab-entry" id="vocab-invalidclient">
+      <div class="vocab-name"><code class="name">InvalidClient</code></div>
+      <div class="vocab-body">
+        <p class="def">OAuth error code invalid_client。クライアント認証失敗。</p>
+        <div class="aliases"><span class="aliases-label">aliases</span> <span class="chip chip-alias">invalid_client</span></div>
+        
+        
+      </div>
+    </article>
+<article class="vocab-entry" id="vocab-invalidgrant">
+      <div class="vocab-name"><code class="name">InvalidGrant</code></div>
+      <div class="vocab-body">
+        <p class="def">OAuth error code invalid_grant。認可コード、refresh token、device_code などの grant が無効。</p>
+        <div class="aliases"><span class="aliases-label">aliases</span> <span class="chip chip-alias">invalid_grant</span></div>
+        
+        
+      </div>
+    </article>
+<article class="vocab-entry" id="vocab-unauthorizedclient">
+      <div class="vocab-name"><code class="name">UnauthorizedClient</code></div>
+      <div class="vocab-body">
+        <p class="def">OAuth error code unauthorized_client。クライアントが当該 grant_type を使えない。</p>
+        <div class="aliases"><span class="aliases-label">aliases</span> <span class="chip chip-alias">unauthorized_client</span></div>
+        
+        
+      </div>
+    </article>
+<article class="vocab-entry" id="vocab-unsupportedgranttype">
+      <div class="vocab-name"><code class="name">UnsupportedGrantType</code></div>
+      <div class="vocab-body">
+        <p class="def">OAuth error code unsupported_grant_type。未対応の grant_type。</p>
+        <div class="aliases"><span class="aliases-label">aliases</span> <span class="chip chip-alias">unsupported_grant_type</span></div>
+        
+        
+      </div>
+    </article>
+<article class="vocab-entry" id="vocab-invalidscope">
+      <div class="vocab-name"><code class="name">InvalidScope</code></div>
+      <div class="vocab-body">
+        <p class="def">OAuth error code invalid_scope。要求 scope が不正、未知、または許可外。</p>
+        <div class="aliases"><span class="aliases-label">aliases</span> <span class="chip chip-alias">invalid_scope</span></div>
+        
+        
+      </div>
+    </article>
+<article class="vocab-entry" id="vocab-invalidtoken">
+      <div class="vocab-name"><code class="name">InvalidToken</code></div>
+      <div class="vocab-body">
+        <p class="def">Bearer token error code invalid_token。トークンが無効、期限切れ、改ざん、または失効済み。</p>
+        <div class="aliases"><span class="aliases-label">aliases</span> <span class="chip chip-alias">invalid_token</span></div>
+        
+        
+      </div>
+    </article>
+<article class="vocab-entry" id="vocab-invaliddpopproof">
+      <div class="vocab-name"><code class="name">InvalidDpopProof</code></div>
+      <div class="vocab-body">
+        <p class="def">DPoP error code invalid_dpop_proof。DPoP proof JWT の検証失敗。</p>
+        <div class="aliases"><span class="aliases-label">aliases</span> <span class="chip chip-alias">invalid_dpop_proof</span></div>
+        
+        
+      </div>
+    </article>
+<article class="vocab-entry" id="vocab-accessdenied">
+      <div class="vocab-name"><code class="name">AccessDenied</code></div>
+      <div class="vocab-body">
+        <p class="def">OAuth error code access_denied。ResourceOwner またはポリシーによる拒否。</p>
+        <div class="aliases"><span class="aliases-label">aliases</span> <span class="chip chip-alias">access_denied</span></div>
+        
+        
+      </div>
+    </article>
+<article class="vocab-entry" id="vocab-expiredtoken">
+      <div class="vocab-name"><code class="name">ExpiredToken</code></div>
+      <div class="vocab-body">
+        <p class="def">Device Authorization Grant error code expired_token。device_code が期限切れ。</p>
+        <div class="aliases"><span class="aliases-label">aliases</span> <span class="chip chip-alias">expired_token</span></div>
+        
+        
+      </div>
+    </article>
+<article class="vocab-entry" id="vocab-insufficientscope">
+      <div class="vocab-name"><code class="name">InsufficientScope</code></div>
+      <div class="vocab-body">
+        <p class="def">Bearer token error code insufficient_scope。提示 token の scope が不足。</p>
+        <div class="aliases"><span class="aliases-label">aliases</span> <span class="chip chip-alias">insufficient_scope</span></div>
+        
+        
+      </div>
+    </article>
+<article class="vocab-entry" id="vocab-servererror">
+      <div class="vocab-name"><code class="name">ServerError</code></div>
+      <div class="vocab-body">
+        <p class="def">OAuth error code server_error。AuthorizationServer 側の予期せぬ内部エラー。</p>
+        <div class="aliases"><span class="aliases-label">aliases</span> <span class="chip chip-alias">server_error</span></div>
         
         
       </div>
@@ -3685,7 +3820,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
 <div class="io"><div class="label">Emits</div><div class="chip-row"><a class="chip chip-event-ref" href="#model-authorizationcodeissued">AuthorizationCodeIssued</a> <a class="chip chip-event-ref" href="#model-userauthenticated">UserAuthenticated</a> <a class="chip chip-event-ref" href="#model-consentgranted">ConsentGranted</a></div></div>
 <div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
     <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
-    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-get">GET</span> <code class="path">/authorize</code> <span class="chip chip-hint">response: 302</span></div></div>
+    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-get">GET</span> <code class="path">/authorize</code> <span class="chip chip-hint">response: 302</span> <span class="chip chip-hint">form: query</span></div></div>
   </div></div></div>
   </article>
 <article class="card" id="iface-pushauthorizationrequest">
@@ -3720,7 +3855,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
 <div class="io"><div class="label">Emits</div><div class="chip-row"><a class="chip chip-event-ref" href="#model-parstored">PARStored</a></div></div>
 <div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
     <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
-    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-post">POST</span> <code class="path">/par</code></div></div>
+    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-post">POST</span> <code class="path">/par</code> <span class="chip chip-hint">form: form</span></div></div>
   </div></div></div>
   </article>
 <article class="card" id="iface-token">
@@ -3758,7 +3893,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
 <div class="io"><div class="label">Emits</div><div class="chip-row"><a class="chip chip-event-ref" href="#model-accesstokenissued">AccessTokenIssued</a> <a class="chip chip-event-ref" href="#model-refreshtokenissued">RefreshTokenIssued</a> <a class="chip chip-event-ref" href="#model-refreshtokenrotated">RefreshTokenRotated</a> <a class="chip chip-event-ref" href="#model-refreshtokenreusedetected">RefreshTokenReuseDetected</a> <a class="chip chip-event-ref" href="#model-authorizationcoderedeemed">AuthorizationCodeRedeemed</a></div></div>
 <div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
     <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
-    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-post">POST</span> <code class="path">/token</code></div><div class="io">
+    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-post">POST</span> <code class="path">/token</code> <span class="chip chip-hint">form: form</span></div><div class="io">
     <div class="label">HTTP Headers</div>
     <table class="fields">
       <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
@@ -3804,7 +3939,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
 <div class="io"><div class="label">Emits</div><div class="chip-row"><a class="chip chip-event-ref" href="#model-tokenintrospected">TokenIntrospected</a></div></div>
 <div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
     <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
-    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-post">POST</span> <code class="path">/introspect</code></div></div>
+    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-post">POST</span> <code class="path">/introspect</code> <span class="chip chip-hint">form: form</span></div></div>
   </div></div></div>
   </article>
 <article class="card" id="iface-revoke">
@@ -3827,7 +3962,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
 <div class="io"><div class="label">Emits</div><div class="chip-row"><a class="chip chip-event-ref" href="#model-tokenrevoked">TokenRevoked</a></div></div>
 <div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
     <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
-    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-post">POST</span> <code class="path">/revoke</code> <span class="chip chip-hint">response: 200</span></div></div>
+    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-post">POST</span> <code class="path">/revoke</code> <span class="chip chip-hint">response: 200</span> <span class="chip chip-hint">form: form</span></div></div>
   </div></div></div>
   </article>
 <article class="card" id="iface-userinfo">
@@ -3895,7 +4030,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
 <div class="io"><div class="label">Emits</div><div class="chip-row"><a class="chip chip-event-ref" href="#model-deviceauthorizationrequested">DeviceAuthorizationRequested</a></div></div>
 <div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
     <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
-    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-post">POST</span> <code class="path">/device_authorization</code></div></div>
+    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-post">POST</span> <code class="path">/device_authorization</code> <span class="chip chip-hint">form: form</span></div></div>
   </div></div></div>
   </article>
 <article class="card" id="iface-getjwks">

@@ -20,8 +20,8 @@
     "code"
   ],
   "response_modes_supported": [
-    "Query",
-    "FormPost"
+    "query",
+    "form_post"
   ],
   "grant_types_supported": [
     "authorization_code",

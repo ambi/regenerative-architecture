@@ -301,7 +301,7 @@ export function toWireAll(names: string[]): string[] {
 /** モデルが enum なら値のリストを SCL 形式（PascalCase）で返す */
 export function enumValues(modelName: string): string[] {
   const m = scl.models[modelName]
-  if (!m || m.kind !== 'enum') throw new Error(`${modelName} is not an enum`)
+  if (m?.kind !== 'enum') throw new Error(`${modelName} is not an enum`)
   return m.values
 }
 

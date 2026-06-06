@@ -41,7 +41,7 @@ export interface ExchangeCodeResult {
     access_token: string
     token_type: 'Bearer' | 'DPoP'
     expires_in: number
-    refresh_token: string
+    refresh_token?: string
     id_token?: string
     scope: string
   }
@@ -51,8 +51,8 @@ export interface ExchangeCodeResult {
     jti: string
     scopes: string[]
     senderConstraint: 'none' | 'dpop' | 'mtls'
-    refreshTokenId: string
-    refreshFamilyId: string
+    refreshTokenId?: string
+    refreshFamilyId?: string
   }
 }
 
@@ -153,16 +153,24 @@ export async function exchangeCodeForTokenUseCase(
     authTime: code.auth_time,
   })
 
-  // refresh_token 発行 + コードにファミリーを紐付ける（後続のリプレイ検知用）
-  const { token: refresh_token, record: refreshRecord } = generateInitial({
-    client_id: client.client_id,
-    sub: code.sub,
-    scopes: code.scopes,
-    sender_constraint: senderConstraint,
-    now,
-  })
-  await deps.refreshStore.save(refreshRecord)
-  await deps.codeStore.linkFamily(redeemed.code, refreshRecord.family_id)
+  // OIDC Core §11: refresh_token は offline_access 付与時のみ発行する。
+  let refresh_token: string | undefined
+  let refreshTokenId: string | undefined
+  let refreshFamilyId: string | undefined
+  if (code.scopes.includes('offline_access')) {
+    const { token, record } = generateInitial({
+      client_id: client.client_id,
+      sub: code.sub,
+      scopes: code.scopes,
+      sender_constraint: senderConstraint,
+      now,
+    })
+    refresh_token = token
+    refreshTokenId = record.id
+    refreshFamilyId = record.family_id
+    await deps.refreshStore.save(record)
+    await deps.codeStore.linkFamily(redeemed.code, record.family_id)
+  }
 
   // id_token (JWT) 発行（openid スコープ時のみ）
   let id_token: string | undefined
@@ -182,7 +190,7 @@ export async function exchangeCodeForTokenUseCase(
       access_token,
       token_type: senderConstraint ? 'DPoP' : 'Bearer',
       expires_in: deps.tokenIssuer.getAccessTokenTtlSeconds(),
-      refresh_token,
+      ...(refresh_token ? { refresh_token } : {}),
       id_token,
       scope: code.scopes.join(' '),
     },
@@ -191,8 +199,8 @@ export async function exchangeCodeForTokenUseCase(
       jti,
       scopes: code.scopes,
       senderConstraint: senderConstraint ? 'dpop' : 'none',
-      refreshTokenId: refreshRecord.id,
-      refreshFamilyId: refreshRecord.family_id,
+      refreshTokenId,
+      refreshFamilyId,
     },
   }
 }

@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "bun --watch main.ts",
     "test": "bun test",
+    "test:smoke": "bash demo.sh",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
@@ -18,7 +19,7 @@
     "gen:prometheus": "bun run infra/scripts/gen-prometheus-rules.ts",
     "gen:grafana": "bun run infra/scripts/gen-grafana-dashboard.ts",
     "gen:k6": "bun run infra/scripts/gen-k6-thresholds.ts",
-    "gen:all": "bun run gen:scl && bun run gen:prometheus && bun run gen:grafana && bun run gen:k6",
+    "gen:all": "bun run gen:scl && bun run gen:scl-html && bun run gen:prometheus && bun run gen:grafana && bun run gen:k6",
     "check:coherence": "bun run infra/scripts/check-spec-coherence.ts"
   },
   "dependencies": {

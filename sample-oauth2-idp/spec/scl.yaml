@@ -136,11 +136,58 @@ vocabulary:
     definition: RSASSA-PSS using SHA-256 (RFC 7518)。
   ES256:
     definition: ECDSA using P-256 and SHA-256 (RFC 7518)。
+  S256:
+    definition: PKCE code_challenge_method=S256。code_challenge は BASE64URL-ENCODE(SHA256(code_verifier))。
+    aliases: [S256]
 
   # ---------- レスポンスタイプ ----------
   Code:
     definition: response_type=code。本サンプルが対応する唯一のレスポンスタイプ。
     aliases: [code]
+  Query:
+    definition: authorization response parameters を redirect_uri の query component で返す response_mode。
+    aliases: [query]
+  FormPost:
+    definition: authorization response parameters を自動送信 HTML form で返す response_mode。
+    aliases: [form_post]
+
+  # ---------- OAuth エラーコード ----------
+  InvalidRequest:
+    definition: OAuth error code invalid_request。必須パラメータ欠落、不正値、重複などのリクエスト不備。
+    aliases: [invalid_request]
+  InvalidClient:
+    definition: OAuth error code invalid_client。クライアント認証失敗。
+    aliases: [invalid_client]
+  InvalidGrant:
+    definition: OAuth error code invalid_grant。認可コード、refresh token、device_code などの grant が無効。
+    aliases: [invalid_grant]
+  UnauthorizedClient:
+    definition: OAuth error code unauthorized_client。クライアントが当該 grant_type を使えない。
+    aliases: [unauthorized_client]
+  UnsupportedGrantType:
+    definition: OAuth error code unsupported_grant_type。未対応の grant_type。
+    aliases: [unsupported_grant_type]
+  InvalidScope:
+    definition: OAuth error code invalid_scope。要求 scope が不正、未知、または許可外。
+    aliases: [invalid_scope]
+  InvalidToken:
+    definition: Bearer token error code invalid_token。トークンが無効、期限切れ、改ざん、または失効済み。
+    aliases: [invalid_token]
+  InvalidDpopProof:
+    definition: DPoP error code invalid_dpop_proof。DPoP proof JWT の検証失敗。
+    aliases: [invalid_dpop_proof]
+  AccessDenied:
+    definition: OAuth error code access_denied。ResourceOwner またはポリシーによる拒否。
+    aliases: [access_denied]
+  ExpiredToken:
+    definition: Device Authorization Grant error code expired_token。device_code が期限切れ。
+    aliases: [expired_token]
+  InsufficientScope:
+    definition: Bearer token error code insufficient_scope。提示 token の scope が不足。
+    aliases: [insufficient_scope]
+  ServerError:
+    definition: OAuth error code server_error。AuthorizationServer 側の予期せぬ内部エラー。
+    aliases: [server_error]
 
   # ---------- FAPI プロファイル ----------
   Fapi2SecurityProfile:
@@ -1079,7 +1126,7 @@ interfaces:
     errors: [InvalidRequestError, InvalidClientError, AccessDeniedError]
     emits: [AuthorizationCodeIssued, UserAuthenticated, ConsentGranted]
     bindings:
-      - { kind: http, method: GET, path: /authorize, successful_status_codes: ["302"] }
+      - { kind: http, method: GET, path: /authorize, request_form: query, successful_status_codes: ["302"] }
 
   PushAuthorizationRequest:
     description: Pushed Authorization Request (RFC 9126)
@@ -1092,7 +1139,7 @@ interfaces:
     errors: [InvalidRequestError, InvalidClientError]
     emits: [PARStored]
     bindings:
-      - { kind: http, method: POST, path: /par }
+      - { kind: http, method: POST, path: /par, request_form: form }
 
   Token:
     description: Token endpoint (RFC 6749 §3.2 + 9068 + 9449)
@@ -1126,6 +1173,7 @@ interfaces:
       - kind: http
         method: POST
         path: /token
+        request_form: form
         headers:
           dpop: { type: String, optional: true }
 
@@ -1140,7 +1188,7 @@ interfaces:
     errors: [InvalidClientError, InvalidTokenError]
     emits: [TokenIntrospected]
     bindings:
-      - { kind: http, method: POST, path: /introspect }
+      - { kind: http, method: POST, path: /introspect, request_form: form }
 
   Revoke:
     description: Token Revocation (RFC 7009)
@@ -1151,7 +1199,7 @@ interfaces:
     errors: [InvalidClientError]
     emits: [TokenRevoked]
     bindings:
-      - { kind: http, method: POST, path: /revoke, successful_status_codes: ["200"] }
+      - { kind: http, method: POST, path: /revoke, request_form: form, successful_status_codes: ["200"] }
 
   UserInfo:
     description: UserInfo (OIDC Core §5.3)
@@ -1178,7 +1226,7 @@ interfaces:
     errors: [InvalidRequestError, InvalidClientError]
     emits: [DeviceAuthorizationRequested]
     bindings:
-      - { kind: http, method: POST, path: /device_authorization }
+      - { kind: http, method: POST, path: /device_authorization, request_form: form }
 
   GetJwks:
     description: JWKS (RFC 7517)
@@ -2172,3 +2220,201 @@ annotations:
     ui_locales_supported: [en, ja]
     introspection_endpoint_auth_methods: [ClientSecretBasic, PrivateKeyJwt, TlsClientAuth]
     revocation_endpoint_auth_methods:    [ClientSecretBasic, PrivateKeyJwt, TlsClientAuth]
+
+  scenario_coverage:
+    "認可コードフローでアクセストークンと ID トークンを取得できる":
+      status: covered
+      evidence:
+        - { file: src/usecases/exchange-code-for-token.test.ts, test: "access_token / refresh_token / id_token を返す + 監査情報を含む" }
+        - { file: src/spec-bindings/golden.test.ts, test: "full happy path: received → ... → exchanged" }
+    "PKCE verifier が不一致なら拒否される":
+      status: covered
+      evidence:
+        - { file: src/usecases/exchange-code-for-token.test.ts, test: "PKCE verifier が不一致なら invalid_grant" }
+    "認可コードを 2 回交換するとトークンファミリーが全失効する":
+      status: covered
+      evidence:
+        - { file: src/usecases/exchange-code-for-token.test.ts, test: "再利用検出時に最初のリフレッシュトークンファミリーが失効する" }
+    "リフレッシュトークンを使うと新トークンが返り旧トークンは無効化される":
+      status: covered
+      evidence:
+        - { file: src/spec-bindings/persistence-contract.test.ts, test: "rotate は parent を rotated にし、新トークンを保存する" }
+    "旧リフレッシュトークンの再使用はファミリー全体を失効させる":
+      status: covered
+      evidence:
+        - { file: src/spec-bindings/property/refresh-rotation.property.test.ts, test: "任意のチェーン長で revokeFamily が全トークンを revoked にする" }
+    "不正な client_secret は invalid_client で拒否される":
+      status: partial
+      evidence:
+        - { file: demo.sh, test: "不正な client_secret → 401 invalid_client" }
+      note: client_secret_basic の自動シナリオテストは未分離。
+    "未知の client_id も一律 invalid_client で拒否される":
+      status: partial
+      evidence:
+        - { file: src/spec-bindings/persistence-contract.test.ts, test: "未登録 client_id は null を返す" }
+      note: HTTP エラー一様化の自動シナリオテストは未分離。
+    "未登録の redirect_uri へはリダイレクトしない":
+      status: covered
+      evidence:
+        - { file: src/spec-bindings/golden.test.ts, test: "未登録 URI → Deny" }
+        - { file: src/spec-bindings/policy/authorization.test.ts, test: "redirect_uri が登録外なら Deny" }
+    "既存の同意があれば同意画面はスキップされる":
+      status: covered
+      evidence:
+        - { file: src/usecases/authorize-request.test.ts, test: "既存の同意があれば consented まで進み、同意 UI をスキップできる" }
+        - { file: src/spec-bindings/golden.test.ts, test: "既存コンセントがあるときは authenticated → 直接 issue_code" }
+    "prompt=consent は既存同意があっても再同意を求める":
+      status: covered
+      evidence:
+        - { file: src/usecases/authorize-request.test.ts, test: "prompt=consent は既存同意があっても再同意を要求する" }
+    "PAR 経由の request_uri は一度だけ参照できる":
+      status: covered
+      evidence:
+        - { file: src/spec-bindings/persistence-contract.test.ts, test: "save → consume (1st OK, 2nd null)" }
+    "FAPI クライアントは PAR なしの直接認可リクエストを拒否される":
+      status: covered
+      evidence:
+        - { file: src/usecases/authorize-request.test.ts, test: "PAR 必須の FAPI クライアントは PAR なしの直接認可リクエストを拒否される" }
+        - { file: src/spec-bindings/policy/authorization.test.ts, test: "FAPI クライアントが PAR を経由しないと Deny" }
+    "DPoP 証明付き要求はセンダー制約付きトークンを発行する":
+      status: covered
+      evidence:
+        - { file: src/usecases/exchange-code-for-token.test.ts, test: "DPoP jkt が指定されると token_type は DPoP かつ cnf にバインドされる" }
+    "iat が 60 秒以上古い DPoP 証明は拒否される":
+      status: partial
+      evidence:
+        - { file: adapters/crypto/dpop-verifier.ts, test: "クロックスキュー" }
+      note: DPoP verifier の時刻境界テストは未分離。
+    "同一 DPoP jti の再使用はリプレイとして拒否される":
+      status: covered
+      evidence:
+        - { file: src/spec-bindings/property/dpop-replay.property.test.ts, test: "同じ jti は recordIfNew で 2 度 true を返さない" }
+        - { file: adapters/http/client-authentication.test.ts, test: "同じ jti の再使用はリプレイとして拒否する" }
+    "有効なトークンの introspection は active=true を返す":
+      status: partial
+      evidence:
+        - { file: demo.sh, test: "/introspect（リソースサーバー視点）" }
+    "失効済みトークンの introspection は active=false のみ返す":
+      status: partial
+      evidence:
+        - { file: demo.sh, test: "失効後の introspect は active=false を返すはず" }
+    "openid スコープ付きトークンでユーザー情報は sub を返す":
+      status: partial
+      evidence:
+        - { file: demo.sh, test: "/userinfo（OIDC Core §5.3）" }
+    "openid スコープのないトークンのユーザー情報取得は拒否される":
+      status: covered
+      evidence:
+        - { file: src/spec-bindings/policy/authorization.test.ts, test: "openid スコープなしのトークンは Deny" }
+    "Discovery 文書は宣言された全エンドポイントを広告する":
+      status: covered
+      evidence:
+        - { file: src/spec-bindings/invariants.test.ts, test: "authorization_endpoint が SCL Authorize の HTTP binding path と一致する" }
+        - { file: src/spec-bindings/invariants.test.ts, test: "token_endpoint が SCL Token の HTTP binding path と一致する" }
+    "鍵回転後も旧 kid の JWKS エントリは保持される":
+      status: covered
+      evidence:
+        - { file: src/usecases/rotate-signing-key.test.ts, test: "回転で新 active 鍵を作り、旧鍵を検証用に残す" }
+    "認可コードの並行交換はちょうど一方だけ成功する":
+      status: partial
+      evidence:
+        - { file: src/spec-bindings/persistence-contract.test.ts, test: "save → find → redeem (1st OK, 2nd null)" }
+      note: 並行実行のレース再現テストは未分離。
+    "動的クライアント登録は client_id を採番して返す":
+      status: partial
+      evidence:
+        - { file: src/usecases/register-client.ts, test: "client_secret は secret ベース認証方式のときだけ発行する" }
+      note: register usecase の自動シナリオテストは未分離。
+    "redirect_uri が無いクライアント登録は拒否される":
+      status: partial
+      evidence:
+        - { file: src/usecases/register-client.ts, test: "redirect_uris" }
+      note: register validation の自動シナリオテストは未分離。
+    "60 秒経過した認可コードの交換は拒否される":
+      status: covered
+      evidence:
+        - { file: src/domain/authorization-code.test.ts, test: "TTL を超えた時刻では isExpired が true" }
+        - { file: src/spec-bindings/policy/authorization.test.ts, test: "期限切れコードは Deny" }
+    "absolute_expires_at を超えた refresh token はローテーション不可":
+      status: covered
+      evidence:
+        - { file: src/domain/refresh-token.test.ts, test: "absolute_expires_at を過ぎたら期限切れ" }
+    "/revoke でリフレッシュトークンを失効できる":
+      status: partial
+      evidence:
+        - { file: demo.sh, test: "/revoke で新 refresh_token を失効" }
+    "他クライアントの所有トークンの失効要求は静かに無視される":
+      status: covered
+      evidence:
+        - { file: src/spec-bindings/policy/client-authorization.ts, test: "caller_owns_token" }
+    "失効した access_token でユーザー情報取得は invalid_token で拒否される":
+      status: partial
+      evidence:
+        - { file: src/spec-bindings/policy/authorization.test.ts, test: "openid スコープと active トークンなら Permit" }
+      note: access_token 失効後の /userinfo 自動シナリオテストは未分離。
+    "offline_access スコープがあれば refresh_token も発行される":
+      status: partial
+      evidence:
+        - { file: src/usecases/exchange-code-for-token.test.ts, test: "access_token / refresh_token / id_token を返す + 監査情報を含む" }
+      note: offline_access 条件分岐の自動シナリオテストは未分離。
+    "offline_access が無いと refresh_token は発行されない":
+      status: covered
+      evidence:
+        - { file: src/usecases/exchange-code-for-token.test.ts, test: "offline_access を含まないスコープでは refresh_token を返さない" }
+    "認可リクエストの nonce は ID トークンに伝播する":
+      status: partial
+      evidence:
+        - { file: src/usecases/exchange-code-for-token.ts, test: "nonce" }
+      note: nonce 伝播の自動シナリオテストは未分離。
+    "max_age を超えた前回認証では再認証を要求する":
+      status: partial
+      evidence:
+        - { file: src/domain/authorization-request.ts, test: "max_age" }
+      note: max_age 判定ロジックと自動シナリオテストは未分離。
+    "prompt=none でセッションが無い場合は拒否される":
+      status: partial
+      evidence:
+        - { file: adapters/http/authorize-routes.ts, test: "X-User-Sub" }
+      note: prompt=none の OIDC 専用エラー分岐は未分離。
+    "client_credentials グラントで M2M トークンが発行される":
+      status: partial
+      evidence:
+        - { file: demo.sh, test: "/token (grant_type=client_credentials)" }
+    "public クライアントは client_credentials を登録できない":
+      status: covered
+      evidence:
+        - { file: src/spec-bindings/policy/authorization.test.ts, test: "public クライアントは Deny" }
+    "デバイス認可フローでアクセストークンを取得できる":
+      status: covered
+      evidence:
+        - { file: src/usecases/device-flow.test.ts, test: "request → pending → approve → tokens → replay は invalid_grant" }
+    "承認前のデバイス交換は authorization_pending を返す":
+      status: covered
+      evidence:
+        - { file: src/usecases/device-flow.test.ts, test: "poll before approval → authorization_pending" }
+    "ポーリング間隔より短い再試行は slow_down を返す":
+      status: covered
+      evidence:
+        - { file: src/usecases/device-flow.test.ts, test: "interval より速いポーリング → slow_down" }
+    "期限切れの device_code は expired_token を返す":
+      status: covered
+      evidence:
+        - { file: src/usecases/device-flow.test.ts, test: "期限切れ device_code → expired_token" }
+    "private_key_jwt によるクライアント認証が成功する":
+      status: covered
+      evidence:
+        - { file: adapters/http/client-authentication.test.ts, test: "正当な assertion を受理しクライアントを返す" }
+    "改ざんされた client_assertion は invalid_client で拒否される":
+      status: covered
+      evidence:
+        - { file: adapters/http/client-authentication.test.ts, test: "別の鍵で署名された assertion を拒否する" }
+    "tls_client_auth で mTLS の Subject DN が一致すれば認証成立":
+      status: partial
+      evidence:
+        - { file: src/spec-bindings/grants/grant-types.ts, test: "tls_client_auth" }
+      note: mTLS Subject DN の自動シナリオテストは未実装。
+    "RFC 8414 メタデータ文書は OIDC Discovery と同等の内容を返す":
+      status: partial
+      evidence:
+        - { file: adapters/http/discovery-routes.ts, test: "oauth-authorization-server" }
+      note: OIDC Discovery との同等性テストは未分離。

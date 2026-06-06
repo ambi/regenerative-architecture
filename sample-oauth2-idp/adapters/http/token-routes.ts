@@ -106,14 +106,16 @@ export function createTokenRoutes(deps: TokenRoutesDeps) {
           scopes: audit.scopes,
           senderConstraint: audit.senderConstraint,
         })
-        deps.emit({
-          type: 'RefreshTokenIssued',
-          occurredAt,
-          tokenId: audit.refreshTokenId,
-          familyId: audit.refreshFamilyId,
-          clientId: auth.client.client_id,
-          sub: audit.sub,
-        })
+        if (audit.refreshTokenId && audit.refreshFamilyId) {
+          deps.emit({
+            type: 'RefreshTokenIssued',
+            occurredAt,
+            tokenId: audit.refreshTokenId,
+            familyId: audit.refreshFamilyId,
+            clientId: auth.client.client_id,
+            sub: audit.sub,
+          })
+        }
         return c.json(response)
       }
 

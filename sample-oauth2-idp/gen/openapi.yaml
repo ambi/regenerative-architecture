@@ -39,12 +39,66 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/OAuthError"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/AuthorizeParameters"
+      parameters:
+        - name: response_type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              - code
+        - name: client_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: redirect_uri
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: scope
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: nonce
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: code_challenge
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: code_challenge_method
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              - S256
+        - name: prompt
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: max_age
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: request_uri
+          in: query
+          required: false
+          schema:
+            type: string
   /par:
     post:
       operationId: pushAuthorizationRequest
@@ -65,7 +119,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          application/x-www-form-urlencoded:
             schema:
               $ref: "#/components/schemas/ParRequest"
   /token:
@@ -88,7 +142,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          application/x-www-form-urlencoded:
             schema:
               $ref: "#/components/schemas/TokenRequest"
   /introspect:
@@ -111,7 +165,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          application/x-www-form-urlencoded:
             schema:
               $ref: "#/components/schemas/IntrospectionRequest"
   /revoke:
@@ -130,7 +184,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          application/x-www-form-urlencoded:
             schema:
               $ref: "#/components/schemas/RevokeRequest"
   /userinfo:
@@ -170,7 +224,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          application/x-www-form-urlencoded:
             schema:
               $ref: "#/components/schemas/DeviceAuthorizationRequest"
   /jwks:
@@ -242,8 +296,8 @@ components:
     ResponseMode:
       type: string
       enum:
-        - Query
-        - FormPost
+        - query
+        - form_post
     SignatureAlgorithm:
       type: string
       enum:
@@ -331,19 +385,19 @@ components:
     OAuthErrorCode:
       type: string
       enum:
-        - InvalidRequest
-        - InvalidClient
-        - InvalidGrant
-        - UnauthorizedClient
-        - UnsupportedGrantType
-        - InvalidScope
-        - InvalidToken
-        - ServerError
-        - InvalidDpopProof
-        - AccessDenied
-        - ExpiredToken
+        - invalid_request
+        - invalid_client
+        - invalid_grant
+        - unauthorized_client
+        - unsupported_grant_type
+        - invalid_scope
+        - invalid_token
+        - server_error
+        - invalid_dpop_proof
+        - access_denied
+        - expired_token
         - slow_down
-        - InsufficientScope
+        - insufficient_scope
         - authorization_pending
     OAuth2Client:
       type: object
@@ -1044,8 +1098,8 @@ components:
           items:
             type: string
             enum:
-              - Query
-              - FormPost
+              - query
+              - form_post
         grant_types_supported:
           type: array
           items:
@@ -1400,19 +1454,19 @@ components:
         error:
           type: string
           enum:
-            - InvalidRequest
-            - InvalidClient
-            - InvalidGrant
-            - UnauthorizedClient
-            - UnsupportedGrantType
-            - InvalidScope
-            - InvalidToken
-            - ServerError
-            - InvalidDpopProof
-            - AccessDenied
-            - ExpiredToken
+            - invalid_request
+            - invalid_client
+            - invalid_grant
+            - unauthorized_client
+            - unsupported_grant_type
+            - invalid_scope
+            - invalid_token
+            - server_error
+            - invalid_dpop_proof
+            - access_denied
+            - expired_token
             - slow_down
-            - InsufficientScope
+            - insufficient_scope
             - authorization_pending
         error_description:
           type: string

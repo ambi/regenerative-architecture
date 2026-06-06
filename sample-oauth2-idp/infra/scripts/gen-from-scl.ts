@@ -39,6 +39,7 @@ type Interface = {
     method?: string
     path?: string
     successful_status_codes?: string[]
+    request_form?: 'body' | 'query' | 'form'
     headers?: Record<string, Field>
   }>
   input?: Record<string, Field>
@@ -266,6 +267,34 @@ function outputBodyType(iface: Interface): string | null {
   return null
 }
 
+function inputSchema(iface: Interface): any | null {
+  const singleType = inputBodyType(iface)
+  if (singleType) return typeToSchema(singleType)
+  if (!iface.input) return null
+
+  const properties: Record<string, any> = {}
+  const required: string[] = []
+  for (const [name, field] of Object.entries(iface.input)) {
+    properties[name] = fieldToSchema(field)
+    if (!field.optional) required.push(name)
+  }
+  return {
+    type: 'object',
+    additionalProperties: false,
+    properties,
+    ...(required.length ? { required } : {}),
+  }
+}
+
+function inputFields(iface: Interface): Record<string, Field> {
+  const singleType = inputBodyType(iface)
+  if (singleType) {
+    const model = scl.models[singleType]
+    if (model?.kind === 'entity' || model?.kind === 'value_object') return model.fields
+  }
+  return iface.input ?? {}
+}
+
 async function emitOpenApi(outPath: string) {
   const paths: Record<string, any> = {}
   for (const [name, iface] of Object.entries(scl.interfaces)) {
@@ -279,11 +308,24 @@ async function emitOpenApi(outPath: string) {
       summary: iface.description ?? '',
       responses: {},
     }
-    const inputT = inputBodyType(iface)
-    if (inputT) {
+    const schema = inputSchema(iface)
+    const requestForm = http.request_form ?? 'body'
+    if (schema && requestForm === 'query') {
+      op.parameters = Object.entries(inputFields(iface)).map(([paramName, field]) => ({
+        name: paramName,
+        in: 'query',
+        required: !field.optional,
+        schema: fieldToSchema(field),
+        ...(field.description ? { description: field.description } : {}),
+      }))
+    } else if (schema) {
       op.requestBody = {
         required: true,
-        content: { 'application/json': { schema: typeToSchema(inputT) } },
+        content: {
+          [requestForm === 'form' ? 'application/x-www-form-urlencoded' : 'application/json']: {
+            schema,
+          },
+        },
       }
     }
     const respCode = http.successful_status_codes?.[0] ?? '200'

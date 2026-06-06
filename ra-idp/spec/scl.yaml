@@ -782,6 +782,7 @@ models:
       code_challenge_methods_supported:              { type: "List<CodeChallengeMethod>" }
       require_pushed_authorization_requests:         { type: Boolean }
       require_pkce:                                  { type: Boolean }
+      authorization_response_iss_parameter_supported: { type: Boolean, optional: true }
       dpop_signing_alg_values_supported:             { type: "List<SignatureAlgorithm>", optional: true }
       tls_client_certificate_bound_access_tokens:    { type: Boolean, optional: true }
       claims_supported:                              { type: "List<String>", optional: true }

@@ -80,7 +80,7 @@ ra-idp/
 
 | 領域 | 不足している機能 |
 | ---- | ---------------- |
-| Token | access token denylist（JWT 即時失効）、AS Issuer Identification (RFC 9207, mix-up 防御) |
+| Token | access token denylist（JWT 即時失効）、~~AS Issuer Identification (RFC 9207, mix-up 防御)~~ ✅ 実装済 |
 | DPoP | DPoP nonce、DPoP proof の HTTP adapter 全経路適用 |
 | mTLS | クライアント証明書の実検証、証明書バインド |
 | Secret / 鍵 | client_secret rotation、署名鍵 rotation の運用化（実 KMS/HSM 差し替えは Phase 9） |

@@ -233,6 +233,10 @@ describe('Discovery — SCL からの派生整合', () => {
       `https://idp.example.com${httpBinding(scl.interfaces.Token)?.path}`,
     )
   })
+
+  it('authorization_response_iss_parameter_supported が true (RFC 9207)', () => {
+    expect(doc.authorization_response_iss_parameter_supported).toBe(true)
+  })
 })
 
 // ===============================================================

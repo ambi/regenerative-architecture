@@ -92,6 +92,7 @@ async function setup() {
   const app = new Hono()
   const emit = (e: DomainEvent) => events.push(e)
   const authorizeDeps = {
+    issuer: 'http://idp.example.com',
     clientRepo,
     consentRepo,
     requestStore,
@@ -177,7 +178,10 @@ describe('authorize routes — OIDC session prompts', () => {
     })
 
     expect(res.status).toBe(302)
-    expect(res.headers.get('location')).toStartWith('https://app.example.com/cb?code=')
+    const loc = res.headers.get('location') ?? ''
+    expect(loc).toStartWith('https://app.example.com/cb?code=')
+    // RFC 9207: 認可レスポンスに iss を含める
+    expect(new URL(loc).searchParams.get('iss')).toBe('http://idp.example.com')
     expect(res.headers.get('set-cookie')).toContain('ra_idp_session=')
     expect(events.some((e) => e.type === 'UserAuthenticated')).toBe(true)
     expect(events.some((e) => e.type === 'AuthorizationCodeIssued')).toBe(true)

@@ -54,6 +54,7 @@ export function composeApp(input: ComposeAppInput): Hono {
     },
   }
   const authorizeRouteDeps = {
+    issuer: config.issuer,
     clientRepo: deps.clientRepo,
     consentRepo: deps.consentRepo,
     requestStore: deps.requestStore,

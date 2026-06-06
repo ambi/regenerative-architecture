@@ -65,6 +65,7 @@ export function buildDiscoveryDocument(issuer: string): Record<string, unknown> 
   doc.code_challenge_methods_supported = enumWireValues('CodeChallengeMethod')
   doc.require_pushed_authorization_requests = false
   doc.require_pkce = true
+  doc.authorization_response_iss_parameter_supported = true // RFC 9207
   doc.dpop_signing_alg_values_supported = enumWireValues('SignatureAlgorithm')
   doc.tls_client_certificate_bound_access_tokens = true
   doc.claims_supported = tpl.claims_supported ?? []

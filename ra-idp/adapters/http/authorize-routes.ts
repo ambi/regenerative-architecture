@@ -43,6 +43,8 @@ import {
 } from '../../src/shared/web-security'
 
 export interface AuthorizeRoutesDeps {
+  /** AS Issuer Identification (RFC 9207) で認可レスポンスに含める iss 値。 */
+  issuer: string
   clientRepo: ClientRepository
   consentRepo: ConsentRepository
   requestStore: AuthorizationRequestStore
@@ -174,6 +176,7 @@ export function createAuthorizeRoutes(deps: AuthorizeRoutesDeps) {
         const url = new URL(req.redirect_uri)
         url.searchParams.set('error', 'access_denied')
         if (req.state_param) url.searchParams.set('state', req.state_param)
+        url.searchParams.set('iss', deps.issuer) // RFC 9207
         return c.redirect(url.toString(), 302)
       }
 
@@ -192,6 +195,7 @@ export function createAuthorizeRoutes(deps: AuthorizeRoutesDeps) {
       const url = new URL(req.redirect_uri)
       url.searchParams.set('code', code.code)
       if (req.state_param) url.searchParams.set('state', req.state_param)
+      url.searchParams.set('iss', deps.issuer) // RFC 9207
       return c.redirect(url.toString(), 302)
     } catch (e) {
       if (e instanceof OAuthError) return oauthErrorResponse(c, e)
@@ -316,6 +320,7 @@ async function completeAuthorizedRequest(
   const url = new URL(postAuth.redirect_uri)
   url.searchParams.set('code', code.code)
   if (postAuth.state_param) url.searchParams.set('state', postAuth.state_param)
+  url.searchParams.set('iss', deps.issuer) // RFC 9207
   return Response.redirect(url.toString(), 302)
 }
 

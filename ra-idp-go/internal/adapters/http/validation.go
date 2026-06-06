@@ -1,0 +1,119 @@
+package http
+
+import (
+	"net/http"
+	"net/url"
+
+	"ra-idp-go/internal/validation"
+
+	z "github.com/Oudwins/zog"
+	zhttp "github.com/Oudwins/zog/zhttp"
+)
+
+type authorizeRequest struct {
+	ClientID            string `zog:"client_id"`
+	RedirectURI         string `zog:"redirect_uri"`
+	ResponseType        string `zog:"response_type"`
+	Scope               string `zog:"scope"`
+	StateParam          string `zog:"state"`
+	Nonce               string `zog:"nonce"`
+	CodeChallenge       string `zog:"code_challenge"`
+	CodeChallengeMethod string `zog:"code_challenge_method"`
+	Prompt              string `zog:"prompt"`
+	MaxAge              *int   `zog:"max_age"`
+}
+
+var authorizeRequestSchema = z.Struct(z.Shape{
+	"clientID":            z.String().Required(),
+	"redirectURI":         z.String().URL().Required(),
+	"responseType":        z.String().Required(),
+	"scope":               z.String(),
+	"stateParam":          z.String(),
+	"nonce":               z.String(),
+	"codeChallenge":       z.String().Required(),
+	"codeChallengeMethod": z.String().Required(),
+	"prompt":              z.String(),
+	"maxAge":              z.Ptr(z.Int().GTE(0)),
+})
+
+func parseAuthorizeRequest(values url.Values) (authorizeRequest, error) {
+	data := make(map[string]string, len(values))
+	for key := range values {
+		data[key] = values.Get(key)
+	}
+	var request authorizeRequest
+	err := validation.Error(authorizeRequestSchema.Parse(data, &request))
+	return request, err
+}
+
+type loginRequest struct {
+	RequestID string `form:"request_id"`
+	Username  string `form:"username"`
+	Password  string `form:"password"`
+}
+
+var loginRequestSchema = z.Struct(z.Shape{
+	"requestID": z.String().UUID().Required(),
+	"username":  z.String().Required(),
+	"password":  z.String().Required(),
+})
+
+func parseLoginRequest(request *http.Request) (loginRequest, error) {
+	var input loginRequest
+	err := validation.Error(loginRequestSchema.Parse(zhttp.Request(request), &input))
+	return input, err
+}
+
+type registerClientRequest struct {
+	ClientName              string         `json:"client_name"`
+	ClientType              string         `json:"client_type"`
+	RedirectURIs            []string       `json:"redirect_uris"`
+	GrantTypes              []string       `json:"grant_types"`
+	ResponseTypes           []string       `json:"response_types"`
+	TokenEndpointAuthMethod string         `json:"token_endpoint_auth_method"`
+	Scope                   string         `json:"scope"`
+	JWKS                    map[string]any `json:"jwks"`
+	JwksURI                 *string        `json:"jwks_uri"`
+	RequirePAR              bool           `json:"require_pushed_authorization_requests"`
+	DpopBoundAccessTokens   bool           `json:"dpop_bound_access_tokens"`
+	FapiProfile             string         `json:"fapi_profile"`
+}
+
+var registerClientRequestSchema = z.Struct(z.Shape{
+	"ClientName":   z.String().Max(200),
+	"ClientType":   z.String().OneOf([]string{"public", "confidential"}),
+	"RedirectURIs": z.Slice(z.String().URL()).Min(1),
+	"GrantTypes": z.Slice(z.String().OneOf([]string{
+		"authorization_code",
+		"refresh_token",
+		"client_credentials",
+		"urn:ietf:params:oauth:grant-type:device_code",
+	})),
+	"ResponseTypes": z.Slice(z.String().OneOf([]string{"code"})),
+	"TokenEndpointAuthMethod": z.String().OneOf([]string{
+		"client_secret_basic",
+		"client_secret_post",
+		"private_key_jwt",
+		"tls_client_auth",
+		"none",
+	}),
+	"JwksURI":     z.Ptr(jwksURI()),
+	"FapiProfile": z.String().OneOf([]string{"none", "fapi_2_security_profile"}),
+})
+
+func validateRegisterClientRequest(request *registerClientRequest) error {
+	return validation.Error(registerClientRequestSchema.Validate(request))
+}
+
+func jwksURI() *z.StringSchema[string] {
+	return z.String().URL().TestFunc(
+		func(value *string, _ z.Ctx) bool {
+			parsed, err := url.Parse(*value)
+			if err != nil {
+				return false
+			}
+			return parsed.Scheme == "https" && parsed.User == nil && parsed.Fragment == ""
+		},
+		z.Message("jwks_uri must be https and must not contain userinfo or fragment"),
+	)
+}

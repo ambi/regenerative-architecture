@@ -1,0 +1,106 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  default: none
+  enable:
+    # Go 標準同梱 — 最低限の正しさ
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+
+    # セキュリティ系 (IdP 用途で特に重視)
+    - gosec
+    - errorlint
+    - bodyclose
+    - forcetypeassert
+    - noctx
+
+    # 品質・バグ予防
+    - gocritic
+    - revive
+    - misspell
+    - unconvert
+    - unparam
+    - wastedassign
+    - nilerr
+
+  settings:
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - performance
+        - style
+      disabled-checks:
+        - paramTypeCombine   # opinionated
+        - hugeParam          # 構造体 by-value がデフォの本リポジトリでは noisy
+        - rangeValCopy       # 同上
+        - unnamedResult      # 多値戻り (string, string, error) は慣習的に許容
+        - commentedOutCode   # セクション見出しコメントを誤検知
+    gosec:
+      excludes:
+        - G104  # errcheck と重複
+        - G404  # math/rand 警告 — 該当箇所は crypto/rand を使っている。誤検知防止
+      severity: medium
+      confidence: medium
+    revive:
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+        - name: error-return
+        - name: error-strings
+        - name: error-naming
+        - name: increment-decrement
+        - name: var-declaration
+        - name: package-comments
+          disabled: true  # 全パッケージに doc コメント強制は重い
+        - name: range
+        - name: receiver-naming
+        - name: time-naming
+        - name: indent-error-flow
+        - name: errorf
+        - name: empty-block
+        - name: superfluous-else
+        - name: unused-parameter
+          disabled: true  # 既存 interface 適合のため許容
+        - name: unreachable-code
+        - name: redefines-builtin-id
+    errcheck:
+      check-type-assertions: false  # forcetypeassert で別管理
+      exclude-functions:
+        - (net/http.ResponseWriter).Write
+        - (*github.com/labstack/echo/v5.Response).Write
+
+  exclusions:
+    presets:
+      - common-false-positives
+      - legacy
+    rules:
+      # テストでは security / errcheck / forcetypeassert を緩める
+      - path: _test\.go
+        linters:
+          - gosec
+          - errcheck
+          - forcetypeassert
+          - noctx
+          - bodyclose
+      # cmd/ の main.go は log.Fatal を許容
+      - path: cmd/
+        linters:
+          - errcheck
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+  settings:
+    gofumpt:
+      module-path: ra-idp-go
+      extra-rules: true
+    goimports:
+      local-prefixes:
+        - ra-idp-go

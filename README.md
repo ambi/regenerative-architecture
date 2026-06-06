@@ -8,7 +8,7 @@
 
 ```text
 REGENERATIVE_ARCHITECTURE.md   ← 手法の説明文書（日本語）
-sample-task-tracker/           ← 手法を具体的に示すサンプル実装
+ra-oauth2-idp/                 ← RA で構成した OAuth2 / OIDC IdP アプリケーション
 ```
 
 ## Regenerative Architecture とは

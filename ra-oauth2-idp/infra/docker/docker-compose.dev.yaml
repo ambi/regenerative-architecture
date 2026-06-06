@@ -1,0 +1,157 @@
+# Layer 5 — Runtime / Infra (Phase 3)
+#
+# ローカル開発・統合テスト用のフルスタック。
+#
+# プロファイル:
+#   (default)        : idp + postgres + redis
+#   --profile obs    : + otel-collector + jaeger + prometheus + grafana
+#   --profile kafka  : + kafka (event-relay 連動)
+#   --profile all    : 上記すべて
+#
+# 起動例:
+#   docker compose -f infra/docker/docker-compose.dev.yaml --profile obs up -d
+
+services:
+  # ---------------------------------------------------------------
+  # Application
+  # ---------------------------------------------------------------
+  idp:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile
+    environment:
+      PORT: 3000
+      ISSUER: http://localhost:3000
+      PERSISTENCE: postgres
+      EVENT_SINK: outbox
+      OBSERVABILITY: ${OBSERVABILITY:-noop}
+      DATABASE_URL: postgres://idp:idp@postgres:5432/idp
+      REDIS_URL: redis://redis:6379
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_SERVICE_NAME: ra-oauth2-idp
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------
+  # Persistence (ADR-016)
+  # ---------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: idp
+      POSTGRES_PASSWORD: idp
+      POSTGRES_DB: idp
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U idp"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ../../spec/migrations:/docker-entrypoint-initdb.d:ro
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------
+  # Observability stack (ADR-017, Phase 2/3)
+  # ---------------------------------------------------------------
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.115.0
+    profiles: ["obs", "all"]
+    command: ["--config=/etc/otel-collector.yaml"]
+    volumes:
+      - ./otel-collector.yaml:/etc/otel-collector.yaml:ro
+    ports:
+      - "4318:4318"  # OTLP HTTP
+      - "4317:4317"  # OTLP gRPC
+      - "8889:8889"  # Prometheus exporter
+
+  prometheus:
+    image: prom/prometheus:v3.0.1
+    profiles: ["obs", "all"]
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--enable-feature=exemplar-storage"
+    volumes:
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yml:ro
+      - ../observability/prometheus/recording-rules.yaml:/etc/prometheus/rules/recording-rules.yaml:ro
+      - ../observability/prometheus/alerts.yaml:/etc/prometheus/rules/alerts.yaml:ro
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    profiles: ["obs", "all"]
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+    volumes:
+      - ../observability/grafana/dashboards:/etc/grafana/provisioning/dashboards-data:ro
+      - ./grafana-provisioning.yaml:/etc/grafana/provisioning/dashboards/main.yaml:ro
+    ports:
+      - "3001:3000"
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.62
+    profiles: ["obs", "all"]
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"   # UI
+      - "14250:14250"
+
+  # ---------------------------------------------------------------
+  # Kafka (ADR-016, Phase 1/3)
+  # ---------------------------------------------------------------
+  kafka:
+    image: bitnami/kafka:3.7
+    profiles: ["kafka", "all"]
+    environment:
+      KAFKA_CFG_NODE_ID: 0
+      KAFKA_CFG_PROCESS_ROLES: controller,broker
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 0@kafka:9093
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports:
+      - "9092:9092"
+
+  event-relay:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile
+    profiles: ["kafka", "all"]
+    environment:
+      DATABASE_URL: postgres://idp:idp@postgres:5432/idp
+      KAFKA_BROKERS: kafka:9092
+    command: ["bun", "run", "infra/event-relay/main.ts"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+
+volumes:
+  pgdata:

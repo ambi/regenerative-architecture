@@ -1,0 +1,103 @@
+package bootstrap
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"ra-idp-go/internal/adapters/crypto"
+	httpadapter "ra-idp-go/internal/adapters/http"
+	"ra-idp-go/internal/adapters/observability"
+	authusecases "ra-idp-go/internal/authentication/usecases"
+	"ra-idp-go/internal/spec"
+
+	"github.com/labstack/echo/v5"
+)
+
+// Run はサーバ全体を起動する。SIGINT/SIGTERM で graceful shutdown。
+func Run() error {
+	runtime := loadRuntimeConfig()
+	issuer := envDefault("ISSUER", "http://localhost:8080")
+	addr := envDefault("ADDR", ":8080")
+
+	deps, err := assemble(context.Background())
+	if err != nil {
+		return fmt.Errorf("assemble dependencies: %w", err)
+	}
+	defer deps.Close()
+
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	hasher := crypto.NewArgon2idPasswordHasher()
+	if os.Getenv("SKIP_DEMO_SEED") == "" {
+		if err := seedDemoData(ctx, deps.ClientRepo, deps.UserRepo, hasher); err != nil {
+			return fmt.Errorf("seed demo data: %w", err)
+		}
+	}
+	sclDoc, err := spec.LoadSCL()
+	if err != nil {
+		return fmt.Errorf("load SCL: %w", err)
+	}
+	authorizer, err := assembleAuthorizer()
+	if err != nil {
+		return err
+	}
+	sessionManager := authusecases.NewSessionManager(deps.SessionStore)
+	tokenSigner := crypto.NewJWTSigner(issuer, deps.KeyStore)
+	jwkResolver := crypto.NewJWKResolver()
+
+	e := echo.New()
+	var otelProvider *observability.Provider
+	if runtime.Observability == "otel" {
+		otelProvider, err = observability.New(ctx, envDefault("OTEL_SERVICE_NAME", "ra-idp-go"), "0.3.0")
+		if err != nil {
+			return fmt.Errorf("initialize OpenTelemetry: %w", err)
+		}
+		e.Use(otelProvider.Middleware)
+	}
+	emit := func(event spec.DomainEvent) {
+		eventCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		if err := deps.EventSink.Emit(eventCtx, event); err != nil {
+			log.Printf("event sink: %v", err)
+		}
+	}
+	httpadapter.Register(e, httpadapter.Deps{
+		Issuer: issuer, SCL: sclDoc,
+		ClientRepo: deps.ClientRepo, UserRepo: deps.UserRepo, ConsentRepo: deps.ConsentRepo,
+		RequestStore: deps.RequestStore, CodeStore: deps.CodeStore, PARStore: deps.PARStore,
+		RefreshStore: deps.RefreshStore, DeviceCodeStore: deps.DeviceCodeStore,
+		DpopReplayStore: deps.DpopReplay, ClientAssertionReplayStore: deps.ClientAssertionReplay,
+		KeyStore: deps.KeyStore, TokenIssuer: tokenSigner, TokenIntrospector: tokenSigner,
+		Authorizer: authorizer, JWKResolver: jwkResolver,
+		PasswordHasher: hasher, SessionManager: sessionManager, AuthnResolver: sessionManager,
+		Emit: emit,
+		HealthInfo: httpadapter.HealthInfo{
+			Persistence:   runtime.Persistence,
+			EventSink:     runtime.EventSink,
+			Observability: runtime.Observability,
+			AuthZEN:       runtime.AuthZEN,
+		},
+	})
+
+	log.Printf("ra-idp-go listening on %s (issuer=%s)", addr, issuer)
+	startConfig := echo.StartConfig{Address: addr}
+	if err := startConfig.Start(ctx, e); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		log.Printf("server: %v", err)
+	}
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if otelProvider != nil {
+		if err := otelProvider.Shutdown(shutdownCtx); err != nil {
+			log.Printf("shutdown OpenTelemetry: %v", err)
+		}
+	}
+	return nil
+}

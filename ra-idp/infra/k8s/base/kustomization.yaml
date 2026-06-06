@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+commonLabels:
+  app.kubernetes.io/part-of: ra-idp
+
+resources:
+  - deployment.yaml
+  - service.yaml
+  - scaling.yaml
+  - network-policy.yaml
+  - service-monitor.yaml
+  - key-rotation-cronjob.yaml

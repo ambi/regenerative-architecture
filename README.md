@@ -8,7 +8,7 @@
 
 ```text
 REGENERATIVE_ARCHITECTURE.md   ← 手法の説明文書（日本語）
-ra-oauth2-idp/                 ← RA で構成した OAuth2 / OIDC IdP アプリケーション
+ra-idp/                 ← RA で構成した IdP アプリケーション（現状は OAuth2 / OIDC、将来 SAML / WS-Federation 追加予定）
 ```
 
 ## Regenerative Architecture とは

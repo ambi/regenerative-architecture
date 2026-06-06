@@ -1,0 +1,31 @@
+{
+  "$id": "urn:idp:AuthenticationContext",
+  "type": "object",
+  "additionalProperties": false,
+  "description": "Authentication component が OAuth2/OIDC component に渡す認証結果。OAuth2/OIDC は password、UserRepository、session cookie の詳細を参照しない。",
+  "properties": {
+    "sub": {
+      "type": "string"
+    },
+    "auth_time": {
+      "type": "integer"
+    },
+    "amr": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "acr": {
+      "type": "string"
+    },
+    "session_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "sub",
+    "auth_time",
+    "amr"
+  ]
+}

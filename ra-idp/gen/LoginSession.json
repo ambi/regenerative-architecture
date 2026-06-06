@@ -1,0 +1,28 @@
+{
+  "$id": "urn:idp:LoginSession",
+  "type": "object",
+  "additionalProperties": false,
+  "description": "ブラウザログインセッション。Cookie には不透明な session id のみを置き、sub と auth_time はサーバー側ストアに保持する。",
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "sub": {
+      "type": "string"
+    },
+    "auth_time": {
+      "type": "integer"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "id",
+    "sub",
+    "auth_time",
+    "expires_at"
+  ]
+}

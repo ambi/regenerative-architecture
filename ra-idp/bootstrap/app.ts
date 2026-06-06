@@ -124,11 +124,19 @@ export function composeApp(input: ComposeAppInput): Hono {
       clientRepo: deps.clientRepo,
       refreshStore: deps.refreshStore,
       introspector: tokenSigner,
+      accessTokenDenylist: deps.accessTokenDenylist,
       clientAssertionReplayStore: deps.clientAssertionReplayStore,
       emit,
     }),
   )
-  app.route('/', createUserInfoRoutes({ introspector: tokenSigner, userRepo: deps.userRepo }))
+  app.route(
+    '/',
+    createUserInfoRoutes({
+      introspector: tokenSigner,
+      userRepo: deps.userRepo,
+      accessTokenDenylist: deps.accessTokenDenylist,
+    }),
+  )
 
   app.route(
     '/',

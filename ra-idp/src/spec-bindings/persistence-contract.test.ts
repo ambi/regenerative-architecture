@@ -41,6 +41,7 @@ import {
   InMemoryPARStore,
 } from '../../adapters/persistence/memory/authorization-store'
 import { InMemoryDpopReplayStore } from '../../adapters/persistence/memory/dpop-replay-store'
+import { InMemoryAccessTokenDenylist } from '../../adapters/persistence/memory/access-token-denylist'
 import { InMemoryKeyStore } from '../../adapters/crypto/in-memory-key-store'
 
 import type { ClientRepository } from '../oauth2/ports/client-repository'
@@ -49,6 +50,7 @@ import type { ConsentRepository } from '../oauth2/ports/consent-repository'
 import type { RefreshTokenStore } from '../oauth2/ports/refresh-token-store'
 import type { AuthorizationCodeStore, PARStore } from '../oauth2/ports/authorization-store'
 import type { DpopReplayStore } from '../oauth2/ports/dpop-replay-store'
+import type { AccessTokenDenylist } from '../oauth2/ports/access-token-denylist'
 import type { KeyStore } from '../oauth2/ports/key-store'
 
 // ---------------------------------------------------------------
@@ -155,6 +157,7 @@ interface SuiteFactory {
     codeStore: AuthorizationCodeStore
     parStore: PARStore
     dpopReplayStore: DpopReplayStore
+    accessTokenDenylist: AccessTokenDenylist
     keyStore: KeyStore
   }>
   teardown?: () => Promise<void>
@@ -174,6 +177,7 @@ SUITES.push({
     codeStore: new InMemoryAuthorizationCodeStore(),
     parStore: new InMemoryPARStore(),
     dpopReplayStore: new InMemoryDpopReplayStore(),
+    accessTokenDenylist: new InMemoryAccessTokenDenylist(),
     keyStore: await InMemoryKeyStore.create('PS256'),
   }),
 })
@@ -214,6 +218,9 @@ if (dbUrl && redisUrl) {
       const { RedisDpopReplayStore } = await import(
         '../../adapters/persistence/redis/dpop-replay-store'
       )
+      const { RedisAccessTokenDenylist } = await import(
+        '../../adapters/persistence/redis/access-token-denylist'
+      )
       const { PostgresKeyStore } = await import('../../adapters/persistence/postgres/key-store')
 
       return {
@@ -224,6 +231,7 @@ if (dbUrl && redisUrl) {
         codeStore: new RedisAuthorizationCodeStore(redis),
         parStore: new RedisPARStore(redis),
         dpopReplayStore: new RedisDpopReplayStore(redis),
+        accessTokenDenylist: new RedisAccessTokenDenylist(redis),
         keyStore: await PostgresKeyStore.create(pool, 'PS256'),
       }
     },
@@ -416,6 +424,18 @@ for (const suite of SUITES) {
         const second = await deps.dpopReplayStore.recordIfNew(jti, 600)
         expect(first).toBe(true)
         expect(second).toBe(false)
+      })
+    })
+
+    // -------------------------------------------------------------
+    // AccessTokenDenylist — JWT 即時失効 (revoke → isRevoked)
+    // -------------------------------------------------------------
+    describe('AccessTokenDenylist', () => {
+      it('add → isRevoked が true、未登録 jti は false', async () => {
+        const jti = `jti-${randomUUID()}`
+        expect(await deps.accessTokenDenylist.isRevoked(jti)).toBe(false)
+        await deps.accessTokenDenylist.add(jti, new Date(Date.now() + 60_000))
+        expect(await deps.accessTokenDenylist.isRevoked(jti)).toBe(true)
       })
     })
 

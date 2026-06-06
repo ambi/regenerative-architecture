@@ -10,6 +10,7 @@ import { authenticateClient } from './client-authentication'
 import { oauthErrorResponse } from './error-response'
 import { introspectTokenUseCase } from '../../src/oauth2/usecases/introspect-token'
 import { revokeTokenUseCase } from '../../src/oauth2/usecases/revoke-token'
+import type { AccessTokenDenylist } from '../../src/oauth2/ports/access-token-denylist'
 import type { ClientRepository } from '../../src/oauth2/ports/client-repository'
 import type { RefreshTokenStore } from '../../src/oauth2/ports/refresh-token-store'
 import type { TokenIntrospector } from '../../src/oauth2/ports/token-introspector'
@@ -21,6 +22,7 @@ export interface IntrospectionRoutesDeps {
   clientRepo: ClientRepository
   refreshStore: RefreshTokenStore
   introspector: TokenIntrospector
+  accessTokenDenylist?: AccessTokenDenylist
   clientAssertionReplayStore: ClientAssertionReplayStore
   emit: (e: DomainEvent) => void
 }
@@ -37,7 +39,11 @@ export function createIntrospectionRoutes(deps: IntrospectionRoutesDeps) {
       })
       if (!body.token) throw new OAuthError('invalid_request', 'token が必要です')
       const res = await introspectTokenUseCase(
-        { introspector: deps.introspector, refreshStore: deps.refreshStore },
+        {
+          introspector: deps.introspector,
+          refreshStore: deps.refreshStore,
+          accessTokenDenylist: deps.accessTokenDenylist,
+        },
         {
           token: body.token,
           token_type_hint: body.token_type_hint as 'access_token' | 'refresh_token' | undefined,
@@ -65,8 +71,14 @@ export function createIntrospectionRoutes(deps: IntrospectionRoutesDeps) {
         clientAssertionReplayStore: deps.clientAssertionReplayStore,
       })
       if (!body.token) throw new OAuthError('invalid_request', 'token が必要です')
-      await revokeTokenUseCase({ refreshStore: deps.refreshStore }, body.token, (e) =>
-        deps.emit(e as DomainEvent),
+      await revokeTokenUseCase(
+        {
+          refreshStore: deps.refreshStore,
+          introspector: deps.introspector,
+          accessTokenDenylist: deps.accessTokenDenylist,
+        },
+        body.token,
+        (e) => deps.emit(e as DomainEvent),
       )
       return c.body(null, 200)
     } catch (e) {

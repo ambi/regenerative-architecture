@@ -16,12 +16,14 @@ import {
 } from '../adapters/persistence/memory/authorization-store'
 import { InMemoryRefreshTokenStore } from '../adapters/persistence/memory/refresh-store'
 import { InMemoryDpopReplayStore } from '../adapters/persistence/memory/dpop-replay-store'
+import { InMemoryAccessTokenDenylist } from '../adapters/persistence/memory/access-token-denylist'
 import { InMemoryClientAssertionReplayStore } from '../adapters/persistence/memory/client-assertion-replay-store'
 import { InMemoryDeviceCodeStore } from '../adapters/persistence/memory/device-code-store'
 import { InMemorySessionStore } from '../adapters/persistence/memory/session-store'
 import { InMemoryKeyStore } from '../adapters/crypto/in-memory-key-store'
 import { ConsoleEventSink } from '../adapters/event-sink/console'
 
+import type { AccessTokenDenylist } from '../src/oauth2/ports/access-token-denylist'
 import type { ClientRepository } from '../src/oauth2/ports/client-repository'
 import type { UserRepository } from '../src/authentication/ports/user-repository'
 import type { ConsentRepository } from '../src/oauth2/ports/consent-repository'
@@ -54,6 +56,7 @@ export interface AssembledDeps {
   deviceCodeStore: DeviceCodeStore
   sessionStore: SessionStore
   keyStore: KeyStore
+  accessTokenDenylist: AccessTokenDenylist
   eventSink: EventSink
   collectedConsoleEvents?: ConsoleEventSink
 }
@@ -74,6 +77,7 @@ export async function assemble(config: RuntimeConfig): Promise<AssembledDeps> {
       deviceCodeStore: new InMemoryDeviceCodeStore(),
       sessionStore: new InMemorySessionStore(),
       keyStore: await InMemoryKeyStore.create('PS256'),
+      accessTokenDenylist: new InMemoryAccessTokenDenylist(),
       eventSink: consoleSink,
       collectedConsoleEvents: consoleSink,
     }
@@ -112,6 +116,9 @@ export async function assemble(config: RuntimeConfig): Promise<AssembledDeps> {
   const { RedisDeviceCodeStore } = await import('../adapters/persistence/redis/device-code-store')
   const { RedisSessionStore } = await import('../adapters/persistence/redis/session-store')
   const { PostgresKeyStore } = await import('../adapters/persistence/postgres/key-store')
+  const { RedisAccessTokenDenylist } = await import(
+    '../adapters/persistence/redis/access-token-denylist'
+  )
 
   const eventSink: EventSink =
     config.eventSinkMode === 'outbox' ? new PostgresOutboxEventSink(pool) : new ConsoleEventSink()
@@ -129,6 +136,7 @@ export async function assemble(config: RuntimeConfig): Promise<AssembledDeps> {
     deviceCodeStore: new RedisDeviceCodeStore(redis, DEVICE_CODE_TTL_SECONDS),
     sessionStore: new RedisSessionStore(redis),
     keyStore: await PostgresKeyStore.create(pool, 'PS256'),
+    accessTokenDenylist: new RedisAccessTokenDenylist(redis),
     eventSink,
   }
 }

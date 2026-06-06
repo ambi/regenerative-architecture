@@ -8,6 +8,7 @@
  */
 
 import { hashToken } from '../domain/refresh-token'
+import type { AccessTokenDenylist } from '../ports/access-token-denylist'
 import type { RefreshTokenStore } from '../ports/refresh-token-store'
 import type { TokenIntrospector } from '../ports/token-introspector'
 
@@ -36,6 +37,8 @@ export async function introspectTokenUseCase(
   deps: {
     introspector: TokenIntrospector
     refreshStore: RefreshTokenStore
+    /** access_token JWT の即時失効 denylist。未指定なら検査スキップ。 */
+    accessTokenDenylist?: AccessTokenDenylist
   },
   input: IntrospectInput,
   now: Date = new Date(),
@@ -70,5 +73,11 @@ export async function introspectTokenUseCase(
   }
 
   // access_token として検証
-  return deps.introspector.introspectAccessToken(input.token)
+  const res = await deps.introspector.introspectAccessToken(input.token)
+  if (res.active && res.jti && deps.accessTokenDenylist) {
+    if (await deps.accessTokenDenylist.isRevoked(res.jti)) {
+      return { active: false }
+    }
+  }
+  return res
 }

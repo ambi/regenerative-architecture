@@ -8,12 +8,14 @@ import { Hono } from 'hono'
 import { OAuthError } from '../../src/oauth2/protocol/oauth-error'
 import { oauthErrorResponse } from './error-response'
 import { userInfoUseCase } from '../../src/oauth2/usecases/userinfo'
+import type { AccessTokenDenylist } from '../../src/oauth2/ports/access-token-denylist'
 import type { TokenIntrospector } from '../../src/oauth2/ports/token-introspector'
 import type { UserRepository } from '../../src/authentication/ports/user-repository'
 
 export interface UserInfoRoutesDeps {
   introspector: TokenIntrospector
   userRepo: UserRepository
+  accessTokenDenylist?: AccessTokenDenylist
 }
 
 export function createUserInfoRoutes(deps: UserInfoRoutesDeps) {
@@ -28,7 +30,17 @@ export function createUserInfoRoutes(deps: UserInfoRoutesDeps) {
       }
       const token = authHeader.split(' ')[1]
       const introspection = await deps.introspector.introspectAccessToken(token)
-      if (!introspection.active || !introspection.sub || !introspection.client_id) {
+      const revoked =
+        introspection.active &&
+        introspection.jti &&
+        deps.accessTokenDenylist &&
+        (await deps.accessTokenDenylist.isRevoked(introspection.jti))
+      if (
+        !introspection.active ||
+        revoked ||
+        !introspection.sub ||
+        !introspection.client_id
+      ) {
         c.header('WWW-Authenticate', 'Bearer error="invalid_token"')
         throw new OAuthError('invalid_grant', 'トークンが無効です')
       }

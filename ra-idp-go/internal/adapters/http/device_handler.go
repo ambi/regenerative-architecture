@@ -2,7 +2,6 @@
 package http
 
 import (
-	"html/template"
 	"net/http"
 	"time"
 
@@ -36,7 +35,7 @@ func (d Deps) handleDeviceAuthorization(c *echo.Context) error {
 
 func (d Deps) handleDeviceVerification(c *echo.Context) error {
 	if c.Request().Method == http.MethodGet {
-		return c.HTML(http.StatusOK, deviceVerificationForm(c.QueryParam("user_code")))
+		return renderDevice(c, c.QueryParam("user_code"))
 	}
 	if err := c.Request().ParseForm(); err != nil {
 		return c.String(http.StatusBadRequest, "invalid form")
@@ -45,26 +44,14 @@ func (d Deps) handleDeviceVerification(c *echo.Context) error {
 	action := c.Request().PostFormValue("action")
 	authn, _ := d.AuthnResolver.Resolve(c.Request().Context(), authdomain.HTTPHeadersAdapter{H: c.Request().Header})
 	if authn == nil {
-		return c.HTML(http.StatusUnauthorized, "<!doctype html><h1>ログインが必要です</h1>")
+		return renderStatus(c, http.StatusUnauthorized, "authentication-required")
 	}
 	if action == "deny" {
 		_ = usecases.DenyUserCode(c.Request().Context(), usecases.VerifyUserCodeDeps{DeviceCodeStore: d.DeviceCodeStore, Emit: d.Emit}, userCode, authn.Sub, time.Now().UTC())
-		return c.HTML(http.StatusOK, "<!doctype html><h1>拒否しました</h1>")
+		return renderStatus(c, http.StatusOK, "denied")
 	}
 	if err := usecases.ApproveUserCode(c.Request().Context(), usecases.VerifyUserCodeDeps{DeviceCodeStore: d.DeviceCodeStore, Emit: d.Emit}, userCode, authn.Sub, time.Now().UTC()); err != nil {
 		return writeOAuthError(c, err)
 	}
-	return c.HTML(http.StatusOK, "<!doctype html><h1>承認しました</h1>")
-}
-
-func deviceVerificationForm(userCode string) string {
-	return `<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>デバイス承認</title></head>
-<body>
-<h1>デバイス承認</h1>
-<form method="POST" action="/device">
-  <label>ユーザーコード <input name="user_code" value="` + template.HTMLEscapeString(userCode) + `" required></label>
-  <button type="submit" name="action" value="allow">承認</button>
-  <button type="submit" name="action" value="deny">拒否</button>
-</form>
-</body></html>`
+	return renderStatus(c, http.StatusOK, "approved")
 }

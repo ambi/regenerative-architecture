@@ -74,7 +74,7 @@ func (d Deps) handleAuthorize(c *echo.Context) error {
 				if in.Prompt == "none" {
 					return writeOAuthError(c, usecases.NewOAuthError("login_required", "既存セッションが認証要件を満たしません"))
 				}
-				return renderLogin(c, out.Request.ID)
+				return renderLogin(c, out.Request.ID, "")
 			}
 			return d.completeAfterAuthn(c, out.Request, out.Client, authn)
 		}
@@ -82,7 +82,7 @@ func (d Deps) handleAuthorize(c *echo.Context) error {
 	if out.Request.Prompt != nil && *out.Request.Prompt == "none" {
 		return writeOAuthError(c, usecases.NewOAuthError("login_required", "prompt=none では再認証不可"))
 	}
-	return renderLogin(c, out.Request.ID)
+	return renderLogin(c, out.Request.ID, "")
 }
 
 func (d Deps) completeAfterAuthn(c *echo.Context, req *spec.AuthorizationRequest, client *spec.Client, authn *authdomain.AuthenticationContext) error {
@@ -190,8 +190,7 @@ func (d Deps) handleEndSession(c *echo.Context) error {
 		post = c.Request().PostFormValue("post_logout_redirect_uri")
 	}
 	if post == "" {
-		c.Response().Header().Set("Content-Type", "text/html; charset=UTF-8")
-		return c.HTML(http.StatusOK, "<!doctype html><h1>ログアウトしました</h1>")
+		return renderStatus(c, http.StatusOK, "signed-out")
 	}
 	clientID := c.QueryParam("client_id")
 	if clientID == "" {
@@ -235,17 +234,17 @@ func (d Deps) handleLogin(c *echo.Context) error {
 		if d.Emit != nil {
 			d.Emit(&spec.AuthenticationFailed{At: time.Now().UTC(), Username: username, Reason: "user_not_found"})
 		}
-		return renderLogin(c, requestID)
+		return renderLogin(c, requestID, "ユーザー名またはパスワードを確認してください。")
 	}
 	ok, err := d.PasswordHasher.Verify(password, user.PasswordHash)
 	if err != nil || !ok {
 		if d.Emit != nil {
 			d.Emit(&spec.AuthenticationFailed{At: time.Now().UTC(), Username: username, Reason: "invalid_credentials"})
 		}
-		return renderLogin(c, requestID)
+		return renderLogin(c, requestID, "ユーザー名またはパスワードを確認してください。")
 	}
 	if r := authusecases.ValidatePassword(password); !r.OK {
-		return renderLogin(c, requestID)
+		return renderLogin(c, requestID, "パスワードがセキュリティ要件を満たしていません。")
 	}
 
 	// セッション作成

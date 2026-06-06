@@ -42,6 +42,12 @@ type Deps struct {
 }
 
 func Register(e *echo.Echo, d Deps) {
+	e.GET("/ui/assets/app.css", func(c *echo.Context) error {
+		return serveUIAsset(c, "app.css", "text/css; charset=UTF-8")
+	})
+	e.GET("/ui/assets/app.js", func(c *echo.Context) error {
+		return serveUIAsset(c, "app.js", "text/javascript; charset=UTF-8")
+	})
 	e.GET("/authorize", d.handleAuthorize)
 	e.POST("/login", d.handleLogin)
 	e.POST("/consent", d.handleConsent)

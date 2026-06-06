@@ -38,6 +38,17 @@ TS 側と同じスコープを目標に実装した:
 go run ./cmd/ra-idp-go
 ```
 
+認証UIは TypeScript + Vite + React + TanStack Router + Mantine で実装し、
+production bundle をGoバイナリに埋め込んでいる。UIを変更した場合は先にbuildする。
+
+```bash
+cd ui
+bun install
+bun run build
+cd ..
+go run ./cmd/ra-idp-go
+```
+
 ### 本番アダプタ構成
 
 ```bash
@@ -111,6 +122,7 @@ golangci-lint run
 ra-idp-go/
 ├── spec/        → ../ra-idp/spec       (symlink — SCL を TS と共有)
 ├── decisions/   → ../ra-idp/decisions  (symlink — ADR を共有)
+├── ui/                                      React認証UI + embedded production bundle
 ├── cmd/ra-idp-go/main.go               起動
 ├── internal/spec/                      Layer 3: SCL バインディング + 状態機械
 ├── internal/oauth2/                    Layer 3: domain / ports / usecases

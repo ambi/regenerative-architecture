@@ -1,0 +1,25 @@
+{
+  "name": "ra-idp-go-ui",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit -p tsconfig.app.json && vite build",
+    "dev": "vite",
+    "typecheck": "tsc --noEmit -p tsconfig.app.json"
+  },
+  "dependencies": {
+    "@mantine/core": "9.3.0",
+    "@mantine/hooks": "9.3.0",
+    "@tabler/icons-react": "3.44.0",
+    "@tanstack/react-router": "1.170.15",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.2",
+    "typescript": "6.0.3",
+    "vite": "8.0.16"
+  }
+}

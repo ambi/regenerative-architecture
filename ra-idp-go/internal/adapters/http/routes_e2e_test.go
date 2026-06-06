@@ -125,7 +125,7 @@ func TestAuthorizationCodeFlowHappyPath(t *testing.T) {
 	verifier := "this-is-a-cryptographically-fine-verifier-for-pkce-tests"
 	challenge := pkceS256(verifier)
 
-	// (1) /authorize → 401 + ログインフォーム + request_id
+	// (1) /authorize → 401 + React UI shell + request_id
 	q := url.Values{
 		"client_id":             {demoClientID},
 		"redirect_uri":          {demoRedirectURI},
@@ -144,6 +144,12 @@ func TestAuthorizationCodeFlowHappyPath(t *testing.T) {
 	}
 	body, _ := io.ReadAll(resp.Body)
 	resp.Body.Close()
+	if !strings.Contains(string(body), `/ui/assets/app.js`) {
+		t.Fatalf("login page is missing UI bundle: %s", body)
+	}
+	if resp.Header.Get("Content-Security-Policy") == "" {
+		t.Fatal("login page is missing Content-Security-Policy")
+	}
 	requestID := extractRequestID(string(body))
 	if requestID == "" {
 		t.Fatalf("could not extract request_id from login page:\n%s", body)
@@ -249,6 +255,29 @@ func TestAuthorizeRejectsUnknownClient(t *testing.T) {
 	}
 }
 
+func TestUIAssetsAreServed(t *testing.T) {
+	srv := newServer(t)
+	defer srv.Close()
+
+	for _, path := range []string{"/ui/assets/app.css", "/ui/assets/app.js"} {
+		resp, err := http.Get(srv.URL + path)
+		if err != nil {
+			t.Fatalf("GET %s: %v", path, err)
+		}
+		body, readErr := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if readErr != nil {
+			t.Fatalf("read %s: %v", path, readErr)
+		}
+		if resp.StatusCode != http.StatusOK || len(body) == 0 {
+			t.Fatalf("GET %s: status=%d bytes=%d", path, resp.StatusCode, len(body))
+		}
+		if resp.Header.Get("X-Content-Type-Options") != "nosniff" {
+			t.Fatalf("GET %s: missing nosniff header", path)
+		}
+	}
+}
+
 func TestTokenRejectsWrongPKCE(t *testing.T) {
 	srv := newServer(t)
 	defer srv.Close()
@@ -300,7 +329,7 @@ func TestTokenRejectsWrongPKCE(t *testing.T) {
 }
 
 func extractRequestID(html string) string {
-	const marker = `name="request_id" value="`
+	const marker = `"requestId":"`
 	_, rest, ok := strings.Cut(html, marker)
 	if !ok {
 		return ""

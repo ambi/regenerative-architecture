@@ -38,7 +38,8 @@ TS 側と同じスコープを目標に実装した:
 go run ./cmd/ra-idp-go
 ```
 
-認証UIは TypeScript + Vite + React + TanStack Router + Mantine で実装し、
+認証UIは TypeScript + Vite + React + Tailwind CSS + Radix UI + shadcn/ui +
+TanStack Router / Table で実装し、
 production bundle をGoバイナリに埋め込んでいる。UIを変更した場合は先にbuildする。
 
 ```bash

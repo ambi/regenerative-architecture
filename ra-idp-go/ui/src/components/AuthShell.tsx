@@ -1,61 +1,53 @@
-import {
-  Anchor,
-  Box,
-  Container,
-  Group,
-  Paper,
-  Stack,
-  Text,
-} from "@mantine/core";
-import { IconLock } from "@tabler/icons-react";
-import type { ReactNode } from "react";
-import { Brand } from "./Brand";
+import { IconLock } from '@tabler/icons-react'
+import type { ReactNode } from 'react'
+import { Brand } from './Brand'
 
 type AuthShellProps = {
-  children: ReactNode;
-  asideTitle?: string;
-  asideText?: string;
-};
+  children: ReactNode
+  asideTitle?: string
+  asideText?: string
+}
 
 export function AuthShell({
   children,
-  asideTitle = "ひとつの安全な入口から、すべてのサービスへ。",
-  asideText = "標準準拠の認証基盤が、アカウントとアプリケーションを保護します。",
+  asideTitle = 'ひとつの安全な入口から、すべてのサービスへ。',
+  asideText = '標準準拠の認証基盤が、アカウントとアプリケーションを保護します。',
 }: AuthShellProps) {
   return (
-    <Box className="auth-background">
-      <Container size={1060} className="auth-container">
-        <Paper className="auth-frame" radius={28} shadow="xl">
-          <Box className="auth-aside">
+    <div className="auth-background">
+      <div className="auth-container">
+        <div className="auth-frame">
+          <aside className="auth-aside">
             <Brand />
-            <Stack gap="lg" className="auth-aside-copy">
-              <Text className="eyebrow">Regenerative Architecture</Text>
-              <Text component="h1" className="aside-title">
-                {asideTitle}
-              </Text>
-              <Text className="aside-text">{asideText}</Text>
-            </Stack>
-            <Group gap="xs" className="trust-note">
+            <div className="auth-aside-copy">
+              <p className="eyebrow !text-cyan-200">Regenerative Architecture</p>
+              <h1 className="aside-title">{asideTitle}</h1>
+              <p className="aside-text">{asideText}</p>
+            </div>
+            <div className="flex items-center gap-2 text-white/70">
               <IconLock size={16} />
-              <Text size="sm">OpenID Connect / OAuth 2.0</Text>
-            </Group>
-          </Box>
+              <span className="text-sm">OpenID Connect / OAuth 2.0</span>
+            </div>
+          </aside>
 
-          <Box className="auth-main">
-            <Box className="mobile-brand">
+          <main className="auth-main">
+            <div className="mobile-brand">
               <Brand />
-            </Box>
+            </div>
             {children}
-            <Group justify="center" gap="xs" mt="xl">
-              <Anchor href="/.well-known/openid-configuration" size="xs" c="dimmed">
+            <div className="mt-8 flex items-center justify-center gap-2 text-xs text-slate-400">
+              <a
+                href="/.well-known/openid-configuration"
+                className="transition-colors hover:text-slate-700"
+              >
                 Provider information
-              </Anchor>
-              <Text size="xs" c="gray.5">•</Text>
-              <Text size="xs" c="dimmed">Privacy protected</Text>
-            </Group>
-          </Box>
-        </Paper>
-      </Container>
-    </Box>
-  );
+              </a>
+              <span aria-hidden="true">•</span>
+              <span>Privacy protected</span>
+            </div>
+          </main>
+        </div>
+      </div>
+    </div>
+  )
 }

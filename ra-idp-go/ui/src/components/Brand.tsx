@@ -1,21 +1,17 @@
-import { Box, Group, Stack, Text, ThemeIcon } from "@mantine/core";
-import { IconFingerprint } from "@tabler/icons-react";
+import { IconFingerprint } from '@tabler/icons-react'
 
 export function Brand() {
   return (
-    <Group gap="sm" wrap="nowrap">
-      <ThemeIcon size={42} radius={12} variant="gradient" gradient={{ from: "indigo", to: "cyan" }}>
+    <div className="flex flex-nowrap items-center gap-3">
+      <div className="flex size-[42px] items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-cyan-500 text-white">
         <IconFingerprint size={25} stroke={1.8} />
-      </ThemeIcon>
-      <Stack gap={0}>
-        <Text fw={750} size="lg" lh={1.2}>
-          RA Identity
-        </Text>
-        <Text c="dimmed" size="xs" fw={600} tt="uppercase" lts="0.08em">
+      </div>
+      <div className="flex flex-col">
+        <span className="text-lg font-bold leading-tight">RA Identity</span>
+        <span className="text-xs font-semibold uppercase tracking-[0.08em] opacity-60">
           Secure access
-        </Text>
-      </Stack>
-      <Box />
-    </Group>
-  );
+        </span>
+      </div>
+    </div>
+  )
 }

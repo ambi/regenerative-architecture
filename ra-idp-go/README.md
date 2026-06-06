@@ -44,6 +44,7 @@ production bundle をGoバイナリに埋め込んでいる。UIを変更した�
 ```bash
 cd ui
 bun install
+bun run lint
 bun run build
 cd ..
 go run ./cmd/ra-idp-go

@@ -107,9 +107,9 @@ input {
   line-height: 1.12;
 }
 
-.aside-text {
+.auth-aside .aside-text.mantine-Text-root {
   max-width: 25rem;
-  color: rgba(255, 255, 255, 0.74) !important;
+  color: rgba(255, 255, 255, 0.74);
   font-size: 1rem;
   line-height: 1.8;
 }
@@ -123,7 +123,7 @@ input {
 }
 
 .auth-aside .eyebrow {
-  color: #a5f3fc !important;
+  color: #a5f3fc;
 }
 
 .trust-note {

@@ -18,6 +18,7 @@ const ENDPOINTS = {
   pushed_authorization_request_endpoint: 'PushAuthorizationRequest',
   device_authorization_endpoint: 'DeviceAuthorization',
   registration_endpoint: 'RegisterClient',
+  end_session_endpoint: 'EndSession',
 } as const
 
 function endpointPath(interfaceName: string): string {
@@ -45,7 +46,6 @@ export function buildDiscoveryDocument(issuer: string): Record<string, unknown> 
   for (const [field, iface] of Object.entries(ENDPOINTS)) {
     doc[field] = `${issuer}${endpointPath(iface)}`
   }
-  doc.end_session_endpoint = `${issuer}/end_session`
   doc.scopes_supported = tpl.scopes_supported ?? []
   doc.response_types_supported = enumWireValues('ResponseType')
   doc.response_modes_supported = enumWireValues('ResponseMode')

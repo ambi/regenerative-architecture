@@ -106,10 +106,24 @@ export async function completeAuthenticationUseCase(
   req: AuthorizationRequest,
   authenticated_sub: string,
   authTime: Date = new Date(),
-): Promise<{ request: AuthorizationRequest; needsConsent: boolean }> {
+  now: Date = new Date(),
+): Promise<{ request: AuthorizationRequest; needsConsent: boolean; needsAuthentication: boolean }> {
+  const authTimeSeconds = Math.floor(authTime.getTime() / 1000)
+  const nowSeconds = Math.floor(now.getTime() / 1000)
+
+  if (req.prompt === 'login') {
+    await deps.requestStore.save(req)
+    return { request: req, needsConsent: false, needsAuthentication: true }
+  }
+
+  if (req.max_age !== undefined && nowSeconds - authTimeSeconds >= req.max_age) {
+    await deps.requestStore.save(req)
+    return { request: req, needsConsent: false, needsAuthentication: true }
+  }
+
   let next = advance(req, 'authenticate_user', {
     sub: authenticated_sub,
-    auth_time: Math.floor(authTime.getTime() / 1000),
+    auth_time: authTimeSeconds,
   })
 
   const requestedScopes = req.scope.split(/\s+/).filter(Boolean)
@@ -127,12 +141,12 @@ export async function completeAuthenticationUseCase(
     next = advance(next, 'request_consent') // → consent_pending
     next = advance(next, 'grant_consent') // → consented
     await deps.requestStore.save(next)
-    return { request: next, needsConsent: false }
+    return { request: next, needsConsent: false, needsAuthentication: false }
   }
 
   next = advance(next, 'request_consent') // → consent_pending
   await deps.requestStore.save(next)
-  return { request: next, needsConsent: true }
+  return { request: next, needsConsent: true, needsAuthentication: false }
 }
 
 /**

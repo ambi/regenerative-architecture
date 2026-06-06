@@ -383,12 +383,12 @@ async function emitDiscoveryTemplate(outPath: string) {
     pushed_authorization_request_endpoint: 'PushAuthorizationRequest',
     device_authorization_endpoint: 'DeviceAuthorization',
     registration_endpoint: 'RegisterClient',
+    end_session_endpoint: 'EndSession',
   })) {
     const iface = scl.interfaces[ifaceName]
     const p = iface ? httpBinding(iface)?.path : undefined
     if (p) doc[field] = `{{ISSUER}}${p}`
   }
-  doc.end_session_endpoint = `{{ISSUER}}/end_session`
   doc.scopes_supported = tpl.scopes_supported ?? []
   doc.response_types_supported = (scl.models.ResponseType as any).values.map(toWire)
   doc.response_modes_supported = (scl.models.ResponseMode as any).values.map(toWire)

@@ -94,7 +94,47 @@ paths:
           required: false
           schema:
             type: integer
+        - name: id_token_hint
+          in: query
+          required: false
+          schema:
+            type: string
         - name: request_uri
+          in: query
+          required: false
+          schema:
+            type: string
+  /end_session:
+    get:
+      operationId: endSession
+      summary: "RP-Initiated Logout endpoint (OIDC RP-Initiated Logout 1.0)"
+      responses:
+        200:
+          description: "RP-Initiated Logout endpoint (OIDC RP-Initiated Logout 1.0)"
+        400:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthError"
+      parameters:
+        - name: client_id
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: id_token_hint
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: post_logout_redirect_uri
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uri
+        - name: state
           in: query
           required: false
           schema:
@@ -1427,6 +1467,8 @@ components:
           type: string
         max_age:
           type: integer
+        id_token_hint:
+          type: string
         request_uri:
           type: string
       required:
@@ -1435,6 +1477,20 @@ components:
         - redirect_uri
         - code_challenge
         - code_challenge_method
+    EndSessionParameters:
+      type: object
+      additionalProperties: false
+      description: "RP-Initiated Logout v1 のクエリ / form パラメータ。セッション Cookie 実装前のため client_id で post_logout_redirect_uri を検証する。"
+      properties:
+        client_id:
+          type: string
+        id_token_hint:
+          type: string
+        post_logout_redirect_uri:
+          type: string
+          format: uri
+        state:
+          type: string
     UserInfoResponse:
       type: object
       additionalProperties: false

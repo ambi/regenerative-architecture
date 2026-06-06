@@ -101,6 +101,7 @@ export const AuthorizationRequestSchema = z.object({
   code_challenge_method: z.literal('S256'),
   prompt: z.string().optional(),
   max_age: z.number().int().nonnegative().optional(),
+  id_token_hint: z.string().optional(),
   par_request_uri: z.string().optional(),
   sub: z.string().optional(),
   auth_time: z.number().int().optional(),

@@ -40,6 +40,9 @@
     "max_age": {
       "type": "integer"
     },
+    "id_token_hint": {
+      "type": "string"
+    },
     "request_uri": {
       "type": "string"
     }

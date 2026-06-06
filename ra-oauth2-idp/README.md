@@ -49,8 +49,9 @@ ra-oauth2-idp/
 | RFC 9126           | Pushed Authorization Requests — `/par`                                              |
 | RFC 9449           | DPoP — ヘッダー検証 + `cnf.jkt` バインド                                            |
 | RFC 9700           | OAuth 2.0 Security BCP — 認可コード再利用検知 + ファミリー失効                      |
-| OIDC Core 1.0      | `id_token` / nonce / at_hash / `/userinfo`                                          |
+| OIDC Core 1.0      | `id_token` / nonce / at_hash / `/userinfo` / `prompt=none` / `prompt=login` / `max_age` |
 | OIDC Discovery 1.0 | `/.well-known/openid-configuration`                                                 |
+| OIDC RP-Initiated Logout 1.0 | `/end_session` v1 — `post_logout_redirect_uri` 検証 + `state` 伝播         |
 | FAPI 2.0           | PAR 必須・PS256/ES256・センダー制約（ADR-006）                                      |
 
 ---
@@ -63,7 +64,7 @@ ra-oauth2-idp/
 | 領域 | 不足している機能 |
 | ---- | ---------------- |
 | ユーザー認証 | パスワードログイン UI、MFA/WebAuthn、パスキー、アカウント復旧、セッション Cookie、CSRF 防御、ログイン試行レート制限 |
-| OIDC セッション | `prompt=none`、`max_age`、`acr_values`、`id_token_hint`、RP-Initiated Logout、Back-Channel Logout、Front-Channel Logout、Session Management |
+| OIDC セッション | 実セッション Cookie 連携、`acr_values`、`id_token_hint` の署名検証・client 解決、Back-Channel Logout、Front-Channel Logout、Session Management |
 | Federation | SAML / OIDC 外部 IdP 連携、social login、JIT provisioning、IdP discovery、account linking |
 | 管理機能 | 管理 API / 管理 UI、ユーザー・クライアント・同意・鍵・監査イベントの運用画面、RBAC/ABAC 管理者権限 |
 | Dynamic Client Registration | 登録アクセストークン、software_statement、登録後の client metadata 更新・削除、client_secret rotation |
@@ -91,6 +92,7 @@ ra-oauth2-idp/
 | GET/POST | /device                                 | デバイス認可の verification_uri                   |
 | GET      | /authorize                              | 認可エンドポイント                                |
 | POST     | /consent                                | コンセント UI のフォーム受領                      |
+| GET/POST | /end_session                            | RP-Initiated Logout v1                           |
 | POST     | /par                                    | Pushed Authorization Request                      |
 | POST     | /token                                  | トークンエンドポイント                            |
 | POST     | /introspect                             | トークン introspection                            |

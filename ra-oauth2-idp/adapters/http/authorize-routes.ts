@@ -88,24 +88,39 @@ export function createAuthorizeRoutes(deps: AuthorizeRoutesDeps) {
         code_challenge_method: 'S256',
         prompt: params.prompt,
         max_age: params.max_age ? Number(params.max_age) : undefined,
+        id_token_hint: params.id_token_hint,
         par_used: parUsed,
       })
 
       // ユーザー認証（本アプリ: ヘッダー由来）
       const sub = c.req.header('X-User-Sub')
       if (!sub) {
+        if (request.prompt === 'none') {
+          throw new OAuthError('access_denied', 'prompt=none では対話的ログインを開始できません')
+        }
         return c.html(loginPage(request.id), 401)
       }
       const user = await deps.userRepo.findBySub(sub)
       if (!user) {
+        if (request.prompt === 'none') {
+          throw new OAuthError('access_denied', 'prompt=none では対話的ログインを開始できません')
+        }
         return c.html(loginPage(request.id), 401)
       }
 
-      const { request: postAuth, needsConsent } = await completeAuthenticationUseCase(
-        deps,
-        request,
-        sub,
-      )
+      const sessionAuthTime = parseAuthTimeHeader(c.req.header('X-User-Auth-Time'))
+      const {
+        request: postAuth,
+        needsConsent,
+        needsAuthentication,
+      } = await completeAuthenticationUseCase(deps, request, sub, sessionAuthTime)
+
+      if (needsAuthentication) {
+        if (request.prompt === 'none') {
+          throw new OAuthError('access_denied', 'prompt=none では再認証を開始できません')
+        }
+        return c.html(loginPage(request.id), 401)
+      }
 
       if (needsConsent) {
         return c.html(consentPage(postAuth, client))
@@ -126,6 +141,33 @@ export function createAuthorizeRoutes(deps: AuthorizeRoutesDeps) {
       url.searchParams.set('code', code.code)
       if (postAuth.state_param) url.searchParams.set('state', postAuth.state_param)
       return c.redirect(url.toString(), 302)
+    } catch (e) {
+      if (e instanceof OAuthError) return oauthErrorResponse(c, e)
+      throw e
+    }
+  })
+
+  app.get('/end_session', async (c) => {
+    try {
+      return await handleEndSession(
+        deps,
+        Object.fromEntries(new URL(c.req.url).searchParams.entries()),
+      )
+    } catch (e) {
+      if (e instanceof OAuthError) return oauthErrorResponse(c, e)
+      throw e
+    }
+  })
+
+  app.post('/end_session', async (c) => {
+    try {
+      const body = await c.req.parseBody()
+      return await handleEndSession(deps, {
+        client_id: stringBody(body.client_id),
+        id_token_hint: stringBody(body.id_token_hint),
+        post_logout_redirect_uri: stringBody(body.post_logout_redirect_uri),
+        state: stringBody(body.state),
+      })
     } catch (e) {
       if (e instanceof OAuthError) return oauthErrorResponse(c, e)
       throw e
@@ -174,6 +216,58 @@ export function createAuthorizeRoutes(deps: AuthorizeRoutesDeps) {
   return app
 }
 
+function parseAuthTimeHeader(value: string | undefined): Date {
+  if (!value) return new Date()
+  const seconds = Number(value)
+  if (!Number.isInteger(seconds) || seconds < 0) {
+    throw new OAuthError('invalid_request', 'X-User-Auth-Time は Unix epoch 秒で指定してください')
+  }
+  return new Date(seconds * 1000)
+}
+
+function stringBody(value: unknown): string | undefined {
+  return typeof value === 'string' && value.length > 0 ? value : undefined
+}
+
+async function handleEndSession(
+  deps: AuthorizeRoutesDeps,
+  params: {
+    client_id?: string
+    id_token_hint?: string
+    post_logout_redirect_uri?: string
+    state?: string
+  },
+): Promise<Response> {
+  if (!params.post_logout_redirect_uri) {
+    return new Response(loggedOutPage(params.id_token_hint), {
+      status: 200,
+      headers: { 'content-type': 'text/html; charset=UTF-8' },
+    })
+  }
+
+  if (!params.client_id) {
+    throw new OAuthError(
+      'invalid_request',
+      'post_logout_redirect_uri の検証には client_id が必要です',
+    )
+  }
+
+  const client = await deps.clientRepo.findById(params.client_id)
+  if (!client) {
+    throw new OAuthError('invalid_request', '未知の client_id です')
+  }
+  if (!client.redirect_uris.includes(params.post_logout_redirect_uri)) {
+    throw new OAuthError(
+      'invalid_request',
+      'post_logout_redirect_uri が登録済み URI ではありません',
+    )
+  }
+
+  const url = new URL(params.post_logout_redirect_uri)
+  if (params.state) url.searchParams.set('state', params.state)
+  return Response.redirect(url.toString(), 302)
+}
+
 function loginPage(requestId: string): string {
   return `<!doctype html>
 <html lang="ja"><head><meta charset="utf-8"><title>ログイン</title></head>
@@ -199,5 +293,15 @@ function consentPage(
   <button type="submit" name="action" value="allow">許可する</button>
   <button type="submit" name="action" value="deny">拒否する</button>
 </form>
+</body></html>`
+}
+
+function loggedOutPage(idTokenHint?: string): string {
+  const hint = idTokenHint ? '<p>id_token_hint を受け取りました。</p>' : ''
+  return `<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><title>ログアウト</title></head>
+<body>
+<h1>ログアウトしました</h1>
+${hint}
 </body></html>`
 }

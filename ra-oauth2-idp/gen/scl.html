@@ -359,7 +359,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
       <h1>ra-oauth2-idp</h1>
       <div class="page-meta"><span class="badge badge-version">spec 1.0</span></div>
     </header>
-    <div class="stats"><a class="stat" href="#vocabulary"><span class="stat-num">94</span><span class="stat-label">vocabulary</span></a><a class="stat" href="#models"><span class="stat-num">82</span><span class="stat-label">models</span></a><a class="stat" href="#interfaces"><span class="stat-num">12</span><span class="stat-label">interfaces</span></a><a class="stat" href="#state_machines"><span class="stat-num">7</span><span class="stat-label">state machines</span></a><a class="stat" href="#properties"><span class="stat-num">19</span><span class="stat-label">properties</span></a><a class="stat" href="#scenarios"><span class="stat-num">44</span><span class="stat-label">scenarios</span></a><a class="stat" href="#permissions"><span class="stat-num">8</span><span class="stat-label">permissions</span></a><a class="stat" href="#objectives"><span class="stat-num">46</span><span class="stat-label">objectives</span></a></div>
+    <div class="stats"><a class="stat" href="#vocabulary"><span class="stat-num">94</span><span class="stat-label">vocabulary</span></a><a class="stat" href="#models"><span class="stat-num">83</span><span class="stat-label">models</span></a><a class="stat" href="#interfaces"><span class="stat-num">13</span><span class="stat-label">interfaces</span></a><a class="stat" href="#state_machines"><span class="stat-num">7</span><span class="stat-label">state machines</span></a><a class="stat" href="#properties"><span class="stat-num">19</span><span class="stat-label">properties</span></a><a class="stat" href="#scenarios"><span class="stat-num">47</span><span class="stat-label">scenarios</span></a><a class="stat" href="#permissions"><span class="stat-num">8</span><span class="stat-label">permissions</span></a><a class="stat" href="#objectives"><span class="stat-num">46</span><span class="stat-label">objectives</span></a></div>
   </section>
 <section id="vocabulary">
     <h2>Vocabulary <span class="count">94</span></h2>
@@ -1230,7 +1230,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
     </article></div>
   </section>
 <section id="models">
-    <h2>Models <span class="count">82</span></h2>
+    <h2>Models <span class="count">83</span></h2>
     
     <div class="group">
       <h3 class="grp-title">entity <span class="count">9</span></h3>
@@ -1953,7 +1953,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
   </article></div>
     </div>
 <div class="group">
-      <h3 class="grp-title">value object <span class="count">21</span></h3>
+      <h3 class="grp-title">value object <span class="count">22</span></h3>
       <div class="cards"><article class="card" id="model-senderconstraintcnf">
     <header><h3>SenderConstraintCnf</h3><span class="badge badge-kind-value_object">value object</span></header>
     <p class="desc">Sender-Constrained 証明 (RFC 7800)。</p>
@@ -2912,7 +2912,46 @@ table.fields tbody tr:last-child td { border-bottom: none; }
     <td><span class="muted">—</span></td>
     <td></td>
   </tr><tr>
+    <td><code class="name">id_token_hint</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
     <td><code class="name">request_uri</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="model-endsessionparameters">
+    <header><h3>EndSessionParameters</h3><span class="badge badge-kind-value_object">value object</span></header>
+    <p class="desc">RP-Initiated Logout v1 のクエリ / form パラメータ。セッション Cookie 実装前のため client_id で post_logout_redirect_uri を検証する。</p>
+    
+    <table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">client_id</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">id_token_hint</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">post_logout_redirect_uri</code></td>
+    <td><code class="type">Uri</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">state</code></td>
     <td><code class="type">String</code></td>
     <td><span class="badge badge-optional">optional</span></td>
     <td><span class="muted">—</span></td>
@@ -3760,7 +3799,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
     </div>
   </section>
 <section id="interfaces">
-    <h2>Interfaces <span class="count">12</span></h2>
+    <h2>Interfaces <span class="count">13</span></h2>
     <p class="lead">外部との契約。入力・出力・エラー・発行イベントと、それを露出する複数のトランスポート（bindings）。</p>
     <div class="cards"><article class="card" id="iface-registerclient">
     <header><h3>RegisterClient</h3></header>
@@ -3821,6 +3860,32 @@ table.fields tbody tr:last-child td { border-bottom: none; }
 <div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
     <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
     <div class="binding-body"><div class="binding-head"><span class="badge badge-method-get">GET</span> <code class="path">/authorize</code> <span class="chip chip-hint">response: 302</span> <span class="chip chip-hint">form: query</span></div></div>
+  </div></div></div>
+  </article>
+<article class="card" id="iface-endsession">
+    <header><h3>EndSession</h3></header>
+    <p class="desc">RP-Initiated Logout endpoint (OIDC RP-Initiated Logout 1.0)</p>
+    <div class="iface-step"><span class="step-kind-label">STEP</span> <code class="step-tpl">{client_id} として post_logout_redirect_uri {post_logout_redirect_uri} でログアウトする</code></div>
+    <div class="io">
+    <div class="label">Input</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">params</code></td>
+    <td><code class="type">EndSessionParameters</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io"><div class="label">Errors</div><div class="chip-row"><a class="chip chip-error-ref" href="#model-invalidrequesterror">InvalidRequestError</a></div></div>
+<div class="io"><div class="label">Bindings (2)</div><div class="bindings"><div class="binding binding-http">
+    <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
+    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-get">GET</span> <code class="path">/end_session</code> <span class="chip chip-hint">response: 200, 302</span> <span class="chip chip-hint">form: query</span></div></div>
+  </div>
+<div class="binding binding-http">
+    <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
+    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-post">POST</span> <code class="path">/end_session</code> <span class="chip chip-hint">response: 200, 302</span> <span class="chip chip-hint">form: form</span></div></div>
   </div></div></div>
   </article>
 <article class="card" id="iface-pushauthorizationrequest">
@@ -4601,7 +4666,7 @@ and forall: { in: event.scope, satisfies: &quot;x in x.scopes&quot; }
   </article></div>
   </section>
 <section id="scenarios">
-    <h2>Scenarios <span class="count">44</span></h2>
+    <h2>Scenarios <span class="count">47</span></h2>
     <p class="lead">受け入れ例。自然文ステップで書かれた振る舞いの具体例。引用された既知の名前は定義へリンクする。</p>
     <div class="cards"><article class="card scenario" id="scn-id">
     <header><h3>認可コードフローでアクセストークンと ID トークンを取得できる</h3></header>
@@ -4841,6 +4906,27 @@ and forall: { in: event.scope, satisfies: &quot;x in x.scopes&quot; }
     <p class="desc">OIDC Core §3.1.2.1 — 対話なし要求に対しセッションが無ければ access_denied。</p>
     
     <ol class="scn-steps"><li class="scn-step">未認証セッションで '<code class="step-arg">web-app</code> として prompt <code class="step-arg">none</code> で認可リクエストを送る'</li><li class="scn-step">エラー <a class="chip chip-ref" href="#model-accessdeniederror">AccessDeniedError</a></li></ol>
+    
+  </article>
+<article class="card scenario" id="scn-prompt-login">
+    <header><h3>prompt=login は既存セッションがあっても再認証を要求する</h3></header>
+    <p class="desc">OIDC Core §3.1.2.1 — prompt=login は既存セッションの再利用を禁止する。</p>
+    
+    <ol class="scn-steps"><li class="scn-step">ユーザー <code class="step-arg">alice</code> が現在時刻で認証済みである</li><li class="scn-step"><code class="step-arg">web-app</code> として prompt <code class="step-arg">login</code> で認可リクエストを送る</li><li class="scn-step">認可リクエストの状態は AuthenticationPending</li></ol>
+    
+  </article>
+<article class="card scenario" id="scn-rp-initiated-logout-post-logout-redirect-uri">
+    <header><h3>RP-Initiated Logout は登録済み post_logout_redirect_uri にだけリダイレクトする</h3></header>
+    <p class="desc">OIDC RP-Initiated Logout 1.0 — logout 後の redirect URI はクライアント登録済み URI に限定する。</p>
+    
+    <ol class="scn-steps"><li class="scn-step">confidential クライアント <code class="step-arg">web-app</code> を redirect_uri <code class="step-arg">https://app.example.com/cb</code> で登録する</li><li class="scn-step"><code class="step-arg">web-app</code> として post_logout_redirect_uri <code class="step-arg">https://app.example.com/cb</code> でログアウトする</li><li class="scn-step">state が post_logout_redirect_uri に伝播する</li></ol>
+    
+  </article>
+<article class="card scenario" id="scn-post-logout-redirect-uri">
+    <header><h3>未登録 post_logout_redirect_uri は拒否される</h3></header>
+    <p class="desc">open redirect を避けるため、logout redirect も登録済み URI のみ許可する。</p>
+    
+    <ol class="scn-steps"><li class="scn-step">confidential クライアント <code class="step-arg">web-app</code> を redirect_uri <code class="step-arg">https://app.example.com/cb</code> で登録する</li><li class="scn-step"><code class="step-arg">web-app</code> として post_logout_redirect_uri <code class="step-arg">https://evil.example.com/cb</code> でログアウトする</li><li class="scn-step">エラー <a class="chip chip-ref" href="#model-invalidrequesterror">InvalidRequestError</a></li></ol>
     
   </article>
 <article class="card scenario" id="scn-client-credentials-m2m">

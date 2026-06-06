@@ -100,6 +100,87 @@ describe('authorizeRequestUseCase — consent handling', () => {
   })
 })
 
+describe('authorizeRequestUseCase — OIDC session prompts', () => {
+  it('max_age を超えた認証時刻では再認証を要求する', async () => {
+    const { clientRepo, consentRepo, requestStore, client } = await setup()
+    await consentRepo.save({
+      sub: 'user_alice',
+      client_id: client.client_id,
+      scopes: ['openid', 'profile'],
+      granted_at: new Date().toISOString(),
+      expires_at: new Date(Date.now() + 86400_000).toISOString(),
+    })
+
+    const { request } = await authorizeRequestUseCase(
+      { clientRepo, consentRepo, requestStore },
+      { ...AUTH_INPUT, max_age: 60, par_used: false },
+    )
+    const result = await completeAuthenticationUseCase(
+      { consentRepo, requestStore },
+      request,
+      'user_alice',
+      new Date('2026-01-01T00:00:00Z'),
+      new Date('2026-01-01T02:00:00Z'),
+    )
+
+    expect(result.needsAuthentication).toBe(true)
+    expect(result.needsConsent).toBe(false)
+    expect(result.request.state).toBe('authentication_pending')
+  })
+
+  it('max_age 内の認証時刻では既存同意により consented まで進む', async () => {
+    const { clientRepo, consentRepo, requestStore, client } = await setup()
+    await consentRepo.save({
+      sub: 'user_alice',
+      client_id: client.client_id,
+      scopes: ['openid', 'profile'],
+      granted_at: new Date().toISOString(),
+      expires_at: new Date(Date.now() + 86400_000).toISOString(),
+    })
+
+    const { request } = await authorizeRequestUseCase(
+      { clientRepo, consentRepo, requestStore },
+      { ...AUTH_INPUT, max_age: 3600, par_used: false },
+    )
+    const result = await completeAuthenticationUseCase(
+      { consentRepo, requestStore },
+      request,
+      'user_alice',
+      new Date('2026-01-01T01:30:00Z'),
+      new Date('2026-01-01T02:00:00Z'),
+    )
+
+    expect(result.needsAuthentication).toBe(false)
+    expect(result.needsConsent).toBe(false)
+    expect(result.request.state).toBe('consented')
+  })
+
+  it('prompt=login は既存セッションがあっても再認証を要求する', async () => {
+    const { clientRepo, consentRepo, requestStore, client } = await setup()
+    await consentRepo.save({
+      sub: 'user_alice',
+      client_id: client.client_id,
+      scopes: ['openid', 'profile'],
+      granted_at: new Date().toISOString(),
+      expires_at: new Date(Date.now() + 86400_000).toISOString(),
+    })
+
+    const { request } = await authorizeRequestUseCase(
+      { clientRepo, consentRepo, requestStore },
+      { ...AUTH_INPUT, prompt: 'login', par_used: false },
+    )
+    const result = await completeAuthenticationUseCase(
+      { consentRepo, requestStore },
+      request,
+      'user_alice',
+    )
+
+    expect(result.needsAuthentication).toBe(true)
+    expect(result.needsConsent).toBe(false)
+    expect(result.request.state).toBe('authentication_pending')
+  })
+})
+
 describe('authorizeRequestUseCase — PAR policy', () => {
   it('PAR 必須の FAPI クライアントは PAR なしの直接認可リクエストを拒否される', async () => {
     const { clientRepo, consentRepo, requestStore } = await setup({

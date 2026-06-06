@@ -24,6 +24,7 @@ export interface CreateAuthorizationRequestInput {
   code_challenge_method: 'S256'
   prompt?: string
   max_age?: number
+  id_token_hint?: string
   par_request_uri?: string
 }
 

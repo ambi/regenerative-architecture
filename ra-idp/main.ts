@@ -56,6 +56,8 @@ import { createPARRoutes } from './adapters/http/par-routes'
 import { createIntrospectionRoutes } from './adapters/http/introspection-routes'
 import { createUserInfoRoutes } from './adapters/http/userinfo-routes'
 import { createDeviceRoutes } from './adapters/http/device-routes'
+import { createHealthRoutes } from './adapters/http/health-routes'
+import { createEventsRoutes } from './adapters/http/events-routes'
 
 import { ClientSchema, UserSchema, type DomainEvent } from './src/spec-bindings/schemas'
 import type { ClientRepository } from './src/oauth2/ports/client-repository'
@@ -356,20 +358,20 @@ app.route(
 app.route('/', createUserInfoRoutes({ introspector: tokenSigner, userRepo: deps.userRepo }))
 
 // 運用補助
-app.get('/health', (c) =>
-  c.json({
-    status: 'ok',
+app.route(
+  '/',
+  createHealthRoutes({
     issuer,
-    persistence: persistenceMode,
-    event_sink: eventSinkMode,
-    observability: observabilityMode,
+    healthInfo: {
+      persistence: persistenceMode,
+      event_sink: eventSinkMode,
+      observability: observabilityMode,
+    },
   }),
 )
-app.get('/events', (c) => {
-  // memory モードの場合のみイベント履歴を返す。本番 (postgres + outbox/kafka) では
-  // SIEM 側で参照する設計のためサーバー内に履歴を持たない。
-  return c.json(deps.collectedConsoleEvents?.getCollected() ?? [])
-})
+if (deps.collectedConsoleEvents) {
+  app.route('/', createEventsRoutes({ collectedEvents: deps.collectedConsoleEvents }))
+}
 
 app.notFound((c) => c.json({ error: 'not_found', error_description: c.req.path }, 404))
 

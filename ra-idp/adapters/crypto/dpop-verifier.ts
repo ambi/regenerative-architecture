@@ -24,7 +24,14 @@ export async function verifyDpopProof(
   dpopHeader: string | undefined,
   expectedHtm: string,
   expectedHtu: string,
-  deps: { replayStore: DpopReplayStore },
+  options: {
+    replayStore: DpopReplayStore
+    /**
+     * RFC 9449 §4.3 ath: base64url(SHA-256(access_token))。
+     * Protected resource (例: /userinfo) で DPoP-bound AT を検証する時のみ指定する。
+     */
+    expectedAth?: string
+  },
   now: Date = new Date(),
 ): Promise<DpopProofValidationResult | null> {
   if (!dpopHeader) return null
@@ -75,7 +82,15 @@ export async function verifyDpopProof(
   if (typeof jti !== 'string') {
     throw new OAuthError('invalid_dpop_proof', 'DPoP jti が必要です')
   }
-  const isNew = await deps.replayStore.recordIfNew(jti, JTI_REPLAY_WINDOW_SECONDS, now)
+  if (options.expectedAth !== undefined) {
+    if (typeof payload.ath !== 'string') {
+      throw new OAuthError('invalid_dpop_proof', 'DPoP ath が必要です')
+    }
+    if (payload.ath !== options.expectedAth) {
+      throw new OAuthError('invalid_dpop_proof', 'DPoP ath がアクセストークンと一致しません')
+    }
+  }
+  const isNew = await options.replayStore.recordIfNew(jti, JTI_REPLAY_WINDOW_SECONDS, now)
   if (!isNew) {
     throw new OAuthError('invalid_dpop_proof', 'DPoP jti のリプレイを検出')
   }

@@ -17,13 +17,15 @@ SCL は以下を満たす。
 
 ## 2 文書構造
 
-SCL ドキュメントは先頭にシステム識別子と SCL 自身のバージョンを置き、続いて 8 つのセクションを持つ。
+SCL ドキュメントは先頭にシステム識別子と SCL 自身のバージョンを置き、続いて
+中核8セクションと、適用する標準・ユーザー体験を記述する2つの任意セクションを持つ。
 
 ```yaml
 system: TaskTracker        # 必須: システム名
 spec_version: "1.0"        # 必須: SCL バージョン
 annotations: { ... }       # 任意: 文書全体への補助情報
 
+standards:       { ... }    # 任意: 外部標準と採用する規範要件
 vocabulary:     { ... }    # 用語の定義
 models:         { ... }    # データの形と同一性
 interfaces:     { ... }    # 外部との契約（インターフェース）
@@ -32,11 +34,85 @@ properties:     { ... }    # 普遍的に成り立つ不変条件
 scenarios:      { ... }    # 自然文ステップで書く受け入れ例
 permissions:    { ... }    # 認可ルール
 objectives:     { ... }    # 非機能目標
+user_experience: { ... }   # 任意: 画面、遷移、利用品質
 ```
 
 すべてのセクションで現れる名前（モデル名・フィールド名・状態名・イベント名・アクション名）はそのコンテキストの `vocabulary` に登録された語彙と一対一で対応していなければならない。CIで名前の整合性を自動検証する。
 
 `annotations` は 8 つのセクションには含めない。文書全体に対する任意の補助情報であり、型は [§3.2 Annotation](#32-models--ドメインモデル) と同じ `map[string, any]` とする。
+
+### 2.1 standards — 外部標準との対応
+
+システムが従う外部仕様と、そのうち採用する規範要件を宣言する。実装の完了状況、
+コード位置、テスト証跡は記述しない。
+
+```yaml
+standards:
+  RFC7636:
+    title: Proof Key for Code Exchange by OAuth Public Clients
+    version: RFC 7636
+    url: https://www.rfc-editor.org/rfc/rfc7636.html
+    roles: [AuthorizationServer]
+    scope: Authorization Code Grant の横取り攻撃対策
+    requirements:
+      - id: RFC7636-S256
+        section: "§4.2"
+        strength: MUST
+        adoption: required
+        statement: code_challenge_method は S256 を使用する
+        relates_to:
+          interfaces: [Authorize, Token]
+          properties: [PkceRoundTrip]
+      - id: RFC7636-PLAIN
+        section: "§4.2"
+        strength: MAY
+        adoption: excluded
+        statement: plain code challenge method
+        reason: S256 のみに限定するため
+```
+
+`adoption` はシステム仕様としての採用方針であり、実装状態ではない。
+
+| 値 | 意味 |
+| -- | -- |
+| `required` | 常に満たすシステム要件 |
+| `optional` | 構成、プロファイル、クライアント能力により適用 |
+| `excluded` | 意図的に仕様対象外。`reason` 必須 |
+
+`relates_to` は `vocabulary`、`models`、`interfaces`、`state_machines`、
+`properties`、`scenarios`、`permissions`、`objectives`の名前を参照できる。
+
+### 2.2 user_experience — 画面と利用品質
+
+人間が操作する画面、画面遷移、セキュリティ・アクセシビリティ・ローカライズ等の
+横断要件を宣言する。
+
+```yaml
+user_experience:
+  accessibility:
+    standard: WCAG22
+    level: AA
+  locales: [ja, en]
+  screens:
+    Login:
+      route: /login
+      purpose: ResourceOwner を認証する
+      interfaces: [GetBrowserTransaction, SubmitBrowserLogin]
+      states: [ready, submitting, error]
+  transitions:
+    - { from: Login, to: Consent, trigger: authentication_succeeded, interface: SubmitBrowserLogin }
+  requirements:
+    - id: UX-CSRF
+      category: security
+      adoption: required
+      statement: 状態変更要求はCSRF検証を通過しなければならない
+      screens: [Login, Consent]
+      interfaces: [SubmitBrowserLogin, SubmitBrowserConsent]
+```
+
+画面名は`user_experience.screens`内で一意とする。遷移の`from`と`to`は画面名、
+`interface`は`interfaces`の名前を参照する。外部クライアントへの遷移は`external: true`
+を指定し、`to`を省略できる。
 
 ## 3 セクションリファレンス
 

@@ -9,6 +9,7 @@
  */
 
 export const SECTION_KINDS = [
+  'standards',
   'vocabulary',
   'models',
   'interfaces',
@@ -17,6 +18,7 @@ export const SECTION_KINDS = [
   'scenarios',
   'permissions',
   'objectives',
+  'user_experience',
 ] as const
 
 export type SectionKind = (typeof SECTION_KINDS)[number]
@@ -25,6 +27,7 @@ export interface SclDocument {
   system: string
   spec_version: string
   annotations?: Record<string, unknown>
+  standards?: Record<string, Standard>
   vocabulary?: Record<string, Vocabulary>
   models?: Record<string, Model>
   interfaces?: Record<string, Interface>
@@ -33,6 +36,54 @@ export interface SclDocument {
   scenarios?: Record<string, Scenario>
   permissions?: Record<string, Permission>
   objectives?: Record<string, Objective>
+  user_experience?: UserExperience
+}
+
+interface Standard {
+  title?: string
+  version?: string
+  url?: string
+  roles?: string[]
+  scope?: string
+  requirements?: StandardRequirement[]
+}
+
+interface StandardRequirement {
+  id?: string
+  section?: string
+  strength?: string
+  adoption?: 'required' | 'optional' | 'excluded'
+  statement?: string
+  reason?: string
+  relates_to?: Record<string, string[]>
+}
+
+interface UserExperience {
+  accessibility?: { standard?: string; level?: string }
+  locales?: string[]
+  screens?: Record<
+    string,
+    { route?: string; purpose?: string; interfaces?: string[]; states?: string[] }
+  >
+  transitions?: Array<{
+    from?: string
+    to?: string
+    trigger?: string
+    interface?: string
+    external?: boolean
+  }>
+  requirements?: Array<{
+    id?: string
+    category?: string
+    adoption?: 'required' | 'optional' | 'excluded'
+    statement?: string
+    reason?: string
+    screens?: string[]
+    interfaces?: string[]
+    standards?: string[]
+    scenarios?: string[]
+    properties?: string[]
+  }>
 }
 
 interface Vocabulary {
@@ -195,6 +246,169 @@ interface Objective {
   description?: string
   annotations?: Record<string, unknown>
   [k: string]: unknown
+}
+
+const referenceAnchor = (section: string, name: string): string | undefined => {
+  const prefixes: Record<string, string> = {
+    vocabulary: 'vocab',
+    models: 'model',
+    interfaces: 'iface',
+    state_machines: 'sm',
+    properties: 'prop',
+    scenarios: 'scn',
+    permissions: 'perm',
+    objectives: 'obj',
+    standards: 'std',
+  }
+  const prefix = prefixes[section]
+  return prefix ? `#${prefix}-${slug(name)}` : undefined
+}
+
+const renderNamedReferences = (refs?: Record<string, string[]>): string => {
+  if (!refs) return ''
+  return Object.entries(refs)
+    .map(([section, names]) => {
+      const values = names
+        .map((name) => {
+          const href = referenceAnchor(section, name)
+          return href ? link(href, name, 'ref') : chip(name)
+        })
+        .join(' ')
+      return `<div class="reference-row"><span class="reference-label">${esc(section)}</span>${values}</div>`
+    })
+    .join('')
+}
+
+// ─── section: standards ────────────────────────────────────────────
+
+const renderStandards = (standards: Record<string, Standard>): string => {
+  const cards = Object.entries(standards)
+    .map(([name, standard]) => {
+      const requirements = (standard.requirements ?? [])
+        .map((requirement) => {
+          const adoption = requirement.adoption ?? 'required'
+          return `<article class="requirement" id="req-${esc(slug(requirement.id ?? ''))}">
+            <header>
+              <code class="name">${esc(requirement.id)}</code>
+              ${badge(adoption, `adoption-${adoption}`)}
+              ${requirement.strength ? badge(requirement.strength, 'strength') : ''}
+              ${requirement.section ? chip(requirement.section, 'hint') : ''}
+            </header>
+            ${requirement.statement ? `<p>${esc(requirement.statement)}</p>` : ''}
+            ${requirement.reason ? `<p class="exclusion-reason"><strong>reason:</strong> ${esc(requirement.reason)}</p>` : ''}
+            ${renderNamedReferences(requirement.relates_to)}
+          </article>`
+        })
+        .join('')
+      return `<article class="card standard" id="std-${esc(slug(name))}">
+        <header><h3>${esc(name)}</h3>${standard.version ? badge(standard.version, 'version') : ''}</header>
+        <p class="desc"><strong>${esc(standard.title)}</strong>${standard.scope ? ` — ${esc(standard.scope)}` : ''}</p>
+        <dl class="kv">
+          ${standard.url ? kvRow('source', `<a href="${esc(standard.url)}">${esc(standard.url)}</a>`) : ''}
+          ${standard.roles?.length ? kvRow('roles', standard.roles.map((role) => chip(role)).join(' ')) : ''}
+        </dl>
+        <div class="requirements">${requirements}</div>
+      </article>`
+    })
+    .join('')
+  const requirementCount = Object.values(standards).reduce(
+    (total, standard) => total + (standard.requirements?.length ?? 0),
+    0,
+  )
+  return wrapSection(
+    'standards',
+    'Standards',
+    `適用する外部標準と規範要件。${requirementCount} requirements。採用方針であり実装状態ではない。`,
+    `<div class="cards">${cards}</div>`,
+    Object.keys(standards).length,
+  )
+}
+
+// ─── section: user experience ──────────────────────────────────────
+
+const renderUserExperience = (ux: UserExperience): string => {
+  const screens = Object.entries(ux.screens ?? {})
+    .map(
+      ([name, screen]) => `<article class="card" id="screen-${esc(slug(name))}">
+        <header><h3>${esc(name)}</h3>${screen.route ? chip(screen.route, 'hint') : ''}</header>
+        ${screen.purpose ? `<p class="desc">${esc(screen.purpose)}</p>` : ''}
+        ${
+          screen.interfaces?.length
+            ? `<div class="reference-row"><span class="reference-label">interfaces</span>${screen.interfaces
+                .map((item) => link(`#iface-${slug(item)}`, item, 'iface-ref'))
+                .join(' ')}</div>`
+            : ''
+        }
+        ${screen.states?.length ? `<div class="chip-row">${screen.states.map((state) => chip(state)).join(' ')}</div>` : ''}
+      </article>`,
+    )
+    .join('')
+
+  const transitions = (ux.transitions ?? [])
+    .map(
+      (transition) => `<tr>
+        <td>${transition.from ? link(`#screen-${slug(transition.from)}`, transition.from) : '<span class="muted">system</span>'}</td>
+        <td><code>${esc(transition.trigger)}</code></td>
+        <td>${
+          transition.to
+            ? link(`#screen-${slug(transition.to)}`, transition.to)
+            : transition.external
+              ? badge('external', 'optional')
+              : ''
+        }</td>
+        <td>${transition.interface ? link(`#iface-${slug(transition.interface)}`, transition.interface, 'iface-ref') : ''}</td>
+      </tr>`,
+    )
+    .join('')
+
+  const requirements = (ux.requirements ?? [])
+    .map((requirement) => {
+      const refs: Record<string, string[]> = {}
+      if (requirement.interfaces) refs.interfaces = requirement.interfaces
+      if (requirement.standards) refs.standards = requirement.standards
+      if (requirement.scenarios) refs.scenarios = requirement.scenarios
+      if (requirement.properties) refs.properties = requirement.properties
+      return `<article class="requirement" id="ux-${esc(slug(requirement.id ?? ''))}">
+        <header>
+          <code class="name">${esc(requirement.id)}</code>
+          ${badge(requirement.adoption ?? 'required', `adoption-${requirement.adoption ?? 'required'}`)}
+          ${requirement.category ? badge(requirement.category, 'category') : ''}
+        </header>
+        ${requirement.statement ? `<p>${esc(requirement.statement)}</p>` : ''}
+        ${
+          requirement.screens?.length
+            ? `<div class="reference-row"><span class="reference-label">screens</span>${requirement.screens
+                .map((screen) => link(`#screen-${slug(screen)}`, screen))
+                .join(' ')}</div>`
+            : ''
+        }
+        ${renderNamedReferences(refs)}
+      </article>`
+    })
+    .join('')
+
+  const metadata = `<dl class="kv">
+    ${
+      ux.accessibility
+        ? kvRow(
+            'accessibility',
+            `${link(`#std-${slug(ux.accessibility.standard ?? '')}`, ux.accessibility.standard)} ${badge(ux.accessibility.level)}`,
+          )
+        : ''
+    }
+    ${ux.locales?.length ? kvRow('locales', ux.locales.map((locale) => chip(locale)).join(' ')) : ''}
+  </dl>`
+
+  return wrapSection(
+    'user_experience',
+    'User Experience',
+    'ブラウザ画面、画面遷移、セキュリティ・プライバシー・アクセシビリティ要件。',
+    `${metadata}
+    <div class="group"><h3 class="grp-title">Screens <span class="count">${Object.keys(ux.screens ?? {}).length}</span></h3><div class="cards">${screens}</div></div>
+    <div class="group"><h3 class="grp-title">Transitions <span class="count">${ux.transitions?.length ?? 0}</span></h3><table class="fields"><thead><tr><th>From</th><th>Trigger</th><th>To</th><th>Interface</th></tr></thead><tbody>${transitions}</tbody></table></div>
+    <div class="group"><h3 class="grp-title">Requirements <span class="count">${ux.requirements?.length ?? 0}</span></h3><div class="requirements">${requirements}</div></div>`,
+    Object.keys(ux.screens ?? {}).length,
+  )
 }
 
 // ─── primitives ────────────────────────────────────────────────────
@@ -967,6 +1181,7 @@ const wrapSection = (
   </section>`
 
 const SECTION_TITLES: Record<SectionKind, string> = {
+  standards: 'Standards',
   vocabulary: 'Vocabulary',
   models: 'Models',
   interfaces: 'Interfaces',
@@ -975,13 +1190,18 @@ const SECTION_TITLES: Record<SectionKind, string> = {
   scenarios: 'Scenarios',
   permissions: 'Permissions',
   objectives: 'Objectives',
+  user_experience: 'User Experience',
 }
 
 const renderOverview = (scl: SclDocument): string => {
   const present = SECTION_KINDS.filter((k) => scl[k] !== undefined)
   const stats = present
     .map((k) => {
-      const n = Object.keys(scl[k] as Record<string, unknown>).length
+      const section = scl[k]
+      const n =
+        k === 'user_experience'
+          ? Object.keys(scl.user_experience?.screens ?? {}).length
+          : Object.keys(section as Record<string, unknown>).length
       return `<a class="stat" href="#${k}"><span class="stat-num">${n}</span><span class="stat-label">${esc(SECTION_TITLES[k].toLowerCase())}</span></a>`
     })
     .join('')
@@ -1009,6 +1229,8 @@ const renderTOC = (scl: SclDocument): string => {
 
 const renderOneSection = (k: SectionKind, scl: SclDocument): string => {
   switch (k) {
+    case 'standards':
+      return scl.standards ? renderStandards(scl.standards) : ''
     case 'vocabulary':
       return scl.vocabulary ? renderVocab(scl.vocabulary) : ''
     case 'models':
@@ -1025,6 +1247,8 @@ const renderOneSection = (k: SectionKind, scl: SclDocument): string => {
       return scl.permissions ? renderPermissions(scl.permissions) : ''
     case 'objectives':
       return scl.objectives ? renderObjectives(scl.objectives) : ''
+    case 'user_experience':
+      return scl.user_experience ? renderUserExperience(scl.user_experience) : ''
   }
 }
 
@@ -1194,6 +1418,12 @@ section > h2 .count, .grp-title .count {
 }
 .badge-severity-must { background: var(--danger-soft); color: var(--danger); }
 .badge-severity-should { background: var(--warn-soft); color: var(--warn); }
+.badge-adoption-required { background: var(--ok-soft); color: var(--ok); }
+.badge-adoption-optional { background: var(--warn-soft); color: var(--warn); }
+.badge-adoption-excluded { background: var(--danger-soft); color: var(--danger); }
+.badge-strength, .badge-category {
+  background: var(--surface-2); color: var(--fg-soft); border-color: var(--border);
+}
 
 /* chips */
 .chip {
@@ -1303,6 +1533,22 @@ table.fields tbody tr:last-child td { border-bottom: none; }
 }
 .chip-ref { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
 
+/* standards and user experience */
+.requirements { display: grid; gap: 10px; margin-top: 12px; }
+.requirement {
+  border: 1px solid var(--border); border-radius: 9px; padding: 12px 14px;
+  background: var(--surface-2);
+}
+.requirement:target { border-color: var(--accent); }
+.requirement header { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+.requirement p { margin: 7px 0 0; }
+.exclusion-reason { color: var(--danger); }
+.reference-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 8px; }
+.reference-label {
+  min-width: 92px; color: var(--muted); font-size: 11px; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase;
+}
+
 /* clauses & expressions */
 .clause {
   margin: 10px 0; padding: 10px 12px; background: var(--surface-2); border-radius: 8px;
@@ -1410,7 +1656,7 @@ export const render = (scl: SclDocument): string => {
   const sections = SECTION_KINDS.map((k) => renderOneSection(k, scl))
     .filter(Boolean)
     .join('\n')
-  return `<!doctype html>
+  const html = `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -1430,4 +1676,5 @@ ${sections}
 </body>
 </html>
 `
+  return html.replace(/[ \t]+$/gm, '')
 }

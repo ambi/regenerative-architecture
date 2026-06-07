@@ -66,38 +66,115 @@ ra-idp/
 大きさ・RA 的清潔さ（既存 port を完成 → 新 port を追加の順）の 3 軸で
 フェーズ分けした実装ロードマップとして示す。
 
+> Phase 番号は実装順序を示す。既に実装済みの領域は本表から除外し、残タスクだけを掲載している（旧 Phase 1 の Token / DPoP / mTLS / PKCE 階段化、旧 Phase 2 の UI 基盤一式はいずれも完了済み）。
+
 ### Phase 0 — 認証の土台
+
+Argon2id ハッシャ + 最小長 / 最大長 (12–128 chars) のパスワードポリシーは実装済。
+残るのは本番運用に必要な周辺強化。
 
 | 領域 | 不足している機能 |
 | ---- | ---------------- |
-| パスワード hashing | Argon2id 等の本番用 hashing |
-| パスワードポリシー | 最小長 / 最大長、文字種要件（記号・大文字小文字混在など、組織ポリシーや規制依存）、ユーザー名・メールアドレスとの類似禁止、よくあるパスワード辞書チェック、直近 N 件のパスワード履歴再利用禁止 |
+| パスワードポリシー深化 | 文字種要件（記号・大文字小文字混在など、組織ポリシーや規制依存）、ユーザー名・メールアドレスとの類似禁止、よくあるパスワード辞書チェック、直近 N 件のパスワード履歴再利用禁止 |
 | 漏洩パスワード検査 | HIBP k-anonymity 等のオンライン漏洩データベース連携 |
 | ブルートフォース防御 | per-account / per-IP のログイン試行レート制限、CAPTCHA / 行動分析、ユーザー名列挙対策 |
 | エンドポイント保護 | `/token` `/authorize` `/par` `/device_authorization` の一般 rate limit / bot 対策 |
 | アカウント整合性 | メール・電話番号検証 |
 
-### Phase 1 — 既存仕様の運用穴埋めと規格適合性
+### Phase 1 — Secret / 鍵のライフサイクル運用
+
+旧 Phase 1（既存仕様の運用穴埋め）は Token (RFC 9207 + access token denylist)、
+DPoP nonce + 全経路適用、mTLS 検証 + cnf.x5t#S256 バインド、PKCE 階段化 (ADR-002 改訂)
+が完了済。残るのは鍵・シークレットの運用面のみ。実 KMS/HSM 差し替えは Phase 8 でカバーする。
 
 | 領域 | 不足している機能 |
 | ---- | ---------------- |
-| Token | ~~access token denylist（JWT 即時失効）~~ ✅ 実装済、~~AS Issuer Identification (RFC 9207, mix-up 防御)~~ ✅ 実装済 |
-| DPoP | ~~DPoP nonce、DPoP proof の HTTP adapter 全経路適用~~ ✅ 実装済 (/token, /userinfo) |
-| mTLS | ~~クライアント証明書の実検証、証明書バインド~~ ✅ 実装済 (RFC 8705 §2/§3, ADR-005) |
-| Secret / 鍵 | client_secret rotation、署名鍵 rotation の運用化（実 KMS/HSM 差し替えは Phase 9） |
-| 規格適合性 | ~~PKCE 必須要件の階段化（ADR-002 改訂: public client 必須・FAPI クライアント必須・confidential client は推奨）。client metadata `require_pkce` の導入、`permissions` の `pkce_present` を client type 条件付きに変更~~ ✅ 実装済 (ADR-002 改訂) |
+| client_secret rotation | rotate use case + `/rotate_secret` 系エンドポイント、確認・通知フロー |
+| 署名鍵 rotation の自動化 | `rotateSigningKeyUseCase` と CLI は実装済。scheduler / k8s CronJob による定期実行、grace period 中の旧鍵保持運用は未 |
 
-### Phase 2 — UI / フロントエンド基盤
+### Phase 2 — MFA / Passkey と acr/amr 体系
+
+旧 Phase 2 (UI 基盤) のデザインシステム、ja/en i18n、a11y 基盤、ブランディング slot、
+4 画面 (login / consent / device / error) はすべて実装済。本 Phase からは認証手段
+そのものを増やしていく。
 
 | 領域 | 不足している機能 |
 | ---- | ---------------- |
-| デザイン基盤 | ~~デザインシステム、コンポーネントライブラリ、レイアウトテンプレート~~ ✅ 基盤実装済 (Vite + React + Tailwind + shadcn/ui + Radix + Tabler Icons + TanStack Router) |
-| 国際化 / アクセシビリティ | ~~i18n、WCAG 2.x AA 準拠 (a11y)~~ ✅ 基盤実装済 (ja/en 型付きカタログ + サーバ側 `Accept-Language` ネゴシエーション、skip link / `prefers-reduced-motion` / `aria-describedby` / `aria-live`) |
-| 既存 UI のリアルワールド化 | ~~ログイン画面、同意 (consent) 画面、デバイス認可 (verification_uri) 画面、エラー / 中断画面~~ ✅ 実装済 |
-| ブランディング基盤 | ~~ロゴ・カラー・文言の差し替え機構（テナント単位の適用は Phase 5 と接続）~~ ✅ 基盤実装済 (`brandFor(tenantId)` slot + `<meta name="ra-idp:brand-*">` 経由でロゴ / 名前 / `--primary` HSL を上書き、テナント解決は Phase 5 で接続) |
-| SPA E2E スモークテスト (TODO) | Playwright で /authorize → login → consent → callback URL に `code=` が乗るまでを 1 本のテストとして通す。SPA の DOM 描画と `fetch` の cross-origin redirect 挙動はバックエンドの bun test では捕まらないため、Phase 2 で導入した SPA を継続的に守るには別レイヤが必要。最小実装の指針は下記。 |
+| 認証手段 | WebAuthn / Passkey、TOTP、バックアップコード、magic link / passwordless email |
+| 体系 | acr/amr 体系の SCL 確立、identity assurance (AAL/IAL) との対応 |
+| step-up | `acr_values` / `max_age` を消費する再認証、リスクベース / 適応認証の足場 |
+| 復旧 | アカウント復旧フロー |
 
-**Phase 2 SPA スモーク E2E の最小要件** (まだ実装していない):
+### Phase 3 — セッション / OIDC ライフサイクル完成
+
+| 領域 | 不足している機能 |
+| ---- | ---------------- |
+| ユーザー側 | セッション一覧・失効 UI、デバイス管理 |
+| RP 側 SLO | `id_token_hint` 署名検証・client 解決、Back-Channel Logout、Front-Channel Logout、Session Management 1.0 |
+| 継続評価 | CAEP / Shared Signals Framework によるイベント連動セッション失効 |
+
+### Phase 4 — 管理 / RBAC / マルチテナンシー
+
+| 領域 | 不足している機能 |
+| ---- | ---------------- |
+| 管理 API | user / client / consent / key / audit-event の CRUD |
+| 認可 | RBAC/ABAC（`permissions` セクションに admin scope を追加） |
+| Dynamic Client Registration 拡張 | registration_access_token、software_statement、client metadata 更新・削除（client_secret rotation 本体は Phase 1） |
+| 委譲・代行 | impersonation、delegation、guest access |
+| テナント | realm / tenant 分離（client / user / 鍵 / ポリシー / ブランディングをテナント単位に。ブランディング slot `brandFor(tenantId)` の実体解決はここで接続） |
+| 管理 UI | 上記 API の上の運用画面 |
+
+### Phase 5 — 同意 / プライバシー
+
+| 領域 | 不足している機能 |
+| ---- | ---------------- |
+| 同意管理 | 同意管理 UI、同意履歴参照、scope purpose 表示 |
+| データ主体権利 | DSAR API（export / delete） |
+| 保持 | PII purge バッチ、地域別保持ポリシー、データ最小化 |
+
+### Phase 6 — Federation / プロビジョニング
+
+ra-idp 自身が SAML 2.0 / WS-Federation を**しゃべる** outbound 方向と、外部 IdP との
+inbound 連携を両方サポートする。SAML 2.0 IdP は現代の B2B SaaS / エンタープライズ
+販売で事実上必須要件であり、OIDC のみでは最低ラインを満たさない。
+
+| 領域 | 不足している機能 |
+| ---- | ---------------- |
+| ra-idp が IdP として振る舞う (outbound) | SAML 2.0 IdP（SP-Initiated / IdP-Initiated SSO、metadata 公開、Single Logout、assertion 署名・暗号化、attribute mapping）、WS-Federation Passive Requestor、WS-Trust STS |
+| 外部 IdP との連携 (inbound) | OIDC RP として外部 OIDC IdP、SAML SP として外部 SAML IdP、WS-Fed RP として外部 STS、social login、IdP discovery、broker パターン |
+| エンタープライズ (inbound) | LDAP / AD bind、Kerberos / SPNEGO |
+| プロビジョニング | JIT provisioning、account linking、SCIM 2.0、deprovisioning、グループ同期 |
+
+### Phase 7 — 高保証プロファイル / プロトコル拡張
+
+| 領域 | 不足している機能 |
+| ---- | ---------------- |
+| 認可リクエスト | JAR (RFC 9101)、Rich Authorization Requests (RFC 9396) |
+| 認可レスポンス | JARM、認可レスポンス署名、encrypted id_token (JWE) |
+| トークン | Token Exchange (RFC 8693)、Resource Indicators (RFC 8707)、pairwise subject identifier |
+| 認証フロー | CIBA (OpenID CIBA Core 1.0)、Step-up Authentication Challenge Protocol (RFC 9470) |
+| FAPI / IDA | FAPI 2.0 conformance suite、OpenID Connect for Identity Assurance |
+| 仕様追跡 | OAuth 2.0 Security BCP / OAuth 2.1 の継続追従 |
+
+### Phase 8 — 運用 / 可用性 / セキュリティ運用 / コンプライアンス
+
+| 領域 | 不足している機能 |
+| ---- | ---------------- |
+| 鍵 | HSM / KMS 実鍵管理（Phase 1 の抽象 port を本物に差し替え） |
+| 攻撃面 | SSRF 防御、WAF、bot 対策、異常検知（impossible travel 等）、侵害時 token revocation playbook |
+| 可用性 | マルチリージョン、zero-downtime migration、バックアップ・リストア演習、DR、容量計画、SLO burn-rate alert |
+| セキュリティ運用 | ペネトレーションテスト、bug bounty / responsible disclosure、chaos engineering、改竄防止監査ログ |
+| コンプライアンス | OIDC / FAPI certification、SOC2 / ISO27001 証跡、監査レポート、データ処理契約用エクスポート |
+
+### Phase 9 — 開発者体験 / テスト基盤 / 仕上げ
+
+| 領域 | 不足している機能 |
+| ---- | ---------------- |
+| 開発者向け | SDK、クライアント設定テンプレート、well-known docs、エラー診断・トラブルシュート |
+| SPA E2E スモークテスト | Playwright で `/authorize → login → consent → callback URL に code=` が乗るまでを 1 本のテストとして通す。SPA の DOM 描画と `fetch` の cross-origin redirect 挙動はバックエンドの bun test では捕まらないため、別レイヤが必要 (詳細は下記) |
+| プロトコル conformance | OAuth / OIDC conformance smoke suite を CI に常駐 |
+
+**SPA E2E スモークテストの最小要件**:
 
 - `@playwright/test` を `ra-idp/ui/` の devDependency に追加し、`ui/tests/e2e/` 配下に置く。
 - フィクスチャでバックエンドを `memory` モードで起動し、`localhost:8080/callback` 相当のミニマムなコールバック収集サーバを Playwright `globalSetup` で別ポートに立てる。
@@ -111,90 +188,13 @@ ra-idp/
 
 これにより SPA の dispatcher と redirect モードの両方が回帰なく機能していることを 1 テストで保証できる。
 
-### Phase 3 — MFA / Passkey と acr/amr 体系
-
-| 領域 | 不足している機能 |
-| ---- | ---------------- |
-| 認証手段 | WebAuthn / Passkey、TOTP、バックアップコード、magic link / passwordless email |
-| 体系 | acr/amr 体系の SCL 確立、identity assurance (AAL/IAL) との対応 |
-| step-up | `acr_values` / `max_age` を消費する再認証、リスクベース / 適応認証の足場 |
-| 復旧 | アカウント復旧フロー |
-
-### Phase 4 — セッション / OIDC ライフサイクル完成
-
-| 領域 | 不足している機能 |
-| ---- | ---------------- |
-| ユーザー側 | セッション一覧・失効 UI、デバイス管理 |
-| RP 側 SLO | `id_token_hint` 署名検証・client 解決、Back-Channel Logout、Front-Channel Logout、Session Management 1.0 |
-| 継続評価 | CAEP / Shared Signals Framework によるイベント連動セッション失効 |
-
-### Phase 5 — 管理 / RBAC / マルチテナンシー
-
-| 領域 | 不足している機能 |
-| ---- | ---------------- |
-| 管理 API | user / client / consent / key / audit-event の CRUD |
-| 認可 | RBAC/ABAC（`permissions` セクションに admin scope を追加） |
-| Dynamic Client Registration 拡張 | registration_access_token、software_statement、client metadata 更新・削除、client_secret rotation |
-| 委譲・代行 | impersonation、delegation、guest access |
-| テナント | realm / tenant 分離（client / user / 鍵 / ポリシー / ブランディングをテナント単位に） |
-| 管理 UI | 上記 API の上の運用画面 |
-
-### Phase 6 — 同意 / プライバシー
-
-| 領域 | 不足している機能 |
-| ---- | ---------------- |
-| 同意管理 | 同意管理 UI、同意履歴参照、scope purpose 表示 |
-| データ主体権利 | DSAR API（export / delete） |
-| 保持 | PII purge バッチ、地域別保持ポリシー、データ最小化 |
-
-### Phase 7 — Federation / プロビジョニング
-
-ra-idp 自身が SAML 2.0 / WS-Federation を**しゃべる** outbound 方向と、外部 IdP との
-inbound 連携を両方サポートする。SAML 2.0 IdP は現代の B2B SaaS / エンタープライズ
-販売で事実上必須要件であり、OIDC のみでは最低ラインを満たさない。
-
-| 領域 | 不足している機能 |
-| ---- | ---------------- |
-| ra-idp が IdP として振る舞う (outbound) | SAML 2.0 IdP（SP-Initiated / IdP-Initiated SSO、metadata 公開、Single Logout、assertion 署名・暗号化、attribute mapping）、WS-Federation Passive Requestor、WS-Trust STS |
-| 外部 IdP との連携 (inbound) | OIDC RP として外部 OIDC IdP、SAML SP として外部 SAML IdP、WS-Fed RP として外部 STS、social login、IdP discovery、broker パターン |
-| エンタープライズ (inbound) | LDAP / AD bind、Kerberos / SPNEGO |
-| プロビジョニング | JIT provisioning、account linking、SCIM 2.0、deprovisioning、グループ同期 |
-
-### Phase 8 — 高保証プロファイル / プロトコル拡張
-
-| 領域 | 不足している機能 |
-| ---- | ---------------- |
-| 認可リクエスト | JAR (RFC 9101)、Rich Authorization Requests (RFC 9396) |
-| 認可レスポンス | JARM、認可レスポンス署名、encrypted id_token (JWE) |
-| トークン | Token Exchange (RFC 8693)、Resource Indicators (RFC 8707)、pairwise subject identifier |
-| 認証フロー | CIBA (OpenID CIBA Core 1.0)、Step-up Authentication Challenge Protocol (RFC 9470) |
-| FAPI / IDA | FAPI 2.0 conformance suite、OpenID Connect for Identity Assurance |
-| 仕様追跡 | OAuth 2.0 Security BCP / OAuth 2.1 の継続追従 |
-
-### Phase 9 — 運用 / 可用性 / セキュリティ運用 / コンプライアンス
-
-| 領域 | 不足している機能 |
-| ---- | ---------------- |
-| 鍵 | HSM / KMS 実鍵管理（Phase 1 の抽象 port を本物に差し替え） |
-| 攻撃面 | SSRF 防御、WAF、bot 対策、異常検知（impossible travel 等）、侵害時 token revocation playbook |
-| 可用性 | マルチリージョン、zero-downtime migration、バックアップ・リストア演習、DR、容量計画、SLO burn-rate alert |
-| セキュリティ運用 | ペネトレーションテスト、bug bounty / responsible disclosure、chaos engineering、改竄防止監査ログ |
-| コンプライアンス | OIDC / FAPI certification、SOC2 / ISO27001 証跡、監査レポート、データ処理契約用エクスポート |
-
-### Phase 10 — 開発者体験 / 仕上げ
-
-| 領域 | 不足している機能 |
-| ---- | ---------------- |
-| 開発者向け | SDK、クライアント設定テンプレート、well-known docs、エラー診断・トラブルシュート |
-| テスト | conformance smoke suite を CI に常駐 |
-
 #### 順序の根拠
 
-- **Phase 0 → 1 → 2 → 3 は順序固定**: acr/amr 語彙を SCL に入れる前に Federation / SLO を組むと後で書き直しになる。UI 基盤も Phase 3 以降で大量に増える認証 UI（WebAuthn 登録、デバイス一覧、セッション管理、管理画面）の前に整える。
-- **Phase 1 を Phase 3 (MFA) より先**: 既存 port の完成（spec↔impl drift 解消）と OAuth/OIDC 規格適合性の修正は新 port 追加より低リスクで、RA のデモとしても「閉じてから増やす」を示せる。PKCE 必須化は OAuth 2.0 / OIDC 1.0 では仕様外であり、互換性のため client type に応じた階段化に戻す（RFC 9700 / OAuth 2.1 と整合）。
-- **Phase 5 が分水嶺**: 管理 port と tenant 概念がここで入る。Phase 6–7 はそれを前提に乗る。tenant を Phase 7 まで遅らせると、admin / DCR / Federation を全部 retrofit することになる。
-- **Phase 7 で SAML 2.0 IdP**: outbound（ra-idp が SAML IdP として SP に対応）は B2B SaaS では事実上必須。OIDC のみではエンタープライズ販売の最低ラインを満たさない。inbound と outbound を同じ Phase で扱うのは、両方が "プロトコル間の境界" として同じ port 構造を取るため。
-- **Phase 9 の HSM/KMS**: Phase 1 で抽象 port を据えてあれば adapter 差し替えのみ。RA の「port を切っておけば後で差し替えるだけ」を最も鮮明に示す機会。
+- **Phase 0 → 1 → 2 は順序固定**: パスワード周りの本番品質 (Phase 0) と既存 port の運用面 (Phase 1, Secret/鍵 rotation) を閉じてから新しい認証手段 (Phase 2, WebAuthn / TOTP / acr/amr) を追加する。RA の「閉じてから増やす」原則。
+- **Phase 2 を Phase 3 より先**: セッションのライフサイクル UI (一覧 / 失効) は acr/amr で表す認証保証レベルが決まってからのほうが UI 表現が安定する。step-up reauth も Phase 2 の acr_values 消費で初めて意味を持つ。
+- **Phase 4 が分水嶺**: 管理 port と tenant 概念がここで入る。Phase 5–6 はそれを前提に乗る (consent ledger UI / tenant 別 SAML metadata 等)。tenant を Phase 6 まで遅らせると、admin / DCR / Federation を全部 retrofit することになる。
+- **Phase 6 で SAML 2.0 IdP**: outbound（ra-idp が SAML IdP として SP に対応）は B2B SaaS では事実上必須。OIDC のみではエンタープライズ販売の最低ラインを満たさない。inbound と outbound を同じ Phase で扱うのは、両方が "プロトコル間の境界" として同じ port 構造を取るため。
+- **Phase 8 の HSM/KMS**: Phase 1 で抽象 port を据えてあれば adapter 差し替えのみ。RA の「port を切っておけば後で差し替えるだけ」を最も鮮明に示す機会。
 
 ---
 

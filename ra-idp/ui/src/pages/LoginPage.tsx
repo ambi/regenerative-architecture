@@ -1,4 +1,4 @@
-import { IconAlertCircle, IconLoader2 } from '@tabler/icons-react'
+import { IconAlertCircle, IconInfoCircle, IconLoader2 } from '@tabler/icons-react'
 import { type FormEvent, useId, useState } from 'react'
 import { AuthLayout } from '@/components/layout/AuthLayout'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -39,30 +39,30 @@ export function LoginPage() {
         username,
         password,
       })
+      // `redirect: 'manual'` で fetch にリダイレクトを follow させない。
+      // バックエンドが client の redirect_uri (例: localhost:8080/callback) に 302 した場合、
+      // fetch が cross-origin に GET を仕掛けて connection refused になるのを避ける。
+      // 302 を検知したら window.location.reload() でトップレベル遷移に切り替え、
+      // ブラウザのナビゲーションスタックでリダイレクトを follow させる。
       const res = await fetch('/login', {
         method: 'POST',
-        headers: {
-          'content-type': 'application/x-www-form-urlencoded',
-          accept: 'application/json',
-        },
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
         body,
-        redirect: 'follow',
+        redirect: 'manual',
         credentials: 'same-origin',
       })
-      if (res.redirected) {
-        window.location.assign(res.url)
-        return
-      }
-      if (res.ok) {
-        const json = (await res.json().catch(() => null)) as { redirect?: string } | null
-        if (json?.redirect) {
-          window.location.assign(json.redirect)
-          return
-        }
+      if (res.type === 'opaqueredirect' || res.ok) {
         window.location.reload()
         return
       }
-      setError(m.login.errorBody)
+      // 400 invalid_request は資格情報ではなく認可リクエスト側の問題なので
+      // 「ユーザー名/パスワードが誤り」と取り違えないよう個別のメッセージを出す。
+      const detail = (await res.json().catch(() => null)) as { error?: string } | null
+      if (res.status === 400 && detail?.error === 'invalid_request') {
+        setError(m.login.invalidRequestBody)
+      } else {
+        setError(m.login.errorBody)
+      }
     } catch {
       setError(m.login.networkError)
     } finally {
@@ -91,6 +91,14 @@ export function LoginPage() {
             noValidate
             aria-describedby={error ? errorId : undefined}
           >
+            {!ctx.requestId ? (
+              <Alert>
+                <IconInfoCircle className="h-4 w-4" aria-hidden />
+                <AlertTitle>{m.login.invalidRequestTitle}</AlertTitle>
+                <AlertDescription>{m.login.invalidRequestBody}</AlertDescription>
+              </Alert>
+            ) : null}
+
             {error ? (
               <Alert variant="destructive" id={errorId}>
                 <IconAlertCircle className="h-4 w-4" aria-hidden />

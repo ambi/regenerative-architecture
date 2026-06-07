@@ -52,25 +52,18 @@ export function DevicePage() {
         csrf: ctx.csrf,
         action: chosen,
       })
+      // バックエンドが完了画面 (error shell) を返すパターンと、redirect を返すパターンが
+      // ありうる。fetch が cross-origin redirect に follow して落ちるのを避けるため
+      // `redirect: 'manual'` で受け取り reload で遷移する (LoginPage 参照)。
       const res = await fetch('/device', {
         method: 'POST',
-        headers: {
-          'content-type': 'application/x-www-form-urlencoded',
-          accept: 'text/html',
-        },
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
         body,
-        redirect: 'follow',
+        redirect: 'manual',
         credentials: 'same-origin',
       })
-      if (res.redirected) {
-        window.location.assign(res.url)
-        return
-      }
-      if (res.ok) {
-        const html = await res.text()
-        document.open()
-        document.write(html)
-        document.close()
+      if (res.type === 'opaqueredirect' || res.ok) {
+        window.location.reload()
         return
       }
       setError(m.device.errorBody)

@@ -31,6 +31,9 @@ const ja = {
     submitting: 'サインイン中…',
     errorTitle: 'サインインできません',
     errorBody: 'ユーザー名またはパスワードが正しくありません。',
+    invalidRequestTitle: '認可リクエストが見つかりません',
+    invalidRequestBody:
+      '認可フローのコンテキストが見つからないか、有効期限が切れています。アプリケーションから OAuth フローを再開してください。',
     networkError: '通信エラーが発生しました。時間をおいて再試行してください。',
     footer: '不正なログイン試行は',
     footerCode: 'audit log',
@@ -142,6 +145,8 @@ interface Messages {
     submitting: string
     errorTitle: string
     errorBody: string
+    invalidRequestTitle: string
+    invalidRequestBody: string
     networkError: string
     footer: string
     footerCode: string
@@ -226,6 +231,9 @@ const en: Messages = {
     submitting: 'Signing in…',
     errorTitle: 'Sign in failed',
     errorBody: 'Username or password is incorrect.',
+    invalidRequestTitle: 'No authorization request',
+    invalidRequestBody:
+      'No active authorization context was found, or it has expired. Restart the OAuth flow from your application.',
     networkError: 'A network error occurred. Please try again shortly.',
     footer: 'Unsuccessful attempts are recorded to the ',
     footerCode: 'audit log',

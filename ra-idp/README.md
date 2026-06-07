@@ -95,6 +95,21 @@ ra-idp/
 | 国際化 / アクセシビリティ | ~~i18n、WCAG 2.x AA 準拠 (a11y)~~ ✅ 基盤実装済 (ja/en 型付きカタログ + サーバ側 `Accept-Language` ネゴシエーション、skip link / `prefers-reduced-motion` / `aria-describedby` / `aria-live`) |
 | 既存 UI のリアルワールド化 | ~~ログイン画面、同意 (consent) 画面、デバイス認可 (verification_uri) 画面、エラー / 中断画面~~ ✅ 実装済 |
 | ブランディング基盤 | ~~ロゴ・カラー・文言の差し替え機構（テナント単位の適用は Phase 5 と接続）~~ ✅ 基盤実装済 (`brandFor(tenantId)` slot + `<meta name="ra-idp:brand-*">` 経由でロゴ / 名前 / `--primary` HSL を上書き、テナント解決は Phase 5 で接続) |
+| SPA E2E スモークテスト (TODO) | Playwright で /authorize → login → consent → callback URL に `code=` が乗るまでを 1 本のテストとして通す。SPA の DOM 描画と `fetch` の cross-origin redirect 挙動はバックエンドの bun test では捕まらないため、Phase 2 で導入した SPA を継続的に守るには別レイヤが必要。最小実装の指針は下記。 |
+
+**Phase 2 SPA スモーク E2E の最小要件** (まだ実装していない):
+
+- `@playwright/test` を `ra-idp/ui/` の devDependency に追加し、`ui/tests/e2e/` 配下に置く。
+- フィクスチャでバックエンドを `memory` モードで起動し、`localhost:8080/callback` 相当のミニマムなコールバック収集サーバを Playwright `globalSetup` で別ポートに立てる。
+- シナリオ 1 本:
+  1. `http://localhost:3000/authorize?client_id=demo-web-app&...` を開く。
+  2. `meta[name="ra-idp:page"][content="login"]` が描画され、`input[name="username"]` が見えることを assert (TanStack Router の dispatcher 回帰防止)。
+  3. `alice` / `alice-password` を入力して送信。
+  4. consent 画面 (`meta[name="ra-idp:page"][content="consent"]`) が表示されることを assert。
+  5. 「許可する」を押し、コールバックサーバが受け取った URL に `code=...&iss=...` が乗ることを assert (`fetch` の cross-origin redirect 挙動の回帰防止)。
+- CI では Chromium だけインストール (`npx playwright install chromium`)。
+
+これにより SPA の dispatcher と redirect モードの両方が回帰なく機能していることを 1 テストで保証できる。
 
 ### Phase 3 — MFA / Passkey と acr/amr 体系
 

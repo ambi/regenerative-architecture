@@ -33,21 +33,17 @@ export function ConsentPage() {
         csrf: ctx.csrf,
         action: chosen,
       })
+      // 同意成立時は client の redirect_uri に 302 が返る。fetch が cross-origin に
+      // follow して落ちるのを避けるため `redirect: 'manual'` で受け取り、reload で
+      // ブラウザのトップレベル遷移に委ねる (詳細は LoginPage 参照)。
       const res = await fetch('/consent', {
         method: 'POST',
-        headers: {
-          'content-type': 'application/x-www-form-urlencoded',
-          accept: 'application/json',
-        },
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
         body,
-        redirect: 'follow',
+        redirect: 'manual',
         credentials: 'same-origin',
       })
-      if (res.redirected) {
-        window.location.assign(res.url)
-        return
-      }
-      if (res.ok) {
+      if (res.type === 'opaqueredirect' || res.ok) {
         window.location.reload()
         return
       }

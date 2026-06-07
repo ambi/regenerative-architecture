@@ -13,17 +13,74 @@ import (
 )
 
 type SCL struct {
-	System        string                  `yaml:"system"`
-	SpecVersion   string                  `yaml:"spec_version"`
-	Vocabulary    map[string]Vocabulary   `yaml:"vocabulary"`
-	Models        map[string]Model        `yaml:"models"`
-	Interfaces    map[string]Interface    `yaml:"interfaces"`
-	StateMachines map[string]StateMachine `yaml:"state_machines"`
-	Properties    map[string]Property     `yaml:"properties"`
-	Scenarios     map[string]Scenario     `yaml:"scenarios"`
-	Permissions   map[string]Permission   `yaml:"permissions"`
-	Objectives    map[string]Objective    `yaml:"objectives"`
-	Annotations   SCLAnnotations          `yaml:"annotations"`
+	System         string                  `yaml:"system"`
+	SpecVersion    string                  `yaml:"spec_version"`
+	Standards      map[string]Standard     `yaml:"standards"`
+	Vocabulary     map[string]Vocabulary   `yaml:"vocabulary"`
+	Models         map[string]Model        `yaml:"models"`
+	Interfaces     map[string]Interface    `yaml:"interfaces"`
+	StateMachines  map[string]StateMachine `yaml:"state_machines"`
+	Properties     map[string]Property     `yaml:"properties"`
+	Scenarios      map[string]Scenario     `yaml:"scenarios"`
+	Permissions    map[string]Permission   `yaml:"permissions"`
+	Objectives     map[string]Objective    `yaml:"objectives"`
+	UserExperience UserExperience          `yaml:"user_experience"`
+	Annotations    SCLAnnotations          `yaml:"annotations"`
+}
+
+type Standard struct {
+	Title        string                `yaml:"title"`
+	Version      string                `yaml:"version"`
+	URL          string                `yaml:"url"`
+	Roles        []string              `yaml:"roles"`
+	Scope        string                `yaml:"scope"`
+	Requirements []StandardRequirement `yaml:"requirements"`
+}
+
+type StandardRequirement struct {
+	ID        string              `yaml:"id"`
+	Section   string              `yaml:"section"`
+	Strength  string              `yaml:"strength"`
+	Adoption  string              `yaml:"adoption"`
+	Statement string              `yaml:"statement"`
+	Reason    string              `yaml:"reason"`
+	RelatesTo map[string][]string `yaml:"relates_to"`
+}
+
+type UserExperience struct {
+	Accessibility map[string]string               `yaml:"accessibility"`
+	Locales       []string                        `yaml:"locales"`
+	Screens       map[string]UserExperienceScreen `yaml:"screens"`
+	Transitions   []UserExperienceTransition      `yaml:"transitions"`
+	Requirements  []UserExperienceRequirement     `yaml:"requirements"`
+}
+
+type UserExperienceScreen struct {
+	Route      string   `yaml:"route"`
+	Purpose    string   `yaml:"purpose"`
+	Interfaces []string `yaml:"interfaces"`
+	States     []string `yaml:"states"`
+}
+
+type UserExperienceTransition struct {
+	From      string `yaml:"from"`
+	To        string `yaml:"to"`
+	Trigger   string `yaml:"trigger"`
+	Interface string `yaml:"interface"`
+	External  bool   `yaml:"external"`
+}
+
+type UserExperienceRequirement struct {
+	ID         string   `yaml:"id"`
+	Category   string   `yaml:"category"`
+	Adoption   string   `yaml:"adoption"`
+	Statement  string   `yaml:"statement"`
+	Reason     string   `yaml:"reason"`
+	Screens    []string `yaml:"screens"`
+	Interfaces []string `yaml:"interfaces"`
+	Standards  []string `yaml:"standards"`
+	Scenarios  []string `yaml:"scenarios"`
+	Properties []string `yaml:"properties"`
 }
 
 type Vocabulary struct {

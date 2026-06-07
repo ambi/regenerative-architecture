@@ -50,3 +50,23 @@ func TestMfaFactorTypeMatchesSCL(t *testing.T) {
 		t.Fatalf("SCL MfaFactorType=%v, Go=%v", got, want)
 	}
 }
+
+func TestStandardsAndUserExperienceLoadFromSCL(t *testing.T) {
+	s, err := spec.LoadSCL()
+	if err != nil {
+		t.Fatalf("load scl: %v", err)
+	}
+	rfc9700, ok := s.Standards["RFC9700"]
+	if !ok {
+		t.Fatal("standards.RFC9700 is missing")
+	}
+	if len(rfc9700.Requirements) == 0 {
+		t.Fatal("standards.RFC9700.requirements is empty")
+	}
+	if got := s.UserExperience.Accessibility["standard"]; got != "WCAG22" {
+		t.Fatalf("user_experience.accessibility.standard=%q, want WCAG22", got)
+	}
+	if _, ok := s.UserExperience.Screens["Login"]; !ok {
+		t.Fatal("user_experience.screens.Login is missing")
+	}
+}

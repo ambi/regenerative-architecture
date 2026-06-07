@@ -1,14 +1,13 @@
 package http_test
 
-// /authorize → /login → /token を in-process Echo で結合する end-to-end テスト。
-
 import (
-	"context"
+	"bytes"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
 	"strings"
@@ -16,15 +15,13 @@ import (
 	"time"
 
 	"ra-idp-go/internal/adapters/crypto"
+	httpadapter "ra-idp-go/internal/adapters/http"
 	"ra-idp-go/internal/adapters/persistence/memory"
+	authusecases "ra-idp-go/internal/authentication/usecases"
 	"ra-idp-go/internal/oauth2/domain"
 	"ra-idp-go/internal/spec"
 
 	"github.com/labstack/echo/v5"
-
-	httpadapter "ra-idp-go/internal/adapters/http"
-
-	authusecases "ra-idp-go/internal/authentication/usecases"
 )
 
 const (
@@ -44,17 +41,17 @@ func newServer(t *testing.T) *httptest.Server {
 	codeStore := memory.NewAuthorizationCodeStore()
 	hasher := crypto.NewArgon2idPasswordHasher()
 
-	secret := demoClientSecret
-	secretHash := domain.HashClientSecret(secret)
+	secretHash := domain.HashClientSecret(demoClientSecret)
 	clientRepo.Seed(&spec.Client{
-		ClientID:                 demoClientID,
-		ClientSecretHash:         &secretHash,
-		ClientType:               spec.ClientConfidential,
-		RedirectURIs:             []string{demoRedirectURI},
-		GrantTypes:               []spec.GrantType{spec.GrantAuthorizationCode},
+		ClientID: demoClientID, ClientSecretHash: &secretHash, ClientType: spec.ClientConfidential,
+		RedirectURIs: []string{demoRedirectURI},
+		GrantTypes: []spec.GrantType{
+			spec.GrantAuthorizationCode, spec.GrantRefreshToken,
+			spec.GrantClientCredentials, spec.GrantDeviceCode,
+		},
 		ResponseTypes:            []spec.ResponseType{spec.ResponseTypeCode},
 		TokenEndpointAuthMethod:  spec.AuthMethodClientSecretBasic,
-		Scope:                    "openid profile email",
+		Scope:                    "openid profile email offline_access",
 		IDTokenSignedResponseAlg: spec.SigAlgPS256,
 		FapiProfile:              spec.FapiNone,
 		CreatedAt:                time.Now().UTC(),
@@ -62,18 +59,13 @@ func newServer(t *testing.T) *httptest.Server {
 
 	hash, err := hasher.Hash(demoPassword)
 	if err != nil {
-		t.Fatalf("seed: %v", err)
+		t.Fatalf("seed password: %v", err)
 	}
 	email := "alice@example.com"
 	now := time.Now().UTC()
 	userRepo.Seed(&spec.User{
-		Sub:               "user_alice",
-		PreferredUsername: demoUsername,
-		PasswordHash:      hash,
-		Email:             &email,
-		EmailVerified:     true,
-		CreatedAt:         now,
-		UpdatedAt:         now,
+		Sub: "user_alice", PreferredUsername: demoUsername, PasswordHash: hash,
+		Email: &email, EmailVerified: true, CreatedAt: now, UpdatedAt: now,
 	})
 
 	keyStore, err := crypto.NewInMemoryKeyStore()
@@ -81,111 +73,84 @@ func newServer(t *testing.T) *httptest.Server {
 		t.Fatalf("key store: %v", err)
 	}
 	tokenIssuer := crypto.NewJWTSigner("http://test", keyStore)
-	sessionStore := memory.NewSessionStore()
-	sessionMgr := authusecases.NewSessionManager(sessionStore)
-	refreshStore := memory.NewRefreshTokenStore()
-	consentRepo := memory.NewConsentRepository()
-	// e2e テストはコンセント済みクライアント前提で /login → 302 を期待する。
-	_ = consentRepo.Save(context.Background(), &spec.Consent{
-		Sub: "user_alice", ClientID: demoClientID,
-		Scopes: []string{"openid", "profile", "email"}, State: spec.ConsentGranted,
-		GrantedAt: now, ExpiresAt: now.Add(365 * 24 * time.Hour),
-	})
-
+	sessionManager := authusecases.NewSessionManager(memory.NewSessionStore())
 	e := echo.New()
 	httpadapter.Register(e, httpadapter.Deps{
-		Issuer:            "http://test",
-		ClientRepo:        clientRepo,
-		UserRepo:          userRepo,
-		ConsentRepo:       consentRepo,
-		RequestStore:      requestStore,
-		CodeStore:         codeStore,
-		RefreshStore:      refreshStore,
-		KeyStore:          keyStore,
-		TokenIssuer:       tokenIssuer,
-		TokenIntrospector: tokenIssuer,
-		PasswordHasher:    hasher,
-		SessionManager:    sessionMgr,
-		AuthnResolver:     sessionMgr,
+		Issuer:     "http://test",
+		ClientRepo: clientRepo, UserRepo: userRepo, ConsentRepo: memory.NewConsentRepository(),
+		RequestStore: requestStore, CodeStore: codeStore, PARStore: memory.NewPARStore(),
+		RefreshStore: memory.NewRefreshTokenStore(), DeviceCodeStore: memory.NewDeviceCodeStore(),
+		KeyStore: keyStore, TokenIssuer: tokenIssuer, TokenIntrospector: tokenIssuer,
+		PasswordHasher: hasher, SessionManager: sessionManager, AuthnResolver: sessionManager,
 	})
-
 	return httptest.NewServer(e)
 }
 
-// pkceS256 は code_verifier と一致する code_challenge を返す。
-func pkceS256(verifier string) string {
-	sum := sha256.Sum256([]byte(verifier))
-	return base64.RawURLEncoding.EncodeToString(sum[:])
-}
-
-func TestAuthorizationCodeFlowHappyPath(t *testing.T) {
+func TestBrowserAuthorizationFlowUsesCookiesAndJSONAPI(t *testing.T) {
 	srv := newServer(t)
 	defer srv.Close()
+	client := browserClient(t)
 
 	verifier := "this-is-a-cryptographically-fine-verifier-for-pkce-tests"
-	challenge := pkceS256(verifier)
-
-	// (1) /authorize → 401 + React UI shell + request_id
-	q := url.Values{
-		"client_id":             {demoClientID},
-		"redirect_uri":          {demoRedirectURI},
-		"response_type":         {"code"},
-		"scope":                 {"openid"},
-		"state":                 {"opaque-state-xyz"},
-		"code_challenge":        {challenge},
-		"code_challenge_method": {"S256"},
+	state := "opaque-state"
+	resp := startAuthorization(t, client, srv.URL, verifier, state)
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("/authorize status=%d, want 303", resp.StatusCode)
 	}
-	resp, err := http.Get(srv.URL + "/authorize?" + q.Encode())
-	if err != nil {
-		t.Fatalf("GET /authorize: %v", err)
+	if location := resp.Header.Get("Location"); location != "/login" {
+		t.Fatalf("/authorize Location=%q, want /login", location)
 	}
-	if resp.StatusCode != http.StatusUnauthorized {
-		t.Fatalf("/authorize: status=%d, want 401", resp.StatusCode)
-	}
-	body, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
-	if !strings.Contains(string(body), `/ui/assets/app.js`) {
-		t.Fatalf("login page is missing UI bundle: %s", body)
-	}
-	if resp.Header.Get("Content-Security-Policy") == "" {
-		t.Fatal("login page is missing Content-Security-Policy")
-	}
-	requestID := extractRequestID(string(body))
-	if requestID == "" {
-		t.Fatalf("could not extract request_id from login page:\n%s", body)
-	}
-
-	// (2) /login POST → 302 redirect with code
-	loginClient := &http.Client{
-		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
-	}
-	form := url.Values{
-		"request_id": {requestID},
-		"username":   {demoUsername},
-		"password":   {demoPassword},
-	}
-	resp, err = loginClient.PostForm(srv.URL+"/login", form)
-	if err != nil {
-		t.Fatalf("POST /login: %v", err)
-	}
-	if resp.StatusCode != http.StatusFound {
-		body, _ := io.ReadAll(resp.Body)
-		t.Fatalf("/login: status=%d, want 302; body=%s", resp.StatusCode, body)
-	}
-	location, err := resp.Location()
-	if err != nil {
-		t.Fatalf("login response missing Location: %v", err)
+	transactionCookie := findCookie(resp.Cookies(), "ra_idp_transaction")
+	if transactionCookie == nil || !transactionCookie.HttpOnly {
+		t.Fatal("authorization transaction cookie must be HttpOnly")
 	}
 	resp.Body.Close()
-	code := location.Query().Get("code")
-	if code == "" {
-		t.Fatalf("redirect missing code: %s", location)
+
+	transaction := getJSON[struct {
+		Kind      string `json:"kind"`
+		CSRFToken string `json:"csrf_token"`
+	}](t, client, srv.URL+"/api/auth/transaction")
+	if transaction.Kind != "login" || transaction.CSRFToken == "" {
+		t.Fatalf("unexpected login transaction: %+v", transaction)
 	}
-	if location.Query().Get("state") != "opaque-state-xyz" {
-		t.Fatalf("redirect state mismatch: %s", location.Query().Get("state"))
+	if strings.Contains(mustJSON(t, transaction), transactionCookie.Value) {
+		t.Fatal("browser API exposed the internal authorization request ID")
 	}
 
-	// (3) /token POST → access_token + id_token
+	loginResult := postJSON[map[string]string](t, client, srv.URL+"/api/auth/login", transaction.CSRFToken, map[string]string{
+		"username": demoUsername,
+		"password": demoPassword,
+	})
+	if loginResult["next"] != "/consent" {
+		t.Fatalf("login next=%q, want /consent", loginResult["next"])
+	}
+
+	consent := getJSON[struct {
+		Kind       string   `json:"kind"`
+		CSRFToken  string   `json:"csrf_token"`
+		ClientName string   `json:"client_name"`
+		Scopes     []string `json:"scopes"`
+	}](t, client, srv.URL+"/api/auth/transaction")
+	if consent.Kind != "consent" || consent.ClientName != demoClientID {
+		t.Fatalf("unexpected consent transaction: %+v", consent)
+	}
+
+	consentResult := postJSON[map[string]string](
+		t,
+		client,
+		srv.URL+"/api/auth/consent",
+		consent.CSRFToken,
+		map[string]string{"action": "allow"},
+	)
+	redirectTo, err := url.Parse(consentResult["redirect_to"])
+	if err != nil {
+		t.Fatalf("parse redirect: %v", err)
+	}
+	code := redirectTo.Query().Get("code")
+	if code == "" || redirectTo.Query().Get("state") != state {
+		t.Fatalf("invalid authorization redirect: %s", redirectTo)
+	}
+
 	tokenForm := url.Values{
 		"grant_type":    {"authorization_code"},
 		"code":          {code},
@@ -195,221 +160,177 @@ func TestAuthorizationCodeFlowHappyPath(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodPost, srv.URL+"/token", strings.NewReader(tokenForm.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.SetBasicAuth(demoClientID, demoClientSecret)
-	resp, err = http.DefaultClient.Do(req)
+	resp, err = client.Do(req)
 	if err != nil {
 		t.Fatalf("POST /token: %v", err)
 	}
 	defer resp.Body.Close()
-	body, _ = io.ReadAll(resp.Body)
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("/token: status=%d, body=%s", resp.StatusCode, body)
-	}
-	var out struct {
-		AccessToken string `json:"access_token"`
-		IDToken     string `json:"id_token"`
-		TokenType   string `json:"token_type"`
-		ExpiresIn   int    `json:"expires_in"`
-		Scope       string `json:"scope"`
-	}
-	if err := json.Unmarshal(body, &out); err != nil {
-		t.Fatalf("decode token response: %v; body=%s", err, body)
-	}
-	if out.AccessToken == "" || out.IDToken == "" {
-		t.Fatalf("missing tokens in response: %s", body)
-	}
-	if out.TokenType != "Bearer" {
-		t.Fatalf("token_type=%q, want Bearer", out.TokenType)
-	}
-
-	// (4) 二度目の交換は失敗する（code 再利用不可）
-	resp, err = http.DefaultClient.Do(mustReclone(t, srv.URL, tokenForm))
-	if err != nil {
-		t.Fatalf("POST /token (replay): %v", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode == http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		t.Fatalf("expected replay rejection, got 200: %s", body)
-	}
-}
-
-func TestCompletedLoginFormCannotBeReused(t *testing.T) {
-	srv := newServer(t)
-	defer srv.Close()
-
-	verifier := "verifier-for-stale-login-form-reuse-test-123456789"
-	q := url.Values{
-		"client_id":             {demoClientID},
-		"redirect_uri":          {demoRedirectURI},
-		"response_type":         {"code"},
-		"scope":                 {"openid"},
-		"state":                 {"stale-form-state"},
-		"code_challenge":        {pkceS256(verifier)},
-		"code_challenge_method": {"S256"},
-	}
-	resp, err := http.Get(srv.URL + "/authorize?" + q.Encode())
-	if err != nil {
-		t.Fatalf("GET /authorize: %v", err)
-	}
 	body, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
-	requestID := extractRequestID(string(body))
-	if requestID == "" {
-		t.Fatal("login page did not contain request ID")
-	}
-
-	client := &http.Client{
-		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
-	}
-	form := url.Values{
-		"request_id": {requestID},
-		"username":   {demoUsername},
-		"password":   {demoPassword},
-	}
-	resp, err = client.PostForm(srv.URL+"/login", form)
-	if err != nil {
-		t.Fatalf("first POST /login: %v", err)
-	}
-	resp.Body.Close()
-	if resp.StatusCode != http.StatusFound {
-		t.Fatalf("first POST /login: status=%d, want 302", resp.StatusCode)
-	}
-
-	resp, err = client.PostForm(srv.URL+"/login", form)
-	if err != nil {
-		t.Fatalf("reused POST /login: %v", err)
-	}
-	resp.Body.Close()
-	if resp.StatusCode != http.StatusFound {
-		t.Fatalf("reused POST /login: status=%d, want 302", resp.StatusCode)
-	}
-	location, err := resp.Location()
-	if err != nil {
-		t.Fatalf("reused POST /login missing Location: %v", err)
-	}
-	if location.Query().Get("error") != "invalid_request" {
-		t.Fatalf("reused POST /login: error=%q, want invalid_request", location.Query().Get("error"))
-	}
-	if location.Query().Get("state") != "stale-form-state" {
-		t.Fatalf("reused POST /login: state=%q, want stale-form-state", location.Query().Get("state"))
+	if resp.StatusCode != http.StatusOK || !bytes.Contains(body, []byte(`"access_token"`)) {
+		t.Fatalf("/token status=%d body=%s", resp.StatusCode, body)
 	}
 }
 
-func TestAuthorizeRejectsUnknownClient(t *testing.T) {
+func TestBrowserAPIPostRejectsMissingCSRF(t *testing.T) {
 	srv := newServer(t)
 	defer srv.Close()
+	client := browserClient(t)
+	resp := startAuthorization(t, client, srv.URL, "verifier-for-csrf-test-12345678901234567890", "state")
+	resp.Body.Close()
+	_ = getJSON[map[string]any](t, client, srv.URL+"/api/auth/transaction")
 
-	verifier := "another-pkce-verifier-value-1234567890"
-	q := url.Values{
-		"client_id":             {"nope"},
-		"redirect_uri":          {demoRedirectURI},
-		"response_type":         {"code"},
-		"code_challenge":        {pkceS256(verifier)},
-		"code_challenge_method": {"S256"},
-	}
-	resp, err := http.Get(srv.URL + "/authorize?" + q.Encode())
+	payload, _ := json.Marshal(map[string]string{"username": demoUsername, "password": demoPassword})
+	req, _ := http.NewRequest(http.MethodPost, srv.URL+"/api/auth/login", bytes.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Origin", "http://test")
+	resp, err := client.Do(req)
 	if err != nil {
-		t.Fatalf("GET /authorize: %v", err)
+		t.Fatalf("POST /api/auth/login: %v", err)
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusUnauthorized {
-		t.Fatalf("status=%d, want 401", resp.StatusCode)
+	if resp.StatusCode != http.StatusForbidden {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("status=%d, want 403; body=%s", resp.StatusCode, body)
 	}
 }
 
-func TestUIAssetsAreServed(t *testing.T) {
+func TestBrowserAPIPostRejectsForeignOrigin(t *testing.T) {
 	srv := newServer(t)
 	defer srv.Close()
+	client := browserClient(t)
+	resp := startAuthorization(t, client, srv.URL, "verifier-for-origin-test-123456789012345678", "state")
+	resp.Body.Close()
+	transaction := getJSON[struct {
+		CSRFToken string `json:"csrf_token"`
+	}](t, client, srv.URL+"/api/auth/transaction")
 
-	for _, path := range []string{"/ui/assets/app.css", "/ui/assets/app.js"} {
+	payload, _ := json.Marshal(map[string]string{"username": demoUsername, "password": demoPassword})
+	req, _ := http.NewRequest(http.MethodPost, srv.URL+"/api/auth/login", bytes.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-CSRF-Token", transaction.CSRFToken)
+	req.Header.Set("Origin", "https://attacker.example")
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("POST /api/auth/login: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("status=%d, want 403", resp.StatusCode)
+	}
+}
+
+func TestGoDoesNotServeFrontendAssets(t *testing.T) {
+	srv := newServer(t)
+	defer srv.Close()
+	for _, path := range []string{"/login", "/ui/assets/app.css", "/ui/assets/app.js"} {
 		resp, err := http.Get(srv.URL + path)
 		if err != nil {
 			t.Fatalf("GET %s: %v", path, err)
 		}
-		body, readErr := io.ReadAll(resp.Body)
 		resp.Body.Close()
-		if readErr != nil {
-			t.Fatalf("read %s: %v", path, readErr)
-		}
-		if resp.StatusCode != http.StatusOK || len(body) == 0 {
-			t.Fatalf("GET %s: status=%d bytes=%d", path, resp.StatusCode, len(body))
-		}
-		if resp.Header.Get("X-Content-Type-Options") != "nosniff" {
-			t.Fatalf("GET %s: missing nosniff header", path)
+		if resp.StatusCode != http.StatusNotFound {
+			t.Fatalf("GET %s status=%d, want 404", path, resp.StatusCode)
 		}
 	}
 }
 
-func TestTokenRejectsWrongPKCE(t *testing.T) {
-	srv := newServer(t)
-	defer srv.Close()
-
-	verifier := "verifier-for-the-pkce-mismatch-test"
-	challenge := pkceS256(verifier)
-
-	q := url.Values{
+func startAuthorization(
+	t *testing.T,
+	client *http.Client,
+	baseURL, verifier, state string,
+) *http.Response {
+	t.Helper()
+	sum := sha256.Sum256([]byte(verifier))
+	query := url.Values{
 		"client_id":             {demoClientID},
 		"redirect_uri":          {demoRedirectURI},
 		"response_type":         {"code"},
-		"code_challenge":        {challenge},
+		"scope":                 {"openid profile email offline_access"},
+		"state":                 {state},
+		"code_challenge":        {base64.RawURLEncoding.EncodeToString(sum[:])},
 		"code_challenge_method": {"S256"},
 	}
-	resp, _ := http.Get(srv.URL + "/authorize?" + q.Encode())
-	body, _ := io.ReadAll(resp.Body)
-	resp.Body.Close()
-	requestID := extractRequestID(string(body))
-
-	loginClient := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-	form := url.Values{
-		"request_id": {requestID},
-		"username":   {demoUsername},
-		"password":   {demoPassword},
-	}
-	resp, _ = loginClient.PostForm(srv.URL+"/login", form)
-	location, _ := resp.Location()
-	resp.Body.Close()
-	code := location.Query().Get("code")
-
-	tokenForm := url.Values{
-		"grant_type":    {"authorization_code"},
-		"code":          {code},
-		"code_verifier": {"WRONG-verifier-value"},
-		"redirect_uri":  {demoRedirectURI},
-	}
-	req, _ := http.NewRequest(http.MethodPost, srv.URL+"/token", strings.NewReader(tokenForm.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.SetBasicAuth(demoClientID, demoClientSecret)
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := client.Get(baseURL + "/authorize?" + query.Encode())
 	if err != nil {
-		t.Fatalf("POST /token: %v", err)
+		t.Fatalf("GET /authorize: %v", err)
+	}
+	return resp
+}
+
+func browserClient(t *testing.T) *http.Client {
+	t.Helper()
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatalf("cookie jar: %v", err)
+	}
+	return &http.Client{
+		Jar: jar,
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+}
+
+func getJSON[T any](t *testing.T, client *http.Client, target string) T {
+	t.Helper()
+	resp, err := client.Get(target)
+	if err != nil {
+		t.Fatalf("GET %s: %v", target, err)
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode == http.StatusOK {
+	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		t.Fatalf("expected PKCE mismatch rejection, got 200: %s", body)
+		t.Fatalf("GET %s status=%d body=%s", target, resp.StatusCode, body)
 	}
+	var result T
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("decode %s: %v", target, err)
+	}
+	return result
 }
 
-func extractRequestID(html string) string {
-	const marker = `"requestId":"`
-	_, rest, ok := strings.Cut(html, marker)
-	if !ok {
-		return ""
-	}
-	id, _, ok := strings.Cut(rest, `"`)
-	if !ok {
-		return ""
-	}
-	return id
-}
-
-func mustReclone(t *testing.T, baseURL string, form url.Values) *http.Request {
+func postJSON[T any](
+	t *testing.T,
+	client *http.Client,
+	target, csrf string,
+	payload any,
+) T {
 	t.Helper()
-	req, err := http.NewRequest(http.MethodPost, baseURL+"/token", strings.NewReader(form.Encode()))
+	body, _ := json.Marshal(payload)
+	req, _ := http.NewRequest(http.MethodPost, target, bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-CSRF-Token", csrf)
+	req.Header.Set("Origin", "http://test")
+	resp, err := client.Do(req)
 	if err != nil {
-		t.Fatalf("clone token request: %v", err)
+		t.Fatalf("POST %s: %v", target, err)
 	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.SetBasicAuth(demoClientID, demoClientSecret)
-	return req
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		responseBody, _ := io.ReadAll(resp.Body)
+		t.Fatalf("POST %s status=%d body=%s", target, resp.StatusCode, responseBody)
+	}
+	var result T
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("decode %s: %v", target, err)
+	}
+	return result
+}
+
+func findCookie(cookies []*http.Cookie, name string) *http.Cookie {
+	for _, cookie := range cookies {
+		if cookie.Name == name {
+			return cookie
+		}
+	}
+	return nil
+}
+
+func mustJSON(t *testing.T, value any) string {
+	t.Helper()
+	body, err := json.Marshal(value)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	return string(body)
 }

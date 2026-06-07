@@ -1,24 +1,34 @@
+export type HomePage = {
+  kind: 'home'
+  demoEnabled: boolean
+}
+
 export type LoginPage = {
-  kind: "login";
-  requestId: string;
-  error?: string;
-};
+  kind: 'login'
+  csrfToken: string
+}
 
 export type ConsentPage = {
-  kind: "consent";
-  requestId: string;
-  clientName: string;
-  scope: string;
-};
+  kind: 'consent'
+  csrfToken: string
+  clientName: string
+  scopes: string[]
+}
 
 export type DevicePage = {
-  kind: "device";
-  userCode: string;
-};
+  kind: 'device'
+  csrfToken: string
+  userCode: string
+}
 
 export type StatusPage = {
-  kind: "status";
-  status: "approved" | "denied" | "signed-out" | "authentication-required";
-};
+  kind: 'status'
+  status: 'approved' | 'denied' | 'signed-out' | 'authentication-required'
+}
 
-export type PageData = LoginPage | ConsentPage | DevicePage | StatusPage;
+export type PageData = HomePage | LoginPage | ConsentPage | DevicePage | StatusPage
+
+export type BrowserFlowResponse = {
+  next?: string
+  redirect_to?: string
+}

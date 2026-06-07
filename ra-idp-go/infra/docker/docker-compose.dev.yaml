@@ -38,7 +38,7 @@ services:
     ports: ["9092:9092"]
 
   otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.124.0
+    image: otel/opentelemetry-collector-contrib:0.153.0
     command: ["--config=/etc/otelcol/config.yaml"]
     volumes:
       - ./otel-collector.yaml:/etc/otelcol/config.yaml:ro
@@ -49,7 +49,7 @@ services:
       context: ../../..
       dockerfile: ra-idp-go/infra/docker/Dockerfile
     environment:
-      ADDR: :8080
+      ADDR: :8081
       ISSUER: http://localhost:8080
       PERSISTENCE: postgres
       DATABASE_URL: postgres://ra_idp:ra_idp@postgres:5432/ra_idp?sslmode=disable
@@ -63,6 +63,15 @@ services:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
       otel-collector: { condition: service_started }
+
+  ui:
+    build:
+      context: ../../ui
+      dockerfile: Dockerfile
+    environment:
+      BACKEND_ADDRESS: http://idp:8081
+    depends_on:
+      idp: { condition: service_started }
     ports: ["8080:8080"]
 
   event-relay:

@@ -34,22 +34,6 @@ query_get() {
     "$field"
 }
 
-request_id_from_page() {
-  python3 -c '
-import html
-import json
-import re
-import sys
-
-body = sys.stdin.read()
-match = re.search(r"<script[^>]+id=\"ra-page-data\"[^>]*>(.*?)</script>", body, re.S)
-if not match:
-    raise SystemExit("ra-page-data が見つかりません")
-data = json.loads(html.unescape(match.group(1)))
-print(data["requestId"])
-'
-}
-
 header_value() {
   local name=$1
   awk -v name="$name" '
@@ -102,7 +86,7 @@ gen_pkce
 STATE="state-$(openssl rand -hex 8)"
 NONCE="nonce-$(openssl rand -hex 8)"
 
-curl -sS -G "$BASE/authorize" \
+curl -sS -D "$HEADERS" -o /dev/null -c "$COOKIE_JAR" -G "$BASE/authorize" \
   --data-urlencode "response_type=code" \
   --data-urlencode "client_id=$CLIENT_ID" \
   --data-urlencode "redirect_uri=$REDIRECT_URI" \
@@ -110,29 +94,39 @@ curl -sS -G "$BASE/authorize" \
   --data-urlencode "state=$STATE" \
   --data-urlencode "nonce=$NONCE" \
   --data-urlencode "code_challenge=$CODE_CHALLENGE" \
-  --data-urlencode "code_challenge_method=S256" \
-  -o "$BODY"
-
-REQUEST_ID=$(request_id_from_page <"$BODY")
-echo "ログイン UI から request_id を取得: $REQUEST_ID"
-
-curl -sS -D "$HEADERS" -o "$BODY" -c "$COOKIE_JAR" \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -X POST "$BASE/login" \
-  --data-urlencode "request_id=$REQUEST_ID" \
-  --data-urlencode "username=$USERNAME" \
-  --data-urlencode "password=$PASSWORD"
+  --data-urlencode "code_challenge_method=S256"
 
 LOCATION=$(header_value Location)
-if [ -z "$LOCATION" ]; then
-  CONSENT_REQUEST_ID=$(request_id_from_page <"$BODY")
-  echo "初回コンセントを許可: $CONSENT_REQUEST_ID"
-  curl -sS -D "$HEADERS" -o /dev/null -b "$COOKIE_JAR" \
-    -H "Content-Type: application/x-www-form-urlencoded" \
-    -X POST "$BASE/consent" \
-    --data-urlencode "request_id=$CONSENT_REQUEST_ID" \
-    --data-urlencode "action=allow"
-  LOCATION=$(header_value Location)
+if [ "$LOCATION" != "/login" ]; then
+  echo "ログイン画面へのリダイレクトがありません: $LOCATION" >&2
+  exit 1
+fi
+echo "HttpOnly 認可トランザクションCookieを受領"
+
+TRANSACTION=$(curl -fsS -b "$COOKIE_JAR" -c "$COOKIE_JAR" "$BASE/api/auth/transaction")
+CSRF_TOKEN=$(printf '%s' "$TRANSACTION" | json_get csrf_token)
+echo "ログイン用CSRFトークンを受領"
+
+LOGIN_RES=$(curl -fsS -b "$COOKIE_JAR" -c "$COOKIE_JAR" \
+  -H "Content-Type: application/json" \
+  -H "X-CSRF-Token: $CSRF_TOKEN" \
+  -H "Origin: $BASE" \
+  -X POST "$BASE/api/auth/login" \
+  --data "$(printf '{"username":"%s","password":"%s"}' "$USERNAME" "$PASSWORD")")
+
+NEXT=$(printf '%s' "$LOGIN_RES" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("next", ""))')
+LOCATION=$(printf '%s' "$LOGIN_RES" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("redirect_to", ""))')
+if [ "$NEXT" = "/consent" ]; then
+  TRANSACTION=$(curl -fsS -b "$COOKIE_JAR" -c "$COOKIE_JAR" "$BASE/api/auth/transaction")
+  CSRF_TOKEN=$(printf '%s' "$TRANSACTION" | json_get csrf_token)
+  echo "初回コンセントを許可"
+  CONSENT_RES=$(curl -fsS -b "$COOKIE_JAR" -c "$COOKIE_JAR" \
+    -H "Content-Type: application/json" \
+    -H "X-CSRF-Token: $CSRF_TOKEN" \
+    -H "Origin: $BASE" \
+    -X POST "$BASE/api/auth/consent" \
+    --data '{"action":"allow"}')
+  LOCATION=$(printf '%s' "$CONSENT_RES" | json_get redirect_to)
 fi
 
 CODE=$(printf '%s' "$LOCATION" | query_get code)
@@ -262,11 +256,15 @@ curl -sS -u "$CLIENT_ID:$CLIENT_SECRET" \
   --data-urlencode "device_code=$DEVICE_CODE" | pp
 
 echo "ログイン済みセッションで user_code=$USER_CODE を承認..."
-curl -fsS -b "$COOKIE_JAR" \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -X POST "$BASE/device" \
-  --data-urlencode "user_code=$USER_CODE" \
-  --data-urlencode "action=allow" \
+DEVICE_CONTEXT=$(curl -fsS -b "$COOKIE_JAR" -c "$COOKIE_JAR" \
+  "$BASE/api/auth/device?user_code=$USER_CODE")
+DEVICE_CSRF=$(printf '%s' "$DEVICE_CONTEXT" | json_get csrf_token)
+curl -fsS -b "$COOKIE_JAR" -c "$COOKIE_JAR" \
+  -H "Content-Type: application/json" \
+  -H "X-CSRF-Token: $DEVICE_CSRF" \
+  -H "Origin: $BASE" \
+  -X POST "$BASE/api/auth/device" \
+  --data "$(printf '{"user_code":"%s","action":"allow"}' "$USER_CODE")" \
   -o /dev/null
 
 echo "polling interval (${DEVICE_INTERVAL}s) 待機..."

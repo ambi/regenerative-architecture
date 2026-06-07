@@ -3,19 +3,37 @@ import './styles.css'
 import { RouterProvider } from '@tanstack/react-router'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { readPageData } from './page-data'
+import { AuthenticationAPIError, loadPageData } from './api'
 import { createAppRouter } from './router'
 
-const pageData = readPageData()
-const router = createAppRouter(pageData)
 const root = document.getElementById('root')
-
 if (!root) {
   throw new Error('RA Identity root element is missing')
 }
 
-createRoot(root).render(
-  <StrictMode>
-    <RouterProvider router={router} />
-  </StrictMode>,
-)
+async function start() {
+  try {
+    const pageData = await loadPageData()
+    const router = createAppRouter(pageData)
+    createRoot(root!).render(
+      <StrictMode>
+        <RouterProvider router={router} />
+      </StrictMode>,
+    )
+  } catch (error) {
+    const message =
+      error instanceof AuthenticationAPIError
+        ? error.message
+        : '認証画面を読み込めませんでした。もう一度お試しください。'
+    createRoot(root!).render(
+      <main className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
+        <div className="w-full max-w-md rounded-2xl border bg-white p-8 text-center shadow-lg">
+          <h1 className="text-xl font-semibold text-slate-950">認証を続行できません</h1>
+          <p className="mt-3 text-sm leading-6 text-slate-600">{message}</p>
+        </div>
+      </main>,
+    )
+  }
+}
+
+void start()

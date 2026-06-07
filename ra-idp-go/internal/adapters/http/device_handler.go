@@ -1,8 +1,9 @@
-// /device_authorization + /device (user code entry / approval UI)
+// /device_authorization + browser device approval API
 package http
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	authdomain "ra-idp-go/internal/authentication/domain"
@@ -10,6 +11,11 @@ import (
 
 	"github.com/labstack/echo/v5"
 )
+
+type deviceAPIRequest struct {
+	UserCode string `json:"user_code"`
+	Action   string `json:"action"`
+}
 
 func (d Deps) handleDeviceAuthorization(c *echo.Context) error {
 	if err := c.Request().ParseForm(); err != nil {
@@ -33,25 +39,55 @@ func (d Deps) handleDeviceAuthorization(c *echo.Context) error {
 	return c.JSON(http.StatusOK, res)
 }
 
-func (d Deps) handleDeviceVerification(c *echo.Context) error {
-	if c.Request().Method == http.MethodGet {
-		return renderDevice(c, c.QueryParam("user_code"))
+func (d Deps) handleDeviceContext(c *echo.Context) error {
+	csrf, err := d.ensureCSRFCookie(c)
+	if err != nil {
+		return err
 	}
-	if err := c.Request().ParseForm(); err != nil {
-		return c.String(http.StatusBadRequest, "invalid form")
+	userCode := strings.ToUpper(strings.TrimSpace(c.QueryParam("user_code")))
+	return noStoreJSON(c, http.StatusOK, map[string]string{
+		"kind": "device", "user_code": userCode, "csrf_token": csrf,
+	})
+}
+
+func (d Deps) handleDeviceAPI(c *echo.Context) error {
+	if err := d.verifyBrowserRequest(c); err != nil {
+		return err
 	}
-	userCode := c.Request().PostFormValue("user_code")
-	action := c.Request().PostFormValue("action")
-	authn, _ := d.AuthnResolver.Resolve(c.Request().Context(), authdomain.HTTPHeadersAdapter{H: c.Request().Header})
+	var input deviceAPIRequest
+	if err := decodeJSON(c.Request(), &input); err != nil {
+		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	}
+	if strings.TrimSpace(input.UserCode) == "" {
+		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "デバイスコードが必要です")
+	}
+	authn, _ := d.AuthnResolver.Resolve(
+		c.Request().Context(),
+		authdomain.HTTPHeadersAdapter{H: c.Request().Header},
+	)
 	if authn == nil {
-		return renderStatus(c, http.StatusUnauthorized, "authentication-required")
+		return writeBrowserError(c, http.StatusUnauthorized, "authentication_required", "ログインが必要です")
 	}
-	if action == "deny" {
-		_ = usecases.DenyUserCode(c.Request().Context(), usecases.VerifyUserCodeDeps{DeviceCodeStore: d.DeviceCodeStore, Emit: d.Emit}, userCode, authn.Sub, time.Now().UTC())
-		return renderStatus(c, http.StatusOK, "denied")
+	if input.Action == "deny" {
+		if err := usecases.DenyUserCode(
+			c.Request().Context(),
+			usecases.VerifyUserCodeDeps{DeviceCodeStore: d.DeviceCodeStore, Emit: d.Emit},
+			input.UserCode,
+			authn.Sub,
+			time.Now().UTC(),
+		); err != nil {
+			return writeOAuthError(c, err)
+		}
+		return noStoreJSON(c, http.StatusOK, browserFlowResponse{Next: "/status?state=denied"})
 	}
-	if err := usecases.ApproveUserCode(c.Request().Context(), usecases.VerifyUserCodeDeps{DeviceCodeStore: d.DeviceCodeStore, Emit: d.Emit}, userCode, authn.Sub, time.Now().UTC()); err != nil {
+	if err := usecases.ApproveUserCode(
+		c.Request().Context(),
+		usecases.VerifyUserCodeDeps{DeviceCodeStore: d.DeviceCodeStore, Emit: d.Emit},
+		input.UserCode,
+		authn.Sub,
+		time.Now().UTC(),
+	); err != nil {
 		return writeOAuthError(c, err)
 	}
-	return renderStatus(c, http.StatusOK, "approved")
+	return noStoreJSON(c, http.StatusOK, browserFlowResponse{Next: "/status?state=approved"})
 }

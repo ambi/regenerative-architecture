@@ -1,8 +1,13 @@
-// /authorize + /consent + /end_session + /login
+// /authorize + browser authentication APIs + /end_session
 package http
 
 import (
+	"crypto/rand"
+	"crypto/subtle"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -16,6 +21,33 @@ import (
 
 	"github.com/labstack/echo/v5"
 )
+
+const (
+	authorizationTransactionCookie = "ra_idp_transaction"
+	csrfCookie                     = "ra_idp_csrf"
+	csrfHeader                     = "X-CSRF-Token"
+)
+
+type browserFlowResponse struct {
+	Next       string `json:"next,omitempty"`
+	RedirectTo string `json:"redirect_to,omitempty"`
+}
+
+type transactionResponse struct {
+	Kind       string   `json:"kind"`
+	CSRFToken  string   `json:"csrf_token"`
+	ClientName string   `json:"client_name,omitempty"`
+	Scopes     []string `json:"scopes,omitempty"`
+}
+
+type loginAPIRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+type consentAPIRequest struct {
+	Action string `json:"action"`
+}
 
 func (d Deps) handleAuthorize(c *echo.Context) error {
 	q := c.QueryParams()
@@ -61,33 +93,179 @@ func (d Deps) handleAuthorize(c *echo.Context) error {
 		return writeOAuthError(c, err)
 	}
 
-	// 既存セッションがあれば取得
+	d.setTransactionCookie(c, out.Request.ID)
 	if d.AuthnResolver != nil {
 		authn, _ := d.AuthnResolver.Resolve(c.Request().Context(), authdomain.HTTPHeadersAdapter{H: c.Request().Header})
 		if authn != nil {
 			policy := oauthdomain.ParsePrompt(out.Request)
-			if oauthdomain.NeedsReauthentication(
-				policy,
-				time.Unix(authn.AuthTime, 0),
-				time.Now(),
-				false,
-			) {
+			if oauthdomain.NeedsReauthentication(policy, time.Unix(authn.AuthTime, 0), time.Now(), false) {
 				if in.Prompt == "none" {
 					return writeOAuthError(c, usecases.NewOAuthError("login_required", "既存セッションが認証要件を満たしません"))
 				}
-				return renderLogin(c, out.Request.ID, "")
+				return c.Redirect(http.StatusSeeOther, "/login")
 			}
-			return d.completeAfterAuthn(c, out.Request, out.Client, authn)
+			next, err := d.completeAfterAuthn(c, out.Request, out.Client, authn)
+			if err != nil {
+				return err
+			}
+			if next.RedirectTo != "" {
+				d.clearTransactionCookie(c)
+			}
+			return redirectAuthorizationNext(c, next)
 		}
 	}
 	if out.Request.Prompt != nil && *out.Request.Prompt == "none" {
 		return writeOAuthError(c, usecases.NewOAuthError("login_required", "prompt=none では再認証不可"))
 	}
-	return renderLogin(c, out.Request.ID, "")
+	return c.Redirect(http.StatusSeeOther, "/login")
 }
 
-func (d Deps) completeAfterAuthn(c *echo.Context, req *spec.AuthorizationRequest, client *spec.Client, authn *authdomain.AuthenticationContext) error {
-	// consent チェック
+func (d Deps) handleTransaction(c *echo.Context) error {
+	req, err := d.transactionRequest(c)
+	if err != nil {
+		return writeBrowserError(c, http.StatusUnauthorized, "transaction_unavailable", err.Error())
+	}
+	csrf, err := d.ensureCSRFCookie(c)
+	if err != nil {
+		return err
+	}
+	if req.Sub == nil {
+		return noStoreJSON(c, http.StatusOK, transactionResponse{Kind: "login", CSRFToken: csrf})
+	}
+	authn, _ := d.resolveAuthentication(c)
+	if authn == nil || authn.Sub != *req.Sub {
+		return writeBrowserError(c, http.StatusUnauthorized, "authentication_required", "認証セッションが一致しません")
+	}
+	client, err := d.ClientRepo.FindByID(c.Request().Context(), req.ClientID)
+	if err != nil {
+		return err
+	}
+	if client == nil {
+		return writeBrowserError(c, http.StatusBadRequest, "invalid_transaction", "クライアントが存在しません")
+	}
+	name := client.ClientID
+	if client.ClientName != nil {
+		name = *client.ClientName
+	}
+	return noStoreJSON(c, http.StatusOK, transactionResponse{
+		Kind: "consent", CSRFToken: csrf, ClientName: name, Scopes: strings.Fields(req.Scope),
+	})
+}
+
+func (d Deps) handleLoginAPI(c *echo.Context) error {
+	if err := d.verifyBrowserRequest(c); err != nil {
+		return err
+	}
+	req, err := d.transactionRequest(c)
+	if err != nil {
+		return writeBrowserError(c, http.StatusUnauthorized, "transaction_unavailable", err.Error())
+	}
+	var input loginAPIRequest
+	if err := decodeJSON(c.Request(), &input); err != nil {
+		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	}
+	if strings.TrimSpace(input.Username) == "" || input.Password == "" {
+		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "ユーザー名とパスワードが必要です")
+	}
+
+	user, err := d.UserRepo.FindByUsername(c.Request().Context(), input.Username)
+	if err != nil {
+		return err
+	}
+	if user == nil {
+		d.emitAuthenticationFailure(input.Username, "user_not_found")
+		return writeBrowserError(c, http.StatusUnauthorized, "invalid_credentials", "ユーザー名またはパスワードを確認してください。")
+	}
+	ok, err := d.PasswordHasher.Verify(input.Password, user.PasswordHash)
+	if err != nil || !ok {
+		d.emitAuthenticationFailure(input.Username, "invalid_credentials")
+		return writeBrowserError(c, http.StatusUnauthorized, "invalid_credentials", "ユーザー名またはパスワードを確認してください。")
+	}
+	if result := authusecases.ValidatePassword(input.Password); !result.OK {
+		return writeBrowserError(c, http.StatusUnauthorized, "password_policy", "パスワードがセキュリティ要件を満たしていません。")
+	}
+
+	authTime := time.Now().UTC()
+	authn, err := d.SessionManager.Create(c.Request().Context(), user.Sub, []string{"pwd"}, authTime)
+	if err != nil {
+		return err
+	}
+	d.setSessionCookie(c, authn.SessionID)
+	if d.Emit != nil {
+		d.Emit(&spec.UserAuthenticated{At: authTime, Sub: user.Sub, AMR: []string{"pwd"}})
+	}
+	if err := d.RequestStore.AttachSubject(c.Request().Context(), req.ID, user.Sub, authn.AuthTime); err != nil {
+		return writeOAuthError(c, err)
+	}
+	req.Sub, req.AuthTime = &user.Sub, &authn.AuthTime
+	client, err := d.ClientRepo.FindByID(c.Request().Context(), req.ClientID)
+	if err != nil || client == nil {
+		return writeBrowserError(c, http.StatusBadRequest, "invalid_transaction", "クライアントが存在しません")
+	}
+	next, err := d.completeAfterAuthn(c, req, client, authn)
+	if err != nil {
+		return err
+	}
+	if next.RedirectTo != "" {
+		d.clearTransactionCookie(c)
+	}
+	return writeAuthorizationNext(c, next)
+}
+
+func (d Deps) handleConsentAPI(c *echo.Context) error {
+	if err := d.verifyBrowserRequest(c); err != nil {
+		return err
+	}
+	req, err := d.transactionRequest(c)
+	if err != nil {
+		return writeBrowserError(c, http.StatusUnauthorized, "transaction_unavailable", err.Error())
+	}
+	authn, _ := d.resolveAuthentication(c)
+	if authn == nil || req.Sub == nil || authn.Sub != *req.Sub {
+		return writeBrowserError(c, http.StatusUnauthorized, "authentication_required", "認証セッションが一致しません")
+	}
+	var input consentAPIRequest
+	if err := decodeJSON(c.Request(), &input); err != nil {
+		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	}
+	if input.Action != "allow" {
+		_ = d.RequestStore.UpdateState(c.Request().Context(), req.ID, spec.AuthFlowRejected)
+		d.clearTransactionCookie(c)
+		return noStoreJSON(c, http.StatusOK, browserFlowResponse{RedirectTo: authorizationErrorURL(req, "access_denied", "")})
+	}
+
+	scopes := strings.Fields(req.Scope)
+	if d.ConsentRepo != nil {
+		now := time.Now().UTC()
+		if err := d.ConsentRepo.Save(c.Request().Context(), &spec.Consent{
+			Sub: authn.Sub, ClientID: req.ClientID, Scopes: scopes, State: spec.ConsentGranted,
+			GrantedAt: now, ExpiresAt: now.Add(365 * 24 * time.Hour),
+		}); err != nil {
+			return err
+		}
+		if d.Emit != nil {
+			d.Emit(&spec.ConsentGrantedEvent{At: now, Sub: authn.Sub, ClientID: req.ClientID, Scopes: scopes})
+		}
+	}
+	redirectTo, err := d.issueCodeURL(c, req, authn.Sub, time.Unix(authn.AuthTime, 0))
+	if err != nil {
+		return err
+	}
+	d.clearTransactionCookie(c)
+	return noStoreJSON(c, http.StatusOK, browserFlowResponse{RedirectTo: redirectTo})
+}
+
+type authorizationNext struct {
+	Path       string
+	RedirectTo string
+}
+
+func (d Deps) completeAfterAuthn(
+	c *echo.Context,
+	req *spec.AuthorizationRequest,
+	client *spec.Client,
+	authn *authdomain.AuthenticationContext,
+) (authorizationNext, error) {
 	if d.ConsentRepo != nil {
 		consent, _ := d.ConsentRepo.Find(c.Request().Context(), authn.Sub, client.ClientID)
 		covered := consent != nil &&
@@ -107,17 +285,22 @@ func (d Deps) completeAfterAuthn(c *echo.Context, req *spec.AuthorizationRequest
 		}
 		if !covered {
 			if err := d.RequestStore.AttachSubject(c.Request().Context(), req.ID, authn.Sub, authn.AuthTime); err != nil {
-				return writeOAuthError(c, err)
+				return authorizationNext{}, err
 			}
-			req.Sub = &authn.Sub
-			req.AuthTime = &authn.AuthTime
-			return renderConsent(c, req, client)
+			req.Sub, req.AuthTime = &authn.Sub, &authn.AuthTime
+			return authorizationNext{Path: "/consent"}, nil
 		}
 	}
-	return d.issueCodeAndRedirect(c, req, authn.Sub, time.Unix(authn.AuthTime, 0))
+	redirectTo, err := d.issueCodeURL(c, req, authn.Sub, time.Unix(authn.AuthTime, 0))
+	return authorizationNext{RedirectTo: redirectTo}, err
 }
 
-func (d Deps) issueCodeAndRedirect(c *echo.Context, req *spec.AuthorizationRequest, sub string, authTime time.Time) error {
+func (d Deps) issueCodeURL(
+	c *echo.Context,
+	req *spec.AuthorizationRequest,
+	sub string,
+	authTime time.Time,
+) (string, error) {
 	out, err := usecases.CompleteLogin(c.Request().Context(), usecases.CompleteLoginDeps{
 		RequestStore: d.RequestStore,
 		CodeStore:    d.CodeStore,
@@ -125,92 +308,65 @@ func (d Deps) issueCodeAndRedirect(c *echo.Context, req *spec.AuthorizationReque
 	if err != nil {
 		var oauthErr *usecases.OAuthError
 		if errors.As(err, &oauthErr) {
-			return redirectAuthorizationError(c, req, oauthErr)
+			return authorizationErrorURL(req, oauthErr.Code, oauthErr.Description), nil
 		}
-		return writeOAuthError(c, err)
+		return "", err
 	}
 	if d.Emit != nil {
-		d.Emit(&spec.AuthorizationCodeIssued{At: time.Now().UTC(), ClientID: req.ClientID, Sub: sub, Scopes: out.Code.Scopes, CodeChallengeMethod: req.CodeChallengeMethod})
+		d.Emit(&spec.AuthorizationCodeIssued{
+			At: time.Now().UTC(), ClientID: req.ClientID, Sub: sub,
+			Scopes: out.Code.Scopes, CodeChallengeMethod: req.CodeChallengeMethod,
+		})
 	}
 	u, _ := url.Parse(out.Request.RedirectURI)
-	qry := u.Query()
-	qry.Set("code", out.Code.Code)
+	query := u.Query()
+	query.Set("code", out.Code.Code)
 	if out.Request.StateParam != nil {
-		qry.Set("state", *out.Request.StateParam)
+		query.Set("state", *out.Request.StateParam)
 	}
-	u.RawQuery = qry.Encode()
-	return c.Redirect(http.StatusFound, u.String())
+	u.RawQuery = query.Encode()
+	return u.String(), nil
 }
 
-func redirectAuthorizationError(c *echo.Context, req *spec.AuthorizationRequest, oauthErr *usecases.OAuthError) error {
-	u, err := url.Parse(req.RedirectURI)
-	if err != nil {
-		return writeOAuthError(c, oauthErr)
+func authorizationErrorURL(req *spec.AuthorizationRequest, code, description string) string {
+	u, _ := url.Parse(req.RedirectURI)
+	query := u.Query()
+	query.Set("error", code)
+	if description != "" {
+		query.Set("error_description", description)
 	}
-	q := u.Query()
-	q.Set("error", oauthErr.Code)
-	q.Set("error_description", oauthErr.Description)
 	if req.StateParam != nil {
-		q.Set("state", *req.StateParam)
+		query.Set("state", *req.StateParam)
 	}
-	u.RawQuery = q.Encode()
-	return c.Redirect(http.StatusFound, u.String())
+	u.RawQuery = query.Encode()
+	return u.String()
 }
 
-func (d Deps) handleConsent(c *echo.Context) error {
-	if err := c.Request().ParseForm(); err != nil {
-		return writeOAuthError(c, usecases.NewOAuthError("invalid_request", "form body parse failed"))
+func redirectAuthorizationNext(c *echo.Context, next authorizationNext) error {
+	if next.RedirectTo != "" {
+		return c.Redirect(http.StatusFound, next.RedirectTo)
 	}
-	reqID := c.Request().PostFormValue("request_id")
-	action := c.Request().PostFormValue("action")
-	req, err := d.RequestStore.Find(c.Request().Context(), reqID)
-	if err != nil {
-		return writeOAuthError(c, err)
+	return c.Redirect(http.StatusSeeOther, next.Path)
+}
+
+func writeAuthorizationNext(c *echo.Context, next authorizationNext) error {
+	if next.RedirectTo != "" {
+		return noStoreJSON(c, http.StatusOK, browserFlowResponse{RedirectTo: next.RedirectTo})
 	}
-	if req == nil {
-		return writeOAuthError(c, usecases.NewOAuthError("invalid_request", "未知の authorization_request"))
-	}
-	if action != "allow" {
-		u, _ := url.Parse(req.RedirectURI)
-		q := u.Query()
-		q.Set("error", "access_denied")
-		if req.StateParam != nil {
-			q.Set("state", *req.StateParam)
-		}
-		u.RawQuery = q.Encode()
-		return c.Redirect(http.StatusFound, u.String())
-	}
-	if req.Sub == nil {
-		return writeOAuthError(c, usecases.NewOAuthError("invalid_request", "consent 前にログインが必要"))
-	}
-	scopes := strings.Fields(req.Scope)
-	if d.ConsentRepo != nil {
-		now := time.Now().UTC()
-		_ = d.ConsentRepo.Save(c.Request().Context(), &spec.Consent{
-			Sub: *req.Sub, ClientID: req.ClientID, Scopes: scopes, State: spec.ConsentGranted,
-			GrantedAt: now, ExpiresAt: now.Add(365 * 24 * time.Hour),
-		})
-		if d.Emit != nil {
-			d.Emit(&spec.ConsentGrantedEvent{At: now, Sub: *req.Sub, ClientID: req.ClientID, Scopes: scopes})
-		}
-	}
-	authTime := time.Now().UTC()
-	if req.AuthTime != nil {
-		authTime = time.Unix(*req.AuthTime, 0).UTC()
-	}
-	return d.issueCodeAndRedirect(c, req, *req.Sub, authTime)
+	return noStoreJSON(c, http.StatusOK, browserFlowResponse{Next: next.Path})
 }
 
 func (d Deps) handleEndSession(c *echo.Context) error {
 	if d.SessionManager != nil {
 		_ = d.SessionManager.Revoke(c.Request().Context(), c.Request().Header.Get("Cookie"))
+		d.clearSessionCookie(c)
 	}
 	post := c.QueryParam("post_logout_redirect_uri")
 	if post == "" {
 		post = c.Request().PostFormValue("post_logout_redirect_uri")
 	}
 	if post == "" {
-		return renderStatus(c, http.StatusOK, "signed-out")
+		return c.Redirect(http.StatusSeeOther, "/status?state=signed-out")
 	}
 	clientID := c.QueryParam("client_id")
 	if clientID == "" {
@@ -223,92 +379,136 @@ func (d Deps) handleEndSession(c *echo.Context) error {
 	if err != nil {
 		return writeOAuthError(c, err)
 	}
-	if client == nil {
-		return writeOAuthError(c, usecases.NewOAuthError("invalid_request", "未知の client_id"))
-	}
-	if !containsString(client.RedirectURIs, post) {
+	if client == nil || !containsString(client.RedirectURIs, post) {
 		return writeOAuthError(c, usecases.NewOAuthError("invalid_request", "post_logout_redirect_uri が未登録"))
 	}
 	u, _ := url.Parse(post)
-	q := u.Query()
+	query := u.Query()
 	if state := c.QueryParam("state"); state != "" {
-		q.Set("state", state)
+		query.Set("state", state)
 	}
-	u.RawQuery = q.Encode()
+	u.RawQuery = query.Encode()
 	return c.Redirect(http.StatusFound, u.String())
 }
 
-func (d Deps) handleLogin(c *echo.Context) error {
-	input, err := parseLoginRequest(c.Request())
+func (d Deps) transactionRequest(c *echo.Context) (*spec.AuthorizationRequest, error) {
+	cookie, err := c.Cookie(authorizationTransactionCookie)
+	if err != nil || cookie.Value == "" {
+		return nil, errors.New("認可トランザクションがありません")
+	}
+	req, err := d.RequestStore.Find(c.Request().Context(), cookie.Value)
 	if err != nil {
-		return c.String(http.StatusBadRequest, err.Error())
+		return nil, err
 	}
-	requestID := input.RequestID
-	username := input.Username
-	password := input.Password
-	user, err := d.UserRepo.FindByUsername(c.Request().Context(), username)
-	if err != nil {
-		return err
+	if req == nil || time.Now().After(req.ExpiresAt) || req.State != spec.AuthFlowReceived {
+		return nil, errors.New("認可トランザクションが無効または期限切れです")
 	}
-	if user == nil {
-		if d.Emit != nil {
-			d.Emit(&spec.AuthenticationFailed{At: time.Now().UTC(), Username: username, Reason: "user_not_found"})
-		}
-		return renderLogin(c, requestID, "ユーザー名またはパスワードを確認してください。")
-	}
-	ok, err := d.PasswordHasher.Verify(password, user.PasswordHash)
-	if err != nil || !ok {
-		if d.Emit != nil {
-			d.Emit(&spec.AuthenticationFailed{At: time.Now().UTC(), Username: username, Reason: "invalid_credentials"})
-		}
-		return renderLogin(c, requestID, "ユーザー名またはパスワードを確認してください。")
-	}
-	if r := authusecases.ValidatePassword(password); !r.OK {
-		return renderLogin(c, requestID, "パスワードがセキュリティ要件を満たしていません。")
-	}
+	return req, nil
+}
 
-	// セッション作成
-	var sessionID string
-	if d.SessionManager != nil {
-		authn, err := d.SessionManager.Create(c.Request().Context(), user.Sub, []string{"pwd"}, time.Now().UTC())
-		if err != nil {
-			return err
-		}
-		sessionID = authn.SessionID
+func (d Deps) resolveAuthentication(c *echo.Context) (*authdomain.AuthenticationContext, error) {
+	if d.AuthnResolver == nil {
+		return nil, nil
 	}
-	if sessionID != "" {
-		// Secure 属性は issuer が https の場合のみ付与する。HTTP では Secure を立てると
-		// ブラウザが cookie を捨てて挙動が壊れるためデモ用途では条件付きにする。
-		// 本番では常に https を強制する想定（ADR-021 の HSTS 設定と組み合わせる）。
-		secure := strings.HasPrefix(d.Issuer, "https://")
-		c.SetCookie(&http.Cookie{ //nolint:gosec // Secure is set conditionally; see above
-			Name: authusecases.SessionCookie, Value: sessionID, Path: "/",
-			HttpOnly: true, Secure: secure, SameSite: http.SameSiteLaxMode,
-			MaxAge: authusecases.SessionTTLSeconds,
-		})
+	return d.AuthnResolver.Resolve(
+		c.Request().Context(),
+		authdomain.HTTPHeadersAdapter{H: c.Request().Header},
+	)
+}
+
+func (d Deps) verifyBrowserRequest(c *echo.Context) error {
+	origin := c.Request().Header.Get("Origin")
+	issuer, err := url.Parse(d.Issuer)
+	if err != nil || origin == "" || origin != issuer.Scheme+"://"+issuer.Host {
+		return writeBrowserError(c, http.StatusForbidden, "invalid_origin", "Originが一致しません")
 	}
+	cookie, err := c.Cookie(csrfCookie)
+	header := c.Request().Header.Get(csrfHeader)
+	if err != nil || cookie.Value == "" || header == "" ||
+		len(cookie.Value) != len(header) ||
+		subtle.ConstantTimeCompare([]byte(cookie.Value), []byte(header)) != 1 {
+		return writeBrowserError(c, http.StatusForbidden, "csrf_failed", "CSRF検証に失敗しました")
+	}
+	return nil
+}
+
+func (d Deps) ensureCSRFCookie(c *echo.Context) (string, error) {
+	if cookie, err := c.Cookie(csrfCookie); err == nil && cookie.Value != "" {
+		return cookie.Value, nil
+	}
+	value, err := randomToken(32)
+	if err != nil {
+		return "", err
+	}
+	c.SetCookie(&http.Cookie{
+		Name: csrfCookie, Value: value, Path: "/api/auth",
+		Secure: d.secureCookies(), HttpOnly: false, SameSite: http.SameSiteStrictMode,
+		MaxAge: 600,
+	})
+	return value, nil
+}
+
+func (d Deps) setTransactionCookie(c *echo.Context, requestID string) {
+	c.SetCookie(&http.Cookie{
+		Name: authorizationTransactionCookie, Value: requestID, Path: "/",
+		Secure: d.secureCookies(), HttpOnly: true, SameSite: http.SameSiteLaxMode,
+		MaxAge: 600,
+	})
+}
+
+func (d Deps) clearTransactionCookie(c *echo.Context) {
+	c.SetCookie(&http.Cookie{
+		Name: authorizationTransactionCookie, Path: "/",
+		Secure: d.secureCookies(), HttpOnly: true, SameSite: http.SameSiteLaxMode,
+		MaxAge: -1,
+	})
+}
+
+func (d Deps) setSessionCookie(c *echo.Context, sessionID string) {
+	c.SetCookie(&http.Cookie{
+		Name: authusecases.SessionCookie, Value: sessionID, Path: "/",
+		Secure: d.secureCookies(), HttpOnly: true, SameSite: http.SameSiteLaxMode,
+		MaxAge: authusecases.SessionTTLSeconds,
+	})
+}
+
+func (d Deps) clearSessionCookie(c *echo.Context) {
+	c.SetCookie(&http.Cookie{
+		Name: authusecases.SessionCookie, Path: "/",
+		Secure: d.secureCookies(), HttpOnly: true, SameSite: http.SameSiteLaxMode,
+		MaxAge: -1,
+	})
+}
+
+func (d Deps) secureCookies() bool {
+	return strings.HasPrefix(d.Issuer, "https://")
+}
+
+func (d Deps) emitAuthenticationFailure(username, reason string) {
 	if d.Emit != nil {
-		d.Emit(&spec.UserAuthenticated{At: time.Now().UTC(), Sub: user.Sub, AMR: []string{"pwd"}})
+		d.Emit(&spec.AuthenticationFailed{At: time.Now().UTC(), Username: username, Reason: reason})
 	}
+}
 
-	// authorization request を読み出して継続
-	req, err := d.RequestStore.Find(c.Request().Context(), requestID)
-	if err != nil {
-		return writeOAuthError(c, err)
+func decodeJSON(request *http.Request, destination any) error {
+	decoder := json.NewDecoder(io.LimitReader(request.Body, 64<<10))
+	decoder.DisallowUnknownFields()
+	return decoder.Decode(destination)
+}
+
+func randomToken(size int) (string, error) {
+	value := make([]byte, size)
+	if _, err := rand.Read(value); err != nil {
+		return "", err
 	}
-	if req == nil {
-		return writeOAuthError(c, usecases.NewOAuthError("invalid_request", "未知の authorization_request"))
-	}
-	client, err := d.ClientRepo.FindByID(c.Request().Context(), req.ClientID)
-	if err != nil || client == nil {
-		return writeOAuthError(c, usecases.NewOAuthError("invalid_request", "client missing"))
-	}
-	// 認証直後は authTime = 今
-	if err := d.RequestStore.AttachSubject(c.Request().Context(), req.ID, user.Sub, time.Now().Unix()); err != nil {
-		return writeOAuthError(c, err)
-	}
-	req.Sub = &user.Sub
-	t := time.Now().Unix()
-	req.AuthTime = &t
-	return d.completeAfterAuthn(c, req, client, &authdomain.AuthenticationContext{Sub: user.Sub, AuthTime: t})
+	return base64.RawURLEncoding.EncodeToString(value), nil
+}
+
+func noStoreJSON(c *echo.Context, status int, body any) error {
+	c.Response().Header().Set("Cache-Control", "no-store")
+	return c.JSON(status, body)
+}
+
+func writeBrowserError(c *echo.Context, status int, code, message string) error {
+	return noStoreJSON(c, status, map[string]string{"error": code, "message": message})
 }

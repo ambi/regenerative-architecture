@@ -1,0 +1,44 @@
+:8080 {
+	encode zstd gzip
+
+	@backend path \
+ /api/* \
+ /authorize \
+ /token \
+ /revoke \
+ /introspect \
+ /userinfo \
+ /register \
+ /par \
+ /device_authorization \
+ /end_session \
+ /.well-known/* \
+ /jwks \
+ /health
+
+	handle @backend {
+		reverse_proxy {$BACKEND_ADDRESS:http://idp:8081}
+	}
+
+	handle /assets/* {
+		root * /srv
+		header {
+			Cache-Control "public, max-age=31536000, immutable"
+			X-Content-Type-Options "nosniff"
+		}
+		file_server
+	}
+
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		header {
+			Cache-Control "no-store"
+			Content-Security-Policy "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"
+			Referrer-Policy "no-referrer"
+			X-Content-Type-Options "nosniff"
+			X-Frame-Options "DENY"
+		}
+		file_server
+	}
+}

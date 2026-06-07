@@ -1,13 +1,11 @@
 package http
 
 import (
-	"net/http"
 	"net/url"
 
 	"ra-idp-go/internal/validation"
 
 	z "github.com/Oudwins/zog"
-	zhttp "github.com/Oudwins/zog/zhttp"
 )
 
 type authorizeRequest struct {
@@ -44,24 +42,6 @@ func parseAuthorizeRequest(values url.Values) (authorizeRequest, error) {
 	var request authorizeRequest
 	err := validation.Error(authorizeRequestSchema.Parse(data, &request))
 	return request, err
-}
-
-type loginRequest struct {
-	RequestID string `form:"request_id"`
-	Username  string `form:"username"`
-	Password  string `form:"password"`
-}
-
-var loginRequestSchema = z.Struct(z.Shape{
-	"requestID": z.String().UUID().Required(),
-	"username":  z.String().Required(),
-	"password":  z.String().Required(),
-})
-
-func parseLoginRequest(request *http.Request) (loginRequest, error) {
-	var input loginRequest
-	err := validation.Error(loginRequestSchema.Parse(zhttp.Request(request), &input))
-	return input, err
 }
 
 type registerClientRequest struct {

@@ -42,17 +42,14 @@ type Deps struct {
 }
 
 func Register(e *echo.Echo, d Deps) {
-	e.GET("/ui/assets/app.css", func(c *echo.Context) error {
-		return serveUIAsset(c, "app.css", "text/css; charset=UTF-8")
-	})
-	e.GET("/ui/assets/app.js", func(c *echo.Context) error {
-		return serveUIAsset(c, "app.js", "text/javascript; charset=UTF-8")
-	})
 	e.GET("/authorize", d.handleAuthorize)
-	e.POST("/login", d.handleLogin)
-	e.POST("/consent", d.handleConsent)
 	e.GET("/end_session", d.handleEndSession)
 	e.POST("/end_session", d.handleEndSession)
+	e.GET("/api/auth/transaction", d.handleTransaction)
+	e.POST("/api/auth/login", d.handleLoginAPI)
+	e.POST("/api/auth/consent", d.handleConsentAPI)
+	e.GET("/api/auth/device", d.handleDeviceContext)
+	e.POST("/api/auth/device", d.handleDeviceAPI)
 	e.POST("/token", d.handleToken)
 	e.POST("/revoke", d.handleRevoke)
 	e.POST("/introspect", d.handleIntrospect)
@@ -61,8 +58,6 @@ func Register(e *echo.Echo, d Deps) {
 	e.POST("/register", d.handleRegisterClient)
 	e.POST("/par", d.handlePAR)
 	e.POST("/device_authorization", d.handleDeviceAuthorization)
-	e.GET("/device", d.handleDeviceVerification)
-	e.POST("/device", d.handleDeviceVerification)
 	e.GET("/.well-known/openid-configuration", d.handleDiscovery)
 	e.GET("/jwks", d.handleJWKS)
 	e.GET("/health", d.handleHealth)

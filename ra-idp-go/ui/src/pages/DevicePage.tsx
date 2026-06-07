@@ -6,16 +6,38 @@ import {
   IconX,
 } from '@tabler/icons-react'
 import { useState } from 'react'
+import { AuthenticationAPIError, continueBrowserFlow, submitDevice } from '../api'
 import { AuthShell } from '../components/AuthShell'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import type { DevicePage as DevicePageData } from '../types'
 
-export function DevicePage({ userCode }: DevicePageData) {
+export function DevicePage({ csrfToken, userCode }: DevicePageData) {
   const normalizedCode = userCode.replace(/-/g, '').toUpperCase()
   const [code, setCode] = useState(normalizedCode)
+  const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
   const isComplete = code.length === 8
+
+  async function handleDevice(action: 'allow' | 'deny') {
+    setSubmitting(true)
+    setError('')
+    try {
+      continueBrowserFlow(await submitDevice(csrfToken, code, action))
+    } catch (cause) {
+      if (cause instanceof AuthenticationAPIError && cause.code === 'authentication_required') {
+        window.location.assign('/status?state=authentication-required')
+        return
+      }
+      setError(
+        cause instanceof AuthenticationAPIError
+          ? cause.message
+          : 'デバイス要求を処理できませんでした。',
+      )
+      setSubmitting(false)
+    }
+  }
 
   return (
     <AuthShell
@@ -34,8 +56,7 @@ export function DevicePage({ userCode }: DevicePageData) {
           </p>
         </header>
 
-        <form method="POST" action="/device">
-          <input type="hidden" name="user_code" value={code} />
+        <form onSubmit={(event) => event.preventDefault()}>
           <div className="flex flex-col gap-5">
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
@@ -64,6 +85,7 @@ export function DevicePage({ userCode }: DevicePageData) {
                   spellCheck={false}
                   aria-describedby="user-code-hint"
                   className="h-16 px-12 text-center font-mono text-xl font-bold tracking-[0.32em] uppercase sm:text-2xl"
+                  disabled={submitting}
                 />
               </div>
               <p id="user-code-hint" className="text-xs leading-5 text-slate-500">
@@ -81,18 +103,28 @@ export function DevicePage({ userCode }: DevicePageData) {
               <p>コードが一致していても、自分で開始していない接続要求は承認しないでください。</p>
             </div>
 
+            {error ? (
+              <p role="alert" className="text-sm font-medium text-red-700">
+                {error}
+              </p>
+            ) : null}
+
             <div className="flex flex-col gap-2.5">
-              <Button type="submit" name="action" value="allow" size="lg" disabled={!isComplete}>
+              <Button
+                type="button"
+                size="lg"
+                disabled={!isComplete || submitting}
+                onClick={() => handleDevice('allow')}
+              >
                 <IconShieldCheck size={18} aria-hidden="true" />
-                このデバイスを承認
+                {submitting ? '処理しています…' : 'このデバイスを承認'}
               </Button>
               <Button
-                type="submit"
-                name="action"
-                value="deny"
+                type="button"
                 size="lg"
                 variant="ghost"
-                disabled={!isComplete}
+                disabled={!isComplete || submitting}
+                onClick={() => handleDevice('deny')}
               >
                 <IconX size={17} aria-hidden="true" />
                 接続を拒否

@@ -9,6 +9,8 @@ import {
   IconUser,
   IconX,
 } from '@tabler/icons-react'
+import { useState } from 'react'
+import { AuthenticationAPIError, continueBrowserFlow, submitConsent } from '../api'
 import { AuthShell } from '../components/AuthShell'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
@@ -33,8 +35,24 @@ const scopeDetails: Record<string, { label: string; description: string; icon: t
   },
 }
 
-export function ConsentPage({ requestId, clientName, scope }: ConsentPageData) {
-  const scopes = scope.split(/\s+/).filter(Boolean)
+export function ConsentPage({ csrfToken, clientName, scopes }: ConsentPageData) {
+  const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  async function handleConsent(action: 'allow' | 'deny') {
+    setSubmitting(true)
+    setError('')
+    try {
+      continueBrowserFlow(await submitConsent(csrfToken, action))
+    } catch (cause) {
+      setError(
+        cause instanceof AuthenticationAPIError
+          ? cause.message
+          : 'アクセス要求を処理できませんでした。',
+      )
+      setSubmitting(false)
+    }
+  }
 
   return (
     <AuthShell
@@ -98,19 +116,33 @@ export function ConsentPage({ requestId, clientName, scope }: ConsentPageData) {
           <p>許可は組織のポリシーに従って保存され、後から管理者またはアプリ側で取り消せます。</p>
         </div>
 
-        <form method="POST" action="/consent">
-          <input type="hidden" name="request_id" value={requestId} />
-          <div className="flex flex-col gap-2.5">
-            <Button type="submit" name="action" value="allow" size="lg">
-              許可して続行
-              <IconArrowRight size={18} aria-hidden="true" />
-            </Button>
-            <Button type="submit" name="action" value="deny" size="lg" variant="ghost">
-              <IconX size={17} aria-hidden="true" />
-              許可しない
-            </Button>
-          </div>
-        </form>
+        {error ? (
+          <p role="alert" className="text-sm font-medium text-red-700">
+            {error}
+          </p>
+        ) : null}
+
+        <div className="flex flex-col gap-2.5">
+          <Button
+            type="button"
+            size="lg"
+            disabled={submitting}
+            onClick={() => handleConsent('allow')}
+          >
+            {submitting ? '処理しています…' : '許可して続行'}
+            <IconArrowRight size={18} aria-hidden="true" />
+          </Button>
+          <Button
+            type="button"
+            size="lg"
+            variant="ghost"
+            disabled={submitting}
+            onClick={() => handleConsent('deny')}
+          >
+            <IconX size={17} aria-hidden="true" />
+            許可しない
+          </Button>
+        </div>
       </div>
     </AuthShell>
   )

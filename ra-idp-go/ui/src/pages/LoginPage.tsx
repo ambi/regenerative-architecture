@@ -7,7 +7,8 @@ import {
   IconLock,
   IconShieldLock,
 } from '@tabler/icons-react'
-import { useState } from 'react'
+import { type FormEvent, useState } from 'react'
+import { AuthenticationAPIError, continueBrowserFlow, login } from '../api'
 import { AuthShell } from '../components/AuthShell'
 import { Alert } from '../components/ui/alert'
 import { Button } from '../components/ui/button'
@@ -15,8 +16,32 @@ import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import type { LoginPage as LoginPageData } from '../types'
 
-export function LoginPage({ requestId, error }: LoginPageData) {
+export function LoginPage({ csrfToken }: LoginPageData) {
   const [showPassword, setShowPassword] = useState(false)
+  const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const form = new FormData(event.currentTarget)
+    setSubmitting(true)
+    setError('')
+    try {
+      const result = await login(
+        csrfToken,
+        String(form.get('username') ?? ''),
+        String(form.get('password') ?? ''),
+      )
+      continueBrowserFlow(result)
+    } catch (cause) {
+      setError(
+        cause instanceof AuthenticationAPIError
+          ? cause.message
+          : '認証サービスに接続できませんでした。',
+      )
+      setSubmitting(false)
+    }
+  }
 
   return (
     <AuthShell>
@@ -43,8 +68,7 @@ export function LoginPage({ requestId, error }: LoginPageData) {
           </Alert>
         ) : null}
 
-        <form method="POST" action="/login">
-          <input type="hidden" name="request_id" value={requestId} />
+        <form onSubmit={handleSubmit}>
           <div className="flex flex-col gap-5">
             <div className="flex flex-col gap-2">
               <Label htmlFor="username">ユーザー名</Label>
@@ -63,6 +87,7 @@ export function LoginPage({ requestId, error }: LoginPageData) {
                   spellCheck={false}
                   required
                   autoFocus
+                  disabled={submitting}
                 />
               </div>
             </div>
@@ -86,6 +111,7 @@ export function LoginPage({ requestId, error }: LoginPageData) {
                   className="px-10"
                   autoComplete="current-password"
                   required
+                  disabled={submitting}
                 />
                 <button
                   type="button"
@@ -103,8 +129,8 @@ export function LoginPage({ requestId, error }: LoginPageData) {
               </div>
             </div>
 
-            <Button type="submit" size="lg" className="mt-1 w-full">
-              ログインして続行
+            <Button type="submit" size="lg" className="mt-1 w-full" disabled={submitting}>
+              {submitting ? '確認しています…' : 'ログインして続行'}
               <IconArrowRight size={18} aria-hidden="true" />
             </Button>
           </div>

@@ -4,16 +4,25 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  base: '/ui/',
+  base: '/',
+  server: {
+    proxy: {
+      '/api': 'http://localhost:8081',
+      '/authorize': 'http://localhost:8081',
+      '/token': 'http://localhost:8081',
+      '/revoke': 'http://localhost:8081',
+      '/introspect': 'http://localhost:8081',
+      '/userinfo': 'http://localhost:8081',
+      '/register': 'http://localhost:8081',
+      '/par': 'http://localhost:8081',
+      '/device_authorization': 'http://localhost:8081',
+      '/end_session': 'http://localhost:8081',
+      '/.well-known': 'http://localhost:8081',
+      '/jwks': 'http://localhost:8081',
+      '/health': 'http://localhost:8081',
+    },
+  },
   build: {
     cssCodeSplit: false,
-    rollupOptions: {
-      output: {
-        entryFileNames: 'assets/app.js',
-        chunkFileNames: 'assets/[name].js',
-        assetFileNames: (assetInfo) =>
-          assetInfo.name?.endsWith('.css') ? 'assets/app.css' : 'assets/[name][extname]',
-      },
-    },
   },
 })

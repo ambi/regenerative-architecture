@@ -7,8 +7,8 @@
 TS 側と同じスコープを目標に実装した:
 
 - 全 SCL バインディング (vocabulary / models / state_machines / objectives / properties / scenarios / permissions / interfaces / annotations)
-- 認可エンドポイント `/authorize` + Consent UI (`/consent`) + End Session (`/end_session`)
-- ログイン `/login` + Session Cookie + Session Manager
+- 認可エンドポイント `/authorize` + React Login / Consent UI + End Session (`/end_session`)
+- ブラウザ認証API `/api/auth/*` + Session Cookie + CSRF
 - トークンエンドポイント `/token` (authorization_code, refresh_token, client_credentials, device_code)
 - リフレッシュトークンのローテーション + ファミリー失効 (ADR-004)
 - DPoP (RFC 9449) プルーフ検証
@@ -28,33 +28,38 @@ TS 側と同じスコープを目標に実装した:
 - Domain Event 発火 (console / outbox event sink)
 - Zog schema によるモデル・HTTP入力・パスワードポリシー検証
 
-スコープから外したもの:
-
-- TS の `web-security.ts` の CSRF cookie 二重提出。Go 版はセッションcookieの `SameSite=Lax` を採用し、二重提出tokenは追加しない。
-
 ## 起動
 
-```bash
-go run ./cmd/ra-idp-go
-```
-
 認証UIは TypeScript + Vite + React + Tailwind CSS + Radix UI + shadcn/ui +
-TanStack Router / Table で実装し、
-production bundle をGoバイナリに埋め込んでいる。UIを変更した場合は先にbuildする。
+TanStack Router / Table で実装する。Go APIとは別成果物・別プロセスとして配信し、
+CaddyなどのGatewayから同一オリジンに統合する。
 デザインと実装の判断基準は [`ui/README.md`](ui/README.md) に記載する。
 
+開発時はGo APIとReact UIを別プロセスで起動する。
+
 ```bash
+# terminal 1: Go API
+ADDR=:8081 ISSUER=http://localhost:5173 go run ./cmd/ra-idp-go
+
+# terminal 2: React UI (API proxy included)
 cd ui
 bun install
-bun run lint
-bun run build
-cd ..
-go run ./cmd/ra-idp-go
+bun run dev
 ```
 
-別ターミナルから主要な OAuth 2.0 / OpenID Connect フローを実行する:
+`http://localhost:5173/` を開き、「ローカルデモ認証を開始」を選ぶ。
+ログイン画面は認可トランザクションを必要とするため、`/login` を直接開かない。
+
+Docker ComposeではCaddyが `http://localhost:8080` でUIとAPIを公開する。
 
 ```bash
+docker compose -f infra/docker/docker-compose.dev.yaml up --build
+```
+
+主要な OAuth 2.0 / OpenID Connect フローを実行する:
+
+```bash
+BASE=http://localhost:8080 \
 ./demo.sh
 ```
 
@@ -74,12 +79,6 @@ go run ./cmd/ra-idp-go
 DATABASE_URL='postgres://ra_idp:ra_idp@localhost:5432/ra_idp?sslmode=disable' \
 KAFKA_BROKERS='localhost:9092' \
 go run ./cmd/ra-idp-relay
-```
-
-開発用の全サービスは次で起動できる。
-
-```bash
-docker compose -f infra/docker/docker-compose.dev.yaml up --build
 ```
 
 ### 設定
@@ -131,7 +130,7 @@ golangci-lint run
 ra-idp-go/
 ├── spec/        → ../ra-idp/spec       (symlink — SCL を TS と共有)
 ├── decisions/   → ../ra-idp/decisions  (symlink — ADR を共有)
-├── ui/                                      React認証UI + embedded production bundle
+├── ui/                                      React SPA + Caddy reference configuration
 ├── cmd/ra-idp-go/main.go               起動
 ├── internal/spec/                      Layer 3: SCL バインディング + 状態機械
 ├── internal/oauth2/                    Layer 3: domain / ports / usecases

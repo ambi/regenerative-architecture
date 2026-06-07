@@ -29,6 +29,7 @@ type Deps struct {
 	DeviceCodeStore            oauthports.DeviceCodeStore
 	DpopReplayStore            oauthports.DpopReplayStore
 	ClientAssertionReplayStore oauthports.ClientAssertionReplayStore
+	AccessTokenDenylist        oauthports.AccessTokenDenylist
 	KeyStore                   oauthports.KeyStore
 	TokenIssuer                oauthports.TokenIssuer
 	TokenIntrospector          oauthports.TokenIntrospector
@@ -59,6 +60,7 @@ func Register(e *echo.Echo, d Deps) {
 	e.POST("/par", d.handlePAR)
 	e.POST("/device_authorization", d.handleDeviceAuthorization)
 	e.GET("/.well-known/openid-configuration", d.handleDiscovery)
+	e.GET("/.well-known/oauth-authorization-server", d.handleDiscovery)
 	e.GET("/jwks", d.handleJWKS)
 	e.GET("/health", d.handleHealth)
 }

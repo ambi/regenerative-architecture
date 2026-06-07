@@ -28,8 +28,9 @@ type IntrospectionResponse struct {
 }
 
 type IntrospectDeps struct {
-	Introspector ports.TokenIntrospector
-	RefreshStore ports.RefreshTokenStore
+	Introspector        ports.TokenIntrospector
+	RefreshStore        ports.RefreshTokenStore
+	AccessTokenDenylist ports.AccessTokenDenylist
 }
 
 func IntrospectToken(ctx context.Context, deps IntrospectDeps, in IntrospectInput, now time.Time) (*IntrospectionResponse, error) {
@@ -74,6 +75,15 @@ func IntrospectToken(ctx context.Context, deps IntrospectDeps, in IntrospectInpu
 	r, err := deps.Introspector.IntrospectAccessToken(ctx, in.Token)
 	if err != nil {
 		return nil, err
+	}
+	if r.Active && r.JTI != "" && deps.AccessTokenDenylist != nil {
+		revoked, err := deps.AccessTokenDenylist.IsRevoked(ctx, r.JTI)
+		if err != nil {
+			return nil, err
+		}
+		if revoked {
+			return &IntrospectionResponse{Active: false}, nil
+		}
 	}
 	resp := &IntrospectionResponse{
 		Active:    r.Active,

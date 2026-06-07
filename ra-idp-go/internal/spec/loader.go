@@ -144,6 +144,7 @@ type Objective struct {
 type SCLAnnotations struct {
 	PasswordPolicy    SCLPasswordPolicy    `yaml:"password_policy"`
 	DiscoveryTemplate SCLDiscoveryTemplate `yaml:"discovery_template"`
+	ACRVocabulary     SCLACRVocabulary     `yaml:"acr_vocabulary"`
 }
 
 type SCLPasswordPolicy struct {
@@ -159,6 +160,17 @@ type SCLDiscoveryTemplate struct {
 	UILocalesSupported               []string `yaml:"ui_locales_supported"`
 	IntrospectionEndpointAuthMethods []string `yaml:"introspection_endpoint_auth_methods"`
 	RevocationEndpointAuthMethods    []string `yaml:"revocation_endpoint_auth_methods"`
+	ACRValuesSupported               []string `yaml:"acr_values_supported"`
+}
+
+type SCLACRVocabulary struct {
+	Values       []SCLACRValue `yaml:"values"`
+	MFAAMRValues []string      `yaml:"mfa_amr_values"`
+}
+
+type SCLACRValue struct {
+	URN         string `yaml:"urn"`
+	Description string `yaml:"description"`
 }
 
 // =====================================================================

@@ -69,6 +69,7 @@ func (d Deps) handleToken(c *echo.Context) error {
 			CodeVerifier: c.Request().PostFormValue("code_verifier"),
 			RedirectURI:  c.Request().PostFormValue("redirect_uri"),
 			DpopJKT:      dpopJKT,
+			MTLSX5TS256:  clientStub.MTLSThumbprintS256,
 		})
 		if err != nil {
 			return writeOAuthError(c, err)
@@ -94,7 +95,10 @@ func (d Deps) handleToken(c *echo.Context) error {
 			ClientRepo: d.ClientRepo, UserRepo: d.UserRepo,
 			RefreshStore: d.RefreshStore, TokenIssuer: d.TokenIssuer,
 			Authorizer: d.Authorizer, Emit: d.Emit,
-		}, usecases.RefreshInput{ClientID: clientStub.ID, RefreshToken: rt, ProofJKT: dpopJKT}, now)
+		}, usecases.RefreshInput{
+			ClientID: clientStub.ID, RefreshToken: rt,
+			ProofJKT: dpopJKT, ProofX5TS256: clientStub.MTLSThumbprintS256,
+		}, now)
 		if err != nil {
 			return writeOAuthError(c, err)
 		}
@@ -124,6 +128,8 @@ func (d Deps) handleToken(c *echo.Context) error {
 		var sc *spec.SenderConstraint
 		if dpopJKT != "" {
 			sc = &spec.SenderConstraint{Type: spec.SenderConstraintDPoP, JKT: dpopJKT}
+		} else if clientStub.MTLSThumbprintS256 != "" {
+			sc = &spec.SenderConstraint{Type: spec.SenderConstraintMTLS, X5TS256: clientStub.MTLSThumbprintS256}
 		}
 		token, jti, err := d.TokenIssuer.SignAccessToken(ctx, oauthports.AccessTokenInput{
 			Client: client, Sub: client.ClientID, Scopes: scopes,
@@ -140,7 +146,7 @@ func (d Deps) handleToken(c *echo.Context) error {
 			d.Emit(&spec.AccessTokenIssued{At: now, JTI: jti, ClientID: client.ClientID, Sub: client.ClientID, Scopes: scopes, SenderConstraint: tag})
 		}
 		tokenType := "Bearer"
-		if sc != nil {
+		if sc != nil && sc.Type == spec.SenderConstraintDPoP {
 			tokenType = "DPoP"
 		}
 		return c.JSON(http.StatusOK, map[string]any{
@@ -157,7 +163,10 @@ func (d Deps) handleToken(c *echo.Context) error {
 			ClientRepo: d.ClientRepo, UserRepo: d.UserRepo,
 			DeviceCodeStore: d.DeviceCodeStore, RefreshStore: d.RefreshStore,
 			TokenIssuer: d.TokenIssuer, Emit: d.Emit,
-		}, usecases.ExchangeDeviceCodeInput{ClientID: clientStub.ID, DeviceCode: dc, ProofJKT: dpopJKT}, now)
+		}, usecases.ExchangeDeviceCodeInput{
+			ClientID: clientStub.ID, DeviceCode: dc,
+			ProofJKT: dpopJKT, ProofX5TS256: clientStub.MTLSThumbprintS256,
+		}, now)
 		if err != nil {
 			return writeOAuthError(c, err)
 		}
@@ -180,12 +189,14 @@ func (d Deps) handleRevoke(c *echo.Context) error {
 	if err := c.Request().ParseForm(); err != nil {
 		return c.JSON(http.StatusBadRequest, oauthErrorBody("invalid_request", "form parse"))
 	}
-	if _, err := d.authenticateTokenClient(c); err != nil {
+	client, err := d.authenticateTokenClient(c)
+	if err != nil {
 		return writeOAuthError(c, err)
 	}
 	if err := usecases.RevokeToken(c.Request().Context(), usecases.RevokeDeps{
-		RefreshStore: d.RefreshStore, Emit: d.Emit,
-	}, c.Request().PostFormValue("token"), time.Now().UTC()); err != nil {
+		RefreshStore: d.RefreshStore, Introspector: d.TokenIntrospector,
+		AccessTokenDenylist: d.AccessTokenDenylist, Emit: d.Emit,
+	}, client.ID, c.Request().PostFormValue("token"), time.Now().UTC()); err != nil {
 		return writeOAuthError(c, err)
 	}
 	return c.NoContent(http.StatusOK)
@@ -201,6 +212,7 @@ func (d Deps) handleIntrospect(c *echo.Context) error {
 	}
 	resp, err := usecases.IntrospectToken(c.Request().Context(), usecases.IntrospectDeps{
 		Introspector: d.TokenIntrospector, RefreshStore: d.RefreshStore,
+		AccessTokenDenylist: d.AccessTokenDenylist,
 	}, usecases.IntrospectInput{
 		Token:         c.Request().PostFormValue("token"),
 		TokenTypeHint: c.Request().PostFormValue("token_type_hint"),

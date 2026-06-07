@@ -68,6 +68,12 @@ func (s *JWTSigner) SignAccessToken(ctx context.Context, in ports.AccessTokenInp
 		}
 		claims["cnf"] = cnf
 	}
+	if len(in.AMR) > 0 {
+		claims["amr"] = in.AMR
+	}
+	if in.ACR != "" {
+		claims["acr"] = in.ACR
+	}
 	tok, err := signPS256(key, map[string]string{"typ": "at+jwt"}, claims)
 	if err != nil {
 		return "", "", err
@@ -94,6 +100,12 @@ func (s *JWTSigner) SignIDToken(ctx context.Context, in ports.IDTokenInput) (str
 	}
 	if in.AtHashFor != "" {
 		claims["at_hash"] = atHash(in.AtHashFor)
+	}
+	if len(in.AMR) > 0 {
+		claims["amr"] = in.AMR
+	}
+	if in.ACR != "" {
+		claims["acr"] = in.ACR
 	}
 	if containsString(in.Scopes, "profile") {
 		if in.User.Name != nil {

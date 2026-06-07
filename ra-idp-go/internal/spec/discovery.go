@@ -78,6 +78,7 @@ func (s *SCL) BuildDiscoveryDocument(issuer string) (map[string]any, error) {
 	doc["require_pkce"] = true
 	doc["tls_client_certificate_bound_access_tokens"] = true
 	doc["claims_supported"] = tpl.ClaimsSupported
+	doc["acr_values_supported"] = tpl.ACRValuesSupported
 	doc["service_documentation"] = issuer + "/docs"
 	doc["ui_locales_supported"] = defaultStrings(tpl.UILocalesSupported, []string{"en", "ja"})
 	return doc, nil

@@ -17,7 +17,12 @@ import (
 	"github.com/labstack/echo/v5"
 )
 
-type authedClient struct{ ID string }
+const clientCertHeader = "X-Client-Certificate"
+
+type authedClient struct {
+	ID                 string
+	MTLSThumbprintS256 string
+}
 
 func (d Deps) authenticateTokenClient(c *echo.Context) (authedClient, error) {
 	basicAuth := c.Request().Header.Get("Authorization")
@@ -25,8 +30,9 @@ func (d Deps) authenticateTokenClient(c *echo.Context) (authedClient, error) {
 	hasSecret := c.Request().PostFormValue("client_secret") != ""
 	hasAssertion := c.Request().PostFormValue("client_assertion") != "" ||
 		c.Request().PostFormValue("client_assertion_type") != ""
+	hasCertificate := c.Request().Header.Get(clientCertHeader) != ""
 	methods := 0
-	for _, present := range []bool{hasBasic, hasSecret, hasAssertion} {
+	for _, present := range []bool{hasBasic, hasSecret, hasAssertion, hasCertificate} {
 		if present {
 			methods++
 		}
@@ -75,7 +81,23 @@ func (d Deps) authenticateTokenClient(c *echo.Context) (authedClient, error) {
 		return authedClient{ID: clientID}, nil
 	}
 
-	// 2. client_secret_basic / client_secret_post
+	// 2. tls_client_auth
+	if hasCertificate {
+		clientID := c.Request().PostFormValue("client_id")
+		client, err := d.ClientRepo.FindByID(c.Request().Context(), clientID)
+		if err != nil || client == nil ||
+			client.TokenEndpointAuthMethod != spec.AuthMethodTlsClientAuth ||
+			client.TlsClientAuthSubjectDN == nil {
+			return authedClient{}, usecases.NewOAuthError("invalid_client", "クライアント認証に失敗しました")
+		}
+		cert, err := crypto.ParseClientCertificateHeader(c.Request().Header.Get(clientCertHeader))
+		if err != nil || !crypto.ClientCertSubjectMatches(*client.TlsClientAuthSubjectDN, cert.SubjectDN) {
+			return authedClient{}, usecases.NewOAuthError("invalid_client", "クライアント証明書が一致しません")
+		}
+		return authedClient{ID: clientID, MTLSThumbprintS256: cert.ThumbprintS256}, nil
+	}
+
+	// 3. client_secret_basic / client_secret_post
 	var clientID, secret string
 	method := spec.AuthMethodNone
 	switch {

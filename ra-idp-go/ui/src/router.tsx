@@ -6,6 +6,7 @@ import {
   createRouter,
 } from '@tanstack/react-router'
 import { ConsentPage } from './pages/ConsentPage'
+import { CallbackPage } from './pages/CallbackPage'
 import { DevicePage } from './pages/DevicePage'
 import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
@@ -42,9 +43,21 @@ export function createAppRouter(data: PageData) {
     path: '/status',
     component: () => (data.kind === 'status' ? <StatusPage {...data} /> : null),
   })
+  const callbackRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/callback',
+    component: () => (data.kind === 'callback' ? <CallbackPage {...data} /> : null),
+  })
 
   return createRouter({
-    routeTree: rootRoute.addChildren([homeRoute, loginRoute, consentRoute, deviceRoute, statusRoute]),
+    routeTree: rootRoute.addChildren([
+      homeRoute,
+      loginRoute,
+      consentRoute,
+      deviceRoute,
+      statusRoute,
+      callbackRoute,
+    ]),
     history: createBrowserHistory(),
   })
 }

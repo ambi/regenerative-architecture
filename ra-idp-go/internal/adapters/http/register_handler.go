@@ -33,6 +33,7 @@ func (d Deps) handleRegisterClient(c *echo.Context) error {
 		Scope:                   req.Scope,
 		JWKS:                    req.JWKS,
 		JwksURI:                 req.JwksURI,
+		TlsClientAuthSubjectDN:  req.TlsClientAuthSubjectDN,
 		RequirePAR:              req.RequirePAR,
 		DpopBoundAccessTokens:   req.DpopBoundAccessTokens,
 		FapiProfile:             spec.FapiProfile(req.FapiProfile),
@@ -66,6 +67,9 @@ func (d Deps) handleRegisterClient(c *echo.Context) error {
 	}
 	if result.Client.JwksURI != nil {
 		resp["jwks_uri"] = *result.Client.JwksURI
+	}
+	if result.Client.TlsClientAuthSubjectDN != nil {
+		resp["tls_client_auth_subject_dn"] = *result.Client.TlsClientAuthSubjectDN
 	}
 	if result.ClientSecret != "" {
 		resp["client_secret"] = result.ClientSecret

@@ -11,7 +11,7 @@ type AuthorizationRequestStore interface {
 	Save(ctx context.Context, req *spec.AuthorizationRequest) error
 	Find(ctx context.Context, id string) (*spec.AuthorizationRequest, error)
 	UpdateState(ctx context.Context, id string, state spec.AuthorizationCodeFlowState) error
-	AttachSubject(ctx context.Context, id, sub string, authTime int64) error
+	AttachAuthentication(ctx context.Context, id, sub string, authTime int64, amr []string, acr string) error
 }
 
 type AuthorizationCodeStore interface {

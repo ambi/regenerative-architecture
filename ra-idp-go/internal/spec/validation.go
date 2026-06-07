@@ -45,10 +45,18 @@ var clientSchema = z.Struct(z.Shape{
 	"CreatedAt": z.Time().Required(),
 }).TestFunc(func(value any, _ z.Ctx) bool {
 	client, ok := value.(*Client)
-	return ok && (client.TokenEndpointAuthMethod != AuthMethodPrivateKeyJwt ||
-		hasJWKs(client.JWKS) ||
-		client.JwksURI != nil && *client.JwksURI != "")
-}, z.Message("private_key_jwt requires jwks or jwks_uri"))
+	if !ok {
+		return false
+	}
+	switch client.TokenEndpointAuthMethod {
+	case AuthMethodPrivateKeyJwt:
+		return hasJWKs(client.JWKS) || client.JwksURI != nil && *client.JwksURI != ""
+	case AuthMethodTlsClientAuth:
+		return client.TlsClientAuthSubjectDN != nil && *client.TlsClientAuthSubjectDN != ""
+	default:
+		return true
+	}
+}, z.Message("client authentication method requires matching credentials"))
 
 var userSchema = z.Struct(z.Shape{
 	"Sub":               z.String().Required(),
@@ -58,6 +66,19 @@ var userSchema = z.Struct(z.Shape{
 	"CreatedAt":         z.Time().Required(),
 	"UpdatedAt":         z.Time().Required(),
 })
+
+var mfaFactorSchema = z.Struct(z.Shape{
+	"Sub": z.String().Required(),
+	"Type": z.StringLike[MfaFactorType]().TestFunc(
+		func(value *MfaFactorType, _ z.Ctx) bool { return value.Valid() },
+		z.Message("mfa factor type is not in enum"),
+	).Required(),
+	"CreatedAt": z.Time().Required(),
+}).TestFunc(func(value any, _ z.Ctx) bool {
+	factor, ok := value.(*MfaFactor)
+	return ok && (factor.Type != MfaFactorTOTP ||
+		factor.Secret != nil && *factor.Secret != "")
+}, z.Message("totp factor requires secret"))
 
 var consentSchema = z.Struct(z.Shape{
 	"Sub":      z.String().Required(),
@@ -115,6 +136,8 @@ var authorizationCodeRecordSchema = z.Struct(z.Shape{
 var loginSessionSchema = z.Struct(z.Shape{
 	"ID":        z.String().UUID().Required(),
 	"Sub":       z.String().Required(),
+	"AMR":       z.Slice(z.String()).Min(1).Required(),
+	"ACR":       z.String().Required(),
 	"ExpiresAt": z.Time().Required(),
 })
 

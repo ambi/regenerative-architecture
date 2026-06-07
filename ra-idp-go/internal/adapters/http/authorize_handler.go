@@ -80,7 +80,7 @@ func (d Deps) handleAuthorize(c *echo.Context) error {
 		ResponseType: request.ResponseType, Scope: request.Scope,
 		StateParam: request.StateParam, Nonce: request.Nonce,
 		CodeChallenge: request.CodeChallenge, CodeChallengeMethod: request.CodeChallengeMethod,
-		Prompt: request.Prompt, MaxAge: request.MaxAge, ParUsed: parUsed,
+		Prompt: request.Prompt, MaxAge: request.MaxAge, ACRValues: request.AcrValues, ParUsed: parUsed,
 	}
 	if requestURI := c.QueryParam("request_uri"); requestURI != "" {
 		in.ParRequestURI = requestURI
@@ -98,7 +98,10 @@ func (d Deps) handleAuthorize(c *echo.Context) error {
 		authn, _ := d.AuthnResolver.Resolve(c.Request().Context(), authdomain.HTTPHeadersAdapter{H: c.Request().Header})
 		if authn != nil {
 			policy := oauthdomain.ParsePrompt(out.Request)
-			if oauthdomain.NeedsReauthentication(policy, time.Unix(authn.AuthTime, 0), time.Now(), false) {
+			needsStepUp := out.Request.ACRValues != nil &&
+				!authusecases.ACRSatisfies(authn.ACR, *out.Request.ACRValues)
+			if oauthdomain.NeedsReauthentication(policy, time.Unix(authn.AuthTime, 0), time.Now(), false) ||
+				needsStepUp {
 				if in.Prompt == "none" {
 					return writeOAuthError(c, usecases.NewOAuthError("login_required", "既存セッションが認証要件を満たしません"))
 				}
@@ -194,7 +197,9 @@ func (d Deps) handleLoginAPI(c *echo.Context) error {
 	if d.Emit != nil {
 		d.Emit(&spec.UserAuthenticated{At: authTime, Sub: user.Sub, AMR: []string{"pwd"}})
 	}
-	if err := d.RequestStore.AttachSubject(c.Request().Context(), req.ID, user.Sub, authn.AuthTime); err != nil {
+	if err := d.RequestStore.AttachAuthentication(
+		c.Request().Context(), req.ID, user.Sub, authn.AuthTime, authn.AMR, authn.ACR,
+	); err != nil {
 		return writeOAuthError(c, err)
 	}
 	req.Sub, req.AuthTime = &user.Sub, &authn.AuthTime
@@ -284,7 +289,9 @@ func (d Deps) completeAfterAuthn(
 			covered = false
 		}
 		if !covered {
-			if err := d.RequestStore.AttachSubject(c.Request().Context(), req.ID, authn.Sub, authn.AuthTime); err != nil {
+			if err := d.RequestStore.AttachAuthentication(
+				c.Request().Context(), req.ID, authn.Sub, authn.AuthTime, authn.AMR, authn.ACR,
+			); err != nil {
 				return authorizationNext{}, err
 			}
 			req.Sub, req.AuthTime = &authn.Sub, &authn.AuthTime
@@ -304,7 +311,13 @@ func (d Deps) issueCodeURL(
 	out, err := usecases.CompleteLogin(c.Request().Context(), usecases.CompleteLoginDeps{
 		RequestStore: d.RequestStore,
 		CodeStore:    d.CodeStore,
-	}, usecases.CompleteLoginInput{RequestID: req.ID, Sub: sub, AuthTime: authTime})
+	}, usecases.CompleteLoginInput{
+		RequestID: req.ID,
+		Sub:       sub,
+		AuthTime:  authTime,
+		AMR:       req.AMR,
+		ACR:       stringValue(req.ACR),
+	})
 	if err != nil {
 		var oauthErr *usecases.OAuthError
 		if errors.As(err, &oauthErr) {
@@ -326,6 +339,13 @@ func (d Deps) issueCodeURL(
 	}
 	u.RawQuery = query.Encode()
 	return u.String(), nil
+}
+
+func stringValue(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }
 
 func authorizationErrorURL(req *spec.AuthorizationRequest, code, description string) string {
@@ -440,7 +460,7 @@ func (d Deps) ensureCSRFCookie(c *echo.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	c.SetCookie(&http.Cookie{
+	c.SetCookie(&http.Cookie{ //nolint:gosec // Secure is enabled for HTTPS issuers; local HTTP development intentionally disables it.
 		Name: csrfCookie, Value: value, Path: "/api/auth",
 		Secure: d.secureCookies(), HttpOnly: false, SameSite: http.SameSiteStrictMode,
 		MaxAge: 600,
@@ -449,7 +469,7 @@ func (d Deps) ensureCSRFCookie(c *echo.Context) (string, error) {
 }
 
 func (d Deps) setTransactionCookie(c *echo.Context, requestID string) {
-	c.SetCookie(&http.Cookie{
+	c.SetCookie(&http.Cookie{ //nolint:gosec // Secure is enabled for HTTPS issuers; local HTTP development intentionally disables it.
 		Name: authorizationTransactionCookie, Value: requestID, Path: "/",
 		Secure: d.secureCookies(), HttpOnly: true, SameSite: http.SameSiteLaxMode,
 		MaxAge: 600,
@@ -457,7 +477,7 @@ func (d Deps) setTransactionCookie(c *echo.Context, requestID string) {
 }
 
 func (d Deps) clearTransactionCookie(c *echo.Context) {
-	c.SetCookie(&http.Cookie{
+	c.SetCookie(&http.Cookie{ //nolint:gosec // Secure is enabled for HTTPS issuers; local HTTP development intentionally disables it.
 		Name: authorizationTransactionCookie, Path: "/",
 		Secure: d.secureCookies(), HttpOnly: true, SameSite: http.SameSiteLaxMode,
 		MaxAge: -1,
@@ -465,7 +485,7 @@ func (d Deps) clearTransactionCookie(c *echo.Context) {
 }
 
 func (d Deps) setSessionCookie(c *echo.Context, sessionID string) {
-	c.SetCookie(&http.Cookie{
+	c.SetCookie(&http.Cookie{ //nolint:gosec // Secure is enabled for HTTPS issuers; local HTTP development intentionally disables it.
 		Name: authusecases.SessionCookie, Value: sessionID, Path: "/",
 		Secure: d.secureCookies(), HttpOnly: true, SameSite: http.SameSiteLaxMode,
 		MaxAge: authusecases.SessionTTLSeconds,
@@ -473,7 +493,7 @@ func (d Deps) setSessionCookie(c *echo.Context, sessionID string) {
 }
 
 func (d Deps) clearSessionCookie(c *echo.Context) {
-	c.SetCookie(&http.Cookie{
+	c.SetCookie(&http.Cookie{ //nolint:gosec // Secure is enabled for HTTPS issuers; local HTTP development intentionally disables it.
 		Name: authusecases.SessionCookie, Path: "/",
 		Secure: d.secureCookies(), HttpOnly: true, SameSite: http.SameSiteLaxMode,
 		MaxAge: -1,

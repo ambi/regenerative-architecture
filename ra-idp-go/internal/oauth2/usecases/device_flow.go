@@ -179,9 +179,10 @@ func DenyUserCode(ctx context.Context, deps VerifyUserCodeDeps, userCode, sub st
 // =====================================================================
 
 type ExchangeDeviceCodeInput struct {
-	ClientID   string
-	DeviceCode string
-	ProofJKT   string
+	ClientID     string
+	DeviceCode   string
+	ProofJKT     string
+	ProofX5TS256 string
 }
 
 type ExchangeDeviceCodeResult struct {
@@ -272,6 +273,8 @@ func ExchangeDeviceCode(ctx context.Context, deps ExchangeDeviceCodeDeps, in Exc
 	var sc *spec.SenderConstraint
 	if in.ProofJKT != "" {
 		sc = &spec.SenderConstraint{Type: spec.SenderConstraintDPoP, JKT: in.ProofJKT}
+	} else if in.ProofX5TS256 != "" {
+		sc = &spec.SenderConstraint{Type: spec.SenderConstraintMTLS, X5TS256: in.ProofX5TS256}
 	}
 
 	access, jti, err := deps.TokenIssuer.SignAccessToken(ctx, ports.AccessTokenInput{
@@ -302,7 +305,7 @@ func ExchangeDeviceCode(ctx context.Context, deps ExchangeDeviceCodeDeps, in Exc
 	_ = deps.DeviceCodeStore.Update(ctx, rec)
 
 	tokenType := "Bearer"
-	if sc != nil {
+	if sc != nil && sc.Type == spec.SenderConstraintDPoP {
 		tokenType = "DPoP"
 	}
 	return &ExchangeDeviceCodeResult{

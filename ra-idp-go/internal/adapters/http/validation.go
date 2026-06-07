@@ -19,6 +19,7 @@ type authorizeRequest struct {
 	CodeChallengeMethod string `zog:"code_challenge_method"`
 	Prompt              string `zog:"prompt"`
 	MaxAge              *int   `zog:"max_age"`
+	AcrValues           string `zog:"acr_values"`
 }
 
 var authorizeRequestSchema = z.Struct(z.Shape{
@@ -32,6 +33,7 @@ var authorizeRequestSchema = z.Struct(z.Shape{
 	"codeChallengeMethod": z.String().Required(),
 	"prompt":              z.String(),
 	"maxAge":              z.Ptr(z.Int().GTE(0)),
+	"AcrValues":           z.String(),
 })
 
 func parseAuthorizeRequest(values url.Values) (authorizeRequest, error) {
@@ -54,6 +56,7 @@ type registerClientRequest struct {
 	Scope                   string         `json:"scope"`
 	JWKS                    map[string]any `json:"jwks"`
 	JwksURI                 *string        `json:"jwks_uri"`
+	TlsClientAuthSubjectDN  *string        `json:"tls_client_auth_subject_dn"`
 	RequirePAR              bool           `json:"require_pushed_authorization_requests"`
 	DpopBoundAccessTokens   bool           `json:"dpop_bound_access_tokens"`
 	FapiProfile             string         `json:"fapi_profile"`
@@ -77,9 +80,14 @@ var registerClientRequestSchema = z.Struct(z.Shape{
 		"tls_client_auth",
 		"none",
 	}),
-	"JwksURI":     z.Ptr(jwksURI()),
-	"FapiProfile": z.String().OneOf([]string{"none", "fapi_2_security_profile"}),
-})
+	"JwksURI":                z.Ptr(jwksURI()),
+	"TlsClientAuthSubjectDN": z.Ptr(z.String().Min(1)),
+	"FapiProfile":            z.String().OneOf([]string{"none", "fapi_2_security_profile"}),
+}).TestFunc(func(value any, _ z.Ctx) bool {
+	request, ok := value.(*registerClientRequest)
+	return ok && (request.TokenEndpointAuthMethod != "tls_client_auth" ||
+		request.TlsClientAuthSubjectDN != nil && *request.TlsClientAuthSubjectDN != "")
+}, z.Message("tls_client_auth requires tls_client_auth_subject_dn"))
 
 func validateRegisterClientRequest(request *registerClientRequest) error {
 	return validation.Error(registerClientRequestSchema.Validate(request))

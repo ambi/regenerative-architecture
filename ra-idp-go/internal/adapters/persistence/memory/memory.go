@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -181,7 +182,13 @@ func (s *AuthorizationRequestStore) UpdateState(_ context.Context, id string, st
 	return nil
 }
 
-func (s *AuthorizationRequestStore) AttachSubject(_ context.Context, id, sub string, authTime int64) error {
+func (s *AuthorizationRequestStore) AttachAuthentication(
+	_ context.Context,
+	id, sub string,
+	authTime int64,
+	amr []string,
+	acr string,
+) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	req, ok := s.requests[id]
@@ -190,6 +197,8 @@ func (s *AuthorizationRequestStore) AttachSubject(_ context.Context, id, sub str
 	}
 	req.Sub = &sub
 	req.AuthTime = &authTime
+	req.AMR = slices.Clone(amr)
+	req.ACR = &acr
 	return nil
 }
 
@@ -512,6 +521,33 @@ func NewClientAssertionReplayStore() *ClientAssertionReplayStore {
 
 func (s *ClientAssertionReplayStore) RecordIfNew(_ context.Context, jti string, windowSeconds int, now time.Time) (bool, error) {
 	return s.inner.recordIfNew(jti, windowSeconds, now)
+}
+
+type AccessTokenDenylist struct {
+	mu      sync.Mutex
+	entries map[string]time.Time
+}
+
+func NewAccessTokenDenylist() *AccessTokenDenylist {
+	return &AccessTokenDenylist{entries: map[string]time.Time{}}
+}
+
+func (d *AccessTokenDenylist) Add(_ context.Context, jti string, expiresAt time.Time) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.entries[jti] = expiresAt
+	return nil
+}
+
+func (d *AccessTokenDenylist) IsRevoked(_ context.Context, jti string) (bool, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	expiresAt, ok := d.entries[jti]
+	if ok && time.Now().After(expiresAt) {
+		delete(d.entries, jti)
+		return false, nil
+	}
+	return ok, nil
 }
 
 // =====================================================================

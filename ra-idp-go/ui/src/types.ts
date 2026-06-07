@@ -26,7 +26,14 @@ export type StatusPage = {
   status: 'approved' | 'denied' | 'signed-out' | 'authentication-required'
 }
 
-export type PageData = HomePage | LoginPage | ConsentPage | DevicePage | StatusPage
+export type CallbackPage = {
+  kind: 'callback'
+  code?: string
+  error?: string
+  errorDescription?: string
+}
+
+export type PageData = HomePage | LoginPage | ConsentPage | DevicePage | StatusPage | CallbackPage
 
 export type BrowserFlowResponse = {
   next?: string

@@ -32,6 +32,7 @@ type ExchangeCodeInput struct {
 	CodeVerifier string
 	RedirectURI  string
 	DpopJKT      string
+	MTLSX5TS256  string
 }
 
 type ExchangeCodeOutput struct {
@@ -107,6 +108,8 @@ func ExchangeCodeForToken(ctx context.Context, deps ExchangeCodeDeps, in Exchang
 	var sc *spec.SenderConstraint
 	if in.DpopJKT != "" {
 		sc = &spec.SenderConstraint{Type: spec.SenderConstraintDPoP, JKT: in.DpopJKT}
+	} else if in.MTLSX5TS256 != "" {
+		sc = &spec.SenderConstraint{Type: spec.SenderConstraintMTLS, X5TS256: in.MTLSX5TS256}
 	}
 
 	access, jti, err := deps.TokenIssuer.SignAccessToken(ctx, ports.AccessTokenInput{
@@ -115,6 +118,8 @@ func ExchangeCodeForToken(ctx context.Context, deps ExchangeCodeDeps, in Exchang
 		Scopes:           rec.Scopes,
 		SenderConstraint: sc,
 		AuthTime:         rec.AuthTime,
+		AMR:              rec.AMR,
+		ACR:              optionalValue(rec.ACR),
 	})
 	if err != nil {
 		return nil, err
@@ -130,6 +135,8 @@ func ExchangeCodeForToken(ctx context.Context, deps ExchangeCodeDeps, in Exchang
 			Scopes:    rec.Scopes,
 			Nonce:     rec.Nonce,
 			AuthTime:  rec.AuthTime,
+			AMR:       rec.AMR,
+			ACR:       optionalValue(rec.ACR),
 			AtHashFor: access,
 		})
 		if err != nil {
@@ -158,7 +165,7 @@ func ExchangeCodeForToken(ctx context.Context, deps ExchangeCodeDeps, in Exchang
 	}
 
 	tokenType := "Bearer"
-	if sc != nil {
+	if sc != nil && sc.Type == spec.SenderConstraintDPoP {
 		tokenType = "DPoP"
 	}
 	return &ExchangeCodeOutput{
@@ -169,4 +176,11 @@ func ExchangeCodeForToken(ctx context.Context, deps ExchangeCodeDeps, in Exchang
 		ExpiresIn:    deps.TokenIssuer.AccessTokenTTLSeconds(),
 		Scope:        strings.Join(rec.Scopes, " "),
 	}, nil
+}
+
+func optionalValue(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }

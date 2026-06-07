@@ -38,6 +38,8 @@ func (m *SessionManager) Create(ctx context.Context, sub string, amr []string, n
 		ID:        id,
 		Sub:       sub,
 		AuthTime:  now.Unix(),
+		AMR:       amr,
+		ACR:       DeriveACR(amr),
 		ExpiresAt: now.Add(SessionTTLSeconds * time.Second),
 	}
 	if err := m.Store.Save(ctx, sess); err != nil {
@@ -47,6 +49,7 @@ func (m *SessionManager) Create(ctx context.Context, sub string, amr []string, n
 		Sub:       sub,
 		AuthTime:  sess.AuthTime,
 		AMR:       amr,
+		ACR:       sess.ACR,
 		SessionID: id,
 	}, nil
 }
@@ -66,7 +69,8 @@ func (m *SessionManager) Resolve(ctx context.Context, headers domain.Headers) (*
 	return &domain.AuthenticationContext{
 		Sub:       sess.Sub,
 		AuthTime:  sess.AuthTime,
-		AMR:       []string{"pwd"},
+		AMR:       sess.AMR,
+		ACR:       sess.ACR,
 		SessionID: sess.ID,
 	}, nil
 }

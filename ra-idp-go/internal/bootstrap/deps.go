@@ -20,6 +20,7 @@ type Dependencies struct {
 	DeviceCodeStore       oauthports.DeviceCodeStore
 	DpopReplay            oauthports.DpopReplayStore
 	ClientAssertionReplay oauthports.ClientAssertionReplayStore
+	AccessTokenDenylist   oauthports.AccessTokenDenylist
 	SessionStore          oauthports.SessionStore
 	KeyStore              oauthports.KeyStore
 	EventSink             oauthports.EventSink

@@ -11,11 +11,13 @@ import (
 )
 
 type RevokeDeps struct {
-	RefreshStore ports.RefreshTokenStore
-	Emit         func(spec.DomainEvent)
+	RefreshStore        ports.RefreshTokenStore
+	Introspector        ports.TokenIntrospector
+	AccessTokenDenylist ports.AccessTokenDenylist
+	Emit                func(spec.DomainEvent)
 }
 
-func RevokeToken(ctx context.Context, deps RevokeDeps, token string, now time.Time) error {
+func RevokeToken(ctx context.Context, deps RevokeDeps, clientID, token string, now time.Time) error {
 	if now.IsZero() {
 		now = time.Now().UTC()
 	}
@@ -25,12 +27,37 @@ func RevokeToken(ctx context.Context, deps RevokeDeps, token string, now time.Ti
 		return err
 	}
 	if rec == nil {
-		// RFC 7009 §2.2: 未知トークンは 200 OK no-op
+		return revokeAccessToken(ctx, deps, clientID, token, now)
+	}
+	if rec.ClientID != clientID {
+		// RFC 7009 §2.2: 所有者でない要求も 200 OK no-op
 		return nil
 	}
 	if err := deps.RefreshStore.RevokeFamily(ctx, rec.FamilyID); err != nil {
 		return err
 	}
 	emit(deps.Emit, &spec.TokenRevoked{At: now, TokenType: "refresh_token", TokenID: rec.ID, Reason: "client_initiated"})
+	return nil
+}
+
+func revokeAccessToken(
+	ctx context.Context,
+	deps RevokeDeps,
+	clientID, token string,
+	now time.Time,
+) error {
+	if deps.Introspector == nil || deps.AccessTokenDenylist == nil {
+		return nil
+	}
+	result, err := deps.Introspector.IntrospectAccessToken(ctx, token)
+	if err != nil || !result.Active || result.JTI == "" || result.ClientID != clientID {
+		return nil //nolint:nilerr // RFC 7009 requires invalid or unknown tokens to be a successful no-op.
+	}
+	if err := deps.AccessTokenDenylist.Add(ctx, result.JTI, time.Unix(result.Exp, 0)); err != nil {
+		return err
+	}
+	emit(deps.Emit, &spec.TokenRevoked{
+		At: now, TokenType: "access_token", TokenID: result.JTI, Reason: "client_initiated",
+	})
 	return nil
 }

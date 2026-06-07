@@ -66,6 +66,19 @@ func (u User) Validate() error {
 	return validate(userSchema, &u)
 }
 
+type MfaFactor struct {
+	Sub        string        `json:"sub"`
+	Type       MfaFactorType `json:"type"`
+	Secret     *string       `json:"secret,omitempty"`
+	Label      *string       `json:"label,omitempty"`
+	CreatedAt  time.Time     `json:"created_at"`
+	LastUsedAt *time.Time    `json:"last_used_at,omitempty"`
+}
+
+func (m MfaFactor) Validate() error {
+	return validate(mfaFactorSchema, &m)
+}
+
 // ===============================================================
 // コンセント
 // ===============================================================
@@ -104,6 +117,9 @@ type AuthorizationRequest struct {
 	ParRequestURI       *string                    `json:"par_request_uri,omitempty"`
 	Sub                 *string                    `json:"sub,omitempty"`
 	AuthTime            *int64                     `json:"auth_time,omitempty"`
+	AMR                 []string                   `json:"amr,omitempty"`
+	ACR                 *string                    `json:"acr,omitempty"`
+	ACRValues           *string                    `json:"acr_values,omitempty"`
 	CreatedAt           time.Time                  `json:"created_at"`
 	ExpiresAt           time.Time                  `json:"expires_at"`
 }
@@ -127,6 +143,8 @@ type AuthorizationCodeRecord struct {
 	CodeChallengeMethod    CodeChallengeMethod          `json:"code_challenge_method"`
 	Nonce                  *string                      `json:"nonce,omitempty"`
 	AuthTime               int64                        `json:"auth_time"`
+	AMR                    []string                     `json:"amr,omitempty"`
+	ACR                    *string                      `json:"acr,omitempty"`
 	State                  AuthorizationCodeRecordState `json:"state"`
 	IssuedAt               time.Time                    `json:"issued_at"`
 	ExpiresAt              time.Time                    `json:"expires_at"`
@@ -146,6 +164,8 @@ type LoginSession struct {
 	ID        string    `json:"id"`
 	Sub       string    `json:"sub"`
 	AuthTime  int64     `json:"auth_time"`
+	AMR       []string  `json:"amr"`
+	ACR       string    `json:"acr"`
 	ExpiresAt time.Time `json:"expires_at"`
 }
 

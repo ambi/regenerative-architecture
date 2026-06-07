@@ -12,6 +12,8 @@ type AccessTokenInput struct {
 	Scopes           []string
 	SenderConstraint *spec.SenderConstraint
 	AuthTime         int64
+	AMR              []string
+	ACR              string
 }
 
 type IDTokenInput struct {
@@ -20,6 +22,8 @@ type IDTokenInput struct {
 	Scopes    []string
 	Nonce     *string
 	AuthTime  int64
+	AMR       []string
+	ACR       string
 	AtHashFor string // access token whose hash goes into at_hash
 }
 

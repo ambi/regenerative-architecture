@@ -29,6 +29,7 @@ type AuthorizeRequestInput struct {
 	CodeChallengeMethod string
 	Prompt              string
 	MaxAge              *int
+	ACRValues           string
 	ParUsed             bool
 	ParRequestURI       string
 }
@@ -108,6 +109,7 @@ func Authorize(ctx context.Context, deps AuthorizeDeps, in AuthorizeRequestInput
 		CodeChallengeMethod: spec.CodeChallengeMethodS256,
 		Prompt:              optional(in.Prompt),
 		MaxAge:              in.MaxAge,
+		ACRValues:           optional(in.ACRValues),
 		ParRequestURI:       optional(in.ParRequestURI),
 		CreatedAt:           now,
 		ExpiresAt:           now.Add(10 * time.Minute),

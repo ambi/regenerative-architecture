@@ -5,8 +5,11 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
@@ -33,6 +36,11 @@ func clientAuthServer(method spec.TokenEndpointAuthMethod) *echo.Echo {
 	if method == spec.AuthMethodNone {
 		clientType = spec.ClientPublic
 	}
+	var subjectDN *string
+	if method == spec.AuthMethodTlsClientAuth {
+		value := "CN=client"
+		subjectDN = &value
+	}
 	repo.Seed(&spec.Client{
 		ClientID: "client", ClientSecretHash: secretHash, ClientType: clientType,
 		RedirectURIs: []string{"https://client.example/cb"},
@@ -41,6 +49,7 @@ func clientAuthServer(method spec.TokenEndpointAuthMethod) *echo.Echo {
 			spec.ResponseTypeCode,
 		},
 		TokenEndpointAuthMethod:  method,
+		TlsClientAuthSubjectDN:   subjectDN,
 		Scope:                    "api",
 		IDTokenSignedResponseAlg: spec.SigAlgPS256,
 		FapiProfile:              spec.FapiNone,
@@ -59,6 +68,40 @@ func clientAuthServer(method spec.TokenEndpointAuthMethod) *echo.Echo {
 		return c.String(http.StatusOK, client.ID)
 	})
 	return e
+}
+
+func TestTLSClientAuthentication(t *testing.T) {
+	header := clientCertificateHeader(t, "client")
+	e := clientAuthServer(spec.AuthMethodTlsClientAuth)
+	form := url.Values{"client_id": {"client"}}
+	req := httptest.NewRequest(http.MethodPost, "/test", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set(clientCertHeader, header)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func clientCertificateHeader(t *testing.T, commonName string) string {
+	t.Helper()
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: commonName},
+		NotBefore:    time.Now().Add(-time.Minute),
+		NotAfter:     time.Now().Add(time.Hour),
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return url.QueryEscape(string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})))
 }
 
 func TestClientAuthenticationMethods(t *testing.T) {

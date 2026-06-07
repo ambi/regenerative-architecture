@@ -166,4 +166,3 @@ func authZSenderConstraint(sc *spec.SenderConstraint) *spec.AuthZSenderConstrain
 	}
 	return &spec.AuthZSenderConstraint{Type: sc.Type}
 }
-

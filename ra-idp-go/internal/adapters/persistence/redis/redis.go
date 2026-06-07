@@ -80,9 +80,16 @@ func (s *AuthorizationRequestStore) UpdateState(ctx context.Context, id string, 
 	})
 }
 
-func (s *AuthorizationRequestStore) AttachSubject(ctx context.Context, id, sub string, authTime int64) error {
+func (s *AuthorizationRequestStore) AttachAuthentication(
+	ctx context.Context,
+	id, sub string,
+	authTime int64,
+	amr []string,
+	acr string,
+) error {
 	return s.update(ctx, id, func(req *spec.AuthorizationRequest) error {
 		req.Sub, req.AuthTime = &sub, &authTime
+		req.AMR, req.ACR = amr, &acr
 		return nil
 	})
 }
@@ -330,6 +337,17 @@ type ReplayStore struct {
 
 func (s *ReplayStore) RecordIfNew(ctx context.Context, jti string, seconds int, _ time.Time) (bool, error) {
 	return s.Client.SetNX(ctx, s.Prefix+jti, "1", time.Duration(seconds)*time.Second).Result()
+}
+
+type AccessTokenDenylist struct{ Client *goredis.Client }
+
+func (d *AccessTokenDenylist) Add(ctx context.Context, jti string, expiresAt time.Time) error {
+	return d.Client.Set(ctx, "idp:at:denylist:"+jti, "1", ttlUntil(expiresAt)).Err()
+}
+
+func (d *AccessTokenDenylist) IsRevoked(ctx context.Context, jti string) (bool, error) {
+	count, err := d.Client.Exists(ctx, "idp:at:denylist:"+jti).Result()
+	return count > 0, err
 }
 
 type SessionStore struct{ Client *goredis.Client }

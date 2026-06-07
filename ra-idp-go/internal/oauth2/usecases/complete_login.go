@@ -2,6 +2,7 @@ package usecases
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"time"
 
@@ -22,6 +23,8 @@ type CompleteLoginInput struct {
 	RequestID string
 	Sub       string
 	AuthTime  time.Time
+	AMR       []string
+	ACR       string
 }
 
 type CompleteLoginOutput struct {
@@ -58,7 +61,7 @@ func CompleteLogin(ctx context.Context, deps CompleteLoginDeps, in CompleteLogin
 		return nil, err
 	}
 	authTime := in.AuthTime.UTC().Unix()
-	if err := deps.RequestStore.AttachSubject(ctx, req.ID, in.Sub, authTime); err != nil {
+	if err := deps.RequestStore.AttachAuthentication(ctx, req.ID, in.Sub, authTime, in.AMR, in.ACR); err != nil {
 		return nil, err
 	}
 	if err := deps.RequestStore.UpdateState(ctx, req.ID, spec.AuthFlowCodeIssued); err != nil {
@@ -81,6 +84,8 @@ func CompleteLogin(ctx context.Context, deps CompleteLoginDeps, in CompleteLogin
 		CodeChallengeMethod:    req.CodeChallengeMethod,
 		Nonce:                  req.Nonce,
 		AuthTime:               authTime,
+		AMR:                    slices.Clone(in.AMR),
+		ACR:                    optional(in.ACR),
 		State:                  spec.AuthCodeRecordIssued,
 		IssuedAt:               now,
 		ExpiresAt:              now.Add(60 * time.Second), // RFC 9700 §4.10

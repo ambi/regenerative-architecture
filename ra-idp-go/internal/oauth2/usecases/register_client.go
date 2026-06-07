@@ -20,6 +20,7 @@ type RegisterClientInput struct {
 	Scope                   string
 	JWKS                    map[string]any
 	JwksURI                 *string
+	TlsClientAuthSubjectDN  *string
 	RequirePAR              bool
 	DpopBoundAccessTokens   bool
 	FapiProfile             spec.FapiProfile
@@ -111,6 +112,7 @@ func RegisterClient(ctx context.Context, deps RegisterClientDeps, in RegisterCli
 		Scope:                              scope,
 		JWKS:                               in.JWKS,
 		JwksURI:                            in.JwksURI,
+		TlsClientAuthSubjectDN:             in.TlsClientAuthSubjectDN,
 		IDTokenSignedResponseAlg:           spec.SigAlgPS256,
 		RequirePushedAuthorizationRequests: in.RequirePAR,
 		DpopBoundAccessTokens:              in.DpopBoundAccessTokens,

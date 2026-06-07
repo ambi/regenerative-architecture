@@ -59,6 +59,7 @@ func assemblePostgres(ctx context.Context) (*Dependencies, error) {
 		DeviceCodeStore:       &redisstore.DeviceCodeStore{Client: redisClient},
 		DpopReplay:            &redisstore.ReplayStore{Client: redisClient, Prefix: "idp:dpop:jti:"},
 		ClientAssertionReplay: &redisstore.ReplayStore{Client: redisClient, Prefix: "idp:cassert:jti:"},
+		AccessTokenDenylist:   &redisstore.AccessTokenDenylist{Client: redisClient},
 		SessionStore:          &redisstore.SessionStore{Client: redisClient},
 		KeyStore:              keyStore,
 		EventSink:             sink,

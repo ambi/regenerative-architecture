@@ -23,6 +23,7 @@ func assembleMemory() (*Dependencies, error) {
 		DeviceCodeStore:       memory.NewDeviceCodeStore(),
 		DpopReplay:            memory.NewDpopReplayStore(),
 		ClientAssertionReplay: memory.NewClientAssertionReplayStore(),
+		AccessTokenDenylist:   memory.NewAccessTokenDenylist(),
 		SessionStore:          memory.NewSessionStore(),
 		KeyStore:              oauthports.KeyStore(keyStore),
 		EventSink:             eventsink.NewConsoleSink(),

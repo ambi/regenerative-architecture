@@ -85,6 +85,23 @@ const CodeChallengeMethodS256 CodeChallengeMethod = "S256"
 
 func (c CodeChallengeMethod) Valid() bool { return c == CodeChallengeMethodS256 }
 
+type MfaFactorType string
+
+const (
+	MfaFactorTOTP     MfaFactorType = "totp"
+	MfaFactorWebAuthn MfaFactorType = "webauthn"
+	MfaFactorHWK      MfaFactorType = "hwk"
+	MfaFactorSWK      MfaFactorType = "swk"
+)
+
+func (m MfaFactorType) Valid() bool {
+	switch m {
+	case MfaFactorTOTP, MfaFactorWebAuthn, MfaFactorHWK, MfaFactorSWK:
+		return true
+	}
+	return false
+}
+
 // ===============================================================
 // 状態機械 (SCL state_machines)
 // ===============================================================

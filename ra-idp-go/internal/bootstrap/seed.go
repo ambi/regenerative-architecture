@@ -24,7 +24,10 @@ func seedDemoData(
 	now := time.Now().UTC()
 	if err := clients.Save(ctx, &spec.Client{
 		ClientID: "demo-client", ClientSecretHash: &secretHash, ClientType: spec.ClientConfidential,
-		RedirectURIs: []string{"http://localhost:3000/callback"},
+		RedirectURIs: []string{
+			"http://localhost:3000/callback",
+			"http://localhost:5173/callback",
+		},
 		GrantTypes: []spec.GrantType{
 			spec.GrantAuthorizationCode, spec.GrantRefreshToken,
 			spec.GrantClientCredentials, spec.GrantDeviceCode,

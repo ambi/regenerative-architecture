@@ -1,6 +1,7 @@
 import type {
   BrowserFlowResponse,
   ConsentPage,
+  CallbackPage,
   DevicePage,
   HomePage,
   LoginPage,
@@ -63,6 +64,15 @@ export async function loadPageData(): Promise<PageData> {
     const supported = ['approved', 'denied', 'signed-out', 'authentication-required'] as const
     const status = supported.find((value) => value === state) ?? 'authentication-required'
     return { kind: 'status', status } satisfies StatusPage
+  }
+  if (path === '/callback') {
+    const parameters = new URLSearchParams(window.location.search)
+    return {
+      kind: 'callback',
+      code: parameters.get('code') ?? undefined,
+      error: parameters.get('error') ?? undefined,
+      errorDescription: parameters.get('error_description') ?? undefined,
+    } satisfies CallbackPage
   }
   if (path === '/device') {
     const userCode = new URLSearchParams(window.location.search).get('user_code') ?? ''
@@ -157,7 +167,7 @@ export async function startDemoAuthorization() {
   const parameters = new URLSearchParams({
     response_type: 'code',
     client_id: 'demo-client',
-    redirect_uri: 'http://localhost:3000/callback',
+    redirect_uri: `${window.location.origin}/callback`,
     scope: 'openid profile email offline_access',
     state,
     nonce,

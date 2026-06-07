@@ -116,7 +116,6 @@ export function DevicePage() {
               id="user_code"
               name="user_code"
               autoComplete="one-time-code"
-              autoFocus
               inputMode="text"
               spellCheck={false}
               maxLength={10}
@@ -168,7 +167,10 @@ export function DevicePage() {
  * 4 文字 + ハイフン + 4 文字 (例: WDJB-MJHT) に整形。RFC 8628 §6.1 の推奨。
  */
 function formatUserCode(raw: string): string {
-  const cleaned = raw.replace(/[^a-z0-9]/gi, '').toUpperCase().slice(0, 8)
+  const cleaned = raw
+    .replace(/[^a-z0-9]/gi, '')
+    .toUpperCase()
+    .slice(0, 8)
   if (cleaned.length <= 4) return cleaned
   return `${cleaned.slice(0, 4)}-${cleaned.slice(4)}`
 }

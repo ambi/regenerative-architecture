@@ -44,7 +44,7 @@ export async function revokeTokenUseCase(
   // 2) access_token (JWT) として試す。invalid JWT は no-op で 200 を返す (RFC 7009 §2.2)
   if (deps.introspector && deps.accessTokenDenylist && looksLikeJwt(token)) {
     const res = await deps.introspector.introspectAccessToken(token).catch(() => null)
-    if (res && res.active && res.jti && res.exp) {
+    if (res?.active && res.jti && res.exp) {
       await deps.accessTokenDenylist.add(res.jti, new Date(res.exp * 1000))
       emit({
         type: 'TokenRevoked',

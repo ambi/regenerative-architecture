@@ -69,6 +69,18 @@
     "auth_time": {
       "type": "integer"
     },
+    "amr": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "acr": {
+      "type": "string"
+    },
+    "acr_values": {
+      "type": "string"
+    },
     "created_at": {
       "type": "string",
       "format": "date-time"

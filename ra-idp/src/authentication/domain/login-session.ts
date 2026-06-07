@@ -6,5 +6,7 @@ export interface LoginSession {
   amr: string[]
   /** annotations.acr_vocabulary に従って amr から導出した URN。step-up 判定で参照。 */
   acr: string
+  /** 追加 factor 検証を待っている中間状態か。完了で false。/authorize 完了経路は true を未認証扱いとする。 */
+  authentication_pending?: boolean
   expires_at: string
 }

@@ -8,6 +8,7 @@
 
 import { InMemoryClientRepository } from '../adapters/persistence/memory/client-repo'
 import { InMemoryUserRepository } from '../adapters/persistence/memory/user-repo'
+import { InMemoryMfaFactorRepository } from '../adapters/persistence/memory/mfa-factor-repo'
 import { InMemoryConsentRepository } from '../adapters/persistence/memory/consent-repo'
 import {
   InMemoryAuthorizationRequestStore,
@@ -28,6 +29,7 @@ import type { AccessTokenDenylist } from '../src/oauth2/ports/access-token-denyl
 import type { DpopNonceService } from '../src/oauth2/ports/dpop-nonce-service'
 import type { ClientRepository } from '../src/oauth2/ports/client-repository'
 import type { UserRepository } from '../src/authentication/ports/user-repository'
+import type { MfaFactorRepository } from '../src/authentication/ports/mfa-factor-repository'
 import type { ConsentRepository } from '../src/oauth2/ports/consent-repository'
 import type { RefreshTokenStore } from '../src/oauth2/ports/refresh-token-store'
 import type {
@@ -48,6 +50,7 @@ import type { RuntimeConfig } from './config'
 export interface AssembledDeps {
   clientRepo: ClientRepository
   userRepo: UserRepository
+  mfaFactorRepo: MfaFactorRepository
   consentRepo: ConsentRepository
   requestStore: AuthorizationRequestStore
   codeStore: AuthorizationCodeStore
@@ -72,6 +75,7 @@ export async function assemble(config: RuntimeConfig): Promise<AssembledDeps> {
     return {
       clientRepo: new InMemoryClientRepository(),
       userRepo: new InMemoryUserRepository(),
+      mfaFactorRepo: new InMemoryMfaFactorRepository(),
       consentRepo: new InMemoryConsentRepository(),
       requestStore: new InMemoryAuthorizationRequestStore(),
       codeStore: new InMemoryAuthorizationCodeStore(),
@@ -103,7 +107,9 @@ export async function assemble(config: RuntimeConfig): Promise<AssembledDeps> {
   const { PostgresClientRepository } = await import(
     '../adapters/persistence/postgres/client-repository'
   )
-  const { PostgresUserRepository } = await import('../adapters/persistence/postgres/user-repository')
+  const { PostgresUserRepository } = await import(
+    '../adapters/persistence/postgres/user-repository'
+  )
   const { PostgresConsentRepository } = await import(
     '../adapters/persistence/postgres/consent-repository'
   )
@@ -132,6 +138,9 @@ export async function assemble(config: RuntimeConfig): Promise<AssembledDeps> {
   return {
     clientRepo: new PostgresClientRepository(pool),
     userRepo: new PostgresUserRepository(pool),
+    // TOTP factor は Postgres スキーマ未導入のため当面 in-memory。永続化が必要に
+    // なった時点で Postgres 実装を追加し、ここで差し替える。
+    mfaFactorRepo: new InMemoryMfaFactorRepository(),
     consentRepo: new PostgresConsentRepository(pool),
     requestStore: new RedisAuthorizationRequestStore(redis),
     codeStore: new RedisAuthorizationCodeStore(redis),

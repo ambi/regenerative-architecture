@@ -1,0 +1,14 @@
+{
+  "$id": "urn:idp:BrowserConsentRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "description": "SPA が POST /api/auth/consent に送る同意判断。",
+  "properties": {
+    "action": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "action"
+  ]
+}

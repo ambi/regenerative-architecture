@@ -329,9 +329,7 @@ describe('/userinfo + mTLS-bound access token (RFC 8705 §3)', () => {
 
   it('別証明書で提示すると thumbprint 不一致で拒否', async () => {
     const { app, signer, client } = await setup()
-    const { TEST_CERT_PEM, TEST_CERT_OTHER_PEM } = await import(
-      '../crypto/mtls-test-fixtures'
-    )
+    const { TEST_CERT_PEM, TEST_CERT_OTHER_PEM } = await import('../crypto/mtls-test-fixtures')
     const { X509Certificate, createHash } = await import('crypto')
     const boundThumb = createHash('sha256')
       .update(new X509Certificate(TEST_CERT_PEM).raw)

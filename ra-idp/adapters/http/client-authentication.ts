@@ -24,10 +24,7 @@ import { OAuthError } from '../../src/oauth2/protocol/oauth-error'
 import type { Client } from '../../src/spec-bindings/schemas'
 import type { ClientRepository } from '../../src/oauth2/ports/client-repository'
 import type { ClientAssertionReplayStore } from '../../src/oauth2/ports/client-assertion-replay-store'
-import {
-  clientCertSubjectMatches,
-  parseClientCertificateHeader,
-} from '../crypto/mtls-client-cert'
+import { clientCertSubjectMatches, parseClientCertificateHeader } from '../crypto/mtls-client-cert'
 
 /** TLS 終端プロキシが検証済みクライアント証明書を載せるヘッダ名 (ADR-005)。 */
 export const CLIENT_CERT_HEADER = 'X-Client-Certificate'

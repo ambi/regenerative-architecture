@@ -242,9 +242,81 @@ export type SecurityObjective = ObjectiveBase & {
 
 export type Objective = SloObjective | RetentionObjective | LifetimeObjective | SecurityObjective
 
+export type Adoption = 'required' | 'optional' | 'excluded'
+
+export type SclReferences = Partial<
+  Record<
+    | 'vocabulary'
+    | 'models'
+    | 'interfaces'
+    | 'state_machines'
+    | 'properties'
+    | 'scenarios'
+    | 'permissions'
+    | 'objectives',
+    string[]
+  >
+>
+
+export type StandardRequirement = {
+  id: string
+  section?: string
+  strength: 'MUST' | 'MUST NOT' | 'SHOULD' | 'SHOULD NOT' | 'MAY'
+  adoption: Adoption
+  statement: string
+  reason?: string
+  relates_to?: SclReferences
+}
+
+export type Standard = {
+  title: string
+  version: string
+  url: string
+  roles: string[]
+  scope: string
+  requirements: StandardRequirement[]
+}
+
+export type UserExperienceScreen = {
+  route: string
+  purpose: string
+  interfaces?: string[]
+  states?: string[]
+}
+
+export type UserExperienceTransition = {
+  from?: string
+  to?: string
+  trigger: string
+  interface?: string
+  external?: boolean
+}
+
+export type UserExperienceRequirement = {
+  id: string
+  category: 'security' | 'accessibility' | 'privacy' | 'localization' | 'usability'
+  adoption: Adoption
+  statement: string
+  reason?: string
+  screens?: string[]
+  interfaces?: string[]
+  standards?: string[]
+  scenarios?: string[]
+  properties?: string[]
+}
+
+export type UserExperience = {
+  accessibility?: { standard: string; level: string }
+  locales?: string[]
+  screens: Record<string, UserExperienceScreen>
+  transitions?: UserExperienceTransition[]
+  requirements?: UserExperienceRequirement[]
+}
+
 export type SclDocument = {
   system: string
   spec_version: string
+  standards?: Record<string, Standard>
   vocabulary: Record<string, VocabularyEntry>
   models: Record<string, Model>
   interfaces: Record<string, Interface>
@@ -253,6 +325,7 @@ export type SclDocument = {
   scenarios: Record<string, Scenario>
   permissions: Record<string, Permission>
   objectives: Record<string, Objective>
+  user_experience?: UserExperience
   annotations?: Record<string, unknown>
 }
 

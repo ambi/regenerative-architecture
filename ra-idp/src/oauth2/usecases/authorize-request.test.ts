@@ -50,6 +50,15 @@ const AUTH_INPUT = {
   code_challenge_method: 'S256' as const,
 }
 
+async function authorizedRequest(overrides: { acr_values: string }) {
+  const { clientRepo, consentRepo, requestStore } = await setup()
+  const { request } = await authorizeRequestUseCase(
+    { clientRepo, consentRepo, requestStore },
+    { ...AUTH_INPUT, ...overrides, par_used: false },
+  )
+  return { deps: { consentRepo, requestStore }, request }
+}
+
 describe('authorizeRequestUseCase — consent handling', () => {
   it('既存の同意があれば consented まで進み、同意 UI をスキップできる', async () => {
     const { clientRepo, consentRepo, requestStore, client } = await setup()
@@ -178,6 +187,36 @@ describe('authorizeRequestUseCase — OIDC session prompts', () => {
     expect(result.needsAuthentication).toBe(true)
     expect(result.needsConsent).toBe(false)
     expect(result.request.state).toBe('authentication_pending')
+  })
+
+  it('acr_values=mfa を pwd セッションが満たさない場合は再認証を要求する', async () => {
+    const { deps, request } = await authorizedRequest({
+      acr_values: 'urn:ra-idp:acr:mfa',
+    })
+    const result = await completeAuthenticationUseCase(
+      deps,
+      request,
+      'user-1',
+      new Date(),
+      new Date(),
+      { amr: ['pwd'], acr: 'urn:ra-idp:acr:pwd' },
+    )
+    expect(result.needsAuthentication).toBe(true)
+  })
+
+  it('acr_values=pwd は mfa セッションでも満たす', async () => {
+    const { deps, request } = await authorizedRequest({
+      acr_values: 'urn:ra-idp:acr:pwd',
+    })
+    const result = await completeAuthenticationUseCase(
+      deps,
+      request,
+      'user-1',
+      new Date(),
+      new Date(),
+      { amr: ['pwd', 'otp'], acr: 'urn:ra-idp:acr:mfa' },
+    )
+    expect(result.needsAuthentication).toBe(false)
   })
 })
 

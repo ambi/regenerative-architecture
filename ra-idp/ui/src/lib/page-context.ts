@@ -42,6 +42,21 @@ export function readConsentContext(): ConsentContext {
   }
 }
 
+export interface TotpContext {
+  requestId: string
+  csrf: string
+  /** 直前の POST /totp が無効コードで戻ってきた場合に true。 */
+  invalidPrevious: boolean
+}
+
+export function readTotpContext(): TotpContext {
+  return {
+    requestId: readMeta('ra-idp:request-id') ?? '',
+    csrf: readMeta('ra-idp:csrf') ?? '',
+    invalidPrevious: readMeta('ra-idp:totp-invalid') === '1',
+  }
+}
+
 export interface DeviceContext {
   prefillUserCode: string
   csrf: string

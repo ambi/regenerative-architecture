@@ -62,6 +62,33 @@ export const UserSchema = z.object({
 export type User = z.infer<typeof UserSchema>
 
 // ===============================================================
+// MFA factor (SCL MfaFactor / MfaFactorType と双子定義)
+// ===============================================================
+
+export const MfaFactorTypeSchema = z.enum(['totp', 'webauthn', 'hwk', 'swk'])
+export type MfaFactorType = z.infer<typeof MfaFactorTypeSchema>
+
+export const MfaFactorSchema = z
+  .object({
+    sub: z.string(),
+    type: MfaFactorTypeSchema,
+    secret: z.string().optional(),
+    label: z.string().optional(),
+    created_at: z.string().datetime(),
+    last_used_at: z.string().datetime().optional(),
+  })
+  .superRefine((factor, ctx) => {
+    if (factor.type === 'totp' && !factor.secret) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['secret'],
+        message: 'totp factor requires secret',
+      })
+    }
+  })
+export type MfaFactor = z.infer<typeof MfaFactorSchema>
+
+// ===============================================================
 // コンセント
 // ===============================================================
 

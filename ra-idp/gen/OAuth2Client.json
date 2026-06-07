@@ -84,6 +84,9 @@
     "require_pushed_authorization_requests": {
       "type": "boolean"
     },
+    "require_pkce": {
+      "type": "boolean"
+    },
     "dpop_bound_access_tokens": {
       "type": "boolean"
     },

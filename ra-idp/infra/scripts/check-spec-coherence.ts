@@ -31,6 +31,25 @@ type SclLike = {
       }
     >
   }
+  standards?: Record<
+    string,
+    {
+      title: string
+      version: string
+      url: string
+      roles: string[]
+      scope: string
+      requirements: Array<{
+        id: string
+        section?: string
+        strength: string
+        adoption: string
+        statement: string
+        reason?: string
+        relates_to?: Record<string, string[]>
+      }>
+    }
+  >
   vocabulary: Record<string, { aliases?: string[] }>
   models: Record<
     string,
@@ -62,7 +81,37 @@ type SclLike = {
       transitions: Array<{ from: string; event: string; to: string }>
     }
   >
+  properties: Record<string, unknown>
   scenarios: Record<string, unknown>
+  permissions: Record<string, unknown>
+  objectives: Record<string, unknown>
+  user_experience?: {
+    accessibility?: { standard: string; level: string }
+    locales?: string[]
+    screens: Record<
+      string,
+      { route: string; purpose: string; interfaces?: string[]; states?: string[] }
+    >
+    transitions?: Array<{
+      from?: string
+      to?: string
+      trigger: string
+      interface?: string
+      external?: boolean
+    }>
+    requirements?: Array<{
+      id: string
+      category: string
+      adoption: string
+      statement: string
+      reason?: string
+      screens?: string[]
+      interfaces?: string[]
+      standards?: string[]
+      scenarios?: string[]
+      properties?: string[]
+    }>
+  }
 }
 
 const scl = sclDoc as unknown as SclLike
@@ -111,6 +160,157 @@ function checkVocabularyCompleteness() {
   }
 }
 
+// ---------------------------------------------------------------
+// 0.1 Standards / User Experience internal references
+// ---------------------------------------------------------------
+function checkStandardsAndUserExperience() {
+  const adoptionValues = new Set(['required', 'optional', 'excluded'])
+  const strengthValues = new Set(['MUST', 'MUST NOT', 'SHOULD', 'SHOULD NOT', 'MAY'])
+  const sectionTargets: Record<string, Set<string>> = {
+    vocabulary: new Set(Object.keys(scl.vocabulary)),
+    models: new Set(Object.keys(scl.models)),
+    interfaces: new Set(Object.keys(scl.interfaces)),
+    state_machines: new Set(Object.keys(scl.state_machines)),
+    properties: new Set(Object.keys(scl.properties)),
+    scenarios: new Set(Object.keys(scl.scenarios)),
+    permissions: new Set(Object.keys(scl.permissions)),
+    objectives: new Set(Object.keys(scl.objectives)),
+  }
+  const standardIds = new Set<string>()
+
+  for (const [standardName, standard] of Object.entries(scl.standards ?? {})) {
+    if (!standard.title || !standard.version || !standard.scope || !standard.roles?.length) {
+      bad(`standards.${standardName} に title/version/scope/roles が揃っていない`)
+    }
+    try {
+      const url = new URL(standard.url)
+      if (url.protocol !== 'https:') bad(`standards.${standardName}.url は HTTPS ではない`)
+      else ok(`standards.${standardName}.url は HTTPS`)
+    } catch {
+      bad(`standards.${standardName}.url が不正: ${standard.url}`)
+    }
+
+    for (const requirement of standard.requirements ?? []) {
+      if (standardIds.has(requirement.id)) {
+        bad(`standards requirement id が重複: ${requirement.id}`)
+      } else {
+        standardIds.add(requirement.id)
+        ok(`standards requirement id ${requirement.id} は一意`)
+      }
+      if (!strengthValues.has(requirement.strength)) {
+        bad(`standards.${standardName}.${requirement.id}.strength が不正: ${requirement.strength}`)
+      }
+      if (!adoptionValues.has(requirement.adoption)) {
+        bad(`standards.${standardName}.${requirement.id}.adoption が不正: ${requirement.adoption}`)
+      }
+      if (requirement.adoption === 'excluded' && !requirement.reason) {
+        bad(`standards.${standardName}.${requirement.id} は excluded だが reason がない`)
+      }
+      if (!requirement.statement) {
+        bad(`standards.${standardName}.${requirement.id}.statement がない`)
+      }
+      for (const [section, names] of Object.entries(requirement.relates_to ?? {})) {
+        const known = sectionTargets[section]
+        if (!known) {
+          bad(
+            `standards.${standardName}.${requirement.id}.relates_to.${section} は未知のセクション`,
+          )
+          continue
+        }
+        for (const name of names) {
+          if (known.has(name)) ok(`${requirement.id} ↔ ${section}.${name}`)
+          else bad(`${requirement.id} が存在しない ${section}.${name} を参照`)
+        }
+      }
+    }
+  }
+
+  const ux = scl.user_experience
+  if (!ux) return
+  const screens = new Set(Object.keys(ux.screens))
+  const interfaces = sectionTargets.interfaces
+  const standards = new Set(Object.keys(scl.standards ?? {}))
+  const uxRequirementIds = new Set<string>()
+
+  if (ux.accessibility) {
+    if (!standards.has(ux.accessibility.standard)) {
+      bad(`user_experience.accessibility.standard が存在しない: ${ux.accessibility.standard}`)
+    } else {
+      ok(`user_experience accessibility ↔ standards.${ux.accessibility.standard}`)
+    }
+    if (ux.accessibility.level !== 'AA') {
+      bad(`user_experience.accessibility.level は AA ではない: ${ux.accessibility.level}`)
+    }
+  }
+  if (!ux.locales?.length) bad('user_experience.locales が空')
+
+  for (const [screenName, screen] of Object.entries(ux.screens)) {
+    if (!screen.route.startsWith('/')) bad(`user_experience.screens.${screenName}.route が不正`)
+    if (!screen.purpose) bad(`user_experience.screens.${screenName}.purpose がない`)
+    for (const interfaceName of screen.interfaces ?? []) {
+      if (interfaces.has(interfaceName)) ok(`screen ${screenName} ↔ interfaces.${interfaceName}`)
+      else bad(`screen ${screenName} が存在しない interfaces.${interfaceName} を参照`)
+    }
+  }
+
+  for (const transition of ux.transitions ?? []) {
+    if (!transition.from && !transition.to) {
+      bad(`user_experience transition ${transition.trigger} に from/to がない`)
+    }
+    if (transition.from && !screens.has(transition.from)) {
+      bad(`user_experience transition ${transition.trigger}.from が不正: ${transition.from}`)
+    }
+    if (transition.to && !screens.has(transition.to)) {
+      bad(`user_experience transition ${transition.trigger}.to が不正: ${transition.to}`)
+    }
+    if (!transition.to && !transition.external) {
+      bad(`user_experience transition ${transition.trigger} は to も external もない`)
+    }
+    if (transition.interface && !interfaces.has(transition.interface)) {
+      bad(`user_experience transition ${transition.trigger}.interface が不正`)
+    }
+  }
+
+  for (const requirement of ux.requirements ?? []) {
+    if (uxRequirementIds.has(requirement.id)) {
+      bad(`user_experience requirement id が重複: ${requirement.id}`)
+    } else {
+      uxRequirementIds.add(requirement.id)
+      ok(`user_experience requirement id ${requirement.id} は一意`)
+    }
+    if (!adoptionValues.has(requirement.adoption)) {
+      bad(`user_experience.${requirement.id}.adoption が不正: ${requirement.adoption}`)
+    }
+    if (requirement.adoption === 'excluded' && !requirement.reason) {
+      bad(`user_experience.${requirement.id} は excluded だが reason がない`)
+    }
+    for (const screen of requirement.screens ?? []) {
+      if (!screens.has(screen))
+        bad(`user_experience.${requirement.id} が未知の screen ${screen} を参照`)
+    }
+    for (const interfaceName of requirement.interfaces ?? []) {
+      if (!interfaces.has(interfaceName)) {
+        bad(`user_experience.${requirement.id} が未知の interface ${interfaceName} を参照`)
+      }
+    }
+    for (const standard of requirement.standards ?? []) {
+      if (!standards.has(standard)) {
+        bad(`user_experience.${requirement.id} が未知の standard ${standard} を参照`)
+      }
+    }
+    for (const scenario of requirement.scenarios ?? []) {
+      if (!sectionTargets.scenarios.has(scenario)) {
+        bad(`user_experience.${requirement.id} が未知の scenario ${scenario} を参照`)
+      }
+    }
+    for (const property of requirement.properties ?? []) {
+      if (!sectionTargets.properties.has(property)) {
+        bad(`user_experience.${requirement.id} が未知の property ${property} を参照`)
+      }
+    }
+  }
+}
+
 function openApiOperationBlock(openapi: string, interfaceName: string): string | null {
   const marker = `operationId: ${operationId(interfaceName)}`
   const start = openapi.indexOf(marker)
@@ -153,7 +353,11 @@ async function checkOpenApiVsSclInterfaces() {
       continue
     }
     const method = http.method.toLowerCase()
-    if (openapi.includes(`  ${http.path}:\n    ${method}:`)) {
+    const operationMarker = `operationId: ${operationId(name)}`
+    const operationPosition = openapi.indexOf(operationMarker)
+    const pathPosition = openapi.lastIndexOf(`\n  ${http.path}:\n`, operationPosition)
+    const methodPosition = openapi.lastIndexOf(`\n    ${method}:\n`, operationPosition)
+    if (pathPosition >= 0 && methodPosition > pathPosition) {
       ok(`gen/openapi.yaml ${http.method} ${http.path} ↔ SCL ${name}`)
     } else {
       bad(`gen/openapi.yaml に SCL ${name} の ${http.method} ${http.path} がない`)
@@ -212,9 +416,7 @@ async function checkMigrationsVsScl() {
   // 連番不変で ALTER TABLE で列を足す。CREATE TABLE と ALTER TABLE ADD COLUMN を
   // 通番でマージして SCL と突き合わせる。
   const migrationsDir = join(import.meta.dir, '../migrations')
-  const files = (await readdir(migrationsDir))
-    .filter((f) => f.endsWith('.sql'))
-    .sort()
+  const files = (await readdir(migrationsDir)).filter((f) => f.endsWith('.sql')).sort()
   const composed: Record<string, Set<string>> = {}
   for (const file of files) {
     const sql = await readFile(join(migrationsDir, file), 'utf-8')
@@ -244,8 +446,7 @@ async function checkMigrationsVsScl() {
 function mergeColumns(into: Record<string, Set<string>>, sql: string): void {
   // CREATE TABLE 全体
   const createRe = /CREATE TABLE (?:IF NOT EXISTS )?([a-zA-Z_][a-zA-Z0-9_]*)\s*\(([\s\S]*?)\n\);/gi
-  let m: RegExpExecArray | null
-  while ((m = createRe.exec(sql)) !== null) {
+  for (let m = createRe.exec(sql); m !== null; m = createRe.exec(sql)) {
     const table = m[1]
     const cols = into[table] ?? new Set<string>()
     for (const line of m[2].split('\n')) {
@@ -258,8 +459,9 @@ function mergeColumns(into: Record<string, Set<string>>, sql: string): void {
     into[table] = cols
   }
   // ALTER TABLE … ADD COLUMN
-  const alterRe = /ALTER TABLE\s+([a-zA-Z_][a-zA-Z0-9_]*)\s+ADD COLUMN(?:\s+IF NOT EXISTS)?\s+([a-zA-Z_][a-zA-Z0-9_]*)/gi
-  while ((m = alterRe.exec(sql)) !== null) {
+  const alterRe =
+    /ALTER TABLE\s+([a-zA-Z_][a-zA-Z0-9_]*)\s+ADD COLUMN(?:\s+IF NOT EXISTS)?\s+([a-zA-Z_][a-zA-Z0-9_]*)/gi
+  for (let m = alterRe.exec(sql); m !== null; m = alterRe.exec(sql)) {
     const table = m[1]
     const col = m[2]
     const cols = into[table] ?? new Set<string>()
@@ -360,6 +562,7 @@ async function checkScenarioCoverage() {
 // ---------------------------------------------------------------
 async function main() {
   checkVocabularyCompleteness()
+  checkStandardsAndUserExperience()
   await checkOpenApiVsSclInterfaces()
   checkEventRoutingVsScl()
   await checkMigrationsVsScl()

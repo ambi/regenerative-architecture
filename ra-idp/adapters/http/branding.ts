@@ -50,9 +50,7 @@ export function negotiateLocale(
   fallback: SupportedLocale = 'ja',
 ): SupportedLocale {
   if (!acceptLanguage) return fallback
-  const tokens = acceptLanguage
-    .split(',')
-    .map((s) => s.trim().split(';')[0].toLowerCase())
+  const tokens = acceptLanguage.split(',').map((s) => s.trim().split(';')[0].toLowerCase())
   for (const tag of tokens) {
     if (tag.startsWith('ja')) return 'ja'
     if (tag.startsWith('en')) return 'en'

@@ -1,0 +1,15 @@
+{
+  "$id": "urn:idp:BrowserFlowResponse",
+  "type": "object",
+  "additionalProperties": false,
+  "description": "SPA の認証操作後に表示する次画面またはクライアント redirect URI。",
+  "properties": {
+    "next": {
+      "type": "string"
+    },
+    "redirect_to": {
+      "type": "string",
+      "format": "uri"
+    }
+  }
+}

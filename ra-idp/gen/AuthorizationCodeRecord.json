@@ -42,6 +42,15 @@
     "auth_time": {
       "type": "integer"
     },
+    "amr": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "acr": {
+      "type": "string"
+    },
     "state": {
       "type": "string",
       "enum": [

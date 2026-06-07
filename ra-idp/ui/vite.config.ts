@@ -7,7 +7,10 @@ import { defineConfig } from 'vite'
 // 本番 build 成果物は backend が `/assets/*` と HTML shell として配信する。
 export default defineConfig({
   plugins: [
-    TanStackRouterVite({ routesDirectory: 'src/routes', generatedRouteTree: 'src/routeTree.gen.ts' }),
+    TanStackRouterVite({
+      routesDirectory: 'src/routes',
+      generatedRouteTree: 'src/routeTree.gen.ts',
+    }),
     react(),
   ],
   resolve: {

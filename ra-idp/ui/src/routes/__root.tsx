@@ -3,6 +3,7 @@ import { ConsentPage } from '@/pages/ConsentPage'
 import { DevicePage } from '@/pages/DevicePage'
 import { ErrorPage } from '@/pages/ErrorPage'
 import { LoginPage } from '@/pages/LoginPage'
+import { TotpPage } from '@/pages/TotpPage'
 import { readMeta } from '@/lib/page-context'
 
 /**
@@ -22,6 +23,8 @@ function PageDispatcher() {
   switch (page) {
     case 'login':
       return <LoginPage />
+    case 'totp':
+      return <TotpPage />
     case 'consent':
       return <ConsentPage />
     case 'device':

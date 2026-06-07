@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: "RA OAuth2 / OIDC IdP"
-  version: "1.0"
+  version: "1.1"
 paths:
   /register:
     post:
@@ -123,6 +123,150 @@ paths:
           application/x-www-form-urlencoded:
             schema:
               $ref: "#/components/schemas/LoginRequest"
+  /totp:
+    get:
+      operationId: totpChallenge
+      summary: TOTP コードを入力するためのブラウザ画面を返す。authentication_pending=true の LoginSession から表示する。SPA shell + fallback form を返す。他 factor (WebAuthn 等) は HTTP 形が異なるため、それぞれ別 interface として定義する。
+      responses:
+        200:
+          description: TOTP コードを入力するためのブラウザ画面を返す。authentication_pending=true の LoginSession から表示する。SPA shell + fallback form を返す。他 factor (WebAuthn 等) は HTTP 形が異なるため、それぞれ別 interface として定義する。
+    post:
+      operationId: totpSubmit
+      summary: ブラウザ form から TOTP コードを検証する。RFC 6238 の検証ロジックは Authentication component が担う。成功時は LoginSession を認証完了状態に昇格させて OAuth2/OIDC continuation に進む。
+      responses:
+        302:
+          description: ブラウザ form から TOTP コードを検証する。RFC 6238 の検証ロジックは Authentication component が担う。成功時は LoginSession を認証完了状態に昇格させて OAuth2/OIDC continuation に進む。
+        400:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthError"
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/TotpRequest"
+  /api/auth/transaction:
+    get:
+      operationId: getBrowserTransaction
+      summary: SPA が HttpOnly transaction cookie に対応するログイン・同意コンテキストを取得する。
+      responses:
+        200:
+          description: SPA が HttpOnly transaction cookie に対応するログイン・同意コンテキストを取得する。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrowserTransactionResponse"
+        400:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthError"
+  /api/auth/login:
+    post:
+      operationId: submitBrowserLogin
+      summary: SPA JSON API から browser password login を完了する。
+      responses:
+        200:
+          description: SPA JSON API から browser password login を完了する。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrowserFlowResponse"
+        400:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthError"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BrowserLoginRequest"
+  /api/auth/consent:
+    post:
+      operationId: submitBrowserConsent
+      summary: SPA JSON API から authorization request の同意・拒否を確定する。
+      responses:
+        200:
+          description: SPA JSON API から authorization request の同意・拒否を確定する。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrowserFlowResponse"
+        400:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthError"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BrowserConsentRequest"
+  /api/auth/device:
+    post:
+      operationId: submitBrowserDevice
+      summary: SPA JSON API から device user_code を承認または拒否する。
+      responses:
+        200:
+          description: SPA JSON API から device user_code を承認または拒否する。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrowserFlowResponse"
+        400:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthError"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BrowserDeviceRequest"
+    get:
+      operationId: getBrowserDeviceContext
+      summary: SPA が device user_code と CSRF token を取得する。
+      responses:
+        200:
+          description: SPA が device user_code と CSRF token を取得する。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrowserDeviceContextResponse"
+  /api/auth/totp:
+    post:
+      operationId: submitBrowserTotp
+      summary: SPA JSON API から TOTP コードを検証する。成功すれば LoginSession を認証完了状態に昇格させ、後続フロー (consent / authorization code 発行) に進む。他 factor は別 endpoint として定義する。
+      responses:
+        200:
+          description: SPA JSON API から TOTP コードを検証する。成功すれば LoginSession を認証完了状態に昇格させ、後続フロー (consent / authorization code 発行) に進む。他 factor は別 endpoint として定義する。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrowserFlowResponse"
+        400:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthError"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BrowserTotpRequest"
   /end_session:
     get:
       operationId: endSession
@@ -263,6 +407,22 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/OAuthError"
+    post:
+      operationId: postUserInfo
+      summary: UserInfo の POST binding (OIDC Core §5.3)
+      responses:
+        200:
+          description: UserInfo の POST binding (OIDC Core §5.3)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserInfoResponse"
+        400:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthError"
   /device_authorization:
     post:
       operationId: deviceAuthorization
@@ -387,6 +547,13 @@ components:
       type: string
       enum:
         - S256
+    MfaFactorType:
+      type: string
+      enum:
+        - totp
+        - webauthn
+        - hwk
+        - swk
     AuthorizationCodeState:
       type: string
       enum:
@@ -522,6 +689,8 @@ components:
             - ES256
         require_pushed_authorization_requests:
           type: boolean
+        require_pkce:
+          type: boolean
         dpop_bound_access_tokens:
           type: boolean
         fapi_profile:
@@ -588,10 +757,38 @@ components:
         - email_verified
         - mfa_enrolled
         - created_at
+    MfaFactor:
+      type: object
+      additionalProperties: false
+      description: "ユーザーが登録した第二要素 (MFA) 1 件。Totp の場合 secret は base32 で保存し、認証時に RFC 6238 (T0=0, STEP=30s, 6-digit) で評価する。User.mfa_enrolled の真値はこの集合の非空性と同義。"
+      properties:
+        sub:
+          type: string
+        type:
+          type: string
+          enum:
+            - totp
+            - webauthn
+            - hwk
+            - swk
+        secret:
+          type: string
+        label:
+          type: string
+        created_at:
+          type: string
+          format: "date-time"
+        last_used_at:
+          type: string
+          format: "date-time"
+      required:
+        - sub
+        - type
+        - created_at
     LoginSession:
       type: object
       additionalProperties: false
-      description: ブラウザログインセッション。Cookie には不透明な session id のみを置き、sub と auth_time はサーバー側ストアに保持する。
+      description: "ブラウザログインセッション。Cookie には不透明な session id のみを置き、sub と auth_time はサーバー側ストアに保持する。amr / acr もここに残し、後続の /authorize で step-up 判定に使う。authentication_pending=true は追加 factor 検証を待っている中間状態で、/authorize 完了経路はそのセッションを未認証扱いとし対応する factor challenge に誘導する。"
       properties:
         id:
           type: string
@@ -600,6 +797,14 @@ components:
           type: string
         auth_time:
           type: integer
+        amr:
+          type: array
+          items:
+            type: string
+        acr:
+          type: string
+        authentication_pending:
+          type: boolean
         expires_at:
           type: string
           format: "date-time"
@@ -607,6 +812,9 @@ components:
         - id
         - sub
         - auth_time
+        - amr
+        - acr
+        - authentication_pending
         - expires_at
     AuthenticationContext:
       type: object
@@ -771,6 +979,14 @@ components:
           type: string
         auth_time:
           type: integer
+        amr:
+          type: array
+          items:
+            type: string
+        acr:
+          type: string
+        acr_values:
+          type: string
         created_at:
           type: string
           format: "date-time"
@@ -819,6 +1035,12 @@ components:
           type: string
         auth_time:
           type: integer
+        amr:
+          type: array
+          items:
+            type: string
+        acr:
+          type: string
         state:
           type: string
           enum:
@@ -1236,6 +1458,8 @@ components:
           type: boolean
         require_pkce:
           type: boolean
+        authorization_response_iss_parameter_supported:
+          type: boolean
         dpop_signing_alg_values_supported:
           type: array
           items:
@@ -1246,6 +1470,10 @@ components:
         tls_client_certificate_bound_access_tokens:
           type: boolean
         claims_supported:
+          type: array
+          items:
+            type: string
+        acr_values_supported:
           type: array
           items:
             type: string
@@ -1316,6 +1544,8 @@ components:
           type: string
           format: uri
         jwks: {}
+        tls_client_auth_subject_dn:
+          type: string
         id_token_signed_response_alg:
           type: string
           enum:
@@ -1326,6 +1556,12 @@ components:
           enum:
             - none
             - fapi_2_security_profile
+        require_pkce:
+          type: boolean
+        require_pushed_authorization_requests:
+          type: boolean
+        dpop_bound_access_tokens:
+          type: boolean
       required:
         - redirect_uris
         - grant_types
@@ -1556,6 +1792,130 @@ components:
         - username
         - password
         - csrf
+    TotpRequest:
+      type: object
+      additionalProperties: false
+      description: "POST /totp の form リクエスト。RFC 6238 の数字コードを 1 フィールドで受け取る。CSRF は double-submit cookie と hidden form value の一致で検証する。"
+      properties:
+        request_id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        csrf:
+          type: string
+      required:
+        - request_id
+        - code
+        - csrf
+    MfaRequest:
+      type: object
+      additionalProperties: false
+      description: "POST /mfa の form リクエスト。factor_type に応じて credential の形式が決まる (factor 固有の検証ロジックは Authentication component が担う)。CSRF は double-submit cookie と hidden form value の一致で検証する。"
+      properties:
+        request_id:
+          type: string
+          format: uuid
+        factor_type:
+          type: string
+          enum:
+            - totp
+            - webauthn
+            - hwk
+            - swk
+        credential:
+          type: string
+        csrf:
+          type: string
+      required:
+        - request_id
+        - factor_type
+        - credential
+        - csrf
+    BrowserLoginRequest:
+      type: object
+      additionalProperties: false
+      description: "SPA が POST /api/auth/login に送る JSON。authorization request id は HttpOnly transaction cookie、CSRF は X-CSRF-Token header から解決する。"
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+      required:
+        - username
+        - password
+    BrowserConsentRequest:
+      type: object
+      additionalProperties: false
+      description: SPA が POST /api/auth/consent に送る同意判断。
+      properties:
+        action:
+          type: string
+      required:
+        - action
+    BrowserDeviceRequest:
+      type: object
+      additionalProperties: false
+      description: SPA が POST /api/auth/device に送る device user_code の承認判断。
+      properties:
+        user_code:
+          type: string
+        action:
+          type: string
+      required:
+        - user_code
+        - action
+    BrowserTotpRequest:
+      type: object
+      additionalProperties: false
+      description: "SPA が POST /api/auth/totp に送る TOTP コード。authorization request id は HttpOnly transaction cookie、CSRF は X-CSRF-Token header から解決する。他 factor (WebAuthn 等) は HTTP 形が大きく異なるため、別 endpoint と別 value object として独立に定義する。"
+      properties:
+        code:
+          type: string
+      required:
+        - code
+    BrowserTransactionResponse:
+      type: object
+      additionalProperties: false
+      description: "SPA が現在の browser authorization transaction を描画するための no-store JSON。"
+      properties:
+        kind:
+          type: string
+        csrf_token:
+          type: string
+        client_name:
+          type: string
+        scopes:
+          type: array
+          items:
+            type: string
+      required:
+        - kind
+        - csrf_token
+    BrowserDeviceContextResponse:
+      type: object
+      additionalProperties: false
+      description: "SPA が device user_code 画面を描画するための no-store JSON。"
+      properties:
+        kind:
+          type: string
+        user_code:
+          type: string
+        csrf_token:
+          type: string
+      required:
+        - kind
+        - csrf_token
+    BrowserFlowResponse:
+      type: object
+      additionalProperties: false
+      description: SPA の認証操作後に表示する次画面またはクライアント redirect URI。
+      properties:
+        next:
+          type: string
+        redirect_to:
+          type: string
+          format: uri
     EndSessionParameters:
       type: object
       additionalProperties: false

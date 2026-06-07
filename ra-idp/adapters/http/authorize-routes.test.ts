@@ -95,6 +95,7 @@ async function setup() {
     issuer: 'http://idp.example.com',
     clientRepo,
     consentRepo,
+    userRepo,
     requestStore,
     codeStore,
     parStore,

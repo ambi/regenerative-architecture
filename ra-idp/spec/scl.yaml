@@ -8,14 +8,14 @@
 #           標準仕様の snake_case 名（例: authorization_code）は aliases に置く。
 
 system: ra-idp
-spec_version: "1.0"
+spec_version: "1.1"
 
 components:
   Authentication:
     description: ユーザー認証、パスワード検証、ブラウザログインセッション、AuthenticationContext 復元を所有する。
-    owns_models: [User, LoginSession, LoginRequest, AuthenticationContext]
+    owns_models: [User, LoginSession, LoginRequest, TotpRequest, MfaFactor, MfaFactorType, AuthenticationContext]
     owns_events: [UserAuthenticated, AuthenticationFailed]
-    owns_interfaces: [Login]
+    owns_interfaces: [Login, TotpChallenge, TotpSubmit]
   OAuth2:
     description: OAuth 2.0 / OIDC の認可判断、同意、コード・トークン発行、RP-Initiated Logout endpoint を所有する。
     owns_models: [AuthorizationRequest, Consent, AuthorizationCodeRecord, TokenRequest, TokenResponse, EndSessionParameters]
@@ -23,6 +23,614 @@ components:
     owns_interfaces: [Authorize, EndSession, Token]
     depends_on:
       - { component: Authentication, reason: /authorize は AuthenticationContext を解決し、/end_session は session revocation を委譲する。 }
+
+# =================================================================
+# 0. standards — 適用する外部標準と規範要件
+# =================================================================
+
+standards:
+  RFC6238:
+    title: TOTP Time-Based One-Time Password Algorithm
+    version: RFC 6238
+    url: https://www.rfc-editor.org/rfc/rfc6238.html
+    roles: [Verifier]
+    scope: 時刻ベースワンタイムパスワードによる第二要素認証。
+    requirements:
+      - id: RFC6238-TOTP
+        section: "§4"
+        strength: MUST
+        adoption: optional
+        statement: TOTP factor利用時は共有秘密と時間ステップからOTPを生成・検証する。
+        relates_to: { models: [MfaFactor, MfaFactorType, AuthenticationContext] }
+
+  RFC6749:
+    title: The OAuth 2.0 Authorization Framework
+    version: RFC 6749
+    url: https://www.rfc-editor.org/rfc/rfc6749.html
+    roles: [AuthorizationServer]
+    scope: Authorization Code、Refresh Token、Client Credentialsと共通エラー処理。
+    requirements:
+      - id: RFC6749-AUTHORIZATION-CODE
+        section: "§4.1"
+        strength: MUST
+        adoption: required
+        statement: Authorization Code Grantを認可エンドポイントとトークンエンドポイントで提供する。
+        relates_to: { interfaces: [Authorize, Token], state_machines: [AuthorizationCodeFlow] }
+      - id: RFC6749-CLIENT-CREDENTIALS
+        section: "§4.4"
+        strength: MAY
+        adoption: optional
+        statement: confidential clientに限りClient Credentials Grantを許可する。
+        relates_to: { interfaces: [Token], permissions: [TokenGrantClientCredentials] }
+      - id: RFC6749-IMPLICIT
+        section: "§4.2"
+        strength: MAY
+        adoption: excluded
+        statement: Implicit Grantを提供する。
+        reason: RFC 9700の勧告に従いAuthorization Code + PKCEへ限定する。
+        relates_to: { models: [GrantType] }
+      - id: RFC6749-PASSWORD-GRANT
+        section: "§4.3"
+        strength: MAY
+        adoption: excluded
+        statement: Resource Owner Password Credentials Grantを提供する。
+        reason: RFC 9700により使用しない。
+        relates_to: { models: [GrantType] }
+
+  RFC6750:
+    title: The OAuth 2.0 Authorization Framework Bearer Token Usage
+    version: RFC 6750
+    url: https://www.rfc-editor.org/rfc/rfc6750.html
+    roles: [AuthorizationServer, ResourceServer]
+    scope: Bearer Access Tokenの提示方法とエラー応答。
+    requirements:
+      - id: RFC6750-AUTHORIZATION-HEADER
+        section: "§2.1"
+        strength: MUST
+        adoption: required
+        statement: Bearer Access TokenはAuthorizationヘッダーで受け付ける。
+        relates_to: { interfaces: [UserInfo, PostUserInfo] }
+      - id: RFC6750-QUERY-TOKEN
+        section: "§2.3"
+        strength: MAY
+        adoption: excluded
+        statement: URI query parameterによるAccess Token提示を受け付ける。
+        reason: URL、ログ、Refererへのトークン漏洩を避ける。
+
+  RFC7009:
+    title: OAuth 2.0 Token Revocation
+    version: RFC 7009
+    url: https://www.rfc-editor.org/rfc/rfc7009.html
+    roles: [AuthorizationServer]
+    scope: Access TokenとRefresh Tokenの失効。
+    requirements:
+      - id: RFC7009-REVOCATION-ENDPOINT
+        section: "§2"
+        strength: MUST
+        adoption: required
+        statement: 認証済みクライアントへトークン失効エンドポイントを提供する。
+        relates_to: { interfaces: [Revoke], models: [RevokeRequest] }
+      - id: RFC7009-UNKNOWN-TOKEN
+        section: "§2.2"
+        strength: MUST
+        adoption: required
+        statement: 無効または他クライアント所有のトークンに対しても成功応答を返し情報を漏らさない。
+        relates_to: { scenarios: [他クライアントの所有トークンの失効要求は静かに無視される] }
+
+  RFC7517:
+    title: JSON Web Key
+    version: RFC 7517
+    url: https://www.rfc-editor.org/rfc/rfc7517.html
+    roles: [AuthorizationServer]
+    scope: 署名検証鍵のJWK Set公開。
+    requirements:
+      - id: RFC7517-JWKS
+        section: "§5"
+        strength: MUST
+        adoption: required
+        statement: 公開可能な検証鍵をJWK Setとして配布する。
+        relates_to: { interfaces: [GetJwks], models: [JWK, JWKS] }
+
+  RFC7518:
+    title: JSON Web Algorithms
+    version: RFC 7518
+    url: https://www.rfc-editor.org/rfc/rfc7518.html
+    roles: [AuthorizationServer]
+    scope: JWT署名に用いる暗号アルゴリズム。
+    requirements:
+      - id: RFC7518-SIGNATURE-ALGORITHMS
+        section: "§3"
+        strength: MUST
+        adoption: required
+        statement: JWT署名をPS256またはES256で行い、対称鍵署名をAccess TokenとID Tokenに使用しない。
+        relates_to: { models: [SignatureAlgorithm, SigningKey] }
+
+  RFC7519:
+    title: JSON Web Token
+    version: RFC 7519
+    url: https://www.rfc-editor.org/rfc/rfc7519.html
+    roles: [AuthorizationServer]
+    scope: Access Token、ID Token、client assertionのJWT表現。
+    requirements:
+      - id: RFC7519-REGISTERED-CLAIMS
+        section: "§4.1"
+        strength: MUST
+        adoption: required
+        statement: JWTのissuer、subject、audience、有効期限、発行時刻、一意識別子を用途に応じて検証・発行する。
+        relates_to: { models: [AccessTokenClaims, IdTokenClaims, Audience] }
+
+  RFC7523:
+    title: JSON Web Token Profile for OAuth 2.0 Client Authentication and Authorization Grants
+    version: RFC 7523
+    url: https://www.rfc-editor.org/rfc/rfc7523.html
+    roles: [AuthorizationServer]
+    scope: private_key_jwtによるClient Authentication。
+    requirements:
+      - id: RFC7523-CLIENT-ASSERTION
+        section: "§2.2, §3"
+        strength: MAY
+        adoption: optional
+        statement: client assertionの署名、issuer、subject、audience、有効期限、jtiを検証する。
+        relates_to: { models: [TokenEndpointAuthMethod], interfaces: [Token, Introspect, Revoke] }
+
+  RFC7591:
+    title: OAuth 2.0 Dynamic Client Registration Protocol
+    version: RFC 7591
+    url: https://www.rfc-editor.org/rfc/rfc7591.html
+    roles: [AuthorizationServer]
+    scope: OAuth Client metadataの動的登録。
+    requirements:
+      - id: RFC7591-REGISTER
+        section: "§3"
+        strength: MAY
+        adoption: optional
+        statement: Client metadataを受け取りclient_idと登録結果を返す。
+        relates_to: { interfaces: [RegisterClient], models: [ClientRegistrationRequest, OAuth2Client] }
+      - id: RFC7591-REDIRECT-URI
+        section: "§2"
+        strength: MUST
+        adoption: required
+        statement: Authorization Code Grantを利用するClientにはredirect_uri登録を要求する。
+        relates_to: { scenarios: [redirect_uri が無いクライアント登録は拒否される] }
+
+  RFC7636:
+    title: Proof Key for Code Exchange by OAuth Public Clients
+    version: RFC 7636
+    url: https://www.rfc-editor.org/rfc/rfc7636.html
+    roles: [AuthorizationServer]
+    scope: Authorization Code横取り攻撃への対策。
+    requirements:
+      - id: RFC7636-VERIFY
+        section: "§4.6"
+        strength: MUST
+        adoption: required
+        statement: Token requestのcode_verifierを認可時のcode_challengeと照合する。
+        relates_to: { interfaces: [Authorize, Token], properties: [PkceRoundTrip] }
+      - id: RFC7636-S256
+        section: "§4.2"
+        strength: SHOULD
+        adoption: required
+        statement: code_challenge_methodはS256だけを許可する。
+        relates_to: { models: [CodeChallengeMethod] }
+      - id: RFC7636-PLAIN
+        section: "§4.2"
+        strength: MAY
+        adoption: excluded
+        statement: plain code challenge methodを許可する。
+        reason: 認可コード横取り耐性をS256へ統一する。
+
+  RFC7662:
+    title: OAuth 2.0 Token Introspection
+    version: RFC 7662
+    url: https://www.rfc-editor.org/rfc/rfc7662.html
+    roles: [AuthorizationServer]
+    scope: Resource Serverによるトークン状態照会。
+    requirements:
+      - id: RFC7662-INTROSPECT
+        section: "§2"
+        strength: MUST
+        adoption: required
+        statement: 認証済みResource Serverへactive状態と許可されたメタデータを返す。
+        relates_to: { interfaces: [Introspect], models: [IntrospectionRequest, IntrospectionResponse] }
+      - id: RFC7662-INACTIVE
+        section: "§2.2"
+        strength: MUST
+        adoption: required
+        statement: 無効なトークンにはactive=falseだけを返す。
+        relates_to: { scenarios: [失効済みトークンの introspection は active=false のみ返す] }
+
+  RFC7800:
+    title: Proof-of-Possession Key Semantics for JSON Web Tokens
+    version: RFC 7800
+    url: https://www.rfc-editor.org/rfc/rfc7800.html
+    roles: [AuthorizationServer, ResourceServer]
+    scope: JWT cnf claimによるproof-of-possession key表現。
+    requirements:
+      - id: RFC7800-CONFIRMATION
+        section: "§3"
+        strength: MAY
+        adoption: optional
+        statement: Sender-constrained tokenの確認鍵情報をcnf claimへ格納する。
+        relates_to: { models: [SenderConstraintCnf, AccessTokenClaims] }
+
+  RFC8176:
+    title: Authentication Method Reference Values
+    version: RFC 8176
+    url: https://www.rfc-editor.org/rfc/rfc8176.html
+    roles: [OpenIDProvider]
+    scope: ID Token等へ記録する認証方法参照値。
+    requirements:
+      - id: RFC8176-AMR
+        section: "§2"
+        strength: MAY
+        adoption: required
+        statement: 実際に成立した認証方法をamr値として記録する。
+        relates_to: { models: [AuthenticationContext, IdTokenClaims, AccessTokenClaims] }
+
+  RFC8414:
+    title: OAuth 2.0 Authorization Server Metadata
+    version: RFC 8414
+    url: https://www.rfc-editor.org/rfc/rfc8414.html
+    roles: [AuthorizationServer]
+    scope: Authorization Server metadataの公開。
+    requirements:
+      - id: RFC8414-METADATA
+        section: "§3"
+        strength: MUST
+        adoption: required
+        statement: issuerと利用可能なエンドポイント・機能をmetadata文書として公開する。
+        relates_to: { interfaces: [GetOauthAuthorizationServer], models: [DiscoveryDocument] }
+
+  RFC8628:
+    title: OAuth 2.0 Device Authorization Grant
+    version: RFC 8628
+    url: https://www.rfc-editor.org/rfc/rfc8628.html
+    roles: [AuthorizationServer]
+    scope: 入力制約のあるデバイス向け認可。
+    requirements:
+      - id: RFC8628-DEVICE-AUTHORIZATION
+        section: "§3.1-3.3"
+        strength: MUST
+        adoption: optional
+        statement: device_code、user_code、verification_uriを発行しResourceOwnerの判断を受け付ける。
+        relates_to: { interfaces: [DeviceAuthorization, GetBrowserDeviceContext, SubmitBrowserDevice], state_machines: [DeviceCodeFlow] }
+      - id: RFC8628-POLLING
+        section: "§3.5"
+        strength: MUST
+        adoption: required
+        statement: authorization_pending、slow_down、expired_tokenのポーリング意味論を守る。
+        relates_to: { scenarios: [承認前のデバイス交換は authorization_pending を返す, ポーリング間隔より短い再試行は slow_down を返す, 期限切れの device_code は expired_token を返す] }
+
+  RFC8705:
+    title: OAuth 2.0 Mutual-TLS Client Authentication and Certificate-Bound Access Tokens
+    version: RFC 8705
+    url: https://www.rfc-editor.org/rfc/rfc8705.html
+    roles: [AuthorizationServer]
+    scope: mTLS Client Authenticationと証明書バインドAccess Token。
+    requirements:
+      - id: RFC8705-CLIENT-AUTH
+        section: "§2"
+        strength: MAY
+        adoption: optional
+        statement: 登録済みSubject DNと検証済みクライアント証明書を照合してClientを認証する。
+        relates_to: { interfaces: [Token, Introspect, Revoke] }
+      - id: RFC8705-CERT-BOUND
+        section: "§3"
+        strength: MAY
+        adoption: optional
+        statement: Access Tokenをクライアント証明書thumbprintへバインドしResource access時に照合する。
+        relates_to: { models: [SenderConstraintCnf], interfaces: [UserInfo, PostUserInfo] }
+
+  RFC8707:
+    title: Resource Indicators for OAuth 2.0
+    version: RFC 8707
+    url: https://www.rfc-editor.org/rfc/rfc8707.html
+    roles: [AuthorizationServer]
+    scope: Access Token audienceの明示と権限最小化。
+    requirements:
+      - id: RFC8707-AUDIENCE
+        section: "§2"
+        strength: SHOULD
+        adoption: required
+        statement: 発行するAccess Tokenへ非空のaudienceを設定し、意図しないResource Serverでの利用を防ぐ。
+        relates_to: { properties: [AllAccessTokensCarryAudience], models: [AccessTokenClaims] }
+
+  RFC9068:
+    title: JSON Web Token Profile for OAuth 2.0 Access Tokens
+    version: RFC 9068
+    url: https://www.rfc-editor.org/rfc/rfc9068.html
+    roles: [AuthorizationServer]
+    scope: JWT形式Access Tokenのクレームと署名。
+    requirements:
+      - id: RFC9068-CLAIMS
+        section: "§2.2"
+        strength: MUST
+        adoption: required
+        statement: JWT Access Tokenへiss、sub、aud、exp、iat、jti、client_idを含める。
+        relates_to: { models: [AccessTokenClaims] }
+      - id: RFC9068-ASYMMETRIC-SIGNATURE
+        section: "§2.1"
+        strength: MUST
+        adoption: required
+        statement: Access Tokenを非対称アルゴリズムで署名し公開鍵で検証可能にする。
+        relates_to: { models: [SignatureAlgorithm, SigningKey], interfaces: [GetJwks] }
+
+  RFC9126:
+    title: OAuth 2.0 Pushed Authorization Requests
+    version: RFC 9126
+    url: https://www.rfc-editor.org/rfc/rfc9126.html
+    roles: [AuthorizationServer]
+    scope: 認可パラメータの事前送信とrequest_uri参照。
+    requirements:
+      - id: RFC9126-PAR
+        section: "§2"
+        strength: MAY
+        adoption: optional
+        statement: Client認証済みPARを保存し短命なrequest_uriを返す。
+        relates_to: { interfaces: [PushAuthorizationRequest, Authorize], models: [PARRecord, ParResponse] }
+      - id: RFC9126-SINGLE-USE
+        section: "§2.2"
+        strength: SHOULD
+        adoption: required
+        statement: request_uriは短命かつ一度だけ使用可能とする。
+        relates_to: { objectives: [ParRequestUriLifetime], state_machines: [PARRecordLifecycle] }
+
+  RFC9207:
+    title: OAuth 2.0 Authorization Server Issuer Identification
+    version: RFC 9207
+    url: https://www.rfc-editor.org/rfc/rfc9207.html
+    roles: [AuthorizationServer]
+    scope: Authorization responseにおけるmix-up攻撃対策。
+    requirements:
+      - id: RFC9207-ISS
+        section: "§2"
+        strength: MUST
+        adoption: required
+        statement: Authorization responseへissuer識別子を含める。
+        relates_to: { interfaces: [Authorize], models: [DiscoveryDocument] }
+
+  RFC9449:
+    title: OAuth 2.0 Demonstrating Proof of Possession
+    version: RFC 9449
+    url: https://www.rfc-editor.org/rfc/rfc9449.html
+    roles: [AuthorizationServer, ResourceServer]
+    scope: DPoP proofと公開鍵バインドAccess Token。
+    requirements:
+      - id: RFC9449-PROOF
+        section: "§4-7"
+        strength: MAY
+        adoption: optional
+        statement: DPoP proofの署名、htm、htu、iat、jtiを検証する。
+        relates_to: { interfaces: [Token, UserInfo, PostUserInfo], properties: [DpopJtiUniquenessWithinWindow] }
+      - id: RFC9449-TOKEN-BINDING
+        section: "§6"
+        strength: MUST
+        adoption: optional
+        statement: DPoP利用時はAccess Tokenへjktを含め、提示proofの鍵と照合する。
+        relates_to: { models: [SenderConstraintCnf, AccessTokenClaims] }
+
+  RFC9700:
+    title: Best Current Practice for OAuth 2.0 Security
+    version: RFC 9700 / BCP 240
+    url: https://www.rfc-editor.org/rfc/rfc9700.html
+    roles: [AuthorizationServer]
+    scope: OAuth 2.0の現行セキュリティベストプラクティス。
+    requirements:
+      - id: RFC9700-REDIRECT-MATCH
+        section: "§2.1, §4.1.3"
+        strength: MUST
+        adoption: required
+        statement: redirect_uriは登録値と完全一致させ、未検証URIへリダイレクトしない。
+        relates_to: { properties: [RedirectUriExactMatch], scenarios: [未登録の redirect_uri へはリダイレクトしない] }
+      - id: RFC9700-AUTHORIZATION-CODE
+        section: "§2.1.1"
+        strength: MUST
+        adoption: required
+        statement: redirect-based flowはAuthorization Code GrantとPKCEで保護する。
+        relates_to: { interfaces: [Authorize, Token], properties: [PkceRoundTrip] }
+      - id: RFC9700-SENDER-CONSTRAINT
+        section: "§2.2.1"
+        strength: SHOULD
+        adoption: optional
+        statement: 高セキュリティClientではAccess TokenをDPoPまたはmTLSでsender-constrainedにする。
+        relates_to: { models: [SenderConstraintKind, SenderConstraintCnf] }
+      - id: RFC9700-REFRESH-REPLAY
+        section: "§2.2.2, §4.14"
+        strength: MUST
+        adoption: required
+        statement: Refresh Tokenをローテーションし再利用検知時に関連トークンを失効する。
+        relates_to: { state_machines: [RefreshTokenLifecycle], properties: [RefreshFamilyTransitiveRevoke, RefreshRotationParentInvariants] }
+
+  OpenIDConnectCore:
+    title: OpenID Connect Core 1.0 incorporating errata set 1
+    version: Final
+    url: https://openid.net/specs/openid-connect-core-1_0-18.html
+    roles: [OpenIDProvider]
+    scope: Authorization Code Flow、ID Token、UserInfo、認証セッション。
+    requirements:
+      - id: OIDC-CORE-CODE-FLOW
+        section: "§3.1"
+        strength: MUST
+        adoption: required
+        statement: code response typeによるOpenID Connect Authenticationを提供する。
+        relates_to: { interfaces: [Authorize, Token], models: [IdTokenClaims] }
+      - id: OIDC-CORE-ID-TOKEN
+        section: "§2"
+        strength: MUST
+        adoption: required
+        statement: ID Tokenへiss、sub、aud、exp、iatと認証コンテキストを含める。
+        relates_to: { models: [IdTokenClaims, AuthenticationContext] }
+      - id: OIDC-CORE-USERINFO
+        section: "§5.3"
+        strength: SHOULD
+        adoption: required
+        statement: openid scopeのAccess Tokenに対してsubを含むUserInfoを返す。
+        relates_to: { interfaces: [UserInfo, PostUserInfo], models: [UserInfoResponse] }
+      - id: OIDC-CORE-HYBRID-IMPLICIT
+        section: "§3.2-3.3"
+        strength: MAY
+        adoption: excluded
+        statement: Implicit FlowおよびHybrid Flowを提供する。
+        reason: front-channel token発行を避けcode response typeだけを採用する。
+
+  OpenIDConnectDiscovery:
+    title: OpenID Connect Discovery 1.0 incorporating errata set 1
+    version: Final
+    url: https://openid.net/specs/openid-connect-discovery-1_0-21.html
+    roles: [OpenIDProvider]
+    scope: OpenID Provider metadataの公開。
+    requirements:
+      - id: OIDC-DISCOVERY-CONFIGURATION
+        section: "§4"
+        strength: MUST
+        adoption: required
+        statement: well-known configurationからissuer、endpoints、supported metadataを公開する。
+        relates_to: { interfaces: [GetOpenidConfiguration], models: [DiscoveryDocument] }
+
+  OpenIDConnectRPInitiatedLogout:
+    title: OpenID Connect RP-Initiated Logout 1.0
+    version: Final
+    url: https://openid.net/specs/openid-connect-rpinitiated-1_0.html
+    roles: [OpenIDProvider]
+    scope: RPから開始するEnd-User session終了。
+    requirements:
+      - id: OIDC-LOGOUT-ENDPOINT
+        section: "§2"
+        strength: MUST
+        adoption: required
+        statement: end_session_endpointを公開しRPからのlogout要求を受け付ける。
+        relates_to: { interfaces: [EndSession, GetOpenidConfiguration] }
+      - id: OIDC-LOGOUT-REDIRECT
+        section: "§3"
+        strength: MUST
+        adoption: required
+        statement: post_logout_redirect_uriはClientに登録済みの値だけを許可する。
+        relates_to: { scenarios: [RP-Initiated Logout は登録済み post_logout_redirect_uri にだけリダイレクトする, 未登録 post_logout_redirect_uri は拒否される] }
+
+  FAPI2SecurityProfile:
+    title: FAPI 2.0 Security Profile
+    version: Final
+    url: https://openid.net/specs/fapi-security-profile-2_0-final.html
+    roles: [AuthorizationServer]
+    scope: confidential client向け高セキュリティOAuthプロファイル。
+    requirements:
+      - id: FAPI2-PROFILE-SELECTION
+        section: "§5.3"
+        strength: MUST
+        adoption: optional
+        statement: Fapi2SecurityProfileを選択したClientにだけ本プロファイルの追加制約を適用する。
+        relates_to: { models: [FapiProfile, OAuth2Client] }
+      - id: FAPI2-PAR-PKCE
+        section: "§5.3.2"
+        strength: MUST
+        adoption: optional
+        statement: FAPI ClientはPARとS256 PKCEを使用する。
+        relates_to: { interfaces: [PushAuthorizationRequest, Authorize], scenarios: [FAPI クライアントは PAR なしの直接認可リクエストを拒否される] }
+      - id: FAPI2-CLIENT-AUTH
+        section: "§5.3.2"
+        strength: MUST
+        adoption: optional
+        statement: FAPI Clientはprivate_key_jwtまたはmTLSで認証する。
+        relates_to: { models: [TokenEndpointAuthMethod] }
+      - id: FAPI2-SENDER-CONSTRAINT
+        section: "§5.3.2"
+        strength: MUST
+        adoption: optional
+        statement: FAPI Access TokenをDPoPまたはmTLSでsender-constrainedにする。
+        relates_to: { models: [AccessTokenSenderConstraint, SenderConstraintCnf] }
+
+  NISTSP80063B4:
+    title: Digital Identity Guidelines — Authentication and Authenticator Management
+    version: NIST SP 800-63B-4
+    url: https://pages.nist.gov/800-63-4/sp800-63b.html
+    roles: [Verifier]
+    scope: PasswordとAuthenticatorのライフサイクル・検証要件。
+    requirements:
+      - id: NIST63B4-PASSWORD-MINIMUM
+        section: "§3.1.1.2"
+        strength: MUST
+        adoption: excluded
+        statement: 単一要素認証に使用するPasswordへ15文字以上の最小長を要求する。
+        reason: 現行システム要件は12文字であり、NIST SP 800-63B-4への完全準拠は表明しない。
+      - id: NIST63B4-NO-COMPOSITION
+        section: "§3.1.1.2"
+        strength: MUST NOT
+        adoption: required
+        statement: 文字種混在などPassword composition ruleを課さない。
+      - id: NIST63B4-PASSWORD-STORAGE
+        section: "§3.1.1.2"
+        strength: MUST
+        adoption: required
+        statement: Passwordをsaltとcost factorを持つoffline attack耐性のあるhashとして保存する。
+        relates_to: { models: [User] }
+
+  WebAuthnLevel3:
+    title: Web Authentication — An API for accessing Public Key Credentials Level 3
+    version: Candidate Recommendation Snapshot
+    url: https://www.w3.org/TR/webauthn-3/
+    roles: [RelyingParty, UserInterface]
+    scope: 公開鍵Credentialを用いたphishing-resistantな認証。
+    requirements:
+      - id: WEBAUTHN3-AUTHENTICATION
+        section: "§5"
+        strength: MAY
+        adoption: optional
+        statement: WebAuthn factor利用時はoriginとRelying Partyにscopeされた公開鍵Credentialを検証する。
+        relates_to: { models: [MfaFactor, MfaFactorType, AuthenticationContext] }
+
+  WCAG22:
+    title: Web Content Accessibility Guidelines 2.2
+    version: W3C Recommendation
+    url: https://www.w3.org/TR/WCAG22/
+    roles: [UserInterface]
+    scope: ブラウザ認証UIのLevel AAアクセシビリティ。
+    requirements:
+      - id: WCAG22-KEYBOARD
+        section: "2.1.1"
+        strength: MUST
+        adoption: required
+        statement: すべての認証操作をキーボードだけで完了可能にする。
+      - id: WCAG22-FOCUS
+        section: "2.4.7, 2.4.11"
+        strength: MUST
+        adoption: required
+        statement: フォーカスを視認可能にし重要な要素が完全に隠れないようにする。
+      - id: WCAG22-LABELS-ERRORS
+        section: "3.3.1, 3.3.2"
+        strength: MUST
+        adoption: required
+        statement: 入力にラベルを付け、エラーをテキストで識別して修正方法を示す。
+      - id: WCAG22-STATUS
+        section: "4.1.3"
+        strength: MUST
+        adoption: required
+        statement: 認証結果や送信エラーをフォーカス移動なしに支援技術へ通知する。
+
+  GDPR:
+    title: General Data Protection Regulation
+    version: Regulation (EU) 2016/679
+    url: https://eur-lex.europa.eu/eli/reg/2016/679/oj
+    roles: [DataController]
+    scope: 同意、監査、保存期間、削除後の個人データ処理。
+    requirements:
+      - id: GDPR-CONSENT-WITHDRAWAL
+        section: "Article 7(3)"
+        strength: MUST
+        adoption: required
+        statement: ResourceOwnerが同意を撤回でき、撤回後の新規発行へ利用しない。
+        relates_to: { models: [Consent], state_machines: [ConsentLifecycle] }
+      - id: GDPR-ERASURE
+        section: "Article 17"
+        strength: MUST
+        adoption: required
+        statement: 削除要求後は法的保存義務を除くPIIを定義済み期間内に消去する。
+        relates_to: { objectives: [PiiPurgeAfterDeletion] }
+      - id: GDPR-PROCESSING-RECORDS
+        section: "Article 30"
+        strength: MUST
+        adoption: required
+        statement: セキュリティ・認可イベントの監査記録を定義済み期間保持する。
+        relates_to: { objectives: [AuditLogRetention] }
 
 # =================================================================
 # 1. vocabulary — ユビキタス言語
@@ -153,6 +761,19 @@ vocabulary:
   S256:
     definition: PKCE code_challenge_method=S256。code_challenge は BASE64URL-ENCODE(SHA256(code_verifier))。
     aliases: [S256]
+
+  Totp:
+    definition: RFC 6238 に基づく time-based one-time password。
+    aliases: [totp, otp]
+  Webauthn:
+    definition: WebAuthn credential による認証。
+    aliases: [webauthn]
+  Hwk:
+    definition: RFC 8176 の hardware-secured key 認証メソッド。
+    aliases: [hwk]
+  Swk:
+    definition: RFC 8176 の software-secured key 認証メソッド。
+    aliases: [swk]
 
   # ---------- レスポンスタイプ ----------
   Code:
@@ -430,6 +1051,11 @@ models:
     description: PKCE (RFC 7636) の code_challenge ハッシュ方式。本アプリでは S256 のみ許容（plain は脆弱なため拒否）。
     values: [S256]
 
+  MfaFactorType:
+    kind: enum
+    description: 第二要素 (MFA) の種別 (RFC 8176 amr 値の本アプリ向けサブセット)。Totp は RFC 6238、Webauthn は WebAuthn Level 3、Hwk / Swk は将来拡張のための予約。
+    values: [Totp, Webauthn, Hwk, Swk]
+
   AuthorizationCodeState:
     kind: enum
     description: AuthorizationCodeFlow 状態機械の取りうる状態列挙。状態機械セクションも参照。
@@ -529,18 +1155,32 @@ models:
       updated_at:           { type: Timestamp, optional: true }
       deleted_at:           { type: Timestamp, optional: true, description: ソフトデリート時刻。+30日でPII物理消去。 }
 
+  MfaFactor:
+    kind: entity
+    description: ユーザーが登録した第二要素 (MFA) 1 件。Totp の場合 secret は base32 で保存し、認証時に RFC 6238 (T0=0, STEP=30s, 6-digit) で評価する。User.mfa_enrolled の真値はこの集合の非空性と同義。
+    identity: [sub, type]
+    annotations: { audit_required: true, retention_days: 2555 }
+    fields:
+      sub:        { type: String, description: 所有者ユーザの sub。 }
+      type:       { type: MfaFactorType }
+      secret:     { type: String, optional: true, description: Totp の場合は base32 シークレット。他要素は credential JSON 等を別フィールド化する余地として残す。, annotations: { sensitive: true } }
+      label:      { type: String, optional: true, description: ユーザが付ける表示名 (例 "iPhone Authenticator")。 }
+      created_at: { type: Timestamp }
+      last_used_at: { type: Timestamp, optional: true }
+
   LoginSession:
     kind: entity
-    description: ブラウザログインセッション。Cookie には不透明な session id のみを置き、sub と auth_time はサーバー側ストアに保持する。amr / acr もここに残し、後続の /authorize で step-up 判定に使う。
+    description: ブラウザログインセッション。Cookie には不透明な session id のみを置き、sub と auth_time はサーバー側ストアに保持する。amr / acr もここに残し、後続の /authorize で step-up 判定に使う。authentication_pending=true は追加 factor 検証を待っている中間状態で、/authorize 完了経路はそのセッションを未認証扱いとし対応する factor challenge に誘導する。
     identity: id
     annotations: { component: Authentication, ttl_seconds: 3600, cookie_http_only: true, same_site: Lax }
     fields:
-      id:          { type: UUID }
-      sub:         { type: String }
-      auth_time:   { type: Integer }
-      amr:         { type: "List<String>", description: 認証成立時の RFC 8176 メソッド列。 }
-      acr:         { type: String, description: annotations.acr_vocabulary から導出した URN。 }
-      expires_at:  { type: Timestamp }
+      id:                      { type: UUID }
+      sub:                     { type: String }
+      auth_time:               { type: Integer }
+      amr:                     { type: "List<String>", description: 認証成立時の RFC 8176 メソッド列。 }
+      acr:                     { type: String, description: annotations.acr_vocabulary から導出した URN。 }
+      authentication_pending:  { type: Boolean, default: false, description: 追加 factor 検証を待っている中間状態か。完了で false。 }
+      expires_at:              { type: Timestamp }
 
   AuthenticationContext:
     kind: value_object
@@ -809,9 +1449,12 @@ models:
       scope:                          { type: String, optional: true }
       jwks_uri:                       { type: Uri, optional: true }
       jwks:                           { type: JSON, optional: true }
+      tls_client_auth_subject_dn:     { type: String, optional: true }
       id_token_signed_response_alg:   { type: SignatureAlgorithm, optional: true }
       fapi_profile:                   { type: FapiProfile, optional: true }
       require_pkce:                   { type: Boolean, optional: true }
+      require_pushed_authorization_requests: { type: Boolean, optional: true }
+      dpop_bound_access_tokens:       { type: Boolean, optional: true }
 
   TokenRequest:
     kind: value_object
@@ -928,6 +1571,79 @@ models:
       username:      { type: String }
       password:      { type: String, annotations: { sensitive: true } }
       csrf:          { type: String, annotations: { sensitive: true } }
+
+  TotpRequest:
+    kind: value_object
+    description: POST /totp の form リクエスト。RFC 6238 の数字コードを 1 フィールドで受け取る。CSRF は double-submit cookie と hidden form value の一致で検証する。
+    annotations: { component: Authentication }
+    fields:
+      request_id:    { type: UUID }
+      code:          { type: String, description: Authenticator アプリが生成した数字コード (annotations.totp_policy.digits 桁)。, annotations: { sensitive: true } }
+      csrf:          { type: String, annotations: { sensitive: true } }
+
+  MfaRequest:
+    kind: value_object
+    description: POST /mfa の form リクエスト。factor_type に応じて credential の形式が決まる (factor 固有の検証ロジックは Authentication component が担う)。CSRF は double-submit cookie と hidden form value の一致で検証する。
+    annotations: { component: Authentication }
+    fields:
+      request_id:    { type: UUID }
+      factor_type:   { type: MfaFactorType, description: 提示する factor 種別。 }
+      credential:    { type: String, description: factor 種別に応じた検証データ (TOTP は数字コード、WebAuthn は assertion JSON 等)。, annotations: { sensitive: true } }
+      csrf:          { type: String, annotations: { sensitive: true } }
+
+  BrowserLoginRequest:
+    kind: value_object
+    description: SPA が POST /api/auth/login に送る JSON。authorization request id は HttpOnly transaction cookie、CSRF は X-CSRF-Token header から解決する。
+    annotations: { component: Authentication }
+    fields:
+      username:      { type: String }
+      password:      { type: String, annotations: { sensitive: true } }
+
+  BrowserConsentRequest:
+    kind: value_object
+    description: SPA が POST /api/auth/consent に送る同意判断。
+    annotations: { component: Authentication }
+    fields:
+      action:        { type: String, description: allow または deny。 }
+
+  BrowserDeviceRequest:
+    kind: value_object
+    description: SPA が POST /api/auth/device に送る device user_code の承認判断。
+    annotations: { component: Authentication }
+    fields:
+      user_code:     { type: String }
+      action:        { type: String, description: allow または deny。 }
+
+  BrowserTotpRequest:
+    kind: value_object
+    description: SPA が POST /api/auth/totp に送る TOTP コード。authorization request id は HttpOnly transaction cookie、CSRF は X-CSRF-Token header から解決する。他 factor (WebAuthn 等) は HTTP 形が大きく異なるため、別 endpoint と別 value object として独立に定義する。
+    annotations: { component: Authentication }
+    fields:
+      code:          { type: String, description: Authenticator アプリが生成した数字コード (annotations.totp_policy.digits 桁)。, annotations: { sensitive: true } }
+
+  BrowserTransactionResponse:
+    kind: value_object
+    description: SPA が現在の browser authorization transaction を描画するための no-store JSON。
+    fields:
+      kind:          { type: String, description: 描画すべき画面の識別子。login / totp / consent / device 等、factor 追加に応じて拡張する。 }
+      csrf_token:    { type: String, annotations: { sensitive: true } }
+      client_name:   { type: String, optional: true }
+      scopes:        { type: "List<String>", optional: true }
+
+  BrowserDeviceContextResponse:
+    kind: value_object
+    description: SPA が device user_code 画面を描画するための no-store JSON。
+    fields:
+      kind:          { type: String }
+      user_code:     { type: String, optional: true }
+      csrf_token:    { type: String, annotations: { sensitive: true } }
+
+  BrowserFlowResponse:
+    kind: value_object
+    description: SPA の認証操作後に表示する次画面またはクライアント redirect URI。
+    fields:
+      next:          { type: String, optional: true }
+      redirect_to:   { type: Uri, optional: true }
 
   EndSessionParameters:
     kind: value_object
@@ -1208,6 +1924,84 @@ interfaces:
     bindings:
       - { kind: http, method: POST, path: /login, request_form: form, successful_status_codes: ["302"] }
 
+  TotpChallenge:
+    description: TOTP コードを入力するためのブラウザ画面を返す。authentication_pending=true の LoginSession から表示する。SPA shell + fallback form を返す。他 factor (WebAuthn 等) は HTTP 形が異なるため、それぞれ別 interface として定義する。
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: /totp, successful_status_codes: ["200"] }
+
+  TotpSubmit:
+    description: ブラウザ form から TOTP コードを検証する。RFC 6238 の検証ロジックは Authentication component が担う。成功時は LoginSession を認証完了状態に昇格させて OAuth2/OIDC continuation に進む。
+    steps:
+      - "ユーザーが request_id {request_id} の TOTP コード {code} を送信する"
+    input:
+      request: { type: TotpRequest }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [UserAuthenticated, AuthenticationFailed]
+    bindings:
+      - { kind: http, method: POST, path: /totp, request_form: form, successful_status_codes: ["302"] }
+
+  GetBrowserTransaction:
+    description: SPA が HttpOnly transaction cookie に対応するログイン・同意コンテキストを取得する。
+    output:
+      response: { type: BrowserTransactionResponse }
+    errors: [InvalidRequestError]
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: /api/auth/transaction }
+
+  SubmitBrowserLogin:
+    description: SPA JSON API から browser password login を完了する。
+    input:
+      request: { type: BrowserLoginRequest }
+    output:
+      response: { type: BrowserFlowResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [UserAuthenticated, AuthenticationFailed]
+    bindings:
+      - { kind: http, method: POST, path: /api/auth/login, request_body: json }
+
+  SubmitBrowserConsent:
+    description: SPA JSON API から authorization request の同意・拒否を確定する。
+    input:
+      request: { type: BrowserConsentRequest }
+    output:
+      response: { type: BrowserFlowResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [ConsentGranted, AuthorizationCodeIssued]
+    bindings:
+      - { kind: http, method: POST, path: /api/auth/consent, request_body: json }
+
+  SubmitBrowserDevice:
+    description: SPA JSON API から device user_code を承認または拒否する。
+    input:
+      request: { type: BrowserDeviceRequest }
+    output:
+      response: { type: BrowserFlowResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [DeviceAuthorizationApproved, DeviceAuthorizationDenied]
+    bindings:
+      - { kind: http, method: POST, path: /api/auth/device, request_body: json }
+
+  SubmitBrowserTotp:
+    description: SPA JSON API から TOTP コードを検証する。成功すれば LoginSession を認証完了状態に昇格させ、後続フロー (consent / authorization code 発行) に進む。他 factor は別 endpoint として定義する。
+    input:
+      request: { type: BrowserTotpRequest }
+    output:
+      response: { type: BrowserFlowResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [UserAuthenticated, AuthenticationFailed]
+    bindings:
+      - { kind: http, method: POST, path: /api/auth/totp, request_body: json }
+
+  GetBrowserDeviceContext:
+    description: SPA が device user_code と CSRF token を取得する。
+    output:
+      response: { type: BrowserDeviceContextResponse }
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: /api/auth/device }
+
   EndSession:
     description: RP-Initiated Logout endpoint (OIDC RP-Initiated Logout 1.0)。redirect 検証は OAuth2/OIDC component が行い、session revocation は Authentication component の SessionManager に委譲する。
     steps:
@@ -1302,6 +2096,20 @@ interfaces:
     bindings:
       - kind: http
         method: GET
+        path: /userinfo
+        headers:
+          authorization: { type: String }
+
+  PostUserInfo:
+    description: UserInfo の POST binding (OIDC Core §5.3)
+    steps:
+      - "トークン {access_token} でユーザー情報を取得する"
+    output:
+      response: { type: UserInfoResponse }
+    errors: [InvalidTokenError, InsufficientScopeError]
+    bindings:
+      - kind: http
+        method: POST
         path: /userinfo
         headers:
           authorization: { type: String }
@@ -2343,7 +3151,131 @@ objectives:
 
 
 # =================================================================
-# 9. annotations — 実装ヒント（任意・規約外、生成器が利用）
+# 9. user_experience — ブラウザ画面、遷移、利用品質
+# =================================================================
+
+user_experience:
+  accessibility:
+    standard: WCAG22
+    level: AA
+  locales: [ja, en]
+
+  screens:
+    Home:
+      route: /
+      purpose: IdPの稼働状態と認証開始方法を示し、ローカルデモでは認可要求を開始する。
+      interfaces: [Authorize, GetOpenidConfiguration]
+      states: [ready, unavailable]
+    Login:
+      route: /login
+      purpose: Authorization transactionに結び付いたResourceOwnerの認証情報を取得する。
+      interfaces: [GetBrowserTransaction, SubmitBrowserLogin]
+      states: [ready, submitting, invalid_credentials, expired_transaction, service_error]
+    Consent:
+      route: /consent
+      purpose: Client名と要求Scopeを示し、ResourceOwnerの許可または拒否を取得する。
+      interfaces: [GetBrowserTransaction, SubmitBrowserConsent]
+      states: [ready, submitting, denied, expired_transaction, service_error]
+    Device:
+      route: /device
+      purpose: 入力制約デバイスのuser_codeを確認し、ResourceOwnerの許可または拒否を取得する。
+      interfaces: [GetBrowserDeviceContext, SubmitBrowserDevice]
+      states: [ready, submitting, invalid_code, expired_code, approved, denied, authentication_required]
+    Status:
+      route: /status
+      purpose: device承認、拒否、logout、再認証要求などの終端状態を明示する。
+      states: [approved, denied, signed_out, authentication_required, error]
+    Callback:
+      route: /callback
+      purpose: ローカルデモClientの認可成功またはOAuthエラーを表示する。
+      states: [success, oauth_error, invalid_response]
+
+  transitions:
+    - { from: Home, to: Login, trigger: authorization_started, interface: Authorize }
+    - { from: Login, to: Consent, trigger: authentication_succeeded_and_consent_required, interface: SubmitBrowserLogin }
+    - { from: Login, trigger: authentication_succeeded_and_consent_exists, interface: SubmitBrowserLogin, external: true }
+    - { from: Consent, trigger: consent_allowed, interface: SubmitBrowserConsent, external: true }
+    - { from: Consent, trigger: consent_denied, interface: SubmitBrowserConsent, external: true }
+    - { from: Device, to: Status, trigger: device_approved, interface: SubmitBrowserDevice }
+    - { from: Device, to: Status, trigger: device_denied, interface: SubmitBrowserDevice }
+    - { to: Status, trigger: session_ended, interface: EndSession }
+    - { to: Callback, trigger: local_demo_authorization_response, external: true }
+
+  requirements:
+    - id: UX-TRANSACTION-BOUND
+      category: security
+      adoption: required
+      statement: LoginとConsentは有効なHttpOnly authorization transaction cookieなしでは表示も送信もできない。
+      screens: [Login, Consent]
+      interfaces: [GetBrowserTransaction, SubmitBrowserLogin, SubmitBrowserConsent]
+      standards: [RFC9700]
+    - id: UX-CSRF
+      category: security
+      adoption: required
+      statement: 状態変更を伴うブラウザAPIはSameSite cookieとリクエストトークンを照合してCSRFを拒否する。
+      screens: [Login, Consent, Device]
+      interfaces: [SubmitBrowserLogin, SubmitBrowserConsent, SubmitBrowserDevice]
+      standards: [RFC9700, FAPI2SecurityProfile]
+      scenarios: [ログインフォームの CSRF 不一致は拒否される]
+    - id: UX-NO-STORE
+      category: privacy
+      adoption: required
+      statement: 認証トランザクション、CSRF token、user_codeを含むブラウザAPI応答は保存キャッシュを禁止する。
+      screens: [Login, Consent, Device]
+      interfaces: [GetBrowserTransaction, GetBrowserDeviceContext]
+    - id: UX-NO-CREDENTIAL-ECHO
+      category: privacy
+      adoption: required
+      statement: password、token、内部request idを画面、URL、エラーメッセージへ表示しない。
+      screens: [Login, Consent, Device, Status, Callback]
+    - id: UX-REGISTERED-REDIRECT
+      category: security
+      adoption: required
+      statement: Browser flowの外部遷移先は検証済みredirect_uriまたはpost_logout_redirect_uriだけとする。
+      screens: [Login, Consent, Status]
+      interfaces: [Authorize, SubmitBrowserLogin, SubmitBrowserConsent, EndSession]
+      standards: [RFC9700, OpenIDConnectRPInitiatedLogout]
+      properties: [RedirectUriExactMatch]
+    - id: UX-CLIENT-CONTEXT
+      category: usability
+      adoption: required
+      statement: Consent画面は判断前にClientと要求ScopeをResourceOwnerへ明示する。
+      screens: [Consent]
+      interfaces: [GetBrowserTransaction]
+    - id: UX-KEYBOARD
+      category: accessibility
+      adoption: required
+      statement: すべての入力、表示切替、許可、拒否、再試行をキーボードだけで操作可能にする。
+      screens: [Home, Login, Consent, Device, Status, Callback]
+      standards: [WCAG22]
+    - id: UX-FOCUS
+      category: accessibility
+      adoption: required
+      statement: フォーカス位置を常に視認可能にし、画面遷移後は主見出しまたは最初の入力へ論理的に到達可能にする。
+      screens: [Login, Consent, Device, Status, Callback]
+      standards: [WCAG22]
+    - id: UX-LABELS-ERRORS
+      category: accessibility
+      adoption: required
+      statement: 入力には永続的なラベルを関連付け、エラーを色だけに依存せず対象と修正方法が分かる文章で示す。
+      screens: [Login, Device]
+      standards: [WCAG22]
+    - id: UX-STATUS-ANNOUNCEMENT
+      category: accessibility
+      adoption: required
+      statement: 非同期送信の失敗と認証結果を支援技術へ通知し、送信中は重複操作を防ぐ。
+      screens: [Login, Consent, Device, Status, Callback]
+      standards: [WCAG22]
+    - id: UX-LOCALE
+      category: localization
+      adoption: required
+      statement: UI文言はjaとenを提供し、未対応localeは既定localeへフォールバックする。
+      screens: [Home, Login, Consent, Device, Status, Callback]
+      interfaces: [GetOpenidConfiguration]
+      standards: [OpenIDConnectDiscovery]
+
+# =================================================================
+# 10. annotations — 補助情報（任意・規約外、生成器が利用）
 # =================================================================
 
 annotations:
@@ -2351,10 +3283,10 @@ annotations:
   password_policy:
     description: |
       プレーンパスワードがシステムに導入されるすべての経路（registration / change-password /
-      admin による作成 / demo seed）に適用される。NIST SP 800-63B-3 §5.1.1.2 に従い長さのみを
-      強制し、文字種混在ルールは課さない（NIST は文字種ルールが予測可能なパターンを誘発する
-      とする）。漏洩パスワード検査は password_policy とは別に Phase 0.4 で BreachedPasswordChecker
-      port を経由して行う。
+      admin による作成 / demo seed）に適用される。長さのみを強制し、文字種混在ルールは
+      課さない。最小12文字は本システム固有ポリシーであり、単一要素認証に15文字以上を要求する
+      NIST SP 800-63B-4への完全準拠は表明しない。漏洩パスワード検査は password_policyとは別に
+      BreachedPasswordChecker portを経由して行う。
     min_length: 12
     max_length: 128
 
@@ -2368,6 +3300,18 @@ annotations:
       - { urn: "urn:ra-idp:acr:pwd", description: "Password 単独認証 (amr ⊇ [pwd])。" }
       - { urn: "urn:ra-idp:acr:mfa", description: "Password + 第二要素 (amr に otp / webauthn / hwk のいずれかを含む)。" }
     mfa_amr_values: [otp, webauthn, hwk, swk]
+
+  totp_policy:
+    description: |
+      MfaFactor (type=Totp) の生成・検証パラメータ。RFC 6238 §4 の式に従い、
+      Google Authenticator / 1Password 等の主要 Authenticator アプリと互換になるよう
+      algorithm=SHA1 / step_seconds=30 / digits=6 を固定する。window は時刻ズレ吸収のため
+      ±1 ステップを許容する。secret_bytes は RFC 4226 §4 推奨の 160-bit。
+    algorithm: SHA1
+    step_seconds: 30
+    digits: 6
+    window: 1
+    secret_bytes: 20
 
   discovery_template:
     scopes_supported: [openid, profile, email, offline_access]

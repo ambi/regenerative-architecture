@@ -47,12 +47,7 @@ export function createUserInfoRoutes(deps: UserInfoRoutesDeps) {
         introspection.jti &&
         deps.accessTokenDenylist &&
         (await deps.accessTokenDenylist.isRevoked(introspection.jti))
-      if (
-        !introspection.active ||
-        revoked ||
-        !introspection.sub ||
-        !introspection.client_id
-      ) {
+      if (!introspection.active || revoked || !introspection.sub || !introspection.client_id) {
         c.header('WWW-Authenticate', `${scheme} error="invalid_token"`)
         throw new OAuthError('invalid_grant', 'トークンが無効です')
       }
@@ -62,7 +57,10 @@ export function createUserInfoRoutes(deps: UserInfoRoutesDeps) {
       if (boundJkt) {
         if (scheme !== 'DPoP') {
           c.header('WWW-Authenticate', 'DPoP error="invalid_token"')
-          throw new OAuthError('invalid_grant', 'DPoP-bound token は DPoP scheme で送信してください')
+          throw new OAuthError(
+            'invalid_grant',
+            'DPoP-bound token は DPoP scheme で送信してください',
+          )
         }
         const expectedAth = createHash('sha256').update(token).digest('base64url')
         const proof = await verifyDpopProof(c.req.header('DPoP'), c.req.method, resourceUri, {

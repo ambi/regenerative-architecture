@@ -1,0 +1,18 @@
+{
+  "$id": "urn:idp:BrowserLoginRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "description": "SPA が POST /api/auth/login に送る JSON。authorization request id は HttpOnly transaction cookie、CSRF は X-CSRF-Token header から解決する。",
+  "properties": {
+    "username": {
+      "type": "string"
+    },
+    "password": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "username",
+    "password"
+  ]
+}

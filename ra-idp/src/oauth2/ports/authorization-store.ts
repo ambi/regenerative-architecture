@@ -18,6 +18,12 @@ export interface AuthorizationRequestStore {
 
 export interface AuthorizationCodeStore {
   find(code: string): Promise<AuthorizationCode | null>
+  /**
+   * authorization_request_id から既発行の認可コードを引く。
+   * SPA reload で同じ /authorize 経路が再評価される場面で、二重発行を避けて
+   * 同じ code を再返却するために使う冪等ルックアップ。
+   */
+  findByRequestId(authorization_request_id: string): Promise<AuthorizationCode | null>
   save(code: AuthorizationCode): Promise<void>
   /**
    * 認可コードを atomically 「redeemed」にする。

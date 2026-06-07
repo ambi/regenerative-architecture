@@ -8,6 +8,11 @@
       "!**/node_modules",
       "!bun.lock",
       "!gen",
+      "!ui/dist",
+      "!ui/src/routeTree.gen.ts",
+      "!ui/**/*.css",
+      "!ui/**/*.html",
+      "!ui/**/*.json",
       "!infra/observability/grafana/dashboards/*.json",
       "!infra/load-tests/k6/*.json"
     ]
@@ -46,6 +51,19 @@
       "linter": {
         "rules": {
           "suspicious": { "noExplicitAny": "off" }
+        }
+      }
+    },
+    {
+      "includes": ["ui/**/*.ts", "ui/**/*.tsx"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useImportType": "warn"
+          },
+          "correctness": {
+            "noUnusedImports": "error"
+          }
         }
       }
     }

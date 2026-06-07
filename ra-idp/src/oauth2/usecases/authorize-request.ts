@@ -22,6 +22,7 @@ import type { ClientRepository } from '../ports/client-repository'
 import type { ConsentRepository } from '../ports/consent-repository'
 import type { AuthorizationRequestStore } from '../ports/authorization-store'
 import { OAuthError } from '../protocol/oauth-error'
+import { acrSatisfies } from '../../authentication/usecases/acr-vocabulary'
 
 /**
  * client metadata `require_pkce` の解決規則 (ADR-002 改訂 / RFC 9700 / OAuth 2.1)。
@@ -137,6 +138,30 @@ export async function completeAuthenticationUseCase(
   if (req.max_age !== undefined && nowSeconds - authTimeSeconds >= req.max_age) {
     await deps.requestStore.save(req)
     return { request: req, needsConsent: false, needsAuthentication: true }
+  }
+
+  if (req.acr_values && (!options.acr || !acrSatisfies(options.acr, req.acr_values))) {
+    await deps.requestStore.save(req)
+    return { request: req, needsConsent: false, needsAuthentication: true }
+  }
+
+  // 冪等性: 既に authenticate_user 遷移を済ませた request (例: POST /totp 成功 →
+  // SPA reload → GET /totp で同じ continuation が再び呼ばれるケース) では state
+  // machine を再度進めず、現状の state から次画面を判定する。
+  if (req.state !== 'received' && req.state !== 'authentication_pending') {
+    switch (req.state) {
+      case 'consent_pending':
+        return { request: req, needsConsent: true, needsAuthentication: false }
+      case 'authenticated':
+      case 'consented':
+      case 'code_issued':
+        return { request: req, needsConsent: false, needsAuthentication: false }
+      default:
+        throw new OAuthError(
+          'invalid_request',
+          `認可リクエストの状態 ${req.state} からは継続できません`,
+        )
+    }
   }
 
   let next = advance(req, 'authenticate_user', {

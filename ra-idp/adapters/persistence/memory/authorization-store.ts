@@ -37,6 +37,13 @@ export class InMemoryAuthorizationCodeStore implements AuthorizationCodeStore {
     return v ? { ...v } : null
   }
 
+  async findByRequestId(authorization_request_id: string): Promise<AuthorizationCode | null> {
+    for (const v of this.store.values()) {
+      if (v.authorization_request_id === authorization_request_id) return { ...v }
+    }
+    return null
+  }
+
   async save(code: AuthorizationCode): Promise<void> {
     this.store.set(code.code, { ...code })
   }

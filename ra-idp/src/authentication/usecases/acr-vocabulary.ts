@@ -32,7 +32,7 @@ export function deriveAcr(amr: readonly string[]): AcrValue {
  * 「満たす」の定義: mfa は pwd を包含するが、pwd は mfa を満たさない。
  * 要求が空白区切りで複数与えられた場合、いずれか 1 つを満たせば OK。
  */
-export function acrSatisfies(currentAcr: AcrValue, requested: string): boolean {
+export function acrSatisfies(currentAcr: string, requested: string): boolean {
   const requestedList = requested.split(/\s+/).filter(Boolean) as AcrValue[]
   return requestedList.some((r) => {
     if (r === currentAcr) return true

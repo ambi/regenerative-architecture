@@ -103,9 +103,7 @@ export function ConsentPage() {
                       <div className="text-sm font-medium">{desc.title}</div>
                       <div className="text-xs text-muted-foreground">{desc.description}</div>
                     </div>
-                    <code className="text-[10px] text-muted-foreground" aria-label={`scope: ${scope}`}>
-                      {scope}
-                    </code>
+                    <code className="text-[10px] text-muted-foreground">{scope}</code>
                   </li>
                 )
               })}
@@ -149,6 +147,6 @@ export function ConsentPage() {
 
 function describeScope(scope: string, m: Messages): { title: string; description: string } {
   const known = m.consent.scopes[scope as keyof typeof m.consent.scopes]
-  if (known && known.title) return { title: known.title, description: known.description }
+  if (known?.title) return { title: known.title, description: known.description }
   return { title: scope, description: m.consent.scopes.unknown.description }
 }

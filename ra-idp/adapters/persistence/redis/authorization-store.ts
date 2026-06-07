@@ -101,6 +101,30 @@ export class RedisAuthorizationCodeStore implements AuthorizationCodeStore {
     return AuthorizationCodeSchema.parse(JSON.parse(v))
   }
 
+  async findByRequestId(authorization_request_id: string): Promise<AuthorizationCode | null> {
+    // code は短寿命 (60s 程度) なので逆引きインデックスを別途持たず SCAN で線形検索する。
+    let cursor = '0'
+    do {
+      const [next, keys] = await this.redis.scan(
+        cursor,
+        'MATCH',
+        `${KEY_PREFIX.code}*`,
+        'COUNT',
+        100,
+      )
+      cursor = next
+      if (keys.length > 0) {
+        const values = await this.redis.mget(...keys)
+        for (const v of values) {
+          if (!v) continue
+          const parsed = AuthorizationCodeSchema.parse(JSON.parse(v))
+          if (parsed.authorization_request_id === authorization_request_id) return parsed
+        }
+      }
+    } while (cursor !== '0')
+    return null
+  }
+
   async save(code: AuthorizationCode): Promise<void> {
     await this.redis.set(KEY_PREFIX.code + code.code, JSON.stringify(code), 'EX', TTL_SECONDS.code)
   }

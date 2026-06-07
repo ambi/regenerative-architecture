@@ -456,3 +456,35 @@ describe('Password Policy — SCL ↔ TypeScript 整合', () => {
     expect(sclPolicy.max_length).toBe(PASSWORD_POLICY.maxLength)
   })
 })
+
+// ===============================================================
+// TOTP ポリシー — SCL ↔ TypeScript 整合
+// ===============================================================
+
+import { TOTP_POLICY } from '../authentication/usecases/totp'
+
+describe('TOTP Policy — SCL ↔ TypeScript 整合', () => {
+  const sclPolicy = (scl.annotations?.totp_policy ?? {}) as {
+    algorithm?: string
+    step_seconds?: number
+    digits?: number
+    window?: number
+    secret_bytes?: number
+  }
+
+  it('algorithm', () => {
+    expect(sclPolicy.algorithm).toBe(TOTP_POLICY.algorithm)
+  })
+  it('step_seconds', () => {
+    expect(sclPolicy.step_seconds).toBe(TOTP_POLICY.stepSeconds)
+  })
+  it('digits', () => {
+    expect(sclPolicy.digits).toBe(TOTP_POLICY.digits)
+  })
+  it('window', () => {
+    expect(sclPolicy.window).toBe(TOTP_POLICY.window)
+  })
+  it('secret_bytes', () => {
+    expect(sclPolicy.secret_bytes).toBe(TOTP_POLICY.secretBytes)
+  })
+})

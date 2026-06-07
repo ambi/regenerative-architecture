@@ -5,17 +5,23 @@
 
 import { createHash } from 'crypto'
 
-import { Argon2idPasswordHasher } from '../adapters/crypto/argon2id-password-hasher'
+import type { Argon2idPasswordHasher } from '../adapters/crypto/argon2id-password-hasher'
 import type { ClientRepository } from '../src/oauth2/ports/client-repository'
 import type { UserRepository } from '../src/authentication/ports/user-repository'
+import type { MfaFactorRepository } from '../src/authentication/ports/mfa-factor-repository'
 import {
   PasswordPolicyError,
   validatePassword,
 } from '../src/authentication/usecases/password-policy'
+import { buildOtpauthUri } from '../src/authentication/usecases/totp'
 import { ClientSchema, UserSchema } from '../src/spec-bindings/schemas'
 
 export async function seedDemoData(
-  deps: { clientRepo: ClientRepository; userRepo: UserRepository },
+  deps: {
+    clientRepo: ClientRepository
+    userRepo: UserRepository
+    mfaFactorRepo: MfaFactorRepository
+  },
   passwordHasher: Argon2idPasswordHasher,
 ): Promise<void> {
   const demoClientSecret = process.env.DEMO_CLIENT_SECRET ?? 'demo-secret-please-rotate'
@@ -45,6 +51,11 @@ export async function seedDemoData(
   const demoPassword = process.env.DEMO_USER_PASSWORD ?? 'alice-password'
   const policy = validatePassword(demoPassword)
   if (!policy.ok) throw new PasswordPolicyError(policy.violations)
+  // DEMO_TOTP_SECRET (base32) を渡せば alice に TOTP factor を仕込み、
+  // パスワード後に /totp challenge へ誘導するデモを有効化する。otpauth:// URI を
+  // 起動ログに出すので、それを Authenticator アプリ (Google Authenticator 等) に
+  // 入れて 6 桁コードを発行できる。未指定なら mfa_enrolled=false のまま。
+  const demoTotpSecret = process.env.DEMO_TOTP_SECRET
   const demoUser = UserSchema.parse({
     sub: 'user_alice',
     preferred_username: 'alice',
@@ -54,9 +65,26 @@ export async function seedDemoData(
     family_name: 'Demo',
     email: 'alice@example.com',
     email_verified: true,
-    mfa_enrolled: false,
+    mfa_enrolled: !!demoTotpSecret,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   })
   await deps.userRepo.save(demoUser)
+
+  if (demoTotpSecret) {
+    await deps.mfaFactorRepo.save({
+      sub: 'user_alice',
+      type: 'totp',
+      secret: demoTotpSecret,
+      label: 'Demo Authenticator',
+      created_at: new Date().toISOString(),
+    })
+    const otpauthUri = buildOtpauthUri({
+      secretBase32: demoTotpSecret,
+      accountName: demoUser.preferred_username,
+      issuer: 'RA IdP (demo)',
+    })
+    // biome-ignore lint/suspicious/noConsole: 起動時の demo guidance を運用ログに出す
+    console.log(`[seed] TOTP factor enrolled for alice. otpauth URI: ${otpauthUri}`)
+  }
 }

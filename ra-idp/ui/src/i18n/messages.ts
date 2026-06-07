@@ -84,6 +84,21 @@ const ja = {
     footerCode: 'RFC 8628',
     footerTail: ' Device Authorization Grant に従います',
   },
+  totp: {
+    title: '第二要素の確認',
+    description: 'Authenticator アプリに表示された 6 桁のコードを入力してください',
+    codeLabel: '確認コード',
+    placeholder: '000000',
+    submit: '確認',
+    submitting: '確認中…',
+    errorTitle: 'コードを確認できませんでした',
+    errorBody: 'コードが正しくないか、有効期限が切れています。',
+    errorEmptyCode: 'コードを入力してください。',
+    networkError: '通信エラーが発生しました。時間をおいて再試行してください。',
+    footer: 'Authenticator アプリは ',
+    footerCode: 'RFC 6238',
+    footerTail: ' に従い 30 秒ごとに更新されます',
+  },
   error: {
     detailFallback: '問題が解消しない場合は',
     detailFallbackCode: 'audit log',
@@ -194,6 +209,21 @@ interface Messages {
     footerCode: string
     footerTail: string
   }
+  totp: {
+    title: string
+    description: string
+    codeLabel: string
+    placeholder: string
+    submit: string
+    submitting: string
+    errorTitle: string
+    errorBody: string
+    errorEmptyCode: string
+    networkError: string
+    footer: string
+    footerCode: string
+    footerTail: string
+  }
   error: {
     detailFallback: string
     detailFallbackCode: string
@@ -283,6 +313,21 @@ const en: Messages = {
     footer: 'Device verification follows ',
     footerCode: 'RFC 8628',
     footerTail: ' Device Authorization Grant',
+  },
+  totp: {
+    title: 'Verify second factor',
+    description: 'Enter the 6-digit code shown in your authenticator app',
+    codeLabel: 'Verification code',
+    placeholder: '000000',
+    submit: 'Verify',
+    submitting: 'Verifying…',
+    errorTitle: 'Could not verify code',
+    errorBody: 'The code is incorrect or has expired.',
+    errorEmptyCode: 'Please enter the code.',
+    networkError: 'A network error occurred. Please try again shortly.',
+    footer: 'Authenticator apps follow ',
+    footerCode: 'RFC 6238',
+    footerTail: ' and refresh every 30 seconds',
   },
   error: {
     detailFallback: 'If the problem persists, share the ',

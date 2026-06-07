@@ -83,13 +83,7 @@ export function AuthLayout({
   )
 }
 
-function StatusPill({
-  kind,
-  label,
-}: {
-  kind: 'secure' | 'pending' | 'error'
-  label: string
-}) {
+function StatusPill({ kind, label }: { kind: 'secure' | 'pending' | 'error'; label: string }) {
   const variants = {
     secure: { dot: 'bg-emerald-500' },
     pending: { dot: 'bg-accent' },

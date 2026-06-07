@@ -17,6 +17,7 @@ import { issueAuthorizationCodeUseCase } from '../../src/oauth2/usecases/issue-a
 import { oauthErrorResponse } from './error-response'
 import type { ClientRepository } from '../../src/oauth2/ports/client-repository'
 import type { ConsentRepository } from '../../src/oauth2/ports/consent-repository'
+import type { UserRepository } from '../../src/authentication/ports/user-repository'
 import { renderShell } from './spa-shell'
 import type {
   AuthorizationRequestStore,
@@ -34,7 +35,9 @@ import {
   type SessionManager,
 } from '../../src/authentication/usecases/session-manager'
 import type { AuthorizationRequest, Client, DomainEvent } from '../../src/spec-bindings/schemas'
+import { acrSatisfies, ACR_VALUES } from '../../src/authentication/usecases/acr-vocabulary'
 import { loginRequiredResponse } from './authentication-routes'
+import { totpChallengeResponse } from './totp-routes'
 import {
   assertCsrf,
   clearCookie,
@@ -48,6 +51,8 @@ export interface AuthorizeRoutesDeps {
   issuer: string
   clientRepo: ClientRepository
   consentRepo: ConsentRepository
+  /** acr_values による step-up reauth で、ユーザの mfa_enrolled を参照するため。 */
+  userRepo: UserRepository
   requestStore: AuthorizationRequestStore
   codeStore: AuthorizationCodeStore
   parStore: PARStore
@@ -105,6 +110,7 @@ export function createAuthorizeRoutes(deps: AuthorizeRoutesDeps) {
         code_challenge_method: params.code_challenge ? 'S256' : undefined,
         prompt: params.prompt,
         max_age: params.max_age ? Number(params.max_age) : undefined,
+        acr_values: params.acr_values,
         id_token_hint: params.id_token_hint,
         par_used: parUsed,
       })
@@ -116,6 +122,15 @@ export function createAuthorizeRoutes(deps: AuthorizeRoutesDeps) {
           throw new OAuthError('access_denied', 'prompt=none では対話的ログインを開始できません')
         }
         return loginRequiredResponse(request.id, acceptLanguage)
+      }
+      if (context.authentication_pending) {
+        if (request.prompt === 'none') {
+          throw new OAuthError(
+            'access_denied',
+            'prompt=none では追加認証を要求できません',
+          )
+        }
+        return totpChallengeResponse(request.id, acceptLanguage)
       }
 
       return await completeAuthorizedRequest(deps, request, client, context, {}, acceptLanguage)
@@ -316,6 +331,26 @@ async function completeAuthorizedRequest(
   if (needsAuthentication) {
     if (request.prompt === 'none') {
       throw new OAuthError('access_denied', 'prompt=none では再認証を開始できません')
+    }
+    // acr_values による step-up: パスワードは通っているが要求 acr を満たしていない
+    // (例: 現 acr=pwd で要求 acr=mfa)。この場合は login 画面を再表示するのではなく、
+    // 不足している factor の challenge へ直接誘導する。現状サポートする factor は
+    // TOTP のみ。
+    const requiresMfa =
+      !!request.acr_values && !acrSatisfies(ACR_VALUES.pwd, request.acr_values)
+    if (
+      requiresMfa &&
+      context.amr.includes('pwd') &&
+      !context.amr.some((m) => m !== 'pwd')
+    ) {
+      const user = await deps.userRepo.findBySub(context.sub)
+      if (!user?.mfa_enrolled) {
+        throw new OAuthError(
+          'access_denied',
+          '要求された acr を満たすための追加 factor が登録されていません',
+        )
+      }
+      return totpChallengeResponse(request.id, acceptLanguage)
     }
     return loginRequiredResponse(request.id, acceptLanguage)
   }

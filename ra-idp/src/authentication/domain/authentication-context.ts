@@ -11,6 +11,8 @@ export interface AuthenticationContext {
   amr: string[]
   acr?: string
   session_id?: string
+  /** 追加 factor 検証待ちなら true。/authorize 完了経路は未認証扱いとし対応する factor challenge に誘導する。 */
+  authentication_pending?: boolean
 }
 
 export interface AuthenticationContextResolver {

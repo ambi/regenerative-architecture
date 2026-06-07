@@ -1,0 +1,23 @@
+{
+  "$id": "urn:idp:TotpRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "description": "POST /totp の form リクエスト。RFC 6238 の数字コードを 1 フィールドで受け取る。CSRF は double-submit cookie と hidden form value の一致で検証する。",
+  "properties": {
+    "request_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "code": {
+      "type": "string"
+    },
+    "csrf": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "request_id",
+    "code",
+    "csrf"
+  ]
+}

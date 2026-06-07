@@ -8,7 +8,7 @@
 import { Hono } from 'hono'
 
 import { JoseTokenSigner } from '../adapters/crypto/jwt-signer'
-import { Argon2idPasswordHasher } from '../adapters/crypto/argon2id-password-hasher'
+import type { Argon2idPasswordHasher } from '../adapters/crypto/argon2id-password-hasher'
 import { createObservabilityMiddleware } from '../adapters/http/middleware/observability-middleware'
 import { createAuthenticationRoutes } from '../adapters/http/authentication-routes'
 import {
@@ -23,6 +23,7 @@ import { createIntrospectionRoutes } from '../adapters/http/introspection-routes
 import { createPARRoutes } from '../adapters/http/par-routes'
 import { createRegistrationRoutes } from '../adapters/http/registration-routes'
 import { createTokenRoutes } from '../adapters/http/token-routes'
+import { createTotpRoutes } from '../adapters/http/totp-routes'
 import { createUiAssetsRoutes } from '../adapters/http/ui-assets-routes'
 import { createUserInfoRoutes } from '../adapters/http/userinfo-routes'
 
@@ -58,6 +59,7 @@ export function composeApp(input: ComposeAppInput): Hono {
     issuer: config.issuer,
     clientRepo: deps.clientRepo,
     consentRepo: deps.consentRepo,
+    userRepo: deps.userRepo,
     requestStore: deps.requestStore,
     codeStore: deps.codeStore,
     parStore: deps.parStore,
@@ -79,6 +81,15 @@ export function composeApp(input: ComposeAppInput): Hono {
       userRepo: deps.userRepo,
       passwordHasher,
       sessionManager,
+      continuation: createAuthorizationLoginContinuation(authorizeRouteDeps),
+      emit,
+    }),
+  )
+  app.route(
+    '/',
+    createTotpRoutes({
+      sessionManager,
+      mfaFactorRepo: deps.mfaFactorRepo,
       continuation: createAuthorizationLoginContinuation(authorizeRouteDeps),
       emit,
     }),

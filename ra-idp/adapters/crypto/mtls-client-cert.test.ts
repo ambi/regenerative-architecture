@@ -8,10 +8,7 @@
 import { describe, expect, it } from 'bun:test'
 import { X509Certificate, createHash } from 'crypto'
 
-import {
-  clientCertSubjectMatches,
-  parseClientCertificateHeader,
-} from './mtls-client-cert'
+import { clientCertSubjectMatches, parseClientCertificateHeader } from './mtls-client-cert'
 import { TEST_CERT_PEM } from './mtls-test-fixtures'
 
 describe('parseClientCertificateHeader', () => {
@@ -31,8 +28,7 @@ describe('parseClientCertificateHeader', () => {
   })
 
   it('BEGIN/END 行が剥がされた base64 ボディも復元してパースする', () => {
-    const body = TEST_CERT_PEM
-      .replace(/-----BEGIN CERTIFICATE-----/, '')
+    const body = TEST_CERT_PEM.replace(/-----BEGIN CERTIFICATE-----/, '')
       .replace(/-----END CERTIFICATE-----/, '')
       .replace(/\s+/g, '')
     const parsed = parseClientCertificateHeader(body)

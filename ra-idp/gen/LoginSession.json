@@ -2,7 +2,7 @@
   "$id": "urn:idp:LoginSession",
   "type": "object",
   "additionalProperties": false,
-  "description": "ブラウザログインセッション。Cookie には不透明な session id のみを置き、sub と auth_time はサーバー側ストアに保持する。",
+  "description": "ブラウザログインセッション。Cookie には不透明な session id のみを置き、sub と auth_time はサーバー側ストアに保持する。amr / acr もここに残し、後続の /authorize で step-up 判定に使う。authentication_pending=true は追加 factor 検証を待っている中間状態で、/authorize 完了経路はそのセッションを未認証扱いとし対応する factor challenge に誘導する。",
   "properties": {
     "id": {
       "type": "string",
@@ -14,6 +14,18 @@
     "auth_time": {
       "type": "integer"
     },
+    "amr": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "acr": {
+      "type": "string"
+    },
+    "authentication_pending": {
+      "type": "boolean"
+    },
     "expires_at": {
       "type": "string",
       "format": "date-time"
@@ -23,6 +35,9 @@
     "id",
     "sub",
     "auth_time",
+    "amr",
+    "acr",
+    "authentication_pending",
     "expires_at"
   ]
 }

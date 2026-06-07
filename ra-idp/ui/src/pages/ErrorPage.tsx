@@ -1,9 +1,4 @@
-import {
-  IconAlertTriangle,
-  IconCircleCheck,
-  IconLogout,
-  IconShieldX,
-} from '@tabler/icons-react'
+import { IconAlertTriangle, IconCircleCheck, IconLogout, IconShieldX } from '@tabler/icons-react'
 import type { ReactNode } from 'react'
 import { AuthLayout } from '@/components/layout/AuthLayout'
 import { Card, CardContent } from '@/components/ui/card'

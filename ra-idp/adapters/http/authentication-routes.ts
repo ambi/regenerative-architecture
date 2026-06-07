@@ -26,6 +26,7 @@ import {
 } from '../../src/shared/web-security'
 import { oauthErrorResponse } from './error-response'
 import { renderShell } from './spa-shell'
+import { totpChallengeResponse } from './totp-routes'
 
 export interface AuthenticationRoutesDeps {
   userRepo: UserRepository
@@ -34,6 +35,7 @@ export interface AuthenticationRoutesDeps {
   continuation: LoginContinuation
   emit: (e: DomainEvent) => void
 }
+
 
 export function createAuthenticationRoutes(deps: AuthenticationRoutesDeps) {
   const app = new Hono()
@@ -66,7 +68,12 @@ export function createAuthenticationRoutes(deps: AuthenticationRoutesDeps) {
       }
 
       const now = new Date()
-      const context = await deps.sessionManager.create(user.sub, ['pwd'], now)
+      // ユーザが追加 factor (現状は TOTP) を登録していれば、まずは authentication_pending=true の
+      // 中間セッションを作って TOTP challenge へ誘導する。完了は POST /totp 側で行う。
+      const needsSecondFactor = user.mfa_enrolled
+      const context = await deps.sessionManager.create(user.sub, ['pwd'], now, {
+        authenticationPending: needsSecondFactor,
+      })
       deps.emit({
         type: 'UserAuthenticated',
         occurredAt: now.toISOString(),
@@ -74,19 +81,21 @@ export function createAuthenticationRoutes(deps: AuthenticationRoutesDeps) {
         amr: ['pwd'],
       })
 
-      const response = await deps.continuation.continueAfterLogin(requestId, context, {
-        promptLoginSatisfied: true,
-        acceptLanguage: c.req.header('accept-language'),
-      })
+      const response = needsSecondFactor
+        ? totpChallengeResponse(requestId, c.req.header('accept-language'))
+        : await deps.continuation.continueAfterLogin(requestId, context, {
+            promptLoginSatisfied: true,
+            acceptLanguage: c.req.header('accept-language'),
+          })
       if (context.session_id) {
         response.headers.append(
           'set-cookie',
           sessionCookie(SESSION_COOKIE, context.session_id, SESSION_TTL_SECONDS),
         )
       }
-      // CSRF Cookie はクリアしない。次のページ（consent）が新しい CSRF Cookie を
+      // CSRF Cookie はクリアしない。次のページ（consent / totp）が新しい CSRF Cookie を
       // 同じ名前でセットするため、ここで Max-Age=0 を append するとブラウザが
-      // 「最後の Set-Cookie が勝つ」順序で消してしまい /consent が CSRF 不一致になる。
+      // 「最後の Set-Cookie が勝つ」順序で消してしまい後続が CSRF 不一致になる。
       return response
     } catch (e) {
       if (e instanceof OAuthError) return oauthErrorResponse(c, e)

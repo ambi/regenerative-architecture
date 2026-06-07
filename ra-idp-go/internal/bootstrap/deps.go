@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	authports "ra-idp-go/internal/authentication/ports"
 	oauthports "ra-idp-go/internal/oauth2/ports"
 )
 
@@ -12,6 +13,7 @@ import (
 type Dependencies struct {
 	ClientRepo            oauthports.ClientRepository
 	UserRepo              oauthports.UserRepository
+	MfaFactorRepo         authports.MfaFactorRepository
 	ConsentRepo           oauthports.ConsentRepository
 	RequestStore          oauthports.AuthorizationRequestStore
 	CodeStore             oauthports.AuthorizationCodeStore

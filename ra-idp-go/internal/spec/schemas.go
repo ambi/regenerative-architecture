@@ -161,12 +161,13 @@ func (a AuthorizationCodeRecord) Validate() error {
 // ===============================================================
 
 type LoginSession struct {
-	ID        string    `json:"id"`
-	Sub       string    `json:"sub"`
-	AuthTime  int64     `json:"auth_time"`
-	AMR       []string  `json:"amr"`
-	ACR       string    `json:"acr"`
-	ExpiresAt time.Time `json:"expires_at"`
+	ID                    string    `json:"id"`
+	Sub                   string    `json:"sub"`
+	AuthTime              int64     `json:"auth_time"`
+	AMR                   []string  `json:"amr"`
+	ACR                   string    `json:"acr"`
+	AuthenticationPending bool      `json:"authentication_pending"`
+	ExpiresAt             time.Time `json:"expires_at"`
 }
 
 func (s LoginSession) Validate() error {

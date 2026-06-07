@@ -18,6 +18,7 @@ func seedDemoData(
 	ctx context.Context,
 	clients oauthports.ClientRepository,
 	users oauthports.UserRepository,
+	mfaFactors authports.MfaFactorRepository,
 	hasher authports.PasswordHasher,
 ) error {
 	secretHash := oauthdomain.HashClientSecret(envDefault("DEMO_CLIENT_SECRET", "demo-client-secret"))
@@ -48,8 +49,19 @@ func seedDemoData(
 		return err
 	}
 	email := "alice@example.com"
-	return users.Save(ctx, &spec.User{
+	totpSecret := envDefault("DEMO_TOTP_SECRET", "")
+	if err := users.Save(ctx, &spec.User{
 		Sub: "user_alice", PreferredUsername: "alice", PasswordHash: hash,
-		Email: &email, EmailVerified: true, CreatedAt: now, UpdatedAt: now,
+		Email: &email, EmailVerified: true, MfaEnrolled: totpSecret != "",
+		CreatedAt: now, UpdatedAt: now,
+	}); err != nil {
+		return err
+	}
+	if totpSecret == "" {
+		return nil
+	}
+	label := "Demo TOTP"
+	return mfaFactors.Save(ctx, &spec.MfaFactor{
+		Sub: "user_alice", Type: spec.MfaFactorTOTP, Secret: &totpSecret, Label: &label, CreatedAt: now,
 	})
 }

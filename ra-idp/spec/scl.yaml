@@ -13,9 +13,9 @@ spec_version: "1.1"
 components:
   Authentication:
     description: ユーザー認証、パスワード検証、ブラウザログインセッション、AuthenticationContext 復元を所有する。
-    owns_models: [User, LoginSession, LoginRequest, TotpRequest, MfaFactor, MfaFactorType, AuthenticationContext]
+    owns_models: [User, LoginSession, BrowserLoginRequest, BrowserTotpRequest, MfaFactor, MfaFactorType, AuthenticationContext]
     owns_events: [UserAuthenticated, AuthenticationFailed]
-    owns_interfaces: [Login, TotpChallenge, TotpSubmit]
+    owns_interfaces: [SubmitBrowserLogin, SubmitBrowserTotp]
   OAuth2:
     description: OAuth 2.0 / OIDC の認可判断、同意、コード・トークン発行、RP-Initiated Logout endpoint を所有する。
     owns_models: [AuthorizationRequest, Consent, AuthorizationCodeRecord, TokenRequest, TokenResponse, EndSessionParameters]
@@ -1562,35 +1562,6 @@ models:
       id_token_hint:          { type: String, optional: true }
       request_uri:            { type: String, optional: true }
 
-  LoginRequest:
-    kind: value_object
-    description: POST /login の form リクエスト。CSRF は double-submit cookie と hidden form value の一致で検証する。
-    annotations: { component: Authentication }
-    fields:
-      request_id:    { type: UUID }
-      username:      { type: String }
-      password:      { type: String, annotations: { sensitive: true } }
-      csrf:          { type: String, annotations: { sensitive: true } }
-
-  TotpRequest:
-    kind: value_object
-    description: POST /totp の form リクエスト。RFC 6238 の数字コードを 1 フィールドで受け取る。CSRF は double-submit cookie と hidden form value の一致で検証する。
-    annotations: { component: Authentication }
-    fields:
-      request_id:    { type: UUID }
-      code:          { type: String, description: Authenticator アプリが生成した数字コード (annotations.totp_policy.digits 桁)。, annotations: { sensitive: true } }
-      csrf:          { type: String, annotations: { sensitive: true } }
-
-  MfaRequest:
-    kind: value_object
-    description: POST /mfa の form リクエスト。factor_type に応じて credential の形式が決まる (factor 固有の検証ロジックは Authentication component が担う)。CSRF は double-submit cookie と hidden form value の一致で検証する。
-    annotations: { component: Authentication }
-    fields:
-      request_id:    { type: UUID }
-      factor_type:   { type: MfaFactorType, description: 提示する factor 種別。 }
-      credential:    { type: String, description: factor 種別に応じた検証データ (TOTP は数字コード、WebAuthn は assertion JSON 等)。, annotations: { sensitive: true } }
-      csrf:          { type: String, annotations: { sensitive: true } }
-
   BrowserLoginRequest:
     kind: value_object
     description: SPA が POST /api/auth/login に送る JSON。authorization request id は HttpOnly transaction cookie、CSRF は X-CSRF-Token header から解決する。
@@ -1616,7 +1587,7 @@ models:
 
   BrowserTotpRequest:
     kind: value_object
-    description: SPA が POST /api/auth/totp に送る TOTP コード。authorization request id は HttpOnly transaction cookie、CSRF は X-CSRF-Token header から解決する。他 factor (WebAuthn 等) は HTTP 形が大きく異なるため、別 endpoint と別 value object として独立に定義する。
+    description: Browser client が POST /api/auth/totp に送る TOTP コード。authorization request id は HttpOnly transaction cookie、CSRF は X-CSRF-Token header から解決する。他 factor (WebAuthn 等) はHTTP形が大きく異なるため、別endpointと別value objectとして独立に定義する。
     annotations: { component: Authentication }
     fields:
       code:          { type: String, description: Authenticator アプリが生成した数字コード (annotations.totp_policy.digits 桁)。, annotations: { sensitive: true } }
@@ -1912,34 +1883,6 @@ interfaces:
     emits: [AuthorizationCodeIssued, ConsentGranted]
     bindings:
       - { kind: http, method: GET, path: /authorize, request_form: query, successful_status_codes: ["302"] }
-
-  Login:
-    description: Browser password login for an authorization request. Authentication component が所有し、成功時は OAuth2/OIDC continuation に AuthenticationContext を渡す。
-    steps:
-      - "ユーザー {username} が request_id {request_id} のログインフォームを送信する"
-    input:
-      request: { type: LoginRequest }
-    errors: [InvalidRequestError, AccessDeniedError]
-    emits: [UserAuthenticated, AuthenticationFailed]
-    bindings:
-      - { kind: http, method: POST, path: /login, request_form: form, successful_status_codes: ["302"] }
-
-  TotpChallenge:
-    description: TOTP コードを入力するためのブラウザ画面を返す。authentication_pending=true の LoginSession から表示する。SPA shell + fallback form を返す。他 factor (WebAuthn 等) は HTTP 形が異なるため、それぞれ別 interface として定義する。
-    read_only: true
-    bindings:
-      - { kind: http, method: GET, path: /totp, successful_status_codes: ["200"] }
-
-  TotpSubmit:
-    description: ブラウザ form から TOTP コードを検証する。RFC 6238 の検証ロジックは Authentication component が担う。成功時は LoginSession を認証完了状態に昇格させて OAuth2/OIDC continuation に進む。
-    steps:
-      - "ユーザーが request_id {request_id} の TOTP コード {code} を送信する"
-    input:
-      request: { type: TotpRequest }
-    errors: [InvalidRequestError, AccessDeniedError]
-    emits: [UserAuthenticated, AuthenticationFailed]
-    bindings:
-      - { kind: http, method: POST, path: /totp, request_form: form, successful_status_codes: ["302"] }
 
   GetBrowserTransaction:
     description: SPA が HttpOnly transaction cookie に対応するログイン・同意コンテキストを取得する。
@@ -2700,16 +2643,16 @@ scenarios:
     description: ユーザー名・パスワード認証に成功すると HttpOnly セッション Cookie を発行し、同じ認可リクエストを継続する。
     steps:
       - 未認証セッションで '"web-app" として認可リクエストを送る'
-      - ログインフォームに username "alice" と正しい password を送信する
+      - browser login API に username "alice" と正しい password を送信する
       - セッション Cookie が発行される
       - 認可コードが redirect_uri に返る
       - '"UserAuthenticated" が発行される'
 
-  ログインフォームの CSRF 不一致は拒否される:
-    description: double-submit cookie と form の csrf 値が一致しないログイン POST は invalid_request。
+  browser login API の CSRF 不一致は拒否される:
+    description: SameSite cookie と request token が一致しない browser login API は invalid_request。
     steps:
       - 未認証セッションで '"web-app" として認可リクエストを送る'
-      - csrf 値を改ざんしてログインフォームを送信する
+      - csrf 値を改ざんして browser login API を送信する
       - 'エラー "InvalidRequestError"'
 
   prompt=login は既存セッションがあっても再認証を要求する:
@@ -3171,6 +3114,11 @@ user_experience:
       purpose: Authorization transactionに結び付いたResourceOwnerの認証情報を取得する。
       interfaces: [GetBrowserTransaction, SubmitBrowserLogin]
       states: [ready, submitting, invalid_credentials, expired_transaction, service_error]
+    Totp:
+      route: /totp
+      purpose: authentication_pending状態のLoginSessionに対し、登録済みTOTP factorのコードを取得する。
+      interfaces: [GetBrowserTransaction, SubmitBrowserTotp]
+      states: [ready, submitting, invalid_code, expired_transaction, service_error]
     Consent:
       route: /consent
       purpose: Client名と要求Scopeを示し、ResourceOwnerの許可または拒否を取得する。
@@ -3192,6 +3140,9 @@ user_experience:
 
   transitions:
     - { from: Home, to: Login, trigger: authorization_started, interface: Authorize }
+    - { from: Login, to: Totp, trigger: password_succeeded_and_factor_required, interface: SubmitBrowserLogin }
+    - { from: Totp, to: Consent, trigger: factor_succeeded_and_consent_required, interface: SubmitBrowserTotp }
+    - { from: Totp, trigger: factor_succeeded_and_consent_exists, interface: SubmitBrowserTotp, external: true }
     - { from: Login, to: Consent, trigger: authentication_succeeded_and_consent_required, interface: SubmitBrowserLogin }
     - { from: Login, trigger: authentication_succeeded_and_consent_exists, interface: SubmitBrowserLogin, external: true }
     - { from: Consent, trigger: consent_allowed, interface: SubmitBrowserConsent, external: true }
@@ -3205,35 +3156,35 @@ user_experience:
     - id: UX-TRANSACTION-BOUND
       category: security
       adoption: required
-      statement: LoginとConsentは有効なHttpOnly authorization transaction cookieなしでは表示も送信もできない。
-      screens: [Login, Consent]
-      interfaces: [GetBrowserTransaction, SubmitBrowserLogin, SubmitBrowserConsent]
+      statement: Login、Totp、Consentは有効なHttpOnly authorization transaction cookieなしでは表示も送信もできない。
+      screens: [Login, Totp, Consent]
+      interfaces: [GetBrowserTransaction, SubmitBrowserLogin, SubmitBrowserTotp, SubmitBrowserConsent]
       standards: [RFC9700]
     - id: UX-CSRF
       category: security
       adoption: required
       statement: 状態変更を伴うブラウザAPIはSameSite cookieとリクエストトークンを照合してCSRFを拒否する。
-      screens: [Login, Consent, Device]
-      interfaces: [SubmitBrowserLogin, SubmitBrowserConsent, SubmitBrowserDevice]
+      screens: [Login, Totp, Consent, Device]
+      interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, SubmitBrowserConsent, SubmitBrowserDevice]
       standards: [RFC9700, FAPI2SecurityProfile]
-      scenarios: [ログインフォームの CSRF 不一致は拒否される]
+      scenarios: [browser login API の CSRF 不一致は拒否される]
     - id: UX-NO-STORE
       category: privacy
       adoption: required
       statement: 認証トランザクション、CSRF token、user_codeを含むブラウザAPI応答は保存キャッシュを禁止する。
-      screens: [Login, Consent, Device]
+      screens: [Login, Totp, Consent, Device]
       interfaces: [GetBrowserTransaction, GetBrowserDeviceContext]
     - id: UX-NO-CREDENTIAL-ECHO
       category: privacy
       adoption: required
       statement: password、token、内部request idを画面、URL、エラーメッセージへ表示しない。
-      screens: [Login, Consent, Device, Status, Callback]
+      screens: [Login, Totp, Consent, Device, Status, Callback]
     - id: UX-REGISTERED-REDIRECT
       category: security
       adoption: required
       statement: Browser flowの外部遷移先は検証済みredirect_uriまたはpost_logout_redirect_uriだけとする。
-      screens: [Login, Consent, Status]
-      interfaces: [Authorize, SubmitBrowserLogin, SubmitBrowserConsent, EndSession]
+      screens: [Login, Totp, Consent, Status]
+      interfaces: [Authorize, SubmitBrowserLogin, SubmitBrowserTotp, SubmitBrowserConsent, EndSession]
       standards: [RFC9700, OpenIDConnectRPInitiatedLogout]
       properties: [RedirectUriExactMatch]
     - id: UX-CLIENT-CONTEXT
@@ -3246,31 +3197,31 @@ user_experience:
       category: accessibility
       adoption: required
       statement: すべての入力、表示切替、許可、拒否、再試行をキーボードだけで操作可能にする。
-      screens: [Home, Login, Consent, Device, Status, Callback]
+      screens: [Home, Login, Totp, Consent, Device, Status, Callback]
       standards: [WCAG22]
     - id: UX-FOCUS
       category: accessibility
       adoption: required
       statement: フォーカス位置を常に視認可能にし、画面遷移後は主見出しまたは最初の入力へ論理的に到達可能にする。
-      screens: [Login, Consent, Device, Status, Callback]
+      screens: [Login, Totp, Consent, Device, Status, Callback]
       standards: [WCAG22]
     - id: UX-LABELS-ERRORS
       category: accessibility
       adoption: required
       statement: 入力には永続的なラベルを関連付け、エラーを色だけに依存せず対象と修正方法が分かる文章で示す。
-      screens: [Login, Device]
+      screens: [Login, Totp, Device]
       standards: [WCAG22]
     - id: UX-STATUS-ANNOUNCEMENT
       category: accessibility
       adoption: required
       statement: 非同期送信の失敗と認証結果を支援技術へ通知し、送信中は重複操作を防ぐ。
-      screens: [Login, Consent, Device, Status, Callback]
+      screens: [Login, Totp, Consent, Device, Status, Callback]
       standards: [WCAG22]
     - id: UX-LOCALE
       category: localization
       adoption: required
       statement: UI文言はjaとenを提供し、未対応localeは既定localeへフォールバックする。
-      screens: [Home, Login, Consent, Device, Status, Callback]
+      screens: [Home, Login, Totp, Consent, Device, Status, Callback]
       interfaces: [GetOpenidConfiguration]
       standards: [OpenIDConnectDiscovery]
 
@@ -3481,7 +3432,7 @@ annotations:
       status: covered
       evidence:
         - { file: adapters/http/authorize-routes.test.ts, test: "ログインフォームの成功後はセッション Cookie を発行し認可コードへリダイレクトする" }
-    "ログインフォームの CSRF 不一致は拒否される":
+    "browser login API の CSRF 不一致は拒否される":
       status: covered
       evidence:
         - { file: adapters/http/authorize-routes.test.ts, test: "ログインフォームは CSRF 不一致を拒否する" }

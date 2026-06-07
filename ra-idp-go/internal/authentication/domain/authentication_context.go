@@ -5,11 +5,12 @@ package domain
 import "context"
 
 type AuthenticationContext struct {
-	Sub       string
-	AuthTime  int64
-	AMR       []string
-	ACR       string
-	SessionID string
+	Sub                   string
+	AuthTime              int64
+	AMR                   []string
+	ACR                   string
+	SessionID             string
+	AuthenticationPending bool
 }
 
 type AuthenticationContextResolver interface {

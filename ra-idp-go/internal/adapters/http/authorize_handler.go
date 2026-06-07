@@ -49,6 +49,10 @@ type consentAPIRequest struct {
 	Action string `json:"action"`
 }
 
+type totpAPIRequest struct {
+	Code string `json:"code"`
+}
+
 func (d Deps) handleAuthorize(c *echo.Context) error {
 	q := c.QueryParams()
 	parUsed := false
@@ -97,6 +101,12 @@ func (d Deps) handleAuthorize(c *echo.Context) error {
 	if d.AuthnResolver != nil {
 		authn, _ := d.AuthnResolver.Resolve(c.Request().Context(), authdomain.HTTPHeadersAdapter{H: c.Request().Header})
 		if authn != nil {
+			if authn.AuthenticationPending {
+				if in.Prompt == "none" {
+					return writeOAuthError(c, usecases.NewOAuthError("login_required", "追加factor検証が必要です"))
+				}
+				return c.Redirect(http.StatusSeeOther, "/totp")
+			}
 			policy := oauthdomain.ParsePrompt(out.Request)
 			needsStepUp := out.Request.ACRValues != nil &&
 				!authusecases.ACRSatisfies(authn.ACR, *out.Request.ACRValues)
@@ -104,6 +114,20 @@ func (d Deps) handleAuthorize(c *echo.Context) error {
 				needsStepUp {
 				if in.Prompt == "none" {
 					return writeOAuthError(c, usecases.NewOAuthError("login_required", "既存セッションが認証要件を満たしません"))
+				}
+				if needsStepUp && d.canUseTOTP(c, authn.Sub) {
+					pending, err := d.SessionManager.CreateWithPending(
+						c.Request().Context(),
+						authn.Sub,
+						authn.AMR,
+						time.Now().UTC(),
+						true,
+					)
+					if err != nil {
+						return err
+					}
+					d.setSessionCookie(c, pending.SessionID)
+					return c.Redirect(http.StatusSeeOther, "/totp")
 				}
 				return c.Redirect(http.StatusSeeOther, "/login")
 			}
@@ -133,9 +157,16 @@ func (d Deps) handleTransaction(c *echo.Context) error {
 		return err
 	}
 	if req.Sub == nil {
+		authn, _ := d.resolveAuthentication(c)
+		if authn != nil && authn.AuthenticationPending {
+			return noStoreJSON(c, http.StatusOK, transactionResponse{Kind: "totp", CSRFToken: csrf})
+		}
 		return noStoreJSON(c, http.StatusOK, transactionResponse{Kind: "login", CSRFToken: csrf})
 	}
 	authn, _ := d.resolveAuthentication(c)
+	if authn != nil && authn.AuthenticationPending {
+		return noStoreJSON(c, http.StatusOK, transactionResponse{Kind: "totp", CSRFToken: csrf})
+	}
 	if authn == nil || authn.Sub != *req.Sub {
 		return writeBrowserError(c, http.StatusUnauthorized, "authentication_required", "認証セッションが一致しません")
 	}
@@ -189,13 +220,22 @@ func (d Deps) handleLoginAPI(c *echo.Context) error {
 	}
 
 	authTime := time.Now().UTC()
-	authn, err := d.SessionManager.Create(c.Request().Context(), user.Sub, []string{"pwd"}, authTime)
+	authn, err := d.SessionManager.CreateWithPending(
+		c.Request().Context(),
+		user.Sub,
+		[]string{"pwd"},
+		authTime,
+		user.MfaEnrolled,
+	)
 	if err != nil {
 		return err
 	}
 	d.setSessionCookie(c, authn.SessionID)
 	if d.Emit != nil {
 		d.Emit(&spec.UserAuthenticated{At: authTime, Sub: user.Sub, AMR: []string{"pwd"}})
+	}
+	if user.MfaEnrolled {
+		return noStoreJSON(c, http.StatusOK, browserFlowResponse{Next: "/totp"})
 	}
 	if err := d.RequestStore.AttachAuthentication(
 		c.Request().Context(), req.ID, user.Sub, authn.AuthTime, authn.AMR, authn.ACR,
@@ -208,6 +248,73 @@ func (d Deps) handleLoginAPI(c *echo.Context) error {
 		return writeBrowserError(c, http.StatusBadRequest, "invalid_transaction", "クライアントが存在しません")
 	}
 	next, err := d.completeAfterAuthn(c, req, client, authn)
+	if err != nil {
+		return err
+	}
+	if next.RedirectTo != "" {
+		d.clearTransactionCookie(c)
+	}
+	return writeAuthorizationNext(c, next)
+}
+
+func (d Deps) handleTOTPAPI(c *echo.Context) error {
+	if d.MfaFactorRepo == nil {
+		return writeBrowserError(c, http.StatusServiceUnavailable, "mfa_unavailable", "MFA factor store is unavailable")
+	}
+	if err := d.verifyBrowserRequest(c); err != nil {
+		return err
+	}
+	req, err := d.transactionRequest(c)
+	if err != nil {
+		return writeBrowserError(c, http.StatusUnauthorized, "transaction_unavailable", err.Error())
+	}
+	authn, _ := d.resolveAuthentication(c)
+	if authn == nil || authn.SessionID == "" {
+		return writeBrowserError(c, http.StatusUnauthorized, "authentication_required", "TOTP検証セッションがありません")
+	}
+	if containsString(authn.AMR, "otp") && !authn.AuthenticationPending {
+		return writeBrowserError(c, http.StatusForbidden, "access_denied", "TOTPは既に検証済みです")
+	}
+	var input totpAPIRequest
+	if err := decodeJSON(c.Request(), &input); err != nil {
+		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	}
+	result, err := authusecases.VerifyTOTPFactor(
+		c.Request().Context(),
+		d.MfaFactorRepo,
+		authn.Sub,
+		input.Code,
+		time.Now().UTC(),
+	)
+	if err != nil {
+		return err
+	}
+	if !result.OK {
+		d.emitAuthenticationFailure(authn.Sub, result.Reason)
+		return writeBrowserError(c, http.StatusUnauthorized, "invalid_totp", "TOTPコードを確認してください。")
+	}
+	completed, err := d.SessionManager.CompleteFactor(c.Request().Context(), authn.SessionID, []string{"otp"})
+	if err != nil {
+		return err
+	}
+	if completed == nil {
+		return writeBrowserError(c, http.StatusUnauthorized, "authentication_required", "セッションが失効しました")
+	}
+	d.setSessionCookie(c, completed.SessionID)
+	if d.Emit != nil {
+		d.Emit(&spec.UserAuthenticated{At: time.Now().UTC(), Sub: completed.Sub, AMR: completed.AMR})
+	}
+	if err := d.RequestStore.AttachAuthentication(
+		c.Request().Context(), req.ID, completed.Sub, completed.AuthTime, completed.AMR, completed.ACR,
+	); err != nil {
+		return writeOAuthError(c, err)
+	}
+	req.Sub, req.AuthTime, req.AMR, req.ACR = &completed.Sub, &completed.AuthTime, completed.AMR, &completed.ACR
+	client, err := d.ClientRepo.FindByID(c.Request().Context(), req.ClientID)
+	if err != nil || client == nil {
+		return writeBrowserError(c, http.StatusBadRequest, "invalid_transaction", "クライアントが存在しません")
+	}
+	next, err := d.completeAfterAuthn(c, req, client, completed)
 	if err != nil {
 		return err
 	}
@@ -271,6 +378,9 @@ func (d Deps) completeAfterAuthn(
 	client *spec.Client,
 	authn *authdomain.AuthenticationContext,
 ) (authorizationNext, error) {
+	if authn.AuthenticationPending {
+		return authorizationNext{Path: "/totp"}, nil
+	}
 	if d.ConsentRepo != nil {
 		consent, _ := d.ConsentRepo.Find(c.Request().Context(), authn.Sub, client.ClientID)
 		covered := consent != nil &&
@@ -300,6 +410,14 @@ func (d Deps) completeAfterAuthn(
 	}
 	redirectTo, err := d.issueCodeURL(c, req, authn.Sub, time.Unix(authn.AuthTime, 0))
 	return authorizationNext{RedirectTo: redirectTo}, err
+}
+
+func (d Deps) canUseTOTP(c *echo.Context, sub string) bool {
+	if d.MfaFactorRepo == nil {
+		return false
+	}
+	factor, err := d.MfaFactorRepo.Find(c.Request().Context(), sub, spec.MfaFactorTOTP)
+	return err == nil && factor != nil && factor.Secret != nil && *factor.Secret != ""
 }
 
 func (d Deps) issueCodeURL(

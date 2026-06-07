@@ -202,6 +202,7 @@ type SCLAnnotations struct {
 	PasswordPolicy    SCLPasswordPolicy    `yaml:"password_policy"`
 	DiscoveryTemplate SCLDiscoveryTemplate `yaml:"discovery_template"`
 	ACRVocabulary     SCLACRVocabulary     `yaml:"acr_vocabulary"`
+	TOTPPolicy        SCLTOTPPolicy        `yaml:"totp_policy"`
 }
 
 type SCLPasswordPolicy struct {
@@ -228,6 +229,15 @@ type SCLACRVocabulary struct {
 type SCLACRValue struct {
 	URN         string `yaml:"urn"`
 	Description string `yaml:"description"`
+}
+
+type SCLTOTPPolicy struct {
+	Description string `yaml:"description"`
+	Algorithm   string `yaml:"algorithm"`
+	StepSeconds int64  `yaml:"step_seconds"`
+	Digits      int    `yaml:"digits"`
+	Window      int    `yaml:"window"`
+	SecretBytes int    `yaml:"secret_bytes"`
 }
 
 // =====================================================================

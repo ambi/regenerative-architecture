@@ -11,6 +11,7 @@ import { DevicePage } from './pages/DevicePage'
 import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
 import { StatusPage } from './pages/StatusPage'
+import { TotpPage } from './pages/TotpPage'
 import type { PageData } from './types'
 
 const rootRoute = createRootRoute({
@@ -33,6 +34,11 @@ export function createAppRouter(data: PageData) {
     path: '/consent',
     component: () => (data.kind === 'consent' ? <ConsentPage {...data} /> : null),
   })
+  const totpRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/totp',
+    component: () => (data.kind === 'totp' ? <TotpPage {...data} /> : null),
+  })
   const deviceRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/device',
@@ -53,6 +59,7 @@ export function createAppRouter(data: PageData) {
     routeTree: rootRoute.addChildren([
       homeRoute,
       loginRoute,
+      totpRoute,
       consentRoute,
       deviceRoute,
       statusRoute,

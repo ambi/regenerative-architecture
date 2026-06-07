@@ -7,10 +7,11 @@ import type {
   LoginPage,
   PageData,
   StatusPage,
+  TotpPage,
 } from './types'
 
 type TransactionResponse = {
-  kind: 'login' | 'consent'
+  kind: 'login' | 'totp' | 'consent'
   csrf_token: string
   client_name?: string
   scopes?: string[]
@@ -98,6 +99,12 @@ export async function loadPageData(): Promise<PageData> {
       scopes: data.scopes ?? [],
     } satisfies ConsentPage
   }
+  if (data.kind === 'totp') {
+    if (path !== '/totp') {
+      window.history.replaceState(null, '', '/totp')
+    }
+    return { kind: 'totp', csrfToken: data.csrf_token } satisfies TotpPage
+  }
   if (path !== '/login') {
     window.history.replaceState(null, '', '/login')
   }
@@ -130,6 +137,17 @@ export async function submitConsent(
       'X-CSRF-Token': csrfToken,
     },
     body: JSON.stringify({ action }),
+  })
+}
+
+export async function submitTOTP(csrfToken: string, code: string): Promise<BrowserFlowResponse> {
+  return request('/api/auth/totp', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': csrfToken,
+    },
+    body: JSON.stringify({ code }),
   })
 }
 

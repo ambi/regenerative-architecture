@@ -8,6 +8,11 @@ export type LoginPage = {
   csrfToken: string
 }
 
+export type TotpPage = {
+  kind: 'totp'
+  csrfToken: string
+}
+
 export type ConsentPage = {
   kind: 'consent'
   csrfToken: string
@@ -33,7 +38,14 @@ export type CallbackPage = {
   errorDescription?: string
 }
 
-export type PageData = HomePage | LoginPage | ConsentPage | DevicePage | StatusPage | CallbackPage
+export type PageData =
+  | HomePage
+  | LoginPage
+  | TotpPage
+  | ConsentPage
+  | DevicePage
+  | StatusPage
+  | CallbackPage
 
 export type BrowserFlowResponse = {
   next?: string

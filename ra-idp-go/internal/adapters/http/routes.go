@@ -36,6 +36,7 @@ type Deps struct {
 	Authorizer                 oauthports.Authorizer
 	JWKResolver                *crypto.JWKResolver
 	PasswordHasher             authports.PasswordHasher
+	MfaFactorRepo              authports.MfaFactorRepository
 	SessionManager             *authusecases.SessionManager
 	AuthnResolver              authdomain.AuthenticationContextResolver
 	Emit                       func(spec.DomainEvent)
@@ -49,6 +50,7 @@ func Register(e *echo.Echo, d Deps) {
 	e.GET("/api/auth/transaction", d.handleTransaction)
 	e.POST("/api/auth/login", d.handleLoginAPI)
 	e.POST("/api/auth/consent", d.handleConsentAPI)
+	e.POST("/api/auth/totp", d.handleTOTPAPI)
 	e.GET("/api/auth/device", d.handleDeviceContext)
 	e.POST("/api/auth/device", d.handleDeviceAPI)
 	e.POST("/token", d.handleToken)

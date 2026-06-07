@@ -12,9 +12,14 @@ import (
 )
 
 const (
-	totpStepSeconds = int64(30)
-	totpDigits      = 6
-	totpSecretBytes = 20
+	TOTPStepSeconds = int64(30)
+	TOTPDigits      = 6
+	TOTPWindow      = 1
+	TOTPSecretBytes = 20
+
+	totpStepSeconds = TOTPStepSeconds
+	totpDigits      = TOTPDigits
+	totpSecretBytes = TOTPSecretBytes
 )
 
 func GenerateTOTPSecret() (string, error) {

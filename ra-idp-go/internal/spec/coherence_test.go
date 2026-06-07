@@ -51,6 +51,29 @@ func TestMfaFactorTypeMatchesSCL(t *testing.T) {
 	}
 }
 
+func TestTOTPPolicyMatchesSCL(t *testing.T) {
+	s, err := spec.LoadSCL()
+	if err != nil {
+		t.Fatalf("load scl: %v", err)
+	}
+	policy := s.Annotations.TOTPPolicy
+	if got, want := policy.Algorithm, "SHA1"; got != want {
+		t.Fatalf("totp algorithm=%q, want %q", got, want)
+	}
+	if got, want := policy.StepSeconds, usecases.TOTPStepSeconds; got != want {
+		t.Fatalf("totp step_seconds=%d, want %d", got, want)
+	}
+	if got, want := policy.Digits, usecases.TOTPDigits; got != want {
+		t.Fatalf("totp digits=%d, want %d", got, want)
+	}
+	if got, want := policy.Window, usecases.TOTPWindow; got != want {
+		t.Fatalf("totp window=%d, want %d", got, want)
+	}
+	if got, want := policy.SecretBytes, usecases.TOTPSecretBytes; got != want {
+		t.Fatalf("totp secret_bytes=%d, want %d", got, want)
+	}
+}
+
 func TestStandardsAndUserExperienceLoadFromSCL(t *testing.T) {
 	s, err := spec.LoadSCL()
 	if err != nil {

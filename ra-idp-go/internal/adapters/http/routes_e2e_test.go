@@ -2,6 +2,7 @@ package http_test
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -30,13 +31,19 @@ const (
 	demoRedirectURI  = "http://localhost:3000/callback"
 	demoUsername     = "alice"
 	demoPassword     = "demo-password-1234"
+	totpTestSecret   = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"
 )
 
 func newServer(t *testing.T) *httptest.Server {
+	return newServerWithTOTP(t, "")
+}
+
+func newServerWithTOTP(t *testing.T, totpSecret string) *httptest.Server {
 	t.Helper()
 
 	clientRepo := memory.NewClientRepository()
 	userRepo := memory.NewUserRepository()
+	mfaFactorRepo := memory.NewMfaFactorRepository()
 	requestStore := memory.NewAuthorizationRequestStore()
 	codeStore := memory.NewAuthorizationCodeStore()
 	hasher := crypto.NewArgon2idPasswordHasher()
@@ -65,8 +72,16 @@ func newServer(t *testing.T) *httptest.Server {
 	now := time.Now().UTC()
 	userRepo.Seed(&spec.User{
 		Sub: "user_alice", PreferredUsername: demoUsername, PasswordHash: hash,
-		Email: &email, EmailVerified: true, CreatedAt: now, UpdatedAt: now,
+		Email: &email, EmailVerified: true, MfaEnrolled: totpSecret != "",
+		CreatedAt: now, UpdatedAt: now,
 	})
+	if totpSecret != "" {
+		if err := mfaFactorRepo.Save(context.Background(), &spec.MfaFactor{
+			Sub: "user_alice", Type: spec.MfaFactorTOTP, Secret: &totpSecret, CreatedAt: now,
+		}); err != nil {
+			t.Fatalf("seed mfa factor: %v", err)
+		}
+	}
 
 	keyStore, err := crypto.NewInMemoryKeyStore()
 	if err != nil {
@@ -78,7 +93,8 @@ func newServer(t *testing.T) *httptest.Server {
 	httpadapter.Register(e, httpadapter.Deps{
 		Issuer:     "http://test",
 		ClientRepo: clientRepo, UserRepo: userRepo, ConsentRepo: memory.NewConsentRepository(),
-		RequestStore: requestStore, CodeStore: codeStore, PARStore: memory.NewPARStore(),
+		MfaFactorRepo: mfaFactorRepo,
+		RequestStore:  requestStore, CodeStore: codeStore, PARStore: memory.NewPARStore(),
 		RefreshStore: memory.NewRefreshTokenStore(), DeviceCodeStore: memory.NewDeviceCodeStore(),
 		KeyStore: keyStore, TokenIssuer: tokenIssuer, TokenIntrospector: tokenIssuer,
 		PasswordHasher: hasher, SessionManager: sessionManager, AuthnResolver: sessionManager,
@@ -171,6 +187,49 @@ func TestBrowserAuthorizationFlowUsesCookiesAndJSONAPI(t *testing.T) {
 	}
 }
 
+func TestBrowserAuthorizationFlowRequiresTOTPWhenEnrolled(t *testing.T) {
+	secret := totpTestSecret
+	srv := newServerWithTOTP(t, secret)
+	defer srv.Close()
+	client := browserClient(t)
+
+	resp := startAuthorization(t, client, srv.URL, "verifier-for-totp-test-12345678901234567890", "state")
+	resp.Body.Close()
+	transaction := getJSON[struct {
+		Kind      string `json:"kind"`
+		CSRFToken string `json:"csrf_token"`
+	}](t, client, srv.URL+"/api/auth/transaction")
+	if transaction.Kind != "login" {
+		t.Fatalf("transaction kind=%q, want login", transaction.Kind)
+	}
+
+	loginResult := postJSON[map[string]string](t, client, srv.URL+"/api/auth/login", transaction.CSRFToken, map[string]string{
+		"username": demoUsername,
+		"password": demoPassword,
+	})
+	if loginResult["next"] != "/totp" {
+		t.Fatalf("login next=%q, want /totp", loginResult["next"])
+	}
+
+	totpTransaction := getJSON[struct {
+		Kind      string `json:"kind"`
+		CSRFToken string `json:"csrf_token"`
+	}](t, client, srv.URL+"/api/auth/transaction")
+	if totpTransaction.Kind != "totp" || totpTransaction.CSRFToken == "" {
+		t.Fatalf("unexpected totp transaction: %+v", totpTransaction)
+	}
+	code, err := authusecases.GenerateTOTP(secret, time.Now().UTC().Unix())
+	if err != nil {
+		t.Fatalf("generate totp: %v", err)
+	}
+	totpResult := postJSON[map[string]string](t, client, srv.URL+"/api/auth/totp", totpTransaction.CSRFToken, map[string]string{
+		"code": code,
+	})
+	if totpResult["next"] != "/consent" {
+		t.Fatalf("totp next=%q, want /consent", totpResult["next"])
+	}
+}
+
 func TestBrowserAPIPostRejectsMissingCSRF(t *testing.T) {
 	srv := newServer(t)
 	defer srv.Close()
@@ -222,7 +281,7 @@ func TestBrowserAPIPostRejectsForeignOrigin(t *testing.T) {
 func TestGoDoesNotServeFrontendAssets(t *testing.T) {
 	srv := newServer(t)
 	defer srv.Close()
-	for _, path := range []string{"/login", "/ui/assets/app.css", "/ui/assets/app.js"} {
+	for _, path := range []string{"/login", "/totp", "/ui/assets/app.css", "/ui/assets/app.js"} {
 		resp, err := http.Get(srv.URL + path)
 		if err != nil {
 			t.Fatalf("GET %s: %v", path, err)

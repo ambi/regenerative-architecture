@@ -5,6 +5,7 @@ package usecases
 import (
 	"context"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -27,6 +28,16 @@ func NewSessionManager(s ports.SessionStore) *SessionManager {
 }
 
 func (m *SessionManager) Create(ctx context.Context, sub string, amr []string, now time.Time) (*domain.AuthenticationContext, error) {
+	return m.CreateWithPending(ctx, sub, amr, now, false)
+}
+
+func (m *SessionManager) CreateWithPending(
+	ctx context.Context,
+	sub string,
+	amr []string,
+	now time.Time,
+	authenticationPending bool,
+) (*domain.AuthenticationContext, error) {
 	if now.IsZero() {
 		now = time.Now().UTC()
 	}
@@ -35,22 +46,55 @@ func (m *SessionManager) Create(ctx context.Context, sub string, amr []string, n
 		return nil, err
 	}
 	sess := &spec.LoginSession{
-		ID:        id,
-		Sub:       sub,
-		AuthTime:  now.Unix(),
-		AMR:       amr,
-		ACR:       DeriveACR(amr),
-		ExpiresAt: now.Add(SessionTTLSeconds * time.Second),
+		ID:                    id,
+		Sub:                   sub,
+		AuthTime:              now.Unix(),
+		AMR:                   amr,
+		ACR:                   DeriveACR(amr),
+		AuthenticationPending: authenticationPending,
+		ExpiresAt:             now.Add(SessionTTLSeconds * time.Second),
 	}
 	if err := m.Store.Save(ctx, sess); err != nil {
 		return nil, err
 	}
 	return &domain.AuthenticationContext{
-		Sub:       sub,
-		AuthTime:  sess.AuthTime,
-		AMR:       amr,
-		ACR:       sess.ACR,
-		SessionID: id,
+		Sub:                   sub,
+		AuthTime:              sess.AuthTime,
+		AMR:                   amr,
+		ACR:                   sess.ACR,
+		SessionID:             id,
+		AuthenticationPending: sess.AuthenticationPending,
+	}, nil
+}
+
+func (m *SessionManager) CompleteFactor(
+	ctx context.Context,
+	sessionID string,
+	additionalAMR []string,
+) (*domain.AuthenticationContext, error) {
+	sess, err := m.Store.Find(ctx, sessionID)
+	if err != nil || sess == nil {
+		return nil, err
+	}
+	merged := slices.Clone(sess.AMR)
+	for _, method := range additionalAMR {
+		if !slices.Contains(merged, method) {
+			merged = append(merged, method)
+		}
+	}
+	sess.AMR = merged
+	sess.ACR = DeriveACR(merged)
+	sess.AuthenticationPending = false
+	if err := m.Store.Save(ctx, sess); err != nil {
+		return nil, err
+	}
+	return &domain.AuthenticationContext{
+		Sub:                   sess.Sub,
+		AuthTime:              sess.AuthTime,
+		AMR:                   slices.Clone(sess.AMR),
+		ACR:                   sess.ACR,
+		SessionID:             sess.ID,
+		AuthenticationPending: sess.AuthenticationPending,
 	}, nil
 }
 
@@ -67,11 +111,12 @@ func (m *SessionManager) Resolve(ctx context.Context, headers domain.Headers) (*
 		return nil, nil
 	}
 	return &domain.AuthenticationContext{
-		Sub:       sess.Sub,
-		AuthTime:  sess.AuthTime,
-		AMR:       sess.AMR,
-		ACR:       sess.ACR,
-		SessionID: sess.ID,
+		Sub:                   sess.Sub,
+		AuthTime:              sess.AuthTime,
+		AMR:                   sess.AMR,
+		ACR:                   sess.ACR,
+		SessionID:             sess.ID,
+		AuthenticationPending: sess.AuthenticationPending,
 	}, nil
 }
 

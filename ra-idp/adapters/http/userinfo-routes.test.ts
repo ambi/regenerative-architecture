@@ -278,3 +278,78 @@ describe('/userinfo + DPoP-bound access token', () => {
     expect(res.status).toBe(200)
   })
 })
+
+describe('/userinfo + mTLS-bound access token (RFC 8705 §3)', () => {
+  it('成功: cnf.x5t#S256 と一致する X-Client-Certificate で 200', async () => {
+    const { app, signer, client } = await setup()
+    const { TEST_CERT_PEM } = await import('../crypto/mtls-test-fixtures')
+    const { X509Certificate, createHash } = await import('crypto')
+    const der = new X509Certificate(TEST_CERT_PEM).raw
+    const thumbprint = createHash('sha256').update(der).digest('base64url')
+    const { token } = await signer.signAccessToken({
+      sub: 'user_alice',
+      client,
+      scopes: ['openid', 'profile'],
+      senderConstraint: { type: 'mtls', 'x5t#S256': thumbprint },
+      authTime: Math.floor(Date.now() / 1000),
+    })
+    const res = await app.request('/userinfo', {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'X-Client-Certificate': encodeURIComponent(TEST_CERT_PEM),
+      },
+    })
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as Record<string, unknown>
+    expect(body.sub).toBe('user_alice')
+  })
+
+  it('証明書ヘッダ無しは invalid_token で拒否', async () => {
+    const { app, signer, client } = await setup()
+    const { TEST_CERT_PEM } = await import('../crypto/mtls-test-fixtures')
+    const { X509Certificate, createHash } = await import('crypto')
+    const thumbprint = createHash('sha256')
+      .update(new X509Certificate(TEST_CERT_PEM).raw)
+      .digest('base64url')
+    const { token } = await signer.signAccessToken({
+      sub: 'user_alice',
+      client,
+      scopes: ['openid'],
+      senderConstraint: { type: 'mtls', 'x5t#S256': thumbprint },
+      authTime: Math.floor(Date.now() / 1000),
+    })
+    const res = await app.request('/userinfo', {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    expect(res.status).toBe(400)
+    expect(res.headers.get('WWW-Authenticate')).toContain('invalid_token')
+  })
+
+  it('別証明書で提示すると thumbprint 不一致で拒否', async () => {
+    const { app, signer, client } = await setup()
+    const { TEST_CERT_PEM, TEST_CERT_OTHER_PEM } = await import(
+      '../crypto/mtls-test-fixtures'
+    )
+    const { X509Certificate, createHash } = await import('crypto')
+    const boundThumb = createHash('sha256')
+      .update(new X509Certificate(TEST_CERT_PEM).raw)
+      .digest('base64url')
+    const { token } = await signer.signAccessToken({
+      sub: 'user_alice',
+      client,
+      scopes: ['openid'],
+      senderConstraint: { type: 'mtls', 'x5t#S256': boundThumb },
+      authTime: Math.floor(Date.now() / 1000),
+    })
+    const res = await app.request('/userinfo', {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'X-Client-Certificate': encodeURIComponent(TEST_CERT_OTHER_PEM),
+      },
+    })
+    expect(res.status).toBe(400)
+  })
+})

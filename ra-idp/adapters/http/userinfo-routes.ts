@@ -10,6 +10,8 @@ import { OAuthError } from '../../src/oauth2/protocol/oauth-error'
 import { oauthErrorResponse } from './error-response'
 import { userInfoUseCase } from '../../src/oauth2/usecases/userinfo'
 import { verifyDpopProof } from '../crypto/dpop-verifier'
+import { parseClientCertificateHeader } from '../crypto/mtls-client-cert'
+import { CLIENT_CERT_HEADER } from './client-authentication'
 import type { AccessTokenDenylist } from '../../src/oauth2/ports/access-token-denylist'
 import type { DpopNonceService } from '../../src/oauth2/ports/dpop-nonce-service'
 import type { DpopReplayStore } from '../../src/oauth2/ports/dpop-replay-store'
@@ -71,6 +73,17 @@ export function createUserInfoRoutes(deps: UserInfoRoutesDeps) {
         if (!proof || proof.jkt !== boundJkt) {
           c.header('WWW-Authenticate', 'DPoP error="invalid_token"')
           throw new OAuthError('invalid_grant', 'DPoP 鍵バインドが一致しません')
+        }
+      }
+
+      // RFC 8705 §3: mTLS 証明書バインド AT は同じ証明書での提示が必須
+      const boundCertThumbprint = introspection.cnf?.['x5t#S256']
+      if (boundCertThumbprint) {
+        const certHeader = c.req.header(CLIENT_CERT_HEADER)
+        const cert = certHeader ? parseClientCertificateHeader(certHeader) : null
+        if (!cert || cert.thumbprintS256 !== boundCertThumbprint) {
+          c.header('WWW-Authenticate', `${scheme} error="invalid_token"`)
+          throw new OAuthError('invalid_grant', 'mTLS 証明書バインドが一致しません')
         }
       }
 

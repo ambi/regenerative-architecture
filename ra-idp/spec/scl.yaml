@@ -1992,6 +1992,14 @@ scenarios:
       - 認可コード "AC1" を verifier "v"・mTLS Subject DN "CN=mtls-app" で交換する
       - 応答に access_token が含まれる
 
+  mTLS バインド AT は同じ証明書のリクエストでのみ受理される:
+    description: RFC 8705 §3。cnf.x5t#S256 が AT に埋め込まれ、resource access では同一証明書の thumbprint 一致を要求する。
+    steps:
+      - confidential クライアント "mtls-app" を token_endpoint_auth_method "tls_client_auth" で用意する
+      - mTLS 証明書バインドされた access_token を発行する
+      - 同じ証明書を提示して userinfo を取得すると 200 を返す
+      - 別の証明書を提示すると invalid_token で拒否される
+
   # ---------- メタデータ ----------
   RFC 8414 メタデータ文書は OIDC Discovery と同等の内容を返す:
     description: 同一のメタデータを別パスでも取得できる。
@@ -2558,10 +2566,15 @@ annotations:
       evidence:
         - { file: adapters/http/client-authentication.test.ts, test: "別の鍵で署名された assertion を拒否する" }
     "tls_client_auth で mTLS の Subject DN が一致すれば認証成立":
-      status: partial
+      status: covered
       evidence:
-        - { file: src/spec-bindings/grants/grant-types.ts, test: "tls_client_auth" }
-      note: mTLS Subject DN の自動シナリオテストは未実装。
+        - { file: adapters/http/client-authentication.test.ts, test: "登録 DN と一致する証明書で認証成功し thumbprint を返す" }
+        - { file: adapters/http/client-authentication.test.ts, test: "別 DN の証明書は invalid_client" }
+    "mTLS バインド AT は同じ証明書のリクエストでのみ受理される":
+      status: covered
+      evidence:
+        - { file: adapters/http/userinfo-routes.test.ts, test: "成功: cnf.x5t#S256 と一致する X-Client-Certificate で 200" }
+        - { file: adapters/http/userinfo-routes.test.ts, test: "別証明書で提示すると thumbprint 不一致で拒否" }
     "RFC 8414 メタデータ文書は OIDC Discovery と同等の内容を返す":
       status: partial
       evidence:

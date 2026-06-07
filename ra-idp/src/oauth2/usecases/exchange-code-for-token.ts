@@ -29,6 +29,8 @@ export interface ExchangeCodeInput {
   code_verifier: string
   redirect_uri: string
   dpop_jkt?: string
+  /** tls_client_auth で認証されたクライアントの提示証明書サムプリント (RFC 8705 §3)。 */
+  mtls_x5t_s256?: string
 }
 
 /**
@@ -150,8 +152,16 @@ export async function exchangeCodeForTokenUseCase(
     throw new OAuthError('server_error', 'ユーザーが存在しません')
   }
 
-  // access_token (JWT) 発行
-  const senderConstraint = input.dpop_jkt ? { type: 'dpop' as const, jkt: input.dpop_jkt } : null
+  // access_token (JWT) 発行。DPoP と mTLS が両方提示された場合は DPoP を優先する
+  // (DPoP はリクエストレベルで明示的に署名されており、より具体的な意図表明)。
+  const senderConstraint:
+    | { type: 'dpop'; jkt: string }
+    | { type: 'mtls'; 'x5t#S256': string }
+    | null = input.dpop_jkt
+    ? { type: 'dpop', jkt: input.dpop_jkt }
+    : input.mtls_x5t_s256
+      ? { type: 'mtls', 'x5t#S256': input.mtls_x5t_s256 }
+      : null
   const { token: access_token, jti } = await deps.tokenIssuer.signAccessToken({
     client,
     sub: code.sub,
@@ -195,7 +205,8 @@ export async function exchangeCodeForTokenUseCase(
   return {
     response: {
       access_token,
-      token_type: senderConstraint ? 'DPoP' : 'Bearer',
+      // RFC 8705 §3.2: mTLS 証明書バインドでも token_type は Bearer のまま。
+      token_type: senderConstraint?.type === 'dpop' ? 'DPoP' : 'Bearer',
       expires_in: deps.tokenIssuer.getAccessTokenTtlSeconds(),
       ...(refresh_token ? { refresh_token } : {}),
       id_token,
@@ -205,7 +216,7 @@ export async function exchangeCodeForTokenUseCase(
       sub: code.sub,
       jti,
       scopes: code.scopes,
-      senderConstraint: senderConstraint ? 'dpop' : 'none',
+      senderConstraint: senderConstraint?.type ?? 'none',
       refreshTokenId,
       refreshFamilyId,
     },

@@ -6,14 +6,20 @@
  * 検証経路を端から端まで確認する。
  */
 
-import { describe, test, expect } from 'bun:test'
+import { describe, test, expect, it } from 'bun:test'
+import { Hono } from 'hono'
 import { generateKeyPair, exportJWK, SignJWT } from 'jose'
 import type { JWK } from 'jose'
-import { verifyClientAssertion } from './client-authentication'
+import { authenticateClient, verifyClientAssertion } from './client-authentication'
 import { InMemoryClientAssertionReplayStore } from '../persistence/memory/client-assertion-replay-store'
 import { OAuthError } from '../../src/oauth2/protocol/oauth-error'
 import { ClientSchema, type Client } from '../../src/spec-bindings/schemas'
 import type { ClientRepository } from '../../src/oauth2/ports/client-repository'
+import {
+  TEST_CERT_PEM,
+  TEST_CERT_OTHER_PEM,
+  TEST_CERT_SUBJECT_DN,
+} from '../crypto/mtls-test-fixtures'
 
 const ISSUER = 'https://idp.example.com'
 const CLIENT_ID = 'svc-private-key-jwt'
@@ -165,5 +171,116 @@ describe('verifyClientAssertion (private_key_jwt)', () => {
     await expect(
       verifyClientAssertion(assertion, repo, { audiences: AUDIENCES, replayStore: store }),
     ).rejects.toThrow(OAuthError)
+  })
+})
+
+/**
+ * tls_client_auth (RFC 8705 §2.1.2) のクライアント認証。
+ *
+ * authenticateClient は HTTP Context に依存するため、Hono の最小ルートを組んで
+ * X-Client-Certificate ヘッダ付きのリクエストを通す。
+ */
+describe('authenticateClient + tls_client_auth (RFC 8705 §2.1.2)', () => {
+  const MTLS_CLIENT_ID = 'mtls-app'
+
+  function makeMtlsClient(overrides: Partial<Client> = {}): Client {
+    return ClientSchema.parse({
+      client_id: MTLS_CLIENT_ID,
+      client_type: 'confidential',
+      redirect_uris: ['https://app.example.com/cb'],
+      grant_types: ['client_credentials'],
+      response_types: [],
+      token_endpoint_auth_method: 'tls_client_auth',
+      scope: 'api',
+      tls_client_auth_subject_dn: TEST_CERT_SUBJECT_DN,
+      created_at: new Date().toISOString(),
+      ...overrides,
+    })
+  }
+
+  function makeRepo(client: Client): ClientRepository {
+    return {
+      async findById(id) {
+        return id === client.client_id ? client : null
+      },
+      async save() {},
+      async delete() {},
+      async findAll() {
+        return [client]
+      },
+    }
+  }
+
+  async function postWith(
+    headers: Record<string, string>,
+    body: string,
+    repo: ClientRepository,
+  ): Promise<{ ok: boolean; error?: string; thumbprint?: string }> {
+    const app = new Hono()
+    app.post('/auth', async (c) => {
+      try {
+        const parsed = Object.fromEntries(new URLSearchParams(await c.req.text()).entries())
+        const auth = await authenticateClient(c, parsed, repo)
+        return c.json({ ok: true, thumbprint: auth.mtlsThumbprintS256 })
+      } catch (e) {
+        if (e instanceof OAuthError) return c.json({ ok: false, error: e.message }, 400)
+        throw e
+      }
+    })
+    const res = await app.request('/auth', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded', ...headers },
+      body,
+    })
+    return (await res.json()) as { ok: boolean; error?: string; thumbprint?: string }
+  }
+
+  it('登録 DN と一致する証明書で認証成功し thumbprint を返す', async () => {
+    const repo = makeRepo(makeMtlsClient())
+    const r = await postWith(
+      { 'X-Client-Certificate': encodeURIComponent(TEST_CERT_PEM) },
+      `client_id=${MTLS_CLIENT_ID}`,
+      repo,
+    )
+    expect(r.ok).toBe(true)
+    expect(r.thumbprint).toBeTruthy()
+  })
+
+  it('別 DN の証明書は invalid_client', async () => {
+    const repo = makeRepo(makeMtlsClient())
+    const r = await postWith(
+      { 'X-Client-Certificate': encodeURIComponent(TEST_CERT_OTHER_PEM) },
+      `client_id=${MTLS_CLIENT_ID}`,
+      repo,
+    )
+    expect(r.ok).toBe(false)
+    expect(r.error).toContain('subject DN')
+  })
+
+  it('登録 DN 未設定のクライアントは invalid_client', async () => {
+    const repo = makeRepo(makeMtlsClient({ tls_client_auth_subject_dn: undefined }))
+    const r = await postWith(
+      { 'X-Client-Certificate': encodeURIComponent(TEST_CERT_PEM) },
+      `client_id=${MTLS_CLIENT_ID}`,
+      repo,
+    )
+    expect(r.ok).toBe(false)
+    expect(r.error).toContain('tls_client_auth_subject_dn')
+  })
+
+  it('証明書ヘッダ無しの tls_client_auth クライアントは認証不可', async () => {
+    const repo = makeRepo(makeMtlsClient())
+    const r = await postWith({}, `client_id=${MTLS_CLIENT_ID}`, repo)
+    expect(r.ok).toBe(false)
+  })
+
+  it('壊れた証明書は invalid_client', async () => {
+    const repo = makeRepo(makeMtlsClient())
+    const r = await postWith(
+      { 'X-Client-Certificate': encodeURIComponent('not a cert') },
+      `client_id=${MTLS_CLIENT_ID}`,
+      repo,
+    )
+    expect(r.ok).toBe(false)
   })
 })

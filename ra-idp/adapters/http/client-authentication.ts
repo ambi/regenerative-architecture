@@ -24,6 +24,13 @@ import { OAuthError } from '../../src/oauth2/protocol/oauth-error'
 import type { Client } from '../../src/spec-bindings/schemas'
 import type { ClientRepository } from '../../src/oauth2/ports/client-repository'
 import type { ClientAssertionReplayStore } from '../../src/oauth2/ports/client-assertion-replay-store'
+import {
+  clientCertSubjectMatches,
+  parseClientCertificateHeader,
+} from '../crypto/mtls-client-cert'
+
+/** TLS 終端プロキシが検証済みクライアント証明書を載せるヘッダ名 (ADR-005)。 */
+export const CLIENT_CERT_HEADER = 'X-Client-Certificate'
 
 /** RFC 7523 §2.2 で固定された client_assertion_type 値 */
 const CLIENT_ASSERTION_TYPE = 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer'
@@ -35,6 +42,8 @@ const CLOCK_SKEW_SECONDS = 60
 export interface AuthenticatedClient {
   client: Client
   method: Client['token_endpoint_auth_method']
+  /** tls_client_auth で認証された場合の提示証明書の SHA-256 サムプリント (cnf.x5t#S256)。 */
+  mtlsThumbprintS256?: string
 }
 
 /**
@@ -100,7 +109,31 @@ export async function authenticateClient(
     return { client, method: 'client_secret_post' }
   }
 
-  // 3. 公開クライアント (none)
+  // 3. mTLS クライアント証明書認証 (RFC 8705 §2.1.2, tls_client_auth)。
+  //    TLS 終端プロキシが検証済みの証明書を CLIENT_CERT_HEADER に載せる前提 (ADR-005)。
+  //    本層は subject DN 一致と x5t#S256 計算のみを行う。
+  const certHeader = c.req.header(CLIENT_CERT_HEADER)
+  if (body.client_id && certHeader) {
+    const client = await loadClient(clientRepo, body.client_id)
+    if (client.token_endpoint_auth_method === 'tls_client_auth') {
+      const cert = parseClientCertificateHeader(certHeader)
+      if (!cert) {
+        throw new OAuthError('invalid_client', 'クライアント証明書をパースできません')
+      }
+      if (!client.tls_client_auth_subject_dn) {
+        throw new OAuthError(
+          'invalid_client',
+          'クライアントに tls_client_auth_subject_dn が登録されていません',
+        )
+      }
+      if (!clientCertSubjectMatches(client.tls_client_auth_subject_dn, cert.subjectDn)) {
+        throw new OAuthError('invalid_client', '提示証明書の subject DN が一致しません')
+      }
+      return { client, method: 'tls_client_auth', mtlsThumbprintS256: cert.thumbprintS256 }
+    }
+  }
+
+  // 4. 公開クライアント (none)
   if (body.client_id) {
     const client = await loadClient(clientRepo, body.client_id)
     if (client.token_endpoint_auth_method !== 'none') {

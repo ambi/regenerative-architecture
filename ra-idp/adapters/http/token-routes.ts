@@ -93,6 +93,7 @@ export function createTokenRoutes(deps: TokenRoutesDeps) {
             code_verifier: body.code_verifier ?? '',
             redirect_uri: body.redirect_uri ?? '',
             dpop_jkt: dpopResult?.jkt,
+            mtls_x5t_s256: auth.mtlsThumbprintS256,
           },
         )
         const occurredAt = new Date().toISOString()
@@ -139,6 +140,7 @@ export function createTokenRoutes(deps: TokenRoutesDeps) {
             client_id: auth.client.client_id,
             refresh_token: body.refresh_token,
             proof_jkt: dpopResult?.jkt,
+            proof_x5t_s256: auth.mtlsThumbprintS256,
           },
           (e) => deps.emit(e as DomainEvent),
         )
@@ -155,11 +157,19 @@ export function createTokenRoutes(deps: TokenRoutesDeps) {
         if (!scopes.every((s) => declared.includes(s))) {
           throw new OAuthError('invalid_scope', '宣言外のスコープが含まれます')
         }
+        const ccSenderConstraint:
+          | { type: 'dpop'; jkt: string }
+          | { type: 'mtls'; 'x5t#S256': string }
+          | null = dpopResult
+          ? { type: 'dpop', jkt: dpopResult.jkt }
+          : auth.mtlsThumbprintS256
+            ? { type: 'mtls', 'x5t#S256': auth.mtlsThumbprintS256 }
+            : null
         const { token, jti } = await deps.tokenIssuer.signAccessToken({
           client: auth.client,
           sub: auth.client.client_id, // self-issued
           scopes,
-          senderConstraint: dpopResult ? { type: 'dpop', jkt: dpopResult.jkt } : null,
+          senderConstraint: ccSenderConstraint,
           authTime: Math.floor(Date.now() / 1000),
         })
         deps.emit({
@@ -169,11 +179,12 @@ export function createTokenRoutes(deps: TokenRoutesDeps) {
           clientId: auth.client.client_id,
           sub: auth.client.client_id,
           scopes,
-          senderConstraint: dpopResult ? 'dpop' : 'none',
+          senderConstraint: ccSenderConstraint?.type ?? 'none',
         })
         return c.json({
           access_token: token,
-          token_type: dpopResult ? 'DPoP' : 'Bearer',
+          // RFC 8705 §3.2: mTLS バインドでも token_type は Bearer。
+          token_type: ccSenderConstraint?.type === 'dpop' ? 'DPoP' : 'Bearer',
           expires_in: deps.tokenIssuer.getAccessTokenTtlSeconds(),
           scope: scopes.join(' '),
         })
@@ -195,6 +206,7 @@ export function createTokenRoutes(deps: TokenRoutesDeps) {
             client_id: auth.client.client_id,
             device_code: body.device_code,
             dpop_jkt: dpopResult?.jkt,
+            mtls_x5t_s256: auth.mtlsThumbprintS256,
           },
         )
         const occurredAt = new Date().toISOString()

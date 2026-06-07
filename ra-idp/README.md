@@ -82,7 +82,7 @@ ra-idp/
 | ---- | ---------------- |
 | Token | ~~access token denylist（JWT 即時失効）~~ ✅ 実装済、~~AS Issuer Identification (RFC 9207, mix-up 防御)~~ ✅ 実装済 |
 | DPoP | ~~DPoP nonce、DPoP proof の HTTP adapter 全経路適用~~ ✅ 実装済 (/token, /userinfo) |
-| mTLS | クライアント証明書の実検証、証明書バインド |
+| mTLS | ~~クライアント証明書の実検証、証明書バインド~~ ✅ 実装済 (RFC 8705 §2/§3, ADR-005) |
 | Secret / 鍵 | client_secret rotation、署名鍵 rotation の運用化（実 KMS/HSM 差し替えは Phase 9） |
 | 規格適合性 | ~~PKCE 必須要件の階段化（ADR-002 改訂: public client 必須・FAPI クライアント必須・confidential client は推奨）。client metadata `require_pkce` の導入、`permissions` の `pkce_present` を client type 条件付きに変更~~ ✅ 実装済 (ADR-002 改訂) |
 

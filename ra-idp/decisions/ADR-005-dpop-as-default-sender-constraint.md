@@ -37,11 +37,18 @@ FAPI 2.0 はどちらも許可する（§5.3）。
 - `jti` のリプレイ防止は直近 10 分（spec/slo.yaml）
 - 発行トークンの `cnf.jkt` に JWK サムプリント（RFC 9449 §6.1）を含める
 
-## mTLS 検証規則（実装は本アプリでは枠組みのみ）
+## mTLS 検証規則
 
 - TLS 終端プロキシが検証済み証明書を `X-Client-Certificate` ヘッダーで渡す前提
+  (本アプリ層では信頼チェイン検証はせず、プロキシ側で完結させる)
 - `tls_client_auth_subject_dn` をクライアントメタデータで宣言し、subject DN 一致を確認
-- 発行トークンの `cnf.x5t#S256` に証明書サムプリントを含める
+  (RFC 4514 文字列を whitespace / 大文字小文字を正規化して比較)
+- `tls_client_auth` で認証されたクライアントには発行トークンの `cnf.x5t#S256` に
+  証明書 DER の base64url(SHA-256) を含める (RFC 8705 §3)
+- protected resource (`/userinfo`) では AT の `cnf.x5t#S256` と提示証明書サムプリント
+  の一致を要求する。不一致は `WWW-Authenticate: ... error="invalid_token"` で拒否
+- refresh token も `sender_constraint` に保持し、再発行時に同一証明書で proof of
+  possession を要求 (`refresh-tokens.ts`)
 
 ## 却下した代替案
 

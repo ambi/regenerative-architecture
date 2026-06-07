@@ -30,6 +30,8 @@ export interface ExchangeDeviceCodeInput {
   client_id: string
   device_code: string
   dpop_jkt?: string
+  /** tls_client_auth で認証されたクライアントの提示証明書サムプリント (RFC 8705 §3)。 */
+  mtls_x5t_s256?: string
 }
 
 export interface ExchangeDeviceCodeResult {
@@ -127,7 +129,14 @@ export async function exchangeDeviceCodeUseCase(
     throw new OAuthError('server_error', 'ユーザーが存在しません')
   }
 
-  const senderConstraint = input.dpop_jkt ? { type: 'dpop' as const, jkt: input.dpop_jkt } : null
+  const senderConstraint:
+    | { type: 'dpop'; jkt: string }
+    | { type: 'mtls'; 'x5t#S256': string }
+    | null = input.dpop_jkt
+    ? { type: 'dpop', jkt: input.dpop_jkt }
+    : input.mtls_x5t_s256
+      ? { type: 'mtls', 'x5t#S256': input.mtls_x5t_s256 }
+      : null
 
   const { token: access_token, jti } = await deps.tokenIssuer.signAccessToken({
     client,
@@ -167,7 +176,8 @@ export async function exchangeDeviceCodeUseCase(
   return {
     response: {
       access_token,
-      token_type: senderConstraint ? 'DPoP' : 'Bearer',
+      // RFC 8705 §3.2: mTLS 証明書バインドでも token_type は Bearer。
+      token_type: senderConstraint?.type === 'dpop' ? 'DPoP' : 'Bearer',
       expires_in: deps.tokenIssuer.getAccessTokenTtlSeconds(),
       refresh_token,
       id_token,
@@ -177,7 +187,7 @@ export async function exchangeDeviceCodeUseCase(
       sub: rec.sub,
       jti,
       scopes: rec.scopes,
-      senderConstraint: senderConstraint ? 'dpop' : 'none',
+      senderConstraint: senderConstraint?.type ?? 'none',
       refreshTokenId: refreshRecord.id,
       refreshFamilyId: refreshRecord.family_id,
     },

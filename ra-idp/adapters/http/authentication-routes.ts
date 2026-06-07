@@ -25,6 +25,7 @@ import {
   WebSecurityError,
 } from '../../src/shared/web-security'
 import { oauthErrorResponse } from './error-response'
+import { renderShell } from './spa-shell'
 
 export interface AuthenticationRoutesDeps {
   userRepo: UserRepository
@@ -36,6 +37,14 @@ export interface AuthenticationRoutesDeps {
 
 export function createAuthenticationRoutes(deps: AuthenticationRoutesDeps) {
   const app = new Hono()
+
+  // ブラウザが直接 GET /login で戻ってきた場合 (SPA back/forward 等) に
+  // 同じ shell を返す。`request_id` が無い場合は SPA 側で「セッション開始」
+  // をハンドリングする。
+  app.get('/login', (c) => {
+    const requestId = c.req.query('request_id') ?? ''
+    return loginRequiredResponse(requestId, c.req.header('accept-language'))
+  })
 
   app.post('/login', async (c) => {
     try {
@@ -53,7 +62,7 @@ export function createAuthenticationRoutes(deps: AuthenticationRoutesDeps) {
           username,
           reason: 'invalid_credentials',
         })
-        return loginRequiredResponse(requestId)
+        return loginRequiredResponse(requestId, c.req.header('accept-language'))
       }
 
       const now = new Date()
@@ -67,6 +76,7 @@ export function createAuthenticationRoutes(deps: AuthenticationRoutesDeps) {
 
       const response = await deps.continuation.continueAfterLogin(requestId, context, {
         promptLoginSatisfied: true,
+        acceptLanguage: c.req.header('accept-language'),
       })
       if (context.session_id) {
         response.headers.append(
@@ -90,37 +100,26 @@ export function createAuthenticationRoutes(deps: AuthenticationRoutesDeps) {
   return app
 }
 
-export function loginRequiredResponse(requestId: string): Response {
+export function loginRequiredResponse(requestId: string, acceptLanguage?: string): Response {
   const csrf = createCsrfToken()
-  return new Response(loginPage(requestId, csrf), {
+  // SPA shell + 隠しフォーム (no-JS / テスト fallback)。
+  // POST /login への CSRF 検証は body の csrf を `csrfCookie` の値と
+  // 二重提出パターンで照合する。
+  const html = renderShell({
+    page: 'login',
+    title: 'サインイン',
+    meta: { 'request-id': requestId, csrf },
+    fallbackForm: {
+      action: '/login',
+      fields: { request_id: requestId, csrf },
+    },
+    acceptLanguage,
+  })
+  return new Response(html, {
     status: 401,
     headers: {
       'content-type': 'text/html; charset=UTF-8',
       'set-cookie': csrfCookie(csrf),
     },
   })
-}
-
-function loginPage(requestId: string, csrf: string): string {
-  return `<!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><title>ログイン</title></head>
-<body>
-<h1>ログインが必要です</h1>
-<form method="POST" action="/login">
-  <input type="hidden" name="request_id" value="${escapeHtml(requestId)}">
-  <input type="hidden" name="csrf" value="${escapeHtml(csrf)}">
-  <label>ユーザー名 <input name="username" autocomplete="username" required></label>
-  <label>パスワード <input name="password" type="password" autocomplete="current-password" required></label>
-  <button type="submit">ログイン</button>
-</form>
-</body></html>`
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;')
 }

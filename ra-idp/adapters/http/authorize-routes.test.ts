@@ -150,7 +150,10 @@ describe('authorize routes — OIDC session prompts', () => {
     })
 
     expect(res.status).toBe(401)
-    expect(await res.text()).toContain('ログインが必要です')
+    const body = await res.text()
+    // SPA shell + 隠しフォーム fallback。サインインの hidden input を含むこと。
+    expect(body).toContain('name="ra-idp:page" content="login"')
+    expect(body).toContain('name="csrf"')
   })
 
   it('ログインフォームの成功後はセッション Cookie を発行し認可コードへリダイレクトする', async () => {

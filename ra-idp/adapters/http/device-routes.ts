@@ -15,6 +15,8 @@ import { Hono } from 'hono'
 import { OAuthError } from '../../src/oauth2/protocol/oauth-error'
 import { authenticateClient, type ClientAuthOptions } from './client-authentication'
 import { oauthErrorResponse } from './error-response'
+import { renderShell } from './spa-shell'
+import { createCsrfToken, csrfCookie } from '../../src/shared/web-security'
 import { requestDeviceAuthorizationUseCase } from '../../src/oauth2/usecases/request-device-authorization'
 import { verifyUserCodeUseCase } from '../../src/oauth2/usecases/verify-user-code'
 import type { ClientRepository } from '../../src/oauth2/ports/client-repository'
@@ -69,10 +71,28 @@ export function createDeviceRoutes(deps: DeviceRoutesDeps) {
     }
   })
 
-  // verification_uri — user_code 入力フォーム
+  // verification_uri — user_code 入力フォーム (SPA shell)
   app.get('/device', (c) => {
     const prefill = c.req.query('user_code') ?? ''
-    return c.html(verificationPage(prefill))
+    const csrf = createCsrfToken()
+    const html = renderShell({
+      page: 'device',
+      title: 'デバイスを認可',
+      meta: { 'user-code': prefill, csrf },
+      fallbackForm: {
+        action: '/device',
+        fields: { user_code: prefill, csrf },
+        buttons: [
+          { name: 'action', value: 'allow', label: '認可する' },
+          { name: 'action', value: 'deny', label: '拒否する' },
+        ],
+      },
+      acceptLanguage: c.req.header('accept-language'),
+    })
+    return new Response(html, {
+      status: 200,
+      headers: { 'content-type': 'text/html; charset=UTF-8', 'set-cookie': csrfCookie(csrf) },
+    })
   })
 
   // ユーザーによる承認 / 拒否
@@ -82,17 +102,34 @@ export function createDeviceRoutes(deps: DeviceRoutesDeps) {
       const user_code = String(form.user_code ?? '')
       const action = String(form.action ?? '') === 'deny' ? 'deny' : 'allow'
 
+      const acceptLanguage = c.req.header('accept-language')
       const sub = c.req.header('X-User-Sub')
-      if (!sub) return c.html(loginPage(user_code), 401)
+      if (!sub) return deviceLoginRequired(user_code, acceptLanguage)
       const user = await deps.userRepo.findBySub(sub)
-      if (!user) return c.html(loginPage(user_code), 401)
+      if (!user) return deviceLoginRequired(user_code, acceptLanguage)
 
       const { result } = await verifyUserCodeUseCase(
         { deviceCodeStore: deps.deviceCodeStore },
         { user_code, sub, auth_time: Math.floor(Date.now() / 1000), action },
         deps.emit,
       )
-      return c.html(resultPage(result))
+      return new Response(
+        renderShell({
+          page: 'error',
+          title: result === 'approved' ? 'デバイスを認可しました' : 'デバイス認可を拒否しました',
+          meta: {
+            'error-kind': result === 'approved' ? 'device_approved' : 'device_denied',
+            'error-title':
+              result === 'approved' ? 'デバイスを認可しました' : 'デバイス認可を拒否しました',
+            'error-description':
+              result === 'approved'
+                ? 'デバイス側で続行できます。このタブは閉じてかまいません。'
+                : 'デバイスからのアクセス要求を拒否しました。',
+          },
+          acceptLanguage,
+        }),
+        { status: 200, headers: { 'content-type': 'text/html; charset=UTF-8' } },
+      )
     } catch (e) {
       if (e instanceof OAuthError) return oauthErrorResponse(c, e)
       throw e
@@ -102,45 +139,24 @@ export function createDeviceRoutes(deps: DeviceRoutesDeps) {
   return app
 }
 
-function verificationPage(prefill: string): string {
-  return `<!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><title>デバイス認可</title></head>
-<body>
-<h1>デバイスを認可</h1>
-<p>デバイスに表示された user_code を入力してください。</p>
-<p>本アプリでは X-User-Sub ヘッダーでログイン済みユーザーを識別します。</p>
-<form method="POST" action="/device">
-  <label>user_code: <input name="user_code" value="${escapeHtml(prefill)}"></label>
-  <button type="submit" name="action" value="allow">許可する</button>
-  <button type="submit" name="action" value="deny">拒否する</button>
-</form>
-</body></html>`
-}
-
-function loginPage(userCode: string): string {
-  return `<!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><title>ログイン</title></head>
-<body>
-<h1>ログインが必要です</h1>
-<p>本アプリでは X-User-Sub ヘッダーをユーザー識別に使用します。</p>
-<pre>curl -X POST -H "X-User-Sub: user_alice" \\
-  -d "user_code=${escapeHtml(userCode)}&amp;action=allow" .../device</pre>
-</body></html>`
-}
-
-function resultPage(result: 'approved' | 'denied'): string {
-  const msg =
-    result === 'approved'
-      ? 'デバイスを認可しました。デバイスに戻ってください。'
-      : '認可を拒否しました。'
-  return `<!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><title>完了</title></head>
-<body><h1>${msg}</h1></body></html>`
-}
-
-function escapeHtml(s: string): string {
-  return s.replace(
-    /[&<>"']/g,
-    (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch] ?? ch,
+/**
+ * `/device` POST に X-User-Sub が無いケース。デモ環境ではログイン UI を経由せず
+ * ヘッダで sub を渡す前提のため、その案内を error shell として返す。
+ */
+function deviceLoginRequired(userCode: string, acceptLanguage?: string): Response {
+  return new Response(
+    renderShell({
+      page: 'error',
+      title: 'ログインが必要です',
+      meta: {
+        'error-kind': 'login_required',
+        'error-title': 'ログインが必要です',
+        'error-description':
+          'デモ環境では X-User-Sub ヘッダでユーザー識別を行います。詳細は README を参照してください。',
+        'error-detail': `user_code=${userCode}`,
+      },
+      acceptLanguage,
+    }),
+    { status: 401, headers: { 'content-type': 'text/html; charset=UTF-8' } },
   )
 }

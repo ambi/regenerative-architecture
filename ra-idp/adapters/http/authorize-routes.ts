@@ -17,6 +17,7 @@ import { issueAuthorizationCodeUseCase } from '../../src/oauth2/usecases/issue-a
 import { oauthErrorResponse } from './error-response'
 import type { ClientRepository } from '../../src/oauth2/ports/client-repository'
 import type { ConsentRepository } from '../../src/oauth2/ports/consent-repository'
+import { renderShell } from './spa-shell'
 import type {
   AuthorizationRequestStore,
   AuthorizationCodeStore,
@@ -109,14 +110,15 @@ export function createAuthorizeRoutes(deps: AuthorizeRoutesDeps) {
       })
 
       const context = await deps.authenticationContextResolver.resolve(c.req.raw.headers)
+      const acceptLanguage = c.req.header('accept-language')
       if (!context) {
         if (request.prompt === 'none') {
           throw new OAuthError('access_denied', 'prompt=none では対話的ログインを開始できません')
         }
-        return loginRequiredResponse(request.id)
+        return loginRequiredResponse(request.id, acceptLanguage)
       }
 
-      return await completeAuthorizedRequest(deps, request, client, context)
+      return await completeAuthorizedRequest(deps, request, client, context, {}, acceptLanguage)
     } catch (e) {
       if (e instanceof OAuthError) return oauthErrorResponse(c, e)
       if (e instanceof AuthenticationContextError || e instanceof WebSecurityError) {
@@ -130,7 +132,10 @@ export function createAuthorizeRoutes(deps: AuthorizeRoutesDeps) {
     try {
       return await handleEndSession(
         deps,
-        Object.fromEntries(new URL(c.req.url).searchParams.entries()),
+        {
+          ...Object.fromEntries(new URL(c.req.url).searchParams.entries()),
+          acceptLanguage: c.req.header('accept-language'),
+        },
         c.req.header('Cookie'),
       )
     } catch (e) {
@@ -152,6 +157,7 @@ export function createAuthorizeRoutes(deps: AuthorizeRoutesDeps) {
           id_token_hint: stringBody(body.id_token_hint),
           post_logout_redirect_uri: stringBody(body.post_logout_redirect_uri),
           state: stringBody(body.state),
+          acceptLanguage: c.req.header('accept-language'),
         },
         c.req.header('Cookie'),
       )
@@ -180,6 +186,8 @@ export function createAuthorizeRoutes(deps: AuthorizeRoutesDeps) {
         return c.redirect(url.toString(), 302)
       }
 
+      // 拒否でない: 一旦同意成立、認可コード発行
+      // (acceptLanguage は本パスでは shell を返さないので不要)
       const scopes = req.scope.split(/\s+/).filter(Boolean)
       const consented = await grantConsentUseCase(deps, req, scopes)
       const { code } = await issueAuthorizationCodeUseCase(deps, consented)
@@ -214,13 +222,20 @@ export function createAuthorizationLoginContinuation(deps: AuthorizeRoutesDeps):
     async continueAfterLogin(
       requestId: string,
       context: AuthenticationContext,
-      options: { promptLoginSatisfied?: boolean } = {},
+      options: { promptLoginSatisfied?: boolean; acceptLanguage?: string } = {},
     ): Promise<Response> {
       const req = await deps.requestStore.find(requestId)
       if (!req) throw new OAuthError('invalid_request', '不明な認可リクエスト')
       const client = await deps.clientRepo.findById(req.client_id)
       if (!client) throw new OAuthError('invalid_request', '不明なクライアント')
-      return await completeAuthorizedRequest(deps, req, client, context, options)
+      return await completeAuthorizedRequest(
+        deps,
+        req,
+        client,
+        context,
+        { promptLoginSatisfied: options.promptLoginSatisfied },
+        options.acceptLanguage,
+      )
     },
   }
 }
@@ -236,13 +251,14 @@ async function handleEndSession(
     id_token_hint?: string
     post_logout_redirect_uri?: string
     state?: string
+    acceptLanguage?: string
   },
   cookieHeader: string | undefined,
 ): Promise<Response> {
   await deps.sessionManager.revoke(cookieHeader)
 
   if (!params.post_logout_redirect_uri) {
-    return new Response(loggedOutPage(params.id_token_hint), {
+    return new Response(loggedOutShell(params.id_token_hint, params.acceptLanguage), {
       status: 200,
       headers: {
         'content-type': 'text/html; charset=UTF-8',
@@ -282,6 +298,7 @@ async function completeAuthorizedRequest(
   client: Client,
   context: AuthenticationContext,
   options: { promptLoginSatisfied?: boolean } = {},
+  acceptLanguage?: string,
 ): Promise<Response> {
   const {
     request: postAuth,
@@ -300,11 +317,11 @@ async function completeAuthorizedRequest(
     if (request.prompt === 'none') {
       throw new OAuthError('access_denied', 'prompt=none では再認証を開始できません')
     }
-    return loginRequiredResponse(request.id)
+    return loginRequiredResponse(request.id, acceptLanguage)
   }
 
   if (needsConsent) {
-    return consentResponse(postAuth, client)
+    return consentResponse(postAuth, client, acceptLanguage)
   }
 
   const { code } = await issueAuthorizationCodeUseCase(deps, postAuth)
@@ -324,9 +341,33 @@ async function completeAuthorizedRequest(
   return Response.redirect(url.toString(), 302)
 }
 
-function consentResponse(req: AuthorizationRequest, client: Client): Response {
+function consentResponse(
+  req: AuthorizationRequest,
+  client: Client,
+  acceptLanguage?: string,
+): Response {
   const csrf = createCsrfToken()
-  return new Response(consentPage(req, client, csrf), {
+  const html = renderShell({
+    page: 'consent',
+    title: '同意',
+    meta: {
+      'request-id': req.id,
+      csrf,
+      'client-id': client.client_id,
+      'client-name': client.client_name ?? client.client_id,
+      scope: req.scope,
+    },
+    fallbackForm: {
+      action: '/consent',
+      fields: { request_id: req.id, csrf },
+      buttons: [
+        { name: 'action', value: 'allow', label: '許可する' },
+        { name: 'action', value: 'deny', label: '拒否する' },
+      ],
+    },
+    acceptLanguage,
+  })
+  return new Response(html, {
     status: 200,
     headers: {
       'content-type': 'text/html; charset=UTF-8',
@@ -335,40 +376,16 @@ function consentResponse(req: AuthorizationRequest, client: Client): Response {
   })
 }
 
-function consentPage(
-  req: { id: string; client_id: string; scope: string },
-  client: { client_name?: string; client_id: string },
-  csrf: string,
-): string {
-  return `<!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><title>同意</title></head>
-<body>
-<h1>${escapeHtml(client.client_name ?? client.client_id)} があなたの情報へのアクセスを要求しています</h1>
-<p>要求スコープ: <code>${escapeHtml(req.scope)}</code></p>
-<form method="POST" action="/consent">
-  <input type="hidden" name="request_id" value="${escapeHtml(req.id)}">
-  <input type="hidden" name="csrf" value="${escapeHtml(csrf)}">
-  <button type="submit" name="action" value="allow">許可する</button>
-  <button type="submit" name="action" value="deny">拒否する</button>
-</form>
-</body></html>`
-}
-
-function loggedOutPage(idTokenHint?: string): string {
-  const hint = idTokenHint ? '<p>id_token_hint を受け取りました。</p>' : ''
-  return `<!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><title>ログアウト</title></head>
-<body>
-<h1>ログアウトしました</h1>
-${hint}
-</body></html>`
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;')
+function loggedOutShell(idTokenHint?: string, acceptLanguage?: string): string {
+  return renderShell({
+    page: 'error',
+    title: 'ログアウトしました',
+    meta: {
+      'error-kind': 'logged_out',
+      'error-title': 'ログアウトしました',
+      'error-description': 'セッションを終了しました。安全のためブラウザを閉じてください。',
+      ...(idTokenHint ? { 'error-detail': 'id_token_hint を受け取りました' } : {}),
+    },
+    acceptLanguage,
+  })
 }

@@ -21,6 +21,7 @@ ra-idp/
 ├── decisions/            ← Layer 2: ADR
 ├── src/                  ← Layer 3: spec-bindings / domain / ports / usecases
 ├── adapters/             ← Layer 4: http / crypto / persistence / policy
+├── ui/                   ← Layer 4: React + Vite SPA (login / consent / device 画面)
 ├── infra/                ← Layer 5: migrations / event-routing / scripts /
 │                            observability / load-tests / docker / k8s / event-relay
 └── main.ts               ← Layer 5: 起動
@@ -90,10 +91,10 @@ ra-idp/
 
 | 領域 | 不足している機能 |
 | ---- | ---------------- |
-| デザイン基盤 | デザインシステム、コンポーネントライブラリ、レイアウトテンプレート |
-| 国際化 / アクセシビリティ | i18n、WCAG 2.x AA 準拠 (a11y) |
-| 既存 UI のリアルワールド化 | ログイン画面、同意 (consent) 画面、デバイス認可 (verification_uri) 画面、エラー / 中断画面 |
-| ブランディング基盤 | ロゴ・カラー・文言の差し替え機構（テナント単位の適用は Phase 5 と接続） |
+| デザイン基盤 | ~~デザインシステム、コンポーネントライブラリ、レイアウトテンプレート~~ ✅ 基盤実装済 (Vite + React + Tailwind + shadcn/ui + Radix + Tabler Icons + TanStack Router) |
+| 国際化 / アクセシビリティ | ~~i18n、WCAG 2.x AA 準拠 (a11y)~~ ✅ 基盤実装済 (ja/en 型付きカタログ + サーバ側 `Accept-Language` ネゴシエーション、skip link / `prefers-reduced-motion` / `aria-describedby` / `aria-live`) |
+| 既存 UI のリアルワールド化 | ~~ログイン画面、同意 (consent) 画面、デバイス認可 (verification_uri) 画面、エラー / 中断画面~~ ✅ 実装済 |
+| ブランディング基盤 | ~~ロゴ・カラー・文言の差し替え機構（テナント単位の適用は Phase 5 と接続）~~ ✅ 基盤実装済 (`brandFor(tenantId)` slot + `<meta name="ra-idp:brand-*">` 経由でロゴ / 名前 / `--primary` HSL を上書き、テナント解決は Phase 5 で接続) |
 
 ### Phase 3 — MFA / Passkey と acr/amr 体系
 
@@ -241,6 +242,25 @@ bun run check:coherence
 bun run dev               # in-memory adapters でサーバ起動
 ./demo.sh                 # 別ターミナル: Discovery 〜 監査ログまで通し実行
 ```
+
+### フロントエンド (ra-idp/ui/)
+
+ログイン・同意・デバイス認可画面は React + Vite の SPA として `ui/` に分離。
+バックエンドは GET エンドポイントで HTML shell + `<meta name="ra-idp:*">` を返し、
+SPA は meta から request_id / CSRF を読む。SPA がマウントできない環境 (テスト・
+no-JS) でも `<noscript>` フォームと隠し input でフローを継続できる。
+
+```bash
+cd ui
+bun install
+bun run build             # dist/ を生成 → バックエンドが /assets/* で配信
+# 開発時:
+bun run dev               # Vite (:5173) を起動。/login /consent などはバックエンド (:3000) にプロキシ
+```
+
+スタック: TypeScript + Vite + Tailwind CSS + Radix UI + shadcn/ui +
+TanStack Router + TanStack Table + Tabler Icons + Biome。デザインは
+Keycloak / Okta に近い neutral slate ベース、primary は彩度を抑えた青。
 
 `bun run dev` 起動後はデモクライアント `demo-web-app` とデモユーザー `alice`
 （sub=`user_alice`）が登録された状態で待ち受ける。`./demo.sh` は Discovery /

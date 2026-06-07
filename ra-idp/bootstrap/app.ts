@@ -23,6 +23,7 @@ import { createIntrospectionRoutes } from '../adapters/http/introspection-routes
 import { createPARRoutes } from '../adapters/http/par-routes'
 import { createRegistrationRoutes } from '../adapters/http/registration-routes'
 import { createTokenRoutes } from '../adapters/http/token-routes'
+import { createUiAssetsRoutes } from '../adapters/http/ui-assets-routes'
 import { createUserInfoRoutes } from '../adapters/http/userinfo-routes'
 
 import type { AuthenticationContextResolver } from '../src/authentication/domain/authentication-context'
@@ -68,6 +69,7 @@ export function composeApp(input: ComposeAppInput): Hono {
   const app = new Hono()
   app.use('*', createObservabilityMiddleware(observer))
 
+  app.route('/', createUiAssetsRoutes())
   app.route('/', createDiscoveryRoutes({ issuer: config.issuer, keyStore: deps.keyStore }))
   app.route('/', createRegistrationRoutes({ clientRepo: deps.clientRepo, emit }))
   app.route('/', createAuthorizeRoutes(authorizeRouteDeps))

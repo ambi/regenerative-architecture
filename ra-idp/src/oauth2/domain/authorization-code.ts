@@ -23,6 +23,8 @@ export function generateAuthorizationCode(input: {
   code_challenge_method?: 'S256'
   nonce?: string
   auth_time: number
+  amr?: string[]
+  acr?: string
   ttl_seconds?: number
   now?: Date
 }): AuthorizationCode {
@@ -39,6 +41,8 @@ export function generateAuthorizationCode(input: {
     code_challenge_method: input.code_challenge_method,
     nonce: input.nonce,
     auth_time: input.auth_time,
+    amr: input.amr,
+    acr: input.acr,
     issued_at: now.toISOString(),
     expires_at: new Date(now.getTime() + ttl * 1000).toISOString(),
   })

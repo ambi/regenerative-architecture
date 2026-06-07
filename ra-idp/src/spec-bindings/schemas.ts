@@ -106,6 +106,9 @@ export const AuthorizationRequestSchema = z.object({
   par_request_uri: z.string().optional(),
   sub: z.string().optional(),
   auth_time: z.number().int().optional(),
+  amr: z.array(z.string()).optional(),
+  acr: z.string().optional(),
+  acr_values: z.string().optional(),
   created_at: z.string().datetime(),
   expires_at: z.string().datetime(),
 })
@@ -126,6 +129,8 @@ export const AuthorizationCodeSchema = z.object({
   code_challenge_method: z.literal('S256').optional(),
   nonce: z.string().optional(),
   auth_time: z.number().int(),
+  amr: z.array(z.string()).optional(),
+  acr: z.string().optional(),
   issued_at: z.string().datetime(),
   expires_at: z.string().datetime(),
   redeemed_at: z.string().datetime().optional(),

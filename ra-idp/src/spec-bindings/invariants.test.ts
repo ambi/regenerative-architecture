@@ -237,6 +237,10 @@ describe('Discovery — SCL からの派生整合', () => {
   it('authorization_response_iss_parameter_supported が true (RFC 9207)', () => {
     expect(doc.authorization_response_iss_parameter_supported).toBe(true)
   })
+
+  it('acr_values_supported は SCL annotations.acr_vocabulary と一致する', () => {
+    expect(doc.acr_values_supported).toEqual(['urn:ra-idp:acr:pwd', 'urn:ra-idp:acr:mfa'])
+  })
 })
 
 // ===============================================================

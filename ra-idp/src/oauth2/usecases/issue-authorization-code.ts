@@ -29,6 +29,8 @@ export async function issueAuthorizationCodeUseCase(
     code_challenge_method: req.code_challenge_method,
     nonce: req.nonce,
     auth_time: req.auth_time!,
+    amr: req.amr,
+    acr: req.acr,
   })
   await deps.codeStore.save(code)
 

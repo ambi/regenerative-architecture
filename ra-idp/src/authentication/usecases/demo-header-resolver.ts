@@ -4,6 +4,7 @@ import {
   type AuthenticationContextResolver,
 } from '../domain/authentication-context'
 import type { UserRepository } from '../ports/user-repository'
+import { deriveAcr } from './acr-vocabulary'
 
 /**
  * デモ用途で X-User-Sub / X-User-Auth-Time ヘッダから AuthenticationContext を
@@ -20,10 +21,12 @@ export class DemoHeaderResolver implements AuthenticationContextResolver {
     const user = await this.userRepo.findBySub(sub)
     if (!user) return null
 
+    const amr = ['demo_header']
     return {
       sub: user.sub,
       auth_time: parseAuthTimeHeader(headers.get('x-user-auth-time') ?? undefined),
-      amr: ['demo_header'],
+      amr,
+      acr: deriveAcr(amr),
       session_id: 'header-session',
     }
   }

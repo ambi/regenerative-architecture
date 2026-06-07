@@ -33,6 +33,7 @@ export function buildDiscoveryDocument(issuer: string): Record<string, unknown> 
     scopes_supported?: string[]
     subject_types_supported?: string[]
     claims_supported?: string[]
+    acr_values_supported?: string[]
     ui_locales_supported?: string[]
     introspection_endpoint_auth_methods?: string[]
     revocation_endpoint_auth_methods?: string[]
@@ -69,6 +70,9 @@ export function buildDiscoveryDocument(issuer: string): Record<string, unknown> 
   doc.dpop_signing_alg_values_supported = enumWireValues('SignatureAlgorithm')
   doc.tls_client_certificate_bound_access_tokens = true
   doc.claims_supported = tpl.claims_supported ?? []
+  if (tpl.acr_values_supported && tpl.acr_values_supported.length > 0) {
+    doc.acr_values_supported = tpl.acr_values_supported
+  }
   doc.service_documentation = `${issuer}/docs`
   doc.ui_locales_supported = tpl.ui_locales_supported ?? ['en', 'ja']
   return doc

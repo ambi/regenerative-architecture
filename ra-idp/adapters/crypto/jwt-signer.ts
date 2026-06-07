@@ -51,6 +51,8 @@ export class JoseTokenSigner implements TokenIssuer, TokenIntrospector {
       scope: input.scopes.join(' '),
       jti,
       auth_time: input.authTime,
+      ...(input.amr && input.amr.length > 0 ? { amr: input.amr } : {}),
+      ...(input.acr ? { acr: input.acr } : {}),
       ...(Object.keys(cnf).length > 0 ? { cnf } : {}),
     })
       .setProtectedHeader({ alg: key.alg, kid: key.kid, typ: 'at+jwt' })
@@ -70,6 +72,8 @@ export class JoseTokenSigner implements TokenIssuer, TokenIntrospector {
       at_hash: atHash,
     }
     if (input.nonce) payload.nonce = input.nonce
+    if (input.amr && input.amr.length > 0) payload.amr = input.amr
+    if (input.acr) payload.acr = input.acr
     if (input.scopes.includes('profile')) {
       payload.name = input.user.name
       payload.preferred_username = input.user.preferred_username

@@ -4,6 +4,7 @@ import type {
   AuthenticationContext,
   AuthenticationContextResolver,
 } from '../domain/authentication-context'
+import { deriveAcr } from './acr-vocabulary'
 
 export const SESSION_COOKIE = 'ra_idp_session'
 export const SESSION_TTL_SECONDS = 3600
@@ -17,10 +18,13 @@ export class LoginSessionManager implements SessionManager {
   constructor(private readonly sessionStore: SessionStore) {}
 
   async create(sub: string, amr: string[], now = new Date()): Promise<AuthenticationContext> {
+    const acr = deriveAcr(amr)
     const session: LoginSession = {
       id: randomUUID(),
       sub,
       auth_time: Math.floor(now.getTime() / 1000),
+      amr,
+      acr,
       expires_at: new Date(now.getTime() + SESSION_TTL_SECONDS * 1000).toISOString(),
     }
     await this.sessionStore.save(session)
@@ -28,6 +32,7 @@ export class LoginSessionManager implements SessionManager {
       sub,
       auth_time: session.auth_time,
       amr,
+      acr,
       session_id: session.id,
     }
   }
@@ -41,7 +46,8 @@ export class LoginSessionManager implements SessionManager {
     return {
       sub: session.sub,
       auth_time: session.auth_time,
-      amr: ['pwd'],
+      amr: session.amr,
+      acr: session.acr,
       session_id: session.id,
     }
   }

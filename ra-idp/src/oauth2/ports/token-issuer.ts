@@ -15,6 +15,8 @@ export interface SignAccessTokenInput {
   scopes: string[]
   senderConstraint: { type: 'dpop'; jkt: string } | { type: 'mtls'; 'x5t#S256': string } | null
   authTime: number
+  amr?: string[]
+  acr?: string
 }
 
 export interface SignIdTokenInput {
@@ -24,6 +26,8 @@ export interface SignIdTokenInput {
   nonce?: string
   authTime: number
   atHashFor: string
+  amr?: string[]
+  acr?: string
 }
 
 export interface TokenIssuer {

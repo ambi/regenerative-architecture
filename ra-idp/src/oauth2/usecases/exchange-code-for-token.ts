@@ -168,6 +168,8 @@ export async function exchangeCodeForTokenUseCase(
     scopes: code.scopes,
     senderConstraint,
     authTime: code.auth_time,
+    amr: code.amr,
+    acr: code.acr,
   })
 
   // OIDC Core §11: refresh_token は offline_access 付与時のみ発行する。
@@ -199,6 +201,8 @@ export async function exchangeCodeForTokenUseCase(
       nonce: code.nonce,
       authTime: code.auth_time,
       atHashFor: access_token,
+      amr: code.amr,
+      acr: code.acr,
     })
   }
 

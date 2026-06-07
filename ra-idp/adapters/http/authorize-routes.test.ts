@@ -323,6 +323,8 @@ describe('authorize routes — RP-Initiated Logout', () => {
       id: 'sid-1',
       sub: 'user_alice',
       auth_time: Math.floor(Date.now() / 1000),
+      amr: ['pwd'],
+      acr: 'urn:ra-idp:acr:pwd',
       expires_at: new Date(Date.now() + 3600_000).toISOString(),
     })
 

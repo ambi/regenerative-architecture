@@ -310,7 +310,7 @@ async function completeAuthorizedRequest(
     context.sub,
     new Date(context.auth_time * 1000),
     new Date(),
-    options,
+    { ...options, amr: context.amr, acr: context.acr },
   )
 
   if (needsAuthentication) {

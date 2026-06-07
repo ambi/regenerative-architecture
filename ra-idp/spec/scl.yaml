@@ -531,13 +531,15 @@ models:
 
   LoginSession:
     kind: entity
-    description: ブラウザログインセッション。Cookie には不透明な session id のみを置き、sub と auth_time はサーバー側ストアに保持する。
+    description: ブラウザログインセッション。Cookie には不透明な session id のみを置き、sub と auth_time はサーバー側ストアに保持する。amr / acr もここに残し、後続の /authorize で step-up 判定に使う。
     identity: id
     annotations: { component: Authentication, ttl_seconds: 3600, cookie_http_only: true, same_site: Lax }
     fields:
       id:          { type: UUID }
       sub:         { type: String }
       auth_time:   { type: Integer }
+      amr:         { type: "List<String>", description: 認証成立時の RFC 8176 メソッド列。 }
+      acr:         { type: String, description: annotations.acr_vocabulary から導出した URN。 }
       expires_at:  { type: Timestamp }
 
   AuthenticationContext:
@@ -604,6 +606,9 @@ models:
       par_request_uri:          { type: String, optional: true }
       sub:                      { type: String, optional: true }
       auth_time:                { type: Integer, optional: true }
+      amr:                      { type: "List<String>", optional: true, description: 認証成功時のメソッド列。advance(authenticate_user) で AuthenticationContext から伝搬。 }
+      acr:                      { type: String, optional: true, description: amr から annotations.acr_vocabulary に従って導出した URN。 }
+      acr_values:               { type: String, optional: true, description: クライアントが /authorize に与えた acr_values パラメータ (RFC 8176)。step-up 判定に使う。 }
       created_at:               { type: Timestamp }
       expires_at:               { type: Timestamp }
 
@@ -622,6 +627,8 @@ models:
       code_challenge_method:      { type: CodeChallengeMethod }
       nonce:                      { type: String, optional: true }
       auth_time:                  { type: Integer }
+      amr:                        { type: "List<String>", optional: true, description: 認可リクエストから引き継いだ認証メソッド列。id_token / access_token に emit する。 }
+      acr:                        { type: String, optional: true, description: 認可リクエストから引き継いだ ACR URN。id_token / access_token に emit する。 }
       state:                      { type: AuthorizationCodeRecordState }
       issued_at:                  { type: Timestamp }
       expires_at:                 { type: Timestamp }
@@ -786,6 +793,7 @@ models:
       dpop_signing_alg_values_supported:             { type: "List<SignatureAlgorithm>", optional: true }
       tls_client_certificate_bound_access_tokens:    { type: Boolean, optional: true }
       claims_supported:                              { type: "List<String>", optional: true }
+      acr_values_supported:                          { type: "List<String>", optional: true }
 
   # ---------- リクエスト/レスポンス値オブジェクト ----------
   ClientRegistrationRequest:
@@ -2350,12 +2358,24 @@ annotations:
     min_length: 12
     max_length: 128
 
+  acr_vocabulary:
+    description: |
+      Authentication Context Class Reference の URN 列挙。OIDC Core §2 では acr の値域は
+      AS が自由に定められるため、本 IdP が発行する acr の語彙をここに固定する。
+      amr (Authentication Methods References, RFC 8176) から下記マッピングで導出する。
+      step-up reauth は /authorize の acr_values パラメータでこの URN を指定する。
+    values:
+      - { urn: "urn:ra-idp:acr:pwd", description: "Password 単独認証 (amr ⊇ [pwd])。" }
+      - { urn: "urn:ra-idp:acr:mfa", description: "Password + 第二要素 (amr に otp / webauthn / hwk のいずれかを含む)。" }
+    mfa_amr_values: [otp, webauthn, hwk, swk]
+
   discovery_template:
     scopes_supported: [openid, profile, email, offline_access]
     subject_types_supported: [public]
     claims_supported:
       [sub, iss, aud, exp, iat, auth_time, nonce, acr, amr, azp,
        name, given_name, family_name, preferred_username, email, email_verified, updated_at]
+    acr_values_supported: ["urn:ra-idp:acr:pwd", "urn:ra-idp:acr:mfa"]
     ui_locales_supported: [en, ja]
     introspection_endpoint_auth_methods: [ClientSecretBasic, PrivateKeyJwt, TlsClientAuth]
     revocation_endpoint_auth_methods:    [ClientSecretBasic, PrivateKeyJwt, TlsClientAuth]

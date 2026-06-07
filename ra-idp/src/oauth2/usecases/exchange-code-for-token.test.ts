@@ -30,18 +30,25 @@ import type { TokenIssuer } from '../ports/token-issuer'
 
 class FakeTokenIssuer implements TokenIssuer {
   public issuedJtis: string[] = []
+  public lastAccessTokenInput: { amr?: string[]; acr?: string } | null = null
+  public lastIdTokenInput: { amr?: string[]; acr?: string } | null = null
   getAccessTokenTtlSeconds(): number {
     return 600
   }
   getIdTokenTtlSeconds(): number {
     return 3600
   }
-  async signAccessToken(): Promise<{ token: string; jti: string }> {
+  async signAccessToken(input: {
+    amr?: string[]
+    acr?: string
+  }): Promise<{ token: string; jti: string }> {
     const jti = `jti-${this.issuedJtis.length}`
     this.issuedJtis.push(jti)
+    this.lastAccessTokenInput = { amr: input.amr, acr: input.acr }
     return { token: `fake-at-${jti}`, jti }
   }
-  async signIdToken(): Promise<string> {
+  async signIdToken(input: { amr?: string[]; acr?: string }): Promise<string> {
+    this.lastIdTokenInput = { amr: input.amr, acr: input.acr }
     return 'fake-id-token'
   }
 }
@@ -106,6 +113,8 @@ async function setup() {
     code_challenge: CHALLENGE,
     code_challenge_method: 'S256',
     auth_time: 1700000000,
+    amr: ['pwd'],
+    acr: 'urn:ra-idp:acr:pwd',
   })
   await codeStore.save(code)
 
@@ -145,6 +154,10 @@ describe('exchangeCodeForTokenUseCase — 成功パス', () => {
     expect(result.audit.refreshTokenId).toMatch(/^[0-9a-f-]{36}$/)
     expect(result.audit.refreshFamilyId).toMatch(/^[0-9a-f-]{36}$/)
     expect(result.audit.senderConstraint).toBe('none')
+
+    // 認可コードに載っていた amr / acr が access_token と id_token の両方に伝搬する
+    expect(tokenIssuer.lastAccessTokenInput).toEqual({ amr: ['pwd'], acr: 'urn:ra-idp:acr:pwd' })
+    expect(tokenIssuer.lastIdTokenInput).toEqual({ amr: ['pwd'], acr: 'urn:ra-idp:acr:pwd' })
   })
 
   it('DPoP jkt が指定されると token_type は DPoP かつ cnf にバインドされる', async () => {

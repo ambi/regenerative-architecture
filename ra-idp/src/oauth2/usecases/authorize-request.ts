@@ -124,7 +124,7 @@ export async function completeAuthenticationUseCase(
   authenticated_sub: string,
   authTime: Date = new Date(),
   now: Date = new Date(),
-  options: { promptLoginSatisfied?: boolean } = {},
+  options: { promptLoginSatisfied?: boolean; amr?: string[]; acr?: string } = {},
 ): Promise<{ request: AuthorizationRequest; needsConsent: boolean; needsAuthentication: boolean }> {
   const authTimeSeconds = Math.floor(authTime.getTime() / 1000)
   const nowSeconds = Math.floor(now.getTime() / 1000)
@@ -142,6 +142,8 @@ export async function completeAuthenticationUseCase(
   let next = advance(req, 'authenticate_user', {
     sub: authenticated_sub,
     auth_time: authTimeSeconds,
+    amr: options.amr,
+    acr: options.acr,
   })
 
   const requestedScopes = req.scope.split(/\s+/).filter(Boolean)

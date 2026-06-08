@@ -381,7 +381,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
       <h1>ra-idp</h1>
       <div class="page-meta"><span class="badge badge-version">spec 1.1</span></div>
     </header>
-    <div class="stats"><a class="stat" href="#standards"><span class="stat-num">30</span><span class="stat-label">standards</span></a><a class="stat" href="#vocabulary"><span class="stat-num">98</span><span class="stat-label">vocabulary</span></a><a class="stat" href="#models"><span class="stat-num">94</span><span class="stat-label">models</span></a><a class="stat" href="#interfaces"><span class="stat-num">20</span><span class="stat-label">interfaces</span></a><a class="stat" href="#state_machines"><span class="stat-num">7</span><span class="stat-label">state machines</span></a><a class="stat" href="#properties"><span class="stat-num">19</span><span class="stat-label">properties</span></a><a class="stat" href="#scenarios"><span class="stat-num">50</span><span class="stat-label">scenarios</span></a><a class="stat" href="#permissions"><span class="stat-num">8</span><span class="stat-label">permissions</span></a><a class="stat" href="#objectives"><span class="stat-num">47</span><span class="stat-label">objectives</span></a><a class="stat" href="#user_experience"><span class="stat-num">6</span><span class="stat-label">user experience</span></a></div>
+    <div class="stats"><a class="stat" href="#standards"><span class="stat-num">30</span><span class="stat-label">standards</span></a><a class="stat" href="#vocabulary"><span class="stat-num">98</span><span class="stat-label">vocabulary</span></a><a class="stat" href="#models"><span class="stat-num">94</span><span class="stat-label">models</span></a><a class="stat" href="#interfaces"><span class="stat-num">20</span><span class="stat-label">interfaces</span></a><a class="stat" href="#state_machines"><span class="stat-num">7</span><span class="stat-label">state machines</span></a><a class="stat" href="#properties"><span class="stat-num">19</span><span class="stat-label">properties</span></a><a class="stat" href="#scenarios"><span class="stat-num">50</span><span class="stat-label">scenarios</span></a><a class="stat" href="#permissions"><span class="stat-num">8</span><span class="stat-label">permissions</span></a><a class="stat" href="#objectives"><span class="stat-num">47</span><span class="stat-label">objectives</span></a><a class="stat" href="#user_experience"><span class="stat-num">7</span><span class="stat-label">user experience</span></a></div>
   </section>
 <section id="standards">
     <h2>Standards <span class="count">30</span></h2>
@@ -2392,7 +2392,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
   </article>
 <article class="card" id="model-loginsession">
     <header><h3>LoginSession</h3><span class="badge badge-kind-entity">entity</span></header>
-    <p class="desc">ブラウザログインセッション。Cookie には不透明な session id のみを置き、sub と auth_time はサーバー側ストアに保持する。amr / acr もここに残し、後続の /authorize で step-up 判定に使う。</p>
+    <p class="desc">ブラウザログインセッション。Cookie には不透明な session id のみを置き、sub と auth_time はサーバー側ストアに保持する。amr / acr もここに残し、後続の /authorize で step-up 判定に使う。authentication_pending=true は追加 factor 検証を待っている中間状態で、/authorize 完了経路はそのセッションを未認証扱いとし対応する factor challenge に誘導する。</p>
     <dl class="kv"><dt>identity</dt><dd><code>id</code></dd><dt>annotations</dt><dd><span class="chip chip-annotation">component: Authentication</span> <span class="chip chip-annotation">ttl seconds: 3600</span> <span class="chip chip-annotation">cookie http only</span> <span class="chip chip-annotation">same site: Lax</span></dd></dl>
     <table class="fields">
     <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
@@ -2426,6 +2426,12 @@ table.fields tbody tr:last-child td { border-bottom: none; }
     <td><span class="badge badge-required">required</span></td>
     <td><span class="muted">—</span></td>
     <td>annotations.acr_vocabulary から導出した URN。</td>
+  </tr><tr>
+    <td><code class="name">authentication_pending</code></td>
+    <td><code class="type">Boolean</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="chip chip-default">default: false</span></td>
+    <td>追加 factor 検証を待っている中間状態か。完了で false。</td>
   </tr><tr>
     <td><code class="name">expires_at</code></td>
     <td><code class="type">Timestamp</code></td>
@@ -4040,39 +4046,6 @@ table.fields tbody tr:last-child td { border-bottom: none; }
   </tr></tbody>
   </table>
   </article>
-<article class="card" id="model-loginrequest">
-    <header><h3>LoginRequest</h3><span class="badge badge-kind-value_object">value object</span></header>
-    <p class="desc">POST /login の form リクエスト。CSRF は double-submit cookie と hidden form value の一致で検証する。</p>
-    <dl class="kv"><dt>annotations</dt><dd><span class="chip chip-annotation">component: Authentication</span></dd></dl>
-    <table class="fields">
-    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
-    <tbody><tr>
-    <td><code class="name">request_id</code></td>
-    <td><code class="type">UUID</code></td>
-    <td><span class="badge badge-required">required</span></td>
-    <td><span class="muted">—</span></td>
-    <td></td>
-  </tr><tr>
-    <td><code class="name">username</code></td>
-    <td><code class="type">String</code></td>
-    <td><span class="badge badge-required">required</span></td>
-    <td><span class="muted">—</span></td>
-    <td></td>
-  </tr><tr>
-    <td><code class="name">password</code></td>
-    <td><code class="type">String</code></td>
-    <td><span class="badge badge-required">required</span></td>
-    <td><span class="chip chip-annotation">sensitive</span></td>
-    <td></td>
-  </tr><tr>
-    <td><code class="name">csrf</code></td>
-    <td><code class="type">String</code></td>
-    <td><span class="badge badge-required">required</span></td>
-    <td><span class="chip chip-annotation">sensitive</span></td>
-    <td></td>
-  </tr></tbody>
-  </table>
-  </article>
 <article class="card" id="model-browserloginrequest">
     <header><h3>BrowserLoginRequest</h3><span class="badge badge-kind-value_object">value object</span></header>
     <p class="desc">SPA が POST /api/auth/login に送る JSON。authorization request id は HttpOnly transaction cookie、CSRF は X-CSRF-Token header から解決する。</p>
@@ -4130,6 +4103,21 @@ table.fields tbody tr:last-child td { border-bottom: none; }
   </tr></tbody>
   </table>
   </article>
+<article class="card" id="model-browsertotprequest">
+    <header><h3>BrowserTotpRequest</h3><span class="badge badge-kind-value_object">value object</span></header>
+    <p class="desc">Browser client が POST /api/auth/totp に送る TOTP コード。authorization request id は HttpOnly transaction cookie、CSRF は X-CSRF-Token header から解決する。他 factor (WebAuthn 等) はHTTP形が大きく異なるため、別endpointと別value objectとして独立に定義する。</p>
+    <dl class="kv"><dt>annotations</dt><dd><span class="chip chip-annotation">component: Authentication</span></dd></dl>
+    <table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">code</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="chip chip-annotation">sensitive</span></td>
+    <td>Authenticator アプリが生成した数字コード (annotations.totp_policy.digits 桁)。</td>
+  </tr></tbody>
+  </table>
+  </article>
 <article class="card" id="model-browsertransactionresponse">
     <header><h3>BrowserTransactionResponse</h3><span class="badge badge-kind-value_object">value object</span></header>
     <p class="desc">SPA が現在の browser authorization transaction を描画するための no-store JSON。</p>
@@ -4141,7 +4129,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
     <td><code class="type">String</code></td>
     <td><span class="badge badge-required">required</span></td>
     <td><span class="muted">—</span></td>
-    <td>login、consent、device のいずれか。</td>
+    <td>描画すべき画面の識別子。login / totp / consent / device 等、factor 追加に応じて拡張する。</td>
   </tr><tr>
     <td><code class="name">csrf_token</code></td>
     <td><code class="type">String</code></td>
@@ -5153,29 +5141,6 @@ table.fields tbody tr:last-child td { border-bottom: none; }
     <div class="binding-body"><div class="binding-head"><span class="badge badge-method-get">GET</span> <code class="path">/authorize</code> <span class="chip chip-hint">response: 302</span> <span class="chip chip-hint">form: query</span></div></div>
   </div></div></div>
   </article>
-<article class="card" id="iface-login">
-    <header><h3>Login</h3></header>
-    <p class="desc">Browser password login for an authorization request. Authentication component が所有し、成功時は OAuth2/OIDC continuation に AuthenticationContext を渡す。</p>
-    <div class="iface-step"><span class="step-kind-label">STEP</span> <code class="step-tpl">ユーザー {username} が request_id {request_id} のログインフォームを送信する</code></div>
-    <div class="io">
-    <div class="label">Input</div>
-    <table class="fields">
-      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
-      <tbody><tr>
-    <td><code class="name">request</code></td>
-    <td><code class="type">LoginRequest</code></td>
-    <td><span class="badge badge-required">required</span></td>
-    <td></td>
-  </tr></tbody>
-    </table>
-  </div>
-<div class="io"><div class="label">Errors</div><div class="chip-row"><a class="chip chip-error-ref" href="#model-invalidrequesterror">InvalidRequestError</a> <a class="chip chip-error-ref" href="#model-accessdeniederror">AccessDeniedError</a></div></div>
-<div class="io"><div class="label">Emits</div><div class="chip-row"><a class="chip chip-event-ref" href="#model-userauthenticated">UserAuthenticated</a> <a class="chip chip-event-ref" href="#model-authenticationfailed">AuthenticationFailed</a></div></div>
-<div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
-    <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
-    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-post">POST</span> <code class="path">/login</code> <span class="chip chip-hint">response: 302</span> <span class="chip chip-hint">form: form</span></div></div>
-  </div></div></div>
-  </article>
 <article class="card" id="iface-getbrowsertransaction">
     <header><h3>GetBrowserTransaction</h3><span class="badge badge-readonly">read-only</span></header>
     <p class="desc">SPA が HttpOnly transaction cookie に対応するログイン・同意コンテキストを取得する。</p>
@@ -5301,6 +5266,41 @@ table.fields tbody tr:last-child td { border-bottom: none; }
 <div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
     <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
     <div class="binding-body"><div class="binding-head"><span class="badge badge-method-post">POST</span> <code class="path">/api/auth/device</code></div></div>
+  </div></div></div>
+  </article>
+<article class="card" id="iface-submitbrowsertotp">
+    <header><h3>SubmitBrowserTotp</h3></header>
+    <p class="desc">SPA JSON API から TOTP コードを検証する。成功すれば LoginSession を認証完了状態に昇格させ、後続フロー (consent / authorization code 発行) に進む。他 factor は別 endpoint として定義する。</p>
+
+    <div class="io">
+    <div class="label">Input</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">request</code></td>
+    <td><code class="type">BrowserTotpRequest</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io">
+    <div class="label">Output</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">response</code></td>
+    <td><code class="type">BrowserFlowResponse</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io"><div class="label">Errors</div><div class="chip-row"><a class="chip chip-error-ref" href="#model-invalidrequesterror">InvalidRequestError</a> <a class="chip chip-error-ref" href="#model-accessdeniederror">AccessDeniedError</a></div></div>
+<div class="io"><div class="label">Emits</div><div class="chip-row"><a class="chip chip-event-ref" href="#model-userauthenticated">UserAuthenticated</a> <a class="chip chip-event-ref" href="#model-authenticationfailed">AuthenticationFailed</a></div></div>
+<div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
+    <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
+    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-post">POST</span> <code class="path">/api/auth/totp</code></div></div>
   </div></div></div>
   </article>
 <article class="card" id="iface-getbrowserdevicecontext">
@@ -6407,14 +6407,14 @@ and forall: { in: event.scope, satisfies: &quot;x in x.scopes&quot; }
     <header><h3>パスワードログイン後はセッション Cookie で認可を継続できる</h3></header>
     <p class="desc">ユーザー名・パスワード認証に成功すると HttpOnly セッション Cookie を発行し、同じ認可リクエストを継続する。</p>
 
-    <ol class="scn-steps"><li class="scn-step">未認証セッションで '<code class="step-arg">web-app</code> として認可リクエストを送る'</li><li class="scn-step">ログインフォームに username <code class="step-arg">alice</code> と正しい password を送信する</li><li class="scn-step">セッション Cookie が発行される</li><li class="scn-step">認可コードが redirect_uri に返る</li><li class="scn-step"><a class="chip chip-ref" href="#model-userauthenticated">UserAuthenticated</a> が発行される</li></ol>
+    <ol class="scn-steps"><li class="scn-step">未認証セッションで '<code class="step-arg">web-app</code> として認可リクエストを送る'</li><li class="scn-step">browser login API に username <code class="step-arg">alice</code> と正しい password を送信する</li><li class="scn-step">セッション Cookie が発行される</li><li class="scn-step">認可コードが redirect_uri に返る</li><li class="scn-step"><a class="chip chip-ref" href="#model-userauthenticated">UserAuthenticated</a> が発行される</li></ol>
 
   </article>
-<article class="card scenario" id="scn-csrf">
-    <header><h3>ログインフォームの CSRF 不一致は拒否される</h3></header>
-    <p class="desc">double-submit cookie と form の csrf 値が一致しないログイン POST は invalid_request。</p>
+<article class="card scenario" id="scn-browser-login-api-csrf">
+    <header><h3>browser login API の CSRF 不一致は拒否される</h3></header>
+    <p class="desc">SameSite cookie と request token が一致しない browser login API は invalid_request。</p>
 
-    <ol class="scn-steps"><li class="scn-step">未認証セッションで '<code class="step-arg">web-app</code> として認可リクエストを送る'</li><li class="scn-step">csrf 値を改ざんしてログインフォームを送信する</li><li class="scn-step">エラー <a class="chip chip-ref" href="#model-invalidrequesterror">InvalidRequestError</a></li></ol>
+    <ol class="scn-steps"><li class="scn-step">未認証セッションで '<code class="step-arg">web-app</code> として認可リクエストを送る'</li><li class="scn-step">csrf 値を改ざんして browser login API を送信する</li><li class="scn-step">エラー <a class="chip chip-ref" href="#model-invalidrequesterror">InvalidRequestError</a></li></ol>
 
   </article>
 <article class="card scenario" id="scn-prompt-login">
@@ -6838,13 +6838,13 @@ and forall: { in: event.scope, satisfies: &quot;x in x.scopes&quot; }
     </div>
   </section>
 <section id="user_experience">
-    <h2>User Experience <span class="count">6</span></h2>
+    <h2>User Experience <span class="count">7</span></h2>
     <p class="lead">ブラウザ画面、画面遷移、セキュリティ・プライバシー・アクセシビリティ要件。</p>
     <dl class="kv">
     <dt>accessibility</dt><dd><a class="chip" href="#std-wcag22">WCAG22</a> <span class="badge">AA</span></dd>
     <dt>locales</dt><dd><span class="chip">ja</span> <span class="chip">en</span></dd>
   </dl>
-    <div class="group"><h3 class="grp-title">Screens <span class="count">6</span></h3><div class="cards"><article class="card" id="screen-home">
+    <div class="group"><h3 class="grp-title">Screens <span class="count">7</span></h3><div class="cards"><article class="card" id="screen-home">
         <header><h3>Home</h3><span class="chip chip-hint">/</span></header>
         <p class="desc">IdPの稼働状態と認証開始方法を示し、ローカルデモでは認可要求を開始する。</p>
         <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-iface-ref" href="#iface-authorize">Authorize</a> <a class="chip chip-iface-ref" href="#iface-getopenidconfiguration">GetOpenidConfiguration</a></div>
@@ -6854,6 +6854,11 @@ and forall: { in: event.scope, satisfies: &quot;x in x.scopes&quot; }
         <p class="desc">Authorization transactionに結び付いたResourceOwnerの認証情報を取得する。</p>
         <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-iface-ref" href="#iface-getbrowsertransaction">GetBrowserTransaction</a> <a class="chip chip-iface-ref" href="#iface-submitbrowserlogin">SubmitBrowserLogin</a></div>
         <div class="chip-row"><span class="chip">ready</span> <span class="chip">submitting</span> <span class="chip">invalid_credentials</span> <span class="chip">expired_transaction</span> <span class="chip">service_error</span></div>
+      </article><article class="card" id="screen-totp">
+        <header><h3>Totp</h3><span class="chip chip-hint">/totp</span></header>
+        <p class="desc">authentication_pending状態のLoginSessionに対し、登録済みTOTP factorのコードを取得する。</p>
+        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-iface-ref" href="#iface-getbrowsertransaction">GetBrowserTransaction</a> <a class="chip chip-iface-ref" href="#iface-submitbrowsertotp">SubmitBrowserTotp</a></div>
+        <div class="chip-row"><span class="chip">ready</span> <span class="chip">submitting</span> <span class="chip">invalid_code</span> <span class="chip">expired_transaction</span> <span class="chip">service_error</span></div>
       </article><article class="card" id="screen-consent">
         <header><h3>Consent</h3><span class="chip chip-hint">/consent</span></header>
         <p class="desc">Client名と要求Scopeを示し、ResourceOwnerの許可または拒否を取得する。</p>
@@ -6875,11 +6880,26 @@ and forall: { in: event.scope, satisfies: &quot;x in x.scopes&quot; }
 
         <div class="chip-row"><span class="chip">success</span> <span class="chip">oauth_error</span> <span class="chip">invalid_response</span></div>
       </article></div></div>
-    <div class="group"><h3 class="grp-title">Transitions <span class="count">9</span></h3><table class="fields"><thead><tr><th>From</th><th>Trigger</th><th>To</th><th>Interface</th></tr></thead><tbody><tr>
+    <div class="group"><h3 class="grp-title">Transitions <span class="count">12</span></h3><table class="fields"><thead><tr><th>From</th><th>Trigger</th><th>To</th><th>Interface</th></tr></thead><tbody><tr>
         <td><a class="chip" href="#screen-home">Home</a></td>
         <td><code>authorization_started</code></td>
         <td><a class="chip" href="#screen-login">Login</a></td>
         <td><a class="chip chip-iface-ref" href="#iface-authorize">Authorize</a></td>
+      </tr><tr>
+        <td><a class="chip" href="#screen-login">Login</a></td>
+        <td><code>password_succeeded_and_factor_required</code></td>
+        <td><a class="chip" href="#screen-totp">Totp</a></td>
+        <td><a class="chip chip-iface-ref" href="#iface-submitbrowserlogin">SubmitBrowserLogin</a></td>
+      </tr><tr>
+        <td><a class="chip" href="#screen-totp">Totp</a></td>
+        <td><code>factor_succeeded_and_consent_required</code></td>
+        <td><a class="chip" href="#screen-consent">Consent</a></td>
+        <td><a class="chip chip-iface-ref" href="#iface-submitbrowsertotp">SubmitBrowserTotp</a></td>
+      </tr><tr>
+        <td><a class="chip" href="#screen-totp">Totp</a></td>
+        <td><code>factor_succeeded_and_consent_exists</code></td>
+        <td><span class="badge badge-optional">external</span></td>
+        <td><a class="chip chip-iface-ref" href="#iface-submitbrowsertotp">SubmitBrowserTotp</a></td>
       </tr><tr>
         <td><a class="chip" href="#screen-login">Login</a></td>
         <td><code>authentication_succeeded_and_consent_required</code></td>
@@ -6927,9 +6947,9 @@ and forall: { in: event.scope, satisfies: &quot;x in x.scopes&quot; }
           <span class="badge badge-adoption-required">required</span>
           <span class="badge badge-category">security</span>
         </header>
-        <p>LoginとConsentは有効なHttpOnly authorization transaction cookieなしでは表示も送信もできない。</p>
-        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-login">Login</a> <a class="chip" href="#screen-consent">Consent</a></div>
-        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-getbrowsertransaction">GetBrowserTransaction</a> <a class="chip chip-ref" href="#iface-submitbrowserlogin">SubmitBrowserLogin</a> <a class="chip chip-ref" href="#iface-submitbrowserconsent">SubmitBrowserConsent</a></div><div class="reference-row"><span class="reference-label">standards</span><a class="chip chip-ref" href="#std-rfc9700">RFC9700</a></div>
+        <p>Login、Totp、Consentは有効なHttpOnly authorization transaction cookieなしでは表示も送信もできない。</p>
+        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-login">Login</a> <a class="chip" href="#screen-totp">Totp</a> <a class="chip" href="#screen-consent">Consent</a></div>
+        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-getbrowsertransaction">GetBrowserTransaction</a> <a class="chip chip-ref" href="#iface-submitbrowserlogin">SubmitBrowserLogin</a> <a class="chip chip-ref" href="#iface-submitbrowsertotp">SubmitBrowserTotp</a> <a class="chip chip-ref" href="#iface-submitbrowserconsent">SubmitBrowserConsent</a></div><div class="reference-row"><span class="reference-label">standards</span><a class="chip chip-ref" href="#std-rfc9700">RFC9700</a></div>
       </article><article class="requirement" id="ux-ux-csrf">
         <header>
           <code class="name">UX-CSRF</code>
@@ -6937,8 +6957,8 @@ and forall: { in: event.scope, satisfies: &quot;x in x.scopes&quot; }
           <span class="badge badge-category">security</span>
         </header>
         <p>状態変更を伴うブラウザAPIはSameSite cookieとリクエストトークンを照合してCSRFを拒否する。</p>
-        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-login">Login</a> <a class="chip" href="#screen-consent">Consent</a> <a class="chip" href="#screen-device">Device</a></div>
-        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-submitbrowserlogin">SubmitBrowserLogin</a> <a class="chip chip-ref" href="#iface-submitbrowserconsent">SubmitBrowserConsent</a> <a class="chip chip-ref" href="#iface-submitbrowserdevice">SubmitBrowserDevice</a></div><div class="reference-row"><span class="reference-label">standards</span><a class="chip chip-ref" href="#std-rfc9700">RFC9700</a> <a class="chip chip-ref" href="#std-fapi2securityprofile">FAPI2SecurityProfile</a></div><div class="reference-row"><span class="reference-label">scenarios</span><a class="chip chip-ref" href="#scn-csrf">ログインフォームの CSRF 不一致は拒否される</a></div>
+        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-login">Login</a> <a class="chip" href="#screen-totp">Totp</a> <a class="chip" href="#screen-consent">Consent</a> <a class="chip" href="#screen-device">Device</a></div>
+        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-submitbrowserlogin">SubmitBrowserLogin</a> <a class="chip chip-ref" href="#iface-submitbrowsertotp">SubmitBrowserTotp</a> <a class="chip chip-ref" href="#iface-submitbrowserconsent">SubmitBrowserConsent</a> <a class="chip chip-ref" href="#iface-submitbrowserdevice">SubmitBrowserDevice</a></div><div class="reference-row"><span class="reference-label">standards</span><a class="chip chip-ref" href="#std-rfc9700">RFC9700</a> <a class="chip chip-ref" href="#std-fapi2securityprofile">FAPI2SecurityProfile</a></div><div class="reference-row"><span class="reference-label">scenarios</span><a class="chip chip-ref" href="#scn-browser-login-api-csrf">browser login API の CSRF 不一致は拒否される</a></div>
       </article><article class="requirement" id="ux-ux-no-store">
         <header>
           <code class="name">UX-NO-STORE</code>
@@ -6946,7 +6966,7 @@ and forall: { in: event.scope, satisfies: &quot;x in x.scopes&quot; }
           <span class="badge badge-category">privacy</span>
         </header>
         <p>認証トランザクション、CSRF token、user_codeを含むブラウザAPI応答は保存キャッシュを禁止する。</p>
-        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-login">Login</a> <a class="chip" href="#screen-consent">Consent</a> <a class="chip" href="#screen-device">Device</a></div>
+        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-login">Login</a> <a class="chip" href="#screen-totp">Totp</a> <a class="chip" href="#screen-consent">Consent</a> <a class="chip" href="#screen-device">Device</a></div>
         <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-getbrowsertransaction">GetBrowserTransaction</a> <a class="chip chip-ref" href="#iface-getbrowserdevicecontext">GetBrowserDeviceContext</a></div>
       </article><article class="requirement" id="ux-ux-no-credential-echo">
         <header>
@@ -6955,7 +6975,7 @@ and forall: { in: event.scope, satisfies: &quot;x in x.scopes&quot; }
           <span class="badge badge-category">privacy</span>
         </header>
         <p>password、token、内部request idを画面、URL、エラーメッセージへ表示しない。</p>
-        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-login">Login</a> <a class="chip" href="#screen-consent">Consent</a> <a class="chip" href="#screen-device">Device</a> <a class="chip" href="#screen-status">Status</a> <a class="chip" href="#screen-callback">Callback</a></div>
+        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-login">Login</a> <a class="chip" href="#screen-totp">Totp</a> <a class="chip" href="#screen-consent">Consent</a> <a class="chip" href="#screen-device">Device</a> <a class="chip" href="#screen-status">Status</a> <a class="chip" href="#screen-callback">Callback</a></div>
 
       </article><article class="requirement" id="ux-ux-registered-redirect">
         <header>
@@ -6964,8 +6984,8 @@ and forall: { in: event.scope, satisfies: &quot;x in x.scopes&quot; }
           <span class="badge badge-category">security</span>
         </header>
         <p>Browser flowの外部遷移先は検証済みredirect_uriまたはpost_logout_redirect_uriだけとする。</p>
-        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-login">Login</a> <a class="chip" href="#screen-consent">Consent</a> <a class="chip" href="#screen-status">Status</a></div>
-        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-authorize">Authorize</a> <a class="chip chip-ref" href="#iface-submitbrowserlogin">SubmitBrowserLogin</a> <a class="chip chip-ref" href="#iface-submitbrowserconsent">SubmitBrowserConsent</a> <a class="chip chip-ref" href="#iface-endsession">EndSession</a></div><div class="reference-row"><span class="reference-label">standards</span><a class="chip chip-ref" href="#std-rfc9700">RFC9700</a> <a class="chip chip-ref" href="#std-openidconnectrpinitiatedlogout">OpenIDConnectRPInitiatedLogout</a></div><div class="reference-row"><span class="reference-label">properties</span><a class="chip chip-ref" href="#prop-redirecturiexactmatch">RedirectUriExactMatch</a></div>
+        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-login">Login</a> <a class="chip" href="#screen-totp">Totp</a> <a class="chip" href="#screen-consent">Consent</a> <a class="chip" href="#screen-status">Status</a></div>
+        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-authorize">Authorize</a> <a class="chip chip-ref" href="#iface-submitbrowserlogin">SubmitBrowserLogin</a> <a class="chip chip-ref" href="#iface-submitbrowsertotp">SubmitBrowserTotp</a> <a class="chip chip-ref" href="#iface-submitbrowserconsent">SubmitBrowserConsent</a> <a class="chip chip-ref" href="#iface-endsession">EndSession</a></div><div class="reference-row"><span class="reference-label">standards</span><a class="chip chip-ref" href="#std-rfc9700">RFC9700</a> <a class="chip chip-ref" href="#std-openidconnectrpinitiatedlogout">OpenIDConnectRPInitiatedLogout</a></div><div class="reference-row"><span class="reference-label">properties</span><a class="chip chip-ref" href="#prop-redirecturiexactmatch">RedirectUriExactMatch</a></div>
       </article><article class="requirement" id="ux-ux-client-context">
         <header>
           <code class="name">UX-CLIENT-CONTEXT</code>
@@ -6982,7 +7002,7 @@ and forall: { in: event.scope, satisfies: &quot;x in x.scopes&quot; }
           <span class="badge badge-category">accessibility</span>
         </header>
         <p>すべての入力、表示切替、許可、拒否、再試行をキーボードだけで操作可能にする。</p>
-        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-home">Home</a> <a class="chip" href="#screen-login">Login</a> <a class="chip" href="#screen-consent">Consent</a> <a class="chip" href="#screen-device">Device</a> <a class="chip" href="#screen-status">Status</a> <a class="chip" href="#screen-callback">Callback</a></div>
+        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-home">Home</a> <a class="chip" href="#screen-login">Login</a> <a class="chip" href="#screen-totp">Totp</a> <a class="chip" href="#screen-consent">Consent</a> <a class="chip" href="#screen-device">Device</a> <a class="chip" href="#screen-status">Status</a> <a class="chip" href="#screen-callback">Callback</a></div>
         <div class="reference-row"><span class="reference-label">standards</span><a class="chip chip-ref" href="#std-wcag22">WCAG22</a></div>
       </article><article class="requirement" id="ux-ux-focus">
         <header>
@@ -6991,7 +7011,7 @@ and forall: { in: event.scope, satisfies: &quot;x in x.scopes&quot; }
           <span class="badge badge-category">accessibility</span>
         </header>
         <p>フォーカス位置を常に視認可能にし、画面遷移後は主見出しまたは最初の入力へ論理的に到達可能にする。</p>
-        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-login">Login</a> <a class="chip" href="#screen-consent">Consent</a> <a class="chip" href="#screen-device">Device</a> <a class="chip" href="#screen-status">Status</a> <a class="chip" href="#screen-callback">Callback</a></div>
+        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-login">Login</a> <a class="chip" href="#screen-totp">Totp</a> <a class="chip" href="#screen-consent">Consent</a> <a class="chip" href="#screen-device">Device</a> <a class="chip" href="#screen-status">Status</a> <a class="chip" href="#screen-callback">Callback</a></div>
         <div class="reference-row"><span class="reference-label">standards</span><a class="chip chip-ref" href="#std-wcag22">WCAG22</a></div>
       </article><article class="requirement" id="ux-ux-labels-errors">
         <header>
@@ -7000,7 +7020,7 @@ and forall: { in: event.scope, satisfies: &quot;x in x.scopes&quot; }
           <span class="badge badge-category">accessibility</span>
         </header>
         <p>入力には永続的なラベルを関連付け、エラーを色だけに依存せず対象と修正方法が分かる文章で示す。</p>
-        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-login">Login</a> <a class="chip" href="#screen-device">Device</a></div>
+        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-login">Login</a> <a class="chip" href="#screen-totp">Totp</a> <a class="chip" href="#screen-device">Device</a></div>
         <div class="reference-row"><span class="reference-label">standards</span><a class="chip chip-ref" href="#std-wcag22">WCAG22</a></div>
       </article><article class="requirement" id="ux-ux-status-announcement">
         <header>
@@ -7009,7 +7029,7 @@ and forall: { in: event.scope, satisfies: &quot;x in x.scopes&quot; }
           <span class="badge badge-category">accessibility</span>
         </header>
         <p>非同期送信の失敗と認証結果を支援技術へ通知し、送信中は重複操作を防ぐ。</p>
-        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-login">Login</a> <a class="chip" href="#screen-consent">Consent</a> <a class="chip" href="#screen-device">Device</a> <a class="chip" href="#screen-status">Status</a> <a class="chip" href="#screen-callback">Callback</a></div>
+        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-login">Login</a> <a class="chip" href="#screen-totp">Totp</a> <a class="chip" href="#screen-consent">Consent</a> <a class="chip" href="#screen-device">Device</a> <a class="chip" href="#screen-status">Status</a> <a class="chip" href="#screen-callback">Callback</a></div>
         <div class="reference-row"><span class="reference-label">standards</span><a class="chip chip-ref" href="#std-wcag22">WCAG22</a></div>
       </article><article class="requirement" id="ux-ux-locale">
         <header>
@@ -7018,7 +7038,7 @@ and forall: { in: event.scope, satisfies: &quot;x in x.scopes&quot; }
           <span class="badge badge-category">localization</span>
         </header>
         <p>UI文言はjaとenを提供し、未対応localeは既定localeへフォールバックする。</p>
-        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-home">Home</a> <a class="chip" href="#screen-login">Login</a> <a class="chip" href="#screen-consent">Consent</a> <a class="chip" href="#screen-device">Device</a> <a class="chip" href="#screen-status">Status</a> <a class="chip" href="#screen-callback">Callback</a></div>
+        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-home">Home</a> <a class="chip" href="#screen-login">Login</a> <a class="chip" href="#screen-totp">Totp</a> <a class="chip" href="#screen-consent">Consent</a> <a class="chip" href="#screen-device">Device</a> <a class="chip" href="#screen-status">Status</a> <a class="chip" href="#screen-callback">Callback</a></div>
         <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-getopenidconfiguration">GetOpenidConfiguration</a></div><div class="reference-row"><span class="reference-label">standards</span><a class="chip chip-ref" href="#std-openidconnectdiscovery">OpenIDConnectDiscovery</a></div>
       </article></div></div>
   </section>

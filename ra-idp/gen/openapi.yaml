@@ -104,50 +104,6 @@ paths:
           required: false
           schema:
             type: string
-  /login:
-    post:
-      operationId: login
-      summary: Browser password login for an authorization request. Authentication component が所有し、成功時は OAuth2/OIDC continuation に AuthenticationContext を渡す。
-      responses:
-        302:
-          description: Browser password login for an authorization request. Authentication component が所有し、成功時は OAuth2/OIDC continuation に AuthenticationContext を渡す。
-        400:
-          description: Error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/OAuthError"
-      requestBody:
-        required: true
-        content:
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: "#/components/schemas/LoginRequest"
-  /totp:
-    get:
-      operationId: totpChallenge
-      summary: TOTP コードを入力するためのブラウザ画面を返す。authentication_pending=true の LoginSession から表示する。SPA shell + fallback form を返す。他 factor (WebAuthn 等) は HTTP 形が異なるため、それぞれ別 interface として定義する。
-      responses:
-        200:
-          description: TOTP コードを入力するためのブラウザ画面を返す。authentication_pending=true の LoginSession から表示する。SPA shell + fallback form を返す。他 factor (WebAuthn 等) は HTTP 形が異なるため、それぞれ別 interface として定義する。
-    post:
-      operationId: totpSubmit
-      summary: ブラウザ form から TOTP コードを検証する。RFC 6238 の検証ロジックは Authentication component が担う。成功時は LoginSession を認証完了状態に昇格させて OAuth2/OIDC continuation に進む。
-      responses:
-        302:
-          description: ブラウザ form から TOTP コードを検証する。RFC 6238 の検証ロジックは Authentication component が担う。成功時は LoginSession を認証完了状態に昇格させて OAuth2/OIDC continuation に進む。
-        400:
-          description: Error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/OAuthError"
-      requestBody:
-        required: true
-        content:
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: "#/components/schemas/TotpRequest"
   /api/auth/transaction:
     get:
       operationId: getBrowserTransaction
@@ -1773,65 +1729,6 @@ components:
         - redirect_uri
         - code_challenge
         - code_challenge_method
-    LoginRequest:
-      type: object
-      additionalProperties: false
-      description: "POST /login の form リクエスト。CSRF は double-submit cookie と hidden form value の一致で検証する。"
-      properties:
-        request_id:
-          type: string
-          format: uuid
-        username:
-          type: string
-        password:
-          type: string
-        csrf:
-          type: string
-      required:
-        - request_id
-        - username
-        - password
-        - csrf
-    TotpRequest:
-      type: object
-      additionalProperties: false
-      description: "POST /totp の form リクエスト。RFC 6238 の数字コードを 1 フィールドで受け取る。CSRF は double-submit cookie と hidden form value の一致で検証する。"
-      properties:
-        request_id:
-          type: string
-          format: uuid
-        code:
-          type: string
-        csrf:
-          type: string
-      required:
-        - request_id
-        - code
-        - csrf
-    MfaRequest:
-      type: object
-      additionalProperties: false
-      description: "POST /mfa の form リクエスト。factor_type に応じて credential の形式が決まる (factor 固有の検証ロジックは Authentication component が担う)。CSRF は double-submit cookie と hidden form value の一致で検証する。"
-      properties:
-        request_id:
-          type: string
-          format: uuid
-        factor_type:
-          type: string
-          enum:
-            - totp
-            - webauthn
-            - hwk
-            - swk
-        credential:
-          type: string
-        csrf:
-          type: string
-      required:
-        - request_id
-        - factor_type
-        - credential
-        - csrf
     BrowserLoginRequest:
       type: object
       additionalProperties: false
@@ -1868,7 +1765,7 @@ components:
     BrowserTotpRequest:
       type: object
       additionalProperties: false
-      description: "SPA が POST /api/auth/totp に送る TOTP コード。authorization request id は HttpOnly transaction cookie、CSRF は X-CSRF-Token header から解決する。他 factor (WebAuthn 等) は HTTP 形が大きく異なるため、別 endpoint と別 value object として独立に定義する。"
+      description: "Browser client が POST /api/auth/totp に送る TOTP コード。authorization request id は HttpOnly transaction cookie、CSRF は X-CSRF-Token header から解決する。他 factor (WebAuthn 等) はHTTP形が大きく異なるため、別endpointと別value objectとして独立に定義する。"
       properties:
         code:
           type: string

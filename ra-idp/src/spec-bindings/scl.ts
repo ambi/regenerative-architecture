@@ -5,7 +5,7 @@
  *
  * 命名規約:
  *  - SCL の名前 = PascalCase（型・状態・イベント・アクション）
- *  - ワイヤ形式 = snake_case（vocabulary[].aliases[0] から取得）
+ *  - インタフェース・スキーマ = snake_case（vocabulary[].aliases[0] から取得）
  *
  * 別言語に移植する場合は spec/scl.yaml を直接消費し、本ファイルを該当言語版で置き換える。
  */
@@ -147,7 +147,7 @@ export type StateMachine = {
   annotations?: Record<string, unknown>
 }
 
-export type Property = {
+export type Invariant = {
   description?: string
   target?: string
   assuming?: unknown
@@ -249,8 +249,8 @@ export type SclReferences = Partial<
     | 'vocabulary'
     | 'models'
     | 'interfaces'
-    | 'state_machines'
-    | 'properties'
+    | 'states'
+    | 'invariants'
     | 'scenarios'
     | 'permissions'
     | 'objectives',
@@ -302,7 +302,7 @@ export type UserExperienceRequirement = {
   interfaces?: string[]
   standards?: string[]
   scenarios?: string[]
-  properties?: string[]
+  invariants?: string[]
 }
 
 export type UserExperience = {
@@ -320,8 +320,8 @@ export type SclDocument = {
   vocabulary: Record<string, VocabularyEntry>
   models: Record<string, Model>
   interfaces: Record<string, Interface>
-  state_machines: Record<string, StateMachine>
-  properties: Record<string, Property>
+  states: Record<string, StateMachine>
+  invariants: Record<string, Invariant>
   scenarios: Record<string, Scenario>
   permissions: Record<string, Permission>
   objectives: Record<string, Objective>
@@ -338,16 +338,16 @@ export function httpBinding(iface: Interface): HttpBinding | undefined {
 }
 
 // ===============================================================
-// 命名変換: PascalCase → ワイヤ形式
+// 命名変換: PascalCase → インタフェース・スキーマ
 // ===============================================================
 
 /**
- * SCL の PascalCase 名をワイヤ形式（snake_case / 標準仕様の値）に変換する。
+ * SCL の PascalCase 名をインタフェース・スキーマ（snake_case / 標準仕様の値）に変換する。
  * 規則:
- *  1. vocabulary に登録され、最初の wire 形式 alias を返す（snake_case、URN を含む）
+ *  1. vocabulary に登録され、最初の schema 形式 alias を返す（snake_case、URN を含む）
  *  2. それ以外は元の名前をそのまま返す（PS256, ES256, S256 のような頭字語・トークン）
  *
- * wire 形式とは「英小文字で始まり、英小文字・数字・`_:.-` のみを含む」もの。
+ * schema 形式とは「英小文字で始まり、英小文字・数字・`_:.-` のみを含む」もの。
  * 例: `device_code`, `client_secret_basic`, `urn:ietf:params:oauth:grant-type:device_code`
  */
 const WIRE_ALIAS_PATTERN = /^[a-z][a-z0-9_:.-]*$/
@@ -362,7 +362,7 @@ export function toWire(name: string): string {
   return name
 }
 
-/** PascalCase 名のリストをワイヤ形式に変換 */
+/** PascalCase 名のリストをインタフェース・スキーマに変換 */
 export function toWireAll(names: string[]): string[] {
   return names.map(toWire)
 }
@@ -378,14 +378,14 @@ export function enumValues(modelName: string): string[] {
   return m.values
 }
 
-/** enum 値のリストをワイヤ形式（snake_case 等）で返す */
+/** enum 値のリストをインタフェース・スキーマ（snake_case 等）で返す */
 export function enumWireValues(modelName: string): string[] {
   return toWireAll(enumValues(modelName))
 }
 
-/** state machine の全状態を SCL 形式で取得（initial + terminal + transitions の from/to を結合） */
+/** states セクションの全状態を SCL 形式で取得（initial + terminal + transitions の from/to を結合） */
 export function statesOf(machineName: string): string[] {
-  const sm = scl.state_machines[machineName]
+  const sm = scl.states[machineName]
   if (!sm) throw new Error(`state machine ${machineName} not found`)
   const set = new Set<string>([sm.initial, ...(sm.terminal ?? [])])
   for (const t of sm.transitions) {
@@ -395,16 +395,16 @@ export function statesOf(machineName: string): string[] {
   return [...set]
 }
 
-/** state machine の全イベントを SCL 形式で取得 */
+/** states セクションの全イベントを SCL 形式で取得 */
 export function eventsOf(machineName: string): string[] {
-  const sm = scl.state_machines[machineName]
+  const sm = scl.states[machineName]
   if (!sm) throw new Error(`state machine ${machineName} not found`)
   return [...new Set(sm.transitions.map((t) => t.event))]
 }
 
-/** state machine の遷移を {state: {event: state}} の入れ子マップ（ワイヤ形式）で返す */
+/** states セクションの遷移を {state: {event: state}} の入れ子マップ（インタフェース・スキーマ）で返す */
 export function transitionsAsWireMap(machineName: string): Record<string, Record<string, string>> {
-  const sm = scl.state_machines[machineName]
+  const sm = scl.states[machineName]
   if (!sm) throw new Error(`state machine ${machineName} not found`)
   const result: Record<string, Record<string, string>> = {}
   for (const s of statesOf(machineName)) result[toWire(s)] = {}
@@ -414,9 +414,9 @@ export function transitionsAsWireMap(machineName: string): Record<string, Record
   return result
 }
 
-/** state machine の終端状態をワイヤ形式で返す */
+/** states セクションの終端状態をインタフェース・スキーマで返す */
 export function terminalWireStates(machineName: string): string[] {
-  const sm = scl.state_machines[machineName]
+  const sm = scl.states[machineName]
   if (!sm) throw new Error(`state machine ${machineName} not found`)
   return (sm.terminal ?? []).map(toWire)
 }
@@ -509,7 +509,7 @@ function typeToJsonSchema(t: string): Record<string, unknown> {
 }
 
 // ===============================================================
-// 便宜上の名前付きエクスポート（よく使う state_machines）
+// 便宜上の名前付きエクスポート（よく使う states）
 // ===============================================================
 
 export const AUTH_CODE_FLOW = 'AuthorizationCodeFlow'

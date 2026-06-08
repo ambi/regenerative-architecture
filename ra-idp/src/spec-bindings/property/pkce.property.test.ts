@@ -1,5 +1,5 @@
 /**
- * Property: L1 — PKCE round-trip (spec/scl.yaml properties.PkceRoundTrip)
+ * Property: L1 — PKCE round-trip (spec/scl.yaml invariants.PkceRoundTrip)
  *
  * 任意の verifier ∈ RFC 7636 で
  *   challenge = base64url(SHA256(verifier))

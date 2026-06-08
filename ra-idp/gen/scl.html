@@ -372,7 +372,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
 <div class="layout">
 <nav class="toc" aria-label="Contents">
     <div class="toc-title">Contents</div>
-    <ol><li><a href="#overview">Overview</a></li><li><a href="#standards">Standards</a></li><li><a href="#vocabulary">Vocabulary</a></li><li><a href="#models">Models</a></li><li><a href="#interfaces">Interfaces</a></li><li><a href="#state_machines">State Machines</a></li><li><a href="#properties">Properties</a></li><li><a href="#scenarios">Scenarios</a></li><li><a href="#permissions">Permissions</a></li><li><a href="#objectives">Objectives</a></li><li><a href="#user_experience">User Experience</a></li></ol>
+    <ol><li><a href="#overview">Overview</a></li><li><a href="#standards">Standards</a></li><li><a href="#vocabulary">Vocabulary</a></li><li><a href="#models">Models</a></li><li><a href="#interfaces">Interfaces</a></li><li><a href="#states">States</a></li><li><a href="#invariants">Invariants</a></li><li><a href="#scenarios">Scenarios</a></li><li><a href="#permissions">Permissions</a></li><li><a href="#objectives">Objectives</a></li><li><a href="#user_experience">User Experience</a></li></ol>
   </nav>
 <main>
 <section id="overview">
@@ -381,7 +381,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
       <h1>ra-idp</h1>
       <div class="page-meta"><span class="badge badge-version">spec 1.1</span></div>
     </header>
-    <div class="stats"><a class="stat" href="#standards"><span class="stat-num">30</span><span class="stat-label">standards</span></a><a class="stat" href="#vocabulary"><span class="stat-num">98</span><span class="stat-label">vocabulary</span></a><a class="stat" href="#models"><span class="stat-num">94</span><span class="stat-label">models</span></a><a class="stat" href="#interfaces"><span class="stat-num">20</span><span class="stat-label">interfaces</span></a><a class="stat" href="#state_machines"><span class="stat-num">7</span><span class="stat-label">state machines</span></a><a class="stat" href="#properties"><span class="stat-num">19</span><span class="stat-label">properties</span></a><a class="stat" href="#scenarios"><span class="stat-num">50</span><span class="stat-label">scenarios</span></a><a class="stat" href="#permissions"><span class="stat-num">8</span><span class="stat-label">permissions</span></a><a class="stat" href="#objectives"><span class="stat-num">47</span><span class="stat-label">objectives</span></a><a class="stat" href="#user_experience"><span class="stat-num">7</span><span class="stat-label">user experience</span></a></div>
+    <div class="stats"><a class="stat" href="#standards"><span class="stat-num">30</span><span class="stat-label">standards</span></a><a class="stat" href="#vocabulary"><span class="stat-num">98</span><span class="stat-label">vocabulary</span></a><a class="stat" href="#models"><span class="stat-num">94</span><span class="stat-label">models</span></a><a class="stat" href="#interfaces"><span class="stat-num">20</span><span class="stat-label">interfaces</span></a><a class="stat" href="#states"><span class="stat-num">7</span><span class="stat-label">states</span></a><a class="stat" href="#invariants"><span class="stat-num">19</span><span class="stat-label">invariants</span></a><a class="stat" href="#scenarios"><span class="stat-num">50</span><span class="stat-label">scenarios</span></a><a class="stat" href="#permissions"><span class="stat-num">8</span><span class="stat-label">permissions</span></a><a class="stat" href="#objectives"><span class="stat-num">47</span><span class="stat-label">objectives</span></a><a class="stat" href="#user_experience"><span class="stat-num">7</span><span class="stat-label">user experience</span></a></div>
   </section>
 <section id="standards">
     <h2>Standards <span class="count">30</span></h2>
@@ -420,7 +420,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
             </header>
             <p>Authorization Code Grantを認可エンドポイントとトークンエンドポイントで提供する。</p>
 
-            <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-authorize">Authorize</a> <a class="chip chip-ref" href="#iface-token">Token</a></div><div class="reference-row"><span class="reference-label">state_machines</span><a class="chip chip-ref" href="#sm-authorizationcodeflow">AuthorizationCodeFlow</a></div>
+            <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-authorize">Authorize</a> <a class="chip chip-ref" href="#iface-token">Token</a></div><div class="reference-row"><span class="reference-label">states</span><a class="chip chip-ref" href="#state-authorizationcodeflow">AuthorizationCodeFlow</a></div>
           </article><article class="requirement" id="req-rfc6749-client-credentials">
             <header>
               <code class="name">RFC6749-CLIENT-CREDENTIALS</code>
@@ -624,7 +624,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
             </header>
             <p>Token requestのcode_verifierを認可時のcode_challengeと照合する。</p>
 
-            <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-authorize">Authorize</a> <a class="chip chip-ref" href="#iface-token">Token</a></div><div class="reference-row"><span class="reference-label">properties</span><a class="chip chip-ref" href="#prop-pkceroundtrip">PkceRoundTrip</a></div>
+            <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-authorize">Authorize</a> <a class="chip chip-ref" href="#iface-token">Token</a></div><div class="reference-row"><span class="reference-label">invariants</span><a class="chip chip-ref" href="#inv-pkceroundtrip">PkceRoundTrip</a></div>
           </article><article class="requirement" id="req-rfc7636-s256">
             <header>
               <code class="name">RFC7636-S256</code>
@@ -744,7 +744,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
             </header>
             <p>device_code、user_code、verification_uriを発行しResourceOwnerの判断を受け付ける。</p>
 
-            <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-deviceauthorization">DeviceAuthorization</a> <a class="chip chip-ref" href="#iface-getbrowserdevicecontext">GetBrowserDeviceContext</a> <a class="chip chip-ref" href="#iface-submitbrowserdevice">SubmitBrowserDevice</a></div><div class="reference-row"><span class="reference-label">state_machines</span><a class="chip chip-ref" href="#sm-devicecodeflow">DeviceCodeFlow</a></div>
+            <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-deviceauthorization">DeviceAuthorization</a> <a class="chip chip-ref" href="#iface-getbrowserdevicecontext">GetBrowserDeviceContext</a> <a class="chip chip-ref" href="#iface-submitbrowserdevice">SubmitBrowserDevice</a></div><div class="reference-row"><span class="reference-label">states</span><a class="chip chip-ref" href="#state-devicecodeflow">DeviceCodeFlow</a></div>
           </article><article class="requirement" id="req-rfc8628-polling">
             <header>
               <code class="name">RFC8628-POLLING</code>
@@ -800,7 +800,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
             </header>
             <p>発行するAccess Tokenへ非空のaudienceを設定し、意図しないResource Serverでの利用を防ぐ。</p>
 
-            <div class="reference-row"><span class="reference-label">properties</span><a class="chip chip-ref" href="#prop-allaccesstokenscarryaudience">AllAccessTokensCarryAudience</a></div><div class="reference-row"><span class="reference-label">models</span><a class="chip chip-ref" href="#model-accesstokenclaims">AccessTokenClaims</a></div>
+            <div class="reference-row"><span class="reference-label">invariants</span><a class="chip chip-ref" href="#inv-allaccesstokenscarryaudience">AllAccessTokensCarryAudience</a></div><div class="reference-row"><span class="reference-label">models</span><a class="chip chip-ref" href="#model-accesstokenclaims">AccessTokenClaims</a></div>
           </article></div>
       </article><article class="card standard" id="std-rfc9068">
         <header><h3>RFC9068</h3><span class="badge badge-version">RFC 9068</span></header>
@@ -856,7 +856,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
             </header>
             <p>request_uriは短命かつ一度だけ使用可能とする。</p>
 
-            <div class="reference-row"><span class="reference-label">objectives</span><a class="chip chip-ref" href="#obj-parrequesturilifetime">ParRequestUriLifetime</a></div><div class="reference-row"><span class="reference-label">state_machines</span><a class="chip chip-ref" href="#sm-parrecordlifecycle">PARRecordLifecycle</a></div>
+            <div class="reference-row"><span class="reference-label">objectives</span><a class="chip chip-ref" href="#obj-parrequesturilifetime">ParRequestUriLifetime</a></div><div class="reference-row"><span class="reference-label">states</span><a class="chip chip-ref" href="#state-parrecordlifecycle">PARRecordLifecycle</a></div>
           </article></div>
       </article><article class="card standard" id="std-rfc9207">
         <header><h3>RFC9207</h3><span class="badge badge-version">RFC 9207</span></header>
@@ -892,7 +892,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
             </header>
             <p>DPoP proofの署名、htm、htu、iat、jtiを検証する。</p>
 
-            <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-token">Token</a> <a class="chip chip-ref" href="#iface-userinfo">UserInfo</a> <a class="chip chip-ref" href="#iface-postuserinfo">PostUserInfo</a></div><div class="reference-row"><span class="reference-label">properties</span><a class="chip chip-ref" href="#prop-dpopjtiuniquenesswithinwindow">DpopJtiUniquenessWithinWindow</a></div>
+            <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-token">Token</a> <a class="chip chip-ref" href="#iface-userinfo">UserInfo</a> <a class="chip chip-ref" href="#iface-postuserinfo">PostUserInfo</a></div><div class="reference-row"><span class="reference-label">invariants</span><a class="chip chip-ref" href="#inv-dpopjtiuniquenesswithinwindow">DpopJtiUniquenessWithinWindow</a></div>
           </article><article class="requirement" id="req-rfc9449-token-binding">
             <header>
               <code class="name">RFC9449-TOKEN-BINDING</code>
@@ -920,7 +920,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
             </header>
             <p>redirect_uriは登録値と完全一致させ、未検証URIへリダイレクトしない。</p>
 
-            <div class="reference-row"><span class="reference-label">properties</span><a class="chip chip-ref" href="#prop-redirecturiexactmatch">RedirectUriExactMatch</a></div><div class="reference-row"><span class="reference-label">scenarios</span><a class="chip chip-ref" href="#scn-redirect-uri">未登録の redirect_uri へはリダイレクトしない</a></div>
+            <div class="reference-row"><span class="reference-label">invariants</span><a class="chip chip-ref" href="#inv-redirecturiexactmatch">RedirectUriExactMatch</a></div><div class="reference-row"><span class="reference-label">scenarios</span><a class="chip chip-ref" href="#scn-redirect-uri">未登録の redirect_uri へはリダイレクトしない</a></div>
           </article><article class="requirement" id="req-rfc9700-authorization-code">
             <header>
               <code class="name">RFC9700-AUTHORIZATION-CODE</code>
@@ -930,7 +930,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
             </header>
             <p>redirect-based flowはAuthorization Code GrantとPKCEで保護する。</p>
 
-            <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-authorize">Authorize</a> <a class="chip chip-ref" href="#iface-token">Token</a></div><div class="reference-row"><span class="reference-label">properties</span><a class="chip chip-ref" href="#prop-pkceroundtrip">PkceRoundTrip</a></div>
+            <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-authorize">Authorize</a> <a class="chip chip-ref" href="#iface-token">Token</a></div><div class="reference-row"><span class="reference-label">invariants</span><a class="chip chip-ref" href="#inv-pkceroundtrip">PkceRoundTrip</a></div>
           </article><article class="requirement" id="req-rfc9700-sender-constraint">
             <header>
               <code class="name">RFC9700-SENDER-CONSTRAINT</code>
@@ -950,7 +950,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
             </header>
             <p>Refresh Tokenをローテーションし再利用検知時に関連トークンを失効する。</p>
 
-            <div class="reference-row"><span class="reference-label">state_machines</span><a class="chip chip-ref" href="#sm-refreshtokenlifecycle">RefreshTokenLifecycle</a></div><div class="reference-row"><span class="reference-label">properties</span><a class="chip chip-ref" href="#prop-refreshfamilytransitiverevoke">RefreshFamilyTransitiveRevoke</a> <a class="chip chip-ref" href="#prop-refreshrotationparentinvariants">RefreshRotationParentInvariants</a></div>
+            <div class="reference-row"><span class="reference-label">states</span><a class="chip chip-ref" href="#state-refreshtokenlifecycle">RefreshTokenLifecycle</a></div><div class="reference-row"><span class="reference-label">invariants</span><a class="chip chip-ref" href="#inv-refreshfamilytransitiverevoke">RefreshFamilyTransitiveRevoke</a> <a class="chip chip-ref" href="#inv-refreshrotationparentinvariants">RefreshRotationParentInvariants</a></div>
           </article></div>
       </article><article class="card standard" id="std-openidconnectcore">
         <header><h3>OpenIDConnectCore</h3><span class="badge badge-version">Final</span></header>
@@ -1214,7 +1214,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
             </header>
             <p>ResourceOwnerが同意を撤回でき、撤回後の新規発行へ利用しない。</p>
 
-            <div class="reference-row"><span class="reference-label">models</span><a class="chip chip-ref" href="#model-consent">Consent</a></div><div class="reference-row"><span class="reference-label">state_machines</span><a class="chip chip-ref" href="#sm-consentlifecycle">ConsentLifecycle</a></div>
+            <div class="reference-row"><span class="reference-label">models</span><a class="chip chip-ref" href="#model-consent">Consent</a></div><div class="reference-row"><span class="reference-label">states</span><a class="chip chip-ref" href="#state-consentlifecycle">ConsentLifecycle</a></div>
           </article><article class="requirement" id="req-gdpr-erasure">
             <header>
               <code class="name">GDPR-ERASURE</code>
@@ -5666,10 +5666,10 @@ table.fields tbody tr:last-child td { border-bottom: none; }
   </div></div></div>
   </article></div>
   </section>
-<section id="state_machines">
-    <h2>State Machines <span class="count">7</span></h2>
+<section id="states">
+    <h2>States <span class="count">7</span></h2>
 
-    <div class="cards"><article class="card" id="sm-authorizationcodeflow">
+    <div class="cards"><article class="card" id="state-authorizationcodeflow">
     <header><h3>AuthorizationCodeFlow</h3></header>
     <p class="desc">/authorize から /token に至る authorization request のライフサイクル。</p>
     <dl class="kv"><dt>target</dt><dd><code>AuthorizationRequest</code></dd><dt>initial</dt><dd><span class="chip chip-initial">Received</span></dd><dt>terminal</dt><dd><span class="chip chip-terminal">Exchanged</span> <span class="chip chip-terminal">Rejected</span> <span class="chip chip-terminal">Expired</span></dd></dl>
@@ -5770,7 +5770,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
   </tr></tbody></table>
     </div>
   </article>
-<article class="card" id="sm-devicecodeflow">
+<article class="card" id="state-devicecodeflow">
     <header><h3>DeviceCodeFlow</h3></header>
     <p class="desc">RFC 8628 デバイス認可グラントのライフサイクル。device_code と user_code がペアで進む。</p>
     <dl class="kv"><dt>target</dt><dd><code>DeviceAuthorization</code></dd><dt>initial</dt><dd><span class="chip chip-initial">Issued</span></dd><dt>terminal</dt><dd><span class="chip chip-terminal">Exchanged</span> <span class="chip chip-terminal">Denied</span> <span class="chip chip-terminal">Expired</span></dd></dl>
@@ -5841,7 +5841,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
   </tr></tbody></table>
     </div>
   </article>
-<article class="card" id="sm-refreshtokenlifecycle">
+<article class="card" id="state-refreshtokenlifecycle">
     <header><h3>RefreshTokenLifecycle</h3></header>
     <p class="desc">RefreshToken のライフサイクル。Rotate で子トークンに引き継がれ、Revoke で失効、Expire で期限切れ。Rotated 後も家族失効により Revoked へ遷移しうる（RFC 9700 §4.14）。</p>
     <dl class="kv"><dt>target</dt><dd><code>RefreshTokenRecord</code></dd><dt>initial</dt><dd><span class="chip chip-initial">Active</span></dd><dt>terminal</dt><dd><span class="chip chip-terminal">Revoked</span> <span class="chip chip-terminal">Expired</span></dd></dl>
@@ -5882,7 +5882,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
   </tr></tbody></table>
     </div>
   </article>
-<article class="card" id="sm-authorizationcoderecordlifecycle">
+<article class="card" id="state-authorizationcoderecordlifecycle">
     <header><h3>AuthorizationCodeRecordLifecycle</h3></header>
     <p class="desc">発行された AuthorizationCode 本体のライフサイクル。AuthorizationCodeFlow（AuthorizationRequest 側）の Exchanged に対応するのが Redeemed。</p>
     <dl class="kv"><dt>target</dt><dd><code>AuthorizationCodeRecord</code></dd><dt>initial</dt><dd><span class="chip chip-initial">Issued</span></dd><dt>terminal</dt><dd><span class="chip chip-terminal">Redeemed</span> <span class="chip chip-terminal">Expired</span></dd></dl>
@@ -5905,7 +5905,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
   </tr></tbody></table>
     </div>
   </article>
-<article class="card" id="sm-consentlifecycle">
+<article class="card" id="state-consentlifecycle">
     <header><h3>ConsentLifecycle</h3></header>
     <p class="desc">同意レコードのライフサイクル。GDPR Art.7(3) により Granted → Revoked が可能。</p>
     <dl class="kv"><dt>target</dt><dd><code>Consent</code></dd><dt>initial</dt><dd><span class="chip chip-initial">Granted</span></dd><dt>terminal</dt><dd><span class="chip chip-terminal">Revoked</span> <span class="chip chip-terminal">Expired</span></dd></dl>
@@ -5928,7 +5928,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
   </tr></tbody></table>
     </div>
   </article>
-<article class="card" id="sm-parrecordlifecycle">
+<article class="card" id="state-parrecordlifecycle">
     <header><h3>PARRecordLifecycle</h3></header>
     <p class="desc">PAR で発行された request_uri のライフサイクル。/authorize から一度だけ参照可能（RFC 9126）。</p>
     <dl class="kv"><dt>target</dt><dd><code>PARRecord</code></dd><dt>initial</dt><dd><span class="chip chip-initial">Stored</span></dd><dt>terminal</dt><dd><span class="chip chip-terminal">Used</span> <span class="chip chip-terminal">Expired</span></dd></dl>
@@ -5951,7 +5951,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
   </tr></tbody></table>
     </div>
   </article>
-<article class="card" id="sm-signingkeylifecycle">
+<article class="card" id="state-signingkeylifecycle">
     <header><h3>SigningKeyLifecycle</h3></header>
     <p class="desc">署名鍵のライフサイクル（ADR-009 / SigningKeyMinJwksOverlap）。Active から Rotate で Verifying に降り、Retire で JWKS から外し、Archive で監査保管に入る。</p>
     <dl class="kv"><dt>target</dt><dd><code>SigningKey</code></dd><dt>initial</dt><dd><span class="chip chip-initial">Active</span></dd><dt>terminal</dt><dd><span class="chip chip-terminal">Archived</span></dd></dl>
@@ -5981,10 +5981,10 @@ table.fields tbody tr:last-child td { border-bottom: none; }
     </div>
   </article></div>
   </section>
-<section id="properties">
-    <h2>Properties <span class="count">19</span></h2>
+<section id="invariants">
+    <h2>Invariants <span class="count">19</span></h2>
     <p class="lead">入力に依らず常に成り立つ不変条件、または決して起きてはならない事象。</p>
-    <div class="cards"><article class="card" id="prop-pkceroundtrip">
+    <div class="cards"><article class="card" id="inv-pkceroundtrip">
     <header><h3>PkceRoundTrip</h3></header>
     <p class="desc">任意の verifier in [A-Za-z0-9._~-]{43,128} に対して、
 challenge = base64url(SHA256(verifier)) としたとき、verifyPkce(verifier, challenge, S256) は true。
@@ -5992,7 +5992,7 @@ challenge = base64url(SHA256(verifier)) としたとき、verifyPkce(verifier, c
 
     <div class="clause clause-always"><div class="clause-label ok">always (invariant)</div><code class="expr">verifyPkce(verifier, base64url(sha256(verifier)), S256) == true</code></div>
   </article>
-<article class="card" id="prop-authcodestatesafety">
+<article class="card" id="inv-authcodestatesafety">
     <header><h3>AuthCodeStateSafety</h3></header>
     <p class="desc">任意のイベント列を AuthorizationCodeFlow に逐次適用しても、状態は宣言された値の部分集合に留まる。</p>
     <dl class="kv"><dt>target</dt><dd><code>AuthorizationRequest</code></dd></dl>
@@ -6001,7 +6001,7 @@ challenge = base64url(SHA256(verifier)) としたとき、verifyPkce(verifier, c
     <ul class="expr-list"><li><code class="expr">state</code></li><li><code class="expr">AuthorizationCodeState.values</code></li></ul>
   </div></div>
   </article>
-<article class="card" id="prop-devicecodestatesafety">
+<article class="card" id="inv-devicecodestatesafety">
     <header><h3>DeviceCodeStateSafety</h3></header>
     <p class="desc">任意のイベント列を DeviceCodeFlow に逐次適用しても、状態は宣言された値の部分集合に留まる。</p>
     <dl class="kv"><dt>target</dt><dd><code>DeviceAuthorization</code></dd></dl>
@@ -6010,7 +6010,7 @@ challenge = base64url(SHA256(verifier)) としたとき、verifyPkce(verifier, c
     <ul class="expr-list"><li><code class="expr">state</code></li><li><code class="expr">DeviceCodeState.values</code></li></ul>
   </div></div>
   </article>
-<article class="card" id="prop-refreshfamilytransitiverevoke">
+<article class="card" id="inv-refreshfamilytransitiverevoke">
     <header><h3>RefreshFamilyTransitiveRevoke</h3></header>
     <p class="desc">RevokeFamily(f) 後、family_id == f のすべての RefreshToken の state が Revoked になる。
 反例: ファミリー失効の取りこぼし。RFC 9700 §4.14 違反。</p>
@@ -6023,7 +6023,7 @@ challenge = base64url(SHA256(verifier)) としたとき、verifyPkce(verifier, c
       <code class="expr">x.family_id != event.family_id or x.state == Revoked</code>
     </div></div>
   </article>
-<article class="card" id="prop-refreshrotationparentinvariants">
+<article class="card" id="inv-refreshrotationparentinvariants">
     <header><h3>RefreshRotationParentInvariants</h3></header>
     <p class="desc">親 p を rotate(p, child) した直後の不変条件。
 反例: absolute TTL が延長され、攻撃者が refresh chain を無限延長可能になる。</p>
@@ -6034,7 +6034,7 @@ challenge = base64url(SHA256(verifier)) としたとき、verifyPkce(verifier, c
     <ul class="expr-list"><li><code class="expr">next.parent.state == Rotated</code></li><li><code class="expr">next.child.parent_id == prev.parent.id</code></li><li><code class="expr">next.child.family_id == prev.parent.family_id</code></li><li><code class="expr">next.child.absolute_expires_at == prev.parent.absolute_expires_at</code></li></ul>
   </div></div>
   </article>
-<article class="card" id="prop-dpopjtiuniquenesswithinwindow">
+<article class="card" id="inv-dpopjtiuniquenesswithinwindow">
     <header><h3>DpopJtiUniquenessWithinWindow</h3></header>
     <p class="desc">window 秒以内に同一 jti を含む DPoP proof は受理されない。
 反例: DPoP リプレイ攻撃の成功。RFC 9449 違反。</p>
@@ -6047,7 +6047,7 @@ challenge = base64url(SHA256(verifier)) としたとき、verifyPkce(verifier, c
       <code class="expr">x.jti == event.jti and (event.at - x.seen_at) &lt;= window</code>
     </div></div>
   </article>
-<article class="card" id="prop-tokenhashoneway">
+<article class="card" id="inv-tokenhashoneway">
     <header><h3>TokenHashOneWay</h3></header>
     <p class="desc">RefreshTokenRecord にはハッシュのみが保存され、平文が残らない。
 反例: トークン平文漏洩、horizontal escalation の可能性。</p>
@@ -6057,27 +6057,27 @@ challenge = base64url(SHA256(verifier)) としたとき、verifyPkce(verifier, c
     <ul class="expr-list"><li><code class="expr">EXISTS(hash)</code></li><li><code class="expr">NOT EXISTS(plaintext)</code></li></ul>
   </div></div>
   </article>
-<article class="card" id="prop-authorizationcodesingleuse">
+<article class="card" id="inv-authorizationcodesingleuse">
     <header><h3>AuthorizationCodeSingleUse</h3></header>
     <p class="desc">発行された AuthorizationCode は最大1回だけ Redeemed に到達する。再使用は InvalidGrant。</p>
     <dl class="kv"><dt>target</dt><dd><code>AuthorizationCodeRecord</code></dd></dl>
     <div class="clause clause-assuming"><div class="clause-label muted">assuming (precondition)</div><code class="expr">event == RedeemCode</code></div>
 <div class="clause clause-never"><div class="clause-label danger">never (forbidden)</div><code class="expr">prev.state != Issued</code></div>
   </article>
-<article class="card" id="prop-parrequesturisingleuse">
+<article class="card" id="inv-parrequesturisingleuse">
     <header><h3>ParRequestUriSingleUse</h3></header>
     <p class="desc">PAR で発行された request_uri は使用直後に無効化される。</p>
     <dl class="kv"><dt>target</dt><dd><code>PARRecord</code></dd></dl>
     <div class="clause clause-assuming"><div class="clause-label muted">assuming (precondition)</div><code class="expr">event == Use</code></div>
 <div class="clause clause-never"><div class="clause-label danger">never (forbidden)</div><code class="expr">prev.state != Stored</code></div>
   </article>
-<article class="card" id="prop-authorizationcodettl">
+<article class="card" id="inv-authorizationcodettl">
     <header><h3>AuthorizationCodeTtl</h3></header>
     <p class="desc">AuthorizationCode の TTL は最大 60 秒（RFC 9700 §4.10）。</p>
     <dl class="kv"><dt>target</dt><dd><code>AuthorizationCodeRecord</code></dd></dl>
     <div class="clause clause-always"><div class="clause-label ok">always (invariant)</div><code class="expr">expires_at - issued_at &lt;= 60s</code></div>
   </article>
-<article class="card" id="prop-authorizationcodeeventuallyresolves">
+<article class="card" id="inv-authorizationcodeeventuallyresolves">
     <header><h3>AuthorizationCodeEventuallyResolves</h3></header>
     <p class="desc">発行された AuthorizationCode は必ず Redeemed または Expired に到達する。</p>
     <dl class="kv"><dt>target</dt><dd><code>AuthorizationCodeRecord</code></dd></dl>
@@ -6086,7 +6086,7 @@ challenge = base64url(SHA256(verifier)) としたとき、verifyPkce(verifier, c
     <ul class="expr-list"><li><code class="expr">state</code></li><li><ul class="expr-list"><li><code class="expr">Redeemed</code></li><li><code class="expr">Expired</code></li></ul></li></ul>
   </div></div>
   </article>
-<article class="card" id="prop-devicecodeeventuallyresolves">
+<article class="card" id="inv-devicecodeeventuallyresolves">
     <header><h3>DeviceCodeEventuallyResolves</h3></header>
     <p class="desc">発行された DeviceCode は必ず Exchanged / Denied / Expired のいずれかに到達する。</p>
     <dl class="kv"><dt>target</dt><dd><code>DeviceAuthorization</code></dd></dl>
@@ -6095,20 +6095,20 @@ challenge = base64url(SHA256(verifier)) としたとき、verifyPkce(verifier, c
     <ul class="expr-list"><li><code class="expr">state</code></li><li><ul class="expr-list"><li><code class="expr">Exchanged</code></li><li><code class="expr">Denied</code></li><li><code class="expr">Expired</code></li></ul></li></ul>
   </div></div>
   </article>
-<article class="card" id="prop-refreshtokenabsolutettl">
+<article class="card" id="inv-refreshtokenabsolutettl">
     <header><h3>RefreshTokenAbsoluteTtl</h3></header>
     <p class="desc">RefreshToken の絶対 TTL は通常 TTL 以上（ローテーション越境不可、ADR-004）。</p>
     <dl class="kv"><dt>target</dt><dd><code>RefreshTokenRecord</code></dd></dl>
     <div class="clause clause-always"><div class="clause-label ok">always (invariant)</div><code class="expr">absolute_expires_at &gt;= expires_at</code></div>
   </article>
-<article class="card" id="prop-signingkeymaxage">
+<article class="card" id="inv-signingkeymaxage">
     <header><h3>SigningKeyMaxAge</h3></header>
     <p class="desc">有効な署名鍵は 90 日を超えない間隔で回転する（ADR-009）。</p>
     <dl class="kv"><dt>target</dt><dd><code>SigningKey</code></dd></dl>
     <div class="clause clause-assuming"><div class="clause-label muted">assuming (precondition)</div><code class="expr">state == Active</code></div>
 <div class="clause clause-eventually"><div class="clause-label accent">eventually (liveness) <span class="within">within <code>90d</code></span></div><code class="expr">event == SigningKeyRotated</code></div>
   </article>
-<article class="card" id="prop-redirecturiexactmatch">
+<article class="card" id="inv-redirecturiexactmatch">
     <header><h3>RedirectUriExactMatch</h3></header>
     <p class="desc">認可リクエストの redirect_uri は登録 URI のいずれかと完全文字列一致しなければならない（RFC 9700 §4.1.3）。</p>
 
@@ -6120,14 +6120,14 @@ challenge = base64url(SHA256(verifier)) としたとき、verifyPkce(verifier, c
       <code class="expr">x == request.redirect_uri</code>
     </div></div>
   </article>
-<article class="card" id="prop-pkcemandatory">
+<article class="card" id="inv-pkcemandatory">
     <header><h3>PkceMandatory</h3></header>
     <p class="desc">認可コードフローのすべての要求に対して code_challenge を必須とする（例外なし、ADR-002）。</p>
 
     <div class="clause clause-assuming"><div class="clause-label muted">assuming (precondition)</div><code class="expr">event == ValidateAuthorizeRequest</code></div>
 <div class="clause clause-always"><div class="clause-label ok">always (invariant)</div><code class="expr">exists(request.code_challenge) and request.code_challenge_method == S256</code></div>
   </article>
-<article class="card" id="prop-accesstokenissuedonlyafterconsent">
+<article class="card" id="inv-accesstokenissuedonlyafterconsent">
     <header><h3>AccessTokenIssuedOnlyAfterConsent</h3></header>
     <p class="desc">AccessToken は、対応する Subject × Client × Scope の Consent が Granted の場合のみ発行される。</p>
 
@@ -6143,13 +6143,13 @@ and forall: { in: event.scope, satisfies: &quot;x in x.scopes&quot; }
 </code>
     </div></div>
   </article>
-<article class="card" id="prop-allaccesstokenscarryaudience">
+<article class="card" id="inv-allaccesstokenscarryaudience">
     <header><h3>AllAccessTokensCarryAudience</h3></header>
     <p class="desc">発行されたすべての AccessToken は非空の audience を持つ（RFC 8707 / RFC 9068）。</p>
     <dl class="kv"><dt>target</dt><dd><code>AccessToken</code></dd></dl>
     <div class="clause clause-always"><div class="clause-label ok">always (invariant)</div><code class="expr">exists(audience) and len(audience) &gt;= 1</code></div>
   </article>
-<article class="card" id="prop-clientauthfailureuniformity">
+<article class="card" id="inv-clientauthfailureuniformity">
     <header><h3>ClientAuthFailureUniformity</h3></header>
     <p class="desc">クライアント認証失敗時、client_id の存在有無を開示しない（タイミング差・エラーメッセージ差を出さない）。</p>
 
@@ -6985,7 +6985,7 @@ and forall: { in: event.scope, satisfies: &quot;x in x.scopes&quot; }
         </header>
         <p>Browser flowの外部遷移先は検証済みredirect_uriまたはpost_logout_redirect_uriだけとする。</p>
         <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-login">Login</a> <a class="chip" href="#screen-totp">Totp</a> <a class="chip" href="#screen-consent">Consent</a> <a class="chip" href="#screen-status">Status</a></div>
-        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-authorize">Authorize</a> <a class="chip chip-ref" href="#iface-submitbrowserlogin">SubmitBrowserLogin</a> <a class="chip chip-ref" href="#iface-submitbrowsertotp">SubmitBrowserTotp</a> <a class="chip chip-ref" href="#iface-submitbrowserconsent">SubmitBrowserConsent</a> <a class="chip chip-ref" href="#iface-endsession">EndSession</a></div><div class="reference-row"><span class="reference-label">standards</span><a class="chip chip-ref" href="#std-rfc9700">RFC9700</a> <a class="chip chip-ref" href="#std-openidconnectrpinitiatedlogout">OpenIDConnectRPInitiatedLogout</a></div><div class="reference-row"><span class="reference-label">properties</span><a class="chip chip-ref" href="#prop-redirecturiexactmatch">RedirectUriExactMatch</a></div>
+        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-authorize">Authorize</a> <a class="chip chip-ref" href="#iface-submitbrowserlogin">SubmitBrowserLogin</a> <a class="chip chip-ref" href="#iface-submitbrowsertotp">SubmitBrowserTotp</a> <a class="chip chip-ref" href="#iface-submitbrowserconsent">SubmitBrowserConsent</a> <a class="chip chip-ref" href="#iface-endsession">EndSession</a></div><div class="reference-row"><span class="reference-label">standards</span><a class="chip chip-ref" href="#std-rfc9700">RFC9700</a> <a class="chip chip-ref" href="#std-openidconnectrpinitiatedlogout">OpenIDConnectRPInitiatedLogout</a></div><div class="reference-row"><span class="reference-label">invariants</span><a class="chip chip-ref" href="#inv-redirecturiexactmatch">RedirectUriExactMatch</a></div>
       </article><article class="requirement" id="ux-ux-client-context">
         <header>
           <code class="name">UX-CLIENT-CONTEXT</code>

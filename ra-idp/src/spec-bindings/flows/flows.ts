@@ -1,7 +1,7 @@
 /**
  * Layer 3 — Specification Binding (TypeScript)
  *
- * 状態機械の本体は spec/scl.yaml の `state_machines` セクション。
+ * 状態機械の本体は spec/scl.yaml の `states` セクション。
  * このファイルは TypeScript の narrow タプル・実行ユーティリティを提供するバインディング。
  * SCL との整合は ../invariants.test.ts で検証する。
  */
@@ -76,7 +76,7 @@ export const DEVICE_CODE_STATES = [
 export type DeviceCodeState = (typeof DEVICE_CODE_STATES)[number]
 
 /**
- * SCL `state_machines.DeviceCodeFlow.transitions` から派生。
+ * SCL `states.DeviceCodeFlow.transitions` から派生。
  * `slow_down` はポーリング応答（OAuthErrorCode）であり遷移イベントではないため含まない。
  */
 export const DEVICE_CODE_EVENTS = [
@@ -106,9 +106,9 @@ export function isDeviceCodeTerminal(state: DeviceCodeState): boolean {
 }
 
 /**
- * RFC 8628 §3.5 のポーリング動作仕様（SCL state_machines.DeviceCodeFlow.polling）。
+ * RFC 8628 §3.5 のポーリング動作仕様（SCL states.DeviceCodeFlow.polling）。
  */
-const devicePolling = scl.state_machines[DEVICE_CODE_FLOW]?.polling as
+const devicePolling = scl.states[DEVICE_CODE_FLOW]?.polling as
   | {
       default_interval_seconds: number
       slow_down_increment_seconds: number

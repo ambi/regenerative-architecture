@@ -4,7 +4,7 @@
 # このファイルが保存対象。gen/* と派生ポリシー・監視ルールはすべてここから生成される。
 #
 # 言語規約: 型/状態/イベント/インターフェース/アクション = PascalCase、
-#           フィールド/パラメータ = snake_case（ワイヤ形式と一致）。
+#           フィールド/パラメータ = snake_case（インタフェース・スキーマと一致）。
 #           標準仕様の snake_case 名（例: authorization_code）は aliases に置く。
 
 system: ra-idp
@@ -55,7 +55,7 @@ standards:
         strength: MUST
         adoption: required
         statement: Authorization Code Grantを認可エンドポイントとトークンエンドポイントで提供する。
-        relates_to: { interfaces: [Authorize, Token], state_machines: [AuthorizationCodeFlow] }
+        relates_to: { interfaces: [Authorize, Token], states: [AuthorizationCodeFlow] }
       - id: RFC6749-CLIENT-CREDENTIALS
         section: "§4.4"
         strength: MAY
@@ -205,7 +205,7 @@ standards:
         strength: MUST
         adoption: required
         statement: Token requestのcode_verifierを認可時のcode_challengeと照合する。
-        relates_to: { interfaces: [Authorize, Token], properties: [PkceRoundTrip] }
+        relates_to: { interfaces: [Authorize, Token], invariants: [PkceRoundTrip] }
       - id: RFC7636-S256
         section: "§4.2"
         strength: SHOULD
@@ -293,7 +293,7 @@ standards:
         strength: MUST
         adoption: optional
         statement: device_code、user_code、verification_uriを発行しResourceOwnerの判断を受け付ける。
-        relates_to: { interfaces: [DeviceAuthorization, GetBrowserDeviceContext, SubmitBrowserDevice], state_machines: [DeviceCodeFlow] }
+        relates_to: { interfaces: [DeviceAuthorization, GetBrowserDeviceContext, SubmitBrowserDevice], states: [DeviceCodeFlow] }
       - id: RFC8628-POLLING
         section: "§3.5"
         strength: MUST
@@ -333,7 +333,7 @@ standards:
         strength: SHOULD
         adoption: required
         statement: 発行するAccess Tokenへ非空のaudienceを設定し、意図しないResource Serverでの利用を防ぐ。
-        relates_to: { properties: [AllAccessTokensCarryAudience], models: [AccessTokenClaims] }
+        relates_to: { invariants: [AllAccessTokensCarryAudience], models: [AccessTokenClaims] }
 
   RFC9068:
     title: JSON Web Token Profile for OAuth 2.0 Access Tokens
@@ -373,7 +373,7 @@ standards:
         strength: SHOULD
         adoption: required
         statement: request_uriは短命かつ一度だけ使用可能とする。
-        relates_to: { objectives: [ParRequestUriLifetime], state_machines: [PARRecordLifecycle] }
+        relates_to: { objectives: [ParRequestUriLifetime], states: [PARRecordLifecycle] }
 
   RFC9207:
     title: OAuth 2.0 Authorization Server Issuer Identification
@@ -401,7 +401,7 @@ standards:
         strength: MAY
         adoption: optional
         statement: DPoP proofの署名、htm、htu、iat、jtiを検証する。
-        relates_to: { interfaces: [Token, UserInfo, PostUserInfo], properties: [DpopJtiUniquenessWithinWindow] }
+        relates_to: { interfaces: [Token, UserInfo, PostUserInfo], invariants: [DpopJtiUniquenessWithinWindow] }
       - id: RFC9449-TOKEN-BINDING
         section: "§6"
         strength: MUST
@@ -421,13 +421,13 @@ standards:
         strength: MUST
         adoption: required
         statement: redirect_uriは登録値と完全一致させ、未検証URIへリダイレクトしない。
-        relates_to: { properties: [RedirectUriExactMatch], scenarios: [未登録の redirect_uri へはリダイレクトしない] }
+        relates_to: { invariants: [RedirectUriExactMatch], scenarios: [未登録の redirect_uri へはリダイレクトしない] }
       - id: RFC9700-AUTHORIZATION-CODE
         section: "§2.1.1"
         strength: MUST
         adoption: required
         statement: redirect-based flowはAuthorization Code GrantとPKCEで保護する。
-        relates_to: { interfaces: [Authorize, Token], properties: [PkceRoundTrip] }
+        relates_to: { interfaces: [Authorize, Token], invariants: [PkceRoundTrip] }
       - id: RFC9700-SENDER-CONSTRAINT
         section: "§2.2.1"
         strength: SHOULD
@@ -439,7 +439,7 @@ standards:
         strength: MUST
         adoption: required
         statement: Refresh Tokenをローテーションし再利用検知時に関連トークンを失効する。
-        relates_to: { state_machines: [RefreshTokenLifecycle], properties: [RefreshFamilyTransitiveRevoke, RefreshRotationParentInvariants] }
+        relates_to: { states: [RefreshTokenLifecycle], invariants: [RefreshFamilyTransitiveRevoke, RefreshRotationParentInvariants] }
 
   OpenIDConnectCore:
     title: OpenID Connect Core 1.0 incorporating errata set 1
@@ -618,7 +618,7 @@ standards:
         strength: MUST
         adoption: required
         statement: ResourceOwnerが同意を撤回でき、撤回後の新規発行へ利用しない。
-        relates_to: { models: [Consent], state_machines: [ConsentLifecycle] }
+        relates_to: { models: [Consent], states: [ConsentLifecycle] }
       - id: GDPR-ERASURE
         section: "Article 17"
         strength: MUST
@@ -633,10 +633,10 @@ standards:
         relates_to: { objectives: [AuditLogRetention] }
 
 # =================================================================
-# 1. vocabulary — ユビキタス言語
+# 1. vocabulary — 用語集
 # =================================================================
 #
-# 本アプリの「ドメイン」は OAuth 2.0 / OIDC の標準仕様。語彙の役割は
+# 本アプリの「ドメイン」は OAuth 2.0 / OIDC の標準仕様。用語集の役割は
 # 「標準のどの用語をどう使うか」「標準で並立する語のうちどれを採用するか」
 # 「実装側のフィールド名がどの標準語に対応するか」を確定させること。
 
@@ -2108,10 +2108,10 @@ interfaces:
 
 
 # =================================================================
-# 4. state_machines — 状態遷移
+# 4. states — 状態遷移
 # =================================================================
 
-state_machines:
+states:
 
   AuthorizationCodeFlow:
     description: /authorize から /token に至る authorization request のライフサイクル。
@@ -2212,10 +2212,10 @@ state_machines:
 
 
 # =================================================================
-# 5. properties — 不変条件
+# 5. invariants — 不変条件
 # =================================================================
 
-properties:
+invariants:
 
   # ---------- セキュリティ法則 ----------
   PkceRoundTrip:
@@ -3186,7 +3186,7 @@ user_experience:
       screens: [Login, Totp, Consent, Status]
       interfaces: [Authorize, SubmitBrowserLogin, SubmitBrowserTotp, SubmitBrowserConsent, EndSession]
       standards: [RFC9700, OpenIDConnectRPInitiatedLogout]
-      properties: [RedirectUriExactMatch]
+      invariants: [RedirectUriExactMatch]
     - id: UX-CLIENT-CONTEXT
       category: usability
       adoption: required

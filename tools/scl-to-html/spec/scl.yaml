@@ -25,8 +25,8 @@ vocabulary:
   Section:
     definition: |
       SCL 文書の論理単位。
-      vocabulary / models / interfaces / state_machines /
-      properties / scenarios / permissions / objectives の 8 種。
+      vocabulary / models / interfaces / states /
+      invariants / scenarios / permissions / objectives の 8 種。
 
   Render:
     definition: SclDocument を HtmlDocument に変換する射影。決定的で副作用を持たない。
@@ -50,8 +50,8 @@ models:
       - vocabulary
       - models
       - interfaces
-      - state_machines
-      - properties
+      - states
+      - invariants
       - scenarios
       - permissions
       - objectives
@@ -63,11 +63,11 @@ models:
       system:         { type: String, constraints: [non_empty] }
       spec_version:   { type: String, constraints: [non_empty] }
       annotations:    { type: Map, optional: true }
-      vocabulary:     { type: Map, optional: true }
+      vocabulary:          { type: Map, optional: true }
       models:         { type: Map, optional: true }
       interfaces:     { type: Map, optional: true }
-      state_machines: { type: Map, optional: true }
-      properties:     { type: Map, optional: true }
+      states:         { type: Map, optional: true }
+      invariants:     { type: Map, optional: true }
       scenarios:      { type: Map, optional: true }
       permissions:    { type: Map, optional: true }
       objectives:     { type: Map, optional: true }
@@ -104,10 +104,10 @@ interfaces:
         exit_codes: { success: 0 }
 
 # =================================================================
-# 4. properties
+# 4. invariants
 # =================================================================
 
-properties:
+invariants:
 
   presence_preserved:
     description: 入力に存在するセクションは、出力に対応する <section id="..."> を持つ。

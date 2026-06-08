@@ -2,7 +2,7 @@
  * Layer 3 — Application Logic
  *
  * 認可リクエストのドメインモデル。
- * spec/scl.yaml state_machines.AuthorizationCodeFlow に従う。
+ * spec/scl.yaml states.AuthorizationCodeFlow に従う。
  */
 
 import { randomUUID } from 'crypto'

@@ -11,7 +11,7 @@
 import { scl, enumWireValues, toWire } from '../scl'
 
 // ===============================================================
-// Enum 値（ワイヤ形式、narrow タプル）
+// Enum 値（インタフェース・スキーマ、narrow タプル）
 // ===============================================================
 
 export const SUPPORTED_GRANT_TYPES = [
@@ -97,7 +97,7 @@ export function grantRequiresPkce(grant: GrantType): boolean {
 // SCL 整合性検査用ビュー
 // ===============================================================
 
-/** SCL の各 enum モデルからワイヤ形式の値リストを取得（テストが期待値として使う） */
+/** SCL の各 enum モデルからインタフェース・スキーマの値リストを取得（テストが期待値として使う） */
 export function sclEnumWire(modelName: string): string[] {
   return enumWireValues(modelName)
 }

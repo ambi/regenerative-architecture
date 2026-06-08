@@ -3,7 +3,7 @@
  *
  * verification_uri (RFC 8628 §3.3) でのユーザーによる user_code 承認 / 拒否。
  *
- * 状態遷移は spec/scl.yaml state_machines.DeviceCodeFlow.transitions に従う:
+ * 状態遷移は spec/scl.yaml states.DeviceCodeFlow.transitions に従う:
  *   issued --enter_user_code--> user_code_entered --approve--> approved
  *                                                 --deny----> denied
  *

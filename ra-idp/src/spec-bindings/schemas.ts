@@ -212,7 +212,7 @@ export type PARRecord = z.infer<typeof PARRecordSchema>
 // ===============================================================
 // デバイス認可 (RFC 8628) — volatile state
 // ===============================================================
-// 状態機械の本体は spec/scl.yaml state_machines.DeviceCodeFlow。ここはストアレコードの形。
+// 状態機械の本体は spec/scl.yaml states.DeviceCodeFlow。ここはストアレコードの形。
 
 export const DeviceAuthorizationSchema = z.object({
   // device_code はベアラ秘密。プレーンテキストは保存せず SHA-256 ハッシュのみ持つ。

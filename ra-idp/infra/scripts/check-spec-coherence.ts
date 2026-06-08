@@ -73,7 +73,7 @@ type SclLike = {
       emits?: string[]
     }
   >
-  state_machines: Record<
+  states: Record<
     string,
     {
       initial: string
@@ -81,7 +81,7 @@ type SclLike = {
       transitions: Array<{ from: string; event: string; to: string }>
     }
   >
-  properties: Record<string, unknown>
+  invariants: Record<string, unknown>
   scenarios: Record<string, unknown>
   permissions: Record<string, unknown>
   objectives: Record<string, unknown>
@@ -109,7 +109,7 @@ type SclLike = {
       interfaces?: string[]
       standards?: string[]
       scenarios?: string[]
-      properties?: string[]
+      invariants?: string[]
     }>
   }
 }
@@ -146,7 +146,7 @@ function checkVocabularyCompleteness() {
     }
   }
 
-  for (const [machineName, machine] of Object.entries(scl.state_machines)) {
+  for (const [machineName, machine] of Object.entries(scl.states)) {
     const names = new Set<string>([machine.initial, ...(machine.terminal ?? [])])
     for (const transition of machine.transitions) {
       names.add(transition.from)
@@ -154,8 +154,8 @@ function checkVocabularyCompleteness() {
       names.add(transition.to)
     }
     for (const name of names) {
-      if (vocabulary.has(name)) ok(`vocabulary ⊇ state_machine ${machineName}.${name}`)
-      else bad(`vocabulary に state_machine ${machineName}.${name} がない`)
+      if (vocabulary.has(name)) ok(`vocabulary ⊇ state ${machineName}.${name}`)
+      else bad(`vocabulary に state ${machineName}.${name} がない`)
     }
   }
 }
@@ -170,8 +170,8 @@ function checkStandardsAndUserExperience() {
     vocabulary: new Set(Object.keys(scl.vocabulary)),
     models: new Set(Object.keys(scl.models)),
     interfaces: new Set(Object.keys(scl.interfaces)),
-    state_machines: new Set(Object.keys(scl.state_machines)),
-    properties: new Set(Object.keys(scl.properties)),
+    states: new Set(Object.keys(scl.states)),
+    invariants: new Set(Object.keys(scl.invariants)),
     scenarios: new Set(Object.keys(scl.scenarios)),
     permissions: new Set(Object.keys(scl.permissions)),
     objectives: new Set(Object.keys(scl.objectives)),
@@ -303,9 +303,9 @@ function checkStandardsAndUserExperience() {
         bad(`user_experience.${requirement.id} が未知の scenario ${scenario} を参照`)
       }
     }
-    for (const property of requirement.properties ?? []) {
-      if (!sectionTargets.properties.has(property)) {
-        bad(`user_experience.${requirement.id} が未知の property ${property} を参照`)
+    for (const invariant of requirement.invariants ?? []) {
+      if (!sectionTargets.invariants.has(invariant)) {
+        bad(`user_experience.${requirement.id} が未知の invariant ${invariant} を参照`)
       }
     }
   }

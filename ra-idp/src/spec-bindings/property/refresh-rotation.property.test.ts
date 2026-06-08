@@ -1,5 +1,5 @@
 /**
- * Property: L3, L5 (spec/scl.yaml properties.{RefreshFamilyTransitiveRevoke, RefreshRotationParentInvariants})
+ * Property: L3, L5 (spec/scl.yaml invariants.{RefreshFamilyTransitiveRevoke, RefreshRotationParentInvariants})
  *
  * - L3: revokeFamily(f) 後、family_id=f の全トークンが revoked = true
  * - L5: rotate(p, child) 後、child.absolute_expires_at == p.absolute_expires_at

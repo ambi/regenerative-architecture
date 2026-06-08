@@ -13,8 +13,8 @@ export const SECTION_KINDS = [
   'vocabulary',
   'models',
   'interfaces',
-  'state_machines',
-  'properties',
+  'states',
+  'invariants',
   'scenarios',
   'permissions',
   'objectives',
@@ -31,8 +31,8 @@ export interface SclDocument {
   vocabulary?: Record<string, Vocabulary>
   models?: Record<string, Model>
   interfaces?: Record<string, Interface>
-  state_machines?: Record<string, StateMachine>
-  properties?: Record<string, Property>
+  states?: Record<string, StateMachine>
+  invariants?: Record<string, Invariant>
   scenarios?: Record<string, Scenario>
   permissions?: Record<string, Permission>
   objectives?: Record<string, Objective>
@@ -82,7 +82,7 @@ interface UserExperience {
     interfaces?: string[]
     standards?: string[]
     scenarios?: string[]
-    properties?: string[]
+    invariants?: string[]
   }>
 }
 
@@ -211,7 +211,7 @@ interface StateMachine {
   }>
 }
 
-interface Property {
+interface Invariant {
   description?: string
   annotations?: Record<string, unknown>
   target?: string
@@ -253,8 +253,8 @@ const referenceAnchor = (section: string, name: string): string | undefined => {
     vocabulary: 'vocab',
     models: 'model',
     interfaces: 'iface',
-    state_machines: 'sm',
-    properties: 'prop',
+    states: 'state',
+    invariants: 'inv',
     scenarios: 'scn',
     permissions: 'perm',
     objectives: 'obj',
@@ -367,7 +367,7 @@ const renderUserExperience = (ux: UserExperience): string => {
       if (requirement.interfaces) refs.interfaces = requirement.interfaces
       if (requirement.standards) refs.standards = requirement.standards
       if (requirement.scenarios) refs.scenarios = requirement.scenarios
-      if (requirement.properties) refs.properties = requirement.properties
+      if (requirement.invariants) refs.invariants = requirement.invariants
       return `<article class="requirement" id="ux-${esc(slug(requirement.id ?? ''))}">
         <header>
           <code class="name">${esc(requirement.id)}</code>
@@ -549,7 +549,7 @@ const ioTable = (io: Record<string, Field>, label: string): string => {
   </div>`
 }
 
-// ─── logical expression tree (properties / permissions) ────────────
+// ─── logical expression tree (invariants / permissions) ───────────
 
 const renderExpression = (v: unknown): string => {
   if (typeof v === 'string') return `<code class="expr">${esc(v)}</code>`
@@ -601,7 +601,7 @@ const renderExprOp = (op: string, operand: unknown): string => {
   </div>`
 }
 
-// ─── section: vocabulary ───────────────────────────────────────────
+// ─── section: vocabulary ────────────────────────────────────────────────
 
 const renderVocab = (entries: Record<string, Vocabulary>): string => {
   const items = Object.entries(entries)
@@ -922,7 +922,7 @@ const renderStateMachine = (name: string, sm: StateMachine): string => {
   </tr>`,
     )
     .join('')
-  return `<article class="card" id="sm-${esc(slug(name))}">
+  return `<article class="card" id="state-${esc(slug(name))}">
     <header><h3>${esc(name)}</h3></header>
     ${desc}
     ${metaRows.length ? `<dl class="kv">${metaRows.join('')}</dl>` : ''}
@@ -935,22 +935,22 @@ const renderStateMachine = (name: string, sm: StateMachine): string => {
   </article>`
 }
 
-const renderStateMachines = (sms: Record<string, StateMachine>): string => {
+const renderStates = (sms: Record<string, StateMachine>): string => {
   const cards = Object.entries(sms)
     .map(([n, sm]) => renderStateMachine(n, sm))
     .join('\n')
   return wrapSection(
-    'state_machines',
-    'State Machines',
+    'states',
+    'States',
     '',
     `<div class="cards">${cards}</div>`,
     Object.keys(sms).length,
   )
 }
 
-// ─── section: properties ───────────────────────────────────────────
+// ─── section: invariants ───────────────────────────────────────────
 
-const renderProperty = (name: string, p: Property): string => {
+const renderInvariant = (name: string, p: Invariant): string => {
   const desc = p.description ? `<p class="desc">${esc(p.description.trim())}</p>` : ''
   const ann = renderAnnotations(p.annotations)
   const metaRows = [
@@ -982,7 +982,7 @@ const renderProperty = (name: string, p: Property): string => {
       `<div class="clause clause-eventually"><div class="clause-label accent">eventually (liveness)${within}</div>${renderExpression(p.eventually)}</div>`,
     )
   }
-  return `<article class="card" id="prop-${esc(slug(name))}">
+  return `<article class="card" id="inv-${esc(slug(name))}">
     <header><h3>${esc(name)}</h3>${severity}</header>
     ${desc}
     ${meta}
@@ -990,13 +990,13 @@ const renderProperty = (name: string, p: Property): string => {
   </article>`
 }
 
-const renderProperties = (props: Record<string, Property>): string => {
+const renderInvariants = (props: Record<string, Invariant>): string => {
   const cards = Object.entries(props)
-    .map(([n, p]) => renderProperty(n, p))
+    .map(([n, p]) => renderInvariant(n, p))
     .join('\n')
   return wrapSection(
-    'properties',
-    'Properties',
+    'invariants',
+    'Invariants',
     '入力に依らず常に成り立つ不変条件、または決して起きてはならない事象。',
     `<div class="cards">${cards}</div>`,
     Object.keys(props).length,
@@ -1185,8 +1185,8 @@ const SECTION_TITLES: Record<SectionKind, string> = {
   vocabulary: 'Vocabulary',
   models: 'Models',
   interfaces: 'Interfaces',
-  state_machines: 'State Machines',
-  properties: 'Properties',
+  states: 'States',
+  invariants: 'Invariants',
   scenarios: 'Scenarios',
   permissions: 'Permissions',
   objectives: 'Objectives',
@@ -1237,10 +1237,10 @@ const renderOneSection = (k: SectionKind, scl: SclDocument): string => {
       return scl.models ? renderModels(scl.models) : ''
     case 'interfaces':
       return scl.interfaces ? renderInterfaces(scl.interfaces) : ''
-    case 'state_machines':
-      return scl.state_machines ? renderStateMachines(scl.state_machines) : ''
-    case 'properties':
-      return scl.properties ? renderProperties(scl.properties) : ''
+    case 'states':
+      return scl.states ? renderStates(scl.states) : ''
+    case 'invariants':
+      return scl.invariants ? renderInvariants(scl.invariants) : ''
     case 'scenarios':
       return scl.scenarios ? renderScenarios(scl.scenarios, buildXref(scl)) : ''
     case 'permissions':

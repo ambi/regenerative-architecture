@@ -13,7 +13,7 @@ SCL は以下を満たす。
 - AI が解釈・生成・変換可能
 - 人間が読める
 - 長期保存可能（ベンダ依存の形式を採らない）
-- 単一上流ソース（下流のワイヤ形式・言語バインディング・実装・図はここから派生する）
+- 単一上流ソース（下流のインタフェース・スキーマ・言語バインディング・実装・図はここから派生する）
 
 ## 2 文書構造
 
@@ -29,8 +29,8 @@ standards:       { ... }    # 任意: 外部標準と採用する規範要件
 vocabulary:     { ... }    # 用語の定義
 models:         { ... }    # データの形と同一性
 interfaces:     { ... }    # 外部との契約（インターフェース）
-state_machines: { ... }    # 状態と遷移
-properties:     { ... }    # 普遍的に成り立つ不変条件
+states: { ... }    # 状態と遷移
+invariants:     { ... }    # 普遍的に成り立つ不変条件
 scenarios:      { ... }    # 自然文ステップで書く受け入れ例
 permissions:    { ... }    # 認可ルール
 objectives:     { ... }    # 非機能目標
@@ -62,7 +62,7 @@ standards:
         statement: code_challenge_method は S256 を使用する
         relates_to:
           interfaces: [Authorize, Token]
-          properties: [PkceRoundTrip]
+          invariants: [PkceRoundTrip]
       - id: RFC7636-PLAIN
         section: "§4.2"
         strength: MAY
@@ -79,8 +79,8 @@ standards:
 | `optional` | 構成、プロファイル、クライアント能力により適用 |
 | `excluded` | 意図的に仕様対象外。`reason` 必須 |
 
-`relates_to` は `vocabulary`、`models`、`interfaces`、`state_machines`、
-`properties`、`scenarios`、`permissions`、`objectives`の名前を参照できる。
+`relates_to` は `vocabulary`、`models`、`interfaces`、`states`、
+`invariants`、`scenarios`、`permissions`、`objectives`の名前を参照できる。
 
 ### 2.2 user_experience — 画面と利用品質
 
@@ -238,7 +238,7 @@ models:
 
 ### 3.3 interfaces — 外部との契約
 
-外部世界に対する入出力の契約。HTTP・gRPC・CLI・メッセージング・GraphQL などのワイヤ形式はここから生成される。インターフェースは **論理的な契約（input / output / errors / emits）** と、それを露出する **トランスポート（bindings）** に分かれる。同一の論理インターフェースを複数トランスポートで同時に露出してよい。
+外部世界に対する入出力の契約。HTTP・gRPC・CLI・メッセージング・GraphQL などのインタフェース・スキーマはここから生成される。インターフェースは **論理的な契約（input / output / errors / emits）** と、それを露出する **トランスポート（bindings）** に分かれる。同一の論理インターフェースを複数トランスポートで同時に露出してよい。
 
 ```yaml
 interfaces:
@@ -368,12 +368,12 @@ interfaces:
 
 `kind: schedule` は input を取らない（暗黙の「現在時刻」のみ）。発火は scenarios の clock 刺激で検証する。
 
-### 3.4 state_machines — 状態遷移
+### 3.4 states — 状態遷移
 
 状態を持つモデルの遷移を宣言的に記述する。`switch` 文や workflow DSL に埋め込まない。
 
 ```yaml
-state_machines:
+states:
   TaskLifecycle:
     target: Task
     initial: Backlog
@@ -409,7 +409,7 @@ state_machines:
 
 `from`・`to` の状態名は、`target` モデルの状態フィールドが参照する `kind: enum` の値と一致しなければならない。
 
-### 3.5 properties — 不変条件と liveness
+### 3.5 invariants — 不変条件と liveness
 
 「どんな入力・どんな実行履歴でも常に成り立つべき性質」を述べる。プロパティベーステスト・監査ルール・フォーマル検証の証明義務がここから派生する。
 
@@ -421,7 +421,7 @@ state_machines:
 各主張には `assuming`（前提条件）を付けられる。前提が偽の場合は vacuously true。
 
 ```yaml
-properties:
+invariants:
 
   # safety: 不変
   StateAlwaysValid:
@@ -491,7 +491,7 @@ properties:
 
 ### 3.6 scenarios — 受け入れ例
 
-特定の状況での期待振る舞いを、**受け入れテストとして人間が読める自然文ステップ**で記述する。`properties` が *普遍*（常に成り立つ法則）を、`scenarios` が *個別*（具体的な振る舞いの例）を表し、両者は補完関係にある。
+特定の状況での期待振る舞いを、**受け入れテストとして人間が読める自然文ステップ**で記述する。`invariants` が *普遍*（常に成り立つ法則）を、`scenarios` が *個別*（具体的な振る舞いの例）を表し、両者は補完関係にある。
 
 scenarios は**ブラックボックス**である。内部のデータモデルの値を直接組み立て・直接覗くことはしない。観測できるのは **インターフェースを通したものだけ**——呼び出しの応答・エラー・発行イベント——であり、事前状態も「作成」系インターフェースの呼び出しで組む。これにより内部表現を変えてもシナリオは壊れない。
 
@@ -771,7 +771,7 @@ objectives:
 
 ## 5 式 (Expression) の文法
 
-`properties.always` / `properties.never`、`state_machines.transitions.guard`、`permissions.allow_when` / `permissions.deny_when` に書ける式。式は次の3形式のいずれかで書ける。
+`invariants.always` / `invariants.never`、`states.transitions.guard`、`permissions.allow_when` / `permissions.deny_when` に書ける式。式は次の3形式のいずれかで書ける。
 
 - **文字列式**: `"actor.role == Admin"`
 - **構造化論理式**: `{ and: [...] }`, `{ or: [...] }`, `{ not: ... }`
@@ -802,7 +802,7 @@ objectives:
 
 ### 5.2 変数
 
-**`properties` 内**:
+**`invariants` 内**:
 
 | 変数              | 説明                                |
 | ----------------- | ----------------------------------- |
@@ -813,7 +813,7 @@ objectives:
 | `<Model>.values`  | enum モデルの値の集合               |
 | `<Model>.<field>` | 他モデルへの参照                    |
 
-**`state_machines.guard` 内**:
+**`states.guard` 内**:
 
 | 変数            | 説明                          |
 | --------------- | ----------------------------- |
@@ -833,7 +833,7 @@ objectives:
 SCL は単一の上流ソースである。下流は3層の生成チェーンを成し、保存するのは (1) のみ。(2) (3) はいつでも作り直される。
 
 1. **SCL（保存対象）** — 上記 8 セクション
-2. **ワイヤ形式・ポリシー・ルール（生成物）** — OpenAPI / JSON Schema / Protobuf / AsyncAPI / Cedar / OPA Rego / OpenSLO 監視ルール / Mermaid 状態機械図 / シーケンス図
+2. **インタフェース・スキーマ・ポリシー・ルール（生成物）** — OpenAPI / JSON Schema / Protobuf / AsyncAPI / Cedar / OPA Rego / OpenSLO 監視ルール / Mermaid 状態機械図 / シーケンス図
 3. **言語バインディング・実装・テスト（生成物）** — TypeScript の Zod、Python の Pydantic、Go の構造体、プロパティテスト、行動テスト
 
 ## 7 記法と保存形式

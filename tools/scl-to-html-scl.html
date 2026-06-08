@@ -168,6 +168,12 @@ section > h2 .count, .grp-title .count {
 }
 .badge-severity-must { background: var(--danger-soft); color: var(--danger); }
 .badge-severity-should { background: var(--warn-soft); color: var(--warn); }
+.badge-adoption-required { background: var(--ok-soft); color: var(--ok); }
+.badge-adoption-optional { background: var(--warn-soft); color: var(--warn); }
+.badge-adoption-excluded { background: var(--danger-soft); color: var(--danger); }
+.badge-strength, .badge-category {
+  background: var(--surface-2); color: var(--fg-soft); border-color: var(--border);
+}
 
 /* chips */
 .chip {
@@ -277,6 +283,22 @@ table.fields tbody tr:last-child td { border-bottom: none; }
 }
 .chip-ref { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
 
+/* standards and user experience */
+.requirements { display: grid; gap: 10px; margin-top: 12px; }
+.requirement {
+  border: 1px solid var(--border); border-radius: 9px; padding: 12px 14px;
+  background: var(--surface-2);
+}
+.requirement:target { border-color: var(--accent); }
+.requirement header { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+.requirement p { margin: 7px 0 0; }
+.exclusion-reason { color: var(--danger); }
+.reference-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 8px; }
+.reference-label {
+  min-width: 92px; color: var(--muted); font-size: 11px; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase;
+}
+
 /* clauses & expressions */
 .clause {
   margin: 10px 0; padding: 10px 12px; background: var(--surface-2); border-radius: 8px;
@@ -350,7 +372,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
 <div class="layout">
 <nav class="toc" aria-label="Contents">
     <div class="toc-title">Contents</div>
-    <ol><li><a href="#overview">Overview</a></li><li><a href="#vocabulary">Vocabulary</a></li><li><a href="#models">Models</a></li><li><a href="#interfaces">Interfaces</a></li><li><a href="#properties">Properties</a></li><li><a href="#scenarios">Scenarios</a></li><li><a href="#objectives">Objectives</a></li></ol>
+    <ol><li><a href="#overview">Overview</a></li><li><a href="#vocabulary">Vocabulary</a></li><li><a href="#models">Models</a></li><li><a href="#interfaces">Interfaces</a></li><li><a href="#invariants">Invariants</a></li><li><a href="#scenarios">Scenarios</a></li><li><a href="#objectives">Objectives</a></li></ol>
   </nav>
 <main>
 <section id="overview">
@@ -359,7 +381,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
       <h1>scl-to-html</h1>
       <div class="page-meta"><span class="badge badge-version">spec 1.0</span></div>
     </header>
-    <div class="stats"><a class="stat" href="#vocabulary"><span class="stat-num">5</span><span class="stat-label">vocabulary</span></a><a class="stat" href="#models"><span class="stat-num">3</span><span class="stat-label">models</span></a><a class="stat" href="#interfaces"><span class="stat-num">1</span><span class="stat-label">interfaces</span></a><a class="stat" href="#properties"><span class="stat-num">9</span><span class="stat-label">properties</span></a><a class="stat" href="#scenarios"><span class="stat-num">2</span><span class="stat-label">scenarios</span></a><a class="stat" href="#objectives"><span class="stat-num">1</span><span class="stat-label">objectives</span></a></div>
+    <div class="stats"><a class="stat" href="#vocabulary"><span class="stat-num">5</span><span class="stat-label">vocabulary</span></a><a class="stat" href="#models"><span class="stat-num">3</span><span class="stat-label">models</span></a><a class="stat" href="#interfaces"><span class="stat-num">1</span><span class="stat-label">interfaces</span></a><a class="stat" href="#invariants"><span class="stat-num">9</span><span class="stat-label">invariants</span></a><a class="stat" href="#scenarios"><span class="stat-num">2</span><span class="stat-label">scenarios</span></a><a class="stat" href="#objectives"><span class="stat-num">1</span><span class="stat-label">objectives</span></a></div>
   </section>
 <section id="vocabulary">
     <h2>Vocabulary <span class="count">5</span></h2>
@@ -369,7 +391,8 @@ table.fields tbody tr:last-child td { border-bottom: none; }
       <div class="vocab-body">
         <p class="def">入力となる SCL 形式の YAML 文書。</p>
         <div class="aliases"><span class="aliases-label">aliases</span> <span class="chip chip-alias">scl</span></div>
-        
+
+
       </div>
     </article>
 <article class="vocab-entry" id="vocab-htmldocument">
@@ -377,18 +400,20 @@ table.fields tbody tr:last-child td { border-bottom: none; }
       <div class="vocab-body">
         <p class="def">SclDocument から派生する単一の HTML 文書。</p>
         <div class="aliases"><span class="aliases-label">aliases</span> <span class="chip chip-alias">html</span></div>
-        
+
+
       </div>
     </article>
 <article class="vocab-entry" id="vocab-section">
       <div class="vocab-name"><code class="name">Section</code></div>
       <div class="vocab-body">
         <p class="def">SCL 文書の論理単位。
-vocabulary / models / interfaces / state_machines /
-properties / scenarios / permissions / objectives の 8 種。
+vocabulary / models / interfaces / states /
+invariants / scenarios / permissions / objectives の 8 種。
 </p>
         <div class="aliases"><span class="aliases-label">aliases</span> <span class="muted">—</span></div>
-        
+
+
       </div>
     </article>
 <article class="vocab-entry" id="vocab-render">
@@ -396,7 +421,8 @@ properties / scenarios / permissions / objectives の 8 種。
       <div class="vocab-body">
         <p class="def">SclDocument を HtmlDocument に変換する射影。決定的で副作用を持たない。</p>
         <div class="aliases"><span class="aliases-label">aliases</span> <span class="muted">—</span></div>
-        
+
+
       </div>
     </article>
 <article class="vocab-entry" id="vocab-crossreference">
@@ -407,19 +433,20 @@ interfaces.errors / interfaces.emits、および scenarios の自然文ステッ
 引用された既知の名前（interface / model）が該当する。
 </p>
         <div class="aliases"><span class="aliases-label">aliases</span> <span class="chip chip-alias">xref</span> <span class="chip chip-alias">cross-ref</span></div>
-        
+
+
       </div>
     </article></div>
   </section>
 <section id="models">
     <h2>Models <span class="count">3</span></h2>
-    
+
     <div class="group">
       <h3 class="grp-title">value object <span class="count">2</span></h3>
       <div class="cards"><article class="card" id="model-scldocument">
     <header><h3>SclDocument</h3><span class="badge badge-kind-value_object">value object</span></header>
     <p class="desc">本ツールが解釈する SCL 文書の最小構造。各 Section の中身は SCL 自身が再帰的に定義する。</p>
-    
+
     <table class="fields">
     <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
     <tbody><tr>
@@ -433,6 +460,12 @@ interfaces.errors / interfaces.emits、および scenarios の自然文ステッ
     <td><code class="type">String</code></td>
     <td><span class="badge badge-required">required</span></td>
     <td><span class="chip chip-constraint">non empty</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">annotations</code></td>
+    <td><code class="type">Map</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
     <td></td>
   </tr><tr>
     <td><code class="name">vocabulary</code></td>
@@ -453,13 +486,13 @@ interfaces.errors / interfaces.emits、および scenarios の自然文ステッ
     <td><span class="muted">—</span></td>
     <td></td>
   </tr><tr>
-    <td><code class="name">state_machines</code></td>
+    <td><code class="name">states</code></td>
     <td><code class="type">Map</code></td>
     <td><span class="badge badge-optional">optional</span></td>
     <td><span class="muted">—</span></td>
     <td></td>
   </tr><tr>
-    <td><code class="name">properties</code></td>
+    <td><code class="name">invariants</code></td>
     <td><code class="type">Map</code></td>
     <td><span class="badge badge-optional">optional</span></td>
     <td><span class="muted">—</span></td>
@@ -487,8 +520,8 @@ interfaces.errors / interfaces.emits、および scenarios の自然文ステッ
   </article>
 <article class="card" id="model-htmldocument">
     <header><h3>HtmlDocument</h3><span class="badge badge-kind-value_object">value object</span></header>
-    
-    
+
+
     <table class="fields">
     <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
     <tbody><tr>
@@ -505,9 +538,9 @@ interfaces.errors / interfaces.emits、および scenarios の自然文ステッ
       <h3 class="grp-title">enum <span class="count">1</span></h3>
       <div class="cards"><article class="card" id="model-sectionkind">
     <header><h3>SectionKind</h3><span class="badge badge-kind-enum">enum</span></header>
-    
-    
-    <div class="enum-vals"><span class="chip chip-enum">vocabulary</span> <span class="chip chip-enum">models</span> <span class="chip chip-enum">interfaces</span> <span class="chip chip-enum">state_machines</span> <span class="chip chip-enum">properties</span> <span class="chip chip-enum">scenarios</span> <span class="chip chip-enum">permissions</span> <span class="chip chip-enum">objectives</span></div>
+
+
+    <div class="enum-vals"><span class="chip chip-enum">vocabulary</span> <span class="chip chip-enum">models</span> <span class="chip chip-enum">interfaces</span> <span class="chip chip-enum">states</span> <span class="chip chip-enum">invariants</span> <span class="chip chip-enum">scenarios</span> <span class="chip chip-enum">permissions</span> <span class="chip chip-enum">objectives</span></div>
   </article></div>
     </div>
   </section>
@@ -563,58 +596,58 @@ interfaces.errors / interfaces.emits、および scenarios の自然文ステッ
   </div></div></div>
   </article></div>
   </section>
-<section id="properties">
-    <h2>Properties <span class="count">9</span></h2>
+<section id="invariants">
+    <h2>Invariants <span class="count">9</span></h2>
     <p class="lead">入力に依らず常に成り立つ不変条件、または決して起きてはならない事象。</p>
-    <div class="cards"><article class="card" id="prop-presence-preserved">
+    <div class="cards"><article class="card" id="inv-presence-preserved">
     <header><h3>presence_preserved</h3><span class="badge badge-severity-must">must</span></header>
     <p class="desc">入力に存在するセクションは、出力に対応する &lt;section id=&quot;...&quot;&gt; を持つ。</p>
     <dl class="kv"><dt>target</dt><dd><code>Render</code></dd></dl>
     <div class="clause clause-always"><div class="clause-label ok">always (invariant)</div><code class="expr">∀ S ∈ keys(scl) ∩ SectionKind : output contains '&lt;section id=&quot;S&quot;&gt;'</code></div>
   </article>
-<article class="card" id="prop-absence-preserved">
+<article class="card" id="inv-absence-preserved">
     <header><h3>absence_preserved</h3><span class="badge badge-severity-must">must</span></header>
     <p class="desc">入力に存在しないセクションは、出力にも現れない。</p>
     <dl class="kv"><dt>target</dt><dd><code>Render</code></dd></dl>
     <div class="clause clause-never"><div class="clause-label danger">never (forbidden)</div><code class="expr">output contains '&lt;section id=&quot;S&quot;&gt;' where S ∉ keys(scl)</code></div>
   </article>
-<article class="card" id="prop-user-text-escaped">
+<article class="card" id="inv-user-text-escaped">
     <header><h3>user_text_escaped</h3><span class="badge badge-severity-must">must</span></header>
     <p class="desc">入力 SCL 由来の文字列は HTML として安全にエスケープされる。</p>
     <dl class="kv"><dt>target</dt><dd><code>Render</code></dd></dl>
     <div class="clause clause-never"><div class="clause-label danger">never (forbidden)</div><code class="expr">output contains unescaped '&lt;' '&gt;' '&amp;' or '&quot;' originating from scl values</code></div>
   </article>
-<article class="card" id="prop-deterministic">
+<article class="card" id="inv-deterministic">
     <header><h3>deterministic</h3><span class="badge badge-severity-must">must</span></header>
     <p class="desc">同一入力からは常に同一の HTML を返す。時刻・乱数・環境変数に依存しない。</p>
     <dl class="kv"><dt>target</dt><dd><code>Render</code></dd></dl>
     <div class="clause clause-always"><div class="clause-label ok">always (invariant)</div><code class="expr">Render(x) ≡ Render(x)</code></div>
   </article>
-<article class="card" id="prop-self-contained">
+<article class="card" id="inv-self-contained">
     <header><h3>self_contained</h3><span class="badge badge-severity-must">must</span></header>
     <p class="desc">HtmlDocument は単一ファイルで表示でき、外部資産（ネットワーク / 別ファイル）に依存しない。</p>
     <dl class="kv"><dt>target</dt><dd><code>Render</code></dd></dl>
     <div class="clause clause-always"><div class="clause-label ok">always (invariant)</div><code class="expr">rendering HtmlDocument requires no external network resource or sidecar file</code></div>
   </article>
-<article class="card" id="prop-navigable-to-each-section">
+<article class="card" id="inv-navigable-to-each-section">
     <header><h3>navigable_to_each_section</h3><span class="badge badge-severity-must">must</span></header>
     <p class="desc">閲覧者は HtmlDocument 上の任意の地点から、入力に存在する各 Section に直接遷移できる。</p>
     <dl class="kv"><dt>target</dt><dd><code>Render</code></dd></dl>
     <div class="clause clause-always"><div class="clause-label ok">always (invariant)</div><code class="expr">from any point in HtmlDocument, the reader can reach each present Section without leaving the document</code></div>
   </article>
-<article class="card" id="prop-cross-references-are-navigable">
+<article class="card" id="inv-cross-references-are-navigable">
     <header><h3>cross_references_are_navigable</h3><span class="badge badge-severity-must">must</span></header>
     <p class="desc">CrossReference は閲覧者がひとつの操作で参照先定義へ遷移できる形で描画される。</p>
     <dl class="kv"><dt>target</dt><dd><code>Render</code></dd></dl>
     <div class="clause clause-always"><div class="clause-label ok">always (invariant)</div><code class="expr">∀ CrossReference c : c is presented as a control that navigates the reader to the definition of c</code></div>
   </article>
-<article class="card" id="prop-reading-position-is-indicated">
+<article class="card" id="inv-reading-position-is-indicated">
     <header><h3>reading_position_is_indicated</h3><span class="badge badge-severity-must">must</span></header>
     <p class="desc">閲覧者が長い HtmlDocument 上を移動するとき、現在読まれている Section がナビゲーション側で視覚的に区別される。</p>
     <dl class="kv"><dt>target</dt><dd><code>Render</code></dd></dl>
     <div class="clause clause-always"><div class="clause-label ok">always (invariant)</div><code class="expr">the Section currently in view is visually distinguished within the navigation</code></div>
   </article>
-<article class="card" id="prop-color-scheme-adapts-to-reader">
+<article class="card" id="inv-color-scheme-adapts-to-reader">
     <header><h3>color_scheme_adapts_to_reader</h3><span class="badge badge-severity-must">must</span></header>
     <p class="desc">HtmlDocument の配色は、閲覧者の環境が示すライト/ダーク設定に追随する。</p>
     <dl class="kv"><dt>target</dt><dd><code>Render</code></dd></dl>
@@ -626,20 +659,22 @@ interfaces.errors / interfaces.emits、および scenarios の自然文ステッ
     <p class="lead">受け入れ例。自然文ステップで書かれた振る舞いの具体例。引用された既知の名前は定義へリンクする。</p>
     <div class="cards"><article class="card scenario" id="scn-scl-html">
     <header><h3>最小の SCL でも HTML になり、無いセクションは出力されない</h3></header>
-    
+
+
     <ol class="scn-steps"><li class="scn-step">vocabulary だけを持つ最小の SCL を用意して変換する</li><li class="scn-step">出力に vocabulary セクションが含まれる</li><li class="scn-step">出力に models セクションは現れない</li></ol>
-    
+
   </article>
 <article class="card scenario" id="scn-html">
     <header><h3>ユーザ文字列の HTML 特殊文字はエスケープされる</h3></header>
-    
+
+
     <ol class="scn-steps"><li class="scn-step">definition に特殊文字 <code class="step-arg">&lt;script&gt;</code> を含む SCL を用意して変換する</li><li class="scn-step">出力では特殊文字がエスケープされている</li><li class="scn-step">出力に生の script タグは現れない</li></ol>
-    
+
   </article></div>
   </section>
 <section id="objectives">
     <h2>Objectives <span class="count">1</span></h2>
-    
+
     <div class="group">
       <h3 class="grp-title">slo <span class="count">1</span></h3>
       <div class="cards"><article class="card" id="obj-fast-render">

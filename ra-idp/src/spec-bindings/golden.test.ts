@@ -4,7 +4,7 @@
  * 仕様本体 ../../spec/scl.yaml の scenarios と同じ「ハッピーパス」「セキュリティ境界」を、
  * Bun の test runner で実行可能な形に表現する。
  *
- * 仕様本体の state_machines と permissions だけで成立するシナリオをここに置く
+ * 仕様本体の states と permissions だけで成立するシナリオをここに置く
  * （HTTP は含まない）。HTTP 経由のシナリオは demo.sh で実行する。
  */
 

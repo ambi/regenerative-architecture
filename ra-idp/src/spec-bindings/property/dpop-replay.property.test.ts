@@ -1,5 +1,5 @@
 /**
- * Property: L4 — DPoP jti uniqueness within window (spec/scl.yaml properties.DpopJtiUniquenessWithinWindow)
+ * Property: L4 — DPoP jti uniqueness within window (spec/scl.yaml invariants.DpopJtiUniquenessWithinWindow)
  */
 
 import { describe, it } from 'bun:test'

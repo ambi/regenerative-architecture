@@ -2,7 +2,7 @@
  * Layer 3 — Application Logic（ドメイン: Device Authorization Grant, RFC 8628）
  *
  * device_code / user_code の生成と判定。状態機械本体は
- * spec/scl.yaml state_machines.DeviceCodeFlow（src/spec-bindings/flows/flows.ts 経由で参照）。
+ * spec/scl.yaml states.DeviceCodeFlow（src/spec-bindings/flows/flows.ts 経由で参照）。
  *
  * セキュリティ要件 (RFC 8628 §5.1 / §5.2):
  *   - device_code は推測不能なベアラ秘密 (高エントロピー、ハッシュ保存)

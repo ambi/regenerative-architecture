@@ -124,7 +124,7 @@ describe('ユビキタス言語整合性 (SCL vocabulary)', () => {
     }
   })
 
-  it('ワイヤ形式の代表値が vocabulary 由来である（toWire の動作確認）', () => {
+  it('インタフェース・スキーマの代表値が vocabulary 由来である（toWire の動作確認）', () => {
     expect(toWire('AuthorizationCode')).toBe('authorization_code')
     expect(toWire('ClientCredentials')).toBe('client_credentials')
     expect(toWire('Public')).toBe('public')
@@ -150,7 +150,7 @@ describe('Authorization Code Flow — SCL ↔ TypeScript 整合', () => {
 
   it('SCL 遷移表の状態が AUTH_CODE_STATES の部分集合である', () => {
     const valid = new Set<string>(AUTH_CODE_STATES)
-    for (const t of scl.state_machines[AUTH_CODE_FLOW].transitions) {
+    for (const t of scl.states[AUTH_CODE_FLOW].transitions) {
       expect(valid.has(toWire(t.from))).toBe(true)
       expect(valid.has(toWire(t.to))).toBe(true)
     }
@@ -158,7 +158,7 @@ describe('Authorization Code Flow — SCL ↔ TypeScript 整合', () => {
 
   it('SCL 遷移表のイベントが AUTH_CODE_EVENTS の部分集合である', () => {
     const valid = new Set<string>(AUTH_CODE_EVENTS)
-    for (const t of scl.state_machines[AUTH_CODE_FLOW].transitions) {
+    for (const t of scl.states[AUTH_CODE_FLOW].transitions) {
       expect(valid.has(toWire(t.event))).toBe(true)
     }
   })

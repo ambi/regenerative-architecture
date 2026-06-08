@@ -48,8 +48,11 @@ export async function seedDemoData(
   })
   await deps.clientRepo.save(demoClient)
 
-  const demoPassword = process.env.DEMO_USER_PASSWORD ?? 'alice-password'
-  const policy = validatePassword(demoPassword)
+  const demoPassword = process.env.DEMO_USER_PASSWORD ?? 'demo-password-1234'
+  const policy = validatePassword(demoPassword, {
+    username: 'alice',
+    email: 'alice@example.com',
+  })
   if (!policy.ok) throw new PasswordPolicyError(policy.violations)
   // DEMO_TOTP_SECRET (base32) を渡せば alice に TOTP factor を仕込み、
   // パスワード後に /totp challenge へ誘導するデモを有効化する。otpauth:// URI を

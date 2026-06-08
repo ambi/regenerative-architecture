@@ -70,13 +70,13 @@ ra-idp/
 
 ### Phase 0 — 認証の土台
 
-Argon2id ハッシャ + 最小長 / 最大長 (12–128 chars) のパスワードポリシーは実装済。
-残るのは本番運用に必要な周辺強化。
+Argon2id ハッシャ + 長さ (12–128 chars) + ユーザー識別子との類似禁止 + 共通パスワード辞書
+(bundled) のパスワードポリシーは実装済 (ADR-026)。残るのは本番運用に必要な周辺強化。
 
 | 領域 | 不足している機能 |
 | ---- | ---------------- |
-| パスワードポリシー深化 | 文字種要件（記号・大文字小文字混在など、組織ポリシーや規制依存）、ユーザー名・メールアドレスとの類似禁止、よくあるパスワード辞書チェック、直近 N 件のパスワード履歴再利用禁止 |
-| 漏洩パスワード検査 | HIBP k-anonymity 等のオンライン漏洩データベース連携 |
+| パスワードポリシー深化 | パスワード履歴の再利用禁止（change-password エンドポイント実装と同 Phase で `PasswordHistoryRepository` port を追加）。文字種要件 / periodic rotation は ADR-026 で意図的に採用しない |
+| 漏洩パスワード検査 | HIBP k-anonymity 等のオンライン漏洩データベース連携 (`BreachedPasswordChecker` port) |
 | ブルートフォース防御 | per-account / per-IP のログイン試行レート制限、CAPTCHA / 行動分析、ユーザー名列挙対策 |
 | エンドポイント保護 | `/token` `/authorize` `/par` `/device_authorization` の一般 rate limit / bot 対策 |
 | アカウント整合性 | メール・電話番号検証 |
@@ -181,7 +181,7 @@ inbound 連携を両方サポートする。SAML 2.0 IdP は現代の B2B SaaS /
 - シナリオ 1 本:
   1. `http://localhost:3000/authorize?client_id=demo-web-app&...` を開く。
   2. `meta[name="ra-idp:page"][content="login"]` が描画され、`input[name="username"]` が見えることを assert (TanStack Router の dispatcher 回帰防止)。
-  3. `alice` / `alice-password` を入力して送信。
+  3. `alice` / `demo-password-1234` を入力して送信。
   4. consent 画面 (`meta[name="ra-idp:page"][content="consent"]`) が表示されることを assert。
   5. 「許可する」を押し、コールバックサーバが受け取った URL に `code=...&iss=...` が乗ることを assert (`fetch` の cross-origin redirect 挙動の回帰防止)。
 - CI では Chromium だけインストール (`npx playwright install chromium`)。
@@ -361,3 +361,4 @@ ServiceMonitor + Rollout（prod のみ）。
 | 観測               | ADR-017 OpenTelemetry / ADR-018 監査 vs アプリログ                        |
 | 運用               | ADR-019 ランタイム選定 / ADR-020 サプライチェーン保護 / ADR-021 段階的配送 |
 | デバイスフロー     | ADR-025 Device Authorization Grant                                        |
+| パスワードポリシー | ADR-026 NIST SP 800-63B-4 整合のパスワードポリシー                         |

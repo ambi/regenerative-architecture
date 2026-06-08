@@ -45,7 +45,7 @@ export function readConsentContext(): ConsentContext {
 export interface TotpContext {
   requestId: string
   csrf: string
-  /** 直前の POST /totp が無効コードで戻ってきた場合に true。 */
+  /** no-JS/form fallback の POST /totp が無効コードで戻ってきた場合に true。 */
   invalidPrevious: boolean
 }
 

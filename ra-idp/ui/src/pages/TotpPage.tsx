@@ -1,21 +1,24 @@
 import { IconAlertCircle, IconLoader2, IconShieldCheck } from '@tabler/icons-react'
-import { type ChangeEvent, type FormEvent, useId, useState } from 'react'
+import { type ChangeEvent, type FormEvent, useEffect, useId, useState } from 'react'
 import { AuthLayout } from '@/components/layout/AuthLayout'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { useMessages } from '@/i18n/context'
+import {
+  continueBrowserFlow,
+  loadBrowserTransaction,
+  type BrowserFlowResponse,
+} from '@/lib/browser-flow'
 import { readTotpContext } from '@/lib/page-context'
 
 /**
  * /totp の SPA ページ。
  *
  * - Authenticator アプリの 6 桁コードを入力するフォーム
- * - 送信は POST /totp (form-encoded)、サーバは検証成功時に 30x で /authorize を継続
- * - SPA shell では LoginPage と同じく `redirect: 'manual'` で受け取り、reload で
- *   ブラウザのトップレベル遷移に委ねる
- * - サーバが invalid な場合は 401 で meta `totp-invalid=1` を埋めて同画面を再表示
+ * - 送信は POST /api/auth/totp、サーバは next / redirect_to を JSON で返す
+ * - サーバが invalid な場合は 401 JSON を返し、同画面でエラー表示する
  * - a11y: code 入力欄に Label、エラーは role=alert
  */
 export function TotpPage() {
@@ -23,10 +26,32 @@ export function TotpPage() {
   const m = useMessages()
   const errorId = useId()
   const [code, setCode] = useState('')
-  const [error, setError] = useState<string | null>(
-    ctx.invalidPrevious ? m.totp.errorBody : null,
-  )
+  const [csrf, setCsrf] = useState(ctx.csrf)
+  const [error, setError] = useState<string | null>(ctx.invalidPrevious ? m.totp.errorBody : null)
   const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    loadBrowserTransaction()
+      .then((transaction) => {
+        if (!active) return
+        if (transaction.kind === 'login') {
+          window.location.assign('/login')
+          return
+        }
+        if (transaction.kind === 'consent') {
+          window.location.assign('/consent')
+          return
+        }
+        setCsrf(transaction.csrf_token)
+      })
+      .catch(() => {
+        if (active) setError(m.totp.errorBody)
+      })
+    return () => {
+      active = false
+    }
+  }, [m.totp.errorBody])
 
   function onChange(e: ChangeEvent<HTMLInputElement>) {
     setCode(e.target.value.replace(/\D/g, '').slice(0, 6))
@@ -42,25 +67,21 @@ export function TotpPage() {
     setError(null)
     setSubmitting(true)
     try {
-      const body = new URLSearchParams({
-        request_id: ctx.requestId,
-        csrf: ctx.csrf,
-        code,
-      })
-      const res = await fetch('/totp', {
+      const res = await fetch('/api/auth/totp', {
         method: 'POST',
-        headers: { 'content-type': 'application/x-www-form-urlencoded' },
-        body,
-        redirect: 'manual',
+        headers: {
+          'content-type': 'application/json',
+          'X-CSRF-Token': csrf,
+        },
+        body: JSON.stringify({ code }),
         credentials: 'same-origin',
       })
-      if (res.type === 'opaqueredirect' || res.ok) {
-        window.location.reload()
+      if (res.ok) {
+        continueBrowserFlow((await res.json()) as BrowserFlowResponse)
         return
       }
       if (res.status === 401) {
-        // 認証拒否は同じ challenge ページが再描画される
-        window.location.reload()
+        setError(m.totp.errorBody)
         return
       }
       setError(m.totp.errorBody)
@@ -121,7 +142,6 @@ export function TotpPage() {
                 autoComplete="one-time-code"
                 inputMode="numeric"
                 spellCheck={false}
-                autoFocus
                 maxLength={6}
                 value={code}
                 onChange={onChange}

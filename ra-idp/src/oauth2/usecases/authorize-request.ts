@@ -203,6 +203,10 @@ export async function grantConsentUseCase(
   scopes: string[],
   now: Date = new Date(),
 ): Promise<AuthorizationRequest> {
+  if (req.state === 'consented' || req.state === 'code_issued') {
+    return req
+  }
+
   const next = advance(req, 'grant_consent')
   // コンセントを永続化
   await deps.consentRepo.save({

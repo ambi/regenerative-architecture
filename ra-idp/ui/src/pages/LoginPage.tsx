@@ -1,5 +1,5 @@
 import { IconAlertCircle, IconInfoCircle, IconLoader2 } from '@tabler/icons-react'
-import { type FormEvent, useId, useState } from 'react'
+import { type FormEvent, useEffect, useId, useState } from 'react'
 import { AuthLayout } from '@/components/layout/AuthLayout'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -7,16 +7,18 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useMessages } from '@/i18n/context'
+import {
+  continueBrowserFlow,
+  loadBrowserTransaction,
+  type BrowserFlowResponse,
+} from '@/lib/browser-flow'
 import { readLoginContext } from '@/lib/page-context'
 
 /**
  * /login の SPA ページ。
  *
- * - 認証成立後はバックエンドの POST /login が 30x で /authorize へ戻す
- * - SPA からの fetch は `redirect: 'follow'`。最終応答が
- *     - HTML (続きの consent / authorize 画面) → window.location.assign で遷移
- *     - JSON エラー → そのまま表示
- *   の 2 パターンに分岐する
+ * - 認証成立後は POST /api/auth/login の JSON 応答に従って /totp、/consent、
+ *   または client redirect_uri へ遷移する。
  * - a11y: form エラーは `role=alert` + `aria-describedby` で入力欄に紐付け
  */
 export function LoginPage() {
@@ -25,34 +27,49 @@ export function LoginPage() {
   const errorId = useId()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [csrf, setCsrf] = useState(ctx.csrf)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    loadBrowserTransaction()
+      .then((transaction) => {
+        if (!active) return
+        if (transaction.kind === 'totp') {
+          window.location.assign('/totp')
+          return
+        }
+        if (transaction.kind === 'consent') {
+          window.location.assign('/consent')
+          return
+        }
+        setCsrf(transaction.csrf_token)
+      })
+      .catch(() => {
+        if (active) setError(m.login.invalidRequestBody)
+      })
+    return () => {
+      active = false
+    }
+  }, [m.login.invalidRequestBody])
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
     setError(null)
     setSubmitting(true)
     try {
-      const body = new URLSearchParams({
-        request_id: ctx.requestId,
-        csrf: ctx.csrf,
-        username,
-        password,
-      })
-      // `redirect: 'manual'` で fetch にリダイレクトを follow させない。
-      // バックエンドが client の redirect_uri (例: localhost:8080/callback) に 302 した場合、
-      // fetch が cross-origin に GET を仕掛けて connection refused になるのを避ける。
-      // 302 を検知したら window.location.reload() でトップレベル遷移に切り替え、
-      // ブラウザのナビゲーションスタックでリダイレクトを follow させる。
-      const res = await fetch('/login', {
+      const res = await fetch('/api/auth/login', {
         method: 'POST',
-        headers: { 'content-type': 'application/x-www-form-urlencoded' },
-        body,
-        redirect: 'manual',
+        headers: {
+          'content-type': 'application/json',
+          'X-CSRF-Token': csrf,
+        },
+        body: JSON.stringify({ username, password }),
         credentials: 'same-origin',
       })
-      if (res.type === 'opaqueredirect' || res.ok) {
-        window.location.reload()
+      if (res.ok) {
+        continueBrowserFlow((await res.json()) as BrowserFlowResponse)
         return
       }
       // 400 invalid_request は資格情報ではなく認可リクエスト側の問題なので
@@ -91,7 +108,7 @@ export function LoginPage() {
             noValidate
             aria-describedby={error ? errorId : undefined}
           >
-            {!ctx.requestId ? (
+            {!csrf ? (
               <Alert>
                 <IconInfoCircle className="h-4 w-4" aria-hidden />
                 <AlertTitle>{m.login.invalidRequestTitle}</AlertTitle>

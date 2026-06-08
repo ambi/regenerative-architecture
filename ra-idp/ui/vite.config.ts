@@ -18,11 +18,13 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    strictPort: true,
     proxy: {
       // SPA が描画する画面 (login / consent / device / end_session) は
       // バックエンドが shell + meta を返す。Vite の dev 環境でもバックエンドを
       // 経由させることで CSRF Cookie と request_id を統一的に受け取れる。
       '/login': 'http://localhost:3000',
+      '/totp': 'http://localhost:3000',
       '/consent': 'http://localhost:3000',
       '/device': 'http://localhost:3000',
       '/authorize': 'http://localhost:3000',

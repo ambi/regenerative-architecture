@@ -8,8 +8,8 @@ import { readMeta } from '@/lib/page-context'
 
 /**
  * バックエンドが `<meta name="ra-idp:page">` でどのページを描画すべきかを伝える。
- * URL は `/authorize` `/end_session` のような OAuth エンドポイントになることがあり
- * 「URL = 画面種別」では一致しないため、SPA は meta を権威にして dispatch する。
+ * 認証画面は `/login` `/totp` `/consent` の URL で表示するが、SSR shell では
+ * meta を権威にして初期ページを dispatch する。
  *
  * meta が無い場合 (純粋な SPA 直接ナビゲーション) のみ URL ベースの file route
  * (login.tsx 等) にフォールバックする。

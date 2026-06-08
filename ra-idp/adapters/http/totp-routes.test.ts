@@ -170,14 +170,23 @@ async function passwordLogin(
   totpCsrf: string
   totpCsrfCookie: string
 }> {
-  const loginPage = await app.request(authorizeUrl(extra))
+  const start = await app.request(authorizeUrl(extra))
+  expect(start.status).toBe(303)
+  expect(start.headers.get('location')).toBe('/login')
+  const transactionCookie = start.headers.get('set-cookie') ?? ''
+  const loginPage = await app.request('http://idp.example.com/login', {
+    headers: { cookie: transactionCookie },
+  })
   const loginHtml = await loginPage.text()
   const requestId = extractInput(loginHtml, 'request_id')
   const csrf = extractInput(loginHtml, 'csrf')
   const csrfCookie = loginPage.headers.get('set-cookie') ?? ''
   const res = await app.request('http://idp.example.com/login', {
     method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded', cookie: csrfCookie },
+    headers: {
+      'content-type': 'application/x-www-form-urlencoded',
+      cookie: `${transactionCookie}; ${csrfCookie}`,
+    },
     body: new URLSearchParams({
       request_id: requestId,
       csrf,
@@ -185,20 +194,34 @@ async function passwordLogin(
       password: 'pw',
     }).toString(),
   })
-  // POST /login の応答は totp shell HTML (200)。session Cookie と新しい CSRF Cookie が
-  // セットされている。
+  expect(res.status).toBe(303)
+  expect(res.headers.get('location')).toBe('/totp')
   const setCookieRaw = res.headers.getSetCookie?.() ?? []
   const cookies = setCookieRaw.length > 0 ? setCookieRaw : [res.headers.get('set-cookie') ?? '']
   const sessionCookie = cookies.find((h) => h.startsWith('ra_idp_session=')) ?? ''
-  const totpCsrfCookie = cookies.find((h) => h.startsWith('ra_idp_csrf=')) ?? ''
-  const totpCsrf = extractInput(await res.text(), 'csrf')
-  return { requestId, sessionCookie, totpCsrf, totpCsrfCookie }
+  const totpPage = await app.request('http://idp.example.com/totp', {
+    headers: { cookie: `${transactionCookie}; ${sessionCookie}` },
+  })
+  const totpCsrfCookie = totpPage.headers.get('set-cookie') ?? ''
+  const totpCsrf = extractInput(await totpPage.text(), 'csrf')
+  return {
+    requestId,
+    sessionCookie: `${transactionCookie}; ${sessionCookie}`,
+    totpCsrf,
+    totpCsrfCookie,
+  }
 }
 
 describe('totp routes — login flow integration', () => {
-  it('mfa_enrolled なユーザは password 成功後 totp shell を直接返される (アドレスバーは /authorize のまま)', async () => {
+  it('mfa_enrolled なユーザは password 成功後 /totp にリダイレクトされる', async () => {
     const { app } = await setup()
-    const loginPage = await app.request(authorizeUrl())
+    const start = await app.request(authorizeUrl())
+    expect(start.status).toBe(303)
+    expect(start.headers.get('location')).toBe('/login')
+    const transactionCookie = start.headers.get('set-cookie') ?? ''
+    const loginPage = await app.request('http://idp.example.com/login', {
+      headers: { cookie: transactionCookie },
+    })
     const loginHtml = await loginPage.text()
     const requestId = extractInput(loginHtml, 'request_id')
     const csrf = extractInput(loginHtml, 'csrf')
@@ -206,7 +229,10 @@ describe('totp routes — login flow integration', () => {
 
     const res = await app.request('http://idp.example.com/login', {
       method: 'POST',
-      headers: { 'content-type': 'application/x-www-form-urlencoded', cookie: csrfCookie },
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+        cookie: `${transactionCookie}; ${csrfCookie}`,
+      },
       body: new URLSearchParams({
         request_id: requestId,
         csrf,
@@ -215,20 +241,23 @@ describe('totp routes — login flow integration', () => {
       }).toString(),
     })
 
-    expect(res.status).toBe(200)
-    const html = await res.text()
-    expect(html).toContain('name="ra-idp:page" content="totp"')
+    expect(res.status).toBe(303)
+    expect(res.headers.get('location')).toBe('/totp')
     const setCookies = res.headers.getSetCookie?.() ?? []
     expect(setCookies.some((c) => c.startsWith('ra_idp_session='))).toBe(true)
-    expect(setCookies.some((c) => c.startsWith('ra_idp_csrf='))).toBe(true)
   })
 
   it('authentication_pending セッションで /authorize に来ても totp shell が返る', async () => {
     const { app } = await setup()
     const { sessionCookie } = await passwordLogin(app)
     const res = await app.request(authorizeUrl(), { headers: { cookie: sessionCookie } })
-    expect(res.status).toBe(200)
-    const html = await res.text()
+    expect(res.status).toBe(303)
+    expect(res.headers.get('location')).toBe('/totp')
+    const html = await (
+      await app.request('http://idp.example.com/totp', {
+        headers: { cookie: `${sessionCookie}; ${res.headers.get('set-cookie') ?? ''}` },
+      })
+    ).text()
     expect(html).toContain('name="ra-idp:page" content="totp"')
   })
 
@@ -245,10 +274,10 @@ describe('totp routes — login flow integration', () => {
     expect(html).toContain('name="csrf"')
   })
 
-  it('consent 未済シナリオで POST /totp 成功 → SPA reload 相当の /authorize 再評価が二重遷移エラーにならない', async () => {
-    // 実ユーザーのデフォルトシナリオ: 既存 consent が無いので POST /totp は consent shell (200) を返す。
-    // SPA は reload する → 現在 URL `/authorize?...` を GET。
-    // completeAuthenticationUseCase が冪等でないと「consent_pending に authenticate_user で進めようとしてエラー」になる。
+  it('consent 未済シナリオで POST /totp 成功後の再評価が二重遷移エラーにならない', async () => {
+    // no-JS/form fallback のデフォルトシナリオ: 既存 consent が無いので POST /totp は
+    // consent shell (200) を返す。completeAuthenticationUseCase が冪等でないと
+    // 「consent_pending に authenticate_user で進めようとしてエラー」になる。
     const { app } = await setup({ prefillConsent: false })
     const { requestId, sessionCookie, totpCsrf, totpCsrfCookie } = await passwordLogin(app)
     const totpCode = generateTotp(TOTP_SECRET, Math.floor(Date.now() / 1000))
@@ -288,10 +317,9 @@ describe('totp routes — login flow integration', () => {
       authentication_pending: false,
     })
 
-    const res = await app.request(
-      `http://idp.example.com/totp?request_id=${requestId}`,
-      { headers: { cookie: sessionCookie } },
-    )
+    const res = await app.request(`http://idp.example.com/totp?request_id=${requestId}`, {
+      headers: { cookie: sessionCookie },
+    })
     expect(res.status).toBe(302)
     expect(res.headers.get('location') ?? '').toStartWith('https://app.example.com/cb?code=')
   })
@@ -400,12 +428,16 @@ describe('totp routes — step-up reauth via acr_values', () => {
 
   it('acr_values=mfa を要求する /authorize は totp shell を返す (mfa_enrolled かつ pwd のみ)', async () => {
     const { app, sessionCookie } = await pwdOnlyLoggedIn()
-    const res = await app.request(
-      authorizeUrl({ acr_values: 'urn:ra-idp:acr:mfa' }),
-      { headers: { cookie: sessionCookie } },
-    )
-    expect(res.status).toBe(200)
-    const html = await res.text()
+    const res = await app.request(authorizeUrl({ acr_values: 'urn:ra-idp:acr:mfa' }), {
+      headers: { cookie: sessionCookie },
+    })
+    expect(res.status).toBe(303)
+    expect(res.headers.get('location')).toBe('/totp')
+    const html = await (
+      await app.request('http://idp.example.com/totp', {
+        headers: { cookie: `${sessionCookie}; ${res.headers.get('set-cookie') ?? ''}` },
+      })
+    ).text()
     expect(html).toContain('name="ra-idp:page" content="totp"')
   })
 
@@ -415,18 +447,23 @@ describe('totp routes — step-up reauth via acr_values', () => {
       authorizeUrl({ acr_values: 'urn:ra-idp:acr:mfa', state: 'stepup' }),
       { headers: { cookie: sessionCookie } },
     )
-    expect(challenge.status).toBe(200)
-    const html = await challenge.text()
+    expect(challenge.status).toBe(303)
+    expect(challenge.headers.get('location')).toBe('/totp')
+    const transactionCookie = challenge.headers.get('set-cookie') ?? ''
+    const totpPage = await app.request('http://idp.example.com/totp', {
+      headers: { cookie: `${sessionCookie}; ${transactionCookie}` },
+    })
+    const html = await totpPage.text()
     const requestId = extractInput(html, 'request_id')
     const csrf = extractInput(html, 'csrf')
-    const csrfCookieHeader = challenge.headers.get('set-cookie') ?? ''
+    const csrfCookieHeader = totpPage.headers.get('set-cookie') ?? ''
 
     const code = generateTotp(TOTP_SECRET, Math.floor(Date.now() / 1000))
     const res = await app.request('http://idp.example.com/totp', {
       method: 'POST',
       headers: {
         'content-type': 'application/x-www-form-urlencoded',
-        cookie: `${sessionCookie}; ${csrfCookieHeader}`,
+        cookie: `${sessionCookie}; ${transactionCookie}; ${csrfCookieHeader}`,
       },
       body: new URLSearchParams({ request_id: requestId, csrf, code }).toString(),
     })
@@ -452,10 +489,9 @@ describe('totp routes — step-up reauth via acr_values', () => {
       expires_at: new Date(Date.now() + 3600_000).toISOString(),
     })
 
-    const res = await app.request(
-      authorizeUrl({ acr_values: 'urn:ra-idp:acr:mfa' }),
-      { headers: { cookie: 'ra_idp_session=session-no-mfa' } },
-    )
+    const res = await app.request(authorizeUrl({ acr_values: 'urn:ra-idp:acr:mfa' }), {
+      headers: { cookie: 'ra_idp_session=session-no-mfa' },
+    })
     expect(res.status).toBe(400)
     const body = (await res.json()) as { error?: string; error_description?: string }
     expect(body.error).toBe('access_denied')

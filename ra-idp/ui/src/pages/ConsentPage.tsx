@@ -1,10 +1,15 @@
 import { IconAlertCircle, IconCheck, IconLoader2, IconShieldLock, IconX } from '@tabler/icons-react'
-import { type FormEvent, useId, useState } from 'react'
+import { type FormEvent, useEffect, useId, useState } from 'react'
 import { AuthLayout } from '@/components/layout/AuthLayout'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { useMessages } from '@/i18n/context'
+import {
+  continueBrowserFlow,
+  loadBrowserTransaction,
+  type BrowserFlowResponse,
+} from '@/lib/browser-flow'
 import { readConsentContext } from '@/lib/page-context'
 import type { Messages } from '@/i18n/messages'
 
@@ -13,38 +18,60 @@ import type { Messages } from '@/i18n/messages'
  *
  * - クライアント名と要求スコープを明示
  * - allow / deny の 2 ボタン (allow は primary、deny は outline)
- * - 送信は POST /consent (form-encoded)、サーバは 30x で redirect_uri に戻す
+ * - 送信は POST /api/auth/consent、サーバは redirect_to を JSON で返す
  * - a11y: scope リストは `<ul>` + 各 li、ボタンは識別可能なテキスト
  */
 export function ConsentPage() {
   const ctx = readConsentContext()
   const m = useMessages()
   const errorId = useId()
+  const [csrf, setCsrf] = useState(ctx.csrf)
+  const [clientName, setClientName] = useState(ctx.clientName)
+  const [scopes, setScopes] = useState(ctx.scopes)
   const [action, setAction] = useState<'allow' | 'deny' | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let active = true
+    loadBrowserTransaction()
+      .then((transaction) => {
+        if (!active) return
+        if (transaction.kind === 'login') {
+          window.location.assign('/login')
+          return
+        }
+        if (transaction.kind === 'totp') {
+          window.location.assign('/totp')
+          return
+        }
+        setCsrf(transaction.csrf_token)
+        setClientName(transaction.client_name ?? '')
+        setScopes(transaction.scopes ?? [])
+      })
+      .catch(() => {
+        if (active) setError(m.consent.errorBody)
+      })
+    return () => {
+      active = false
+    }
+  }, [m.consent.errorBody])
 
   async function submit(chosen: 'allow' | 'deny', e: FormEvent) {
     e.preventDefault()
     setError(null)
     setAction(chosen)
     try {
-      const body = new URLSearchParams({
-        request_id: ctx.requestId,
-        csrf: ctx.csrf,
-        action: chosen,
-      })
-      // 同意成立時は client の redirect_uri に 302 が返る。fetch が cross-origin に
-      // follow して落ちるのを避けるため `redirect: 'manual'` で受け取り、reload で
-      // ブラウザのトップレベル遷移に委ねる (詳細は LoginPage 参照)。
-      const res = await fetch('/consent', {
+      const res = await fetch('/api/auth/consent', {
         method: 'POST',
-        headers: { 'content-type': 'application/x-www-form-urlencoded' },
-        body,
-        redirect: 'manual',
+        headers: {
+          'content-type': 'application/json',
+          'X-CSRF-Token': csrf,
+        },
+        body: JSON.stringify({ action: chosen }),
         credentials: 'same-origin',
       })
-      if (res.type === 'opaqueredirect' || res.ok) {
-        window.location.reload()
+      if (res.ok) {
+        continueBrowserFlow((await res.json()) as BrowserFlowResponse)
         return
       }
       setError(m.consent.errorBody)
@@ -58,7 +85,7 @@ export function ConsentPage() {
   return (
     <AuthLayout
       title={m.consent.title}
-      description={`${m.consent.descriptionPrefix}${ctx.clientName}${m.consent.descriptionSuffix}`}
+      description={`${m.consent.descriptionPrefix}${clientName}${m.consent.descriptionSuffix}`}
       status="pending"
       footer={
         <span>
@@ -81,7 +108,7 @@ export function ConsentPage() {
           <div className="flex items-start gap-3 rounded-md border border-border bg-muted/40 p-4">
             <IconShieldLock className="mt-0.5 h-5 w-5 text-primary" aria-hidden />
             <div className="flex-1 space-y-0.5">
-              <div className="font-serif text-base font-medium">{ctx.clientName}</div>
+              <div className="font-serif text-base font-medium">{clientName}</div>
               <div className="text-[11px] text-muted-foreground font-mono">{ctx.clientId}</div>
             </div>
           </div>
@@ -91,7 +118,7 @@ export function ConsentPage() {
               {m.consent.requestedHeading}
             </h2>
             <ul className="space-y-2">
-              {ctx.scopes.map((scope) => {
+              {scopes.map((scope) => {
                 const desc = describeScope(scope, m)
                 return (
                   <li

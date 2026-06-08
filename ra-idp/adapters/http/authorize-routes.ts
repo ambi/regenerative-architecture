@@ -36,8 +36,12 @@ import {
 } from '../../src/authentication/usecases/session-manager'
 import type { AuthorizationRequest, Client, DomainEvent } from '../../src/spec-bindings/schemas'
 import { acrSatisfies, ACR_VALUES } from '../../src/authentication/usecases/acr-vocabulary'
-import { loginRequiredResponse } from './authentication-routes'
-import { totpChallengeResponse } from './totp-routes'
+import {
+  clearTransactionCookie,
+  noStoreJSON,
+  transactionCookie,
+  transactionRequest,
+} from './browser-transaction'
 import {
   assertCsrf,
   clearCookie,
@@ -63,6 +67,100 @@ export interface AuthorizeRoutesDeps {
 
 export function createAuthorizeRoutes(deps: AuthorizeRoutesDeps) {
   const app = new Hono()
+
+  app.get('/api/auth/transaction', async (c) => {
+    const req = await transactionRequest(deps.requestStore, c.req.header('Cookie'))
+    if (!req) {
+      return noStoreJSON(c, 401, {
+        error: 'transaction_unavailable',
+        message: '認可トランザクションがありません',
+      })
+    }
+    const csrf = createCsrfToken()
+    const headers = { 'set-cookie': csrfCookie(csrf) }
+    const context = await deps.sessionManager.resolve(c.req.raw.headers)
+    if (!req.sub) {
+      if (context?.authentication_pending) {
+        return browserTransactionJSON({ kind: 'totp', csrf_token: csrf }, headers)
+      }
+      return browserTransactionJSON({ kind: 'login', csrf_token: csrf }, headers)
+    }
+    if (context?.authentication_pending) {
+      return browserTransactionJSON({ kind: 'totp', csrf_token: csrf }, headers)
+    }
+    if (!context || context.sub !== req.sub) {
+      return noStoreJSON(c, 401, {
+        error: 'authentication_required',
+        message: '認証セッションが一致しません',
+      })
+    }
+    const client = await deps.clientRepo.findById(req.client_id)
+    if (!client) {
+      return noStoreJSON(c, 400, {
+        error: 'invalid_transaction',
+        message: 'クライアントが存在しません',
+      })
+    }
+    return browserTransactionJSON(
+      {
+        kind: 'consent',
+        csrf_token: csrf,
+        client_name: client.client_name ?? client.client_id,
+        scopes: req.scope.split(/\s+/).filter(Boolean),
+      },
+      headers,
+    )
+  })
+
+  app.post('/api/auth/consent', async (c) => {
+    try {
+      assertCsrf(c.req.header('Cookie'), c.req.header('X-CSRF-Token') ?? '')
+      const req = await transactionRequest(deps.requestStore, c.req.header('Cookie'))
+      if (!req) {
+        return noStoreJSON(c, 401, {
+          error: 'transaction_unavailable',
+          message: '認可トランザクションがありません',
+        })
+      }
+      const context = await deps.sessionManager.resolve(c.req.raw.headers)
+      if (!context || !req.sub || context.sub !== req.sub) {
+        return noStoreJSON(c, 401, {
+          error: 'authentication_required',
+          message: '認証セッションが一致しません',
+        })
+      }
+      const body = await c.req.json().catch(() => null)
+      const action = typeof body?.action === 'string' ? body.action : ''
+      if (action !== 'allow') {
+        const url = new URL(req.redirect_uri)
+        url.searchParams.set('error', 'access_denied')
+        if (req.state_param) url.searchParams.set('state', req.state_param)
+        url.searchParams.set('iss', deps.issuer)
+        return browserFlowJSON({ redirect_to: url.toString() }, true)
+      }
+      const scopes = req.scope.split(/\s+/).filter(Boolean)
+      const consented = await grantConsentUseCase(deps, req, scopes)
+      const { code } = await issueAuthorizationCodeUseCase(deps, consented)
+      deps.emit({
+        type: 'AuthorizationCodeIssued',
+        occurredAt: new Date().toISOString(),
+        clientId: req.client_id,
+        sub: req.sub,
+        scopes,
+        codeChallengeMethod: req.code_challenge_method,
+      })
+      const url = new URL(req.redirect_uri)
+      url.searchParams.set('code', code.code)
+      if (req.state_param) url.searchParams.set('state', req.state_param)
+      url.searchParams.set('iss', deps.issuer)
+      return browserFlowJSON({ redirect_to: url.toString() }, true)
+    } catch (e) {
+      if (e instanceof WebSecurityError) {
+        return noStoreJSON(c, 403, { error: 'csrf_failed', message: e.message })
+      }
+      throw e
+    }
+  })
 
   app.get('/authorize', async (c) => {
     try {
@@ -121,16 +219,13 @@ export function createAuthorizeRoutes(deps: AuthorizeRoutesDeps) {
         if (request.prompt === 'none') {
           throw new OAuthError('access_denied', 'prompt=none では対話的ログインを開始できません')
         }
-        return loginRequiredResponse(request.id, acceptLanguage)
+        return browserRedirect('/login', request.id)
       }
       if (context.authentication_pending) {
         if (request.prompt === 'none') {
-          throw new OAuthError(
-            'access_denied',
-            'prompt=none では追加認証を要求できません',
-          )
+          throw new OAuthError('access_denied', 'prompt=none では追加認証を要求できません')
         }
-        return totpChallengeResponse(request.id, acceptLanguage)
+        return browserRedirect('/totp', request.id)
       }
 
       return await completeAuthorizedRequest(deps, request, client, context, {}, acceptLanguage)
@@ -176,6 +271,23 @@ export function createAuthorizeRoutes(deps: AuthorizeRoutesDeps) {
         },
         c.req.header('Cookie'),
       )
+    } catch (e) {
+      if (e instanceof OAuthError) return oauthErrorResponse(c, e)
+      throw e
+    }
+  })
+
+  app.get('/consent', async (c) => {
+    try {
+      const req = await transactionRequest(deps.requestStore, c.req.header('Cookie'))
+      if (!req) throw new OAuthError('invalid_request', '不明な認可リクエスト')
+      const context = await deps.sessionManager.resolve(c.req.raw.headers)
+      if (!context || !req.sub || context.sub !== req.sub) {
+        throw new OAuthError('access_denied', '認証セッションが一致しません')
+      }
+      const client = await deps.clientRepo.findById(req.client_id)
+      if (!client) throw new OAuthError('invalid_request', '不明なクライアント')
+      return consentResponse(req, client, c.req.header('accept-language'))
     } catch (e) {
       if (e instanceof OAuthError) return oauthErrorResponse(c, e)
       throw e
@@ -336,13 +448,8 @@ async function completeAuthorizedRequest(
     // (例: 現 acr=pwd で要求 acr=mfa)。この場合は login 画面を再表示するのではなく、
     // 不足している factor の challenge へ直接誘導する。現状サポートする factor は
     // TOTP のみ。
-    const requiresMfa =
-      !!request.acr_values && !acrSatisfies(ACR_VALUES.pwd, request.acr_values)
-    if (
-      requiresMfa &&
-      context.amr.includes('pwd') &&
-      !context.amr.some((m) => m !== 'pwd')
-    ) {
+    const requiresMfa = !!request.acr_values && !acrSatisfies(ACR_VALUES.pwd, request.acr_values)
+    if (requiresMfa && context.amr.includes('pwd') && !context.amr.some((m) => m !== 'pwd')) {
       const user = await deps.userRepo.findBySub(context.sub)
       if (!user?.mfa_enrolled) {
         throw new OAuthError(
@@ -350,9 +457,9 @@ async function completeAuthorizedRequest(
           '要求された acr を満たすための追加 factor が登録されていません',
         )
       }
-      return totpChallengeResponse(request.id, acceptLanguage)
+      return browserRedirect('/totp', request.id)
     }
-    return loginRequiredResponse(request.id, acceptLanguage)
+    return browserRedirect('/login', request.id)
   }
 
   if (needsConsent) {
@@ -374,6 +481,44 @@ async function completeAuthorizedRequest(
   if (postAuth.state_param) url.searchParams.set('state', postAuth.state_param)
   url.searchParams.set('iss', deps.issuer) // RFC 9207
   return Response.redirect(url.toString(), 302)
+}
+
+function browserRedirect(path: '/login' | '/totp', requestId: string): Response {
+  return new Response(null, {
+    status: 303,
+    headers: {
+      location: path,
+      'set-cookie': transactionCookie(requestId),
+    },
+  })
+}
+
+function browserFlowJSON(
+  body: { next?: string; redirect_to?: string },
+  clearTransaction = false,
+): Response {
+  const response = new Response(JSON.stringify(body), {
+    status: 200,
+    headers: {
+      'content-type': 'application/json; charset=UTF-8',
+      'cache-control': 'no-store',
+    },
+  })
+  if (clearTransaction) {
+    response.headers.append('set-cookie', clearTransactionCookie())
+  }
+  return response
+}
+
+function browserTransactionJSON(body: unknown, headers: Record<string, string>): Response {
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: {
+      ...headers,
+      'content-type': 'application/json; charset=UTF-8',
+      'cache-control': 'no-store',
+    },
+  })
 }
 
 function consentResponse(

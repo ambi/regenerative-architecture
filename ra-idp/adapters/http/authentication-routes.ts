@@ -26,7 +26,7 @@ import {
 } from '../../src/shared/web-security'
 import { oauthErrorResponse } from './error-response'
 import { renderShell } from './spa-shell'
-import { totpChallengeResponse } from './totp-routes'
+import { noStoreJSON, transactionIdFromCookie } from './browser-transaction'
 
 export interface AuthenticationRoutesDeps {
   userRepo: UserRepository
@@ -36,7 +36,6 @@ export interface AuthenticationRoutesDeps {
   emit: (e: DomainEvent) => void
 }
 
-
 export function createAuthenticationRoutes(deps: AuthenticationRoutesDeps) {
   const app = new Hono()
 
@@ -44,8 +43,40 @@ export function createAuthenticationRoutes(deps: AuthenticationRoutesDeps) {
   // 同じ shell を返す。`request_id` が無い場合は SPA 側で「セッション開始」
   // をハンドリングする。
   app.get('/login', (c) => {
-    const requestId = c.req.query('request_id') ?? ''
+    const requestId =
+      transactionIdFromCookie(c.req.header('Cookie')) || c.req.query('request_id') || ''
     return loginRequiredResponse(requestId, c.req.header('accept-language'))
+  })
+
+  app.post('/api/auth/login', async (c) => {
+    try {
+      assertCsrf(c.req.header('Cookie'), c.req.header('X-CSRF-Token') ?? '')
+      const body = await c.req.json().catch(() => null)
+      const username = typeof body?.username === 'string' ? body.username : ''
+      const password = typeof body?.password === 'string' ? body.password : ''
+      const requestId = transactionIdFromCookie(c.req.header('Cookie'))
+      if (!requestId) {
+        return noStoreJSON(c, 401, {
+          error: 'transaction_unavailable',
+          message: '認可トランザクションがありません',
+        })
+      }
+      const response = await completePasswordLogin(
+        deps,
+        requestId,
+        username,
+        password,
+        c.req.header('accept-language'),
+        true,
+      )
+      return response
+    } catch (e) {
+      if (e instanceof OAuthError) return oauthErrorResponse(c, e)
+      if (e instanceof WebSecurityError) {
+        return noStoreJSON(c, 403, { error: 'csrf_failed', message: e.message })
+      }
+      throw e
+    }
   })
 
   app.post('/login', async (c) => {
@@ -56,43 +87,14 @@ export function createAuthenticationRoutes(deps: AuthenticationRoutesDeps) {
       const password = String(body.password ?? '')
       assertCsrf(c.req.header('Cookie'), String(body.csrf ?? ''))
 
-      const user = await deps.userRepo.findByUsername(username)
-      if (!user || !(await deps.passwordHasher.verify(password, user.password_hash))) {
-        deps.emit({
-          type: 'AuthenticationFailed',
-          occurredAt: new Date().toISOString(),
-          username,
-          reason: 'invalid_credentials',
-        })
-        return loginRequiredResponse(requestId, c.req.header('accept-language'))
-      }
-
-      const now = new Date()
-      // ユーザが追加 factor (現状は TOTP) を登録していれば、まずは authentication_pending=true の
-      // 中間セッションを作って TOTP challenge へ誘導する。完了は POST /totp 側で行う。
-      const needsSecondFactor = user.mfa_enrolled
-      const context = await deps.sessionManager.create(user.sub, ['pwd'], now, {
-        authenticationPending: needsSecondFactor,
-      })
-      deps.emit({
-        type: 'UserAuthenticated',
-        occurredAt: now.toISOString(),
-        sub: user.sub,
-        amr: ['pwd'],
-      })
-
-      const response = needsSecondFactor
-        ? totpChallengeResponse(requestId, c.req.header('accept-language'))
-        : await deps.continuation.continueAfterLogin(requestId, context, {
-            promptLoginSatisfied: true,
-            acceptLanguage: c.req.header('accept-language'),
-          })
-      if (context.session_id) {
-        response.headers.append(
-          'set-cookie',
-          sessionCookie(SESSION_COOKIE, context.session_id, SESSION_TTL_SECONDS),
-        )
-      }
+      const response = await completePasswordLogin(
+        deps,
+        requestId,
+        username,
+        password,
+        c.req.header('accept-language'),
+        false,
+      )
       // CSRF Cookie はクリアしない。次のページ（consent / totp）が新しい CSRF Cookie を
       // 同じ名前でセットするため、ここで Max-Age=0 を append するとブラウザが
       // 「最後の Set-Cookie が勝つ」順序で消してしまい後続が CSRF 不一致になる。
@@ -109,11 +111,87 @@ export function createAuthenticationRoutes(deps: AuthenticationRoutesDeps) {
   return app
 }
 
+async function completePasswordLogin(
+  deps: AuthenticationRoutesDeps,
+  requestId: string,
+  username: string,
+  password: string,
+  acceptLanguage?: string,
+  browserAPI = false,
+): Promise<Response> {
+  const user = await deps.userRepo.findByUsername(username)
+  if (!user || !(await deps.passwordHasher.verify(password, user.password_hash))) {
+    deps.emit({
+      type: 'AuthenticationFailed',
+      occurredAt: new Date().toISOString(),
+      username,
+      reason: 'invalid_credentials',
+    })
+    return loginRequiredResponse(requestId, acceptLanguage)
+  }
+
+  const now = new Date()
+  const needsSecondFactor = user.mfa_enrolled
+  const context = await deps.sessionManager.create(user.sub, ['pwd'], now, {
+    authenticationPending: needsSecondFactor,
+  })
+  deps.emit({
+    type: 'UserAuthenticated',
+    occurredAt: now.toISOString(),
+    sub: user.sub,
+    amr: ['pwd'],
+  })
+
+  const response = needsSecondFactor
+    ? browserAPI
+      ? browserFlowJSON({ next: '/totp' })
+      : new Response(null, { status: 303, headers: { location: '/totp' } })
+    : await deps.continuation.continueAfterLogin(requestId, context, {
+        promptLoginSatisfied: true,
+        acceptLanguage,
+      })
+  if (context.session_id) {
+    response.headers.append(
+      'set-cookie',
+      sessionCookie(SESSION_COOKIE, context.session_id, SESSION_TTL_SECONDS),
+    )
+  }
+  return browserAPI ? responseToBrowserFlow(response) : response
+}
+
+function browserFlowJSON(body: { next?: string; redirect_to?: string }): Response {
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: {
+      'content-type': 'application/json; charset=UTF-8',
+      'cache-control': 'no-store',
+    },
+  })
+}
+
+function responseToBrowserFlow(response: Response): Response {
+  const location = response.headers.get('location')
+  if (location) {
+    return copySetCookie(response, browserFlowJSON({ redirect_to: location }))
+  }
+  if (response.headers.get('content-type')?.includes('text/html')) {
+    return copySetCookie(response, browserFlowJSON({ next: '/consent' }))
+  }
+  return response
+}
+
+function copySetCookie(from: Response, to: Response): Response {
+  for (const setCookie of from.headers.getSetCookie()) {
+    to.headers.append('set-cookie', setCookie)
+  }
+  return to
+}
+
 export function loginRequiredResponse(requestId: string, acceptLanguage?: string): Response {
   const csrf = createCsrfToken()
   // SPA shell + 隠しフォーム (no-JS / テスト fallback)。
-  // POST /login への CSRF 検証は body の csrf を `csrfCookie` の値と
-  // 二重提出パターンで照合する。
+  // POST /api/auth/login は X-CSRF-Token、no-JS/form fallback の POST /login は
+  // body の csrf を `csrfCookie` の値と二重提出パターンで照合する。
   const html = renderShell({
     page: 'login',
     title: 'サインイン',

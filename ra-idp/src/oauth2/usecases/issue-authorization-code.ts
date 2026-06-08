@@ -19,6 +19,11 @@ export async function issueAuthorizationCodeUseCase(
   },
   req: AuthorizationRequest,
 ): Promise<{ code: AuthorizationCode; request: AuthorizationRequest }> {
+  if (req.state === 'code_issued') {
+    const existing = await deps.codeStore.findByRequestId(req.id)
+    if (existing) return { code: existing, request: req }
+  }
+
   const code = generateAuthorizationCode({
     authorization_request_id: req.id,
     client_id: req.client_id,

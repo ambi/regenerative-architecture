@@ -150,8 +150,13 @@ describe('authorize routes — OIDC session prompts', () => {
       },
     })
 
-    expect(res.status).toBe(401)
-    const body = await res.text()
+    expect(res.status).toBe(303)
+    expect(res.headers.get('location')).toBe('/login')
+    const login = await app.request('http://idp.example.com/login', {
+      headers: { cookie: res.headers.get('set-cookie') ?? '' },
+    })
+    expect(login.status).toBe(401)
+    const body = await login.text()
     // SPA shell + 隠しフォーム fallback。サインインの hidden input を含むこと。
     expect(body).toContain('name="ra-idp:page" content="login"')
     expect(body).toContain('name="csrf"')
@@ -160,7 +165,7 @@ describe('authorize routes — OIDC session prompts', () => {
   it('ログインフォームの成功後はセッション Cookie を発行し認可コードへリダイレクトする', async () => {
     const { app, events } = await setup()
 
-    const loginPage = await app.request(authorizeUrl())
+    const loginPage = await getLoginPage(app, authorizeUrl())
     expect(loginPage.status).toBe(401)
     const loginHtml = await loginPage.text()
     const requestId = extractInput(loginHtml, 'request_id')
@@ -194,7 +199,7 @@ describe('authorize routes — OIDC session prompts', () => {
   it('セッション Cookie から AuthenticationContext が復元される', async () => {
     const { app } = await setup()
 
-    const loginPage = await app.request(authorizeUrl())
+    const loginPage = await getLoginPage(app, authorizeUrl())
     const loginHtml = await loginPage.text()
     const requestId = extractInput(loginHtml, 'request_id')
     const csrf = extractInput(loginHtml, 'csrf')
@@ -225,7 +230,7 @@ describe('authorize routes — OIDC session prompts', () => {
 
   it('ログインフォームは CSRF 不一致を拒否する', async () => {
     const { app } = await setup()
-    const loginPage = await app.request(authorizeUrl())
+    const loginPage = await getLoginPage(app, authorizeUrl())
     const loginHtml = await loginPage.text()
     const requestId = extractInput(loginHtml, 'request_id')
 
@@ -248,7 +253,10 @@ describe('authorize routes — OIDC session prompts', () => {
     const { app } = await setup()
 
     // 既存 consent (openid + profile) に含まれない offline_access を要求し、consent UI を強制する
-    const loginPage = await app.request(authorizeUrl({ scope: 'openid profile offline_access' }))
+    const loginPage = await getLoginPage(
+      app,
+      authorizeUrl({ scope: 'openid profile offline_access' }),
+    )
     const loginHtml = await loginPage.text()
     const loginRequestId = extractInput(loginHtml, 'request_id')
     const loginCsrf = extractInput(loginHtml, 'csrf')
@@ -292,6 +300,72 @@ describe('authorize routes — OIDC session prompts', () => {
 
     expect(res.status).toBe(302)
     expect(res.headers.get('location')).toStartWith('https://app.example.com/cb?code=')
+  })
+
+  it('ブラウザ API の同意許可は再送されても code を二重発行しない', async () => {
+    const { app } = await setup()
+    const start = await app.request(authorizeUrl({ scope: 'openid profile offline_access' }))
+    expect(start.status).toBe(303)
+    expect(start.headers.get('location')).toBe('/login')
+    const transactionCookie = cookiePairFrom(start.headers, 'ra_idp_transaction')
+
+    const loginTransaction = await app.request('http://idp.example.com/api/auth/transaction', {
+      headers: { cookie: transactionCookie },
+    })
+    expect(loginTransaction.status).toBe(200)
+    const loginCsrfCookie = cookiePairFrom(loginTransaction.headers, 'ra_idp_csrf')
+    const loginTransactionBody = (await loginTransaction.json()) as {
+      kind: string
+      csrf_token: string
+    }
+    expect(loginTransactionBody).toMatchObject({ kind: 'login' })
+
+    const login = await app.request('http://idp.example.com/api/auth/login', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'X-CSRF-Token': loginTransactionBody.csrf_token,
+        cookie: `${transactionCookie}; ${loginCsrfCookie}`,
+      },
+      body: JSON.stringify({ username: 'alice', password: 'pw' }),
+    })
+    expect(login.status).toBe(200)
+    expect(await login.json()).toMatchObject({ next: '/consent' })
+    const sessionCookie = cookiePairFrom(login.headers, 'ra_idp_session')
+
+    const consentTransaction = await app.request('http://idp.example.com/api/auth/transaction', {
+      headers: { cookie: `${transactionCookie}; ${sessionCookie}` },
+    })
+    expect(consentTransaction.status).toBe(200)
+    const consentCsrfCookie = cookiePairFrom(consentTransaction.headers, 'ra_idp_csrf')
+    const consentTransactionBody = (await consentTransaction.json()) as {
+      kind: string
+      csrf_token: string
+    }
+    expect(consentTransactionBody).toMatchObject({ kind: 'consent' })
+
+    const headers = {
+      'content-type': 'application/json',
+      'X-CSRF-Token': consentTransactionBody.csrf_token,
+      cookie: `${transactionCookie}; ${sessionCookie}; ${consentCsrfCookie}`,
+    }
+    const first = await app.request('http://idp.example.com/api/auth/consent', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ action: 'allow' }),
+    })
+    const second = await app.request('http://idp.example.com/api/auth/consent', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ action: 'allow' }),
+    })
+
+    expect(first.status).toBe(200)
+    expect(second.status).toBe(200)
+    const firstLocation = ((await first.json()) as { redirect_to: string }).redirect_to
+    const secondLocation = ((await second.json()) as { redirect_to: string }).redirect_to
+    expect(firstLocation).toStartWith('https://app.example.com/cb?code=')
+    expect(secondLocation).toBe(firstLocation)
   })
 })
 
@@ -339,8 +413,29 @@ describe('authorize routes — RP-Initiated Logout', () => {
   })
 })
 
+async function getLoginPage(app: Hono, authorize: string): Promise<Response> {
+  const redirect = await app.request(authorize)
+  expect(redirect.status).toBe(303)
+  expect(redirect.headers.get('location')).toBe('/login')
+  return await app.request('http://idp.example.com/login', {
+    headers: { cookie: redirect.headers.get('set-cookie') ?? '' },
+  })
+}
+
 function extractInput(html: string, name: string): string {
   const match = html.match(new RegExp(`name="${name}" value="([^"]+)"`))
   if (!match) throw new Error(`input ${name} not found`)
   return match[1]
+}
+
+function cookiePair(setCookie: string): string {
+  return setCookie.split(';')[0] ?? ''
+}
+
+function cookiePairFrom(headers: Headers, name: string): string {
+  const setCookie =
+    headers.getSetCookie().find((cookie) => cookie.startsWith(`${name}=`)) ??
+    headers.get('set-cookie') ??
+    ''
+  return cookiePair(setCookie)
 }

@@ -1,5 +1,6 @@
 import type {
   BrowserFlowResponse,
+  ChangePasswordPage,
   ConsentPage,
   CallbackPage,
   DevicePage,
@@ -21,6 +22,12 @@ type DeviceResponse = {
   kind: 'device'
   csrf_token: string
   user_code: string
+}
+
+type AccountContextResponse = {
+  csrf_token: string
+  sub: string
+  preferred_username?: string
 }
 
 type APIError = {
@@ -86,6 +93,15 @@ export async function loadPageData(): Promise<PageData> {
       userCode: data.user_code,
     } satisfies DevicePage
   }
+  if (path === '/account/password') {
+    const data = await request<AccountContextResponse>('/api/auth/account')
+    return {
+      kind: 'change-password',
+      csrfToken: data.csrf_token,
+      sub: data.sub,
+      preferredUsername: data.preferred_username,
+    } satisfies ChangePasswordPage
+  }
 
   const data = await request<TransactionResponse>('/api/auth/transaction')
   if (data.kind === 'consent') {
@@ -149,6 +165,49 @@ export async function submitTOTP(csrfToken: string, code: string): Promise<Brows
     },
     body: JSON.stringify({ code }),
   })
+}
+
+export class PasswordPolicyError extends AuthenticationAPIError {
+  violations: string[]
+
+  constructor(message: string, violations: string[]) {
+    super(message, 'password_policy')
+    this.name = 'PasswordPolicyError'
+    this.violations = violations
+  }
+}
+
+export async function changePassword(
+  csrfToken: string,
+  currentPassword: string,
+  newPassword: string,
+): Promise<void> {
+  const response = await fetch('/api/auth/change_password', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': csrfToken,
+    },
+    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+    credentials: 'same-origin',
+    cache: 'no-store',
+  })
+  if (response.status === 204) return
+  const body = (await response.json().catch(() => ({}))) as {
+    error?: string
+    message?: string
+    violations?: string[]
+  }
+  if (body.error === 'password_policy') {
+    throw new PasswordPolicyError(
+      body.message ?? 'パスワードがセキュリティ要件を満たしていません。',
+      body.violations ?? [],
+    )
+  }
+  throw new AuthenticationAPIError(
+    body.message ?? '認証サービスに接続できませんでした。',
+    body.error,
+  )
 }
 
 export async function submitDevice(

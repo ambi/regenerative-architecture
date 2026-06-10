@@ -44,6 +44,7 @@ func newServerWithTOTP(t *testing.T, totpSecret string) *httptest.Server {
 	clientRepo := memory.NewClientRepository()
 	userRepo := memory.NewUserRepository()
 	mfaFactorRepo := memory.NewMfaFactorRepository()
+	passwordHistoryRepo := memory.NewPasswordHistoryRepository()
 	requestStore := memory.NewAuthorizationRequestStore()
 	codeStore := memory.NewAuthorizationCodeStore()
 	hasher := crypto.NewArgon2idPasswordHasher()
@@ -75,6 +76,9 @@ func newServerWithTOTP(t *testing.T, totpSecret string) *httptest.Server {
 		Email: &email, EmailVerified: true, MfaEnrolled: totpSecret != "",
 		CreatedAt: now, UpdatedAt: now,
 	})
+	if err := passwordHistoryRepo.Add(context.Background(), "user_alice", hash, now); err != nil {
+		t.Fatalf("seed password history: %v", err)
+	}
 	if totpSecret != "" {
 		if err := mfaFactorRepo.Save(context.Background(), &spec.MfaFactor{
 			Sub: "user_alice", Type: spec.MfaFactorTOTP, Secret: &totpSecret, CreatedAt: now,
@@ -93,8 +97,8 @@ func newServerWithTOTP(t *testing.T, totpSecret string) *httptest.Server {
 	httpadapter.Register(e, httpadapter.Deps{
 		Issuer:     "http://test",
 		ClientRepo: clientRepo, UserRepo: userRepo, ConsentRepo: memory.NewConsentRepository(),
-		MfaFactorRepo: mfaFactorRepo,
-		RequestStore:  requestStore, CodeStore: codeStore, PARStore: memory.NewPARStore(),
+		MfaFactorRepo: mfaFactorRepo, PasswordHistoryRepo: passwordHistoryRepo,
+		RequestStore: requestStore, CodeStore: codeStore, PARStore: memory.NewPARStore(),
 		RefreshStore: memory.NewRefreshTokenStore(), DeviceCodeStore: memory.NewDeviceCodeStore(),
 		KeyStore: keyStore, TokenIssuer: tokenIssuer, TokenIntrospector: tokenIssuer,
 		PasswordHasher: hasher, SessionManager: sessionManager, AuthnResolver: sessionManager,
@@ -275,6 +279,187 @@ func TestBrowserAPIPostRejectsForeignOrigin(t *testing.T) {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusForbidden {
 		t.Fatalf("status=%d, want 403", resp.StatusCode)
+	}
+}
+
+func TestChangePasswordUpdatesCredentialsAndRejectsReuse(t *testing.T) {
+	srv := newServer(t)
+	defer srv.Close()
+	client := browserClient(t)
+
+	resp := startAuthorization(t, client, srv.URL, "verifier-for-change-password-123456789012345", "state")
+	resp.Body.Close()
+	transaction := getJSON[struct {
+		Kind      string `json:"kind"`
+		CSRFToken string `json:"csrf_token"`
+	}](t, client, srv.URL+"/api/auth/transaction")
+	postJSON[map[string]string](t, client, srv.URL+"/api/auth/login", transaction.CSRFToken, map[string]string{
+		"username": demoUsername,
+		"password": demoPassword,
+	})
+
+	reqBody, _ := json.Marshal(map[string]string{
+		"current_password": demoPassword,
+		"new_password":     "fresh-pass-9182",
+	})
+	req, _ := http.NewRequest(http.MethodPost, srv.URL+"/api/auth/change_password", bytes.NewReader(reqBody))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Origin", "http://test")
+	req.Header.Set("X-CSRF-Token", transaction.CSRFToken)
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("POST /api/auth/change_password: %v", err)
+	}
+	if resp.StatusCode != http.StatusNoContent {
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		t.Fatalf("status=%d, want 204; body=%s", resp.StatusCode, body)
+	}
+	resp.Body.Close()
+
+	payload, _ := json.Marshal(map[string]string{"username": demoUsername, "password": "fresh-pass-9182"})
+	req, _ = http.NewRequest(http.MethodPost, srv.URL+"/api/auth/login", bytes.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Origin", "http://test")
+	req.Header.Set("X-CSRF-Token", transaction.CSRFToken)
+	resp, err = client.Do(req)
+	if err != nil {
+		t.Fatalf("POST /api/auth/login with new password: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		t.Fatalf("status=%d, want 200; body=%s", resp.StatusCode, body)
+	}
+	resp.Body.Close()
+
+	reqBody, _ = json.Marshal(map[string]string{
+		"current_password": "fresh-pass-9182",
+		"new_password":     demoPassword,
+	})
+	req, _ = http.NewRequest(http.MethodPost, srv.URL+"/api/auth/change_password", bytes.NewReader(reqBody))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Origin", "http://test")
+	req.Header.Set("X-CSRF-Token", transaction.CSRFToken)
+	resp, err = client.Do(req)
+	if err != nil {
+		t.Fatalf("POST /api/auth/change_password reuse: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("status=%d, want 400; body=%s", resp.StatusCode, body)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	if !bytes.Contains(body, []byte(`"error":"password_reuse"`)) {
+		t.Fatalf("unexpected body=%s", body)
+	}
+}
+
+func TestAccountContextRequiresAuthenticatedSession(t *testing.T) {
+	srv := newServer(t)
+	defer srv.Close()
+	client := browserClient(t)
+
+	resp, err := client.Get(srv.URL + "/api/auth/account")
+	if err != nil {
+		t.Fatalf("GET /api/auth/account: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("status=%d, want 401; body=%s", resp.StatusCode, body)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	if !bytes.Contains(body, []byte(`"error":"authentication_required"`)) {
+		t.Fatalf("unexpected body=%s", body)
+	}
+}
+
+func TestAccountContextReturnsCSRFTokenForAuthenticatedSession(t *testing.T) {
+	srv := newServer(t)
+	defer srv.Close()
+	client := browserClient(t)
+
+	// 認可フローを 1 度走らせて認証済みセッションを得る
+	resp := startAuthorization(t, client, srv.URL, "verifier-for-account-context-1234567890123", "state")
+	resp.Body.Close()
+	transaction := getJSON[struct {
+		Kind      string `json:"kind"`
+		CSRFToken string `json:"csrf_token"`
+	}](t, client, srv.URL+"/api/auth/transaction")
+	postJSON[map[string]string](t, client, srv.URL+"/api/auth/login", transaction.CSRFToken, map[string]string{
+		"username": demoUsername,
+		"password": demoPassword,
+	})
+
+	ctx := getJSON[struct {
+		CSRFToken         string `json:"csrf_token"`
+		Sub               string `json:"sub"`
+		PreferredUsername string `json:"preferred_username"`
+	}](t, client, srv.URL+"/api/auth/account")
+	if ctx.CSRFToken == "" {
+		t.Fatal("csrf_token is empty")
+	}
+	if ctx.Sub != "user_alice" {
+		t.Fatalf("sub=%q, want user_alice", ctx.Sub)
+	}
+	if ctx.PreferredUsername != demoUsername {
+		t.Fatalf("preferred_username=%q, want %q", ctx.PreferredUsername, demoUsername)
+	}
+}
+
+func TestChangePasswordReturnsViolationsForPolicyError(t *testing.T) {
+	srv := newServer(t)
+	defer srv.Close()
+	client := browserClient(t)
+
+	resp := startAuthorization(t, client, srv.URL, "verifier-for-change-password-policy-12345678", "state")
+	resp.Body.Close()
+	transaction := getJSON[struct {
+		Kind      string `json:"kind"`
+		CSRFToken string `json:"csrf_token"`
+	}](t, client, srv.URL+"/api/auth/transaction")
+	postJSON[map[string]string](t, client, srv.URL+"/api/auth/login", transaction.CSRFToken, map[string]string{
+		"username": demoUsername,
+		"password": demoPassword,
+	})
+
+	reqBody, _ := json.Marshal(map[string]string{
+		"current_password": demoPassword,
+		"new_password":     "short",
+	})
+	req, _ := http.NewRequest(http.MethodPost, srv.URL+"/api/auth/change_password", bytes.NewReader(reqBody))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Origin", "http://test")
+	req.Header.Set("X-CSRF-Token", transaction.CSRFToken)
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("POST /api/auth/change_password: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("status=%d, want 400; body=%s", resp.StatusCode, body)
+	}
+	var body struct {
+		Error      string   `json:"error"`
+		Violations []string `json:"violations"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if body.Error != "password_policy" {
+		t.Fatalf("error=%q, want password_policy", body.Error)
+	}
+	found := false
+	for _, v := range body.Violations {
+		if v == "too_short" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("violations=%v, want to include too_short", body.Violations)
 	}
 }
 

@@ -31,6 +31,16 @@ func TestPasswordPolicyMaxLengthMatchesSCL(t *testing.T) {
 	}
 }
 
+func TestPasswordPolicyHistoryDepthMatchesSCL(t *testing.T) {
+	s, err := spec.LoadSCL()
+	if err != nil {
+		t.Fatalf("load scl: %v", err)
+	}
+	if got, want := s.Annotations.PasswordPolicy.HistoryDepth, usecases.PasswordPolicyHistoryDepth; got != want {
+		t.Fatalf("scl.annotations.password_policy.history_depth=%d, Go PasswordPolicyHistoryDepth=%d", got, want)
+	}
+}
+
 func TestMfaFactorTypeMatchesSCL(t *testing.T) {
 	s, err := spec.LoadSCL()
 	if err != nil {

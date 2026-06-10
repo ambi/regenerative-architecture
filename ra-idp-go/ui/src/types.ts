@@ -38,6 +38,13 @@ export type CallbackPage = {
   errorDescription?: string
 }
 
+export type ChangePasswordPage = {
+  kind: 'change-password'
+  csrfToken: string
+  sub: string
+  preferredUsername?: string
+}
+
 export type PageData =
   | HomePage
   | LoginPage
@@ -46,6 +53,7 @@ export type PageData =
   | DevicePage
   | StatusPage
   | CallbackPage
+  | ChangePasswordPage
 
 export type BrowserFlowResponse = {
   next?: string

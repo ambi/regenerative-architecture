@@ -40,6 +40,14 @@ type AuthenticationFailed struct {
 func (e *AuthenticationFailed) EventType() string     { return "AuthenticationFailed" }
 func (e *AuthenticationFailed) OccurredAt() time.Time { return e.At }
 
+type PasswordChanged struct {
+	At  time.Time `json:"-"`
+	Sub string    `json:"sub"`
+}
+
+func (e *PasswordChanged) EventType() string     { return "PasswordChanged" }
+func (e *PasswordChanged) OccurredAt() time.Time { return e.At }
+
 type ConsentGrantedEvent struct {
 	At       time.Time `json:"-"`
 	Sub      string    `json:"sub"`

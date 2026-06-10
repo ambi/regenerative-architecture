@@ -19,6 +19,7 @@ func seedDemoData(
 	clients oauthports.ClientRepository,
 	users oauthports.UserRepository,
 	mfaFactors authports.MfaFactorRepository,
+	passwordHistory authports.PasswordHistoryRepository,
 	hasher authports.PasswordHasher,
 ) error {
 	secretHash := oauthdomain.HashClientSecret(envDefault("DEMO_CLIENT_SECRET", "demo-client-secret"))
@@ -55,6 +56,9 @@ func seedDemoData(
 		Email: &email, EmailVerified: true, MfaEnrolled: totpSecret != "",
 		CreatedAt: now, UpdatedAt: now,
 	}); err != nil {
+		return err
+	}
+	if err := passwordHistory.Add(ctx, "user_alice", hash, now); err != nil {
 		return err
 	}
 	if totpSecret == "" {

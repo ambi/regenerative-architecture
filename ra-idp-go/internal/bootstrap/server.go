@@ -37,7 +37,7 @@ func Run() error {
 
 	hasher := crypto.NewArgon2idPasswordHasher()
 	if os.Getenv("SKIP_DEMO_SEED") == "" {
-		if err := seedDemoData(ctx, deps.ClientRepo, deps.UserRepo, deps.MfaFactorRepo, hasher); err != nil {
+		if err := seedDemoData(ctx, deps.ClientRepo, deps.UserRepo, deps.MfaFactorRepo, deps.PasswordHistoryRepo, hasher); err != nil {
 			return fmt.Errorf("seed demo data: %w", err)
 		}
 	}
@@ -78,7 +78,7 @@ func Run() error {
 		AccessTokenDenylist: deps.AccessTokenDenylist,
 		KeyStore:            deps.KeyStore, TokenIssuer: tokenSigner, TokenIntrospector: tokenSigner,
 		Authorizer: authorizer, JWKResolver: jwkResolver,
-		PasswordHasher: hasher, MfaFactorRepo: deps.MfaFactorRepo,
+		PasswordHasher: hasher, MfaFactorRepo: deps.MfaFactorRepo, PasswordHistoryRepo: deps.PasswordHistoryRepo,
 		SessionManager: sessionManager, AuthnResolver: sessionManager,
 		Emit: emit,
 		HealthInfo: httpadapter.HealthInfo{

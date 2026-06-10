@@ -206,9 +206,12 @@ type SCLAnnotations struct {
 }
 
 type SCLPasswordPolicy struct {
-	Description string `yaml:"description"`
-	MinLength   int    `yaml:"min_length"`
-	MaxLength   int    `yaml:"max_length"`
+	Description                    string `yaml:"description"`
+	MinLength                      int    `yaml:"min_length"`
+	MaxLength                      int    `yaml:"max_length"`
+	ForbidUserIdentifierSimilarity bool   `yaml:"forbid_user_identifier_similarity"`
+	CommonPasswordDictionary       string `yaml:"common_password_dictionary"`
+	HistoryDepth                   int    `yaml:"history_depth"`
 }
 
 type SCLDiscoveryTemplate struct {

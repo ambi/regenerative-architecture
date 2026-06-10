@@ -40,6 +40,12 @@ type transactionResponse struct {
 	Scopes     []string `json:"scopes,omitempty"`
 }
 
+type accountContextResponse struct {
+	CSRFToken         string `json:"csrf_token"`
+	Sub               string `json:"sub"`
+	PreferredUsername string `json:"preferred_username,omitempty"`
+}
+
 type loginAPIRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
@@ -51,6 +57,11 @@ type consentAPIRequest struct {
 
 type totpAPIRequest struct {
 	Code string `json:"code"`
+}
+
+type changePasswordAPIRequest struct {
+	CurrentPassword string `json:"current_password"`
+	NewPassword     string `json:"new_password"`
 }
 
 func (d Deps) handleAuthorize(c *echo.Context) error {
@@ -184,6 +195,30 @@ func (d Deps) handleTransaction(c *echo.Context) error {
 	return noStoreJSON(c, http.StatusOK, transactionResponse{
 		Kind: "consent", CSRFToken: csrf, ClientName: name, Scopes: strings.Fields(req.Scope),
 	})
+}
+
+// handleAccountContext は認証済みセッションに対して CSRF cookie を発行し、SPA が
+// /account/password 等の認証必須画面で X-CSRF-Token を構築するためのコンテキストを返す。
+// OAuth 認可トランザクションは要求しない (handleTransaction との分岐点)。
+func (d Deps) handleAccountContext(c *echo.Context) error {
+	authn, err := d.resolveAuthentication(c)
+	if err != nil {
+		return err
+	}
+	if authn == nil || authn.AuthenticationPending {
+		return writeBrowserError(c, http.StatusUnauthorized, "authentication_required", "認証済みセッションが必要です")
+	}
+	csrf, err := d.ensureCSRFCookie(c)
+	if err != nil {
+		return err
+	}
+	resp := accountContextResponse{CSRFToken: csrf, Sub: authn.Sub}
+	if d.UserRepo != nil {
+		if user, _ := d.UserRepo.FindBySub(c.Request().Context(), authn.Sub); user != nil {
+			resp.PreferredUsername = user.PreferredUsername
+		}
+	}
+	return noStoreJSON(c, http.StatusOK, resp)
 }
 
 func (d Deps) handleLoginAPI(c *echo.Context) error {
@@ -322,6 +357,69 @@ func (d Deps) handleTOTPAPI(c *echo.Context) error {
 		d.clearTransactionCookie(c)
 	}
 	return writeAuthorizationNext(c, next)
+}
+
+func (d Deps) handleChangePasswordAPI(c *echo.Context) error {
+	if err := d.verifyBrowserRequest(c); err != nil {
+		return err
+	}
+	authn, err := d.resolveAuthentication(c)
+	if err != nil {
+		return err
+	}
+	if authn == nil || authn.AuthenticationPending {
+		return writeBrowserError(c, http.StatusUnauthorized, "authentication_required", "認証済みセッションが必要です")
+	}
+	var input changePasswordAPIRequest
+	if err := decodeJSON(c.Request(), &input); err != nil {
+		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	}
+	if input.CurrentPassword == "" || input.NewPassword == "" {
+		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "現在と新しいパスワードが必要です")
+	}
+
+	historyDepth := authusecases.PasswordPolicyHistoryDepth
+	if d.SCL != nil && d.SCL.Annotations.PasswordPolicy.HistoryDepth > 0 {
+		historyDepth = d.SCL.Annotations.PasswordPolicy.HistoryDepth
+	}
+
+	_, err = authusecases.ChangePassword(c.Request().Context(), authusecases.ChangePasswordDeps{
+		UserRepo:            d.UserRepo,
+		PasswordHasher:      d.PasswordHasher,
+		PasswordHistoryRepo: d.PasswordHistoryRepo,
+		Emit:                d.Emit,
+		HistoryDepth:        historyDepth,
+	}, authusecases.ChangePasswordInput{
+		Sub:             authn.Sub,
+		CurrentPassword: input.CurrentPassword,
+		NewPassword:     input.NewPassword,
+		Now:             time.Now().UTC(),
+	})
+	switch {
+	case err == nil:
+		c.Response().Header().Set("Cache-Control", "no-store")
+		return c.NoContent(http.StatusNoContent)
+	case errors.Is(err, authusecases.ErrUserNotFound):
+		return writeBrowserError(c, http.StatusUnauthorized, "authentication_required", "認証済みセッションが無効です")
+	case errors.Is(err, authusecases.ErrCurrentPasswordMismatch):
+		return writeBrowserError(c, http.StatusForbidden, "access_denied", "現在のパスワードが一致しません")
+	case errors.Is(err, authusecases.ErrPasswordReused):
+		return writeBrowserError(c, http.StatusBadRequest, "password_reuse", "新しいパスワードは最近使用したものを再利用できません")
+	default:
+		var policyErr *authusecases.PasswordPolicyError
+		if errors.As(err, &policyErr) {
+			violations := make([]string, len(policyErr.Violations))
+			for i, v := range policyErr.Violations {
+				violations[i] = string(v)
+			}
+			return noStoreJSON(c, http.StatusBadRequest, map[string]any{
+				"error":      "password_policy",
+				"message":    "パスワードがセキュリティ要件を満たしていません。",
+				"violations": violations,
+			})
+		}
+		return err
+	}
 }
 
 func (d Deps) handleConsentAPI(c *echo.Context) error {

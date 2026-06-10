@@ -37,6 +37,7 @@ type Deps struct {
 	JWKResolver                *crypto.JWKResolver
 	PasswordHasher             authports.PasswordHasher
 	MfaFactorRepo              authports.MfaFactorRepository
+	PasswordHistoryRepo        authports.PasswordHistoryRepository
 	SessionManager             *authusecases.SessionManager
 	AuthnResolver              authdomain.AuthenticationContextResolver
 	Emit                       func(spec.DomainEvent)
@@ -48,7 +49,9 @@ func Register(e *echo.Echo, d Deps) {
 	e.GET("/end_session", d.handleEndSession)
 	e.POST("/end_session", d.handleEndSession)
 	e.GET("/api/auth/transaction", d.handleTransaction)
+	e.GET("/api/auth/account", d.handleAccountContext)
 	e.POST("/api/auth/login", d.handleLoginAPI)
+	e.POST("/api/auth/change_password", d.handleChangePasswordAPI)
 	e.POST("/api/auth/consent", d.handleConsentAPI)
 	e.POST("/api/auth/totp", d.handleTOTPAPI)
 	e.GET("/api/auth/device", d.handleDeviceContext)

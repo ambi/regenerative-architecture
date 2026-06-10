@@ -14,6 +14,7 @@ type Dependencies struct {
 	ClientRepo            oauthports.ClientRepository
 	UserRepo              oauthports.UserRepository
 	MfaFactorRepo         authports.MfaFactorRepository
+	PasswordHistoryRepo   authports.PasswordHistoryRepository
 	ConsentRepo           oauthports.ConsentRepository
 	RequestStore          oauthports.AuthorizationRequestStore
 	CodeStore             oauthports.AuthorizationCodeStore

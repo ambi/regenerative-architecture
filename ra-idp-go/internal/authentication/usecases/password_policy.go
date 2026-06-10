@@ -21,8 +21,9 @@ const (
 )
 
 const (
-	PasswordPolicyMinLength = 12
-	PasswordPolicyMaxLength = 128
+	PasswordPolicyMinLength    = 12
+	PasswordPolicyMaxLength    = 128
+	PasswordPolicyHistoryDepth = 5
 )
 
 type PasswordPolicyResult struct {

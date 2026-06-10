@@ -124,6 +124,7 @@ func partitionKey(eventType string, payload []byte) string {
 		"ClientRegistered":             {"ClientID", "clientId"},
 		"UserAuthenticated":            {"Sub", "sub"},
 		"AuthenticationFailed":         {"Username", "username"},
+		"PasswordChanged":              {"Sub", "sub"},
 		"ConsentGranted":               {"Sub", "sub"},
 		"ConsentRevoked":               {"Sub", "sub"},
 		"AuthorizationCodeIssued":      {"Sub", "sub"},

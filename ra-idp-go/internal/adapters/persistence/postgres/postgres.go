@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"ra-idp-go/internal/adapters/crypto"
+	authports "ra-idp-go/internal/authentication/ports"
 	"ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/spec"
 
@@ -172,6 +173,42 @@ func scanUser(row rowScanner) (*spec.User, error) {
 		return nil, err
 	}
 	return &u, u.Validate()
+}
+
+type PasswordHistoryRepository struct{ Pool *pgxpool.Pool }
+
+func (r *PasswordHistoryRepository) Recent(
+	ctx context.Context,
+	sub string,
+	depth int,
+) ([]authports.PasswordHistoryEntry, error) {
+	if depth <= 0 {
+		return nil, nil
+	}
+	rows, err := r.Pool.Query(ctx, `SELECT encoded,created_at
+FROM password_history
+WHERE sub=$1
+ORDER BY created_at DESC, id DESC
+LIMIT $2`, sub, depth)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []authports.PasswordHistoryEntry{}
+	for rows.Next() {
+		var entry authports.PasswordHistoryEntry
+		if err := rows.Scan(&entry.Encoded, &entry.CreatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, entry)
+	}
+	return out, rows.Err()
+}
+
+func (r *PasswordHistoryRepository) Add(ctx context.Context, sub, encoded string, now time.Time) error {
+	_, err := r.Pool.Exec(ctx, `INSERT INTO password_history (sub,encoded,created_at) VALUES ($1,$2,$3)`,
+		sub, encoded, now)
+	return err
 }
 
 type MfaFactorRepository struct{ Pool *pgxpool.Pool }
@@ -459,7 +496,7 @@ func scanSigningKey(row rowScanner) (*ports.SigningKey, error) {
 
 var eventTopics = map[string]string{
 	"ClientRegistered": "oauth2.client.lifecycle.v1", "UserAuthenticated": "oauth2.authentication.v1",
-	"AuthenticationFailed": "oauth2.authentication.v1", "ConsentGranted": "oauth2.consent.v1",
+	"AuthenticationFailed": "oauth2.authentication.v1", "PasswordChanged": "oauth2.authentication.v1", "ConsentGranted": "oauth2.consent.v1",
 	"ConsentRevoked": "oauth2.consent.v1", "AuthorizationCodeIssued": "oauth2.authorization-code.v1",
 	"AuthorizationCodeRedeemed": "oauth2.authorization-code.v1", "AccessTokenIssued": "oauth2.token.v1",
 	"RefreshTokenIssued": "oauth2.token.v1", "RefreshTokenRotated": "oauth2.token.v1",

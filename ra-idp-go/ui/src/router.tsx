@@ -5,8 +5,9 @@ import {
   createRoute,
   createRouter,
 } from '@tanstack/react-router'
-import { ConsentPage } from './pages/ConsentPage'
 import { CallbackPage } from './pages/CallbackPage'
+import { ChangePasswordPage } from './pages/ChangePasswordPage'
+import { ConsentPage } from './pages/ConsentPage'
 import { DevicePage } from './pages/DevicePage'
 import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
@@ -54,6 +55,11 @@ export function createAppRouter(data: PageData) {
     path: '/callback',
     component: () => (data.kind === 'callback' ? <CallbackPage {...data} /> : null),
   })
+  const changePasswordRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/account/password',
+    component: () => (data.kind === 'change-password' ? <ChangePasswordPage {...data} /> : null),
+  })
 
   return createRouter({
     routeTree: rootRoute.addChildren([
@@ -64,6 +70,7 @@ export function createAppRouter(data: PageData) {
       deviceRoute,
       statusRoute,
       callbackRoute,
+      changePasswordRoute,
     ]),
     history: createBrowserHistory(),
   })

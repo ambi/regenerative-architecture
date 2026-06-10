@@ -223,6 +223,25 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/BrowserTotpRequest"
+  /api/auth/change_password:
+    post:
+      operationId: changePassword
+      summary: 認証済みユーザーが自身のパスワードを変更する。current_password を verify、new_password を password_policy で検証、PasswordHistoryNoReuse invariant で直近 history_depth 件と照合する。
+      responses:
+        200:
+          description: 認証済みユーザーが自身のパスワードを変更する。current_password を verify、new_password を password_policy で検証、PasswordHistoryNoReuse invariant で直近 history_depth 件と照合する。
+        400:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthError"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BrowserChangePasswordRequest"
   /end_session:
     get:
       operationId: endSession
@@ -1771,6 +1790,18 @@ components:
           type: string
       required:
         - code
+    BrowserChangePasswordRequest:
+      type: object
+      additionalProperties: false
+      description: "SPA が POST /api/auth/change_password に送る JSON。認証済みセッション cookie が sub を解決し、CSRF は X-CSRF-Token header で検証する。"
+      properties:
+        current_password:
+          type: string
+        new_password:
+          type: string
+      required:
+        - current_password
+        - new_password
     BrowserTransactionResponse:
       type: object
       additionalProperties: false
@@ -2038,6 +2069,21 @@ components:
       required:
         - type
         - occurredAt
+    PasswordChanged:
+      type: object
+      properties:
+        type:
+          const: PasswordChanged
+          type: string
+        occurredAt:
+          type: string
+          format: "date-time"
+        sub:
+          type: string
+      required:
+        - type
+        - occurredAt
+        - sub
     ConsentGranted:
       type: object
       properties:

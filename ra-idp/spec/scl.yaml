@@ -13,9 +13,9 @@ spec_version: "1.1"
 components:
   Authentication:
     description: ユーザー認証、パスワード検証、ブラウザログインセッション、AuthenticationContext 復元を所有する。
-    owns_models: [User, LoginSession, BrowserLoginRequest, BrowserTotpRequest, MfaFactor, MfaFactorType, AuthenticationContext]
-    owns_events: [UserAuthenticated, AuthenticationFailed]
-    owns_interfaces: [SubmitBrowserLogin, SubmitBrowserTotp]
+    owns_models: [User, LoginSession, BrowserLoginRequest, BrowserTotpRequest, BrowserChangePasswordRequest, MfaFactor, MfaFactorType, AuthenticationContext]
+    owns_events: [UserAuthenticated, AuthenticationFailed, PasswordChanged]
+    owns_interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, ChangePassword]
   OAuth2:
     description: OAuth 2.0 / OIDC の認可判断、同意、コード・トークン発行、RP-Initiated Logout endpoint を所有する。
     owns_models: [AuthorizationRequest, Consent, AuthorizationCodeRecord, TokenRequest, TokenResponse, EndSessionParameters]
@@ -1592,6 +1592,14 @@ models:
     fields:
       code:          { type: String, description: Authenticator アプリが生成した数字コード (annotations.totp_policy.digits 桁)。, annotations: { sensitive: true } }
 
+  BrowserChangePasswordRequest:
+    kind: value_object
+    description: SPA が POST /api/auth/change_password に送る JSON。認証済みセッション cookie が sub を解決し、CSRF は X-CSRF-Token header で検証する。
+    annotations: { component: Authentication }
+    fields:
+      current_password: { type: String, annotations: { sensitive: true } }
+      new_password:     { type: String, annotations: { sensitive: true } }
+
   BrowserTransactionResponse:
     kind: value_object
     description: SPA が現在の browser authorization transaction を描画するための no-store JSON。
@@ -1714,6 +1722,14 @@ models:
       occurredAt:   { type: Timestamp }
       username:     { type: String, optional: true, annotations: { pii: true } }
       reason:       { type: String, optional: true }
+
+  PasswordChanged:
+    kind: event
+    description: ResourceOwner が /api/auth/change_password で自身のパスワードを変更した。change-password 監査と通知の起点。
+    annotations: { component: Authentication }
+    payload:
+      occurredAt:   { type: Timestamp }
+      sub:          { type: String }
 
   ConsentGranted:
     kind: event
@@ -1936,6 +1952,17 @@ interfaces:
     emits: [UserAuthenticated, AuthenticationFailed]
     bindings:
       - { kind: http, method: POST, path: /api/auth/totp, request_body: json }
+
+  ChangePassword:
+    description: 認証済みユーザーが自身のパスワードを変更する。current_password を verify、new_password を password_policy で検証、PasswordHistoryNoReuse invariant で直近 history_depth 件と照合する。
+    steps:
+      - "認証済みユーザーが current_password と new_password で change-password を送る"
+    input:
+      request: { type: BrowserChangePasswordRequest }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [PasswordChanged]
+    bindings:
+      - { kind: http, method: POST, path: /api/auth/change_password, request_body: json }
 
   GetBrowserDeviceContext:
     description: SPA が device user_code と CSRF token を取得する。
@@ -2357,6 +2384,18 @@ invariants:
     description: 発行されたすべての AccessToken は非空の audience を持つ（RFC 8707 / RFC 9068）。
     target: AccessToken
     always: "exists(audience) and len(audience) >= 1"
+
+  # ---------- パスワード履歴 ----------
+  PasswordHistoryNoReuse:
+    description: |
+      change-password 受領時、新パスワードは同一 sub の直近 history_depth 件のハッシュと
+      一致してはならない。ADR-027 / annotations.password_policy.history_depth。
+      反例: 直前のパスワードを再設定でき、漏洩済みクレデンシャルでログイン可能なまま。
+    assuming: "event == ChangePassword"
+    never:
+      exists:
+        in: "PasswordHistoryEntries(sub=event.sub, depth=password_policy.history_depth)"
+        satisfies: "PasswordHasher.verify(event.new_password, x.encoded) == true"
 
   # ---------- クライアント認証エラー一様化 ----------
   ClientAuthFailureUniformity:
@@ -3240,11 +3279,15 @@ annotations:
       共通パスワード辞書 (bundled) による拒否を行う。最小12文字は本システム固有ポリシーであり、
       単一要素認証に15文字以上を要求する NIST 推奨への完全準拠は表明しない。HIBP 等の外部
       漏洩データベース検査は password_policy とは別に BreachedPasswordChecker port を
-      経由して行う。詳細は ADR-026。
+      経由して行う。change-password 経路では直近 history_depth 件のハッシュと一致する
+      新パスワードを拒否する (invariant PasswordHistoryNoReuse / ADR-027)。本値は将来
+      テナント別ポリシー (Phase 4) で上書き可能になる前提で構造化している。詳細は
+      ADR-026 / ADR-027。
     min_length: 12
     max_length: 128
     forbid_user_identifier_similarity: true
     common_password_dictionary: bundled
+    history_depth: 5
 
   acr_vocabulary:
     description: |

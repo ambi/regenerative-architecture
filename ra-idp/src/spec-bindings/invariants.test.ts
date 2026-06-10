@@ -449,6 +449,7 @@ describe('Password Policy — SCL ↔ TypeScript 整合', () => {
     max_length?: number
     forbid_user_identifier_similarity?: boolean
     common_password_dictionary?: string
+    history_depth?: number
   }
 
   it('SCL annotations.password_policy.min_length は TypeScript の PASSWORD_POLICY.minLength と一致する', () => {
@@ -469,6 +470,11 @@ describe('Password Policy — SCL ↔ TypeScript 整合', () => {
     expect(sclPolicy.common_password_dictionary).toBe(PASSWORD_POLICY.commonPasswordDictionary)
     expect(sclPolicy.common_password_dictionary).toBe('bundled')
     expect(COMMON_PASSWORDS.size).toBeGreaterThan(0)
+  })
+
+  it('SCL annotations.password_policy.history_depth は TypeScript の PASSWORD_POLICY.historyDepth と一致する', () => {
+    expect(sclPolicy.history_depth).toBe(PASSWORD_POLICY.historyDepth)
+    expect(PASSWORD_POLICY.historyDepth).toBeGreaterThanOrEqual(1)
   })
 })
 

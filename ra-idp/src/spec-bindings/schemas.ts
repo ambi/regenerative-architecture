@@ -316,6 +316,11 @@ export const DomainEventSchema = z.discriminatedUnion('type', [
     reason: z.string().optional(),
   }),
   z.object({
+    type: z.literal('PasswordChanged'),
+    occurredAt: isoDate,
+    sub: z.string(),
+  }),
+  z.object({
     type: z.literal('ConsentGranted'),
     occurredAt: isoDate,
     sub: z.string(),

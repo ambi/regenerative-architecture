@@ -11,6 +11,9 @@
       "$ref": "AuthenticationFailed.json"
     },
     {
+      "$ref": "PasswordChanged.json"
+    },
+    {
       "$ref": "ConsentGranted.json"
     },
     {

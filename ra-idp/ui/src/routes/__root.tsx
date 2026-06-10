@@ -1,4 +1,5 @@
 import { Outlet, createRootRoute } from '@tanstack/react-router'
+import { ChangePasswordPage } from '@/pages/ChangePasswordPage'
 import { ConsentPage } from '@/pages/ConsentPage'
 import { DevicePage } from '@/pages/DevicePage'
 import { ErrorPage } from '@/pages/ErrorPage'
@@ -29,6 +30,8 @@ function PageDispatcher() {
       return <ConsentPage />
     case 'device':
       return <DevicePage />
+    case 'change-password':
+      return <ChangePasswordPage />
     case 'error':
       return <ErrorPage />
     default:

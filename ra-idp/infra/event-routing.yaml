@@ -84,6 +84,7 @@ event_to_topic:
   ClientRegistered:             oauth2.client.lifecycle.v1
   UserAuthenticated:            oauth2.authentication.v1
   AuthenticationFailed:         oauth2.authentication.v1
+  PasswordChanged:              oauth2.authentication.v1
   ConsentGranted:               oauth2.consent.v1
   ConsentRevoked:               oauth2.consent.v1
   AuthorizationCodeIssued:      oauth2.authorization-code.v1

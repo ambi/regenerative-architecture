@@ -69,6 +69,16 @@ export function readDeviceContext(): DeviceContext {
   }
 }
 
+export interface ChangePasswordContext {
+  csrf: string
+}
+
+export function readChangePasswordContext(): ChangePasswordContext {
+  return {
+    csrf: readMeta('ra-idp:csrf') ?? '',
+  }
+}
+
 export interface ErrorContext {
   /** 'logged_out' / 'access_denied' / 'invalid_request' / 'server_error' など。 */
   kind: string

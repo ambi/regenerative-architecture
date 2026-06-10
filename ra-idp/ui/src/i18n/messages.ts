@@ -99,6 +99,29 @@ const ja = {
     footerCode: 'RFC 6238',
     footerTail: ' に従い 30 秒ごとに更新されます',
   },
+  changePassword: {
+    title: 'パスワードの変更',
+    description: '現在のパスワードと新しいパスワードを入力してください',
+    currentPassword: '現在のパスワード',
+    newPassword: '新しいパスワード',
+    submit: '変更する',
+    submitting: '変更中…',
+    successTitle: '変更しました',
+    successBody: 'パスワードを更新しました。',
+    errorTitle: '変更できませんでした',
+    errorCurrentMismatch: '現在のパスワードが一致しません。',
+    errorReuse: '直近に使ったパスワードは再利用できません。',
+    errorPolicyTooShort: 'パスワードが短すぎます。',
+    errorPolicyTooLong: 'パスワードが長すぎます。',
+    errorPolicySimilar: 'ユーザー名やメールアドレスを含むパスワードは使えません。',
+    errorPolicyCommon: 'よく使われるパスワードは使えません。',
+    errorSession: 'ログインが必要です。',
+    errorGeneric: 'リクエストの処理に失敗しました。',
+    networkError: '通信エラーが発生しました。時間をおいて再試行してください。',
+    footer: 'パスワード変更は ',
+    footerCode: 'audit log',
+    footerTail: ' に記録されます',
+  },
   error: {
     detailFallback: '問題が解消しない場合は',
     detailFallbackCode: 'audit log',
@@ -224,6 +247,29 @@ interface Messages {
     footerCode: string
     footerTail: string
   }
+  changePassword: {
+    title: string
+    description: string
+    currentPassword: string
+    newPassword: string
+    submit: string
+    submitting: string
+    successTitle: string
+    successBody: string
+    errorTitle: string
+    errorCurrentMismatch: string
+    errorReuse: string
+    errorPolicyTooShort: string
+    errorPolicyTooLong: string
+    errorPolicySimilar: string
+    errorPolicyCommon: string
+    errorSession: string
+    errorGeneric: string
+    networkError: string
+    footer: string
+    footerCode: string
+    footerTail: string
+  }
   error: {
     detailFallback: string
     detailFallbackCode: string
@@ -328,6 +374,29 @@ const en: Messages = {
     footer: 'Authenticator apps follow ',
     footerCode: 'RFC 6238',
     footerTail: ' and refresh every 30 seconds',
+  },
+  changePassword: {
+    title: 'Change password',
+    description: 'Enter your current password and a new password',
+    currentPassword: 'Current password',
+    newPassword: 'New password',
+    submit: 'Change password',
+    submitting: 'Changing…',
+    successTitle: 'Password changed',
+    successBody: 'Your password has been updated.',
+    errorTitle: 'Could not change password',
+    errorCurrentMismatch: 'Current password is incorrect.',
+    errorReuse: 'You cannot reuse a recently used password.',
+    errorPolicyTooShort: 'Password is too short.',
+    errorPolicyTooLong: 'Password is too long.',
+    errorPolicySimilar: 'Password must not contain your username or email.',
+    errorPolicyCommon: 'This password is too common.',
+    errorSession: 'Sign in is required.',
+    errorGeneric: 'Could not complete the request.',
+    networkError: 'A network error occurred. Please try again shortly.',
+    footer: 'Password changes are recorded to the ',
+    footerCode: 'audit log',
+    footerTail: '',
   },
   error: {
     detailFallback: 'If the problem persists, share the ',

@@ -17,11 +17,16 @@ export type PasswordPolicyViolation =
   | 'similar_to_identifier'
   | 'common_password'
 
+/**
+ * 値は SCL `annotations.password_policy` と双子。将来テナント別ポリシー (Phase 4) で
+ * 上書き可能になる前提で構造化している。詳細は ADR-026 / ADR-027。
+ */
 export const PASSWORD_POLICY = {
   minLength: 12,
   maxLength: 128,
   forbidUserIdentifierSimilarity: true,
   commonPasswordDictionary: 'bundled',
+  historyDepth: 5,
 } as const
 
 /**

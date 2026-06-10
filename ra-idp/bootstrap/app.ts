@@ -11,6 +11,7 @@ import { JoseTokenSigner } from '../adapters/crypto/jwt-signer'
 import type { Argon2idPasswordHasher } from '../adapters/crypto/argon2id-password-hasher'
 import { createObservabilityMiddleware } from '../adapters/http/middleware/observability-middleware'
 import { createAuthenticationRoutes } from '../adapters/http/authentication-routes'
+import { createChangePasswordRoutes } from '../adapters/http/change-password-routes'
 import {
   createAuthorizationLoginContinuation,
   createAuthorizeRoutes,
@@ -91,6 +92,16 @@ export function composeApp(input: ComposeAppInput): Hono {
       sessionManager,
       mfaFactorRepo: deps.mfaFactorRepo,
       continuation: createAuthorizationLoginContinuation(authorizeRouteDeps),
+      emit,
+    }),
+  )
+  app.route(
+    '/',
+    createChangePasswordRoutes({
+      sessionManager,
+      userRepo: deps.userRepo,
+      passwordHasher,
+      passwordHistoryRepo: deps.passwordHistoryRepo,
       emit,
     }),
   )

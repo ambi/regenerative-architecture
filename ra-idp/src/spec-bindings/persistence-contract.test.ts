@@ -34,6 +34,7 @@ import type {
 
 import { InMemoryClientRepository } from '../../adapters/persistence/memory/client-repo'
 import { InMemoryUserRepository } from '../../adapters/persistence/memory/user-repo'
+import { InMemoryPasswordHistoryRepository } from '../../adapters/persistence/memory/password-history-repo'
 import { InMemoryConsentRepository } from '../../adapters/persistence/memory/consent-repo'
 import { InMemoryRefreshTokenStore } from '../../adapters/persistence/memory/refresh-store'
 import {
@@ -46,6 +47,7 @@ import { InMemoryKeyStore } from '../../adapters/crypto/in-memory-key-store'
 
 import type { ClientRepository } from '../oauth2/ports/client-repository'
 import type { UserRepository } from '../authentication/ports/user-repository'
+import type { PasswordHistoryRepository } from '../authentication/ports/password-history-repository'
 import type { ConsentRepository } from '../oauth2/ports/consent-repository'
 import type { RefreshTokenStore } from '../oauth2/ports/refresh-token-store'
 import type { AuthorizationCodeStore, PARStore } from '../oauth2/ports/authorization-store'
@@ -152,6 +154,7 @@ interface SuiteFactory {
   setup: () => Promise<{
     clientRepo: ClientRepository
     userRepo: UserRepository
+    passwordHistoryRepo: PasswordHistoryRepository
     consentRepo: ConsentRepository
     refreshStore: RefreshTokenStore
     codeStore: AuthorizationCodeStore
@@ -172,6 +175,7 @@ SUITES.push({
   setup: async () => ({
     clientRepo: new InMemoryClientRepository(),
     userRepo: new InMemoryUserRepository(),
+    passwordHistoryRepo: new InMemoryPasswordHistoryRepository(),
     consentRepo: new InMemoryConsentRepository(),
     refreshStore: new InMemoryRefreshTokenStore(),
     codeStore: new InMemoryAuthorizationCodeStore(),
@@ -196,7 +200,7 @@ if (dbUrl && redisUrl) {
 
       // テスト用にテーブルをクリーン (本番では絶対呼ばない)
       await pool.query(
-        `TRUNCATE refresh_tokens, consents, users, clients, signing_keys RESTART IDENTITY CASCADE`,
+        `TRUNCATE password_history, refresh_tokens, consents, users, clients, signing_keys RESTART IDENTITY CASCADE`,
       )
       await redis.flushdb()
 
@@ -205,6 +209,9 @@ if (dbUrl && redisUrl) {
       )
       const { PostgresUserRepository } = await import(
         '../../adapters/persistence/postgres/user-repository'
+      )
+      const { PostgresPasswordHistoryRepository } = await import(
+        '../../adapters/persistence/postgres/password-history-repository'
       )
       const { PostgresConsentRepository } = await import(
         '../../adapters/persistence/postgres/consent-repository'
@@ -226,6 +233,7 @@ if (dbUrl && redisUrl) {
       return {
         clientRepo: new PostgresClientRepository(pool),
         userRepo: new PostgresUserRepository(pool),
+        passwordHistoryRepo: new PostgresPasswordHistoryRepository(pool),
         consentRepo: new PostgresConsentRepository(pool),
         refreshStore: new PostgresRefreshTokenStore(pool),
         codeStore: new RedisAuthorizationCodeStore(redis),
@@ -285,6 +293,57 @@ for (const suite of SUITES) {
         const byName = await deps.userRepo.findByUsername(u.preferred_username)
         expect(bySub?.sub).toBe(u.sub)
         expect(byName?.sub).toBe(u.sub)
+      })
+    })
+
+    // -------------------------------------------------------------
+    // PasswordHistoryRepository — ADR-027 reuse prevention
+    // -------------------------------------------------------------
+    describe('PasswordHistoryRepository', () => {
+      it('add → recent(depth) で created_at DESC で返す', async () => {
+        const u = makeUser(`u-${randomUUID()}`)
+        await deps.userRepo.save(u)
+
+        const t0 = new Date('2025-01-01T00:00:00Z')
+        const t1 = new Date('2025-02-01T00:00:00Z')
+        const t2 = new Date('2025-03-01T00:00:00Z')
+        await deps.passwordHistoryRepo.add(u.sub, 'enc-0', t0)
+        await deps.passwordHistoryRepo.add(u.sub, 'enc-1', t1)
+        await deps.passwordHistoryRepo.add(u.sub, 'enc-2', t2)
+
+        const recent = await deps.passwordHistoryRepo.recent(u.sub, 5)
+        expect(recent.map((e) => e.encoded)).toEqual(['enc-2', 'enc-1', 'enc-0'])
+      })
+
+      it('recent(depth) は depth 件まで切り詰める', async () => {
+        const u = makeUser(`u-${randomUUID()}`)
+        await deps.userRepo.save(u)
+        for (let i = 0; i < 5; i++) {
+          await deps.passwordHistoryRepo.add(u.sub, `enc-${i}`, new Date(2025, 0, i + 1))
+        }
+        const recent = await deps.passwordHistoryRepo.recent(u.sub, 2)
+        expect(recent).toHaveLength(2)
+        expect(recent[0].encoded).toBe('enc-4')
+        expect(recent[1].encoded).toBe('enc-3')
+      })
+
+      it('recent(0) は空配列', async () => {
+        const u = makeUser(`u-${randomUUID()}`)
+        await deps.userRepo.save(u)
+        await deps.passwordHistoryRepo.add(u.sub, 'enc', new Date())
+        expect(await deps.passwordHistoryRepo.recent(u.sub, 0)).toEqual([])
+      })
+
+      it('別 sub の履歴は混在しない', async () => {
+        const a = makeUser(`u-${randomUUID()}`)
+        const b = makeUser(`u-${randomUUID()}`)
+        await deps.userRepo.save(a)
+        await deps.userRepo.save(b)
+        await deps.passwordHistoryRepo.add(a.sub, 'enc-a', new Date())
+        await deps.passwordHistoryRepo.add(b.sub, 'enc-b', new Date())
+
+        const recentA = await deps.passwordHistoryRepo.recent(a.sub, 5)
+        expect(recentA.map((e) => e.encoded)).toEqual(['enc-a'])
       })
     })
 

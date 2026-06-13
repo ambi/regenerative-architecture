@@ -372,16 +372,16 @@ table.fields tbody tr:last-child td { border-bottom: none; }
 <div class="layout">
 <nav class="toc" aria-label="Contents">
     <div class="toc-title">Contents</div>
-    <ol><li><a href="#overview">Overview</a></li><li><a href="#standards">Standards</a></li><li><a href="#vocabulary">Vocabulary</a></li><li><a href="#models">Models</a></li><li><a href="#interfaces">Interfaces</a></li><li><a href="#states">States</a></li><li><a href="#invariants">Invariants</a></li><li><a href="#scenarios">Scenarios</a></li><li><a href="#permissions">Permissions</a></li><li><a href="#objectives">Objectives</a></li><li><a href="#user_experience">User Experience</a></li></ol>
+    <ol><li><a href="#overview">Overview</a></li><li><a href="#standards">Standards</a></li><li><a href="#vocabulary">Vocabulary</a></li><li><a href="#models">Models</a></li><li><a href="#interfaces">Interfaces</a></li><li><a href="#states">States</a></li><li><a href="#invariants">Invariants</a></li><li><a href="#scenarios">Scenarios</a></li><li><a href="#permissions">Permissions</a></li><li><a href="#objectives">Objectives</a></li><li><a href="#assurance">Assurance</a></li><li><a href="#user_experience">User Experience</a></li></ol>
   </nav>
 <main>
 <section id="overview">
     <header class="page-header">
       <div class="eyebrow">Specification Core Language</div>
       <h1>ra-idp</h1>
-      <div class="page-meta"><span class="badge badge-version">spec 1.1</span></div>
+      <div class="page-meta"><span class="badge badge-version">spec 1.2</span></div>
     </header>
-    <div class="stats"><a class="stat" href="#standards"><span class="stat-num">30</span><span class="stat-label">standards</span></a><a class="stat" href="#vocabulary"><span class="stat-num">98</span><span class="stat-label">vocabulary</span></a><a class="stat" href="#models"><span class="stat-num">102</span><span class="stat-label">models</span></a><a class="stat" href="#interfaces"><span class="stat-num">23</span><span class="stat-label">interfaces</span></a><a class="stat" href="#states"><span class="stat-num">7</span><span class="stat-label">states</span></a><a class="stat" href="#invariants"><span class="stat-num">20</span><span class="stat-label">invariants</span></a><a class="stat" href="#scenarios"><span class="stat-num">50</span><span class="stat-label">scenarios</span></a><a class="stat" href="#permissions"><span class="stat-num">8</span><span class="stat-label">permissions</span></a><a class="stat" href="#objectives"><span class="stat-num">47</span><span class="stat-label">objectives</span></a><a class="stat" href="#user_experience"><span class="stat-num">7</span><span class="stat-label">user experience</span></a></div>
+    <div class="stats"><a class="stat" href="#standards"><span class="stat-num">30</span><span class="stat-label">standards</span></a><a class="stat" href="#vocabulary"><span class="stat-num">107</span><span class="stat-label">vocabulary</span></a><a class="stat" href="#models"><span class="stat-num">128</span><span class="stat-label">models</span></a><a class="stat" href="#interfaces"><span class="stat-num">41</span><span class="stat-label">interfaces</span></a><a class="stat" href="#states"><span class="stat-num">8</span><span class="stat-label">states</span></a><a class="stat" href="#invariants"><span class="stat-num">20</span><span class="stat-label">invariants</span></a><a class="stat" href="#scenarios"><span class="stat-num">65</span><span class="stat-label">scenarios</span></a><a class="stat" href="#permissions"><span class="stat-num">13</span><span class="stat-label">permissions</span></a><a class="stat" href="#objectives"><span class="stat-num">47</span><span class="stat-label">objectives</span></a><a class="stat" href="#assurance"><span class="stat-num">5</span><span class="stat-label">assurance</span></a><a class="stat" href="#user_experience"><span class="stat-num">9</span><span class="stat-label">user experience</span></a></div>
   </section>
 <section id="standards">
     <h2>Standards <span class="count">30</span></h2>
@@ -1239,7 +1239,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
       </article></div>
   </section>
 <section id="vocabulary">
-    <h2>Vocabulary <span class="count">98</span></h2>
+    <h2>Vocabulary <span class="count">107</span></h2>
     <p class="lead">本仕様で使うドメイン用語の定義。PascalCase が正準名、aliases は実装上の別表記。</p>
     <div class="vocab-list"><article class="vocab-entry" id="vocab-resourceowner">
       <div class="vocab-name"><code class="name">ResourceOwner</code></div>
@@ -1474,6 +1474,66 @@ table.fields tbody tr:last-child td { border-bottom: none; }
       <div class="vocab-body">
         <p class="def">表示用のユーザー名。可変。</p>
         <div class="aliases"><span class="aliases-label">aliases</span> <span class="chip chip-alias">preferred_username</span></div>
+
+
+      </div>
+    </article>
+<article class="vocab-entry" id="vocab-administrator">
+      <div class="vocab-name"><code class="name">Administrator</code></div>
+      <div class="vocab-body">
+        <p class="def">User.roles に admin を持ち、所属テナント内の管理 API を許可された認証済みユーザー (ADR-031 / ADR-032)。テナント境界を越える操作は SystemAdministrator に限定される。</p>
+        <div class="aliases"><span class="aliases-label">aliases</span> <span class="chip chip-alias">admin</span> <span class="chip chip-alias">管理者</span> <span class="chip chip-alias">TenantAdmin</span></div>
+
+        <div class="ntcw">
+        <div class="ntcw-label">do not confuse with</div>
+        <ul><li><strong>Client</strong> — <span class="muted">Administrator は人間の User に付与されるロールであり、OAuth Client の権限ではない。</span></li><li><strong>SystemAdministrator</strong> — <span class="muted">Administrator はテナント内に閉じ、SystemAdministrator はテナント境界を越えて tenant lifecycle 操作と cross-tenant 管理を行える。</span></li></ul>
+      </div>
+      </div>
+    </article>
+<article class="vocab-entry" id="vocab-systemadministrator">
+      <div class="vocab-name"><code class="name">SystemAdministrator</code></div>
+      <div class="vocab-body">
+        <p class="def">default control-plane tenant に所属し、User.roles に system_admin を持つ認証済みユーザー (ADR-032)。テナント管理 (CRUD・disable・enable) と cross-tenant 操作を許可され、`/realms/default/admin/tenants/*` を呼び出せる。</p>
+        <div class="aliases"><span class="aliases-label">aliases</span> <span class="chip chip-alias">system_admin</span> <span class="chip chip-alias">システム管理者</span></div>
+
+
+      </div>
+    </article>
+<article class="vocab-entry" id="vocab-userdisablement">
+      <div class="vocab-name"><code class="name">UserDisablement</code></div>
+      <div class="vocab-body">
+        <p class="def">User.disabled_at を設定して認証とセッション利用を停止する復活可能な管理操作。削除や PII purge とは異なる。</p>
+        <div class="aliases"><span class="aliases-label">aliases</span> <span class="chip chip-alias">disable user</span> <span class="chip chip-alias">アカウント無効化</span></div>
+
+
+      </div>
+    </article>
+<article class="vocab-entry" id="vocab-tenant">
+      <div class="vocab-name"><code class="name">Tenant</code></div>
+      <div class="vocab-body">
+        <p class="def">ADR-032 で導入した独立した認可境界。Client / User / Consent / 鍵 / ポリシーがこの境界に閉じる。URL 上は Realm という別名で表現される (ADR-033)。</p>
+        <div class="aliases"><span class="aliases-label">aliases</span> <span class="chip chip-alias">tenant</span> <span class="chip chip-alias">テナント</span> <span class="chip chip-alias">Realm</span> <span class="chip chip-alias">realm</span></div>
+
+        <div class="ntcw">
+        <div class="ntcw-label">do not confuse with</div>
+        <ul><li><strong>Client</strong> — <span class="muted">Tenant は境界、Client は境界内のアプリケーション。Tenant は人間/組織を表し、Client はそのテナント所属のアプリ。</span></li></ul>
+      </div>
+      </div>
+    </article>
+<article class="vocab-entry" id="vocab-defaulttenant">
+      <div class="vocab-name"><code class="name">DefaultTenant</code></div>
+      <div class="vocab-body">
+        <p class="def">起動時に自動作成される `id == &quot;default&quot;` のテナント (ADR-032)。単一テナント運用時の互換と、未 prefix HTTP リクエストの解決先を兼ねる (ADR-033)。</p>
+        <div class="aliases"><span class="aliases-label">aliases</span> <span class="chip chip-alias">default tenant</span> <span class="chip chip-alias">デフォルトテナント</span></div>
+
+
+      </div>
+    </article>
+<article class="vocab-entry" id="vocab-tenantdisablement">
+      <div class="vocab-name"><code class="name">TenantDisablement</code></div>
+      <div class="vocab-body">
+        <p class="def">Tenant.disabled_at を設定してテナント単位で `/authorize` / `/token` / `/login` 等を停止する復活可能な操作 (ADR-032)。テナント物理削除とは独立。</p>
+        <div class="aliases"><span class="aliases-label">aliases</span> <span class="chip chip-alias">disable tenant</span> <span class="chip chip-alias">テナント無効化</span></div>
 
 
       </div>
@@ -2120,6 +2180,33 @@ table.fields tbody tr:last-child td { border-bottom: none; }
 
       </div>
     </article>
+<article class="vocab-entry" id="vocab-disabled">
+      <div class="vocab-name"><code class="name">Disabled</code></div>
+      <div class="vocab-body">
+        <p class="def">復活可能な無効化状態。Tenant と (慣例的に) User の disabled_at 経路で共有される。</p>
+        <div class="aliases"><span class="aliases-label">aliases</span> <span class="chip chip-alias">disabled</span></div>
+
+
+      </div>
+    </article>
+<article class="vocab-entry" id="vocab-disable">
+      <div class="vocab-name"><code class="name">Disable</code></div>
+      <div class="vocab-body">
+        <p class="def">対象を Disabled に遷移させる。Tenant では `/realms/default/admin/tenants/{id}/disable` から発火。</p>
+        <div class="aliases"><span class="aliases-label">aliases</span> <span class="chip chip-alias">disable</span></div>
+
+
+      </div>
+    </article>
+<article class="vocab-entry" id="vocab-enable">
+      <div class="vocab-name"><code class="name">Enable</code></div>
+      <div class="vocab-body">
+        <p class="def">Disabled の対象を Active に戻す。Tenant では `/realms/default/admin/tenants/{id}/enable` から発火。</p>
+        <div class="aliases"><span class="aliases-label">aliases</span> <span class="chip chip-alias">enable</span></div>
+
+
+      </div>
+    </article>
 <article class="vocab-entry" id="vocab-implicit">
       <div class="vocab-name"><code class="name">Implicit</code></div>
       <div class="vocab-body">
@@ -2143,17 +2230,68 @@ table.fields tbody tr:last-child td { border-bottom: none; }
     </article></div>
   </section>
 <section id="models">
-    <h2>Models <span class="count">102</span></h2>
+    <h2>Models <span class="count">128</span></h2>
 
     <div class="group">
-      <h3 class="grp-title">entity <span class="count">11</span></h3>
-      <div class="cards"><article class="card" id="model-oauth2client">
-    <header><h3>OAuth2Client</h3><span class="badge badge-kind-entity">entity</span></header>
-    <p class="desc">RFC 7591 + FAPI 2.0 拡張のクライアント。</p>
-    <dl class="kv"><dt>identity</dt><dd><code>client_id</code></dd><dt>annotations</dt><dd><span class="chip chip-annotation">audit required</span> <span class="chip chip-annotation">retention days: 2555</span></dd></dl>
+      <h3 class="grp-title">entity <span class="count">12</span></h3>
+      <div class="cards"><article class="card" id="model-tenant">
+    <header><h3>Tenant</h3><span class="badge badge-kind-entity">entity</span></header>
+    <p class="desc">ADR-032 で導入したテナント (realm) 集約。Client / User / Consent / ポリシー / ブランディングはこの境界に閉じる。`default` テナントは起動時に自動作成され、削除・無効化とも不可。</p>
+    <dl class="kv"><dt>identity</dt><dd><code>id</code></dd><dt>annotations</dt><dd><span class="chip chip-annotation">component: Tenancy</span> <span class="chip chip-annotation">audit required</span> <span class="chip chip-annotation">retention days: 2555</span></dd></dl>
     <table class="fields">
     <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
     <tbody><tr>
+    <td><code class="name">id</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="chip chip-constraint">non empty</span> <span class="chip chip-constraint">max length: 63</span> <span class="chip chip-constraint">pattern: ^[a-z0-9][a-z0-9-]{0,62}$</span></td>
+    <td>URL-safe slug。予約語 admin は禁止。</td>
+  </tr><tr>
+    <td><code class="name">display_name</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="chip chip-constraint">non empty</span> <span class="chip chip-constraint">max length: 200</span> <span class="chip chip-annotation">pii</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">status</code></td>
+    <td><code class="type">TenantStatus</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="chip chip-default">default: Active</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">created_at</code></td>
+    <td><code class="type">Timestamp</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">updated_at</code></td>
+    <td><code class="type">Timestamp</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">disabled_at</code></td>
+    <td><code class="type">Timestamp</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td>テナント無効化時刻 (ADR-032)。non-null なら /authorize / /token / /login 等を一律拒否。</td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="model-oauth2client">
+    <header><h3>OAuth2Client</h3><span class="badge badge-kind-entity">entity</span></header>
+    <p class="desc">RFC 7591 + FAPI 2.0 拡張のクライアント。</p>
+    <dl class="kv"><dt>identity</dt><dd><code>tenant_id, client_id</code></dd><dt>annotations</dt><dd><span class="chip chip-annotation">audit required</span> <span class="chip chip-annotation">retention days: 2555</span></dd></dl>
+    <table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">tenant_id</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="chip chip-default">default: default</span></td>
+    <td>所属テナント ID (ADR-032 / ADR-034)。客は (tenant_id, client_id) で一意。</td>
+  </tr><tr>
     <td><code class="name">client_id</code></td>
     <td><code class="type">String</code></td>
     <td><span class="badge badge-required">required</span></td>
@@ -2275,7 +2413,13 @@ table.fields tbody tr:last-child td { border-bottom: none; }
     <td><code class="type">String</code></td>
     <td><span class="badge badge-required">required</span></td>
     <td><span class="chip chip-constraint">non empty</span></td>
-    <td></td>
+    <td>global 一意の subject (ADR-034)。tenant 跨ぎでも衝突しない。</td>
+  </tr><tr>
+    <td><code class="name">tenant_id</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="chip chip-default">default: default</span></td>
+    <td>所属テナント ID (ADR-032)。preferred_username の一意性スコープを決める。</td>
   </tr><tr>
     <td><code class="name">preferred_username</code></td>
     <td><code class="type">String</code></td>
@@ -2324,6 +2468,18 @@ table.fields tbody tr:last-child td { border-bottom: none; }
     <td><span class="badge badge-required">required</span></td>
     <td><span class="chip chip-default">default: false</span></td>
     <td></td>
+  </tr><tr>
+    <td><code class="name">roles</code></td>
+    <td><code class="type">List&lt;String&gt;</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="chip chip-default">default: []</span></td>
+    <td>RBAC ロール名の集合 (重複なし)。ADR-031。値 admin を持つ user だけが /admin/* を呼べる。空配列は通常ユーザ。</td>
+  </tr><tr>
+    <td><code class="name">disabled_at</code></td>
+    <td><code class="type">Timestamp</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td>管理操作で無効化された時刻 (ADR-031)。non-null なら login / token 経路は active=false 相当。deleted_at と独立で、復活可能。</td>
   </tr><tr>
     <td><code class="name">created_at</code></td>
     <td><code class="type">Timestamp</code></td>
@@ -2444,10 +2600,16 @@ table.fields tbody tr:last-child td { border-bottom: none; }
 <article class="card" id="model-consent">
     <header><h3>Consent</h3><span class="badge badge-kind-entity">entity</span></header>
     <p class="desc">GDPR 同意取得記録。状態は ConsentLifecycle 状態機械に従う。</p>
-    <dl class="kv"><dt>identity</dt><dd><code>sub, client_id</code></dd><dt>annotations</dt><dd><span class="chip chip-annotation">audit required</span></dd></dl>
+    <dl class="kv"><dt>identity</dt><dd><code>tenant_id, sub, client_id</code></dd><dt>annotations</dt><dd><span class="chip chip-annotation">audit required</span></dd></dl>
     <table class="fields">
     <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
     <tbody><tr>
+    <td><code class="name">tenant_id</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="chip chip-default">default: default</span></td>
+    <td>所属テナント ID (ADR-034)。</td>
+  </tr><tr>
     <td><code class="name">sub</code></td>
     <td><code class="type">String</code></td>
     <td><span class="badge badge-required">required</span></td>
@@ -2504,6 +2666,12 @@ table.fields tbody tr:last-child td { border-bottom: none; }
     <td><span class="badge badge-required">required</span></td>
     <td><span class="muted">—</span></td>
     <td></td>
+  </tr><tr>
+    <td><code class="name">tenant_id</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="chip chip-default">default: default</span></td>
+    <td>所属テナント ID (ADR-034)。/token のリプレイ検出を join なしで効かせるため明示する。</td>
   </tr><tr>
     <td><code class="name">hash</code></td>
     <td><code class="type">String</code></td>
@@ -2585,6 +2753,12 @@ table.fields tbody tr:last-child td { border-bottom: none; }
     <td><span class="badge badge-required">required</span></td>
     <td><span class="muted">—</span></td>
     <td></td>
+  </tr><tr>
+    <td><code class="name">tenant_id</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="chip chip-default">default: default</span></td>
+    <td>所属テナント ID (ADR-034)。</td>
   </tr><tr>
     <td><code class="name">state</code></td>
     <td><code class="type">AuthorizationCodeState</code></td>
@@ -2715,6 +2889,12 @@ table.fields tbody tr:last-child td { border-bottom: none; }
     <td><span class="chip chip-annotation">sensitive</span></td>
     <td></td>
   </tr><tr>
+    <td><code class="name">tenant_id</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="chip chip-default">default: default</span></td>
+    <td>所属テナント ID (ADR-034)。</td>
+  </tr><tr>
     <td><code class="name">authorization_request_id</code></td>
     <td><code class="type">UUID</code></td>
     <td><span class="badge badge-required">required</span></td>
@@ -2826,6 +3006,12 @@ table.fields tbody tr:last-child td { border-bottom: none; }
     <td><span class="muted">—</span></td>
     <td></td>
   </tr><tr>
+    <td><code class="name">tenant_id</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="chip chip-default">default: default</span></td>
+    <td>所属テナント ID (ADR-034)。</td>
+  </tr><tr>
     <td><code class="name">client_id</code></td>
     <td><code class="type">String</code></td>
     <td><span class="badge badge-required">required</span></td>
@@ -2870,6 +3056,12 @@ table.fields tbody tr:last-child td { border-bottom: none; }
     <td><span class="badge badge-required">required</span></td>
     <td><span class="chip chip-annotation">sensitive</span></td>
     <td></td>
+  </tr><tr>
+    <td><code class="name">tenant_id</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="chip chip-default">default: default</span></td>
+    <td>所属テナント ID (ADR-034)。</td>
   </tr><tr>
     <td><code class="name">user_code</code></td>
     <td><code class="type">String</code></td>
@@ -2998,7 +3190,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
   </article></div>
     </div>
 <div class="group">
-      <h3 class="grp-title">value object <span class="count">33</span></h3>
+      <h3 class="grp-title">value object <span class="count">46</span></h3>
       <div class="cards"><article class="card" id="model-authenticationcontext">
     <header><h3>AuthenticationContext</h3><span class="badge badge-kind-value_object">value object</span></header>
     <p class="desc">Authentication component が OAuth2/OIDC component に渡す認証結果。OAuth2/OIDC は password、UserRepository、session cookie の詳細を参照しない。</p>
@@ -3615,6 +3807,561 @@ table.fields tbody tr:last-child td { border-bottom: none; }
     <td><code class="name">dpop_bound_access_tokens</code></td>
     <td><code class="type">Boolean</code></td>
     <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="model-tenantcreaterequest">
+    <header><h3>TenantCreateRequest</h3><span class="badge badge-kind-value_object">value object</span></header>
+    <p class="desc">管理者が新規テナントを登録する JSON リクエスト (ADR-032)。`id` は URL-safe slug。</p>
+    <dl class="kv"><dt>annotations</dt><dd><span class="chip chip-annotation">component: Tenancy</span></dd></dl>
+    <table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">id</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="chip chip-constraint">non empty</span> <span class="chip chip-constraint">max length: 63</span> <span class="chip chip-constraint">pattern: ^[a-z0-9][a-z0-9-]{0,62}$</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">display_name</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="chip chip-constraint">non empty</span> <span class="chip chip-constraint">max length: 200</span> <span class="chip chip-annotation">pii</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="model-tenantupdaterequest">
+    <header><h3>TenantUpdateRequest</h3><span class="badge badge-kind-value_object">value object</span></header>
+    <p class="desc">管理者がテナントの表示名を更新する JSON リクエスト (ADR-032)。`id` と status は変更しない。status 変更は disable/enable 専用 endpoint を経由。</p>
+    <dl class="kv"><dt>annotations</dt><dd><span class="chip chip-annotation">component: Tenancy</span></dd></dl>
+    <table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">display_name</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="chip chip-constraint">non empty</span> <span class="chip chip-constraint">max length: 200</span> <span class="chip chip-annotation">pii</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="model-tenantsummaryresponse">
+    <header><h3>TenantSummaryResponse</h3><span class="badge badge-kind-value_object">value object</span></header>
+    <p class="desc">テナント表現。管理 UI の一覧と詳細で同じ表現を返す (ADR-032)。</p>
+    <dl class="kv"><dt>annotations</dt><dd><span class="chip chip-annotation">component: Tenancy</span></dd></dl>
+    <table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">id</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">display_name</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="chip chip-annotation">pii</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">status</code></td>
+    <td><code class="type">TenantStatus</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">created_at</code></td>
+    <td><code class="type">Timestamp</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">updated_at</code></td>
+    <td><code class="type">Timestamp</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">disabled_at</code></td>
+    <td><code class="type">Timestamp</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="model-tenantlistresponse">
+    <header><h3>TenantListResponse</h3><span class="badge badge-kind-value_object">value object</span></header>
+    <p class="desc">管理 API のテナント一覧 (ADR-032)。</p>
+    <dl class="kv"><dt>annotations</dt><dd><span class="chip chip-annotation">component: Tenancy</span></dd></dl>
+    <table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">tenants</code></td>
+    <td><code class="type">List&lt;TenantSummaryResponse&gt;</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="model-adminusercreaterequest">
+    <header><h3>AdminUserCreateRequest</h3><span class="badge badge-kind-value_object">value object</span></header>
+    <p class="desc">管理者がユーザーを作成する JSON リクエスト。初期パスワードには password_policy を適用する。</p>
+    <dl class="kv"><dt>annotations</dt><dd><span class="chip chip-annotation">component: Administration</span></dd></dl>
+    <table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">preferred_username</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="chip chip-constraint">non empty</span> <span class="chip chip-constraint">max length: 100</span> <span class="chip chip-annotation">pii</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">password</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="chip chip-annotation">sensitive</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">name</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="chip chip-annotation">pii</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">email</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="chip chip-constraint">format: email</span> <span class="chip chip-annotation">pii</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">email_verified</code></td>
+    <td><code class="type">Boolean</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="chip chip-default">default: false</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">roles</code></td>
+    <td><code class="type">List&lt;String&gt;</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="chip chip-default">default: []</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="model-adminuserupdaterequest">
+    <header><h3>AdminUserUpdateRequest</h3><span class="badge badge-kind-value_object">value object</span></header>
+    <p class="desc">管理者がユーザーの可変プロフィールとロールを更新する JSON リクエスト。sub と password_hash は変更しない。</p>
+    <dl class="kv"><dt>annotations</dt><dd><span class="chip chip-annotation">component: Administration</span></dd></dl>
+    <table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">preferred_username</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="chip chip-constraint">non empty</span> <span class="chip chip-constraint">max length: 100</span> <span class="chip chip-annotation">pii</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">name</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="chip chip-annotation">pii</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">email</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="chip chip-constraint">format: email</span> <span class="chip chip-annotation">pii</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">email_verified</code></td>
+    <td><code class="type">Boolean</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">roles</code></td>
+    <td><code class="type">List&lt;String&gt;</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="model-adminuserlistresponse">
+    <header><h3>AdminUserListResponse</h3><span class="badge badge-kind-value_object">value object</span></header>
+    <p class="desc">管理 API のユーザー一覧。</p>
+    <dl class="kv"><dt>annotations</dt><dd><span class="chip chip-annotation">component: Administration</span></dd></dl>
+    <table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">users</code></td>
+    <td><code class="type">List&lt;AdminUserResponse&gt;</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="model-adminuserresponse">
+    <header><h3>AdminUserResponse</h3><span class="badge badge-kind-value_object">value object</span></header>
+    <p class="desc">管理 API が返すユーザー表現。password_hash は契約上含めない。</p>
+    <dl class="kv"><dt>annotations</dt><dd><span class="chip chip-annotation">component: Administration</span></dd></dl>
+    <table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">sub</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">tenant_id</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td>所属テナント ID (ADR-032)。</td>
+  </tr><tr>
+    <td><code class="name">preferred_username</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="chip chip-annotation">pii</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">name</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="chip chip-annotation">pii</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">email</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="chip chip-constraint">format: email</span> <span class="chip chip-annotation">pii</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">email_verified</code></td>
+    <td><code class="type">Boolean</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">mfa_enrolled</code></td>
+    <td><code class="type">Boolean</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">roles</code></td>
+    <td><code class="type">List&lt;String&gt;</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">disabled_at</code></td>
+    <td><code class="type">Timestamp</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">created_at</code></td>
+    <td><code class="type">Timestamp</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">updated_at</code></td>
+    <td><code class="type">Timestamp</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="model-adminclientcreaterequest">
+    <header><h3>AdminClientCreateRequest</h3><span class="badge badge-kind-value_object">value object</span></header>
+    <p class="desc">管理者が所属テナントに OAuth client を作成する。生成された client_secret は作成応答で一度だけ返す。</p>
+    <dl class="kv"><dt>annotations</dt><dd><span class="chip chip-annotation">component: Administration</span></dd></dl>
+    <table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">redirect_uris</code></td>
+    <td><code class="type">List&lt;Uri&gt;</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="chip chip-constraint">non empty</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">client_name</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="chip chip-constraint">max length: 200</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">client_type</code></td>
+    <td><code class="type">ClientType</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">grant_types</code></td>
+    <td><code class="type">List&lt;GrantType&gt;</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="chip chip-constraint">non empty</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">response_types</code></td>
+    <td><code class="type">List&lt;ResponseType&gt;</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">token_endpoint_auth_method</code></td>
+    <td><code class="type">TokenEndpointAuthMethod</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">scope</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">jwks_uri</code></td>
+    <td><code class="type">Uri</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">jwks</code></td>
+    <td><code class="type">JSON</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">tls_client_auth_subject_dn</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">fapi_profile</code></td>
+    <td><code class="type">FapiProfile</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">require_pushed_authorization_requests</code></td>
+    <td><code class="type">Boolean</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">dpop_bound_access_tokens</code></td>
+    <td><code class="type">Boolean</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="model-adminclientupdaterequest">
+    <header><h3>AdminClientUpdateRequest</h3><span class="badge badge-kind-value_object">value object</span></header>
+    <p class="desc">管理者が client metadata を更新する。client_id、認証方式、秘密情報は変更せず、secret rotation は独立 endpoint で扱う。</p>
+    <dl class="kv"><dt>annotations</dt><dd><span class="chip chip-annotation">component: Administration</span></dd></dl>
+    <table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">client_name</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="chip chip-constraint">max length: 200</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">redirect_uris</code></td>
+    <td><code class="type">List&lt;Uri&gt;</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="chip chip-constraint">non empty</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">grant_types</code></td>
+    <td><code class="type">List&lt;GrantType&gt;</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="chip chip-constraint">non empty</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">response_types</code></td>
+    <td><code class="type">List&lt;ResponseType&gt;</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">scope</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">require_pushed_authorization_requests</code></td>
+    <td><code class="type">Boolean</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">dpop_bound_access_tokens</code></td>
+    <td><code class="type">Boolean</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="model-adminclientresponse">
+    <header><h3>AdminClientResponse</h3><span class="badge badge-kind-value_object">value object</span></header>
+    <p class="desc">管理 API の client 表現。client_secret と client_secret_hash は契約上含めない。</p>
+    <dl class="kv"><dt>annotations</dt><dd><span class="chip chip-annotation">component: Administration</span></dd></dl>
+    <table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">tenant_id</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">client_id</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">client_name</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">client_type</code></td>
+    <td><code class="type">ClientType</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">redirect_uris</code></td>
+    <td><code class="type">List&lt;Uri&gt;</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">grant_types</code></td>
+    <td><code class="type">List&lt;GrantType&gt;</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">response_types</code></td>
+    <td><code class="type">List&lt;ResponseType&gt;</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">token_endpoint_auth_method</code></td>
+    <td><code class="type">TokenEndpointAuthMethod</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">scope</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">jwks_uri</code></td>
+    <td><code class="type">Uri</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">jwks</code></td>
+    <td><code class="type">JSON</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">tls_client_auth_subject_dn</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">id_token_signed_response_alg</code></td>
+    <td><code class="type">SignatureAlgorithm</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">require_pushed_authorization_requests</code></td>
+    <td><code class="type">Boolean</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">dpop_bound_access_tokens</code></td>
+    <td><code class="type">Boolean</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">fapi_profile</code></td>
+    <td><code class="type">FapiProfile</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">created_at</code></td>
+    <td><code class="type">Timestamp</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="model-adminclientcreateresponse">
+    <header><h3>AdminClientCreateResponse</h3><span class="badge badge-kind-value_object">value object</span></header>
+    <p class="desc">client 作成応答。client_secret は生成された場合に限り一度だけ返す。</p>
+    <dl class="kv"><dt>annotations</dt><dd><span class="chip chip-annotation">component: Administration</span></dd></dl>
+    <table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">client</code></td>
+    <td><code class="type">AdminClientResponse</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">client_secret</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="chip chip-annotation">sensitive</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="model-adminclientlistresponse">
+    <header><h3>AdminClientListResponse</h3><span class="badge badge-kind-value_object">value object</span></header>
+    <p class="desc">所属テナント内の client 一覧。</p>
+    <dl class="kv"><dt>annotations</dt><dd><span class="chip chip-annotation">component: Administration</span></dd></dl>
+    <table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">clients</code></td>
+    <td><code class="type">List&lt;AdminClientResponse&gt;</code></td>
+    <td><span class="badge badge-required">required</span></td>
     <td><span class="muted">—</span></td>
     <td></td>
   </tr></tbody>
@@ -4312,7 +5059,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
   </article></div>
     </div>
 <div class="group">
-      <h3 class="grp-title">enum <span class="count">20</span></h3>
+      <h3 class="grp-title">enum <span class="count">21</span></h3>
       <div class="cards"><article class="card" id="model-clienttype">
     <header><h3>ClientType</h3><span class="badge badge-kind-enum">enum</span></header>
     <p class="desc">クライアントが client_secret を安全に保持できるかどうかの分類。Public はモバイル/SPA など秘匿不可、Confidential はサーバーサイドで秘密鍵を保持可能。</p>
@@ -4427,6 +5174,12 @@ table.fields tbody tr:last-child td { border-bottom: none; }
 
     <div class="enum-vals"><span class="chip chip-enum">Active</span> <span class="chip chip-enum">Verifying</span> <span class="chip chip-enum">Retired</span> <span class="chip chip-enum">Archived</span></div>
   </article>
+<article class="card" id="model-tenantstatus">
+    <header><h3>TenantStatus</h3><span class="badge badge-kind-enum">enum</span></header>
+    <p class="desc">ADR-032 のテナント状態。Active は通常稼働、Disabled はテナント全体のプロトコル受付を停止 (`/authorize` `/token` 等が一律 invalid_request)。</p>
+
+    <div class="enum-vals"><span class="chip chip-enum">Active</span> <span class="chip chip-enum">Disabled</span></div>
+  </article>
 <article class="card" id="model-oautherrorcode">
     <header><h3>OAuthErrorCode</h3><span class="badge badge-kind-enum">enum</span></header>
     <p class="desc">OAuth 2.0 / OIDC / DPoP / FAPI / RFC 8628 で規定された標準エラーコード一式。HTTP レスポンスの error フィールド値となる。</p>
@@ -4435,7 +5188,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
   </article></div>
     </div>
 <div class="group">
-      <h3 class="grp-title">event <span class="count">22</span></h3>
+      <h3 class="grp-title">event <span class="count">33</span></h3>
       <div class="cards"><article class="card" id="model-clientregistered">
     <header><h3>ClientRegistered</h3><span class="badge badge-kind-event">event</span></header>
     <p class="desc">/register で新しいクライアントが動的登録された (RFC 7591)。クライアント登録監査の起点。</p>
@@ -4626,6 +5379,321 @@ SIEM 側からは観測できる (ADR-030)。to は SHA-256 hash で記録する
   </tr><tr>
     <td><code class="name">delivered</code></td>
     <td><code class="type">Boolean</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="model-usercreated">
+    <header><h3>UserCreated</h3><span class="badge badge-kind-event">event</span></header>
+    <p class="desc">管理者がユーザーを作成した。初期パスワードと password_hash は監査イベントに含めない。</p>
+    <dl class="kv"><dt>annotations</dt><dd><span class="chip chip-annotation">component: Administration</span></dd></dl>
+    <div class="label">Payload</div><table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">occurredAt</code></td>
+    <td><code class="type">Timestamp</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">actorSub</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">targetSub</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="model-userupdated">
+    <header><h3>UserUpdated</h3><span class="badge badge-kind-event">event</span></header>
+    <p class="desc">管理者がユーザーのプロフィールまたは roles を更新した。</p>
+    <dl class="kv"><dt>annotations</dt><dd><span class="chip chip-annotation">component: Administration</span></dd></dl>
+    <div class="label">Payload</div><table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">occurredAt</code></td>
+    <td><code class="type">Timestamp</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">actorSub</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">targetSub</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">changedFields</code></td>
+    <td><code class="type">List&lt;String&gt;</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="model-userdisabled">
+    <header><h3>UserDisabled</h3><span class="badge badge-kind-event">event</span></header>
+    <p class="desc">管理者がユーザーを無効化した。対象ユーザーの新規ログインと既存セッション利用を拒否する。</p>
+    <dl class="kv"><dt>annotations</dt><dd><span class="chip chip-annotation">component: Administration</span></dd></dl>
+    <div class="label">Payload</div><table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">occurredAt</code></td>
+    <td><code class="type">Timestamp</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">actorSub</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">targetSub</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="model-userenabled">
+    <header><h3>UserEnabled</h3><span class="badge badge-kind-event">event</span></header>
+    <p class="desc">管理者が無効化済みユーザーを再有効化した。</p>
+    <dl class="kv"><dt>annotations</dt><dd><span class="chip chip-annotation">component: Administration</span></dd></dl>
+    <div class="label">Payload</div><table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">occurredAt</code></td>
+    <td><code class="type">Timestamp</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">actorSub</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">targetSub</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="model-adminclientcreated">
+    <header><h3>AdminClientCreated</h3><span class="badge badge-kind-event">event</span></header>
+    <p class="desc">管理者が所属テナントに OAuth client を作成した。秘密情報は含めない。</p>
+    <dl class="kv"><dt>annotations</dt><dd><span class="chip chip-annotation">component: Administration</span></dd></dl>
+    <div class="label">Payload</div><table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">occurredAt</code></td>
+    <td><code class="type">Timestamp</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">actorSub</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">clientId</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="model-adminclientupdated">
+    <header><h3>AdminClientUpdated</h3><span class="badge badge-kind-event">event</span></header>
+    <p class="desc">管理者が OAuth client metadata を更新した。</p>
+    <dl class="kv"><dt>annotations</dt><dd><span class="chip chip-annotation">component: Administration</span></dd></dl>
+    <div class="label">Payload</div><table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">occurredAt</code></td>
+    <td><code class="type">Timestamp</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">actorSub</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">clientId</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">changedFields</code></td>
+    <td><code class="type">List&lt;String&gt;</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="model-adminclientdeleted">
+    <header><h3>AdminClientDeleted</h3><span class="badge badge-kind-event">event</span></header>
+    <p class="desc">管理者が所属テナントから OAuth client を削除した。</p>
+    <dl class="kv"><dt>annotations</dt><dd><span class="chip chip-annotation">component: Administration</span></dd></dl>
+    <div class="label">Payload</div><table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">occurredAt</code></td>
+    <td><code class="type">Timestamp</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">actorSub</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">clientId</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="model-tenantcreated">
+    <header><h3>TenantCreated</h3><span class="badge badge-kind-event">event</span></header>
+    <p class="desc">system_admin が新規テナントを作成した (ADR-032)。</p>
+    <dl class="kv"><dt>annotations</dt><dd><span class="chip chip-annotation">component: Tenancy</span></dd></dl>
+    <div class="label">Payload</div><table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">occurredAt</code></td>
+    <td><code class="type">Timestamp</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">actorSub</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">tenantId</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="model-tenantupdated">
+    <header><h3>TenantUpdated</h3><span class="badge badge-kind-event">event</span></header>
+    <p class="desc">system_admin がテナントの表示名を更新した (ADR-032)。</p>
+    <dl class="kv"><dt>annotations</dt><dd><span class="chip chip-annotation">component: Tenancy</span></dd></dl>
+    <div class="label">Payload</div><table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">occurredAt</code></td>
+    <td><code class="type">Timestamp</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">actorSub</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">tenantId</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">changedFields</code></td>
+    <td><code class="type">List&lt;String&gt;</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="model-tenantdisabled">
+    <header><h3>TenantDisabled</h3><span class="badge badge-kind-event">event</span></header>
+    <p class="desc">system_admin がテナントを無効化した。当該テナントのすべてのプロトコルルートは invalid_request で拒否される (ADR-032)。</p>
+    <dl class="kv"><dt>annotations</dt><dd><span class="chip chip-annotation">component: Tenancy</span></dd></dl>
+    <div class="label">Payload</div><table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">occurredAt</code></td>
+    <td><code class="type">Timestamp</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">actorSub</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">tenantId</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="model-tenantenabled">
+    <header><h3>TenantEnabled</h3><span class="badge badge-kind-event">event</span></header>
+    <p class="desc">system_admin が無効化済みテナントを再有効化した (ADR-032)。</p>
+    <dl class="kv"><dt>annotations</dt><dd><span class="chip chip-annotation">component: Tenancy</span></dd></dl>
+    <div class="label">Payload</div><table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">occurredAt</code></td>
+    <td><code class="type">Timestamp</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">actorSub</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">tenantId</code></td>
+    <td><code class="type">String</code></td>
     <td><span class="badge badge-required">required</span></td>
     <td><span class="muted">—</span></td>
     <td></td>
@@ -5296,7 +6364,7 @@ token は base64url の 32 バイト乱数で、保存時は SHA-256 hash のみ
     </div>
   </section>
 <section id="interfaces">
-    <h2>Interfaces <span class="count">23</span></h2>
+    <h2>Interfaces <span class="count">41</span></h2>
     <p class="lead">外部との契約。入力・出力・エラー・発行イベントと、それを露出する複数のトランスポート（bindings）。</p>
     <div class="cards"><article class="card" id="iface-registerclient">
     <header><h3>RegisterClient</h3></header>
@@ -5958,10 +7026,552 @@ BreachedPasswordChecker を通過した new_password で User.password_hash を
     <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
     <div class="binding-body"><div class="binding-head"><span class="badge badge-method-get">GET</span> <code class="path">/health</code> <span class="chip chip-hint">response: 200</span></div></div>
   </div></div></div>
+  </article>
+<article class="card" id="iface-listadminusers">
+    <header><h3>ListAdminUsers</h3><span class="badge badge-readonly">read-only</span></header>
+    <p class="desc">管理者が削除されていないユーザーを一覧する。</p>
+
+    <div class="io">
+    <div class="label">Output</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">response</code></td>
+    <td><code class="type">AdminUserListResponse</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io"><div class="label">Errors</div><div class="chip-row"><a class="chip chip-error-ref" href="#model-accessdeniederror">AccessDeniedError</a></div></div>
+<div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
+    <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
+    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-get">GET</span> <code class="path">/admin/users</code></div></div>
+  </div></div></div>
+  </article>
+<article class="card" id="iface-getadminuser">
+    <header><h3>GetAdminUser</h3><span class="badge badge-readonly">read-only</span></header>
+    <p class="desc">管理者が sub を指定してユーザーを取得する。</p>
+
+    <div class="io">
+    <div class="label">Input</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">sub</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io">
+    <div class="label">Output</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">user</code></td>
+    <td><code class="type">AdminUserResponse</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io"><div class="label">Errors</div><div class="chip-row"><a class="chip chip-error-ref" href="#model-invalidrequesterror">InvalidRequestError</a> <a class="chip chip-error-ref" href="#model-accessdeniederror">AccessDeniedError</a></div></div>
+<div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
+    <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
+    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-get">GET</span> <code class="path">/admin/users/{sub}</code></div></div>
+  </div></div></div>
+  </article>
+<article class="card" id="iface-createadminuser">
+    <header><h3>CreateAdminUser</h3></header>
+    <p class="desc">管理者が password_policy を満たす初期パスワードでユーザーを作成する。</p>
+
+    <div class="io">
+    <div class="label">Input</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">request</code></td>
+    <td><code class="type">AdminUserCreateRequest</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io">
+    <div class="label">Output</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">user</code></td>
+    <td><code class="type">AdminUserResponse</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io"><div class="label">Errors</div><div class="chip-row"><a class="chip chip-error-ref" href="#model-invalidrequesterror">InvalidRequestError</a> <a class="chip chip-error-ref" href="#model-accessdeniederror">AccessDeniedError</a></div></div>
+<div class="io"><div class="label">Emits</div><div class="chip-row"><a class="chip chip-event-ref" href="#model-usercreated">UserCreated</a></div></div>
+<div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
+    <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
+    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-post">POST</span> <code class="path">/admin/users</code> <span class="chip chip-hint">response: 201</span> <span class="chip chip-hint">form: body</span></div></div>
+  </div></div></div>
+  </article>
+<article class="card" id="iface-updateadminuser">
+    <header><h3>UpdateAdminUser</h3></header>
+    <p class="desc">管理者がユーザーのプロフィール、email_verified、roles を更新する。</p>
+
+    <div class="io">
+    <div class="label">Input</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">sub</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">request</code></td>
+    <td><code class="type">AdminUserUpdateRequest</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io">
+    <div class="label">Output</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">user</code></td>
+    <td><code class="type">AdminUserResponse</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io"><div class="label">Errors</div><div class="chip-row"><a class="chip chip-error-ref" href="#model-invalidrequesterror">InvalidRequestError</a> <a class="chip chip-error-ref" href="#model-accessdeniederror">AccessDeniedError</a></div></div>
+<div class="io"><div class="label">Emits</div><div class="chip-row"><a class="chip chip-event-ref" href="#model-userupdated">UserUpdated</a></div></div>
+<div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
+    <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
+    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-patch">PATCH</span> <code class="path">/admin/users/{sub}</code> <span class="chip chip-hint">form: body</span></div></div>
+  </div></div></div>
+  </article>
+<article class="card" id="iface-disableadminuser">
+    <header><h3>DisableAdminUser</h3></header>
+    <p class="desc">管理者がユーザーを無効化し、新規ログインと既存セッション利用を拒否する。</p>
+
+    <div class="io">
+    <div class="label">Input</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">sub</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io"><div class="label">Errors</div><div class="chip-row"><a class="chip chip-error-ref" href="#model-invalidrequesterror">InvalidRequestError</a> <a class="chip chip-error-ref" href="#model-accessdeniederror">AccessDeniedError</a></div></div>
+<div class="io"><div class="label">Emits</div><div class="chip-row"><a class="chip chip-event-ref" href="#model-userdisabled">UserDisabled</a></div></div>
+<div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
+    <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
+    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-post">POST</span> <code class="path">/admin/users/{sub}/disable</code> <span class="chip chip-hint">response: 204</span></div></div>
+  </div></div></div>
+  </article>
+<article class="card" id="iface-enableadminuser">
+    <header><h3>EnableAdminUser</h3></header>
+    <p class="desc">管理者が無効化済みユーザーを再有効化する。</p>
+
+    <div class="io">
+    <div class="label">Input</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">sub</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io"><div class="label">Errors</div><div class="chip-row"><a class="chip chip-error-ref" href="#model-invalidrequesterror">InvalidRequestError</a> <a class="chip chip-error-ref" href="#model-accessdeniederror">AccessDeniedError</a></div></div>
+<div class="io"><div class="label">Emits</div><div class="chip-row"><a class="chip chip-event-ref" href="#model-userenabled">UserEnabled</a></div></div>
+<div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
+    <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
+    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-post">POST</span> <code class="path">/admin/users/{sub}/enable</code> <span class="chip chip-hint">response: 204</span></div></div>
+  </div></div></div>
+  </article>
+<article class="card" id="iface-listadminclients">
+    <header><h3>ListAdminClients</h3><span class="badge badge-readonly">read-only</span></header>
+    <p class="desc">管理者が所属テナントの client を一覧する。</p>
+
+    <div class="io">
+    <div class="label">Output</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">response</code></td>
+    <td><code class="type">AdminClientListResponse</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io"><div class="label">Errors</div><div class="chip-row"><a class="chip chip-error-ref" href="#model-accessdeniederror">AccessDeniedError</a></div></div>
+<div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
+    <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
+    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-get">GET</span> <code class="path">/admin/clients</code></div></div>
+  </div></div></div>
+  </article>
+<article class="card" id="iface-getadminclient">
+    <header><h3>GetAdminClient</h3><span class="badge badge-readonly">read-only</span></header>
+    <p class="desc">管理者が所属テナントの client を取得する。別テナントの client は未存在として扱う。</p>
+
+    <div class="io">
+    <div class="label">Input</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">client_id</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io">
+    <div class="label">Output</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">client</code></td>
+    <td><code class="type">AdminClientResponse</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io"><div class="label">Errors</div><div class="chip-row"><a class="chip chip-error-ref" href="#model-invalidrequesterror">InvalidRequestError</a> <a class="chip chip-error-ref" href="#model-accessdeniederror">AccessDeniedError</a></div></div>
+<div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
+    <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
+    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-get">GET</span> <code class="path">/admin/clients/{client_id}</code></div></div>
+  </div></div></div>
+  </article>
+<article class="card" id="iface-createadminclient">
+    <header><h3>CreateAdminClient</h3></header>
+    <p class="desc">管理者が所属テナントに client を作成する。</p>
+
+    <div class="io">
+    <div class="label">Input</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">request</code></td>
+    <td><code class="type">AdminClientCreateRequest</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io">
+    <div class="label">Output</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">response</code></td>
+    <td><code class="type">AdminClientCreateResponse</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io"><div class="label">Errors</div><div class="chip-row"><a class="chip chip-error-ref" href="#model-invalidrequesterror">InvalidRequestError</a> <a class="chip chip-error-ref" href="#model-accessdeniederror">AccessDeniedError</a></div></div>
+<div class="io"><div class="label">Emits</div><div class="chip-row"><a class="chip chip-event-ref" href="#model-adminclientcreated">AdminClientCreated</a></div></div>
+<div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
+    <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
+    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-post">POST</span> <code class="path">/admin/clients</code> <span class="chip chip-hint">response: 201</span> <span class="chip chip-hint">form: body</span></div></div>
+  </div></div></div>
+  </article>
+<article class="card" id="iface-updateadminclient">
+    <header><h3>UpdateAdminClient</h3></header>
+    <p class="desc">管理者が所属テナントの client metadata を更新する。</p>
+
+    <div class="io">
+    <div class="label">Input</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">client_id</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">request</code></td>
+    <td><code class="type">AdminClientUpdateRequest</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io">
+    <div class="label">Output</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">client</code></td>
+    <td><code class="type">AdminClientResponse</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io"><div class="label">Errors</div><div class="chip-row"><a class="chip chip-error-ref" href="#model-invalidrequesterror">InvalidRequestError</a> <a class="chip chip-error-ref" href="#model-accessdeniederror">AccessDeniedError</a></div></div>
+<div class="io"><div class="label">Emits</div><div class="chip-row"><a class="chip chip-event-ref" href="#model-adminclientupdated">AdminClientUpdated</a></div></div>
+<div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
+    <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
+    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-patch">PATCH</span> <code class="path">/admin/clients/{client_id}</code> <span class="chip chip-hint">form: body</span></div></div>
+  </div></div></div>
+  </article>
+<article class="card" id="iface-deleteadminclient">
+    <header><h3>DeleteAdminClient</h3></header>
+    <p class="desc">管理者が所属テナントの client を削除する。</p>
+
+    <div class="io">
+    <div class="label">Input</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">client_id</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io"><div class="label">Errors</div><div class="chip-row"><a class="chip chip-error-ref" href="#model-invalidrequesterror">InvalidRequestError</a> <a class="chip chip-error-ref" href="#model-accessdeniederror">AccessDeniedError</a></div></div>
+<div class="io"><div class="label">Emits</div><div class="chip-row"><a class="chip chip-event-ref" href="#model-adminclientdeleted">AdminClientDeleted</a></div></div>
+<div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
+    <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
+    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-delete">DELETE</span> <code class="path">/admin/clients/{client_id}</code> <span class="chip chip-hint">response: 204</span></div></div>
+  </div></div></div>
+  </article>
+<article class="card" id="iface-resolvetenant">
+    <header><h3>ResolveTenant</h3></header>
+    <p class="desc">HTTP リクエストの path から所属テナントを解決する内部インターフェース (ADR-033)。
+`/realms/{tenant_id}/...` の prefix が無い場合は `default` テナントに解決する。
+不在テナントは 404 tenant_not_found、disabled テナントは OAuth/OIDC の
+protocol route では 400 invalid_request とし、いずれも存在や状態の詳細を漏らさない。
+</p>
+
+    <div class="io">
+    <div class="label">Input</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">path</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td>HTTP リクエスト path</td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io">
+    <div class="label">Output</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">tenant</code></td>
+    <td><code class="type">Tenant</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io"><div class="label">Errors</div><div class="chip-row"><a class="chip chip-error-ref" href="#model-invalidrequesterror">InvalidRequestError</a></div></div>
+  </article>
+<article class="card" id="iface-listtenants">
+    <header><h3>ListTenants</h3><span class="badge badge-readonly">read-only</span></header>
+    <p class="desc">system_admin がテナント一覧を取得する。default control-plane tenant のセッションで認証する (ADR-032)。</p>
+
+    <div class="io">
+    <div class="label">Output</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">response</code></td>
+    <td><code class="type">TenantListResponse</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io"><div class="label">Errors</div><div class="chip-row"><a class="chip chip-error-ref" href="#model-accessdeniederror">AccessDeniedError</a></div></div>
+<div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
+    <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
+    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-get">GET</span> <code class="path">/realms/default/admin/tenants</code></div></div>
+  </div></div></div>
+  </article>
+<article class="card" id="iface-gettenant">
+    <header><h3>GetTenant</h3><span class="badge badge-readonly">read-only</span></header>
+    <p class="desc">system_admin が単一テナントを取得する。</p>
+
+    <div class="io">
+    <div class="label">Input</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">tenant_id</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io">
+    <div class="label">Output</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">tenant</code></td>
+    <td><code class="type">TenantSummaryResponse</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io"><div class="label">Errors</div><div class="chip-row"><a class="chip chip-error-ref" href="#model-invalidrequesterror">InvalidRequestError</a> <a class="chip chip-error-ref" href="#model-accessdeniederror">AccessDeniedError</a></div></div>
+<div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
+    <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
+    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-get">GET</span> <code class="path">/realms/default/admin/tenants/{tenant_id}</code></div></div>
+  </div></div></div>
+  </article>
+<article class="card" id="iface-createtenant">
+    <header><h3>CreateTenant</h3></header>
+    <p class="desc">system_admin が新規テナントを作成する。</p>
+
+    <div class="io">
+    <div class="label">Input</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">request</code></td>
+    <td><code class="type">TenantCreateRequest</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io">
+    <div class="label">Output</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">tenant</code></td>
+    <td><code class="type">TenantSummaryResponse</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io"><div class="label">Errors</div><div class="chip-row"><a class="chip chip-error-ref" href="#model-invalidrequesterror">InvalidRequestError</a> <a class="chip chip-error-ref" href="#model-accessdeniederror">AccessDeniedError</a></div></div>
+<div class="io"><div class="label">Emits</div><div class="chip-row"><a class="chip chip-event-ref" href="#model-tenantcreated">TenantCreated</a></div></div>
+<div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
+    <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
+    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-post">POST</span> <code class="path">/realms/default/admin/tenants</code> <span class="chip chip-hint">response: 201</span> <span class="chip chip-hint">form: body</span></div></div>
+  </div></div></div>
+  </article>
+<article class="card" id="iface-updatetenant">
+    <header><h3>UpdateTenant</h3></header>
+    <p class="desc">system_admin がテナントの表示名を更新する。</p>
+
+    <div class="io">
+    <div class="label">Input</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">tenant_id</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">request</code></td>
+    <td><code class="type">TenantUpdateRequest</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io">
+    <div class="label">Output</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">tenant</code></td>
+    <td><code class="type">TenantSummaryResponse</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io"><div class="label">Errors</div><div class="chip-row"><a class="chip chip-error-ref" href="#model-invalidrequesterror">InvalidRequestError</a> <a class="chip chip-error-ref" href="#model-accessdeniederror">AccessDeniedError</a></div></div>
+<div class="io"><div class="label">Emits</div><div class="chip-row"><a class="chip chip-event-ref" href="#model-tenantupdated">TenantUpdated</a></div></div>
+<div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
+    <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
+    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-patch">PATCH</span> <code class="path">/realms/default/admin/tenants/{tenant_id}</code> <span class="chip chip-hint">form: body</span></div></div>
+  </div></div></div>
+  </article>
+<article class="card" id="iface-disabletenant">
+    <header><h3>DisableTenant</h3></header>
+    <p class="desc">system_admin が default 以外のテナントを無効化する。/authorize / /token / /login 等は一律 invalid_request になる。</p>
+
+    <div class="io">
+    <div class="label">Input</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">tenant_id</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io"><div class="label">Errors</div><div class="chip-row"><a class="chip chip-error-ref" href="#model-invalidrequesterror">InvalidRequestError</a> <a class="chip chip-error-ref" href="#model-accessdeniederror">AccessDeniedError</a></div></div>
+<div class="io"><div class="label">Emits</div><div class="chip-row"><a class="chip chip-event-ref" href="#model-tenantdisabled">TenantDisabled</a></div></div>
+<div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
+    <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
+    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-post">POST</span> <code class="path">/realms/default/admin/tenants/{tenant_id}/disable</code> <span class="chip chip-hint">response: 204</span></div></div>
+  </div></div></div>
+  </article>
+<article class="card" id="iface-enabletenant">
+    <header><h3>EnableTenant</h3></header>
+    <p class="desc">system_admin が無効化済みテナントを再有効化する。</p>
+
+    <div class="io">
+    <div class="label">Input</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">tenant_id</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io"><div class="label">Errors</div><div class="chip-row"><a class="chip chip-error-ref" href="#model-invalidrequesterror">InvalidRequestError</a> <a class="chip chip-error-ref" href="#model-accessdeniederror">AccessDeniedError</a></div></div>
+<div class="io"><div class="label">Emits</div><div class="chip-row"><a class="chip chip-event-ref" href="#model-tenantenabled">TenantEnabled</a></div></div>
+<div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
+    <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
+    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-post">POST</span> <code class="path">/realms/default/admin/tenants/{tenant_id}/enable</code> <span class="chip chip-hint">response: 204</span></div></div>
+  </div></div></div>
   </article></div>
   </section>
 <section id="states">
-    <h2>States <span class="count">7</span></h2>
+    <h2>States <span class="count">8</span></h2>
 
     <div class="cards"><article class="card" id="state-authorizationcodeflow">
     <header><h3>AuthorizationCodeFlow</h3></header>
@@ -6273,6 +7883,29 @@ BreachedPasswordChecker を通過した new_password で User.password_hash を
     <td></td>
   </tr></tbody></table>
     </div>
+  </article>
+<article class="card" id="state-tenantlifecycle">
+    <header><h3>TenantLifecycle</h3></header>
+    <p class="desc">テナント (ADR-032) のライフサイクル。Active で通常稼働、Disable で全プロトコルルートを停止、Enable で復帰。物理削除は本フェーズ対象外。</p>
+    <dl class="kv"><dt>target</dt><dd><code>Tenant</code></dd><dt>initial</dt><dd><span class="chip chip-initial">Active</span></dd></dl>
+    <div class="sm-row"><div class="label">states (2)</div><div><span class="chip chip-initial">Active</span> <span class="chip">Disabled</span></div></div>
+    <div class="sm-row"><div class="label">events (2)</div><div><span class="chip">Disable</span> <span class="chip">Enable</span></div></div>
+    <div class="sub">
+      <div class="label">Transitions</div>
+      <table class="fields"><thead><tr><th>From</th><th>On</th><th>To</th><th>Guard</th><th>Effect</th></tr></thead><tbody><tr>
+    <td><code>Active</code></td>
+    <td><code>Disable</code></td>
+    <td><code>Disabled</code></td>
+    <td></td>
+    <td></td>
+  </tr><tr>
+    <td><code>Disabled</code></td>
+    <td><code>Enable</code></td>
+    <td><code>Active</code></td>
+    <td></td>
+    <td></td>
+  </tr></tbody></table>
+    </div>
   </article></div>
   </section>
 <section id="invariants">
@@ -6469,7 +8102,7 @@ and forall: { in: event.scope, satisfies: &quot;x in x.scopes&quot; }
   </article></div>
   </section>
 <section id="scenarios">
-    <h2>Scenarios <span class="count">50</span></h2>
+    <h2>Scenarios <span class="count">65</span></h2>
     <p class="lead">受け入れ例。自然文ステップで書かれた振る舞いの具体例。引用された既知の名前は定義へリンクする。</p>
     <div class="cards"><article class="card scenario" id="scn-id">
     <header><h3>認可コードフローでアクセストークンと ID トークンを取得できる</h3></header>
@@ -6822,10 +8455,115 @@ and forall: { in: event.scope, satisfies: &quot;x in x.scopes&quot; }
 
     <ol class="scn-steps"><li class="scn-step">Authorization Server メタデータを取得する</li><li class="scn-step">応答に issuer・authorization_endpoint・token_endpoint・jwks_uri・grant_types_supported が含まれる</li></ol>
 
+  </article>
+<article class="card scenario" id="scn-admin-api">
+    <header><h3>admin ロールを持つユーザーはユーザー管理 API を利用できる</h3></header>
+
+
+    <ol class="scn-steps"><li class="scn-step">roles に <code class="step-arg">admin</code> を持つユーザー <code class="step-arg">operator</code> が認証済みである</li><li class="scn-step">管理者 <code class="step-arg">operator</code> が preferred_username <code class="step-arg">bob</code> のユーザーを作成する</li><li class="scn-step">管理者 <code class="step-arg">operator</code> がユーザー一覧を取得する</li><li class="scn-step">応答にユーザー <code class="step-arg">bob</code> が含まれる</li><li class="scn-step"><a class="chip chip-ref" href="#model-usercreated">UserCreated</a> が発行される</li></ol>
+
+  </article>
+<article class="card scenario" id="scn-admin-api">
+    <header><h3>admin ロールを持たないユーザーは管理 API を利用できない</h3></header>
+
+
+    <ol class="scn-steps"><li class="scn-step">roles が空のユーザー <code class="step-arg">alice</code> が認証済みである</li><li class="scn-step">ユーザー <code class="step-arg">alice</code> がユーザー一覧を取得する</li><li class="scn-step">エラー <a class="chip chip-ref" href="#model-accessdeniederror">AccessDeniedError</a></li></ol>
+
+  </article>
+<article class="card scenario" id="scn-">
+    <header><h3>無効化されたユーザーはログインできない</h3></header>
+
+
+    <ol class="scn-steps"><li class="scn-step">管理者がユーザー <code class="step-arg">alice</code> を無効化する</li><li class="scn-step">ユーザー <code class="step-arg">alice</code> が正しい password で browser login API を送信する</li><li class="scn-step">エラー <a class="chip chip-ref" href="#model-accessdeniederror">AccessDeniedError</a></li><li class="scn-step"><a class="chip chip-ref" href="#model-userdisabled">UserDisabled</a> が発行される</li></ol>
+
+  </article>
+<article class="card scenario" id="scn-">
+    <header><h3>無効化されたユーザーの既存セッションは利用できない</h3></header>
+
+
+    <ol class="scn-steps"><li class="scn-step">ユーザー <code class="step-arg">alice</code> が認証済みセッションを持つ</li><li class="scn-step">管理者がユーザー <code class="step-arg">alice</code> を無効化する</li><li class="scn-step">ユーザー <code class="step-arg">alice</code> が既存セッションで認証必須 API を呼ぶ</li><li class="scn-step">エラー <a class="chip chip-ref" href="#model-accessdeniederror">AccessDeniedError</a></li></ol>
+
+  </article>
+<article class="card scenario" id="scn-">
+    <header><h3>管理者は無効化したユーザーを再有効化できる</h3></header>
+
+
+    <ol class="scn-steps"><li class="scn-step">管理者がユーザー <code class="step-arg">alice</code> を無効化する</li><li class="scn-step">管理者がユーザー <code class="step-arg">alice</code> を再有効化する</li><li class="scn-step">ユーザー <code class="step-arg">alice</code> の disabled_at は空である</li><li class="scn-step"><a class="chip chip-ref" href="#model-userenabled">UserEnabled</a> が発行される</li></ol>
+
+  </article>
+<article class="card scenario" id="scn-client">
+    <header><h3>管理者は所属テナントの client を作成・更新・削除できる</h3></header>
+
+
+    <ol class="scn-steps"><li class="scn-step">tenant_id <code class="step-arg">acme</code> の roles=[<code class="step-arg">admin</code>] のユーザー <code class="step-arg">operator</code> が認証済みである</li><li class="scn-step">管理者 <code class="step-arg">operator</code> が client <code class="step-arg">portal</code> を作成する</li><li class="scn-step">作成応答だけが生成された client_secret を含む</li><li class="scn-step">管理者 <code class="step-arg">operator</code> が client <code class="step-arg">portal</code> の redirect_uris を更新する</li><li class="scn-step">管理者 <code class="step-arg">operator</code> が client <code class="step-arg">portal</code> を削除する</li><li class="scn-step"><a class="chip chip-ref" href="#model-adminclientcreated">AdminClientCreated</a>、<a class="chip chip-ref" href="#model-adminclientupdated">AdminClientUpdated</a>、<a class="chip chip-ref" href="#model-adminclientdeleted">AdminClientDeleted</a> が発行される</li></ol>
+
+  </article>
+<article class="card scenario" id="scn-client-api-client">
+    <header><h3>管理 client API は別テナントの client を公開しない</h3></header>
+
+
+    <ol class="scn-steps"><li class="scn-step">tenant_id <code class="step-arg">acme</code> に client_id <code class="step-arg">portal</code> が存在する</li><li class="scn-step">tenant_id <code class="step-arg">default</code> の管理者が client_id <code class="step-arg">portal</code> を取得する</li><li class="scn-step">エラー <a class="chip chip-ref" href="#model-invalidrequesterror">InvalidRequestError</a></li></ol>
+
+  </article>
+<article class="card scenario" id="scn-client">
+    <header><h3>管理者は管理画面で client を作成・編集・削除できる</h3></header>
+
+
+    <ol class="scn-steps"><li class="scn-step">roles=[<code class="step-arg">admin</code>] のユーザー <code class="step-arg">operator</code> が管理画面のアプリケーション一覧を開く</li><li class="scn-step">管理者 <code class="step-arg">operator</code> が confidential client を作成する</li><li class="scn-step">画面は生成された client_secret を一度だけ表示する</li><li class="scn-step">管理者 <code class="step-arg">operator</code> が redirect_uris と scope を編集する</li><li class="scn-step">管理者 <code class="step-arg">operator</code> が client_id を確認して client を削除する</li><li class="scn-step">一覧から対象 client が消える</li></ol>
+
+  </article>
+<article class="card scenario" id="scn-default">
+    <header><h3>default テナントは起動時に自動作成され削除不可</h3></header>
+    <p class="desc">ADR-032 の bootstrap 不変性。</p>
+
+    <ol class="scn-steps"><li class="scn-step">IdP を起動する</li><li class="scn-step">テナント <code class="step-arg">default</code> が status=Active で存在する</li><li class="scn-step">default テナントを削除する API は提供されない</li><li class="scn-step">default テナントの disable は InvalidRequestError で拒否される</li></ol>
+
+  </article>
+<article class="card scenario" id="scn-prefix-default">
+    <header><h3>未 prefix のリクエストは default テナントに解決される</h3></header>
+    <p class="desc">ADR-033 の下位互換。/.well-known や /authorize が prefix なしでも動く。</p>
+
+    <ol class="scn-steps"><li class="scn-step">/realms/ 接頭辞を持たない /authorize にリクエストを送る</li><li class="scn-step">解決されたテナントは <code class="step-arg">default</code></li><li class="scn-step">iss claim は base URL + /realms/default</li></ol>
+
+  </article>
+<article class="card scenario" id="scn-realms-id-well-known-openid-configuration-prefix-issuer">
+    <header><h3>/realms/{id}/.well-known/openid-configuration は同 prefix の issuer を返す</h3></header>
+
+
+    <ol class="scn-steps"><li class="scn-step">tenant_id <code class="step-arg">acme</code> を Active で作成する</li><li class="scn-step">/realms/acme/.well-known/openid-configuration を取得する</li><li class="scn-step">応答の issuer は base URL + /realms/acme</li><li class="scn-step">応答の authorization_endpoint は base URL + /realms/acme/authorize</li></ol>
+
+  </article>
+<article class="card scenario" id="scn-client-id-invalid-client">
+    <header><h3>他テナントの client_id を使うと invalid_client で拒否される</h3></header>
+    <p class="desc">ADR-034 のクロステナントガード。クライアントの所属テナントとリクエストテナントが一致しない場合は existence を漏らさず拒否する。</p>
+
+    <ol class="scn-steps"><li class="scn-step">tenant_id <code class="step-arg">acme</code> に client_id <code class="step-arg">web-app</code> を登録する</li><li class="scn-step"><code class="step-arg">/realms/default/token</code> に client_id <code class="step-arg">web-app</code> で交換を要求する</li><li class="scn-step">エラー <a class="chip chip-ref" href="#model-invalidclienterror">InvalidClientError</a></li></ol>
+
+  </article>
+<article class="card scenario" id="scn-token-endpoint">
+    <header><h3>他テナントの認可コードを別テナントの token endpoint で交換できない</h3></header>
+    <p class="desc">ADR-034。code 解決時に record.tenant_id != ctx.tenant_id を確認。</p>
+
+    <ol class="scn-steps"><li class="scn-step">tenant_id <code class="step-arg">acme</code> で認可コード <code class="step-arg">AC1</code> を発行する</li><li class="scn-step"><code class="step-arg">/realms/default/token</code> で認可コード <code class="step-arg">AC1</code> を交換する</li><li class="scn-step">エラー <a class="chip chip-ref" href="#model-invalidgranterror">InvalidGrantError</a></li></ol>
+
+  </article>
+<article class="card scenario" id="scn-authorize-invalid-request">
+    <header><h3>無効化されたテナントへの /authorize は invalid_request で拒否される</h3></header>
+    <p class="desc">ADR-032 の disable 効果。tenant の存在を漏らさないため 404 ではなく invalid_request。</p>
+
+    <ol class="scn-steps"><li class="scn-step">tenant_id <code class="step-arg">acme</code> を作成する</li><li class="scn-step">tenant_id <code class="step-arg">acme</code> を無効化する</li><li class="scn-step"><code class="step-arg">/realms/acme/authorize</code> にリクエストを送る</li><li class="scn-step">エラー <a class="chip chip-ref" href="#model-invalidrequesterror">InvalidRequestError</a></li></ol>
+
+  </article>
+<article class="card scenario" id="scn-system-admin-realms-default-admin-tenants-admin-403">
+    <header><h3>system_admin だけが /realms/default/admin/tenants を呼べ admin は 403</h3></header>
+    <p class="desc">ADR-032 の RBAC 境界。</p>
+
+    <ol class="scn-steps"><li class="scn-step">roles=[<code class="step-arg">system_admin</code>] のユーザー <code class="step-arg">ops</code> が認証済みである</li><li class="scn-step">ユーザー <code class="step-arg">ops</code> が /realms/default/admin/tenants にアクセスする</li><li class="scn-step">応答は 200 でテナント一覧を返す</li><li class="scn-step">roles=[<code class="step-arg">admin</code>] のユーザー <code class="step-arg">tadmin</code> が認証済みである</li><li class="scn-step">ユーザー <code class="step-arg">tadmin</code> が /realms/default/admin/tenants にアクセスする</li><li class="scn-step">エラー <a class="chip chip-ref" href="#model-accessdeniederror">AccessDeniedError</a></li></ol>
+
   </article></div>
   </section>
 <section id="permissions">
-    <h2>Permissions <span class="count">8</span></h2>
+    <h2>Permissions <span class="count">13</span></h2>
     <p class="lead">誰が、何に対して、どんな条件で何ができるかを宣言する認可ルール。</p>
     <div class="cards"><article class="card" id="perm-tokengrantauthorizationcode">
     <header><h3>TokenGrantAuthorizationCode</h3></header>
@@ -6891,6 +8629,51 @@ and forall: { in: event.scope, satisfies: &quot;x in x.scopes&quot; }
     <div class="clause"><div class="clause-label ok">allow when</div><div class="expr-op">
     <div class="expr-op-label">AND</div>
     <ul class="expr-list"><li><code class="expr">actor.registered == true</code></li><li><code class="expr">context.redirect_uri in actor.redirect_uris</code></li><li><code class="expr">subset(context.requested_scopes, actor.scopes)</code></li><li><code class="expr">(actor.require_pkce == false) or (context.code_challenge != null)</code></li><li><code class="expr">(actor.require_pushed_authorization_requests == false) or (context.par_used == true)</code></li></ul>
+  </div></div>
+  </article>
+<article class="card" id="perm-adminuserread">
+    <header><h3>AdminUserRead</h3></header>
+    <p class="desc">管理ユーザー情報の一覧・取得。</p>
+    <dl class="kv"><dt>actor</dt><dd><code class="name">User</code></dd><dt>action</dt><dd><code class="name">AdminUserRead</code></dd><dt>resource</dt><dd><code class="name">User</code></dd></dl>
+    <div class="clause"><div class="clause-label ok">allow when</div><div class="expr-op">
+    <div class="expr-op-label">AND</div>
+    <ul class="expr-list"><li><code class="expr">admin in actor.roles</code></li><li><code class="expr">actor.disabled_at == null</code></li><li><code class="expr">context.authenticated == true</code></li></ul>
+  </div></div>
+  </article>
+<article class="card" id="perm-adminusercreate">
+    <header><h3>AdminUserCreate</h3></header>
+    <p class="desc">管理者によるユーザー作成。</p>
+    <dl class="kv"><dt>actor</dt><dd><code class="name">User</code></dd><dt>action</dt><dd><code class="name">AdminUserCreate</code></dd><dt>resource</dt><dd><code class="name">User</code></dd></dl>
+    <div class="clause"><div class="clause-label ok">allow when</div><div class="expr-op">
+    <div class="expr-op-label">AND</div>
+    <ul class="expr-list"><li><code class="expr">admin in actor.roles</code></li><li><code class="expr">actor.disabled_at == null</code></li><li><code class="expr">context.authenticated == true</code></li></ul>
+  </div></div>
+  </article>
+<article class="card" id="perm-adminuserupdate">
+    <header><h3>AdminUserUpdate</h3></header>
+    <p class="desc">管理者によるプロフィール・roles・有効状態の更新。</p>
+    <dl class="kv"><dt>actor</dt><dd><code class="name">User</code></dd><dt>action</dt><dd><code class="name">AdminUserUpdate</code></dd><dt>resource</dt><dd><code class="name">User</code></dd></dl>
+    <div class="clause"><div class="clause-label ok">allow when</div><div class="expr-op">
+    <div class="expr-op-label">AND</div>
+    <ul class="expr-list"><li><code class="expr">admin in actor.roles</code></li><li><code class="expr">actor.disabled_at == null</code></li><li><code class="expr">context.authenticated == true</code></li></ul>
+  </div></div>
+  </article>
+<article class="card" id="perm-adminclientsmanage">
+    <header><h3>AdminClientsManage</h3></header>
+    <p class="desc">所属テナント内の client 一覧・作成・更新・削除。</p>
+    <dl class="kv"><dt>actor</dt><dd><code class="name">User</code></dd><dt>action</dt><dd><code class="name">AdminClientsManage</code></dd><dt>resource</dt><dd><code class="name">OAuth2Client</code></dd></dl>
+    <div class="clause"><div class="clause-label ok">allow when</div><div class="expr-op">
+    <div class="expr-op-label">AND</div>
+    <ul class="expr-list"><li><code class="expr">admin in actor.roles</code></li><li><code class="expr">actor.disabled_at == null</code></li><li><code class="expr">context.authenticated == true</code></li><li><code class="expr">actor.tenant_id == resource.tenant_id</code></li></ul>
+  </div></div>
+  </article>
+<article class="card" id="perm-admintenantsmanage">
+    <header><h3>AdminTenantsManage</h3></header>
+    <p class="desc">テナントの作成・更新・無効化・再有効化・一覧取得 (ADR-032)。system_admin ロールに限定する。</p>
+    <dl class="kv"><dt>actor</dt><dd><code class="name">User</code></dd><dt>action</dt><dd><code class="name">AdminTenantsManage</code></dd><dt>resource</dt><dd><code class="name">Tenant</code></dd></dl>
+    <div class="clause"><div class="clause-label ok">allow when</div><div class="expr-op">
+    <div class="expr-op-label">AND</div>
+    <ul class="expr-list"><li><code class="expr">system_admin in actor.roles</code></li><li><code class="expr">actor.tenant_id == &quot;default&quot;</code></li><li><code class="expr">actor.disabled_at == null</code></li><li><code class="expr">context.authenticated == true</code></li></ul>
   </div></div>
   </article></div>
   </section>
@@ -7145,14 +8928,172 @@ and forall: { in: event.scope, satisfies: &quot;x in x.scopes&quot; }
   </article></div>
     </div>
   </section>
+<section id="assurance">
+    <h2>Assurance <span class="count">5</span></h2>
+    <p class="lead">規範要件を満たしたと判定するための主張、リスク、合否基準、必要な検証。</p>
+    <div class="cards"><article class="card" id="assurance-authorizationcodeexchangesafety">
+        <header><h3>AuthorizationCodeExchangeSafety</h3><span class="badge badge-severity-critical">critical</span></header>
+        <p class="desc"><strong>claim:</strong> 認可コードは登録済み redirect URI と必要な PKCE 検証を満たした場合に一度だけ交換できる。</p>
+        <p><strong>risk:</strong> 認可コード横取り、別 Client へのコード注入、コード再利用によるトークン不正発行。</p>
+        <div class="reference-row"><span class="reference-label">standards</span><a class="chip chip-ref" href="#std-rfc7636">RFC7636</a> <a class="chip chip-ref" href="#std-rfc9700">RFC9700</a></div><div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-authorize">Authorize</a> <a class="chip chip-ref" href="#iface-token">Token</a></div><div class="reference-row"><span class="reference-label">states</span><a class="chip chip-ref" href="#state-authorizationcodeflow">AuthorizationCodeFlow</a></div><div class="reference-row"><span class="reference-label">invariants</span><a class="chip chip-ref" href="#inv-pkceroundtrip">PkceRoundTrip</a> <a class="chip chip-ref" href="#inv-authorizationcodesingleuse">AuthorizationCodeSingleUse</a> <a class="chip chip-ref" href="#inv-authorizationcodettl">AuthorizationCodeTtl</a> <a class="chip chip-ref" href="#inv-redirecturiexactmatch">RedirectUriExactMatch</a></div><div class="reference-row"><span class="reference-label">permissions</span><a class="chip chip-ref" href="#perm-authorizeinitiate">AuthorizeInitiate</a> <a class="chip chip-ref" href="#perm-tokengrantauthorizationcode">TokenGrantAuthorizationCode</a></div>
+        <div class="io"><div class="label">Acceptance</div><dl class="kv"><dt>all</dt><dd><ul class="vlist"><li><dl class="kv"><dt>evidence</dt><dd><span class="text">PkcePropertyTests</span></dd><dt>criterion</dt><dd><span class="text">有効な verifier は S256 で検証でき、改変された challenge は拒否される。</span></dd></dl></li><li><dl class="kv"><dt>evidence</dt><dd><span class="text">AuthorizationCodeStoreContract</span></dd><dt>criterion</dt><dd><span class="text">同じ認可コードの1回目の交換だけが成功し、2回目は失敗する。</span></dd></dl></li><li><dl class="kv"><dt>evidence</dt><dd><span class="text">AuthorizationPolicyTests</span></dd><dt>criterion</dt><dd><span class="text">redirect URI 不一致、期限切れ、使用済みコード、必要な PKCE の欠落が拒否される。</span></dd></dl></li></ul></dd></dl></div>
+        <div class="io"><div class="label">Evidence</div><div class="requirements"><article class="requirement">
+            <header><code class="name">PkcePropertyTests</code><span class="badge badge-kind-property_test">property_test</span> <span class="chip chip-hint">producer: independent</span> <span class="chip chip-hint">evaluation: deterministic</span> <span class="chip chip-hint">recheck: affected_change</span></header>
+            <div class="chip-row"><span class="chip">ci</span></div>
+            <div class="reference-row"><span class="reference-label">invariants</span><a class="chip chip-ref" href="#inv-pkceroundtrip">PkceRoundTrip</a></div>
+            <p><strong>procedure:</strong> <code>bun test src/spec-bindings/property/pkce.property.test.ts</code></p>
+            <p><strong>oracle:</strong> S256 の定義と反例反転テスト。</p>
+          </article><article class="requirement">
+            <header><code class="name">AuthorizationCodeStoreContract</code><span class="badge badge-kind-contract_test">contract_test</span> <span class="chip chip-hint">producer: independent</span> <span class="chip chip-hint">evaluation: deterministic</span> <span class="chip chip-hint">recheck: affected_change</span></header>
+            <div class="chip-row"><span class="chip">ci</span></div>
+            <div class="reference-row"><span class="reference-label">invariants</span><a class="chip chip-ref" href="#inv-authorizationcodesingleuse">AuthorizationCodeSingleUse</a> <a class="chip chip-ref" href="#inv-authorizationcodettl">AuthorizationCodeTtl</a></div>
+            <p><strong>procedure:</strong> <code>bun test src/spec-bindings/persistence-contract.test.ts</code></p>
+            <p><strong>oracle:</strong> 1回目の redeem は成功し、同じコードの2回目は null になる。</p>
+          </article><article class="requirement">
+            <header><code class="name">AuthorizationPolicyTests</code><span class="badge badge-kind-test">test</span> <span class="chip chip-hint">producer: independent</span> <span class="chip chip-hint">evaluation: deterministic</span> <span class="chip chip-hint">recheck: affected_change</span></header>
+            <div class="chip-row"><span class="chip">ci</span></div>
+            <div class="reference-row"><span class="reference-label">permissions</span><a class="chip chip-ref" href="#perm-authorizeinitiate">AuthorizeInitiate</a> <a class="chip chip-ref" href="#perm-tokengrantauthorizationcode">TokenGrantAuthorizationCode</a></div><div class="reference-row"><span class="reference-label">invariants</span><a class="chip chip-ref" href="#inv-redirecturiexactmatch">RedirectUriExactMatch</a></div>
+            <p><strong>procedure:</strong> <code>bun test src/spec-bindings/policy/authorization.test.ts src/oauth2/usecases/authorize-request.test.ts</code></p>
+            <p><strong>oracle:</strong> 許可条件の各否定ケースが Deny または InvalidGrant になる。</p>
+          </article></div></div>
+        <dl class="kv">
+            <dt>approval role</dt><dd><span class="chip">SecurityOwner</span></dd>
+            <dt>approval when</dt><dd><span class="chip">acceptance_not_met</span> <span class="chip">exception_requested</span> <span class="chip">risk_increased</span> <span class="chip">normative_spec_changed</span></dd>
+
+          </dl>
+
+      </article>
+<article class="card" id="assurance-refreshtokenreplaycontainment">
+        <header><h3>RefreshTokenReplayContainment</h3><span class="badge badge-severity-critical">critical</span></header>
+        <p class="desc"><strong>claim:</strong> Refresh Token は交換ごとにローテーションされ、再利用検出時は同じファミリーがすべて失効する。</p>
+        <p><strong>risk:</strong> 漏洩した長寿命トークンの継続利用と、攻撃者によるセッション維持。</p>
+        <div class="reference-row"><span class="reference-label">standards</span><a class="chip chip-ref" href="#std-rfc9700">RFC9700</a></div><div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-token">Token</a> <a class="chip chip-ref" href="#iface-revoke">Revoke</a></div><div class="reference-row"><span class="reference-label">invariants</span><a class="chip chip-ref" href="#inv-refreshfamilytransitiverevoke">RefreshFamilyTransitiveRevoke</a> <a class="chip chip-ref" href="#inv-refreshrotationparentinvariants">RefreshRotationParentInvariants</a> <a class="chip chip-ref" href="#inv-refreshtokenabsolutettl">RefreshTokenAbsoluteTtl</a></div><div class="reference-row"><span class="reference-label">permissions</span><a class="chip chip-ref" href="#perm-tokengrantrefresh">TokenGrantRefresh</a></div><div class="reference-row"><span class="reference-label">objectives</span><a class="chip chip-ref" href="#obj-refreshtokenlifetime">RefreshTokenLifetime</a> <a class="chip chip-ref" href="#obj-refreshtokenabsolutelifetime">RefreshTokenAbsoluteLifetime</a> <a class="chip chip-ref" href="#obj-refreshreusealertwindow">RefreshReuseAlertWindow</a></div>
+        <div class="io"><div class="label">Acceptance</div><dl class="kv"><dt>all</dt><dd><ul class="vlist"><li><dl class="kv"><dt>evidence</dt><dd><span class="text">RefreshRotationPropertyTests</span></dd><dt>criterion</dt><dd><span class="text">任意長のトークンチェーンでファミリー失効が全要素へ伝播し、絶対期限が延長されない。</span></dd></dl></li><li><dl class="kv"><dt>evidence</dt><dd><span class="text">RefreshStoreContract</span></dd><dt>criterion</dt><dd><span class="text">rotate は親を使用済みにし、再度の rotate を拒否し、family_id 単位で全件失効する。</span></dd></dl></li></ul></dd></dl></div>
+        <div class="io"><div class="label">Evidence</div><div class="requirements"><article class="requirement">
+            <header><code class="name">RefreshRotationPropertyTests</code><span class="badge badge-kind-property_test">property_test</span> <span class="chip chip-hint">producer: independent</span> <span class="chip chip-hint">evaluation: deterministic</span> <span class="chip chip-hint">recheck: affected_change</span></header>
+            <div class="chip-row"><span class="chip">ci</span></div>
+            <div class="reference-row"><span class="reference-label">invariants</span><a class="chip chip-ref" href="#inv-refreshfamilytransitiverevoke">RefreshFamilyTransitiveRevoke</a> <a class="chip chip-ref" href="#inv-refreshrotationparentinvariants">RefreshRotationParentInvariants</a> <a class="chip chip-ref" href="#inv-refreshtokenabsolutettl">RefreshTokenAbsoluteTtl</a></div>
+            <p><strong>procedure:</strong> <code>bun test src/spec-bindings/property/refresh-rotation.property.test.ts</code></p>
+            <p><strong>oracle:</strong> 生成した任意長チェーンの全要素が revoked になり、子の absolute_expires_at が親と一致する。</p>
+          </article><article class="requirement">
+            <header><code class="name">RefreshStoreContract</code><span class="badge badge-kind-contract_test">contract_test</span> <span class="chip chip-hint">producer: independent</span> <span class="chip chip-hint">evaluation: deterministic</span> <span class="chip chip-hint">recheck: affected_change</span></header>
+            <div class="chip-row"><span class="chip">ci</span></div>
+            <div class="reference-row"><span class="reference-label">permissions</span><a class="chip chip-ref" href="#perm-tokengrantrefresh">TokenGrantRefresh</a></div>
+            <p><strong>procedure:</strong> <code>bun test src/spec-bindings/persistence-contract.test.ts src/oauth2/usecases/exchange-code-for-token.test.ts</code></p>
+            <p><strong>oracle:</strong> 同一トークンの再利用が成功せず、同じ family_id の全レコードが revoked になる。</p>
+          </article></div></div>
+        <dl class="kv">
+            <dt>approval role</dt><dd><span class="chip">SecurityOwner</span></dd>
+            <dt>approval when</dt><dd><span class="chip">acceptance_not_met</span> <span class="chip">exception_requested</span> <span class="chip">risk_increased</span> <span class="chip">normative_spec_changed</span></dd>
+
+          </dl>
+
+      </article>
+<article class="card" id="assurance-tenantboundaryisolation">
+        <header><h3>TenantBoundaryIsolation</h3><span class="badge badge-severity-critical">critical</span></header>
+        <p class="desc"><strong>claim:</strong> tenant-scoped な Client、認可コード、Client 管理操作はテナント境界を越えない。</p>
+        <p><strong>risk:</strong> 別組織の認証設定または認可コードへの不正アクセス。</p>
+        <div class="reference-row"><span class="reference-label">models</span><a class="chip chip-ref" href="#model-tenant">Tenant</a> <a class="chip chip-ref" href="#model-oauth2client">OAuth2Client</a> <a class="chip chip-ref" href="#model-authorizationcoderecord">AuthorizationCodeRecord</a></div><div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-resolvetenant">ResolveTenant</a> <a class="chip chip-ref" href="#iface-listadminclients">ListAdminClients</a> <a class="chip chip-ref" href="#iface-getadminclient">GetAdminClient</a> <a class="chip chip-ref" href="#iface-createadminclient">CreateAdminClient</a> <a class="chip chip-ref" href="#iface-updateadminclient">UpdateAdminClient</a> <a class="chip chip-ref" href="#iface-deleteadminclient">DeleteAdminClient</a></div><div class="reference-row"><span class="reference-label">invariants</span><a class="chip chip-ref" href="#inv-authorizationcodesingleuse">AuthorizationCodeSingleUse</a></div><div class="reference-row"><span class="reference-label">permissions</span><a class="chip chip-ref" href="#perm-adminclientsmanage">AdminClientsManage</a> <a class="chip chip-ref" href="#perm-admintenantsmanage">AdminTenantsManage</a></div>
+        <div class="io"><div class="label">Acceptance</div><dl class="kv"><dt>all</dt><dd><ul class="vlist"><li><dl class="kv"><dt>evidence</dt><dd><span class="text">TenantUseCaseTests</span></dd><dt>criterion</dt><dd><span class="text">default tenant の保護、disable と enable、予約 ID、重複 ID の規則が検証される。</span></dd></dl></li><li><dl class="kv"><dt>evidence</dt><dd><span class="text">TenantHttpBoundaryTests</span></dd><dt>criterion</dt><dd><span class="text">別テナントの Client 管理操作が対象 Client を公開せず、成功しない。</span></dd></dl></li><li><dl class="kv"><dt>evidence</dt><dd><span class="text">TenantOAuthBoundaryTests</span></dd><dt>criterion</dt><dd><span class="text">別テナントの Client と認可コードを認可・トークン交換に利用できない。</span></dd></dl></li></ul></dd></dl></div>
+        <div class="io"><div class="label">Evidence</div><div class="requirements"><article class="requirement">
+            <header><code class="name">TenantUseCaseTests</code><span class="badge badge-kind-test">test</span> <span class="chip chip-hint">producer: independent</span> <span class="chip chip-hint">evaluation: deterministic</span> <span class="chip chip-hint">recheck: affected_change</span></header>
+            <div class="chip-row"><span class="chip">ci</span></div>
+            <div class="reference-row"><span class="reference-label">models</span><a class="chip chip-ref" href="#model-tenant">Tenant</a></div><div class="reference-row"><span class="reference-label">permissions</span><a class="chip chip-ref" href="#perm-admintenantsmanage">AdminTenantsManage</a></div>
+            <p><strong>procedure:</strong> <code>bun test src/tenancy/usecases/manage-tenants.test.ts</code></p>
+            <p><strong>oracle:</strong> Tenant lifecycle と default tenant の禁止操作が ADR-032 の規則に一致する。</p>
+          </article><article class="requirement">
+            <header><code class="name">TenantHttpBoundaryTests</code><span class="badge badge-kind-test">test</span> <span class="chip chip-hint">producer: independent</span> <span class="chip chip-hint">evaluation: deterministic</span> <span class="chip chip-hint">recheck: affected_change</span></header>
+            <div class="chip-row"><span class="chip">ci</span></div>
+            <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-resolvetenant">ResolveTenant</a> <a class="chip chip-ref" href="#iface-listadminclients">ListAdminClients</a> <a class="chip chip-ref" href="#iface-getadminclient">GetAdminClient</a> <a class="chip chip-ref" href="#iface-createadminclient">CreateAdminClient</a> <a class="chip chip-ref" href="#iface-updateadminclient">UpdateAdminClient</a> <a class="chip chip-ref" href="#iface-deleteadminclient">DeleteAdminClient</a></div><div class="reference-row"><span class="reference-label">permissions</span><a class="chip chip-ref" href="#perm-adminclientsmanage">AdminClientsManage</a> <a class="chip chip-ref" href="#perm-admintenantsmanage">AdminTenantsManage</a></div>
+            <p><strong>procedure:</strong> <code>cd ../ra-idp-go &amp;&amp; go test ./internal/adapters/http -run TestAdminClientCannotCrossTenantBoundary</code></p>
+            <p><strong>oracle:</strong> 認証済み主体の tenant_id と対象 Client の tenant_id が一致しない操作は成功しない。</p>
+          </article><article class="requirement">
+            <header><code class="name">TenantOAuthBoundaryTests</code><span class="badge badge-kind-test">test</span> <span class="chip chip-hint">producer: independent</span> <span class="chip chip-hint">evaluation: deterministic</span> <span class="chip chip-hint">recheck: affected_change</span></header>
+            <div class="chip-row"><span class="chip">ci</span></div>
+            <div class="reference-row"><span class="reference-label">models</span><a class="chip chip-ref" href="#model-oauth2client">OAuth2Client</a> <a class="chip chip-ref" href="#model-authorizationcoderecord">AuthorizationCodeRecord</a></div><div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-authorize">Authorize</a> <a class="chip chip-ref" href="#iface-token">Token</a></div>
+            <p><strong>procedure:</strong> <code>cd ../ra-idp-go &amp;&amp; go test ./internal/oauth2/usecases -run 'TestAuthorizeCannotResolveAnotherTenantClient|TestAuthorizationCodeCannotCrossTenantBoundary'</code></p>
+            <p><strong>oracle:</strong> tenant_id が一致しない Client と認可コードは、存在しない場合と同じ結果になる。</p>
+          </article></div></div>
+        <dl class="kv">
+            <dt>approval role</dt><dd><span class="chip">SecurityOwner</span></dd>
+            <dt>approval when</dt><dd><span class="chip">acceptance_not_met</span> <span class="chip">exception_requested</span> <span class="chip">risk_increased</span> <span class="chip">normative_spec_changed</span></dd>
+
+          </dl>
+
+      </article>
+<article class="card" id="assurance-secretmaterialprotection">
+        <header><h3>SecretMaterialProtection</h3><span class="badge badge-severity-critical">critical</span></header>
+        <p class="desc"><strong>claim:</strong> パスワード、Refresh Token、パスワードリセットトークンは平文で永続化されず、パスワード再利用も制限される。</p>
+        <p><strong>risk:</strong> 永続ストア漏洩による即時のアカウントまたはセッション侵害。</p>
+        <div class="reference-row"><span class="reference-label">models</span><a class="chip chip-ref" href="#model-user">User</a> <a class="chip chip-ref" href="#model-refreshtokenrecord">RefreshTokenRecord</a> <a class="chip chip-ref" href="#model-passwordresettokenrecord">PasswordResetTokenRecord</a></div><div class="reference-row"><span class="reference-label">invariants</span><a class="chip chip-ref" href="#inv-tokenhashoneway">TokenHashOneWay</a> <a class="chip chip-ref" href="#inv-passwordhistorynoreuse">PasswordHistoryNoReuse</a></div><div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-changepassword">ChangePassword</a> <a class="chip chip-ref" href="#iface-requestpasswordreset">RequestPasswordReset</a> <a class="chip chip-ref" href="#iface-resetpasswordwithtoken">ResetPasswordWithToken</a></div>
+        <div class="io"><div class="label">Acceptance</div><dl class="kv"><dt>all</dt><dd><ul class="vlist"><li><dl class="kv"><dt>evidence</dt><dd><span class="text">PasswordProtectionTests</span></dd><dt>criterion</dt><dd><span class="text">パスワードポリシー、履歴、漏洩パスワード検査が各導入経路で適用される。</span></dd></dl></li><li><dl class="kv"><dt>evidence</dt><dd><span class="text">ResetTokenStorageTests</span></dd><dt>criterion</dt><dd><span class="text">パスワードリセットトークンはハッシュだけが保存され、単発消費される。</span></dd></dl></li><li><dl class="kv"><dt>evidence</dt><dd><span class="text">PersistenceSecretContracts</span></dd><dt>criterion</dt><dd><span class="text">Refresh Token はハッシュで検索・保存され、平文フィールドを持たない。</span></dd></dl></li></ul></dd></dl></div>
+        <div class="io"><div class="label">Evidence</div><div class="requirements"><article class="requirement">
+            <header><code class="name">PasswordProtectionTests</code><span class="badge badge-kind-test">test</span> <span class="chip chip-hint">producer: independent</span> <span class="chip chip-hint">evaluation: deterministic</span> <span class="chip chip-hint">recheck: affected_change</span></header>
+            <div class="chip-row"><span class="chip">ci</span></div>
+            <div class="reference-row"><span class="reference-label">invariants</span><a class="chip chip-ref" href="#inv-passwordhistorynoreuse">PasswordHistoryNoReuse</a></div><div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-changepassword">ChangePassword</a></div>
+            <p><strong>procedure:</strong> <code>bun test src/authentication/usecases/password-policy.test.ts src/authentication/usecases/change-password.test.ts</code></p>
+            <p><strong>oracle:</strong> 長さ、識別子類似、共通語、漏洩、履歴再利用の各違反が拒否される。</p>
+          </article><article class="requirement">
+            <header><code class="name">ResetTokenStorageTests</code><span class="badge badge-kind-test">test</span> <span class="chip chip-hint">producer: independent</span> <span class="chip chip-hint">evaluation: deterministic</span> <span class="chip chip-hint">recheck: affected_change</span></header>
+            <div class="chip-row"><span class="chip">ci</span></div>
+            <div class="reference-row"><span class="reference-label">models</span><a class="chip chip-ref" href="#model-passwordresettokenrecord">PasswordResetTokenRecord</a></div><div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-requestpasswordreset">RequestPasswordReset</a> <a class="chip chip-ref" href="#iface-resetpasswordwithtoken">ResetPasswordWithToken</a></div>
+            <p><strong>procedure:</strong> <code>bun test src/authentication/usecases/request-password-reset.test.ts src/authentication/usecases/reset-password-with-token.test.ts</code></p>
+            <p><strong>oracle:</strong> 保存値は生トークンと一致せず、成功後の再利用は失敗する。</p>
+          </article><article class="requirement">
+            <header><code class="name">PersistenceSecretContracts</code><span class="badge badge-kind-contract_test">contract_test</span> <span class="chip chip-hint">producer: independent</span> <span class="chip chip-hint">evaluation: deterministic</span> <span class="chip chip-hint">recheck: affected_change</span></header>
+            <div class="chip-row"><span class="chip">ci</span></div>
+            <div class="reference-row"><span class="reference-label">models</span><a class="chip chip-ref" href="#model-refreshtokenrecord">RefreshTokenRecord</a></div><div class="reference-row"><span class="reference-label">invariants</span><a class="chip chip-ref" href="#inv-tokenhashoneway">TokenHashOneWay</a></div>
+            <p><strong>procedure:</strong> <code>bun test src/spec-bindings/persistence-contract.test.ts</code></p>
+            <p><strong>oracle:</strong> RefreshTokenRecord は hash でラウンドトリップし、平文トークンを永続化しない。</p>
+          </article></div></div>
+        <dl class="kv">
+            <dt>approval role</dt><dd><span class="chip">SecurityOwner</span></dd>
+            <dt>approval when</dt><dd><span class="chip">acceptance_not_met</span> <span class="chip">exception_requested</span> <span class="chip">risk_increased</span> <span class="chip">normative_spec_changed</span></dd>
+
+          </dl>
+
+      </article>
+<article class="card" id="assurance-specificationandderivedartifactscoherence">
+        <header><h3>SpecificationAndDerivedArtifactsCoherence</h3><span class="badge badge-severity-high">high</span></header>
+        <p class="desc"><strong>claim:</strong> SCL の内部参照と、SCL から生成された契約・監視・イベント・シナリオ検証の対応が継続的に一致する。</p>
+        <p><strong>risk:</strong> 仕様と実装・生成物が乖離し、再生成時またはリリース時に意図しない振る舞いが混入する。</p>
+        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-getopenidconfiguration">GetOpenidConfiguration</a> <a class="chip chip-ref" href="#iface-getjwks">GetJwks</a> <a class="chip chip-ref" href="#iface-authorize">Authorize</a> <a class="chip chip-ref" href="#iface-token">Token</a></div><div class="reference-row"><span class="reference-label">states</span><a class="chip chip-ref" href="#state-authorizationcodeflow">AuthorizationCodeFlow</a> <a class="chip chip-ref" href="#state-devicecodeflow">DeviceCodeFlow</a></div><div class="reference-row"><span class="reference-label">scenarios</span><a class="chip chip-ref" href="#scn-id">認可コードフローでアクセストークンと ID トークンを取得できる</a></div><div class="reference-row"><span class="reference-label">objectives</span><a class="chip chip-ref" href="#obj-overallavailability">OverallAvailability</a> <a class="chip chip-ref" href="#obj-tokenendpointavailability">TokenEndpointAvailability</a></div>
+        <div class="io"><div class="label">Acceptance</div><dl class="kv"><dt>all</dt><dd><ul class="vlist"><li><dl class="kv"><dt>evidence</dt><dd><span class="text">SpecificationBindingTests</span></dd><dt>criterion</dt><dd><span class="text">SCL の状態、列挙、ポリシー、シナリオ被覆が TypeScript バインディングと一致する。</span></dd></dl></li><li><dl class="kv"><dt>evidence</dt><dd><span class="text">CoherenceCheck</span></dd><dt>criterion</dt><dd><span class="text">SCL の内部参照、OpenAPI、イベント経路、マイグレーション、監視設定に不整合がない。</span></dd></dl></li><li><dl class="kv"><dt>evidence</dt><dd><span class="text">GeneratedArtifactDriftCheck</span></dd><dt>criterion</dt><dd><span class="text">SCL から全生成物を再生成した後に Git 差分が残らない。</span></dd></dl></li></ul></dd></dl></div>
+        <div class="io"><div class="label">Evidence</div><div class="requirements"><article class="requirement">
+            <header><code class="name">SpecificationBindingTests</code><span class="badge badge-kind-contract_test">contract_test</span> <span class="chip chip-hint">producer: independent</span> <span class="chip chip-hint">evaluation: deterministic</span> <span class="chip chip-hint">recheck: every_change</span></header>
+            <div class="chip-row"><span class="chip">ci</span></div>
+            <div class="reference-row"><span class="reference-label">states</span><a class="chip chip-ref" href="#state-authorizationcodeflow">AuthorizationCodeFlow</a> <a class="chip chip-ref" href="#state-devicecodeflow">DeviceCodeFlow</a></div><div class="reference-row"><span class="reference-label">scenarios</span><a class="chip chip-ref" href="#scn-id">認可コードフローでアクセストークンと ID トークンを取得できる</a></div>
+            <p><strong>procedure:</strong> <code>bun test src/spec-bindings</code></p>
+            <p><strong>oracle:</strong> SCL と派生バインディングの集合・参照・被覆が完全一致する。</p>
+          </article><article class="requirement">
+            <header><code class="name">CoherenceCheck</code><span class="badge badge-kind-static_analysis">static_analysis</span> <span class="chip chip-hint">producer: independent</span> <span class="chip chip-hint">evaluation: deterministic</span> <span class="chip chip-hint">recheck: every_change</span></header>
+            <div class="chip-row"><span class="chip">ci</span></div>
+            <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-getopenidconfiguration">GetOpenidConfiguration</a> <a class="chip chip-ref" href="#iface-getjwks">GetJwks</a> <a class="chip chip-ref" href="#iface-authorize">Authorize</a> <a class="chip chip-ref" href="#iface-token">Token</a></div><div class="reference-row"><span class="reference-label">objectives</span><a class="chip chip-ref" href="#obj-overallavailability">OverallAvailability</a> <a class="chip chip-ref" href="#obj-tokenendpointavailability">TokenEndpointAvailability</a></div>
+            <p><strong>procedure:</strong> <code>bun run check:coherence</code></p>
+            <p><strong>oracle:</strong> 整合性チェッカーが失敗を0件と報告する。</p>
+          </article><article class="requirement">
+            <header><code class="name">GeneratedArtifactDriftCheck</code><span class="badge badge-kind-static_analysis">static_analysis</span> <span class="chip chip-hint">producer: independent</span> <span class="chip chip-hint">evaluation: deterministic</span> <span class="chip chip-hint">recheck: every_change</span></header>
+            <div class="chip-row"><span class="chip">ci</span></div>
+            <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-getopenidconfiguration">GetOpenidConfiguration</a> <a class="chip chip-ref" href="#iface-getjwks">GetJwks</a> <a class="chip chip-ref" href="#iface-authorize">Authorize</a> <a class="chip chip-ref" href="#iface-token">Token</a></div>
+            <p><strong>procedure:</strong> <code>bun run gen:all &amp;&amp; git diff --exit-code</code></p>
+            <p><strong>oracle:</strong> 再生成後の作業ツリーに生成物差分がない。</p>
+          </article></div></div>
+        <dl class="kv">
+            <dt>approval role</dt><dd><span class="chip">Maintainer</span></dd>
+            <dt>approval when</dt><dd><span class="chip">acceptance_not_met</span> <span class="chip">exception_requested</span> <span class="chip">risk_increased</span> <span class="chip">normative_spec_changed</span></dd>
+
+          </dl>
+
+      </article></div>
+  </section>
 <section id="user_experience">
-    <h2>User Experience <span class="count">7</span></h2>
+    <h2>User Experience <span class="count">9</span></h2>
     <p class="lead">ブラウザ画面、画面遷移、セキュリティ・プライバシー・アクセシビリティ要件。</p>
     <dl class="kv">
     <dt>accessibility</dt><dd><a class="chip" href="#std-wcag22">WCAG22</a> <span class="badge">AA</span></dd>
     <dt>locales</dt><dd><span class="chip">ja</span> <span class="chip">en</span></dd>
   </dl>
-    <div class="group"><h3 class="grp-title">Screens <span class="count">7</span></h3><div class="cards"><article class="card" id="screen-home">
+    <div class="group"><h3 class="grp-title">Screens <span class="count">9</span></h3><div class="cards"><article class="card" id="screen-home">
         <header><h3>Home</h3><span class="chip chip-hint">/</span></header>
         <p class="desc">IdPの稼働状態と認証開始方法を示し、ローカルデモでは認可要求を開始する。</p>
         <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-iface-ref" href="#iface-authorize">Authorize</a> <a class="chip chip-iface-ref" href="#iface-getopenidconfiguration">GetOpenidConfiguration</a></div>
@@ -7187,8 +9128,18 @@ and forall: { in: event.scope, satisfies: &quot;x in x.scopes&quot; }
         <p class="desc">ローカルデモClientの認可成功またはOAuthエラーを表示する。</p>
 
         <div class="chip-row"><span class="chip">success</span> <span class="chip">oauth_error</span> <span class="chip">invalid_response</span></div>
+      </article><article class="card" id="screen-adminusers">
+        <header><h3>AdminUsers</h3><span class="chip chip-hint">/admin/users</span></header>
+        <p class="desc">管理者が所属テナントのユーザー一覧、ロール、アカウント状態を管理する。</p>
+        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-iface-ref" href="#iface-listadminusers">ListAdminUsers</a> <a class="chip chip-iface-ref" href="#iface-createadminuser">CreateAdminUser</a> <a class="chip chip-iface-ref" href="#iface-updateadminuser">UpdateAdminUser</a> <a class="chip chip-iface-ref" href="#iface-disableadminuser">DisableAdminUser</a> <a class="chip chip-iface-ref" href="#iface-enableadminuser">EnableAdminUser</a></div>
+        <div class="chip-row"><span class="chip">ready</span> <span class="chip">loading</span> <span class="chip">submitting</span> <span class="chip">empty</span> <span class="chip">access_denied</span> <span class="chip">service_error</span></div>
+      </article><article class="card" id="screen-adminclients">
+        <header><h3>AdminClients</h3><span class="chip chip-hint">/admin/clients</span></header>
+        <p class="desc">管理者が所属テナントのOAuth clientを一覧し、作成、metadata更新、削除を行う。</p>
+        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-iface-ref" href="#iface-listadminclients">ListAdminClients</a> <a class="chip chip-iface-ref" href="#iface-getadminclient">GetAdminClient</a> <a class="chip chip-iface-ref" href="#iface-createadminclient">CreateAdminClient</a> <a class="chip chip-iface-ref" href="#iface-updateadminclient">UpdateAdminClient</a> <a class="chip chip-iface-ref" href="#iface-deleteadminclient">DeleteAdminClient</a></div>
+        <div class="chip-row"><span class="chip">ready</span> <span class="chip">loading</span> <span class="chip">submitting</span> <span class="chip">empty</span> <span class="chip">secret_issued</span> <span class="chip">delete_confirmation</span> <span class="chip">access_denied</span> <span class="chip">service_error</span></div>
       </article></div></div>
-    <div class="group"><h3 class="grp-title">Transitions <span class="count">12</span></h3><table class="fields"><thead><tr><th>From</th><th>Trigger</th><th>To</th><th>Interface</th></tr></thead><tbody><tr>
+    <div class="group"><h3 class="grp-title">Transitions <span class="count">14</span></h3><table class="fields"><thead><tr><th>From</th><th>Trigger</th><th>To</th><th>Interface</th></tr></thead><tbody><tr>
         <td><a class="chip" href="#screen-home">Home</a></td>
         <td><code>authorization_started</code></td>
         <td><a class="chip" href="#screen-login">Login</a></td>
@@ -7248,8 +9199,18 @@ and forall: { in: event.scope, satisfies: &quot;x in x.scopes&quot; }
         <td><code>local_demo_authorization_response</code></td>
         <td><a class="chip" href="#screen-callback">Callback</a></td>
         <td></td>
+      </tr><tr>
+        <td><a class="chip" href="#screen-adminusers">AdminUsers</a></td>
+        <td><code>application_management_selected</code></td>
+        <td><a class="chip" href="#screen-adminclients">AdminClients</a></td>
+        <td></td>
+      </tr><tr>
+        <td><a class="chip" href="#screen-adminclients">AdminClients</a></td>
+        <td><code>user_management_selected</code></td>
+        <td><a class="chip" href="#screen-adminusers">AdminUsers</a></td>
+        <td></td>
       </tr></tbody></table></div>
-    <div class="group"><h3 class="grp-title">Requirements <span class="count">11</span></h3><div class="requirements"><article class="requirement" id="ux-ux-transaction-bound">
+    <div class="group"><h3 class="grp-title">Requirements <span class="count">14</span></h3><div class="requirements"><article class="requirement" id="ux-ux-transaction-bound">
         <header>
           <code class="name">UX-TRANSACTION-BOUND</code>
           <span class="badge badge-adoption-required">required</span>
@@ -7265,17 +9226,17 @@ and forall: { in: event.scope, satisfies: &quot;x in x.scopes&quot; }
           <span class="badge badge-category">security</span>
         </header>
         <p>状態変更を伴うブラウザAPIはSameSite cookieとリクエストトークンを照合してCSRFを拒否する。</p>
-        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-login">Login</a> <a class="chip" href="#screen-totp">Totp</a> <a class="chip" href="#screen-consent">Consent</a> <a class="chip" href="#screen-device">Device</a></div>
-        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-submitbrowserlogin">SubmitBrowserLogin</a> <a class="chip chip-ref" href="#iface-submitbrowsertotp">SubmitBrowserTotp</a> <a class="chip chip-ref" href="#iface-submitbrowserconsent">SubmitBrowserConsent</a> <a class="chip chip-ref" href="#iface-submitbrowserdevice">SubmitBrowserDevice</a></div><div class="reference-row"><span class="reference-label">standards</span><a class="chip chip-ref" href="#std-rfc9700">RFC9700</a> <a class="chip chip-ref" href="#std-fapi2securityprofile">FAPI2SecurityProfile</a></div><div class="reference-row"><span class="reference-label">scenarios</span><a class="chip chip-ref" href="#scn-browser-login-api-csrf">browser login API の CSRF 不一致は拒否される</a></div>
+        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-login">Login</a> <a class="chip" href="#screen-totp">Totp</a> <a class="chip" href="#screen-consent">Consent</a> <a class="chip" href="#screen-device">Device</a> <a class="chip" href="#screen-adminusers">AdminUsers</a> <a class="chip" href="#screen-adminclients">AdminClients</a></div>
+        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-submitbrowserlogin">SubmitBrowserLogin</a> <a class="chip chip-ref" href="#iface-submitbrowsertotp">SubmitBrowserTotp</a> <a class="chip chip-ref" href="#iface-submitbrowserconsent">SubmitBrowserConsent</a> <a class="chip chip-ref" href="#iface-submitbrowserdevice">SubmitBrowserDevice</a> <a class="chip chip-ref" href="#iface-createadminuser">CreateAdminUser</a> <a class="chip chip-ref" href="#iface-updateadminuser">UpdateAdminUser</a> <a class="chip chip-ref" href="#iface-disableadminuser">DisableAdminUser</a> <a class="chip chip-ref" href="#iface-enableadminuser">EnableAdminUser</a> <a class="chip chip-ref" href="#iface-createadminclient">CreateAdminClient</a> <a class="chip chip-ref" href="#iface-updateadminclient">UpdateAdminClient</a> <a class="chip chip-ref" href="#iface-deleteadminclient">DeleteAdminClient</a></div><div class="reference-row"><span class="reference-label">standards</span><a class="chip chip-ref" href="#std-rfc9700">RFC9700</a> <a class="chip chip-ref" href="#std-fapi2securityprofile">FAPI2SecurityProfile</a></div><div class="reference-row"><span class="reference-label">scenarios</span><a class="chip chip-ref" href="#scn-browser-login-api-csrf">browser login API の CSRF 不一致は拒否される</a></div>
       </article><article class="requirement" id="ux-ux-no-store">
         <header>
           <code class="name">UX-NO-STORE</code>
           <span class="badge badge-adoption-required">required</span>
           <span class="badge badge-category">privacy</span>
         </header>
-        <p>認証トランザクション、CSRF token、user_codeを含むブラウザAPI応答は保存キャッシュを禁止する。</p>
-        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-login">Login</a> <a class="chip" href="#screen-totp">Totp</a> <a class="chip" href="#screen-consent">Consent</a> <a class="chip" href="#screen-device">Device</a></div>
-        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-getbrowsertransaction">GetBrowserTransaction</a> <a class="chip chip-ref" href="#iface-getbrowserdevicecontext">GetBrowserDeviceContext</a></div>
+        <p>認証トランザクション、CSRF token、user_code、管理対象データを含むブラウザAPI応答は保存キャッシュを禁止する。</p>
+        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-login">Login</a> <a class="chip" href="#screen-totp">Totp</a> <a class="chip" href="#screen-consent">Consent</a> <a class="chip" href="#screen-device">Device</a> <a class="chip" href="#screen-adminusers">AdminUsers</a> <a class="chip" href="#screen-adminclients">AdminClients</a></div>
+        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-getbrowsertransaction">GetBrowserTransaction</a> <a class="chip chip-ref" href="#iface-getbrowserdevicecontext">GetBrowserDeviceContext</a> <a class="chip chip-ref" href="#iface-listadminusers">ListAdminUsers</a> <a class="chip chip-ref" href="#iface-listadminclients">ListAdminClients</a> <a class="chip chip-ref" href="#iface-getadminclient">GetAdminClient</a> <a class="chip chip-ref" href="#iface-createadminclient">CreateAdminClient</a> <a class="chip chip-ref" href="#iface-updateadminclient">UpdateAdminClient</a></div>
       </article><article class="requirement" id="ux-ux-no-credential-echo">
         <header>
           <code class="name">UX-NO-CREDENTIAL-ECHO</code>
@@ -7285,6 +9246,33 @@ and forall: { in: event.scope, satisfies: &quot;x in x.scopes&quot; }
         <p>password、token、内部request idを画面、URL、エラーメッセージへ表示しない。</p>
         <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-login">Login</a> <a class="chip" href="#screen-totp">Totp</a> <a class="chip" href="#screen-consent">Consent</a> <a class="chip" href="#screen-device">Device</a> <a class="chip" href="#screen-status">Status</a> <a class="chip" href="#screen-callback">Callback</a></div>
 
+      </article><article class="requirement" id="ux-ux-admin-client-secret">
+        <header>
+          <code class="name">UX-ADMIN-CLIENT-SECRET</code>
+          <span class="badge badge-adoption-required">required</span>
+          <span class="badge badge-category">security</span>
+        </header>
+        <p>AdminClientsは生成されたclient_secretを作成成功直後に一度だけ表示し、再取得できないことを明示する。client_secret_hashは表示しない。</p>
+        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-adminclients">AdminClients</a></div>
+        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-createadminclient">CreateAdminClient</a> <a class="chip chip-ref" href="#iface-getadminclient">GetAdminClient</a> <a class="chip chip-ref" href="#iface-listadminclients">ListAdminClients</a></div>
+      </article><article class="requirement" id="ux-ux-admin-client-delete-confirmation">
+        <header>
+          <code class="name">UX-ADMIN-CLIENT-DELETE-CONFIRMATION</code>
+          <span class="badge badge-adoption-required">required</span>
+          <span class="badge badge-category">safety</span>
+        </header>
+        <p>AdminClientsはclient削除前に対象client_idと影響を示す確認操作を要求する。</p>
+        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-adminclients">AdminClients</a></div>
+        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-deleteadminclient">DeleteAdminClient</a></div>
+      </article><article class="requirement" id="ux-ux-admin-tenant-scope">
+        <header>
+          <code class="name">UX-ADMIN-TENANT-SCOPE</code>
+          <span class="badge badge-adoption-required">required</span>
+          <span class="badge badge-category">security</span>
+        </header>
+        <p>管理画面は現在のrealm prefixを維持し、所属テナント内のUserとOAuth2Clientだけを表示・変更する。</p>
+        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-adminusers">AdminUsers</a> <a class="chip" href="#screen-adminclients">AdminClients</a></div>
+        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-listadminusers">ListAdminUsers</a> <a class="chip chip-ref" href="#iface-listadminclients">ListAdminClients</a> <a class="chip chip-ref" href="#iface-getadminclient">GetAdminClient</a> <a class="chip chip-ref" href="#iface-createadminclient">CreateAdminClient</a> <a class="chip chip-ref" href="#iface-updateadminclient">UpdateAdminClient</a> <a class="chip chip-ref" href="#iface-deleteadminclient">DeleteAdminClient</a></div>
       </article><article class="requirement" id="ux-ux-registered-redirect">
         <header>
           <code class="name">UX-REGISTERED-REDIRECT</code>
@@ -7310,7 +9298,7 @@ and forall: { in: event.scope, satisfies: &quot;x in x.scopes&quot; }
           <span class="badge badge-category">accessibility</span>
         </header>
         <p>すべての入力、表示切替、許可、拒否、再試行をキーボードだけで操作可能にする。</p>
-        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-home">Home</a> <a class="chip" href="#screen-login">Login</a> <a class="chip" href="#screen-totp">Totp</a> <a class="chip" href="#screen-consent">Consent</a> <a class="chip" href="#screen-device">Device</a> <a class="chip" href="#screen-status">Status</a> <a class="chip" href="#screen-callback">Callback</a></div>
+        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-home">Home</a> <a class="chip" href="#screen-login">Login</a> <a class="chip" href="#screen-totp">Totp</a> <a class="chip" href="#screen-consent">Consent</a> <a class="chip" href="#screen-device">Device</a> <a class="chip" href="#screen-status">Status</a> <a class="chip" href="#screen-callback">Callback</a> <a class="chip" href="#screen-adminusers">AdminUsers</a> <a class="chip" href="#screen-adminclients">AdminClients</a></div>
         <div class="reference-row"><span class="reference-label">standards</span><a class="chip chip-ref" href="#std-wcag22">WCAG22</a></div>
       </article><article class="requirement" id="ux-ux-focus">
         <header>
@@ -7337,7 +9325,7 @@ and forall: { in: event.scope, satisfies: &quot;x in x.scopes&quot; }
           <span class="badge badge-category">accessibility</span>
         </header>
         <p>非同期送信の失敗と認証結果を支援技術へ通知し、送信中は重複操作を防ぐ。</p>
-        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-login">Login</a> <a class="chip" href="#screen-totp">Totp</a> <a class="chip" href="#screen-consent">Consent</a> <a class="chip" href="#screen-device">Device</a> <a class="chip" href="#screen-status">Status</a> <a class="chip" href="#screen-callback">Callback</a></div>
+        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-login">Login</a> <a class="chip" href="#screen-totp">Totp</a> <a class="chip" href="#screen-consent">Consent</a> <a class="chip" href="#screen-device">Device</a> <a class="chip" href="#screen-status">Status</a> <a class="chip" href="#screen-callback">Callback</a> <a class="chip" href="#screen-adminusers">AdminUsers</a> <a class="chip" href="#screen-adminclients">AdminClients</a></div>
         <div class="reference-row"><span class="reference-label">standards</span><a class="chip chip-ref" href="#std-wcag22">WCAG22</a></div>
       </article><article class="requirement" id="ux-ux-locale">
         <header>

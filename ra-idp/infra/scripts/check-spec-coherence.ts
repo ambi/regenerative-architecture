@@ -85,6 +85,34 @@ type SclLike = {
   scenarios: Record<string, unknown>
   permissions: Record<string, unknown>
   objectives: Record<string, unknown>
+  assurance: Record<
+    string,
+    {
+      claim: string
+      risk: string
+      risk_level: string
+      derived_from: Record<string, string[]>
+      acceptance: unknown
+      evidence: Record<
+        string,
+        {
+          kind: string
+          producer: string
+          evaluation: string
+          environments: string[]
+          recheck: string
+          covers: Record<string, string[]>
+          procedure?: string
+          oracle?: string
+        }
+      >
+      approval?: {
+        when: string[]
+        role: string
+        decision_record?: boolean
+      }
+    }
+  >
   user_experience?: {
     accessibility?: { standard: string; level: string }
     locales?: string[]
@@ -175,6 +203,8 @@ function checkStandardsAndUserExperience() {
     scenarios: new Set(Object.keys(scl.scenarios)),
     permissions: new Set(Object.keys(scl.permissions)),
     objectives: new Set(Object.keys(scl.objectives)),
+    standards: new Set(Object.keys(scl.standards ?? {})),
+    assurance: new Set(Object.keys(scl.assurance)),
   }
   const standardIds = new Set<string>()
 
@@ -306,6 +336,143 @@ function checkStandardsAndUserExperience() {
     for (const invariant of requirement.invariants ?? []) {
       if (!sectionTargets.invariants.has(invariant)) {
         bad(`user_experience.${requirement.id} が未知の invariant ${invariant} を参照`)
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------
+// 0.2 Assurance obligations
+// ---------------------------------------------------------------
+function checkAssurance() {
+  const riskLevels = new Set(['low', 'medium', 'high', 'critical'])
+  const evidenceKinds = new Set([
+    'test',
+    'property_test',
+    'model_check',
+    'contract_test',
+    'mutation_test',
+    'static_analysis',
+    'scan',
+    'runtime_observation',
+    'manual_inspection',
+  ])
+  const producers = new Set(['generator', 'independent'])
+  const evaluations = new Set(['deterministic', 'heuristic', 'human'])
+  const recheckValues = new Set([
+    'once',
+    'affected_change',
+    'every_change',
+    'release',
+    'continuous',
+  ])
+  const sectionTargets: Record<string, Set<string>> = {
+    vocabulary: new Set(Object.keys(scl.vocabulary)),
+    models: new Set(Object.keys(scl.models)),
+    interfaces: new Set(Object.keys(scl.interfaces)),
+    states: new Set(Object.keys(scl.states)),
+    invariants: new Set(Object.keys(scl.invariants)),
+    scenarios: new Set(Object.keys(scl.scenarios)),
+    permissions: new Set(Object.keys(scl.permissions)),
+    objectives: new Set(Object.keys(scl.objectives)),
+    standards: new Set(Object.keys(scl.standards ?? {})),
+  }
+
+  const checkReferences = (
+    owner: string,
+    references: Record<string, string[]> | undefined,
+  ): void => {
+    if (!references || Object.keys(references).length === 0) {
+      bad(`${owner} に参照先がない`)
+      return
+    }
+    for (const [section, names] of Object.entries(references)) {
+      const known = sectionTargets[section]
+      if (!known) {
+        bad(`${owner}.${section} は未知のセクション`)
+        continue
+      }
+      for (const name of names) {
+        if (known.has(name)) ok(`${owner} ↔ ${section}.${name}`)
+        else bad(`${owner} が存在しない ${section}.${name} を参照`)
+      }
+    }
+  }
+
+  const collectAcceptanceEvidence = (expression: unknown, owner: string): string[] => {
+    if (!expression || typeof expression !== 'object') {
+      bad(`${owner} がオブジェクトではない`)
+      return []
+    }
+    const node = expression as Record<string, unknown>
+    if (typeof node.evidence === 'string' && typeof node.criterion === 'string') {
+      if (!node.criterion.trim()) bad(`${owner}.criterion が空`)
+      return [node.evidence]
+    }
+    for (const operator of ['all', 'any'] as const) {
+      if (operator in node) {
+        const children = node[operator]
+        if (!Array.isArray(children) || children.length === 0) {
+          bad(`${owner}.${operator} が空または配列ではない`)
+          return []
+        }
+        return children.flatMap((child, index) =>
+          collectAcceptanceEvidence(child, `${owner}.${operator}[${index}]`),
+        )
+      }
+    }
+    if ('not' in node) return collectAcceptanceEvidence(node.not, `${owner}.not`)
+    bad(`${owner} に evidence/criterion または all/any/not がない`)
+    return []
+  }
+
+  for (const [name, obligation] of Object.entries(scl.assurance)) {
+    const owner = `assurance.${name}`
+    if (!obligation.claim) bad(`${owner}.claim がない`)
+    if (!obligation.risk) bad(`${owner}.risk がない`)
+    if (!riskLevels.has(obligation.risk_level)) {
+      bad(`${owner}.risk_level が不正: ${obligation.risk_level}`)
+    }
+    checkReferences(`${owner}.derived_from`, obligation.derived_from)
+
+    const evidenceNames = new Set(Object.keys(obligation.evidence ?? {}))
+    if (evidenceNames.size === 0) bad(`${owner}.evidence が空`)
+    const acceptedEvidence = collectAcceptanceEvidence(obligation.acceptance, `${owner}.acceptance`)
+    for (const evidenceName of acceptedEvidence) {
+      if (evidenceNames.has(evidenceName)) ok(`${owner}.acceptance ↔ evidence.${evidenceName}`)
+      else bad(`${owner}.acceptance が存在しない evidence.${evidenceName} を参照`)
+    }
+    for (const evidenceName of evidenceNames) {
+      if (!acceptedEvidence.includes(evidenceName)) {
+        bad(`${owner}.evidence.${evidenceName} が acceptance から参照されていない`)
+      }
+    }
+
+    for (const [evidenceName, evidence] of Object.entries(obligation.evidence ?? {})) {
+      const evidenceOwner = `${owner}.evidence.${evidenceName}`
+      if (!evidenceKinds.has(evidence.kind)) bad(`${evidenceOwner}.kind が不正: ${evidence.kind}`)
+      if (!producers.has(evidence.producer)) {
+        bad(`${evidenceOwner}.producer が不正: ${evidence.producer}`)
+      }
+      if (!evaluations.has(evidence.evaluation)) {
+        bad(`${evidenceOwner}.evaluation が不正: ${evidence.evaluation}`)
+      }
+      if (!recheckValues.has(evidence.recheck)) {
+        bad(`${evidenceOwner}.recheck が不正: ${evidence.recheck}`)
+      }
+      if (!evidence.environments?.length) bad(`${evidenceOwner}.environments が空`)
+      checkReferences(`${evidenceOwner}.covers`, evidence.covers)
+      if (!evidence.procedure) bad(`${evidenceOwner}.procedure がない`)
+      if (!evidence.oracle) bad(`${evidenceOwner}.oracle がない`)
+    }
+
+    if (['high', 'critical'].includes(obligation.risk_level)) {
+      const requirements = Object.values(obligation.evidence ?? {})
+      if (!requirements.some((evidence) => evidence.producer === 'independent')) {
+        bad(`${owner} は高リスクだが独立した検証がない`)
+      }
+      if (!obligation.approval?.when?.length || !obligation.approval.role) {
+        bad(`${owner} は高リスクだが人間の承認条件がない`)
       }
     }
   }
@@ -588,6 +755,7 @@ async function checkScenarioCoverage() {
 async function main() {
   checkVocabularyCompleteness()
   checkStandardsAndUserExperience()
+  checkAssurance()
   await checkOpenApiVsSclInterfaces()
   checkEventRoutingVsScl()
   await checkMigrationsVsScl()

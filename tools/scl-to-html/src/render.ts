@@ -18,6 +18,7 @@ export const SECTION_KINDS = [
   'scenarios',
   'permissions',
   'objectives',
+  'assurance',
   'user_experience',
 ] as const
 
@@ -36,6 +37,7 @@ export interface SclDocument {
   scenarios?: Record<string, Scenario>
   permissions?: Record<string, Permission>
   objectives?: Record<string, Objective>
+  assurance?: Record<string, AssuranceObligation>
   user_experience?: UserExperience
 }
 
@@ -248,6 +250,32 @@ interface Objective {
   [k: string]: unknown
 }
 
+interface AssuranceObligation {
+  claim?: string
+  risk?: string
+  risk_level?: string
+  derived_from?: Record<string, string[]>
+  acceptance?: unknown
+  evidence?: Record<string, EvidenceRequirement>
+  approval?: {
+    when?: string[]
+    role?: string
+    decision_record?: boolean
+  }
+  annotations?: Record<string, unknown>
+}
+
+interface EvidenceRequirement {
+  kind?: string
+  producer?: string
+  evaluation?: string
+  environments?: string[]
+  recheck?: string
+  covers?: Record<string, string[]>
+  procedure?: string
+  oracle?: string
+}
+
 const referenceAnchor = (section: string, name: string): string | undefined => {
   const prefixes: Record<string, string> = {
     vocabulary: 'vocab',
@@ -259,6 +287,7 @@ const referenceAnchor = (section: string, name: string): string | undefined => {
     permissions: 'perm',
     objectives: 'obj',
     standards: 'std',
+    assurance: 'assurance',
   }
   const prefix = prefixes[section]
   return prefix ? `#${prefix}-${slug(name)}` : undefined
@@ -1165,6 +1194,59 @@ const renderObjectives = (objs: Record<string, Objective>): string => {
   return wrapSection('objectives', 'Objectives', '', groups, Object.keys(objs).length)
 }
 
+// ─── section: assurance ────────────────────────────────────────────
+
+const renderAssurance = (obligations: Record<string, AssuranceObligation>): string => {
+  const cards = Object.entries(obligations)
+    .map(([name, obligation]) => {
+      const evidence = Object.entries(obligation.evidence ?? {})
+        .map(([evidenceName, requirement]) => {
+          const attributes = [
+            requirement.kind ? badge(requirement.kind, `kind-${requirement.kind}`) : '',
+            requirement.producer ? chip(`producer: ${requirement.producer}`, 'hint') : '',
+            requirement.evaluation ? chip(`evaluation: ${requirement.evaluation}`, 'hint') : '',
+            requirement.recheck ? chip(`recheck: ${requirement.recheck}`, 'hint') : '',
+          ]
+            .filter(Boolean)
+            .join(' ')
+          return `<article class="requirement">
+            <header><code class="name">${esc(evidenceName)}</code>${attributes}</header>
+            ${requirement.environments?.length ? `<div class="chip-row">${requirement.environments.map((environment) => chip(environment)).join(' ')}</div>` : ''}
+            ${renderNamedReferences(requirement.covers)}
+            ${requirement.procedure ? `<p><strong>procedure:</strong> <code>${esc(requirement.procedure)}</code></p>` : ''}
+            ${requirement.oracle ? `<p><strong>oracle:</strong> ${esc(requirement.oracle)}</p>` : ''}
+          </article>`
+        })
+        .join('')
+      const approvalRequirement = obligation.approval
+      const approval = approvalRequirement
+        ? `<dl class="kv">
+            ${approvalRequirement.role ? kvRow('approval role', chip(approvalRequirement.role)) : ''}
+            ${approvalRequirement.when?.length ? kvRow('approval when', approvalRequirement.when.map((condition) => chip(condition)).join(' ')) : ''}
+            ${approvalRequirement.decision_record !== undefined ? kvRow('decision record', badge(approvalRequirement.decision_record)) : ''}
+          </dl>`
+        : ''
+      return `<article class="card" id="assurance-${esc(slug(name))}">
+        <header><h3>${esc(name)}</h3>${obligation.risk_level ? badge(obligation.risk_level, `severity-${obligation.risk_level}`) : ''}</header>
+        ${obligation.claim ? `<p class="desc"><strong>claim:</strong> ${esc(obligation.claim)}</p>` : ''}
+        ${obligation.risk ? `<p><strong>risk:</strong> ${esc(obligation.risk)}</p>` : ''}
+        ${renderNamedReferences(obligation.derived_from)}
+        ${obligation.acceptance !== undefined ? `<div class="io"><div class="label">Acceptance</div>${renderValue(obligation.acceptance)}</div>` : ''}
+        ${evidence ? `<div class="io"><div class="label">Evidence</div><div class="requirements">${evidence}</div></div>` : ''}
+        ${approval}
+        ${obligation.annotations ? `<dl class="kv">${kvRow('annotations', renderAnnotations(obligation.annotations))}</dl>` : ''}
+      </article>`
+    })
+    .join('\n')
+  return wrapSection(
+    'assurance',
+    'Assurance',
+    '規範要件を満たしたと判定するための主張、リスク、合否基準、必要な検証。',
+    `<div class="cards">${cards}</div>`,
+    Object.keys(obligations).length,
+  )
+}
+
 // ─── section wrapper + overview + TOC ──────────────────────────────
 
 const wrapSection = (
@@ -1190,6 +1272,7 @@ const SECTION_TITLES: Record<SectionKind, string> = {
   scenarios: 'Scenarios',
   permissions: 'Permissions',
   objectives: 'Objectives',
+  assurance: 'Assurance',
   user_experience: 'User Experience',
 }
 
@@ -1247,6 +1330,8 @@ const renderOneSection = (k: SectionKind, scl: SclDocument): string => {
       return scl.permissions ? renderPermissions(scl.permissions) : ''
     case 'objectives':
       return scl.objectives ? renderObjectives(scl.objectives) : ''
+    case 'assurance':
+      return scl.assurance ? renderAssurance(scl.assurance) : ''
     case 'user_experience':
       return scl.user_experience ? renderUserExperience(scl.user_experience) : ''
   }

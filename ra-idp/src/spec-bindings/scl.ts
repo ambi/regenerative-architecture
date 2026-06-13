@@ -253,10 +253,58 @@ export type SclReferences = Partial<
     | 'invariants'
     | 'scenarios'
     | 'permissions'
-    | 'objectives',
+    | 'objectives'
+    | 'standards'
+    | 'user_experience'
+    | 'assurance',
     string[]
   >
 >
+
+export type AssuranceTraceRef = Omit<SclReferences, 'assurance'>
+
+export type AcceptanceExpression =
+  | { evidence: string; criterion: string }
+  | { all: AcceptanceExpression[] }
+  | { any: AcceptanceExpression[] }
+  | { not: AcceptanceExpression }
+
+export type EvidenceRequirement = {
+  kind:
+    | 'test'
+    | 'property_test'
+    | 'model_check'
+    | 'contract_test'
+    | 'mutation_test'
+    | 'static_analysis'
+    | 'scan'
+    | 'runtime_observation'
+    | 'manual_inspection'
+  producer: 'generator' | 'independent'
+  evaluation: 'deterministic' | 'heuristic' | 'human'
+  environments: string[]
+  recheck: 'once' | 'affected_change' | 'every_change' | 'release' | 'continuous'
+  covers: AssuranceTraceRef
+  procedure?: string
+  oracle?: string
+}
+
+export type ApprovalRequirement = {
+  when: string[]
+  role: string
+  decision_record?: boolean
+}
+
+export type AssuranceObligation = {
+  claim: string
+  risk: string
+  risk_level: 'low' | 'medium' | 'high' | 'critical'
+  derived_from: AssuranceTraceRef
+  acceptance: AcceptanceExpression
+  evidence: Record<string, EvidenceRequirement>
+  approval?: ApprovalRequirement
+  annotations?: Record<string, unknown>
+}
 
 export type StandardRequirement = {
   id: string
@@ -325,6 +373,7 @@ export type SclDocument = {
   scenarios: Record<string, Scenario>
   permissions: Record<string, Permission>
   objectives: Record<string, Objective>
+  assurance: Record<string, AssuranceObligation>
   user_experience?: UserExperience
   annotations?: Record<string, unknown>
 }

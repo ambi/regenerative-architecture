@@ -8,7 +8,7 @@
 #           標準仕様の snake_case 名（例: authorization_code）は aliases に置く。
 
 system: ra-idp
-spec_version: "1.1"
+spec_version: "1.2"
 
 components:
   Tenancy:
@@ -3926,7 +3926,272 @@ objectives:
 
 
 # =================================================================
-# 9. user_experience — ブラウザ画面、遷移、利用品質
+# 9. assurance — 保証義務、合否基準、必要な検証
+# =================================================================
+
+assurance:
+
+  AuthorizationCodeExchangeSafety:
+    claim: 認可コードは登録済み redirect URI と必要な PKCE 検証を満たした場合に一度だけ交換できる。
+    risk: 認可コード横取り、別 Client へのコード注入、コード再利用によるトークン不正発行。
+    risk_level: critical
+    derived_from:
+      standards: [RFC7636, RFC9700]
+      interfaces: [Authorize, Token]
+      states: [AuthorizationCodeFlow]
+      invariants: [PkceRoundTrip, AuthorizationCodeSingleUse, AuthorizationCodeTtl, RedirectUriExactMatch]
+      permissions: [AuthorizeInitiate, TokenGrantAuthorizationCode]
+    acceptance:
+      all:
+        - evidence: PkcePropertyTests
+          criterion: 有効な verifier は S256 で検証でき、改変された challenge は拒否される。
+        - evidence: AuthorizationCodeStoreContract
+          criterion: 同じ認可コードの1回目の交換だけが成功し、2回目は失敗する。
+        - evidence: AuthorizationPolicyTests
+          criterion: redirect URI 不一致、期限切れ、使用済みコード、必要な PKCE の欠落が拒否される。
+    evidence:
+      PkcePropertyTests:
+        kind: property_test
+        producer: independent
+        evaluation: deterministic
+        environments: [ci]
+        recheck: affected_change
+        covers:
+          invariants: [PkceRoundTrip]
+        procedure: bun test src/spec-bindings/property/pkce.property.test.ts
+        oracle: S256 の定義と反例反転テスト。
+      AuthorizationCodeStoreContract:
+        kind: contract_test
+        producer: independent
+        evaluation: deterministic
+        environments: [ci]
+        recheck: affected_change
+        covers:
+          invariants: [AuthorizationCodeSingleUse, AuthorizationCodeTtl]
+        procedure: bun test src/spec-bindings/persistence-contract.test.ts
+        oracle: 1回目の redeem は成功し、同じコードの2回目は null になる。
+      AuthorizationPolicyTests:
+        kind: test
+        producer: independent
+        evaluation: deterministic
+        environments: [ci]
+        recheck: affected_change
+        covers:
+          permissions: [AuthorizeInitiate, TokenGrantAuthorizationCode]
+          invariants: [RedirectUriExactMatch]
+        procedure: bun test src/spec-bindings/policy/authorization.test.ts src/oauth2/usecases/authorize-request.test.ts
+        oracle: 許可条件の各否定ケースが Deny または InvalidGrant になる。
+    approval:
+      when: [acceptance_not_met, exception_requested, risk_increased, normative_spec_changed]
+      role: SecurityOwner
+
+  RefreshTokenReplayContainment:
+    claim: Refresh Token は交換ごとにローテーションされ、再利用検出時は同じファミリーがすべて失効する。
+    risk: 漏洩した長寿命トークンの継続利用と、攻撃者によるセッション維持。
+    risk_level: critical
+    derived_from:
+      standards: [RFC9700]
+      interfaces: [Token, Revoke]
+      invariants: [RefreshFamilyTransitiveRevoke, RefreshRotationParentInvariants, RefreshTokenAbsoluteTtl]
+      permissions: [TokenGrantRefresh]
+      objectives: [RefreshTokenLifetime, RefreshTokenAbsoluteLifetime, RefreshReuseAlertWindow]
+    acceptance:
+      all:
+        - evidence: RefreshRotationPropertyTests
+          criterion: 任意長のトークンチェーンでファミリー失効が全要素へ伝播し、絶対期限が延長されない。
+        - evidence: RefreshStoreContract
+          criterion: rotate は親を使用済みにし、再度の rotate を拒否し、family_id 単位で全件失効する。
+    evidence:
+      RefreshRotationPropertyTests:
+        kind: property_test
+        producer: independent
+        evaluation: deterministic
+        environments: [ci]
+        recheck: affected_change
+        covers:
+          invariants: [RefreshFamilyTransitiveRevoke, RefreshRotationParentInvariants, RefreshTokenAbsoluteTtl]
+        procedure: bun test src/spec-bindings/property/refresh-rotation.property.test.ts
+        oracle: 生成した任意長チェーンの全要素が revoked になり、子の absolute_expires_at が親と一致する。
+      RefreshStoreContract:
+        kind: contract_test
+        producer: independent
+        evaluation: deterministic
+        environments: [ci]
+        recheck: affected_change
+        covers:
+          permissions: [TokenGrantRefresh]
+        procedure: bun test src/spec-bindings/persistence-contract.test.ts src/oauth2/usecases/exchange-code-for-token.test.ts
+        oracle: 同一トークンの再利用が成功せず、同じ family_id の全レコードが revoked になる。
+    approval:
+      when: [acceptance_not_met, exception_requested, risk_increased, normative_spec_changed]
+      role: SecurityOwner
+
+  TenantBoundaryIsolation:
+    claim: tenant-scoped な Client、認可コード、Client 管理操作はテナント境界を越えない。
+    risk: 別組織の認証設定または認可コードへの不正アクセス。
+    risk_level: critical
+    derived_from:
+      models: [Tenant, OAuth2Client, AuthorizationCodeRecord]
+      interfaces: [ResolveTenant, ListAdminClients, GetAdminClient, CreateAdminClient, UpdateAdminClient, DeleteAdminClient]
+      invariants: [AuthorizationCodeSingleUse]
+      permissions: [AdminClientsManage, AdminTenantsManage]
+    acceptance:
+      all:
+        - evidence: TenantUseCaseTests
+          criterion: default tenant の保護、disable と enable、予約 ID、重複 ID の規則が検証される。
+        - evidence: TenantHttpBoundaryTests
+          criterion: 別テナントの Client 管理操作が対象 Client を公開せず、成功しない。
+        - evidence: TenantOAuthBoundaryTests
+          criterion: 別テナントの Client と認可コードを認可・トークン交換に利用できない。
+    evidence:
+      TenantUseCaseTests:
+        kind: test
+        producer: independent
+        evaluation: deterministic
+        environments: [ci]
+        recheck: affected_change
+        covers:
+          models: [Tenant]
+          permissions: [AdminTenantsManage]
+        procedure: bun test src/tenancy/usecases/manage-tenants.test.ts
+        oracle: Tenant lifecycle と default tenant の禁止操作が ADR-032 の規則に一致する。
+      TenantHttpBoundaryTests:
+        kind: test
+        producer: independent
+        evaluation: deterministic
+        environments: [ci]
+        recheck: affected_change
+        covers:
+          interfaces: [ResolveTenant, ListAdminClients, GetAdminClient, CreateAdminClient, UpdateAdminClient, DeleteAdminClient]
+          permissions: [AdminClientsManage, AdminTenantsManage]
+        procedure: cd ../ra-idp-go && go test ./internal/adapters/http -run TestAdminClientCannotCrossTenantBoundary
+        oracle: 認証済み主体の tenant_id と対象 Client の tenant_id が一致しない操作は成功しない。
+      TenantOAuthBoundaryTests:
+        kind: test
+        producer: independent
+        evaluation: deterministic
+        environments: [ci]
+        recheck: affected_change
+        covers:
+          models: [OAuth2Client, AuthorizationCodeRecord]
+          interfaces: [Authorize, Token]
+        procedure: cd ../ra-idp-go && go test ./internal/oauth2/usecases -run 'TestAuthorizeCannotResolveAnotherTenantClient|TestAuthorizationCodeCannotCrossTenantBoundary'
+        oracle: tenant_id が一致しない Client と認可コードは、存在しない場合と同じ結果になる。
+    approval:
+      when: [acceptance_not_met, exception_requested, risk_increased, normative_spec_changed]
+      role: SecurityOwner
+
+  SecretMaterialProtection:
+    claim: パスワード、Refresh Token、パスワードリセットトークンは平文で永続化されず、パスワード再利用も制限される。
+    risk: 永続ストア漏洩による即時のアカウントまたはセッション侵害。
+    risk_level: critical
+    derived_from:
+      models: [User, RefreshTokenRecord, PasswordResetTokenRecord]
+      invariants: [TokenHashOneWay, PasswordHistoryNoReuse]
+      interfaces: [ChangePassword, RequestPasswordReset, ResetPasswordWithToken]
+    acceptance:
+      all:
+        - evidence: PasswordProtectionTests
+          criterion: パスワードポリシー、履歴、漏洩パスワード検査が各導入経路で適用される。
+        - evidence: ResetTokenStorageTests
+          criterion: パスワードリセットトークンはハッシュだけが保存され、単発消費される。
+        - evidence: PersistenceSecretContracts
+          criterion: Refresh Token はハッシュで検索・保存され、平文フィールドを持たない。
+    evidence:
+      PasswordProtectionTests:
+        kind: test
+        producer: independent
+        evaluation: deterministic
+        environments: [ci]
+        recheck: affected_change
+        covers:
+          invariants: [PasswordHistoryNoReuse]
+          interfaces: [ChangePassword]
+        procedure: bun test src/authentication/usecases/password-policy.test.ts src/authentication/usecases/change-password.test.ts
+        oracle: 長さ、識別子類似、共通語、漏洩、履歴再利用の各違反が拒否される。
+      ResetTokenStorageTests:
+        kind: test
+        producer: independent
+        evaluation: deterministic
+        environments: [ci]
+        recheck: affected_change
+        covers:
+          models: [PasswordResetTokenRecord]
+          interfaces: [RequestPasswordReset, ResetPasswordWithToken]
+        procedure: bun test src/authentication/usecases/request-password-reset.test.ts src/authentication/usecases/reset-password-with-token.test.ts
+        oracle: 保存値は生トークンと一致せず、成功後の再利用は失敗する。
+      PersistenceSecretContracts:
+        kind: contract_test
+        producer: independent
+        evaluation: deterministic
+        environments: [ci]
+        recheck: affected_change
+        covers:
+          models: [RefreshTokenRecord]
+          invariants: [TokenHashOneWay]
+        procedure: bun test src/spec-bindings/persistence-contract.test.ts
+        oracle: RefreshTokenRecord は hash でラウンドトリップし、平文トークンを永続化しない。
+    approval:
+      when: [acceptance_not_met, exception_requested, risk_increased, normative_spec_changed]
+      role: SecurityOwner
+
+  SpecificationAndDerivedArtifactsCoherence:
+    claim: SCL の内部参照と、SCL から生成された契約・監視・イベント・シナリオ検証の対応が継続的に一致する。
+    risk: 仕様と実装・生成物が乖離し、再生成時またはリリース時に意図しない振る舞いが混入する。
+    risk_level: high
+    derived_from:
+      interfaces: [GetOpenidConfiguration, GetJwks, Authorize, Token]
+      states: [AuthorizationCodeFlow, DeviceCodeFlow]
+      scenarios: [認可コードフローでアクセストークンと ID トークンを取得できる]
+      objectives: [OverallAvailability, TokenEndpointAvailability]
+    acceptance:
+      all:
+        - evidence: SpecificationBindingTests
+          criterion: SCL の状態、列挙、ポリシー、シナリオ被覆が TypeScript バインディングと一致する。
+        - evidence: CoherenceCheck
+          criterion: SCL の内部参照、OpenAPI、イベント経路、マイグレーション、監視設定に不整合がない。
+        - evidence: GeneratedArtifactDriftCheck
+          criterion: SCL から全生成物を再生成した後に Git 差分が残らない。
+    evidence:
+      SpecificationBindingTests:
+        kind: contract_test
+        producer: independent
+        evaluation: deterministic
+        environments: [ci]
+        recheck: every_change
+        covers:
+          states: [AuthorizationCodeFlow, DeviceCodeFlow]
+          scenarios: [認可コードフローでアクセストークンと ID トークンを取得できる]
+        procedure: bun test src/spec-bindings
+        oracle: SCL と派生バインディングの集合・参照・被覆が完全一致する。
+      CoherenceCheck:
+        kind: static_analysis
+        producer: independent
+        evaluation: deterministic
+        environments: [ci]
+        recheck: every_change
+        covers:
+          interfaces: [GetOpenidConfiguration, GetJwks, Authorize, Token]
+          objectives: [OverallAvailability, TokenEndpointAvailability]
+        procedure: bun run check:coherence
+        oracle: 整合性チェッカーが失敗を0件と報告する。
+      GeneratedArtifactDriftCheck:
+        kind: static_analysis
+        producer: independent
+        evaluation: deterministic
+        environments: [ci]
+        recheck: every_change
+        covers:
+          interfaces: [GetOpenidConfiguration, GetJwks, Authorize, Token]
+        procedure: bun run gen:all && git diff --exit-code
+        oracle: 再生成後の作業ツリーに生成物差分がない。
+    approval:
+      when: [acceptance_not_met, exception_requested, risk_increased, normative_spec_changed]
+      role: Maintainer
+
+
+# =================================================================
+# 10. user_experience — ブラウザ画面、遷移、利用品質
 # =================================================================
 
 user_experience:
@@ -4088,10 +4353,17 @@ user_experience:
       standards: [OpenIDConnectDiscovery]
 
 # =================================================================
-# 10. annotations — 補助情報（任意・規約外、生成器が利用）
+# 11. annotations — 補助情報（任意・規約外、生成器が利用）
 # =================================================================
 
 annotations:
+
+  conception_baseline:
+    id: ra-idp-conception-baseline-1
+    file: decisions/CONCEPTION_BASELINE.md
+    conception: decisions/CONCEPTION.md
+    reconstructed_on: "2026-06-14"
+    note: 開発開始時の原資料ではなく、SCL・ADR・README・実装・テストから遡及復元した基準。
 
   password_policy:
     description: |

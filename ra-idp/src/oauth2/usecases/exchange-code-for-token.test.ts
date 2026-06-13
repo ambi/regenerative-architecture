@@ -137,6 +137,7 @@ describe('exchangeCodeForTokenUseCase — 成功パス', () => {
     const result = await exchangeCodeForTokenUseCase(
       { clientRepo, userRepo, codeStore, refreshStore, tokenIssuer },
       {
+        tenant_id: 'default',
         client_id: client.client_id,
         code: code.code,
         code_verifier: VERIFIER,
@@ -171,6 +172,7 @@ describe('exchangeCodeForTokenUseCase — 成功パス', () => {
     const result = await exchangeCodeForTokenUseCase(
       { clientRepo, userRepo, codeStore, refreshStore, tokenIssuer },
       {
+        tenant_id: 'default',
         client_id: client.client_id,
         code: code.code,
         code_verifier: VERIFIER,
@@ -189,6 +191,7 @@ describe('exchangeCodeForTokenUseCase — 成功パス', () => {
     const result = await exchangeCodeForTokenUseCase(
       { clientRepo, userRepo, codeStore, refreshStore, tokenIssuer },
       {
+        tenant_id: 'default',
         client_id: client.client_id,
         code: code.code,
         code_verifier: VERIFIER,
@@ -209,6 +212,7 @@ describe('exchangeCodeForTokenUseCase — 認可コード再利用検出', () =>
     await exchangeCodeForTokenUseCase(
       { clientRepo, userRepo, codeStore, refreshStore, tokenIssuer },
       {
+        tenant_id: 'default',
         client_id: client.client_id,
         code: code.code,
         code_verifier: VERIFIER,
@@ -219,6 +223,7 @@ describe('exchangeCodeForTokenUseCase — 認可コード再利用検出', () =>
     const second = exchangeCodeForTokenUseCase(
       { clientRepo, userRepo, codeStore, refreshStore, tokenIssuer },
       {
+        tenant_id: 'default',
         client_id: client.client_id,
         code: code.code,
         code_verifier: VERIFIER,
@@ -235,6 +240,7 @@ describe('exchangeCodeForTokenUseCase — 認可コード再利用検出', () =>
     const first = await exchangeCodeForTokenUseCase(
       { clientRepo, userRepo, codeStore, refreshStore, tokenIssuer },
       {
+        tenant_id: 'default',
         client_id: client.client_id,
         code: code.code,
         code_verifier: VERIFIER,
@@ -247,7 +253,8 @@ describe('exchangeCodeForTokenUseCase — 認可コード再利用検出', () =>
       await exchangeCodeForTokenUseCase(
         { clientRepo, userRepo, codeStore, refreshStore, tokenIssuer },
         {
-          client_id: client.client_id,
+          tenant_id: 'default',
+        client_id: client.client_id,
           code: code.code,
           code_verifier: VERIFIER,
           redirect_uri: code.redirect_uri,
@@ -275,6 +282,7 @@ describe('exchangeCodeForTokenUseCase — セキュリティ境界', () => {
     const wrong = exchangeCodeForTokenUseCase(
       { clientRepo, userRepo, codeStore, refreshStore, tokenIssuer },
       {
+        tenant_id: 'default',
         client_id: client.client_id,
         code: code.code,
         code_verifier: 'wrong-verifier-of-equal-length-AAAAAAAAAAAAAAAAA',
@@ -296,6 +304,7 @@ describe('exchangeCodeForTokenUseCase — セキュリティ境界', () => {
     const stolen = exchangeCodeForTokenUseCase(
       { clientRepo, userRepo, codeStore, refreshStore, tokenIssuer },
       {
+        tenant_id: 'default',
         client_id: other.client_id,
         code: code.code,
         code_verifier: VERIFIER,
@@ -312,6 +321,7 @@ describe('exchangeCodeForTokenUseCase — セキュリティ境界', () => {
     const tampered = exchangeCodeForTokenUseCase(
       { clientRepo, userRepo, codeStore, refreshStore, tokenIssuer },
       {
+        tenant_id: 'default',
         client_id: client.client_id,
         code: code.code,
         code_verifier: VERIFIER,
@@ -343,6 +353,7 @@ describe('exchangeCodeForTokenUseCase — id_token は openid スコープのみ
     const result = await exchangeCodeForTokenUseCase(
       { clientRepo, userRepo, codeStore, refreshStore, tokenIssuer },
       {
+        tenant_id: 'default',
         client_id: client.client_id,
         code: noOpenidCode.code,
         code_verifier: VERIFIER,
@@ -374,6 +385,7 @@ describe('exchangeCodeForTokenUseCase — refresh_token は offline_access ス�
     const result = await exchangeCodeForTokenUseCase(
       { clientRepo, userRepo, codeStore, refreshStore, tokenIssuer },
       {
+        tenant_id: 'default',
         client_id: client.client_id,
         code: noOfflineAccessCode.code,
         code_verifier: VERIFIER,
@@ -396,7 +408,8 @@ describe('exchangeCodeForTokenUseCase — ADR-031 (disabled user)', () => {
       exchangeCodeForTokenUseCase(
         { clientRepo, userRepo, codeStore, refreshStore, tokenIssuer },
         {
-          client_id: client.client_id,
+          tenant_id: 'default',
+        client_id: client.client_id,
           code: code.code,
           code_verifier: VERIFIER,
           redirect_uri: code.redirect_uri,

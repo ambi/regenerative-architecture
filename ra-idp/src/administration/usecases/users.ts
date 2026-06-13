@@ -65,7 +65,7 @@ export async function createAdminUser(
   const username = input.preferred_username.trim()
   if (!username) throw new Error('preferred username is required')
 
-  const existing = await deps.userRepo.findByUsername(username)
+  const existing = await deps.userRepo.findByUsername('default', username)
   if (existing) throw new UsernameConflictError(username)
 
   const policy = validatePassword(input.password, {
@@ -126,7 +126,7 @@ export async function updateAdminUser(
     const username = input.preferred_username.trim()
     if (!username) throw new Error('preferred username must not be empty')
     if (username !== user.preferred_username) {
-      const collision = await deps.userRepo.findByUsername(username)
+      const collision = await deps.userRepo.findByUsername('default', username)
       if (collision && collision.sub !== user.sub) {
         throw new UsernameConflictError(username)
       }

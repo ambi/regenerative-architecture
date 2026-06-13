@@ -19,6 +19,7 @@ function toIso(value: unknown): string | undefined {
 function rowToUser(row: any): User {
   return UserSchema.parse({
     sub: row.sub,
+    tenant_id: row.tenant_id,
     preferred_username: row.preferred_username,
     password_hash: row.password_hash,
     name: row.name ?? undefined,
@@ -46,25 +47,26 @@ export class PostgresUserRepository implements UserRepository {
     return rows[0] ? rowToUser(rows[0]) : null
   }
 
-  async findByUsername(username: string): Promise<User | null> {
+  async findByUsername(tenant_id: string, username: string): Promise<User | null> {
     const { rows } = await this.pool.query(
-      `SELECT * FROM users WHERE preferred_username = $1 AND deleted_at IS NULL`,
-      [username],
+      `SELECT * FROM users WHERE tenant_id = $1 AND preferred_username = $2 AND deleted_at IS NULL`,
+      [tenant_id, username],
     )
     return rows[0] ? rowToUser(rows[0]) : null
   }
 
-  async findByEmail(email: string): Promise<User | null> {
+  async findByEmail(tenant_id: string, email: string): Promise<User | null> {
     const { rows } = await this.pool.query(
-      `SELECT * FROM users WHERE LOWER(email) = LOWER($1) AND deleted_at IS NULL LIMIT 1`,
-      [email],
+      `SELECT * FROM users WHERE tenant_id = $1 AND LOWER(email) = LOWER($2) AND deleted_at IS NULL LIMIT 1`,
+      [tenant_id, email],
     )
     return rows[0] ? rowToUser(rows[0]) : null
   }
 
-  async findAll(): Promise<User[]> {
+  async findAll(tenant_id: string): Promise<User[]> {
     const { rows } = await this.pool.query(
-      `SELECT * FROM users WHERE deleted_at IS NULL ORDER BY created_at ASC`,
+      `SELECT * FROM users WHERE tenant_id = $1 AND deleted_at IS NULL ORDER BY created_at ASC`,
+      [tenant_id],
     )
     return rows.map(rowToUser)
   }
@@ -73,13 +75,14 @@ export class PostgresUserRepository implements UserRepository {
     await this.pool.query(
       `
       INSERT INTO users (
-        sub, preferred_username, password_hash,
+        sub, tenant_id, preferred_username, password_hash,
         name, given_name, family_name, email,
         email_verified, mfa_enrolled,
         roles, disabled_at,
         created_at, updated_at, deleted_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       ON CONFLICT (sub) DO UPDATE SET
+        tenant_id          = EXCLUDED.tenant_id,
         preferred_username = EXCLUDED.preferred_username,
         password_hash      = EXCLUDED.password_hash,
         name               = EXCLUDED.name,
@@ -95,6 +98,7 @@ export class PostgresUserRepository implements UserRepository {
       `,
       [
         user.sub,
+        user.tenant_id,
         user.preferred_username,
         user.password_hash,
         user.name ?? null,

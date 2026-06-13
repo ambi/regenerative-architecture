@@ -88,6 +88,7 @@ export function createTokenRoutes(deps: TokenRoutesDeps) {
             tokenIssuer: deps.tokenIssuer,
           },
           {
+            tenant_id: auth.client.tenant_id,
             client_id: auth.client.client_id,
             code: body.code ?? '',
             code_verifier: body.code_verifier ?? '',
@@ -137,6 +138,7 @@ export function createTokenRoutes(deps: TokenRoutesDeps) {
             tokenIssuer: deps.tokenIssuer,
           },
           {
+            tenant_id: auth.client.tenant_id,
             client_id: auth.client.client_id,
             refresh_token: body.refresh_token,
             proof_jkt: dpopResult?.jkt,
@@ -203,6 +205,7 @@ export function createTokenRoutes(deps: TokenRoutesDeps) {
             tokenIssuer: deps.tokenIssuer,
           },
           {
+            tenant_id: auth.client.tenant_id,
             client_id: auth.client.client_id,
             device_code: body.device_code,
             dpop_jkt: dpopResult?.jkt,

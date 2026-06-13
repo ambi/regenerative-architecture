@@ -109,7 +109,7 @@ describe('Device Authorization Grant — happy path', () => {
     await expect(
       exchangeDeviceCodeUseCase(
         d,
-        { client_id: d.client.client_id, device_code: response.device_code },
+        { tenant_id: 'default', client_id: d.client.client_id, device_code: response.device_code },
         t0,
       ),
     ).rejects.toMatchObject({ code: 'authorization_pending' })
@@ -127,7 +127,7 @@ describe('Device Authorization Grant — happy path', () => {
     const t1 = new Date(t0.getTime() + 10_000)
     const { response: tokens, audit } = await exchangeDeviceCodeUseCase(
       d,
-      { client_id: d.client.client_id, device_code: response.device_code },
+      { tenant_id: 'default', client_id: d.client.client_id, device_code: response.device_code },
       t1,
     )
     expect(tokens.access_token).toBeTruthy()
@@ -145,7 +145,7 @@ describe('Device Authorization Grant — happy path', () => {
     await expect(
       exchangeDeviceCodeUseCase(
         d,
-        { client_id: d.client.client_id, device_code: response.device_code },
+        { tenant_id: 'default', client_id: d.client.client_id, device_code: response.device_code },
         t2,
       ),
     ).rejects.toMatchObject({ code: 'invalid_grant' })
@@ -173,7 +173,7 @@ describe('Device Authorization Grant — エラー分岐', () => {
     await expect(
       exchangeDeviceCodeUseCase(
         d,
-        { client_id: d.client.client_id, device_code: response.device_code },
+        { tenant_id: 'default', client_id: d.client.client_id, device_code: response.device_code },
         t0,
       ),
     ).rejects.toMatchObject({ code: 'access_denied' })
@@ -192,7 +192,7 @@ describe('Device Authorization Grant — エラー分岐', () => {
     await expect(
       exchangeDeviceCodeUseCase(
         d,
-        { client_id: d.client.client_id, device_code: response.device_code },
+        { tenant_id: 'default', client_id: d.client.client_id, device_code: response.device_code },
         tLate,
       ),
     ).rejects.toMatchObject({ code: 'expired_token' })
@@ -210,7 +210,7 @@ describe('Device Authorization Grant — エラー分岐', () => {
     await expect(
       exchangeDeviceCodeUseCase(
         d,
-        { client_id: d.client.client_id, device_code: response.device_code },
+        { tenant_id: 'default', client_id: d.client.client_id, device_code: response.device_code },
         t0,
       ),
     ).rejects.toMatchObject({ code: 'authorization_pending' })
@@ -219,7 +219,7 @@ describe('Device Authorization Grant — エラー分岐', () => {
     await expect(
       exchangeDeviceCodeUseCase(
         d,
-        { client_id: d.client.client_id, device_code: response.device_code },
+        { tenant_id: 'default', client_id: d.client.client_id, device_code: response.device_code },
         t1,
       ),
     ).rejects.toMatchObject({ code: 'slow_down' })
@@ -228,7 +228,7 @@ describe('Device Authorization Grant — エラー分岐', () => {
   test('未知の device_code → invalid_grant', async () => {
     const d = await setup()
     await expect(
-      exchangeDeviceCodeUseCase(d, { client_id: d.client.client_id, device_code: 'nope' }),
+      exchangeDeviceCodeUseCase(d, { tenant_id: 'default', client_id: d.client.client_id, device_code: 'nope' }),
     ).rejects.toMatchObject({ code: 'invalid_grant' })
   })
 

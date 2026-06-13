@@ -266,7 +266,7 @@ function resolveClientKeys(client: Client): ReturnType<typeof createLocalJWKSet>
 }
 
 async function loadClient(repo: ClientRepository, id: string): Promise<Client> {
-  const client = await repo.findById(id)
+  const client = await repo.findById('default', id)
   if (!client) {
     // タイミング差を出さないため、ハッシュ計算を空打ちする
     createHash('sha256').update('decoy').digest()

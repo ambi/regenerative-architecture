@@ -12,6 +12,7 @@ import type { PgPool } from './pool'
 
 function rowToClient(row: any): Client {
   return ClientSchema.parse({
+    tenant_id: row.tenant_id,
     client_id: row.client_id,
     client_secret_hash: row.client_secret_hash ?? undefined,
     client_name: row.client_name ?? undefined,
@@ -36,10 +37,11 @@ function rowToClient(row: any): Client {
 export class PostgresClientRepository implements ClientRepository {
   constructor(private readonly pool: PgPool) {}
 
-  async findById(client_id: string): Promise<Client | null> {
-    const { rows } = await this.pool.query(`SELECT * FROM clients WHERE client_id = $1`, [
-      client_id,
-    ])
+  async findById(tenant_id: string, client_id: string): Promise<Client | null> {
+    const { rows } = await this.pool.query(
+      `SELECT * FROM clients WHERE tenant_id = $1 AND client_id = $2`,
+      [tenant_id, client_id],
+    )
     return rows[0] ? rowToClient(rows[0]) : null
   }
 
@@ -50,7 +52,7 @@ export class PostgresClientRepository implements ClientRepository {
     await this.pool.query(
       `
       INSERT INTO clients (
-        client_id, client_secret_hash, client_name, client_type,
+        tenant_id, client_id, client_secret_hash, client_name, client_type,
         redirect_uris, grant_types, response_types,
         token_endpoint_auth_method, scope,
         jwks_uri, jwks, tls_client_auth_subject_dn,
@@ -60,10 +62,10 @@ export class PostgresClientRepository implements ClientRepository {
         dpop_bound_access_tokens, fapi_profile,
         created_at
       ) VALUES (
-        $1, $2, $3, $4, $5::jsonb, $6::jsonb, $7::jsonb, $8, $9,
-        $10, $11::jsonb, $12, $13, $14, $15, $16, $17, $18
+        $1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8::jsonb, $9, $10,
+        $11, $12::jsonb, $13, $14, $15, $16, $17, $18, $19
       )
-      ON CONFLICT (client_id) DO UPDATE SET
+      ON CONFLICT (tenant_id, client_id) DO UPDATE SET
         client_secret_hash = COALESCE(EXCLUDED.client_secret_hash, clients.client_secret_hash),
         client_name = EXCLUDED.client_name,
         client_type = EXCLUDED.client_type,
@@ -82,6 +84,7 @@ export class PostgresClientRepository implements ClientRepository {
         fapi_profile = EXCLUDED.fapi_profile
       `,
       [
+        client.tenant_id,
         client.client_id,
         client.client_secret_hash ?? null,
         client.client_name ?? null,
@@ -104,12 +107,18 @@ export class PostgresClientRepository implements ClientRepository {
     )
   }
 
-  async delete(client_id: string): Promise<void> {
-    await this.pool.query(`DELETE FROM clients WHERE client_id = $1`, [client_id])
+  async delete(tenant_id: string, client_id: string): Promise<void> {
+    await this.pool.query(
+      `DELETE FROM clients WHERE tenant_id = $1 AND client_id = $2`,
+      [tenant_id, client_id],
+    )
   }
 
-  async findAll(): Promise<Client[]> {
-    const { rows } = await this.pool.query(`SELECT * FROM clients ORDER BY created_at`)
+  async findAll(tenant_id: string): Promise<Client[]> {
+    const { rows } = await this.pool.query(
+      `SELECT * FROM clients WHERE tenant_id = $1 ORDER BY created_at`,
+      [tenant_id],
+    )
     return rows.map(rowToClient)
   }
 }

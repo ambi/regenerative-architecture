@@ -5,7 +5,7 @@
 import type { Consent } from '../../spec-bindings/schemas'
 
 export interface ConsentRepository {
-  find(sub: string, client_id: string): Promise<Consent | null>
+  find(tenant_id: string, sub: string, client_id: string): Promise<Consent | null>
   save(consent: Consent): Promise<void>
-  revoke(sub: string, client_id: string): Promise<void>
+  revoke(tenant_id: string, sub: string, client_id: string): Promise<void>
 }

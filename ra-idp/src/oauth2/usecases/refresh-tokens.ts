@@ -14,6 +14,7 @@ import type { RefreshTokenStore } from '../ports/refresh-token-store'
 import type { TokenIssuer } from '../ports/token-issuer'
 
 export interface RefreshInput {
+  tenant_id: string
   client_id: string
   refresh_token: string
   /** DPoP / mTLS バインドがある場合の所有証明。 */
@@ -40,7 +41,7 @@ export async function refreshTokenUseCase(
   emit: (event: { type: string; [k: string]: unknown }) => void,
   now: Date = new Date(),
 ): Promise<RefreshResult> {
-  const client = await deps.clientRepo.findById(input.client_id)
+  const client = await deps.clientRepo.findById(input.tenant_id, input.client_id)
   if (!client) {
     throw new OAuthError('invalid_client', 'クライアント認証に失敗しました')
   }

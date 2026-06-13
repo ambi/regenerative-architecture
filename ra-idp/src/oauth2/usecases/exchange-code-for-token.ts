@@ -24,6 +24,7 @@ import type { RefreshTokenStore } from '../ports/refresh-token-store'
 import type { TokenIssuer } from '../ports/token-issuer'
 
 export interface ExchangeCodeInput {
+  tenant_id: string
   client_id: string
   code: string
   code_verifier: string
@@ -69,7 +70,7 @@ export async function exchangeCodeForTokenUseCase(
   input: ExchangeCodeInput,
   now: Date = new Date(),
 ): Promise<ExchangeCodeResult> {
-  const client = await deps.clientRepo.findById(input.client_id)
+  const client = await deps.clientRepo.findById(input.tenant_id, input.client_id)
   if (!client) {
     throw new OAuthError('invalid_client', 'クライアント認証に失敗しました')
   }

@@ -65,7 +65,7 @@ describe('createAdminUser', () => {
       roles: ['support', 'admin', 'support'],
     })
     expect(user.roles).toEqual(['admin', 'support'])
-    expect((await userRepo.findByUsername('carol'))?.sub).toBe(user.sub)
+    expect((await userRepo.findByUsername('default', 'carol'))?.sub).toBe(user.sub)
     expect(events.some((e) => e.type === 'UserCreated')).toBe(true)
   })
 

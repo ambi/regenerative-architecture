@@ -40,7 +40,7 @@ export function createPARRoutes(deps: PARRoutesDeps) {
       void client_assertion_type
       const res = await pushAuthorizationRequestUseCase(
         { clientRepo: deps.clientRepo, parStore: deps.parStore },
-        { client_id: auth.client.client_id, parameters: parameters as Record<string, string> },
+        { tenant_id: auth.client.tenant_id, client_id: auth.client.client_id, parameters: parameters as Record<string, string> },
       )
       deps.emit({
         type: 'PARStored',

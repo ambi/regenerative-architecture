@@ -53,7 +53,7 @@ export async function requestPasswordReset(
 
   if (emailLower.length === 0) return
 
-  const user = await deps.userRepo.findByEmail(emailLower)
+  const user = await deps.userRepo.findByEmail('default', emailLower)
   if (!user?.email_verified) return
 
   const rawToken = randomBytes(32).toString('base64url')

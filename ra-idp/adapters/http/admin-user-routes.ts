@@ -88,7 +88,7 @@ export function createAdminUserRoutes(deps: AdminUserRoutesDeps) {
   app.get('/api/admin/users', async (c) => {
     const actor = await resolveAdmin(deps, c.req.raw.headers)
     if (actor.kind !== 'admin') return adminAccessError(actor.kind)
-    const users = await deps.userRepo.findAll()
+    const users = await deps.userRepo.findAll('default')
     return noStoreJSON(c, 200, { users: users.map(toAdminUserResponse) })
   })
 

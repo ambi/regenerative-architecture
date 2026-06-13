@@ -158,7 +158,7 @@ async function completePasswordLogin(
 
   // ADR-029: 未存在 user でも sentinel ハッシュで verify を回し、タイミング差で
   // username の存在有無を漏らさない。
-  const user = await deps.userRepo.findByUsername(username)
+  const user = await deps.userRepo.findByUsername('default', username)
   const hashToVerify = user?.password_hash ?? deps.sentinelPasswordHash
   const passwordOk = await deps.passwordHasher.verify(password, hashToVerify)
 

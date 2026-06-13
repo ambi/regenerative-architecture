@@ -277,13 +277,13 @@ for (const suite of SUITES) {
       it('save → findById でラウンドトリップ', async () => {
         const c = makeClient(`c-${randomUUID()}`)
         await deps.clientRepo.save(c)
-        const found = await deps.clientRepo.findById(c.client_id)
+        const found = await deps.clientRepo.findById(c.tenant_id, c.client_id)
         expect(found?.client_id).toBe(c.client_id)
         expect(found?.client_type).toBe('confidential')
       })
 
       it('未登録 client_id は null を返す', async () => {
-        const found = await deps.clientRepo.findById('does-not-exist')
+        const found = await deps.clientRepo.findById('default', 'does-not-exist')
         expect(found).toBeNull()
       })
     })
@@ -296,7 +296,7 @@ for (const suite of SUITES) {
         const u = makeUser(`u-${randomUUID()}`)
         await deps.userRepo.save(u)
         const bySub = await deps.userRepo.findBySub(u.sub)
-        const byName = await deps.userRepo.findByUsername(u.preferred_username)
+        const byName = await deps.userRepo.findByUsername(u.tenant_id, u.preferred_username)
         expect(bySub?.sub).toBe(u.sub)
         expect(byName?.sub).toBe(u.sub)
       })
@@ -366,11 +366,11 @@ for (const suite of SUITES) {
         const con = makeConsent(u.sub, c.client_id)
         await deps.consentRepo.save(con)
 
-        const found = await deps.consentRepo.find(u.sub, c.client_id)
+        const found = await deps.consentRepo.find(u.tenant_id, u.sub, c.client_id)
         expect(found?.scopes).toEqual(['openid', 'profile'])
 
-        await deps.consentRepo.revoke(u.sub, c.client_id)
-        const afterRevoke = await deps.consentRepo.find(u.sub, c.client_id)
+        await deps.consentRepo.revoke(u.tenant_id, u.sub, c.client_id)
+        const afterRevoke = await deps.consentRepo.find(u.tenant_id, u.sub, c.client_id)
         expect(afterRevoke?.revoked_at).toBeDefined()
       })
     })

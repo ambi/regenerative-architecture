@@ -7,8 +7,8 @@
 import type { Client } from '../../spec-bindings/schemas'
 
 export interface ClientRepository {
-  findById(client_id: string): Promise<Client | null>
+  findById(tenant_id: string, client_id: string): Promise<Client | null>
   save(client: Client): Promise<void>
-  delete(client_id: string): Promise<void>
-  findAll(): Promise<Client[]>
+  delete(tenant_id: string, client_id: string): Promise<void>
+  findAll(tenant_id: string): Promise<Client[]>
 }

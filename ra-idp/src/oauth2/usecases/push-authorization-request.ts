@@ -15,6 +15,7 @@ const PAR_TTL_SECONDS = 600
 const REQUEST_URI_PREFIX = 'urn:ietf:params:oauth:request_uri:'
 
 export interface PARInput {
+  tenant_id: string
   client_id: string
   parameters: Record<string, string>
 }
@@ -32,7 +33,7 @@ export async function pushAuthorizationRequestUseCase(
   input: PARInput,
   now: Date = new Date(),
 ): Promise<PARResponse> {
-  const client = await deps.clientRepo.findById(input.client_id)
+  const client = await deps.clientRepo.findById(input.tenant_id, input.client_id)
   if (!client) {
     throw new OAuthError('invalid_client', 'クライアント認証に失敗しました')
   }
@@ -52,6 +53,7 @@ export async function pushAuthorizationRequestUseCase(
   const requestUri = REQUEST_URI_PREFIX + randomBytes(32).toString('base64url')
   const record: PARRecord = PARRecordSchema.parse({
     request_uri: requestUri,
+    tenant_id: input.tenant_id,
     client_id: input.client_id,
     parameters: input.parameters,
     issued_at: now.toISOString(),

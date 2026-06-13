@@ -94,7 +94,7 @@ export function createAuthorizeRoutes(deps: AuthorizeRoutesDeps) {
         message: '認証セッションが一致しません',
       })
     }
-    const client = await deps.clientRepo.findById(req.client_id)
+    const client = await deps.clientRepo.findById(req.tenant_id, req.client_id)
     if (!client) {
       return noStoreJSON(c, 400, {
         error: 'invalid_transaction',
@@ -286,7 +286,7 @@ export function createAuthorizeRoutes(deps: AuthorizeRoutesDeps) {
       if (!context || !req.sub || context.sub !== req.sub) {
         throw new OAuthError('access_denied', '認証セッションが一致しません')
       }
-      const client = await deps.clientRepo.findById(req.client_id)
+      const client = await deps.clientRepo.findById(req.tenant_id, req.client_id)
       if (!client) throw new OAuthError('invalid_request', '不明なクライアント')
       return consentResponse(req, client, c.req.header('accept-language'))
     } catch (e) {
@@ -354,7 +354,7 @@ export function createAuthorizationLoginContinuation(deps: AuthorizeRoutesDeps):
     ): Promise<Response> {
       const req = await deps.requestStore.find(requestId)
       if (!req) throw new OAuthError('invalid_request', '不明な認可リクエスト')
-      const client = await deps.clientRepo.findById(req.client_id)
+      const client = await deps.clientRepo.findById(req.tenant_id, req.client_id)
       if (!client) throw new OAuthError('invalid_request', '不明なクライアント')
       return await completeAuthorizedRequest(
         deps,
@@ -402,7 +402,7 @@ async function handleEndSession(
     )
   }
 
-  const client = await deps.clientRepo.findById(params.client_id)
+  const client = await deps.clientRepo.findById("default", params.client_id)
   if (!client) {
     throw new OAuthError('invalid_request', '未知の client_id です')
   }

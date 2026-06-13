@@ -47,7 +47,7 @@ async function setup() {
   })
 
   const repo: ClientRepository = {
-    async findById(id) {
+    async findById(_tenant_id, id) {
       return id === CLIENT_ID ? client : null
     },
     async save() {},
@@ -202,7 +202,7 @@ describe('authenticateClient + tls_client_auth (RFC 8705 §2.1.2)', () => {
 
   function makeRepo(client: Client): ClientRepository {
     return {
-      async findById(id) {
+      async findById(_tenant_id, id) {
         return id === client.client_id ? client : null
       },
       async save() {},

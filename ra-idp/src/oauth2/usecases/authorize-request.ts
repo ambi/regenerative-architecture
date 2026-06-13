@@ -59,7 +59,7 @@ export async function authorizeRequestUseCase(
   },
   input: AuthorizeInput,
 ): Promise<AuthorizeResult> {
-  const client = await deps.clientRepo.findById(input.client_id)
+  const client = await deps.clientRepo.findById(input.tenant_id, input.client_id)
   if (!client) {
     throw new OAuthError('unauthorized_client', '未登録のクライアントです')
   }
@@ -172,7 +172,7 @@ export async function completeAuthenticationUseCase(
   })
 
   const requestedScopes = req.scope.split(/\s+/).filter(Boolean)
-  const consent = await deps.consentRepo.find(authenticated_sub, req.client_id)
+  const consent = await deps.consentRepo.find(req.tenant_id, authenticated_sub, req.client_id)
   const covered =
     !!consent &&
     !consent.revoked_at &&

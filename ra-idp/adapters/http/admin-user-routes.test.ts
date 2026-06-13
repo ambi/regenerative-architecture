@@ -195,7 +195,7 @@ describe('POST /api/admin/users', () => {
     expect(body.preferred_username).toBe('carol')
     expect(body.roles).toEqual(['support'])
 
-    const stored = await userRepo.findByUsername('carol')
+    const stored = await userRepo.findByUsername('default', 'carol')
     expect(stored).not.toBeNull()
     expect(stored?.roles).toEqual(['support'])
 

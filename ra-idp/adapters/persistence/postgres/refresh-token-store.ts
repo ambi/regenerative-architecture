@@ -22,6 +22,7 @@ import type { PgPool } from './pool'
 function rowToRecord(row: any): RefreshTokenRecord {
   return RefreshTokenRecordSchema.parse({
     id: row.id,
+    tenant_id: row.tenant_id,
     hash: row.hash,
     family_id: row.family_id,
     parent_id: row.parent_id ?? undefined,
@@ -52,15 +53,16 @@ export class PostgresRefreshTokenStore implements RefreshTokenStore {
     await this.pool.query(
       `
       INSERT INTO refresh_tokens (
-        id, hash, family_id, parent_id, client_id, sub, scopes,
+        id, tenant_id, hash, family_id, parent_id, client_id, sub, scopes,
         issued_at, expires_at, absolute_expires_at,
         revoked, rotated, sender_constraint
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10, $11, $12, $13::jsonb
+        $1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11, $12, $13, $14::jsonb
       )
       `,
       [
         record.id,
+        record.tenant_id,
         record.hash,
         record.family_id,
         record.parent_id ?? null,
@@ -113,6 +115,7 @@ export class PostgresRefreshTokenStore implements RefreshTokenStore {
         `,
         [
           newRecord.id,
+          newRecord.tenant_id,
           newRecord.hash,
           newRecord.family_id,
           newRecord.parent_id ?? null,

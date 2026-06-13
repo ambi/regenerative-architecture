@@ -20,6 +20,26 @@
 - **共通部品で一貫性を保つ。** Tailwind CSS、Radix UI、shadcn/ui 形式のローカル部品を
   基盤とし、色・角丸・フォーカス・disabled 状態を各画面で個別実装しない。
 
+## 管理コンソールの方針
+
+管理コンソールは、Keycloak、Okta、Google Cloud IAM に共通するディレクトリ中心の
+情報設計を参考にする。左ナビゲーションで管理対象を明示し、一覧では検索・状態・
+主要な権限を高密度に比較でき、選択した主体の詳細と変更操作を同じコンテキスト内に
+表示する。作成や無効化など影響の大きい操作は通常の参照操作から視覚的に分離する。
+
+- 一覧を作業の起点とし、検索、フィルター、状態、MFA、ロールを一目で確認できること。
+- 詳細ペインで主体ID、認証状態、権限を確認してから変更できること。
+- ロールなどの権限変更はインライン編集にせず、専用画面で追加・削除差分を確認してから
+  確定すること。
+- 危険操作は明確な説明と状態色を使い、通常操作と取り違えないこと。
+- 将来のグループ、アプリケーション、監査ログ追加を想定した一貫したナビゲーションを
+  提供するが、未実装機能を操作可能に見せないこと。
+
+参考:
+[Keycloak Server Administration Guide](https://www.keycloak.org/docs/latest/server_admin/),
+[Okta Manage users](https://help.okta.com/en-us/content/topics/users-groups-profiles/usgp-people.htm),
+[Google Cloud IAM access management](https://cloud.google.com/iam/docs/granting-changing-revoking-access)
+
 ## UI ライブラリ選定
 
 UI 基盤は、アクセシビリティとデザインの統制を両立し、特定の完成済みテーマへ

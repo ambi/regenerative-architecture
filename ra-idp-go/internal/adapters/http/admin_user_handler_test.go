@@ -30,6 +30,17 @@ func TestAdminUserAPIRequiresAdminRole(t *testing.T) {
 	}
 }
 
+func TestAdminUserAPIIsAvailableUnderAPIPath(t *testing.T) {
+	e, _, _, _ := newAdminUserHandler(t)
+	request := httptest.NewRequest(http.MethodGet, "/api/admin/users", nil)
+	request.Header.Set("X-Demo-Sub", "admin")
+	response := httptest.NewRecorder()
+	e.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+}
+
 func TestAdminUserAPICreatesAndDisablesUser(t *testing.T) {
 	e, repo, _, _ := newAdminUserHandler(t)
 	csrf, cookie := adminCSRF(t, e, "admin")
@@ -168,6 +179,9 @@ func adminCSRF(t *testing.T, e *echo.Echo, sub string) (string, *http.Cookie) {
 	cookies := response.Result().Cookies()
 	if len(cookies) == 0 {
 		t.Fatal("csrf cookie missing")
+	}
+	if cookies[0].Path != "/" {
+		t.Fatalf("csrf cookie path=%q, want /", cookies[0].Path)
 	}
 	return body.CSRFToken, cookies[0]
 }

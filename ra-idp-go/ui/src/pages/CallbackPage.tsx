@@ -1,4 +1,4 @@
-import { IconCheck, IconRefresh, IconX } from '@tabler/icons-react'
+import { IconCheck, IconRefresh, IconUsers, IconX } from '@tabler/icons-react'
 import { AuthShell } from '../components/AuthShell'
 import { Button } from '../components/ui/button'
 import type { CallbackPage as CallbackPageData } from '../types'
@@ -35,12 +35,22 @@ export function CallbackPage({ code, error, errorDescription }: CallbackPageData
           </p>
         </header>
 
-        <Button asChild variant="outline" className="w-full">
-          <a href="/">
-            <IconRefresh size={17} aria-hidden="true" />
-            もう一度試す
-          </a>
-        </Button>
+        <div className="grid w-full gap-3">
+          {succeeded && (
+            <Button asChild className="w-full">
+              <a href="/admin/users">
+                <IconUsers size={17} aria-hidden="true" />
+                ユーザー管理を開く
+              </a>
+            </Button>
+          )}
+          <Button asChild variant="outline" className="w-full">
+            <a href="/">
+              <IconRefresh size={17} aria-hidden="true" />
+              もう一度試す
+            </a>
+          </Button>
+        </div>
       </div>
     </AuthShell>
   )

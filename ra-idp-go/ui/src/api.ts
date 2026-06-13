@@ -1,5 +1,7 @@
 import type {
   BrowserFlowResponse,
+  AdminUser,
+  AdminUsersPage,
   ChangePasswordPage,
   ConsentPage,
   CallbackPage,
@@ -40,6 +42,10 @@ type APIError = {
   error?: string
   message?: string
   error_description?: string
+}
+
+type AdminUserListResponse = {
+  users: AdminUser[]
 }
 
 export class AuthenticationAPIError extends Error {
@@ -107,6 +113,18 @@ export async function loadPageData(): Promise<PageData> {
       sub: data.sub,
       preferredUsername: data.preferred_username,
     } satisfies ChangePasswordPage
+  }
+  if (path === '/admin/users') {
+    const [account, users] = await Promise.all([
+      request<AccountContextResponse>('/api/auth/account'),
+      request<AdminUserListResponse>('/api/admin/users'),
+    ])
+    return {
+      kind: 'admin-users',
+      csrfToken: account.csrf_token,
+      actorUsername: account.preferred_username,
+      users: users.users,
+    } satisfies AdminUsersPage
   }
   if (path === '/forgot_password' || path === '/reset_password') {
     const data = await request<PasswordResetContextResponse>('/api/auth/password_reset_context')
@@ -279,6 +297,59 @@ export async function submitDevice(
     },
     body: JSON.stringify({ user_code: userCode, action }),
   })
+}
+
+export type CreateAdminUserInput = {
+  preferred_username: string
+  password: string
+  name?: string
+  email?: string
+  email_verified: boolean
+  roles: string[]
+}
+
+export async function listAdminUsers(): Promise<AdminUser[]> {
+  return (await request<AdminUserListResponse>('/api/admin/users')).users
+}
+
+export async function createAdminUser(
+  csrfToken: string,
+  input: CreateAdminUserInput,
+): Promise<AdminUser> {
+  return request('/api/admin/users', adminRequest(csrfToken, 'POST', input))
+}
+
+export async function updateAdminUserRoles(
+  csrfToken: string,
+  sub: string,
+  roles: string[],
+): Promise<AdminUser> {
+  return request(
+    `/api/admin/users/${encodeURIComponent(sub)}`,
+    adminRequest(csrfToken, 'PATCH', { roles }),
+  )
+}
+
+export async function setAdminUserDisabled(
+  csrfToken: string,
+  sub: string,
+  disabled: boolean,
+): Promise<void> {
+  await request(
+    `/api/admin/users/${encodeURIComponent(sub)}/${disabled ? 'disable' : 'enable'}`,
+    adminRequest(csrfToken, 'POST'),
+  )
+}
+
+function adminRequest(csrfToken: string, method: string, body?: unknown): RequestInit {
+  return {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': csrfToken,
+    },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  }
 }
 
 export function continueBrowserFlow(result: BrowserFlowResponse) {

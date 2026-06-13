@@ -80,4 +80,10 @@ func Register(e *echo.Echo, d Deps) {
 	e.PATCH("/admin/users/:sub", d.handleUpdateAdminUser)
 	e.POST("/admin/users/:sub/disable", d.handleDisableAdminUser)
 	e.POST("/admin/users/:sub/enable", d.handleEnableAdminUser)
+	e.GET("/api/admin/users", d.handleListAdminUsers)
+	e.GET("/api/admin/users/:sub", d.handleGetAdminUser)
+	e.POST("/api/admin/users", d.handleCreateAdminUser)
+	e.PATCH("/api/admin/users/:sub", d.handleUpdateAdminUser)
+	e.POST("/api/admin/users/:sub/disable", d.handleDisableAdminUser)
+	e.POST("/api/admin/users/:sub/enable", d.handleEnableAdminUser)
 }

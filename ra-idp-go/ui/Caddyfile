@@ -3,7 +3,6 @@
 
 	@backend path \
  /api/* \
- /admin/* \
  /authorize \
  /token \
  /revoke \

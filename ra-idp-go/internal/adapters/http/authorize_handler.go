@@ -695,7 +695,7 @@ func (d Deps) ensureCSRFCookie(c *echo.Context) (string, error) {
 		return "", err
 	}
 	c.SetCookie(&http.Cookie{ //nolint:gosec // Secure is enabled for HTTPS issuers; local HTTP development intentionally disables it.
-		Name: csrfCookie, Value: value, Path: "/api/auth",
+		Name: csrfCookie, Value: value, Path: "/",
 		Secure: d.secureCookies(), HttpOnly: false, SameSite: http.SameSiteStrictMode,
 		MaxAge: 600,
 	})

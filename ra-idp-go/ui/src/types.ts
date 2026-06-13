@@ -56,6 +56,26 @@ export type ResetPasswordPage = {
   token: string
 }
 
+export type AdminUser = {
+  sub: string
+  preferred_username: string
+  name?: string
+  email?: string
+  email_verified: boolean
+  mfa_enrolled: boolean
+  roles: string[]
+  disabled_at?: string
+  created_at: string
+  updated_at: string
+}
+
+export type AdminUsersPage = {
+  kind: 'admin-users'
+  csrfToken: string
+  actorUsername?: string
+  users: AdminUser[]
+}
+
 export type PageData =
   | HomePage
   | LoginPage
@@ -67,6 +87,7 @@ export type PageData =
   | ChangePasswordPage
   | ForgotPasswordPage
   | ResetPasswordPage
+  | AdminUsersPage
 
 export type BrowserFlowResponse = {
   next?: string

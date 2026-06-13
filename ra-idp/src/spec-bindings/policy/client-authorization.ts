@@ -31,6 +31,7 @@ export interface AuthZENSubject {
     requirePkce?: boolean
     authenticated?: boolean
     roles?: string[]
+    tenantId?: string
     disabledAt?: string | null
   }
 }
@@ -50,6 +51,8 @@ export const ACTION_NAMES = {
   AdminUserRead: 'admin:user_read',
   AdminUserCreate: 'admin:user_create',
   AdminUserUpdate: 'admin:user_update',
+  AdminTenantsManage: 'admin:tenants_manage',
+  AdminClientsManage: 'admin:clients_manage',
 } as const
 
 export type ActionName = (typeof ACTION_NAMES)[keyof typeof ACTION_NAMES]
@@ -67,6 +70,8 @@ export interface AuthZENResource {
     | 'UserInfo'
     | 'DeviceCode'
     | 'User'
+    | 'Tenant'
+    | 'OAuth2Client'
   id?: string
   properties?: {
     issuedToClientId?: string
@@ -82,6 +87,7 @@ export interface AuthZENResource {
     senderConstraint?: { type: 'dpop' | 'mtls' } | null
     scopes?: string[]
     approved?: boolean
+    tenantId?: string
   }
 }
 
@@ -142,6 +148,18 @@ const ACTION_RULES: Record<ActionName, string[]> = {
   'admin:user_read': ['actor_is_admin', 'actor_is_active', 'actor_is_authenticated'],
   'admin:user_create': ['actor_is_admin', 'actor_is_active', 'actor_is_authenticated'],
   'admin:user_update': ['actor_is_admin', 'actor_is_active', 'actor_is_authenticated'],
+  'admin:tenants_manage': [
+    'actor_is_system_admin',
+    'actor_is_control_plane_user',
+    'actor_is_active',
+    'actor_is_authenticated',
+  ],
+  'admin:clients_manage': [
+    'actor_is_admin',
+    'actor_is_active',
+    'actor_is_authenticated',
+    'actor_and_resource_share_tenant',
+  ],
 }
 
 // ---------------------------------------------------------------
@@ -254,12 +272,31 @@ const ruleEvaluators: Record<string, RuleEvaluator> = {
     )
   },
 
+  actor_is_system_admin(req) {
+    return (
+      req.subject.type === 'User' &&
+      (req.subject.properties?.roles?.includes('system_admin') ?? false)
+    )
+  },
+
+  actor_is_control_plane_user(req) {
+    return req.subject.type === 'User' && req.subject.properties?.tenantId === 'default'
+  },
+
   actor_is_active(req) {
     return req.subject.type === 'User' && !req.subject.properties?.disabledAt
   },
 
   actor_is_authenticated(req) {
     return req.subject.type === 'User' && req.context?.authenticated === true
+  },
+
+  actor_and_resource_share_tenant(req) {
+    return (
+      req.subject.type === 'User' &&
+      req.subject.properties?.tenantId !== undefined &&
+      req.subject.properties.tenantId === req.resource.properties?.tenantId
+    )
   },
 }
 

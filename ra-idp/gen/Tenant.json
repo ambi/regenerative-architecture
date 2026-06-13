@@ -1,0 +1,44 @@
+{
+  "$id": "urn:idp:Tenant",
+  "type": "object",
+  "additionalProperties": false,
+  "description": "ADR-032 で導入したテナント (realm) 集約。Client / User / Consent / ポリシー / ブランディングはこの境界に閉じる。`default` テナントは起動時に自動作成され、削除・無効化とも不可。",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 63,
+      "pattern": "^[a-z0-9][a-z0-9-]{0,62}$"
+    },
+    "display_name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "disabled"
+      ]
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "disabled_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "id",
+    "display_name",
+    "status",
+    "created_at"
+  ]
+}

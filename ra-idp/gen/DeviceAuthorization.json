@@ -7,6 +7,9 @@
     "device_code_hash": {
       "type": "string"
     },
+    "tenant_id": {
+      "type": "string"
+    },
     "user_code": {
       "type": "string"
     },
@@ -60,6 +63,7 @@
   },
   "required": [
     "device_code_hash",
+    "tenant_id",
     "user_code",
     "client_id",
     "scopes",

@@ -4,6 +4,9 @@
   "additionalProperties": false,
   "description": "GDPR 同意取得記録。状態は ConsentLifecycle 状態機械に従う。",
   "properties": {
+    "tenant_id": {
+      "type": "string"
+    },
     "sub": {
       "type": "string"
     },
@@ -40,6 +43,7 @@
     }
   },
   "required": [
+    "tenant_id",
     "sub",
     "client_id",
     "scopes",

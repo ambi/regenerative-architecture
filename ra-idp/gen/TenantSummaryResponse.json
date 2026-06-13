@@ -1,0 +1,39 @@
+{
+  "$id": "urn:idp:TenantSummaryResponse",
+  "type": "object",
+  "additionalProperties": false,
+  "description": "テナント表現。管理 UI の一覧と詳細で同じ表現を返す (ADR-032)。",
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "display_name": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "disabled"
+      ]
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "disabled_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "id",
+    "display_name",
+    "status",
+    "created_at"
+  ]
+}

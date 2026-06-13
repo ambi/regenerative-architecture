@@ -1,0 +1,17 @@
+{
+  "$id": "urn:idp:TenantListResponse",
+  "type": "object",
+  "additionalProperties": false,
+  "description": "管理 API のテナント一覧 (ADR-032)。",
+  "properties": {
+    "tenants": {
+      "type": "array",
+      "items": {
+        "$ref": "#/components/schemas/TenantSummaryResponse"
+      }
+    }
+  },
+  "required": [
+    "tenants"
+  ]
+}

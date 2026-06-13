@@ -1,0 +1,33 @@
+{
+  "$id": "urn:idp:AdminClientUpdated",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "AdminClientUpdated",
+      "type": "string"
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "actorSub": {
+      "type": "string"
+    },
+    "clientId": {
+      "type": "string"
+    },
+    "changedFields": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "type",
+    "occurredAt",
+    "actorSub",
+    "clientId",
+    "changedFields"
+  ]
+}

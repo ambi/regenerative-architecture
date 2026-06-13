@@ -35,6 +35,27 @@
       "$ref": "UserEnabled.json"
     },
     {
+      "$ref": "AdminClientCreated.json"
+    },
+    {
+      "$ref": "AdminClientUpdated.json"
+    },
+    {
+      "$ref": "AdminClientDeleted.json"
+    },
+    {
+      "$ref": "TenantCreated.json"
+    },
+    {
+      "$ref": "TenantUpdated.json"
+    },
+    {
+      "$ref": "TenantDisabled.json"
+    },
+    {
+      "$ref": "TenantEnabled.json"
+    },
+    {
       "$ref": "ConsentGranted.json"
     },
     {

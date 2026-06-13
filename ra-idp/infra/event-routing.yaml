@@ -89,6 +89,12 @@ topics:
     replicas: 3
     description: 管理者によるユーザーライフサイクル変更の監査イベント。
 
+  tenancy.lifecycle.v1:
+    partition_key: tenantId
+    partitions: 3
+    replicas: 3
+    description: system_admin によるテナントライフサイクル変更の監査イベント。
+
 # -------------------------------------------------------------------
 # Event → Topic mapping
 # -------------------------------------------------------------------
@@ -106,6 +112,13 @@ event_to_topic:
   UserUpdated:                  oauth2.administration.v1
   UserDisabled:                 oauth2.administration.v1
   UserEnabled:                  oauth2.administration.v1
+  AdminClientCreated:           oauth2.administration.v1
+  AdminClientUpdated:           oauth2.administration.v1
+  AdminClientDeleted:           oauth2.administration.v1
+  TenantCreated:                tenancy.lifecycle.v1
+  TenantUpdated:                tenancy.lifecycle.v1
+  TenantDisabled:               tenancy.lifecycle.v1
+  TenantEnabled:                tenancy.lifecycle.v1
   ConsentGranted:               oauth2.consent.v1
   ConsentRevoked:               oauth2.consent.v1
   AuthorizationCodeIssued:      oauth2.authorization-code.v1

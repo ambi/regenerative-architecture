@@ -1,0 +1,33 @@
+{
+  "$id": "urn:idp:TenantUpdated",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "TenantUpdated",
+      "type": "string"
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "actorSub": {
+      "type": "string"
+    },
+    "tenantId": {
+      "type": "string"
+    },
+    "changedFields": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "type",
+    "occurredAt",
+    "actorSub",
+    "tenantId",
+    "changedFields"
+  ]
+}

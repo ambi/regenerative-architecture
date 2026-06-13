@@ -1,0 +1,26 @@
+{
+  "$id": "urn:idp:AdminClientCreated",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "AdminClientCreated",
+      "type": "string"
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "actorSub": {
+      "type": "string"
+    },
+    "clientId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "type",
+    "occurredAt",
+    "actorSub",
+    "clientId"
+  ]
+}

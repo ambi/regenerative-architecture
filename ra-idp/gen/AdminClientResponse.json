@@ -1,23 +1,17 @@
 {
-  "$id": "urn:idp:OAuth2Client",
+  "$id": "urn:idp:AdminClientResponse",
   "type": "object",
   "additionalProperties": false,
-  "description": "RFC 7591 + FAPI 2.0 拡張のクライアント。",
+  "description": "管理 API の client 表現。client_secret と client_secret_hash は契約上含めない。",
   "properties": {
     "tenant_id": {
       "type": "string"
     },
     "client_id": {
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 128
-    },
-    "client_secret_hash": {
       "type": "string"
     },
     "client_name": {
-      "type": "string",
-      "maxLength": 200
+      "type": "string"
     },
     "client_type": {
       "type": "string",
@@ -31,8 +25,7 @@
       "items": {
         "type": "string",
         "format": "uri"
-      },
-      "minItems": 1
+      }
     },
     "grant_types": {
       "type": "array",
@@ -44,8 +37,7 @@
           "client_credentials",
           "urn:ietf:params:oauth:grant-type:device_code"
         ]
-      },
-      "minItems": 1
+      }
     },
     "response_types": {
       "type": "array",
@@ -85,9 +77,6 @@
       ]
     },
     "require_pushed_authorization_requests": {
-      "type": "boolean"
-    },
-    "require_pkce": {
       "type": "boolean"
     },
     "dpop_bound_access_tokens": {

@@ -7,6 +7,9 @@
     "sub": {
       "type": "string"
     },
+    "tenant_id": {
+      "type": "string"
+    },
     "preferred_username": {
       "type": "string"
     },
@@ -44,6 +47,7 @@
   },
   "required": [
     "sub",
+    "tenant_id",
     "preferred_username",
     "email_verified",
     "mfa_enrolled",

@@ -1,19 +1,16 @@
 {
-  "$id": "urn:idp:OAuth2Client",
+  "$id": "urn:idp:AdminClientCreateRequest",
   "type": "object",
   "additionalProperties": false,
-  "description": "RFC 7591 + FAPI 2.0 拡張のクライアント。",
+  "description": "管理者が所属テナントに OAuth client を作成する。生成された client_secret は作成応答で一度だけ返す。",
   "properties": {
-    "tenant_id": {
-      "type": "string"
-    },
-    "client_id": {
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 128
-    },
-    "client_secret_hash": {
-      "type": "string"
+    "redirect_uris": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uri"
+      },
+      "minItems": 1
     },
     "client_name": {
       "type": "string",
@@ -25,14 +22,6 @@
         "public",
         "confidential"
       ]
-    },
-    "redirect_uris": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "format": "uri"
-      },
-      "minItems": 1
     },
     "grant_types": {
       "type": "array",
@@ -77,22 +66,6 @@
     "tls_client_auth_subject_dn": {
       "type": "string"
     },
-    "id_token_signed_response_alg": {
-      "type": "string",
-      "enum": [
-        "PS256",
-        "ES256"
-      ]
-    },
-    "require_pushed_authorization_requests": {
-      "type": "boolean"
-    },
-    "require_pkce": {
-      "type": "boolean"
-    },
-    "dpop_bound_access_tokens": {
-      "type": "boolean"
-    },
     "fapi_profile": {
       "type": "string",
       "enum": [
@@ -100,24 +73,15 @@
         "fapi_2_security_profile"
       ]
     },
-    "created_at": {
-      "type": "string",
-      "format": "date-time"
+    "require_pushed_authorization_requests": {
+      "type": "boolean"
+    },
+    "dpop_bound_access_tokens": {
+      "type": "boolean"
     }
   },
   "required": [
-    "tenant_id",
-    "client_id",
-    "client_type",
     "redirect_uris",
-    "grant_types",
-    "response_types",
-    "token_endpoint_auth_method",
-    "scope",
-    "id_token_signed_response_alg",
-    "require_pushed_authorization_requests",
-    "dpop_bound_access_tokens",
-    "fapi_profile",
-    "created_at"
+    "grant_types"
   ]
 }

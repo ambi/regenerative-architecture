@@ -1,0 +1,51 @@
+{
+  "$id": "urn:idp:AdminClientUpdateRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "description": "管理者が client metadata を更新する。client_id、認証方式、秘密情報は変更せず、secret rotation は独立 endpoint で扱う。",
+  "properties": {
+    "client_name": {
+      "type": "string",
+      "maxLength": 200
+    },
+    "redirect_uris": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uri"
+      },
+      "minItems": 1
+    },
+    "grant_types": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "authorization_code",
+          "refresh_token",
+          "client_credentials",
+          "urn:ietf:params:oauth:grant-type:device_code"
+        ]
+      },
+      "minItems": 1
+    },
+    "response_types": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "code"
+        ]
+      }
+    },
+    "scope": {
+      "type": "string"
+    },
+    "require_pushed_authorization_requests": {
+      "type": "boolean"
+    },
+    "dpop_bound_access_tokens": {
+      "type": "boolean"
+    }
+  }
+}

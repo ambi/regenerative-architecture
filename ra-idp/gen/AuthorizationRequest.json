@@ -8,6 +8,9 @@
       "type": "string",
       "format": "uuid"
     },
+    "tenant_id": {
+      "type": "string"
+    },
     "state": {
       "type": "string",
       "enum": [
@@ -92,6 +95,7 @@
   },
   "required": [
     "id",
+    "tenant_id",
     "state",
     "client_id",
     "redirect_uri",

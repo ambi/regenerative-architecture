@@ -1,0 +1,17 @@
+{
+  "$id": "urn:idp:AdminClientListResponse",
+  "type": "object",
+  "additionalProperties": false,
+  "description": "所属テナント内の client 一覧。",
+  "properties": {
+    "clients": {
+      "type": "array",
+      "items": {
+        "$ref": "#/components/schemas/AdminClientResponse"
+      }
+    }
+  },
+  "required": [
+    "clients"
+  ]
+}

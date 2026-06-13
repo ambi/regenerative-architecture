@@ -1,0 +1,26 @@
+{
+  "$id": "urn:idp:AdminClientDeleted",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "AdminClientDeleted",
+      "type": "string"
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "actorSub": {
+      "type": "string"
+    },
+    "clientId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "type",
+    "occurredAt",
+    "actorSub",
+    "clientId"
+  ]
+}

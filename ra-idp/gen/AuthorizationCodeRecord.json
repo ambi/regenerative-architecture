@@ -7,6 +7,9 @@
     "code": {
       "type": "string"
     },
+    "tenant_id": {
+      "type": "string"
+    },
     "authorization_request_id": {
       "type": "string",
       "format": "uuid"
@@ -78,6 +81,7 @@
   },
   "required": [
     "code",
+    "tenant_id",
     "authorization_request_id",
     "client_id",
     "sub",

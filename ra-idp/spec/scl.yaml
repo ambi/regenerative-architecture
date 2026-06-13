@@ -11,11 +11,18 @@ system: ra-idp
 spec_version: "1.1"
 
 components:
+  Tenancy:
+    description: テナント (realm) 集約、ライフサイクル、HTTP リクエストからのテナント解決、テナント管理 API を所有する。
+    owns_models: [Tenant, TenantSummaryResponse, TenantCreateRequest, TenantUpdateRequest, TenantListResponse]
+    owns_events: [TenantCreated, TenantUpdated, TenantDisabled, TenantEnabled]
+    owns_interfaces: [ResolveTenant, ListTenants, GetTenant, CreateTenant, UpdateTenant, DisableTenant, EnableTenant]
   Authentication:
     description: ユーザー認証、パスワード検証、ブラウザログインセッション、AuthenticationContext 復元を所有する。
     owns_models: [User, LoginSession, BrowserLoginRequest, BrowserTotpRequest, BrowserChangePasswordRequest, BrowserForgotPasswordRequest, BrowserResetPasswordRequest, PasswordResetTokenRecord, MfaFactor, MfaFactorType, AuthenticationContext]
     owns_events: [UserAuthenticated, AuthenticationFailed, PasswordChanged, LoginThrottled, PasswordResetRequested, EmailSent]
     owns_interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, ChangePassword, RequestPasswordReset, ResetPasswordWithToken]
+    depends_on:
+      - { component: Tenancy, reason: ログイン・MFA・パスワードリセットは tenant 解決済みコンテキストで動作する。 }
   OAuth2:
     description: OAuth 2.0 / OIDC の認可判断、同意、コード・トークン発行、RP-Initiated Logout endpoint を所有する。
     owns_models: [AuthorizationRequest, Consent, AuthorizationCodeRecord, TokenRequest, TokenResponse, EndSessionParameters]
@@ -23,13 +30,15 @@ components:
     owns_interfaces: [Authorize, EndSession, Token]
     depends_on:
       - { component: Authentication, reason: /authorize は AuthenticationContext を解決し、/end_session は session revocation を委譲する。 }
+      - { component: Tenancy, reason: client / consent / 認可リクエストはテナント境界内に閉じる。cross-tenant の解決は拒否する。 }
   Administration:
     description: 管理者によるユーザーライフサイクル操作、RBAC 判定、管理監査イベントを所有する。
-    owns_models: [AdminUserCreateRequest, AdminUserUpdateRequest, AdminUserResponse, AdminUserListResponse]
-    owns_events: [UserCreated, UserUpdated, UserDisabled, UserEnabled]
-    owns_interfaces: [ListAdminUsers, GetAdminUser, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser]
+    owns_models: [AdminUserCreateRequest, AdminUserUpdateRequest, AdminUserResponse, AdminUserListResponse, AdminClientCreateRequest, AdminClientUpdateRequest, AdminClientResponse, AdminClientCreateResponse, AdminClientListResponse]
+    owns_events: [UserCreated, UserUpdated, UserDisabled, UserEnabled, AdminClientCreated, AdminClientUpdated, AdminClientDeleted]
+    owns_interfaces: [ListAdminUsers, GetAdminUser, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser, ListAdminClients, GetAdminClient, CreateAdminClient, UpdateAdminClient, DeleteAdminClient]
     depends_on:
       - { component: Authentication, reason: 管理 API は LoginSession から管理者 User を解決し、roles と disabled_at を評価する。 }
+      - { component: Tenancy, reason: admin ロールはテナント内で閉じ、system_admin だけがテナント境界を越える。 }
 
 # =================================================================
 # 0. standards — 適用する外部標準と規範要件
@@ -741,13 +750,28 @@ vocabulary:
     definition: 表示用のユーザー名。可変。
     aliases: [preferred_username]
   Administrator:
-    definition: User.roles に admin を持ち、管理 API の操作を許可された認証済みユーザー。
-    aliases: [admin, 管理者]
+    definition: User.roles に admin を持ち、所属テナント内の管理 API を許可された認証済みユーザー (ADR-031 / ADR-032)。テナント境界を越える操作は SystemAdministrator に限定される。
+    aliases: [admin, 管理者, TenantAdmin]
     not_to_confuse_with:
       - { term: Client, reason: Administrator は人間の User に付与されるロールであり、OAuth Client の権限ではない。 }
+      - { term: SystemAdministrator, reason: Administrator はテナント内に閉じ、SystemAdministrator はテナント境界を越えて tenant lifecycle 操作と cross-tenant 管理を行える。 }
+  SystemAdministrator:
+    definition: default control-plane tenant に所属し、User.roles に system_admin を持つ認証済みユーザー (ADR-032)。テナント管理 (CRUD・disable・enable) と cross-tenant 操作を許可され、`/admin/tenants/*` を呼び出せる。
+    aliases: [system_admin, システム管理者]
   UserDisablement:
     definition: User.disabled_at を設定して認証とセッション利用を停止する復活可能な管理操作。削除や PII purge とは異なる。
     aliases: [disable user, アカウント無効化]
+  Tenant:
+    definition: ADR-032 で導入した独立した認可境界。Client / User / Consent / 鍵 / ポリシーがこの境界に閉じる。URL 上は Realm という別名で表現される (ADR-033)。
+    aliases: [tenant, テナント, Realm, realm]
+    not_to_confuse_with:
+      - { term: Client, reason: Tenant は境界、Client は境界内のアプリケーション。Tenant は人間/組織を表し、Client はそのテナント所属のアプリ。 }
+  DefaultTenant:
+    definition: 起動時に自動作成される `id == "default"` のテナント (ADR-032)。単一テナント運用時の互換と、未 prefix HTTP リクエストの解決先を兼ねる (ADR-033)。
+    aliases: [default tenant, デフォルトテナント]
+  TenantDisablement:
+    definition: Tenant.disabled_at を設定してテナント単位で `/authorize` / `/token` / `/login` 等を停止する復活可能な操作 (ADR-032)。テナント物理削除とは独立。
+    aliases: [disable tenant, テナント無効化]
 
   # ---------- クライアント認証方式 ----------
   ClientSecretBasic:
@@ -993,6 +1017,17 @@ vocabulary:
     definition: SigningKey を Retired から Archived に移す。
     aliases: [archive]
 
+  # ---------- Tenant のライフサイクル状態・イベント (ADR-032) ----------
+  Disabled:
+    definition: 復活可能な無効化状態。Tenant と (慣例的に) User の disabled_at 経路で共有される。
+    aliases: [disabled]
+  Disable:
+    definition: 対象を Disabled に遷移させる。Tenant では `/admin/tenants/{id}/disable` から発火。
+    aliases: [disable]
+  Enable:
+    definition: Disabled の対象を Active に戻す。Tenant では `/admin/tenants/{id}/enable` から発火。
+    aliases: [enable]
+
   # ---------- 用語として使わないもの ----------
   Implicit:
     definition: implicit grant は RFC 9700 §2.1.2 により参照実装から除外する。
@@ -1106,6 +1141,11 @@ models:
     description: SigningKeyLifecycle 状態機械の取りうる状態列挙。Active が現行署名鍵、Verifying は JWKS に残るが署名はしない、Retired は JWKS から除去済、Archived は監査保管。
     values: [Active, Verifying, Retired, Archived]
 
+  TenantStatus:
+    kind: enum
+    description: ADR-032 のテナント状態。Active は通常稼働、Disabled はテナント全体のプロトコル受付を停止 (`/authorize` `/token` 等が一律 invalid_request)。
+    values: [Active, Disabled]
+
   OAuthErrorCode:
     kind: enum
     description: OAuth 2.0 / OIDC / DPoP / FAPI / RFC 8628 で規定された標準エラーコード一式。HTTP レスポンスの error フィールド値となる。
@@ -1126,12 +1166,26 @@ models:
       - AuthorizationPending
 
   # ---------- 永続エンティティ ----------
+  Tenant:
+    kind: entity
+    description: ADR-032 で導入したテナント (realm) 集約。Client / User / Consent / ポリシー / ブランディングはこの境界に閉じる。`default` テナントは起動時に自動作成され、削除・無効化とも不可。
+    identity: id
+    annotations: { component: Tenancy, audit_required: true, retention_days: 2555 }
+    fields:
+      id:            { type: String, constraints: [non_empty, { max_length: 63 }, { pattern: "^[a-z0-9][a-z0-9-]{0,62}$" }], description: "URL-safe slug。予約語 admin は禁止。" }
+      display_name:  { type: String, constraints: [non_empty, { max_length: 200 }], annotations: { pii: true } }
+      status:        { type: TenantStatus, default: Active }
+      created_at:    { type: Timestamp }
+      updated_at:    { type: Timestamp, optional: true }
+      disabled_at:   { type: Timestamp, optional: true, description: "テナント無効化時刻 (ADR-032)。non-null なら /authorize / /token / /login 等を一律拒否。" }
+
   OAuth2Client:
     kind: entity
     description: RFC 7591 + FAPI 2.0 拡張のクライアント。
-    identity: client_id
+    identity: [tenant_id, client_id]
     annotations: { audit_required: true, retention_days: 2555 }
     fields:
+      tenant_id:                              { type: String, default: "default", description: "所属テナント ID (ADR-032 / ADR-034)。客は (tenant_id, client_id) で一意。" }
       client_id:                              { type: String, constraints: [non_empty, { max_length: 128 }] }
       client_secret_hash:                     { type: String, optional: true, annotations: { sensitive: true } }
       client_name:                            { type: String, optional: true, constraints: [{ max_length: 200 }] }
@@ -1157,7 +1211,8 @@ models:
     identity: sub
     annotations: { audit_required: true, retention_days: 2555 }
     fields:
-      sub:                  { type: String, constraints: [non_empty] }
+      sub:                  { type: String, constraints: [non_empty], description: "global 一意の subject (ADR-034)。tenant 跨ぎでも衝突しない。" }
+      tenant_id:            { type: String, default: "default", description: "所属テナント ID (ADR-032)。preferred_username の一意性スコープを決める。" }
       preferred_username:   { type: String, constraints: [non_empty, { max_length: 100 }], annotations: { pii: true } }
       password_hash:        { type: String, annotations: { sensitive: true, purge_on_deletion: true } }
       name:                 { type: String, optional: true, annotations: { pii: true, purge_on_deletion: true, purge_deadline_days: 30 } }
@@ -1212,9 +1267,10 @@ models:
   Consent:
     kind: entity
     description: GDPR 同意取得記録。状態は ConsentLifecycle 状態機械に従う。
-    identity: [sub, client_id]
+    identity: [tenant_id, sub, client_id]
     annotations: { audit_required: true }
     fields:
+      tenant_id:    { type: String, default: "default", description: "所属テナント ID (ADR-034)。" }
       sub:          { type: String }
       client_id:    { type: String }
       scopes:       { type: "List<String>", constraints: [non_empty, unique] }
@@ -1230,6 +1286,7 @@ models:
     annotations: { token_ttl_seconds: 1209600, absolute_ttl_seconds: 2592000, rotation_required: true }
     fields:
       id:                   { type: UUID }
+      tenant_id:            { type: String, default: "default", description: "所属テナント ID (ADR-034)。/token のリプレイ検出を join なしで効かせるため明示する。" }
       hash:                 { type: String, description: SHA-256 ハッシュ。, annotations: { sensitive: true } }
       family_id:            { type: UUID, description: 認可コード交換から派生したすべてのトークンが共有する識別子。 }
       parent_id:            { type: UUID, optional: true }
@@ -1249,6 +1306,7 @@ models:
     annotations: { component: OAuth2 }
     fields:
       id:                       { type: UUID }
+      tenant_id:                { type: String, default: "default", description: "所属テナント ID (ADR-034)。" }
       state:                    { type: AuthorizationCodeState }
       client_id:                { type: String }
       redirect_uri:             { type: Uri }
@@ -1275,6 +1333,7 @@ models:
     identity: code
     fields:
       code:                       { type: String, annotations: { sensitive: true } }
+      tenant_id:                  { type: String, default: "default", description: "所属テナント ID (ADR-034)。" }
       authorization_request_id:   { type: UUID }
       client_id:                  { type: String }
       sub:                        { type: String }
@@ -1298,6 +1357,7 @@ models:
     identity: request_uri
     fields:
       request_uri:    { type: String }
+      tenant_id:      { type: String, default: "default", description: "所属テナント ID (ADR-034)。" }
       client_id:      { type: String }
       parameters:     { type: "Map<String, String>" }
       state:          { type: PARRecordState }
@@ -1310,6 +1370,7 @@ models:
     identity: device_code_hash
     fields:
       device_code_hash:     { type: String, annotations: { sensitive: true } }
+      tenant_id:            { type: String, default: "default", description: "所属テナント ID (ADR-034)。" }
       user_code:            { type: String, description: 紛らわしい文字を避けた短いコード。 }
       client_id:            { type: String }
       scopes:               { type: "List<String>" }
@@ -1473,6 +1534,40 @@ models:
       require_pushed_authorization_requests: { type: Boolean, optional: true }
       dpop_bound_access_tokens:       { type: Boolean, optional: true }
 
+  TenantCreateRequest:
+    kind: value_object
+    description: 管理者が新規テナントを登録する JSON リクエスト (ADR-032)。`id` は URL-safe slug。
+    annotations: { component: Tenancy }
+    fields:
+      id:           { type: String, constraints: [non_empty, { max_length: 63 }, { pattern: "^[a-z0-9][a-z0-9-]{0,62}$" }] }
+      display_name: { type: String, constraints: [non_empty, { max_length: 200 }], annotations: { pii: true } }
+
+  TenantUpdateRequest:
+    kind: value_object
+    description: 管理者がテナントの表示名を更新する JSON リクエスト (ADR-032)。`id` と status は変更しない。status 変更は disable/enable 専用 endpoint を経由。
+    annotations: { component: Tenancy }
+    fields:
+      display_name: { type: String, optional: true, constraints: [non_empty, { max_length: 200 }], annotations: { pii: true } }
+
+  TenantSummaryResponse:
+    kind: value_object
+    description: テナント表現。管理 UI の一覧と詳細で同じ表現を返す (ADR-032)。
+    annotations: { component: Tenancy }
+    fields:
+      id:           { type: String }
+      display_name: { type: String, annotations: { pii: true } }
+      status:       { type: TenantStatus }
+      created_at:   { type: Timestamp }
+      updated_at:   { type: Timestamp, optional: true }
+      disabled_at:  { type: Timestamp, optional: true }
+
+  TenantListResponse:
+    kind: value_object
+    description: 管理 API のテナント一覧 (ADR-032)。
+    annotations: { component: Tenancy }
+    fields:
+      tenants: { type: "List<TenantSummaryResponse>" }
+
   AdminUserCreateRequest:
     kind: value_object
     description: 管理者がユーザーを作成する JSON リクエスト。初期パスワードには password_policy を適用する。
@@ -1509,6 +1604,7 @@ models:
     annotations: { component: Administration }
     fields:
       sub:                { type: String }
+      tenant_id:          { type: String, description: "所属テナント ID (ADR-032)。" }
       preferred_username: { type: String, annotations: { pii: true } }
       name:               { type: String, optional: true, annotations: { pii: true } }
       email:              { type: String, optional: true, constraints: [{ format: email }], annotations: { pii: true } }
@@ -1518,6 +1614,76 @@ models:
       disabled_at:        { type: Timestamp, optional: true }
       created_at:         { type: Timestamp }
       updated_at:         { type: Timestamp, optional: true }
+
+  AdminClientCreateRequest:
+    kind: value_object
+    description: 管理者が所属テナントに OAuth client を作成する。生成された client_secret は作成応答で一度だけ返す。
+    annotations: { component: Administration }
+    fields:
+      redirect_uris:                  { type: "List<Uri>", constraints: [non_empty] }
+      client_name:                    { type: String, optional: true, constraints: [{ max_length: 200 }] }
+      client_type:                    { type: ClientType, optional: true }
+      grant_types:                    { type: "List<GrantType>", constraints: [non_empty] }
+      response_types:                 { type: "List<ResponseType>", optional: true }
+      token_endpoint_auth_method:     { type: TokenEndpointAuthMethod, optional: true }
+      scope:                          { type: String, optional: true }
+      jwks_uri:                       { type: Uri, optional: true }
+      jwks:                           { type: JSON, optional: true }
+      tls_client_auth_subject_dn:     { type: String, optional: true }
+      fapi_profile:                   { type: FapiProfile, optional: true }
+      require_pushed_authorization_requests: { type: Boolean, optional: true }
+      dpop_bound_access_tokens:       { type: Boolean, optional: true }
+
+  AdminClientUpdateRequest:
+    kind: value_object
+    description: 管理者が client metadata を更新する。client_id、認証方式、秘密情報は変更せず、secret rotation は独立 endpoint で扱う。
+    annotations: { component: Administration }
+    fields:
+      client_name:                    { type: String, optional: true, constraints: [{ max_length: 200 }] }
+      redirect_uris:                  { type: "List<Uri>", optional: true, constraints: [non_empty] }
+      grant_types:                    { type: "List<GrantType>", optional: true, constraints: [non_empty] }
+      response_types:                 { type: "List<ResponseType>", optional: true }
+      scope:                          { type: String, optional: true }
+      require_pushed_authorization_requests: { type: Boolean, optional: true }
+      dpop_bound_access_tokens:       { type: Boolean, optional: true }
+
+  AdminClientResponse:
+    kind: value_object
+    description: 管理 API の client 表現。client_secret と client_secret_hash は契約上含めない。
+    annotations: { component: Administration }
+    fields:
+      tenant_id:                              { type: String }
+      client_id:                              { type: String }
+      client_name:                            { type: String, optional: true }
+      client_type:                            { type: ClientType }
+      redirect_uris:                          { type: "List<Uri>" }
+      grant_types:                            { type: "List<GrantType>" }
+      response_types:                         { type: "List<ResponseType>" }
+      token_endpoint_auth_method:             { type: TokenEndpointAuthMethod }
+      scope:                                  { type: String }
+      jwks_uri:                               { type: Uri, optional: true }
+      jwks:                                   { type: JSON, optional: true }
+      tls_client_auth_subject_dn:             { type: String, optional: true }
+      id_token_signed_response_alg:           { type: SignatureAlgorithm }
+      require_pushed_authorization_requests:  { type: Boolean }
+      dpop_bound_access_tokens:               { type: Boolean }
+      fapi_profile:                           { type: FapiProfile }
+      created_at:                             { type: Timestamp }
+
+  AdminClientCreateResponse:
+    kind: value_object
+    description: client 作成応答。client_secret は生成された場合に限り一度だけ返す。
+    annotations: { component: Administration }
+    fields:
+      client:        { type: AdminClientResponse }
+      client_secret: { type: String, optional: true, annotations: { sensitive: true } }
+
+  AdminClientListResponse:
+    kind: value_object
+    description: 所属テナント内の client 一覧。
+    annotations: { component: Administration }
+    fields:
+      clients: { type: "List<AdminClientResponse>" }
 
   TokenRequest:
     kind: value_object
@@ -1895,6 +2061,71 @@ models:
       occurredAt: { type: Timestamp }
       actorSub:   { type: String }
       targetSub:  { type: String }
+
+  AdminClientCreated:
+    kind: event
+    description: 管理者が所属テナントに OAuth client を作成した。秘密情報は含めない。
+    annotations: { component: Administration }
+    payload:
+      occurredAt: { type: Timestamp }
+      actorSub:   { type: String }
+      clientId:   { type: String }
+
+  AdminClientUpdated:
+    kind: event
+    description: 管理者が OAuth client metadata を更新した。
+    annotations: { component: Administration }
+    payload:
+      occurredAt:    { type: Timestamp }
+      actorSub:      { type: String }
+      clientId:      { type: String }
+      changedFields: { type: "List<String>" }
+
+  AdminClientDeleted:
+    kind: event
+    description: 管理者が所属テナントから OAuth client を削除した。
+    annotations: { component: Administration }
+    payload:
+      occurredAt: { type: Timestamp }
+      actorSub:   { type: String }
+      clientId:   { type: String }
+
+  TenantCreated:
+    kind: event
+    description: system_admin が新規テナントを作成した (ADR-032)。
+    annotations: { component: Tenancy }
+    payload:
+      occurredAt: { type: Timestamp }
+      actorSub:   { type: String }
+      tenantId:   { type: String }
+
+  TenantUpdated:
+    kind: event
+    description: system_admin がテナントの表示名を更新した (ADR-032)。
+    annotations: { component: Tenancy }
+    payload:
+      occurredAt:    { type: Timestamp }
+      actorSub:      { type: String }
+      tenantId:      { type: String }
+      changedFields: { type: "List<String>" }
+
+  TenantDisabled:
+    kind: event
+    description: system_admin がテナントを無効化した。当該テナントのすべてのプロトコルルートは invalid_request で拒否される (ADR-032)。
+    annotations: { component: Tenancy }
+    payload:
+      occurredAt: { type: Timestamp }
+      actorSub:   { type: String }
+      tenantId:   { type: String }
+
+  TenantEnabled:
+    kind: event
+    description: system_admin が無効化済みテナントを再有効化した (ADR-032)。
+    annotations: { component: Tenancy }
+    payload:
+      occurredAt: { type: Timestamp }
+      actorSub:   { type: String }
+      tenantId:   { type: String }
 
   ConsentGranted:
     kind: event
@@ -2388,6 +2619,132 @@ interfaces:
     bindings:
       - { kind: http, method: POST, path: "/admin/users/{sub}/enable", successful_status_codes: ["204"] }
 
+  ListAdminClients:
+    description: 管理者が所属テナントの client を一覧する。
+    output:
+      response: { type: AdminClientListResponse }
+    errors: [AccessDeniedError]
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: /admin/clients }
+
+  GetAdminClient:
+    description: 管理者が所属テナントの client を取得する。別テナントの client は未存在として扱う。
+    input:
+      client_id: { type: String }
+    output:
+      client: { type: AdminClientResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: "/admin/clients/{client_id}" }
+
+  CreateAdminClient:
+    description: 管理者が所属テナントに client を作成する。
+    input:
+      request: { type: AdminClientCreateRequest }
+    output:
+      response: { type: AdminClientCreateResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [AdminClientCreated]
+    bindings:
+      - { kind: http, method: POST, path: /admin/clients, request_form: body, successful_status_codes: ["201"] }
+
+  UpdateAdminClient:
+    description: 管理者が所属テナントの client metadata を更新する。
+    input:
+      client_id: { type: String }
+      request:   { type: AdminClientUpdateRequest }
+    output:
+      client: { type: AdminClientResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [AdminClientUpdated]
+    bindings:
+      - { kind: http, method: PATCH, path: "/admin/clients/{client_id}", request_form: body }
+
+  DeleteAdminClient:
+    description: 管理者が所属テナントの client を削除する。
+    input:
+      client_id: { type: String }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [AdminClientDeleted]
+    bindings:
+      - { kind: http, method: DELETE, path: "/admin/clients/{client_id}", successful_status_codes: ["204"] }
+
+  ResolveTenant:
+    description: |
+      HTTP リクエストの path から所属テナントを解決する内部インターフェース (ADR-033)。
+      `/realms/{tenant_id}/...` の prefix が無い場合は `default` テナントに解決する。
+      不在テナントは 404 tenant_not_found、disabled テナントは OAuth/OIDC の
+      protocol route では 400 invalid_request とし、いずれも存在や状態の詳細を漏らさない。
+    kind: internal
+    input:
+      path: { type: String, description: "HTTP リクエスト path" }
+    output:
+      tenant: { type: Tenant }
+    errors: [InvalidRequestError]
+
+  ListTenants:
+    description: system_admin がテナント一覧を取得する。
+    output:
+      response: { type: TenantListResponse }
+    errors: [AccessDeniedError]
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: /admin/tenants }
+
+  GetTenant:
+    description: system_admin が単一テナントを取得する。
+    input:
+      tenant_id: { type: String }
+    output:
+      tenant: { type: TenantSummaryResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: "/admin/tenants/{tenant_id}" }
+
+  CreateTenant:
+    description: system_admin が新規テナントを作成する。
+    input:
+      request: { type: TenantCreateRequest }
+    output:
+      tenant: { type: TenantSummaryResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [TenantCreated]
+    bindings:
+      - { kind: http, method: POST, path: /admin/tenants, request_form: body, successful_status_codes: ["201"] }
+
+  UpdateTenant:
+    description: system_admin がテナントの表示名を更新する。
+    input:
+      tenant_id: { type: String }
+      request:   { type: TenantUpdateRequest }
+    output:
+      tenant: { type: TenantSummaryResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [TenantUpdated]
+    bindings:
+      - { kind: http, method: PATCH, path: "/admin/tenants/{tenant_id}", request_form: body }
+
+  DisableTenant:
+    description: system_admin が default 以外のテナントを無効化する。/authorize / /token / /login 等は一律 invalid_request になる。
+    input:
+      tenant_id: { type: String }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [TenantDisabled]
+    bindings:
+      - { kind: http, method: POST, path: "/admin/tenants/{tenant_id}/disable", successful_status_codes: ["204"] }
+
+  EnableTenant:
+    description: system_admin が無効化済みテナントを再有効化する。
+    input:
+      tenant_id: { type: String }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [TenantEnabled]
+    bindings:
+      - { kind: http, method: POST, path: "/admin/tenants/{tenant_id}/enable", successful_status_codes: ["204"] }
+
 
 # =================================================================
 # 4. states — 状態遷移
@@ -2491,6 +2848,15 @@ states:
       - { from: Active,    event: Rotate,  to: Verifying }
       - { from: Verifying, event: Retire,  to: Retired }
       - { from: Retired,   event: Archive, to: Archived }
+
+  TenantLifecycle:
+    description: テナント (ADR-032) のライフサイクル。Active で通常稼働、Disable で全プロトコルルートを停止、Enable で復帰。物理削除は本フェーズ対象外。
+    target: Tenant
+    initial: Active
+    terminal: []
+    transitions:
+      - { from: Active,   event: Disable, to: Disabled }
+      - { from: Disabled, event: Enable,  to: Active }
 
 
 # =================================================================
@@ -3096,6 +3462,85 @@ scenarios:
       - ユーザー "alice" の disabled_at は空である
       - '"UserEnabled" が発行される'
 
+  管理者は所属テナントの client を作成・更新・削除できる:
+    steps:
+      - 'tenant_id "acme" の roles=["admin"] のユーザー "operator" が認証済みである'
+      - '管理者 "operator" が client "portal" を作成する'
+      - '作成応答だけが生成された client_secret を含む'
+      - '管理者 "operator" が client "portal" の redirect_uris を更新する'
+      - '管理者 "operator" が client "portal" を削除する'
+      - '"AdminClientCreated"、"AdminClientUpdated"、"AdminClientDeleted" が発行される'
+
+  管理 client API は別テナントの client を公開しない:
+    steps:
+      - 'tenant_id "acme" に client_id "portal" が存在する'
+      - 'tenant_id "default" の管理者が client_id "portal" を取得する'
+      - 'エラー "InvalidRequestError"'
+
+  管理者は管理画面で client を作成・編集・削除できる:
+    steps:
+      - 'roles=["admin"] のユーザー "operator" が管理画面のアプリケーション一覧を開く'
+      - '管理者 "operator" が confidential client を作成する'
+      - '画面は生成された client_secret を一度だけ表示する'
+      - '管理者 "operator" が redirect_uris と scope を編集する'
+      - '管理者 "operator" が client_id を確認して client を削除する'
+      - '一覧から対象 client が消える'
+
+  # ---------- テナント (ADR-032 / ADR-033 / ADR-034) ----------
+  default テナントは起動時に自動作成され削除不可:
+    description: ADR-032 の bootstrap 不変性。
+    steps:
+      - 'IdP を起動する'
+      - 'テナント "default" が status=Active で存在する'
+      - 'default テナントを削除する API は提供されない'
+      - 'default テナントの disable は InvalidRequestError で拒否される'
+
+  未 prefix のリクエストは default テナントに解決される:
+    description: ADR-033 の下位互換。/.well-known や /authorize が prefix なしでも動く。
+    steps:
+      - "/realms/ 接頭辞を持たない /authorize にリクエストを送る"
+      - 解決されたテナントは "default"
+      - "iss claim は base URL + /realms/default"
+
+  /realms/{id}/.well-known/openid-configuration は同 prefix の issuer を返す:
+    steps:
+      - "tenant_id \"acme\" を Active で作成する"
+      - "/realms/acme/.well-known/openid-configuration を取得する"
+      - "応答の issuer は base URL + /realms/acme"
+      - "応答の authorization_endpoint は base URL + /realms/acme/authorize"
+
+  他テナントの client_id を使うと invalid_client で拒否される:
+    description: ADR-034 のクロステナントガード。クライアントの所属テナントとリクエストテナントが一致しない場合は existence を漏らさず拒否する。
+    steps:
+      - 'tenant_id "acme" に client_id "web-app" を登録する'
+      - '"/realms/default/token" に client_id "web-app" で交換を要求する'
+      - 'エラー "InvalidClientError"'
+
+  他テナントの認可コードを別テナントの token endpoint で交換できない:
+    description: ADR-034。code 解決時に record.tenant_id != ctx.tenant_id を確認。
+    steps:
+      - 'tenant_id "acme" で認可コード "AC1" を発行する'
+      - '"/realms/default/token" で認可コード "AC1" を交換する'
+      - 'エラー "InvalidGrantError"'
+
+  無効化されたテナントへの /authorize は invalid_request で拒否される:
+    description: ADR-032 の disable 効果。tenant の存在を漏らさないため 404 ではなく invalid_request。
+    steps:
+      - 'tenant_id "acme" を作成する'
+      - 'tenant_id "acme" を無効化する'
+      - '"/realms/acme/authorize" にリクエストを送る'
+      - 'エラー "InvalidRequestError"'
+
+  system_admin だけが /admin/tenants を呼べ admin は 403:
+    description: ADR-032 の RBAC 境界。
+    steps:
+      - 'roles=["system_admin"] のユーザー "ops" が認証済みである'
+      - 'ユーザー "ops" が /admin/tenants にアクセスする'
+      - '応答は 200 でテナント一覧を返す'
+      - 'roles=["admin"] のユーザー "tadmin" が認証済みである'
+      - 'ユーザー "tadmin" が /admin/tenants にアクセスする'
+      - 'エラー "AccessDeniedError"'
+
 
 # =================================================================
 # 7. permissions — 認可ルール
@@ -3218,6 +3663,30 @@ permissions:
     allow_when:
       and:
         - "admin in actor.roles"
+        - "actor.disabled_at == null"
+        - "context.authenticated == true"
+
+  AdminClientsManage:
+    description: 所属テナント内の client 一覧・作成・更新・削除。
+    actor: User
+    action: AdminClientsManage
+    resource: OAuth2Client
+    allow_when:
+      and:
+        - "admin in actor.roles"
+        - "actor.disabled_at == null"
+        - "context.authenticated == true"
+        - "actor.tenant_id == resource.tenant_id"
+
+  AdminTenantsManage:
+    description: テナントの作成・更新・無効化・再有効化・一覧取得 (ADR-032)。system_admin ロールに限定する。
+    actor: User
+    action: AdminTenantsManage
+    resource: Tenant
+    allow_when:
+      and:
+        - "system_admin in actor.roles"
+        - 'actor.tenant_id == "default"'
         - "actor.disabled_at == null"
         - "context.authenticated == true"
 
@@ -3500,6 +3969,16 @@ user_experience:
       route: /callback
       purpose: ローカルデモClientの認可成功またはOAuthエラーを表示する。
       states: [success, oauth_error, invalid_response]
+    AdminUsers:
+      route: /admin/users
+      purpose: 管理者が所属テナントのユーザー一覧、ロール、アカウント状態を管理する。
+      interfaces: [ListAdminUsers, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser]
+      states: [ready, loading, submitting, empty, access_denied, service_error]
+    AdminClients:
+      route: /admin/clients
+      purpose: 管理者が所属テナントのOAuth clientを一覧し、作成、metadata更新、削除を行う。
+      interfaces: [ListAdminClients, GetAdminClient, CreateAdminClient, UpdateAdminClient, DeleteAdminClient]
+      states: [ready, loading, submitting, empty, secret_issued, delete_confirmation, access_denied, service_error]
 
   transitions:
     - { from: Home, to: Login, trigger: authorization_started, interface: Authorize }
@@ -3514,6 +3993,8 @@ user_experience:
     - { from: Device, to: Status, trigger: device_denied, interface: SubmitBrowserDevice }
     - { to: Status, trigger: session_ended, interface: EndSession }
     - { to: Callback, trigger: local_demo_authorization_response, external: true }
+    - { from: AdminUsers, to: AdminClients, trigger: application_management_selected }
+    - { from: AdminClients, to: AdminUsers, trigger: user_management_selected }
 
   requirements:
     - id: UX-TRANSACTION-BOUND
@@ -3527,21 +4008,39 @@ user_experience:
       category: security
       adoption: required
       statement: 状態変更を伴うブラウザAPIはSameSite cookieとリクエストトークンを照合してCSRFを拒否する。
-      screens: [Login, Totp, Consent, Device]
-      interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, SubmitBrowserConsent, SubmitBrowserDevice]
+      screens: [Login, Totp, Consent, Device, AdminUsers, AdminClients]
+      interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, SubmitBrowserConsent, SubmitBrowserDevice, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser, CreateAdminClient, UpdateAdminClient, DeleteAdminClient]
       standards: [RFC9700, FAPI2SecurityProfile]
       scenarios: [browser login API の CSRF 不一致は拒否される]
     - id: UX-NO-STORE
       category: privacy
       adoption: required
-      statement: 認証トランザクション、CSRF token、user_codeを含むブラウザAPI応答は保存キャッシュを禁止する。
-      screens: [Login, Totp, Consent, Device]
-      interfaces: [GetBrowserTransaction, GetBrowserDeviceContext]
+      statement: 認証トランザクション、CSRF token、user_code、管理対象データを含むブラウザAPI応答は保存キャッシュを禁止する。
+      screens: [Login, Totp, Consent, Device, AdminUsers, AdminClients]
+      interfaces: [GetBrowserTransaction, GetBrowserDeviceContext, ListAdminUsers, ListAdminClients, GetAdminClient, CreateAdminClient, UpdateAdminClient]
     - id: UX-NO-CREDENTIAL-ECHO
       category: privacy
       adoption: required
       statement: password、token、内部request idを画面、URL、エラーメッセージへ表示しない。
       screens: [Login, Totp, Consent, Device, Status, Callback]
+    - id: UX-ADMIN-CLIENT-SECRET
+      category: security
+      adoption: required
+      statement: AdminClientsは生成されたclient_secretを作成成功直後に一度だけ表示し、再取得できないことを明示する。client_secret_hashは表示しない。
+      screens: [AdminClients]
+      interfaces: [CreateAdminClient, GetAdminClient, ListAdminClients]
+    - id: UX-ADMIN-CLIENT-DELETE-CONFIRMATION
+      category: safety
+      adoption: required
+      statement: AdminClientsはclient削除前に対象client_idと影響を示す確認操作を要求する。
+      screens: [AdminClients]
+      interfaces: [DeleteAdminClient]
+    - id: UX-ADMIN-TENANT-SCOPE
+      category: security
+      adoption: required
+      statement: 管理画面は現在のrealm prefixを維持し、所属テナント内のUserとOAuth2Clientだけを表示・変更する。
+      screens: [AdminUsers, AdminClients]
+      interfaces: [ListAdminUsers, ListAdminClients, GetAdminClient, CreateAdminClient, UpdateAdminClient, DeleteAdminClient]
     - id: UX-REGISTERED-REDIRECT
       category: security
       adoption: required
@@ -3560,7 +4059,7 @@ user_experience:
       category: accessibility
       adoption: required
       statement: すべての入力、表示切替、許可、拒否、再試行をキーボードだけで操作可能にする。
-      screens: [Home, Login, Totp, Consent, Device, Status, Callback]
+      screens: [Home, Login, Totp, Consent, Device, Status, Callback, AdminUsers, AdminClients]
       standards: [WCAG22]
     - id: UX-FOCUS
       category: accessibility
@@ -3578,7 +4077,7 @@ user_experience:
       category: accessibility
       adoption: required
       statement: 非同期送信の失敗と認証結果を支援技術へ通知し、送信中は重複操作を防ぐ。
-      screens: [Login, Totp, Consent, Device, Status, Callback]
+      screens: [Login, Totp, Consent, Device, Status, Callback, AdminUsers, AdminClients]
       standards: [WCAG22]
     - id: UX-LOCALE
       category: localization
@@ -3924,3 +4423,44 @@ annotations:
       evidence:
         - { file: ../ra-idp-go/internal/administration/usecases/users_test.go, test: "TestCreateUpdateAndDisableUser" }
         - { file: src/administration/usecases/users.test.ts, test: "disable→enable で UserDisabled / UserEnabled を順に emit" }
+    "管理者は所属テナントの client を作成・更新・削除できる":
+      status: covered
+      evidence:
+        - { file: ../ra-idp-go/internal/adapters/http/admin_client_handler_test.go, test: TestAdminClientCRUD }
+    "管理 client API は別テナントの client を公開しない":
+      status: covered
+      evidence:
+        - { file: ../ra-idp-go/internal/adapters/http/admin_client_handler_test.go, test: TestAdminClientCannotCrossTenantBoundary }
+    "管理者は管理画面で client を作成・編集・削除できる":
+      status: covered
+      evidence:
+        - { file: ../ra-idp-go/ui/src/pages/AdminClientsPage.tsx, test: handleSubmit }
+        - { file: ../ra-idp-go/ui/src/pages/AdminClientsPage.tsx, test: handleDelete }
+    "default テナントは起動時に自動作成され削除不可":
+      status: covered
+      evidence:
+        - { file: ../ra-idp-go/internal/tenancy/usecases/manage_tenants_test.go, test: TestEnsureDefaultAndRejectDefaultDisable }
+    "未 prefix のリクエストは default テナントに解決される":
+      status: covered
+      evidence:
+        - { file: ../ra-idp-go/internal/adapters/http/tenant_routes_test.go, test: TestBareRouteUsesDefaultAndDisabledTenantIsRejected }
+    "/realms/{id}/.well-known/openid-configuration は同 prefix の issuer を返す":
+      status: covered
+      evidence:
+        - { file: ../ra-idp-go/internal/adapters/http/tenant_routes_test.go, test: TestRealmDiscoveryUsesTenantIssuer }
+    "他テナントの client_id を使うと invalid_client で拒否される":
+      status: covered
+      evidence:
+        - { file: ../ra-idp-go/internal/oauth2/usecases/tenant_isolation_test.go, test: TestAuthorizeCannotResolveAnotherTenantClient }
+    "他テナントの認可コードを別テナントの token endpoint で交換できない":
+      status: covered
+      evidence:
+        - { file: ../ra-idp-go/internal/oauth2/usecases/tenant_isolation_test.go, test: TestAuthorizationCodeCannotCrossTenantBoundary }
+    "無効化されたテナントへの /authorize は invalid_request で拒否される":
+      status: covered
+      evidence:
+        - { file: ../ra-idp-go/internal/adapters/http/tenant_routes_test.go, test: TestBareRouteUsesDefaultAndDisabledTenantIsRejected }
+    "system_admin だけが /admin/tenants を呼べ admin は 403":
+      status: covered
+      evidence:
+        - { file: ../ra-idp-go/internal/adapters/http/tenant_routes_test.go, test: TestTenantAdminRequiresSystemAdmin }

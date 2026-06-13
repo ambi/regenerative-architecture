@@ -621,6 +621,242 @@ paths:
           required: true
           schema:
             type: string
+  /admin/clients:
+    get:
+      operationId: listAdminClients
+      summary: 管理者が所属テナントの client を一覧する。
+      responses:
+        200:
+          description: 管理者が所属テナントの client を一覧する。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminClientListResponse"
+        400:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthError"
+    post:
+      operationId: createAdminClient
+      summary: 管理者が所属テナントに client を作成する。
+      responses:
+        201:
+          description: 管理者が所属テナントに client を作成する。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminClientCreateResponse"
+        400:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthError"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminClientCreateRequest"
+  /admin/clients/{client_id}:
+    get:
+      operationId: getAdminClient
+      summary: 管理者が所属テナントの client を取得する。別テナントの client は未存在として扱う。
+      responses:
+        200:
+          description: 管理者が所属テナントの client を取得する。別テナントの client は未存在として扱う。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminClientResponse"
+        400:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthError"
+      parameters:
+        - name: client_id
+          in: path
+          required: true
+          schema:
+            type: string
+    patch:
+      operationId: updateAdminClient
+      summary: 管理者が所属テナントの client metadata を更新する。
+      responses:
+        200:
+          description: 管理者が所属テナントの client metadata を更新する。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminClientResponse"
+        400:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthError"
+      parameters:
+        - name: client_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminClientUpdateRequest"
+    delete:
+      operationId: deleteAdminClient
+      summary: 管理者が所属テナントの client を削除する。
+      responses:
+        204:
+          description: 管理者が所属テナントの client を削除する。
+        400:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthError"
+      parameters:
+        - name: client_id
+          in: path
+          required: true
+          schema:
+            type: string
+  /admin/tenants:
+    get:
+      operationId: listTenants
+      summary: system_admin がテナント一覧を取得する。
+      responses:
+        200:
+          description: system_admin がテナント一覧を取得する。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantListResponse"
+        400:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthError"
+    post:
+      operationId: createTenant
+      summary: system_admin が新規テナントを作成する。
+      responses:
+        201:
+          description: system_admin が新規テナントを作成する。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantSummaryResponse"
+        400:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthError"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TenantCreateRequest"
+  /admin/tenants/{tenant_id}:
+    get:
+      operationId: getTenant
+      summary: system_admin が単一テナントを取得する。
+      responses:
+        200:
+          description: system_admin が単一テナントを取得する。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantSummaryResponse"
+        400:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthError"
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+    patch:
+      operationId: updateTenant
+      summary: system_admin がテナントの表示名を更新する。
+      responses:
+        200:
+          description: system_admin がテナントの表示名を更新する。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantSummaryResponse"
+        400:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthError"
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TenantUpdateRequest"
+  /admin/tenants/{tenant_id}/disable:
+    post:
+      operationId: disableTenant
+      summary: system_admin が default 以外のテナントを無効化する。/authorize / /token / /login 等は一律 invalid_request になる。
+      responses:
+        204:
+          description: system_admin が default 以外のテナントを無効化する。/authorize / /token / /login 等は一律 invalid_request になる。
+        400:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthError"
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+  /admin/tenants/{tenant_id}/enable:
+    post:
+      operationId: enableTenant
+      summary: system_admin が無効化済みテナントを再有効化する。
+      responses:
+        204:
+          description: system_admin が無効化済みテナントを再有効化する。
+        400:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthError"
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
 components:
   schemas:
     ClientType:
@@ -743,6 +979,11 @@ components:
         - verifying
         - retired
         - archived
+    TenantStatus:
+      type: string
+      enum:
+        - active
+        - disabled
     OAuthErrorCode:
       type: string
       enum:
@@ -760,11 +1001,46 @@ components:
         - slow_down
         - insufficient_scope
         - authorization_pending
+    Tenant:
+      type: object
+      additionalProperties: false
+      description: "ADR-032 で導入したテナント (realm) 集約。Client / User / Consent / ポリシー / ブランディングはこの境界に閉じる。`default` テナントは起動時に自動作成され、削除・無効化とも不可。"
+      properties:
+        id:
+          type: string
+          minLength: 1
+          maxLength: 63
+          pattern: "^[a-z0-9][a-z0-9-]{0,62}$"
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        status:
+          type: string
+          enum:
+            - active
+            - disabled
+        created_at:
+          type: string
+          format: "date-time"
+        updated_at:
+          type: string
+          format: "date-time"
+        disabled_at:
+          type: string
+          format: "date-time"
+      required:
+        - id
+        - display_name
+        - status
+        - created_at
     OAuth2Client:
       type: object
       additionalProperties: false
       description: RFC 7591 + FAPI 2.0 拡張のクライアント。
       properties:
+        tenant_id:
+          type: string
         client_id:
           type: string
           minLength: 1
@@ -837,6 +1113,7 @@ components:
           type: string
           format: "date-time"
       required:
+        - tenant_id
         - client_id
         - client_type
         - redirect_uris
@@ -857,6 +1134,8 @@ components:
         sub:
           type: string
           minLength: 1
+        tenant_id:
+          type: string
         preferred_username:
           type: string
           minLength: 1
@@ -894,6 +1173,7 @@ components:
           format: "date-time"
       required:
         - sub
+        - tenant_id
         - preferred_username
         - password_hash
         - email_verified
@@ -985,6 +1265,8 @@ components:
       additionalProperties: false
       description: GDPR 同意取得記録。状態は ConsentLifecycle 状態機械に従う。
       properties:
+        tenant_id:
+          type: string
         sub:
           type: string
         client_id:
@@ -1011,6 +1293,7 @@ components:
           type: string
           format: "date-time"
       required:
+        - tenant_id
         - sub
         - client_id
         - scopes
@@ -1025,6 +1308,8 @@ components:
         id:
           type: string
           format: uuid
+        tenant_id:
+          type: string
         hash:
           type: string
         family_id:
@@ -1061,6 +1346,7 @@ components:
           $ref: "#/components/schemas/RefreshTokenSenderConstraint"
       required:
         - id
+        - tenant_id
         - hash
         - family_id
         - client_id
@@ -1078,6 +1364,8 @@ components:
         id:
           type: string
           format: uuid
+        tenant_id:
+          type: string
         state:
           type: string
           enum:
@@ -1138,6 +1426,7 @@ components:
           format: "date-time"
       required:
         - id
+        - tenant_id
         - state
         - client_id
         - redirect_uri
@@ -1153,6 +1442,8 @@ components:
       description: 発行済み認可コードの永続レコード。code 本体は短命。状態は AuthorizationCodeRecordLifecycle に従う（AuthorizationCodeFlow とは別軸でコード自体のライフサイクルを表す）。
       properties:
         code:
+          type: string
+        tenant_id:
           type: string
         authorization_request_id:
           type: string
@@ -1204,6 +1495,7 @@ components:
           format: uuid
       required:
         - code
+        - tenant_id
         - authorization_request_id
         - client_id
         - sub
@@ -1221,6 +1513,8 @@ components:
       description: Pushed Authorization Request の格納レコード。状態は PARRecordLifecycle に従う。
       properties:
         request_uri:
+          type: string
+        tenant_id:
           type: string
         client_id:
           type: string
@@ -1242,6 +1536,7 @@ components:
           format: "date-time"
       required:
         - request_uri
+        - tenant_id
         - client_id
         - parameters
         - state
@@ -1253,6 +1548,8 @@ components:
       description: RFC 8628 デバイス認可レコード。device_code はハッシュのみで保存する。
       properties:
         device_code_hash:
+          type: string
+        tenant_id:
           type: string
         user_code:
           type: string
@@ -1293,6 +1590,7 @@ components:
           format: "date-time"
       required:
         - device_code_hash
+        - tenant_id
         - user_code
         - client_id
         - scopes
@@ -1708,6 +2006,71 @@ components:
       required:
         - redirect_uris
         - grant_types
+    TenantCreateRequest:
+      type: object
+      additionalProperties: false
+      description: "管理者が新規テナントを登録する JSON リクエスト (ADR-032)。`id` は URL-safe slug。"
+      properties:
+        id:
+          type: string
+          minLength: 1
+          maxLength: 63
+          pattern: "^[a-z0-9][a-z0-9-]{0,62}$"
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+      required:
+        - id
+        - display_name
+    TenantUpdateRequest:
+      type: object
+      additionalProperties: false
+      description: "管理者がテナントの表示名を更新する JSON リクエスト (ADR-032)。`id` と status は変更しない。status 変更は disable/enable 専用 endpoint を経由。"
+      properties:
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+    TenantSummaryResponse:
+      type: object
+      additionalProperties: false
+      description: "テナント表現。管理 UI の一覧と詳細で同じ表現を返す (ADR-032)。"
+      properties:
+        id:
+          type: string
+        display_name:
+          type: string
+        status:
+          type: string
+          enum:
+            - active
+            - disabled
+        created_at:
+          type: string
+          format: "date-time"
+        updated_at:
+          type: string
+          format: "date-time"
+        disabled_at:
+          type: string
+          format: "date-time"
+      required:
+        - id
+        - display_name
+        - status
+        - created_at
+    TenantListResponse:
+      type: object
+      additionalProperties: false
+      description: "管理 API のテナント一覧 (ADR-032)。"
+      properties:
+        tenants:
+          type: array
+          items:
+            $ref: "#/components/schemas/TenantSummaryResponse"
+      required:
+        - tenants
     AdminUserCreateRequest:
       type: object
       additionalProperties: false
@@ -1773,6 +2136,8 @@ components:
       properties:
         sub:
           type: string
+        tenant_id:
+          type: string
         preferred_username:
           type: string
         name:
@@ -1799,11 +2164,216 @@ components:
           format: "date-time"
       required:
         - sub
+        - tenant_id
         - preferred_username
         - email_verified
         - mfa_enrolled
         - roles
         - created_at
+    AdminClientCreateRequest:
+      type: object
+      additionalProperties: false
+      description: 管理者が所属テナントに OAuth client を作成する。生成された client_secret は作成応答で一度だけ返す。
+      properties:
+        redirect_uris:
+          type: array
+          items:
+            type: string
+            format: uri
+          minItems: 1
+        client_name:
+          type: string
+          maxLength: 200
+        client_type:
+          type: string
+          enum:
+            - public
+            - confidential
+        grant_types:
+          type: array
+          items:
+            type: string
+            enum:
+              - authorization_code
+              - refresh_token
+              - client_credentials
+              - "urn:ietf:params:oauth:grant-type:device_code"
+          minItems: 1
+        response_types:
+          type: array
+          items:
+            type: string
+            enum:
+              - code
+        token_endpoint_auth_method:
+          type: string
+          enum:
+            - client_secret_basic
+            - client_secret_post
+            - private_key_jwt
+            - tls_client_auth
+            - none
+        scope:
+          type: string
+        jwks_uri:
+          type: string
+          format: uri
+        jwks: {}
+        tls_client_auth_subject_dn:
+          type: string
+        fapi_profile:
+          type: string
+          enum:
+            - none
+            - fapi_2_security_profile
+        require_pushed_authorization_requests:
+          type: boolean
+        dpop_bound_access_tokens:
+          type: boolean
+      required:
+        - redirect_uris
+        - grant_types
+    AdminClientUpdateRequest:
+      type: object
+      additionalProperties: false
+      description: 管理者が client metadata を更新する。client_id、認証方式、秘密情報は変更せず、secret rotation は独立 endpoint で扱う。
+      properties:
+        client_name:
+          type: string
+          maxLength: 200
+        redirect_uris:
+          type: array
+          items:
+            type: string
+            format: uri
+          minItems: 1
+        grant_types:
+          type: array
+          items:
+            type: string
+            enum:
+              - authorization_code
+              - refresh_token
+              - client_credentials
+              - "urn:ietf:params:oauth:grant-type:device_code"
+          minItems: 1
+        response_types:
+          type: array
+          items:
+            type: string
+            enum:
+              - code
+        scope:
+          type: string
+        require_pushed_authorization_requests:
+          type: boolean
+        dpop_bound_access_tokens:
+          type: boolean
+    AdminClientResponse:
+      type: object
+      additionalProperties: false
+      description: 管理 API の client 表現。client_secret と client_secret_hash は契約上含めない。
+      properties:
+        tenant_id:
+          type: string
+        client_id:
+          type: string
+        client_name:
+          type: string
+        client_type:
+          type: string
+          enum:
+            - public
+            - confidential
+        redirect_uris:
+          type: array
+          items:
+            type: string
+            format: uri
+        grant_types:
+          type: array
+          items:
+            type: string
+            enum:
+              - authorization_code
+              - refresh_token
+              - client_credentials
+              - "urn:ietf:params:oauth:grant-type:device_code"
+        response_types:
+          type: array
+          items:
+            type: string
+            enum:
+              - code
+        token_endpoint_auth_method:
+          type: string
+          enum:
+            - client_secret_basic
+            - client_secret_post
+            - private_key_jwt
+            - tls_client_auth
+            - none
+        scope:
+          type: string
+        jwks_uri:
+          type: string
+          format: uri
+        jwks: {}
+        tls_client_auth_subject_dn:
+          type: string
+        id_token_signed_response_alg:
+          type: string
+          enum:
+            - PS256
+            - ES256
+        require_pushed_authorization_requests:
+          type: boolean
+        dpop_bound_access_tokens:
+          type: boolean
+        fapi_profile:
+          type: string
+          enum:
+            - none
+            - fapi_2_security_profile
+        created_at:
+          type: string
+          format: "date-time"
+      required:
+        - tenant_id
+        - client_id
+        - client_type
+        - redirect_uris
+        - grant_types
+        - response_types
+        - token_endpoint_auth_method
+        - scope
+        - id_token_signed_response_alg
+        - require_pushed_authorization_requests
+        - dpop_bound_access_tokens
+        - fapi_profile
+        - created_at
+    AdminClientCreateResponse:
+      type: object
+      additionalProperties: false
+      description: client 作成応答。client_secret は生成された場合に限り一度だけ返す。
+      properties:
+        client:
+          $ref: "#/components/schemas/AdminClientResponse"
+        client_secret:
+          type: string
+      required:
+        - client
+    AdminClientListResponse:
+      type: object
+      additionalProperties: false
+      description: 所属テナント内の client 一覧。
+      properties:
+        clients:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminClientResponse"
+      required:
+        - clients
     TokenRequest:
       type: object
       additionalProperties: false
@@ -2504,6 +3074,142 @@ components:
         - occurredAt
         - actorSub
         - targetSub
+    AdminClientCreated:
+      type: object
+      properties:
+        type:
+          const: AdminClientCreated
+          type: string
+        occurredAt:
+          type: string
+          format: "date-time"
+        actorSub:
+          type: string
+        clientId:
+          type: string
+      required:
+        - type
+        - occurredAt
+        - actorSub
+        - clientId
+    AdminClientUpdated:
+      type: object
+      properties:
+        type:
+          const: AdminClientUpdated
+          type: string
+        occurredAt:
+          type: string
+          format: "date-time"
+        actorSub:
+          type: string
+        clientId:
+          type: string
+        changedFields:
+          type: array
+          items:
+            type: string
+      required:
+        - type
+        - occurredAt
+        - actorSub
+        - clientId
+        - changedFields
+    AdminClientDeleted:
+      type: object
+      properties:
+        type:
+          const: AdminClientDeleted
+          type: string
+        occurredAt:
+          type: string
+          format: "date-time"
+        actorSub:
+          type: string
+        clientId:
+          type: string
+      required:
+        - type
+        - occurredAt
+        - actorSub
+        - clientId
+    TenantCreated:
+      type: object
+      properties:
+        type:
+          const: TenantCreated
+          type: string
+        occurredAt:
+          type: string
+          format: "date-time"
+        actorSub:
+          type: string
+        tenantId:
+          type: string
+      required:
+        - type
+        - occurredAt
+        - actorSub
+        - tenantId
+    TenantUpdated:
+      type: object
+      properties:
+        type:
+          const: TenantUpdated
+          type: string
+        occurredAt:
+          type: string
+          format: "date-time"
+        actorSub:
+          type: string
+        tenantId:
+          type: string
+        changedFields:
+          type: array
+          items:
+            type: string
+      required:
+        - type
+        - occurredAt
+        - actorSub
+        - tenantId
+        - changedFields
+    TenantDisabled:
+      type: object
+      properties:
+        type:
+          const: TenantDisabled
+          type: string
+        occurredAt:
+          type: string
+          format: "date-time"
+        actorSub:
+          type: string
+        tenantId:
+          type: string
+      required:
+        - type
+        - occurredAt
+        - actorSub
+        - tenantId
+    TenantEnabled:
+      type: object
+      properties:
+        type:
+          const: TenantEnabled
+          type: string
+        occurredAt:
+          type: string
+          format: "date-time"
+        actorSub:
+          type: string
+        tenantId:
+          type: string
+      required:
+        - type
+        - occurredAt
+        - actorSub
+        - tenantId
     ConsentGranted:
       type: object
       properties:

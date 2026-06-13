@@ -12,6 +12,7 @@ import { OAuthError } from '../protocol/oauth-error'
 import type { ClientRepository } from '../ports/client-repository'
 
 export interface RegisterClientInput {
+  tenant_id: string
   client_name?: string
   client_type: 'public' | 'confidential'
   redirect_uris: string[]
@@ -63,6 +64,7 @@ export async function registerClientUseCase(
     client_secret_hash = createHash('sha256').update(client_secret).digest('hex')
   }
   const client = ClientSchema.parse({
+    tenant_id: input.tenant_id,
     client_id,
     client_secret_hash,
     client_name: input.client_name,

@@ -11,6 +11,7 @@ import { oauthErrorResponse } from './error-response'
 import { registerClientUseCase } from '../../src/oauth2/usecases/register-client'
 import type { ClientRepository } from '../../src/oauth2/ports/client-repository'
 import type { DomainEvent } from '../../src/spec-bindings/schemas'
+import { requestTenantId } from './middleware/tenant-middleware'
 
 export interface RegistrationRoutesDeps {
   clientRepo: ClientRepository
@@ -30,6 +31,7 @@ export function createRegistrationRoutes(deps: RegistrationRoutesDeps) {
       const res = await registerClientUseCase(
         { clientRepo: deps.clientRepo },
         {
+          tenant_id: requestTenantId(c),
           client_name: input.client_name as string | undefined,
           client_type: (input.client_type as 'public' | 'confidential') ?? 'confidential',
           redirect_uris: (input.redirect_uris as string[]) ?? [],

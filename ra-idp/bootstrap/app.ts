@@ -11,6 +11,8 @@ import { JoseTokenSigner } from '../adapters/crypto/jwt-signer'
 import type { Argon2idPasswordHasher } from '../adapters/crypto/argon2id-password-hasher'
 import { createObservabilityMiddleware } from '../adapters/http/middleware/observability-middleware'
 import { createTenantMiddleware } from '../adapters/http/middleware/tenant-middleware'
+import { createAdminClientRoutes } from '../adapters/http/admin-client-routes'
+import { createAdminTenantRoutes } from '../adapters/http/admin-tenant-routes'
 import { createAdminUserRoutes } from '../adapters/http/admin-user-routes'
 import { createAuthenticationRoutes } from '../adapters/http/authentication-routes'
 import { createChangePasswordRoutes } from '../adapters/http/change-password-routes'
@@ -35,7 +37,7 @@ import type { AuthenticationContextResolver } from '../src/authentication/domain
 import { DemoHeaderResolver } from '../src/authentication/usecases/demo-header-resolver'
 import { LoginSessionManager } from '../src/authentication/usecases/session-manager'
 import type { Observer } from '../src/shared/ports/observer'
-import type { DomainEvent } from '../src/spec-bindings/schemas'
+import { DEFAULT_TENANT_ID, type DomainEvent } from '../src/spec-bindings/schemas'
 
 import type { RuntimeConfig } from './config'
 import type { AssembledDeps } from './dependencies'
@@ -135,6 +137,17 @@ export function composeApp(input: ComposeAppInput): Hono {
       emit,
     }),
   )
+  // テナント別の admin clients (per-tenant admin role)。
+  // protocol サブアプリにマウントするので /realms/{tenant_id}/admin/clients から触れる。
+  protocol.route(
+    '/',
+    createAdminClientRoutes({
+      sessionManager,
+      userRepo: deps.userRepo,
+      clientRepo: deps.clientRepo,
+      emit,
+    }),
+  )
   protocol.route(
     '/',
     createPasswordResetRoutes({
@@ -212,6 +225,19 @@ export function composeApp(input: ComposeAppInput): Hono {
   app.route('/', createUiAssetsRoutes())
   app.route('/', protocol)
   app.route('/realms/:tenant_id', protocol)
+
+  // ADR-032 §6: テナント管理 (control plane) は default テナント所属の
+  // system_admin のみが操作する。Go 実装と同じく /realms/default/admin/tenants 配下に
+  // マウントし、cookie path = /realms/default と整合させる。
+  app.route(
+    `/realms/${DEFAULT_TENANT_ID}`,
+    createAdminTenantRoutes({
+      sessionManager,
+      userRepo: deps.userRepo,
+      tenantRepo: deps.tenantRepo,
+      emit,
+    }),
+  )
 
   app.route(
     '/',

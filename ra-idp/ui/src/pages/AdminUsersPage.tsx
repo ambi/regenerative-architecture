@@ -8,7 +8,7 @@
 
 import { IconAlertCircle, IconCheck, IconLoader2 } from '@tabler/icons-react'
 import { type FormEvent, useCallback, useEffect, useId, useState } from 'react'
-import { AuthLayout } from '@/components/layout/AuthLayout'
+import { AdminLayout } from '@/components/layout/AdminLayout'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -49,7 +49,7 @@ export function AdminUsersPage() {
     setError(null)
     setLoading(true)
     try {
-      const res = await fetch('/api/admin/users', { credentials: 'same-origin' })
+      const res = await fetch(`${ctx.basePath}/api/admin/users`, { credentials: 'same-origin' })
       if (!res.ok) {
         setError(await describeError(res, 'ユーザー一覧を取得できませんでした。'))
         return
@@ -61,7 +61,7 @@ export function AdminUsersPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [ctx.basePath])
 
   useEffect(() => {
     void refresh()
@@ -69,7 +69,7 @@ export function AdminUsersPage() {
 
   async function setDisabled(user: AdminUser, disabled: boolean): Promise<void> {
     await mutate(
-      `/api/admin/users/${encodeURIComponent(user.sub)}/${disabled ? 'disable' : 'enable'}`,
+      `${ctx.basePath}/api/admin/users/${encodeURIComponent(user.sub)}/${disabled ? 'disable' : 'enable'}`,
       'POST',
       null,
       disabled
@@ -81,7 +81,7 @@ export function AdminUsersPage() {
   async function updateRoles(user: AdminUser, raw: string): Promise<void> {
     const roles = parseRoles(raw)
     await mutate(
-      `/api/admin/users/${encodeURIComponent(user.sub)}`,
+      `${ctx.basePath}/api/admin/users/${encodeURIComponent(user.sub)}`,
       'PATCH',
       { roles },
       `${user.preferred_username} のロールを更新しました。`,
@@ -99,7 +99,12 @@ export function AdminUsersPage() {
       email_verified: data.get('email_verified') === 'on',
       roles: parseRoles(String(data.get('roles') ?? '')),
     }
-    const ok = await mutate('/api/admin/users', 'POST', payload, 'ユーザーを作成しました。')
+    const ok = await mutate(
+      `${ctx.basePath}/api/admin/users`,
+      'POST',
+      payload,
+      'ユーザーを作成しました。',
+    )
     if (ok) {
       event.currentTarget.reset()
       setShowCreate(false)
@@ -141,16 +146,12 @@ export function AdminUsersPage() {
   }
 
   return (
-    <AuthLayout
+    <AdminLayout
       title="ユーザー管理"
-      description="認証済み管理者だけが利用できます (ADR-031)。"
-      status="secure"
-      footer={
-        <span>
-          変更は <span className="font-mono">UserCreated / UserUpdated / UserDisabled</span>{' '}
-          ドメインイベントとして発行されます
-        </span>
-      }
+      description="所属テナントのユーザー、ロール、有効状態を管理します。"
+      active="users"
+      basePath={ctx.basePath}
+      actorUsername={ctx.actorUsername}
     >
       <Card>
         <CardContent className="pt-6 space-y-5">
@@ -202,7 +203,7 @@ export function AdminUsersPage() {
           />
         </CardContent>
       </Card>
-    </AuthLayout>
+    </AdminLayout>
   )
 }
 

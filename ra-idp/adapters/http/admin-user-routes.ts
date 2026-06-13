@@ -44,7 +44,12 @@ import {
   WebSecurityError,
 } from '../../src/shared/web-security'
 import { noStoreJSON } from './browser-transaction'
-import { requestTenantId } from './middleware/tenant-middleware'
+import {
+  requestTenantId,
+  tenantCookiePath,
+  tenantRoute,
+  tenantUrlPrefix,
+} from './middleware/tenant-middleware'
 import { renderShell } from './spa-shell'
 
 export interface AdminUserRoutesDeps {
@@ -64,24 +69,33 @@ export function createAdminUserRoutes(deps: AdminUserRoutesDeps) {
     emit: deps.emit,
   }
 
+  app.get('/admin', (c) => c.redirect(tenantRoute(c, '/admin/users'), 303))
+
   app.get('/admin/users', async (c) => {
     const actor = await resolveAdmin(deps, c.req.raw.headers)
-    if (actor.kind === 'unauthorized') return loginRedirect()
+    if (actor.kind === 'unauthorized') return loginRedirect(c)
     if (actor.kind === 'forbidden') {
       return forbiddenShell(c.req.header('accept-language'))
     }
+    if (actor.user.tenant_id !== requestTenantId(c))
+      return forbiddenShell(c.req.header('accept-language'))
     const csrf = createCsrfToken()
     const html = renderShell({
       page: 'admin-users',
       title: 'ユーザー管理',
-      meta: { csrf },
+      meta: {
+        csrf,
+        'base-path': tenantUrlPrefix(c),
+        'actor-username': actor.user.preferred_username,
+      },
       acceptLanguage: c.req.header('accept-language'),
+      tenantId: requestTenantId(c),
     })
     return new Response(html, {
       status: 200,
       headers: {
         'content-type': 'text/html; charset=UTF-8',
-        'set-cookie': csrfCookie(csrf),
+        'set-cookie': csrfCookie(csrf, tenantCookiePath(c)),
       },
     })
   })
@@ -89,6 +103,7 @@ export function createAdminUserRoutes(deps: AdminUserRoutesDeps) {
   app.get('/api/admin/users', async (c) => {
     const actor = await resolveAdmin(deps, c.req.raw.headers)
     if (actor.kind !== 'admin') return adminAccessError(actor.kind)
+    if (actor.user.tenant_id !== requestTenantId(c)) return adminAccessError('forbidden')
     const users = await deps.userRepo.findAll(requestTenantId(c))
     return noStoreJSON(c, 200, { users: users.map(toAdminUserResponse) })
   })
@@ -96,8 +111,9 @@ export function createAdminUserRoutes(deps: AdminUserRoutesDeps) {
   app.get('/api/admin/users/:sub', async (c) => {
     const actor = await resolveAdmin(deps, c.req.raw.headers)
     if (actor.kind !== 'admin') return adminAccessError(actor.kind)
+    if (actor.user.tenant_id !== requestTenantId(c)) return adminAccessError('forbidden')
     const user = await deps.userRepo.findBySub(c.req.param('sub'))
-    if (!user) {
+    if (!user || user.tenant_id !== requestTenantId(c)) {
       return noStoreJSON(c, 404, { error: 'user_not_found', message: 'ユーザーが存在しません' })
     }
     return noStoreJSON(c, 200, toAdminUserResponse(user))
@@ -108,6 +124,7 @@ export function createAdminUserRoutes(deps: AdminUserRoutesDeps) {
       assertCsrf(c.req.header('Cookie'), c.req.header('X-CSRF-Token') ?? '')
       const actor = await resolveAdmin(deps, c.req.raw.headers)
       if (actor.kind !== 'admin') return adminAccessError(actor.kind)
+      if (actor.user.tenant_id !== requestTenantId(c)) return adminAccessError('forbidden')
       const body = await c.req.json().catch(() => null)
       const parsed = AdminUserCreateRequestSchema.safeParse(body)
       if (!parsed.success) {
@@ -137,6 +154,7 @@ export function createAdminUserRoutes(deps: AdminUserRoutesDeps) {
       assertCsrf(c.req.header('Cookie'), c.req.header('X-CSRF-Token') ?? '')
       const actor = await resolveAdmin(deps, c.req.raw.headers)
       if (actor.kind !== 'admin') return adminAccessError(actor.kind)
+      if (actor.user.tenant_id !== requestTenantId(c)) return adminAccessError('forbidden')
       const body = await c.req.json().catch(() => null)
       const parsed = AdminUserUpdateRequestSchema.safeParse(body)
       if (!parsed.success) {
@@ -168,6 +186,7 @@ export function createAdminUserRoutes(deps: AdminUserRoutesDeps) {
       assertCsrf(c.req.header('Cookie'), c.req.header('X-CSRF-Token') ?? '')
       const actor = await resolveAdmin(deps, c.req.raw.headers)
       if (actor.kind !== 'admin') return adminAccessError(actor.kind)
+      if (actor.user.tenant_id !== requestTenantId(c)) return adminAccessError('forbidden')
       await setAdminUserDisabled(usecaseDeps, {
         actorSub: actor.user.sub,
         sub: c.req.param('sub') ?? '',
@@ -280,8 +299,12 @@ function mapAdminError(e: unknown): Response {
   throw e
 }
 
-function loginRedirect(): Response {
-  return new Response(null, { status: 303, headers: { location: '/login' } })
+function loginRedirect(c: Context): Response {
+  const returnTo = tenantRoute(c, '/admin/users')
+  return new Response(null, {
+    status: 303,
+    headers: { location: `${tenantRoute(c, '/login')}?return_to=${encodeURIComponent(returnTo)}` },
+  })
 }
 
 function forbiddenShell(acceptLanguage?: string): Response {

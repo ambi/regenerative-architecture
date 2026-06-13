@@ -24,6 +24,7 @@ type UserRepository interface {
 
 type ConsentRepository interface {
 	Find(ctx context.Context, tenantID, sub, clientID string) (*spec.Consent, error)
+	FindAll(ctx context.Context, tenantID string) ([]*spec.Consent, error)
 	Save(ctx context.Context, c *spec.Consent) error
 	Revoke(ctx context.Context, tenantID, sub, clientID string) error
 }

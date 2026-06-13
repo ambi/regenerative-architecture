@@ -53,6 +53,7 @@ export const ACTION_NAMES = {
   AdminUserUpdate: 'admin:user_update',
   AdminTenantsManage: 'admin:tenants_manage',
   AdminClientsManage: 'admin:clients_manage',
+  AdminConsentsManage: 'admin:consents_manage',
 } as const
 
 export type ActionName = (typeof ACTION_NAMES)[keyof typeof ACTION_NAMES]
@@ -72,6 +73,7 @@ export interface AuthZENResource {
     | 'User'
     | 'Tenant'
     | 'OAuth2Client'
+    | 'Consent'
   id?: string
   properties?: {
     issuedToClientId?: string
@@ -155,6 +157,12 @@ const ACTION_RULES: Record<ActionName, string[]> = {
     'actor_is_authenticated',
   ],
   'admin:clients_manage': [
+    'actor_is_admin',
+    'actor_is_active',
+    'actor_is_authenticated',
+    'actor_and_resource_share_tenant',
+  ],
+  'admin:consents_manage': [
     'actor_is_admin',
     'actor_is_active',
     'actor_is_authenticated',

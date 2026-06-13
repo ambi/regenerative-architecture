@@ -6,6 +6,9 @@
   "properties": {
     "code": {
       "type": "string"
+    },
+    "return_to": {
+      "type": "string"
     }
   },
   "required": [

@@ -1,0 +1,89 @@
+package http
+
+import (
+	"errors"
+	"net/http"
+	"slices"
+	"time"
+
+	adminusecases "ra-idp-go/internal/administration/usecases"
+	"ra-idp-go/internal/spec"
+
+	"github.com/labstack/echo/v5"
+)
+
+type adminConsentResponse struct {
+	TenantID  string            `json:"tenant_id"`
+	Sub       string            `json:"sub"`
+	ClientID  string            `json:"client_id"`
+	Scopes    []string          `json:"scopes"`
+	State     spec.ConsentState `json:"state"`
+	GrantedAt time.Time         `json:"granted_at"`
+	ExpiresAt time.Time         `json:"expires_at"`
+	RevokedAt *time.Time        `json:"revoked_at,omitempty"`
+}
+
+func (d Deps) handleListAdminConsents(c *echo.Context) error {
+	if _, err := d.requireAdmin(c); err != nil {
+		return d.writeAdminAccessError(c, err)
+	}
+	consents, err := adminusecases.ListConsents(c.Request().Context(), d.adminConsentDeps())
+	if err != nil {
+		return err
+	}
+	response := make([]adminConsentResponse, len(consents))
+	for i, consent := range consents {
+		response[i] = toAdminConsentResponse(consent)
+	}
+	return noStoreJSON(c, http.StatusOK, map[string]any{"consents": response})
+}
+
+func (d Deps) handleGetAdminConsent(c *echo.Context) error {
+	if _, err := d.requireAdmin(c); err != nil {
+		return d.writeAdminAccessError(c, err)
+	}
+	consent, err := adminusecases.GetConsent(
+		c.Request().Context(), d.adminConsentDeps(), c.Param("sub"), c.Param("client_id"),
+	)
+	if err != nil {
+		return d.writeAdminConsentError(c, err)
+	}
+	return noStoreJSON(c, http.StatusOK, toAdminConsentResponse(consent))
+}
+
+func (d Deps) handleRevokeAdminConsent(c *echo.Context) error {
+	if err := d.verifyBrowserRequest(c); err != nil {
+		return err
+	}
+	actor, err := d.requireAdmin(c)
+	if err != nil {
+		return d.writeAdminAccessError(c, err)
+	}
+	if err := adminusecases.RevokeConsent(
+		c.Request().Context(), d.adminConsentDeps(), actor.Sub,
+		c.Param("sub"), c.Param("client_id"), time.Now().UTC(),
+	); err != nil {
+		return d.writeAdminConsentError(c, err)
+	}
+	c.Response().Header().Set("Cache-Control", "no-store")
+	return c.NoContent(http.StatusNoContent)
+}
+
+func (d Deps) adminConsentDeps() adminusecases.ConsentDeps {
+	return adminusecases.ConsentDeps{ConsentRepo: d.ConsentRepo, Emit: d.Emit}
+}
+
+func (d Deps) writeAdminConsentError(c *echo.Context, err error) error {
+	if errors.Is(err, adminusecases.ErrConsentNotFound) {
+		return writeBrowserError(c, http.StatusNotFound, "consent_not_found", "同意記録が存在しません")
+	}
+	return err
+}
+
+func toAdminConsentResponse(consent *spec.Consent) adminConsentResponse {
+	return adminConsentResponse{
+		TenantID: consent.TenantID, Sub: consent.Sub, ClientID: consent.ClientID,
+		Scopes: slices.Clone(consent.Scopes), State: consent.State,
+		GrantedAt: consent.GrantedAt, ExpiresAt: consent.ExpiresAt, RevokedAt: consent.RevokedAt,
+	}
+}

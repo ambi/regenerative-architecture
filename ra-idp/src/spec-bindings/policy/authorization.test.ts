@@ -426,3 +426,32 @@ describe('admin user management', () => {
     expect(evaluate({ ...request, context: { authenticated: false } }).decision).toBe('Deny')
   })
 })
+
+describe('admin consent management', () => {
+  const request: AuthZENRequest = {
+    subject: {
+      type: 'User',
+      id: 'admin-sub',
+      properties: { roles: ['admin'], tenantId: 'acme', disabledAt: null },
+    },
+    action: { name: ACTION_NAMES.AdminConsentsManage },
+    resource: { type: 'Consent', properties: { tenantId: 'acme' } },
+    context: { authenticated: true },
+  }
+
+  it('active admin in the consent tenant is permitted', () => {
+    expect(evaluate(request).decision).toBe('Permit')
+  })
+
+  it('admin from another tenant is denied', () => {
+    expect(
+      evaluate({
+        ...request,
+        subject: {
+          ...request.subject,
+          properties: { ...request.subject.properties, tenantId: 'default' },
+        },
+      }).decision,
+    ).toBe('Deny')
+  })
+})

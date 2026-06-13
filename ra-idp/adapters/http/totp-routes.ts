@@ -30,11 +30,13 @@ import {
   createCsrfToken,
   csrfCookie,
   sessionCookie,
+  validatedAdminReturnTo,
   WebSecurityError,
 } from '../../src/shared/web-security'
 import { oauthErrorResponse } from './error-response'
 import { renderShell } from './spa-shell'
 import { clearTransactionCookie, transactionIdFromCookie, noStoreJSON } from './browser-transaction'
+import { tenantCookiePath, tenantRoute } from './middleware/tenant-middleware'
 
 export interface TotpRoutesDeps {
   sessionManager: SessionManager
@@ -49,6 +51,7 @@ export function createTotpRoutes(deps: TotpRoutesDeps) {
   app.get('/totp', async (c) => {
     const requestId =
       transactionIdFromCookie(c.req.header('Cookie')) || c.req.query('request_id') || ''
+    const returnTo = validatedAdminReturnTo(c.req.query('return_to'), tenantRoute(c, '/admin'))
     // no-JS/form fallback で factor 検証済みの状態から GET /totp に戻った場合は、
     // 既に factor 検証が済んでいるなら OAuth2 continuation に進める。
     if (requestId) {
@@ -65,27 +68,39 @@ export function createTotpRoutes(deps: TotpRoutesDeps) {
         throw e
       }
     }
-    return totpChallengeResponse(requestId, c.req.header('accept-language'))
+    return totpChallengeResponse(
+      requestId,
+      c.req.header('accept-language'),
+      false,
+      returnTo,
+      tenantRoute(c, ''),
+    )
   })
 
   app.post('/api/auth/totp', async (c) => {
     try {
       assertCsrf(c.req.header('Cookie'), c.req.header('X-CSRF-Token') ?? '')
       const requestId = transactionIdFromCookie(c.req.header('Cookie'))
-      if (!requestId) {
+      const body = await c.req.json().catch(() => null)
+      const returnTo = validatedAdminReturnTo(
+        typeof body?.return_to === 'string' ? body.return_to : undefined,
+        tenantRoute(c, '/admin'),
+      )
+      if (!requestId && !returnTo) {
         return noStoreJSON(c, 401, {
           error: 'transaction_unavailable',
           message: '認可トランザクションがありません',
         })
       }
-      const body = await c.req.json().catch(() => null)
       const code = typeof body?.code === 'string' ? body.code : ''
       const response = await completeTotp(
         deps,
-        requestId,
+        requestId ?? '',
         code,
         c.req.raw.headers,
         c.req.header('accept-language'),
+        returnTo,
+        tenantCookiePath(c),
       )
       return responseToBrowserFlow(response)
     } catch (e) {
@@ -102,6 +117,10 @@ export function createTotpRoutes(deps: TotpRoutesDeps) {
       const body = await c.req.parseBody()
       const requestId = String(body.request_id ?? '')
       const code = String(body.code ?? '')
+      const returnTo = validatedAdminReturnTo(
+        String(body.return_to ?? ''),
+        tenantRoute(c, '/admin'),
+      )
       assertCsrf(c.req.header('Cookie'), String(body.csrf ?? ''))
 
       return await completeTotp(
@@ -110,6 +129,8 @@ export function createTotpRoutes(deps: TotpRoutesDeps) {
         code,
         c.req.raw.headers,
         c.req.header('accept-language'),
+        returnTo,
+        tenantCookiePath(c),
       )
     } catch (e) {
       if (e instanceof OAuthError) return oauthErrorResponse(c, e)
@@ -129,6 +150,8 @@ async function completeTotp(
   code: string,
   headers: Headers,
   acceptLanguage?: string,
+  returnTo?: string,
+  cookiePath = '/',
 ): Promise<Response> {
   const context = await deps.sessionManager.resolve(headers)
   if (!context?.session_id) {
@@ -150,7 +173,13 @@ async function completeTotp(
       username: context.sub,
       reason: result.reason === 'no_factor' ? 'no_factor' : 'invalid_totp',
     })
-    return totpChallengeResponse(requestId, undefined, true)
+    return totpChallengeResponse(
+      requestId,
+      undefined,
+      true,
+      returnTo,
+      cookiePath === '/' ? '' : cookiePath,
+    )
   }
 
   const completed = await deps.sessionManager.completeFactor(context.session_id, ['otp'])
@@ -164,13 +193,15 @@ async function completeTotp(
     amr: completed.amr,
   })
 
-  const response = await deps.continuation.continueAfterLogin(requestId, completed, {
-    promptLoginSatisfied: true,
-    acceptLanguage,
-  })
+  const response = returnTo
+    ? browserFlowJSON({ next: returnTo })
+    : await deps.continuation.continueAfterLogin(requestId, completed, {
+        promptLoginSatisfied: true,
+        acceptLanguage,
+      })
   response.headers.append(
     'set-cookie',
-    sessionCookie(SESSION_COOKIE, completed.session_id ?? '', SESSION_TTL_SECONDS),
+    sessionCookie(SESSION_COOKIE, completed.session_id ?? '', SESSION_TTL_SECONDS, cookiePath),
   )
   return response
 }
@@ -233,6 +264,8 @@ export function totpChallengeResponse(
   requestId: string,
   acceptLanguage?: string,
   invalid = false,
+  returnTo?: string,
+  basePath = '',
 ): Response {
   const csrf = createCsrfToken()
   const html = renderShell({
@@ -241,11 +274,13 @@ export function totpChallengeResponse(
     meta: {
       'request-id': requestId,
       csrf,
+      ...(returnTo ? { 'return-to': returnTo } : {}),
+      'base-path': basePath,
       ...(invalid ? { 'totp-invalid': '1' } : {}),
     },
     fallbackForm: {
-      action: '/totp',
-      fields: { request_id: requestId, csrf },
+      action: `${basePath}/totp`,
+      fields: { request_id: requestId, csrf, ...(returnTo ? { return_to: returnTo } : {}) },
     },
     acceptLanguage,
   })
@@ -253,7 +288,7 @@ export function totpChallengeResponse(
     status: invalid ? 401 : 200,
     headers: {
       'content-type': 'text/html; charset=UTF-8',
-      'set-cookie': csrfCookie(csrf),
+      'set-cookie': csrfCookie(csrf, basePath || '/'),
     },
   })
 }

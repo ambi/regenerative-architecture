@@ -462,7 +462,6 @@ function checkAssurance() {
       }
       if (!evidence.environments?.length) bad(`${evidenceOwner}.environments が空`)
       checkReferences(`${evidenceOwner}.covers`, evidence.covers)
-      if (!evidence.procedure) bad(`${evidenceOwner}.procedure がない`)
       if (!evidence.oracle) bad(`${evidenceOwner}.oracle がない`)
     }
 

@@ -75,12 +75,12 @@ async function setup() {
   )
 
   const app = new Hono()
-  app.use(
-    '*',
-    createTenantMiddleware({ tenantRepo, baseIssuer: 'https://idp.example.com' }),
-  )
+  app.use('*', createTenantMiddleware({ tenantRepo, baseIssuer: 'https://idp.example.com' }))
   app.route('/', createAdminClientRoutes({ sessionManager, userRepo, clientRepo, emit }))
-  app.route('/realms/:tenant_id', createAdminClientRoutes({ sessionManager, userRepo, clientRepo, emit }))
+  app.route(
+    '/realms/:tenant_id',
+    createAdminClientRoutes({ sessionManager, userRepo, clientRepo, emit }),
+  )
 
   return { app, sessionManager, clientRepo, tenantRepo, events }
 }
@@ -96,13 +96,24 @@ function withCsrf(cookie: string): { cookies: string; csrf: string } {
 }
 
 describe('GET /admin/clients (list)', () => {
-  it('未認証は 401', async () => {
+  it('未認証は管理ログインへ 303', async () => {
     const { app } = await setup()
     const res = await app.request('http://idp.example.com/admin/clients')
-    expect(res.status).toBe(401)
+    expect(res.status).toBe(303)
+    expect(res.headers.get('location')).toBe('/login?return_to=%2Fadmin%2Fclients')
   })
 
-  it('admin は自テナント のクライアントだけ返す', async () => {
+  it('admin は管理 shell を取得できる', async () => {
+    const { app, sessionManager } = await setup()
+    const cookie = await sessionFor(sessionManager, DEFAULT_TENANT_ID, 'default-admin')
+    const res = await app.request('http://idp.example.com/admin/clients', {
+      headers: { cookie },
+    })
+    expect(res.status).toBe(200)
+    expect(await res.text()).toContain('name="ra-idp:page" content="admin-clients"')
+  })
+
+  it('admin API は自テナント のクライアントだけ返す', async () => {
     const { app, sessionManager, clientRepo } = await setup()
     await clientRepo.save({
       tenant_id: DEFAULT_TENANT_ID,
@@ -128,7 +139,7 @@ describe('GET /admin/clients (list)', () => {
     } as unknown as Parameters<typeof clientRepo.save>[0])
 
     const cookie = await sessionFor(sessionManager, DEFAULT_TENANT_ID, 'default-admin')
-    const res = await app.request('http://idp.example.com/admin/clients', {
+    const res = await app.request('http://idp.example.com/api/admin/clients', {
       headers: { cookie },
     })
     expect(res.status).toBe(200)
@@ -139,7 +150,7 @@ describe('GET /admin/clients (list)', () => {
   it('別テナントの admin (default 経路) は 403', async () => {
     const { app, sessionManager } = await setup()
     const cookie = await sessionFor(sessionManager, 'acme', 'acme-admin')
-    const res = await app.request('http://idp.example.com/admin/clients', {
+    const res = await app.request('http://idp.example.com/api/admin/clients', {
       headers: { cookie },
     })
     expect(res.status).toBe(403)
@@ -159,7 +170,7 @@ describe('GET /admin/clients (list)', () => {
       created_at: '2024-01-01T00:00:00.000Z',
     } as unknown as Parameters<typeof clientRepo.save>[0])
     const cookie = await sessionFor(sessionManager, 'acme', 'acme-admin')
-    const res = await app.request('http://idp.example.com/realms/acme/admin/clients', {
+    const res = await app.request('http://idp.example.com/realms/acme/api/admin/clients', {
       headers: { cookie },
     })
     expect(res.status).toBe(200)
@@ -168,12 +179,12 @@ describe('GET /admin/clients (list)', () => {
   })
 })
 
-describe('POST /admin/clients (create)', () => {
+describe('POST /api/admin/clients (create)', () => {
   it('CSRF 不一致は 403', async () => {
     const { app, sessionManager } = await setup()
     const cookie = await sessionFor(sessionManager, DEFAULT_TENANT_ID, 'default-admin')
     const { cookies } = withCsrf(cookie)
-    const res = await app.request('http://idp.example.com/admin/clients', {
+    const res = await app.request('http://idp.example.com/api/admin/clients', {
       method: 'POST',
       headers: { 'content-type': 'application/json', cookie: cookies, 'X-CSRF-Token': 'wrong' },
       body: JSON.stringify({
@@ -189,7 +200,7 @@ describe('POST /admin/clients (create)', () => {
     const { app, sessionManager, events, clientRepo } = await setup()
     const cookie = await sessionFor(sessionManager, DEFAULT_TENANT_ID, 'default-admin')
     const { cookies, csrf } = withCsrf(cookie)
-    const res = await app.request('http://idp.example.com/admin/clients', {
+    const res = await app.request('http://idp.example.com/api/admin/clients', {
       method: 'POST',
       headers: { 'content-type': 'application/json', cookie: cookies, 'X-CSRF-Token': csrf },
       body: JSON.stringify({
@@ -209,7 +220,7 @@ describe('POST /admin/clients (create)', () => {
   })
 })
 
-describe('DELETE /admin/clients/:id', () => {
+describe('DELETE /api/admin/clients/:id', () => {
   it('正常系: 削除し AdminClientDeleted を emit する', async () => {
     const { app, sessionManager, events, clientRepo } = await setup()
     await clientRepo.save({
@@ -225,7 +236,7 @@ describe('DELETE /admin/clients/:id', () => {
     } as unknown as Parameters<typeof clientRepo.save>[0])
     const cookie = await sessionFor(sessionManager, DEFAULT_TENANT_ID, 'default-admin')
     const { cookies, csrf } = withCsrf(cookie)
-    const res = await app.request('http://idp.example.com/admin/clients/to-delete', {
+    const res = await app.request('http://idp.example.com/api/admin/clients/to-delete', {
       method: 'DELETE',
       headers: { cookie: cookies, 'X-CSRF-Token': csrf },
     })
@@ -238,7 +249,7 @@ describe('DELETE /admin/clients/:id', () => {
     const { app, sessionManager } = await setup()
     const cookie = await sessionFor(sessionManager, DEFAULT_TENANT_ID, 'default-admin')
     const { cookies, csrf } = withCsrf(cookie)
-    const res = await app.request('http://idp.example.com/admin/clients/missing', {
+    const res = await app.request('http://idp.example.com/api/admin/clients/missing', {
       method: 'DELETE',
       headers: { cookie: cookies, 'X-CSRF-Token': csrf },
     })

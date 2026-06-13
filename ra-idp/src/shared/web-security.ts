@@ -20,12 +20,36 @@ export function assertCsrf(cookieHeader: string | undefined, submitted: string):
   }
 }
 
-export function csrfCookie(csrf: string): string {
-  return `${CSRF_COOKIE}=${encodeURIComponent(csrf)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=600`
+export function csrfCookie(csrf: string, path = '/'): string {
+  return `${CSRF_COOKIE}=${encodeURIComponent(csrf)}; Path=${path}; HttpOnly; SameSite=Lax; Max-Age=600`
 }
 
-export function sessionCookie(name: string, sessionId: string, ttlSeconds: number): string {
-  return `${name}=${encodeURIComponent(sessionId)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${ttlSeconds}`
+export function sessionCookie(
+  name: string,
+  sessionId: string,
+  ttlSeconds: number,
+  path = '/',
+): string {
+  return `${name}=${encodeURIComponent(sessionId)}; Path=${path}; HttpOnly; SameSite=Lax; Max-Age=${ttlSeconds}`
+}
+
+export function validatedAdminReturnTo(
+  value: string | undefined,
+  adminBase: string,
+): string | undefined {
+  if (!value || value.includes('\\')) return undefined
+  let decoded: string
+  try {
+    decoded = decodeURIComponent(value)
+  } catch {
+    return undefined
+  }
+  const target = new URL(decoded, 'http://ra-idp.local')
+  if (target.origin !== 'http://ra-idp.local') return undefined
+  if (target.pathname !== adminBase && !target.pathname.startsWith(`${adminBase}/`)) {
+    return undefined
+  }
+  return `${target.pathname}${target.search}${target.hash}`
 }
 
 export function clearCookie(name: string): string {

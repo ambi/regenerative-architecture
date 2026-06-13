@@ -92,11 +92,18 @@ async function csrfFor(
 }
 
 describe('GET /admin/users (shell)', () => {
+  it('/admin はユーザー管理へリダイレクトする', async () => {
+    const { app } = await setup()
+    const res = await app.request('http://localhost/admin')
+    expect(res.status).toBe(303)
+    expect(res.headers.get('location')).toBe('/admin/users')
+  })
+
   it('未認証は /login へ 303', async () => {
     const { app } = await setup()
     const res = await app.request('http://idp.example.com/admin/users')
     expect(res.status).toBe(303)
-    expect(res.headers.get('location')).toBe('/login')
+    expect(res.headers.get('location')).toBe('/login?return_to=%2Fadmin%2Fusers')
   })
 
   it('admin でないユーザーは 403 + error shell', async () => {

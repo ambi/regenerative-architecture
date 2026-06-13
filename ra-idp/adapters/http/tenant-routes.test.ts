@@ -11,7 +11,7 @@ import { describe, expect, it } from 'bun:test'
 import { Hono } from 'hono'
 
 import { InMemoryTenantRepository } from '../persistence/memory/tenant-repository'
-import { createTenantMiddleware } from './middleware/tenant-middleware'
+import { createTenantMiddleware, type TenantVar } from './middleware/tenant-middleware'
 import { TenantSchema } from '../../src/spec-bindings/schemas'
 
 const BASE_ISSUER = 'https://idp.example.com'
@@ -40,7 +40,7 @@ async function setup() {
     }),
   )
 
-  const app = new Hono()
+  const app = new Hono<{ Variables: TenantVar }>()
   app.use('*', createTenantMiddleware({ tenantRepo: tenants, baseIssuer: BASE_ISSUER }))
   app.get('/echo', (c) =>
     c.json({
@@ -64,7 +64,7 @@ describe('tenant middleware', () => {
     const app = await setup()
     const res = await app.request('http://idp.example.com/echo')
     expect(res.status).toBe(200)
-    const body = await res.json()
+    const body = (await res.json()) as Record<string, string>
     expect(body.tenant_id).toBe('default')
     expect(body.tenant_url_prefix).toBe('')
     expect(body.tenant_issuer).toBe('https://idp.example.com/realms/default')
@@ -74,7 +74,7 @@ describe('tenant middleware', () => {
     const app = await setup()
     const res = await app.request('http://idp.example.com/realms/acme/echo')
     expect(res.status).toBe(200)
-    const body = await res.json()
+    const body = (await res.json()) as Record<string, string>
     expect(body.tenant_id).toBe('acme')
     expect(body.tenant_url_prefix).toBe('/realms/acme')
     expect(body.tenant_issuer).toBe('https://idp.example.com/realms/acme')
@@ -91,7 +91,7 @@ describe('tenant middleware', () => {
     const app = await setup()
     const res = await app.request('http://idp.example.com/realms/disabled-co/echo')
     expect(res.status).toBe(400)
-    const body = await res.json()
+    const body = (await res.json()) as Record<string, string>
     expect(body.error).toBe('invalid_request')
     expect(body.error_description).not.toContain('disabled-co')
   })

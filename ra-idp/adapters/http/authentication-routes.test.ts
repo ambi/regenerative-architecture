@@ -58,6 +58,7 @@ async function setup(options: { trustedForwardedHops?: number; disableAlice?: bo
       password_hash: await passwordHasher.hash('correct-password-1'),
       email_verified: true,
       mfa_enrolled: false,
+      roles: ['admin'],
       ...(options.disableAlice ? { disabled_at: '2024-02-01T00:00:00.000Z' } : {}),
       created_at: '2024-01-01T00:00:00.000Z',
       updated_at: '2024-01-01T00:00:00.000Z',
@@ -163,6 +164,54 @@ describe('login throttle — per-account', () => {
       const res = await postLogin(app, { username: 'alice', password: 'wrong' })
       expect(res.status).toBe(401)
     }
+  })
+})
+
+describe('standalone admin login', () => {
+  it('OAuth transaction なしで安全な admin return_to にログインできる', async () => {
+    const { app } = await setup()
+    const shell = await app.request('http://idp.example.com/login?return_to=%2Fadmin%2Fusers')
+    expect(shell.status).toBe(401)
+    const html = await shell.text()
+    expect(html).toContain('name="ra-idp:return-to" content="/admin/users"')
+    const csrf = html.match(/name="ra-idp:csrf" content="([^"]+)"/)?.[1]
+    expect(csrf).toBeTruthy()
+    const cookie = shell.headers.get('set-cookie') ?? ''
+
+    const response = await app.request('http://idp.example.com/api/auth/login', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        cookie,
+        'X-CSRF-Token': csrf ?? '',
+      },
+      body: JSON.stringify({
+        username: 'alice',
+        password: 'correct-password-1',
+        return_to: '/admin/users',
+      }),
+    })
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ next: '/admin/users' })
+    expect(response.headers.get('set-cookie') ?? '').toContain('ra_idp_session=')
+  })
+
+  it('外部 URL は return_to として受理しない', async () => {
+    const { app } = await setup()
+    const shell = await app.request(
+      'http://idp.example.com/login?return_to=https%3A%2F%2Fevil.example',
+    )
+    const html = await shell.text()
+    expect(html).not.toContain('ra-idp:return-to')
+  })
+
+  it('admin 配下から外れる相対パス正規化は return_to として受理しない', async () => {
+    const { app } = await setup()
+    const shell = await app.request(
+      'http://idp.example.com/login?return_to=%2Fadmin%2F..%2Fuserinfo',
+    )
+    const html = await shell.text()
+    expect(html).not.toContain('ra-idp:return-to')
   })
 })
 

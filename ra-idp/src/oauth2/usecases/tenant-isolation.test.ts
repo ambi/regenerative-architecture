@@ -23,6 +23,7 @@ import {
   InMemoryAuthorizationRequestStore,
 } from '../../../adapters/persistence/memory/authorization-store'
 import { InMemoryClientRepository } from '../../../adapters/persistence/memory/client-repo'
+import { InMemoryConsentRepository } from '../../../adapters/persistence/memory/consent-repo'
 import { InMemoryDeviceCodeStore } from '../../../adapters/persistence/memory/device-code-store'
 import { InMemoryRefreshTokenStore } from '../../../adapters/persistence/memory/refresh-store'
 import { InMemoryUserRepository } from '../../../adapters/persistence/memory/user-repo'
@@ -84,10 +85,11 @@ describe('authorize cannot resolve another tenant client', () => {
   it('default の client_id は acme テナントから見えない (invalid_client)', async () => {
     const clientRepo = new InMemoryClientRepository()
     await clientRepo.save(makePublicClient('default', 'web-app'))
+    const consentRepo = new InMemoryConsentRepository()
     const requestStore = new InMemoryAuthorizationRequestStore()
     await expect(
       authorizeRequestUseCase(
-        { clientRepo, requestStore },
+        { clientRepo, consentRepo, requestStore },
         {
           tenant_id: 'acme',
           client_id: 'web-app',
@@ -96,6 +98,7 @@ describe('authorize cannot resolve another tenant client', () => {
           scope: 'openid',
           code_challenge: CHALLENGE,
           code_challenge_method: 'S256',
+          par_used: false,
         },
       ),
     ).rejects.toMatchObject({ code: 'unauthorized_client' })
@@ -170,6 +173,7 @@ describe('refresh_token cannot cross tenant boundary', () => {
           client_id: 'web-app',
           refresh_token: initial.token,
         },
+        () => {},
       ),
     ).rejects.toMatchObject({ code: 'invalid_grant' })
   })

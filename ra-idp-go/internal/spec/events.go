@@ -143,6 +143,7 @@ func (e *ConsentGrantedEvent) OccurredAt() time.Time { return e.At }
 
 type ConsentRevokedEvent struct {
 	At       time.Time `json:"-"`
+	ActorSub string    `json:"actorSub,omitempty"`
 	Sub      string    `json:"sub"`
 	ClientID string    `json:"clientId"`
 }

@@ -81,7 +81,10 @@ export async function updateAdminClient(
     updated.client_name = input.client_name ?? undefined
     changed.push('client_name')
   }
-  if (input.redirect_uris !== undefined && !arrayEqual(existing.redirect_uris, input.redirect_uris)) {
+  if (
+    input.redirect_uris !== undefined &&
+    !arrayEqual(existing.redirect_uris, input.redirect_uris)
+  ) {
     updated.redirect_uris = [...input.redirect_uris]
     changed.push('redirect_uris')
   }

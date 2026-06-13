@@ -412,6 +412,40 @@ FROM consents WHERE tenant_id=$1 AND sub=$2 AND client_id=$3`, tenantID, sub, cl
 	return &c, nil
 }
 
+func (r *ConsentRepository) FindAll(ctx context.Context, tenantID string) ([]*spec.Consent, error) {
+	rows, err := r.Pool.Query(ctx, `SELECT tenant_id,sub,client_id,scopes,granted_at,expires_at,revoked_at
+FROM consents WHERE tenant_id=$1 ORDER BY sub,client_id`, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var consents []*spec.Consent
+	now := time.Now()
+	for rows.Next() {
+		var consent spec.Consent
+		var scopes []byte
+		if err := rows.Scan(
+			&consent.TenantID, &consent.Sub, &consent.ClientID, &scopes,
+			&consent.GrantedAt, &consent.ExpiresAt, &consent.RevokedAt,
+		); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal(scopes, &consent.Scopes); err != nil {
+			return nil, err
+		}
+		switch {
+		case consent.RevokedAt != nil:
+			consent.State = spec.ConsentRevoked
+		case !now.Before(consent.ExpiresAt):
+			consent.State = spec.ConsentExpired
+		default:
+			consent.State = spec.ConsentGranted
+		}
+		consents = append(consents, &consent)
+	}
+	return consents, rows.Err()
+}
+
 func (r *ConsentRepository) Save(ctx context.Context, c *spec.Consent) error {
 	scopes, _ := json.Marshal(c.Scopes)
 	_, err := r.Pool.Exec(ctx, `INSERT INTO consents

@@ -14,12 +14,16 @@ export function readMeta(name: string): string | null {
 export interface LoginContext {
   requestId: string
   csrf: string
+  returnTo: string
+  basePath: string
 }
 
 export function readLoginContext(): LoginContext {
   return {
     requestId: readMeta('ra-idp:request-id') ?? '',
     csrf: readMeta('ra-idp:csrf') ?? '',
+    returnTo: readMeta('ra-idp:return-to') ?? '',
+    basePath: readMeta('ra-idp:base-path') ?? '',
   }
 }
 
@@ -45,6 +49,8 @@ export function readConsentContext(): ConsentContext {
 export interface TotpContext {
   requestId: string
   csrf: string
+  returnTo: string
+  basePath: string
   /** no-JS/form fallback の POST /totp が無効コードで戻ってきた場合に true。 */
   invalidPrevious: boolean
 }
@@ -53,6 +59,8 @@ export function readTotpContext(): TotpContext {
   return {
     requestId: readMeta('ra-idp:request-id') ?? '',
     csrf: readMeta('ra-idp:csrf') ?? '',
+    returnTo: readMeta('ra-idp:return-to') ?? '',
+    basePath: readMeta('ra-idp:base-path') ?? '',
     invalidPrevious: readMeta('ra-idp:totp-invalid') === '1',
   }
 }
@@ -103,12 +111,22 @@ export function readResetPasswordContext(): ResetPasswordContext {
 
 export interface AdminUsersContext {
   csrf: string
+  basePath: string
+  actorUsername: string
 }
 
 export function readAdminUsersContext(): AdminUsersContext {
   return {
     csrf: readMeta('ra-idp:csrf') ?? '',
+    basePath: readMeta('ra-idp:base-path') ?? '',
+    actorUsername: readMeta('ra-idp:actor-username') ?? '',
   }
+}
+
+export type AdminClientsContext = AdminUsersContext
+
+export function readAdminClientsContext(): AdminClientsContext {
+  return readAdminUsersContext()
 }
 
 export interface ErrorContext {

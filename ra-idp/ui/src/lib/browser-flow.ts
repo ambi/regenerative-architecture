@@ -16,8 +16,8 @@ export function continueBrowserFlow(result: BrowserFlowResponse): void {
   window.location.assign(destination)
 }
 
-export async function loadBrowserTransaction(): Promise<BrowserTransactionResponse> {
-  const response = await fetch('/api/auth/transaction', {
+export async function loadBrowserTransaction(basePath = ''): Promise<BrowserTransactionResponse> {
+  const response = await fetch(`${basePath}/api/auth/transaction`, {
     credentials: 'same-origin',
     cache: 'no-store',
   })

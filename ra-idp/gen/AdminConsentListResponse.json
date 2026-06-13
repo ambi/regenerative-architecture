@@ -1,0 +1,17 @@
+{
+  "$id": "urn:idp:AdminConsentListResponse",
+  "type": "object",
+  "additionalProperties": false,
+  "description": "所属テナント内の Consent 一覧。",
+  "properties": {
+    "consents": {
+      "type": "array",
+      "items": {
+        "$ref": "#/components/schemas/AdminConsentResponse"
+      }
+    }
+  },
+  "required": [
+    "consents"
+  ]
+}

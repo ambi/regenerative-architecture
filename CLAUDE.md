@@ -1,7 +1,5 @@
 # CLAUDE.md
 
-Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
-
 **Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
 
 ## 1. Think Before Coding
@@ -72,6 +70,13 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
   AI assistant" trailers. The commit author is the human user; tool authorship
   is not relevant to the project history.
 - Keep the subject line ≤ 72 chars. Use the body for the *why*, not the *what*.
+
+## 6. Regenerative Architecture
+
+**Design and implement things according to Regenerative Architecture.**
+
+- Read `REGENERATIVE_ARCHITECTURE.md` and `SPECIFICATION_CORE_LANGUAGE.md`.
+- Follow them.
 
 ---
 

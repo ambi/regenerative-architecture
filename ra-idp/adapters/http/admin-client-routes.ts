@@ -27,9 +27,20 @@ import {
 } from '../../src/administration/usecases/clients'
 import { OAuthError } from '../../src/oauth2/protocol/oauth-error'
 import type { Client, DomainEvent, User } from '../../src/spec-bindings/schemas'
-import { assertCsrf, WebSecurityError } from '../../src/shared/web-security'
+import {
+  assertCsrf,
+  createCsrfToken,
+  csrfCookie,
+  WebSecurityError,
+} from '../../src/shared/web-security'
 import { noStoreJSON } from './browser-transaction'
-import { requestTenantId } from './middleware/tenant-middleware'
+import {
+  requestTenantId,
+  tenantCookiePath,
+  tenantRoute,
+  tenantUrlPrefix,
+} from './middleware/tenant-middleware'
+import { renderShell } from './spa-shell'
 
 export interface AdminClientRoutesDeps {
   sessionManager: SessionManager
@@ -44,6 +55,40 @@ export function createAdminClientRoutes(deps: AdminClientRoutesDeps) {
 
   app.get('/admin/clients', async (c) => {
     const actor = await resolveAdmin(deps, c.req.raw.headers)
+    if (actor.kind === 'unauthorized') {
+      const returnTo = tenantRoute(c, '/admin/clients')
+      return c.redirect(
+        `${tenantRoute(c, '/login')}?return_to=${encodeURIComponent(returnTo)}`,
+        303,
+      )
+    }
+    if (actor.kind !== 'admin') return adminAccessError(actor.kind)
+    const tenantId = requestTenantId(c)
+    if (actor.user.tenant_id !== tenantId) return adminAccessError('forbidden')
+    const csrf = createCsrfToken()
+    const html = renderShell({
+      page: 'admin-clients',
+      title: 'クライアント管理',
+      meta: {
+        csrf,
+        'base-path': tenantUrlPrefix(c),
+        'actor-username': actor.user.preferred_username,
+      },
+      acceptLanguage: c.req.header('accept-language'),
+      tenantId,
+    })
+    return new Response(html, {
+      status: 200,
+      headers: {
+        'content-type': 'text/html; charset=UTF-8',
+        'cache-control': 'no-store',
+        'set-cookie': csrfCookie(csrf, tenantCookiePath(c)),
+      },
+    })
+  })
+
+  app.get('/api/admin/clients', async (c) => {
+    const actor = await resolveAdmin(deps, c.req.raw.headers)
     if (actor.kind !== 'admin') return adminAccessError(actor.kind)
     const tenantId = requestTenantId(c)
     if (actor.user.tenant_id !== tenantId) return adminAccessError('forbidden')
@@ -52,7 +97,7 @@ export function createAdminClientRoutes(deps: AdminClientRoutesDeps) {
     return noStoreJSON(c, 200, { clients })
   })
 
-  app.get('/admin/clients/:client_id', async (c) => {
+  app.get('/api/admin/clients/:client_id', async (c) => {
     const actor = await resolveAdmin(deps, c.req.raw.headers)
     if (actor.kind !== 'admin') return adminAccessError(actor.kind)
     const tenantId = requestTenantId(c)
@@ -62,7 +107,7 @@ export function createAdminClientRoutes(deps: AdminClientRoutesDeps) {
     return noStoreJSON(c, 200, client)
   })
 
-  app.post('/admin/clients', async (c) => {
+  app.post('/api/admin/clients', async (c) => {
     try {
       assertCsrf(c.req.header('Cookie'), c.req.header('X-CSRF-Token') ?? '')
       const actor = await resolveAdmin(deps, c.req.raw.headers)
@@ -85,8 +130,9 @@ export function createAdminClientRoutes(deps: AdminClientRoutesDeps) {
             | undefined,
           jwks: body.jwks as Record<string, unknown> | undefined,
           jwks_uri: body.jwks_uri as string | undefined,
-          require_pushed_authorization_requests:
-            body.require_pushed_authorization_requests as boolean | undefined,
+          require_pushed_authorization_requests: body.require_pushed_authorization_requests as
+            | boolean
+            | undefined,
           dpop_bound_access_tokens: body.dpop_bound_access_tokens as boolean | undefined,
           scope: body.scope as string | undefined,
           fapi_profile: body.fapi_profile as Client['fapi_profile'] | undefined,
@@ -100,7 +146,7 @@ export function createAdminClientRoutes(deps: AdminClientRoutesDeps) {
     }
   })
 
-  app.patch('/admin/clients/:client_id', async (c) => {
+  app.patch('/api/admin/clients/:client_id', async (c) => {
     try {
       assertCsrf(c.req.header('Cookie'), c.req.header('X-CSRF-Token') ?? '')
       const actor = await resolveAdmin(deps, c.req.raw.headers)
@@ -118,8 +164,9 @@ export function createAdminClientRoutes(deps: AdminClientRoutesDeps) {
         grant_types: body.grant_types as Client['grant_types'] | undefined,
         response_types: body.response_types as Client['response_types'] | undefined,
         scope: body.scope as string | undefined,
-        require_pushed_authorization_requests:
-          body.require_pushed_authorization_requests as boolean | undefined,
+        require_pushed_authorization_requests: body.require_pushed_authorization_requests as
+          | boolean
+          | undefined,
         dpop_bound_access_tokens: body.dpop_bound_access_tokens as boolean | undefined,
       })
       return noStoreJSON(c, 200, updated)
@@ -128,7 +175,7 @@ export function createAdminClientRoutes(deps: AdminClientRoutesDeps) {
     }
   })
 
-  app.delete('/admin/clients/:client_id', async (c) => {
+  app.delete('/api/admin/clients/:client_id', async (c) => {
     try {
       assertCsrf(c.req.header('Cookie'), c.req.header('X-CSRF-Token') ?? '')
       const actor = await resolveAdmin(deps, c.req.raw.headers)
@@ -169,7 +216,11 @@ async function resolveAdmin(
 function adminAccessError(kind: 'unauthorized' | 'forbidden'): Response {
   const status = kind === 'unauthorized' ? 401 : 403
   const error = kind === 'unauthorized' ? 'authentication_required' : 'access_denied'
-  return jsonError(status, error, kind === 'unauthorized' ? '認証済みセッションが必要です' : '管理者権限が必要です')
+  return jsonError(
+    status,
+    error,
+    kind === 'unauthorized' ? '認証済みセッションが必要です' : '管理者権限が必要です',
+  )
 }
 
 function mapAdminClientError(e: unknown): Response {
@@ -194,4 +245,3 @@ function jsonError(status: number, error: string, message: string): Response {
     },
   })
 }
-

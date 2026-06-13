@@ -23,6 +23,9 @@ type AuthZSubjectProps struct {
 	RedirectURIs  []string    `json:"redirectUris,omitempty"`
 	RequirePAR    bool        `json:"requirePAR,omitempty"`
 	Authenticated bool        `json:"authenticated,omitempty"`
+	Roles         []string    `json:"roles,omitempty"`
+	TenantID      string      `json:"tenantId,omitempty"`
+	DisabledAt    *time.Time  `json:"disabledAt,omitempty"`
 }
 
 type AuthZResource struct {
@@ -45,6 +48,7 @@ type AuthZResourceProps struct {
 	SenderConstraint    *AuthZSenderConstraint `json:"senderConstraint,omitempty"`
 	Scopes              []string               `json:"scopes,omitempty"`
 	Approved            bool                   `json:"approved,omitempty"`
+	TenantID            string                 `json:"tenantId,omitempty"`
 }
 
 type AuthZSenderConstraint struct {
@@ -56,6 +60,7 @@ type AuthZContext struct {
 	RedirectURI       string                  `json:"redirectUri,omitempty"`
 	ProofOfPossession *AuthZProofOfPossession `json:"proofOfPossession,omitempty"`
 	ParUsed           bool                    `json:"parUsed,omitempty"`
+	Authenticated     bool                    `json:"authenticated,omitempty"`
 	Now               time.Time               `json:"now,omitempty"`
 }
 
@@ -86,6 +91,12 @@ const (
 	ActionTokenRevoke                 = "token:revoke"
 	ActionUserInfoRead                = "userinfo:read"
 	ActionAuthorizeInitiate           = "authorize:initiate"
+	ActionAdminUserRead               = "admin:user_read"
+	ActionAdminUserCreate             = "admin:user_create"
+	ActionAdminUserUpdate             = "admin:user_update"
+	ActionAdminClientsManage          = "admin:clients_manage"
+	ActionAdminConsentsManage         = "admin:consents_manage"
+	ActionAdminTenantsManage          = "admin:tenants_manage"
 )
 
 // PascalCase (SCL permissions のキー) → AuthZ action 名。
@@ -98,6 +109,12 @@ var actionNameMapping = map[string]string{
 	"TokenRevoke":                 ActionTokenRevoke,
 	"UserInfoRead":                ActionUserInfoRead,
 	"AuthorizeInitiate":           ActionAuthorizeInitiate,
+	"AdminUserRead":               ActionAdminUserRead,
+	"AdminUserCreate":             ActionAdminUserCreate,
+	"AdminUserUpdate":             ActionAdminUserUpdate,
+	"AdminClientsManage":          ActionAdminClientsManage,
+	"AdminConsentsManage":         ActionAdminConsentsManage,
+	"AdminTenantsManage":          ActionAdminTenantsManage,
 }
 
 var actionRules = map[string][]string{
@@ -125,6 +142,18 @@ var actionRules = map[string][]string{
 		"scope_subset_of_client_scope",
 		"pkce_present",
 		"par_required_if_fapi",
+	},
+	ActionAdminUserRead:   {"actor_is_admin", "actor_is_active", "actor_is_authenticated"},
+	ActionAdminUserCreate: {"actor_is_admin", "actor_is_active", "actor_is_authenticated"},
+	ActionAdminUserUpdate: {"actor_is_admin", "actor_is_active", "actor_is_authenticated"},
+	ActionAdminClientsManage: {
+		"actor_is_admin", "actor_is_active", "actor_is_authenticated", "actor_and_resource_share_tenant",
+	},
+	ActionAdminConsentsManage: {
+		"actor_is_admin", "actor_is_active", "actor_is_authenticated", "actor_and_resource_share_tenant",
+	},
+	ActionAdminTenantsManage: {
+		"actor_is_system_admin", "actor_is_control_plane_user", "actor_is_active", "actor_is_authenticated",
 	},
 }
 
@@ -175,6 +204,25 @@ var ruleEvaluators = map[string]ruleEvaluator{
 	},
 	"pkce_present":         func(r AuthZRequest) bool { return r.Resource.Properties.CodeChallenge != "" },
 	"par_required_if_fapi": func(r AuthZRequest) bool { return !r.Subject.Properties.RequirePAR || r.Context.ParUsed },
+	"actor_is_admin": func(r AuthZRequest) bool {
+		return r.Subject.Type == "User" && slices.Contains(r.Subject.Properties.Roles, "admin")
+	},
+	"actor_is_system_admin": func(r AuthZRequest) bool {
+		return r.Subject.Type == "User" && slices.Contains(r.Subject.Properties.Roles, "system_admin")
+	},
+	"actor_is_control_plane_user": func(r AuthZRequest) bool {
+		return r.Subject.Type == "User" && r.Subject.Properties.TenantID == DefaultTenantID
+	},
+	"actor_is_active": func(r AuthZRequest) bool {
+		return r.Subject.Type == "User" && r.Subject.Properties.DisabledAt == nil
+	},
+	"actor_is_authenticated": func(r AuthZRequest) bool {
+		return r.Subject.Type == "User" && r.Context.Authenticated
+	},
+	"actor_and_resource_share_tenant": func(r AuthZRequest) bool {
+		return r.Subject.Type == "User" && r.Subject.Properties.TenantID != "" &&
+			r.Subject.Properties.TenantID == r.Resource.Properties.TenantID
+	},
 }
 
 func grantFromAction(a string) GrantType {

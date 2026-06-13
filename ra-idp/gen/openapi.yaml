@@ -493,7 +493,7 @@ paths:
       responses:
         200:
           description: Health check
-  /admin/users:
+  /api/admin/users:
     get:
       operationId: listAdminUsers
       summary: 管理者が削除されていないユーザーを一覧する。
@@ -532,7 +532,7 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/AdminUserCreateRequest"
-  /admin/users/{sub}:
+  /api/admin/users/{sub}:
     get:
       operationId: getAdminUser
       summary: 管理者が sub を指定してユーザーを取得する。
@@ -583,7 +583,7 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/AdminUserUpdateRequest"
-  /admin/users/{sub}/disable:
+  /api/admin/users/{sub}/disable:
     post:
       operationId: disableAdminUser
       summary: 管理者がユーザーを無効化し、新規ログインと既存セッション利用を拒否する。
@@ -602,7 +602,7 @@ paths:
           required: true
           schema:
             type: string
-  /admin/users/{sub}/enable:
+  /api/admin/users/{sub}/enable:
     post:
       operationId: enableAdminUser
       summary: 管理者が無効化済みユーザーを再有効化する。
@@ -621,7 +621,7 @@ paths:
           required: true
           schema:
             type: string
-  /admin/clients:
+  /api/admin/clients:
     get:
       operationId: listAdminClients
       summary: 管理者が所属テナントの client を一覧する。
@@ -660,7 +660,7 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/AdminClientCreateRequest"
-  /admin/clients/{client_id}:
+  /api/admin/clients/{client_id}:
     get:
       operationId: getAdminClient
       summary: 管理者が所属テナントの client を取得する。別テナントの client は未存在として扱う。
@@ -724,6 +724,74 @@ paths:
               schema:
                 $ref: "#/components/schemas/OAuthError"
       parameters:
+        - name: client_id
+          in: path
+          required: true
+          schema:
+            type: string
+  /admin/consents:
+    get:
+      operationId: listAdminConsents
+      summary: 管理者が所属テナントの Consent を監査目的で一覧する。
+      responses:
+        200:
+          description: 管理者が所属テナントの Consent を監査目的で一覧する。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminConsentListResponse"
+        400:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthError"
+  /admin/consents/{sub}/{client_id}:
+    get:
+      operationId: getAdminConsent
+      summary: 管理者が所属テナントの Consent を subject と client_id で取得する。別テナントの Consent は未存在として扱う。
+      responses:
+        200:
+          description: 管理者が所属テナントの Consent を subject と client_id で取得する。別テナントの Consent は未存在として扱う。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminConsentResponse"
+        400:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthError"
+      parameters:
+        - name: sub
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: client_id
+          in: path
+          required: true
+          schema:
+            type: string
+    delete:
+      operationId: revokeAdminConsent
+      summary: 管理者が所属テナントの Consent を論理撤回する。管理者による Consent の作成・scope 拡張は許可しない。
+      responses:
+        204:
+          description: 管理者が所属テナントの Consent を論理撤回する。管理者による Consent の作成・scope 拡張は許可しない。
+        400:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthError"
+      parameters:
+        - name: sub
+          in: path
+          required: true
+          schema:
+            type: string
         - name: client_id
           in: path
           required: true
@@ -2374,6 +2442,55 @@ components:
             $ref: "#/components/schemas/AdminClientResponse"
       required:
         - clients
+    AdminConsentResponse:
+      type: object
+      additionalProperties: false
+      description: 管理 API が返す所属テナント内の Consent 表現。
+      properties:
+        tenant_id:
+          type: string
+        sub:
+          type: string
+        client_id:
+          type: string
+        scopes:
+          type: array
+          items:
+            type: string
+        state:
+          type: string
+          enum:
+            - granted
+            - revoked
+            - expired
+        granted_at:
+          type: string
+          format: "date-time"
+        expires_at:
+          type: string
+          format: "date-time"
+        revoked_at:
+          type: string
+          format: "date-time"
+      required:
+        - tenant_id
+        - sub
+        - client_id
+        - scopes
+        - state
+        - granted_at
+        - expires_at
+    AdminConsentListResponse:
+      type: object
+      additionalProperties: false
+      description: 所属テナント内の Consent 一覧。
+      properties:
+        consents:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminConsentResponse"
+      required:
+        - consents
     TokenRequest:
       type: object
       additionalProperties: false
@@ -2585,11 +2702,13 @@ components:
     BrowserLoginRequest:
       type: object
       additionalProperties: false
-      description: "SPA が POST /api/auth/login に送る JSON。authorization request id は HttpOnly transaction cookie、CSRF は X-CSRF-Token header から解決する。"
+      description: "SPA が POST /api/auth/login に送る JSON。通常は authorization request id を HttpOnly transaction cookie から解決する。管理画面への直接ログインでは同一 realm の /admin 配下だけを return_to に指定できる。CSRF は X-CSRF-Token header から解決する。"
       properties:
         username:
           type: string
         password:
+          type: string
+        return_to:
           type: string
       required:
         - username
@@ -2621,6 +2740,8 @@ components:
       description: "Browser client が POST /api/auth/totp に送る TOTP コード。authorization request id は HttpOnly transaction cookie、CSRF は X-CSRF-Token header から解決する。他 factor (WebAuthn 等) はHTTP形が大きく異なるため、別endpointと別value objectとして独立に定義する。"
       properties:
         code:
+          type: string
+        return_to:
           type: string
       required:
         - code
@@ -3242,6 +3363,8 @@ components:
         occurredAt:
           type: string
           format: "date-time"
+        actorSub:
+          type: string
         sub:
           type: string
         clientId:

@@ -44,12 +44,12 @@ components:
 
   Authorization:
     description: OAuth 2.0 / OIDC の認可判断、Consent、Authorization Code、PAR、Device Authorization、RP-Initiated Logout の責務を所有する。
-    owns_models: [AuthorizationRequest, AuthorizeParameters, Consent, ConsentState, AuthorizationCodeRecord, AuthorizationCodeState, AuthorizationCodeRecordState, ResponseType, ResponseMode, CodeChallengeMethod, GrantType, PARRecord, PARRecordState, ParRequest, ParResponse, BrowserConsentRequest, BrowserTransactionResponse, BrowserFlowResponse, EndSessionParameters, DeviceCodeState, DeviceAuthorization, DeviceAuthorizationRequest, DeviceAuthorizationResponse, BrowserDeviceRequest, BrowserDeviceContextResponse, OAuthError, OAuthErrorCode, InvalidRequestError, InvalidScopeError, AccessDeniedError, ExpiredTokenError, SlowDownError, AuthorizationPendingError, ServerError]
+    owns_models: [AuthorizationRequest, AuthorizeParameters, Consent, ConsentState, AdminConsentResponse, AdminConsentListResponse, AuthorizationCodeRecord, AuthorizationCodeState, AuthorizationCodeRecordState, ResponseType, ResponseMode, CodeChallengeMethod, GrantType, PARRecord, PARRecordState, ParRequest, ParResponse, BrowserConsentRequest, BrowserTransactionResponse, BrowserFlowResponse, EndSessionParameters, DeviceCodeState, DeviceAuthorization, DeviceAuthorizationRequest, DeviceAuthorizationResponse, BrowserDeviceRequest, BrowserDeviceContextResponse, OAuthError, OAuthErrorCode, InvalidRequestError, InvalidScopeError, AccessDeniedError, ExpiredTokenError, SlowDownError, AuthorizationPendingError, ServerError]
     owns_states: [AuthorizationCodeFlow, AuthorizationCodeRecordLifecycle, ConsentLifecycle, PARRecordLifecycle, DeviceCodeFlow]
     owns_events: [AuthorizationCodeIssued, AuthorizationCodeRedeemed, ConsentGranted, ConsentRevoked, PARStored, DeviceAuthorizationRequested, DeviceAuthorizationApproved, DeviceAuthorizationDenied]
-    owns_interfaces: [Authorize, GetBrowserTransaction, SubmitBrowserConsent, PushAuthorizationRequest, DeviceAuthorization, GetBrowserDeviceContext, SubmitBrowserDevice, EndSession]
+    owns_interfaces: [Authorize, GetBrowserTransaction, SubmitBrowserConsent, PushAuthorizationRequest, DeviceAuthorization, GetBrowserDeviceContext, SubmitBrowserDevice, EndSession, ListAdminConsents, GetAdminConsent, RevokeAdminConsent]
     owns_invariants: [PkceRoundTrip, AuthCodeStateSafety, DeviceCodeStateSafety, AuthorizationCodeSingleUse, ParRequestUriSingleUse, AuthorizationCodeTtl, AuthorizationCodeEventuallyResolves, DeviceCodeEventuallyResolves, RedirectUriExactMatch, PkceMandatory, AccessTokenIssuedOnlyAfterConsent]
-    owns_permissions: [AuthorizeInitiate]
+    owns_permissions: [AuthorizeInitiate, AdminConsentsManage]
     owns_objectives: [AuthorizeLatency, ParLatency, DeviceAuthorizationLatency, AuthorizeErrorRate, ParErrorRate, DeviceAuthorizationErrorRate, AuthorizeThroughput, AuthorizationCodeLifetime, ParRequestUriLifetime, DeviceCodeLifetime, UserCodeLifetime, DeviceCodePollingDefaultInterval, ConsentRecordsRetention, AuthorizationCodeRedemptionFailureRateLimit]
     depends_on:
       - { component: Identity, reason: Authorize は AuthenticationContext を Identity から解決する。 }
@@ -783,8 +783,11 @@ vocabulary:
   Scope:
     definition: Client が要求する権限の集合。Client メタデータで宣言された集合の部分集合でなければならない。
   Consent:
-    definition: ResourceOwner が Client に対して特定の Scope を付与する意思表示。subject / client / scopes / granted_at / expires_at の5項目で永続化される。
+    definition: ResourceOwner が Client に対して特定の Scope を付与する意思表示。tenant / subject / client / scopes / granted_at / expires_at を永続化する。管理者は参照と撤回だけが可能で、付与や scope 拡張を代行できない。
     aliases: [consent, 同意]
+  AdminConsentManagement:
+    definition: Administrator が所属テナント内の Consent を監査目的で参照し、必要時に撤回する管理操作。同意の作成や scope 拡張は含まない。
+    aliases: [consent administration, 同意管理]
   PreferredUsername:
     definition: 表示用のユーザー名。可変。
     aliases: [preferred_username]
@@ -1724,6 +1727,27 @@ models:
     fields:
       clients: { type: "List<AdminClientResponse>" }
 
+  AdminConsentResponse:
+    kind: value_object
+    description: 管理 API が返す所属テナント内の Consent 表現。
+    annotations: { component: Administration }
+    fields:
+      tenant_id:  { type: String }
+      sub:        { type: String }
+      client_id:  { type: String }
+      scopes:     { type: "List<String>" }
+      state:      { type: ConsentState }
+      granted_at: { type: Timestamp }
+      expires_at: { type: Timestamp }
+      revoked_at: { type: Timestamp, optional: true }
+
+  AdminConsentListResponse:
+    kind: value_object
+    description: 所属テナント内の Consent 一覧。
+    annotations: { component: Administration }
+    fields:
+      consents: { type: "List<AdminConsentResponse>" }
+
   TokenRequest:
     kind: value_object
     description: application/x-www-form-urlencoded で送信される token endpoint リクエスト。
@@ -1832,11 +1856,12 @@ models:
 
   BrowserLoginRequest:
     kind: value_object
-    description: SPA が POST /api/auth/login に送る JSON。authorization request id は HttpOnly transaction cookie、CSRF は X-CSRF-Token header から解決する。
+    description: SPA が POST /api/auth/login に送る JSON。通常は authorization request id を HttpOnly transaction cookie から解決する。管理画面への直接ログインでは同一 realm の /admin 配下だけを return_to に指定できる。CSRF は X-CSRF-Token header から解決する。
     annotations: { component: Authentication }
     fields:
       username:      { type: String }
       password:      { type: String, annotations: { sensitive: true } }
+      return_to:     { type: String, optional: true, description: 同一 realm の /admin 配下に限定したログイン後遷移先。 }
 
   BrowserConsentRequest:
     kind: value_object
@@ -1859,6 +1884,7 @@ models:
     annotations: { component: Authentication }
     fields:
       code:          { type: String, description: Authenticator アプリが生成した数字コード (annotations.totp_policy.digits 桁)。, annotations: { sensitive: true } }
+      return_to:     { type: String, optional: true, description: 管理画面への直接ログインを継続する場合の同一 realm 内遷移先。 }
 
   BrowserChangePasswordRequest:
     kind: value_object
@@ -2177,9 +2203,10 @@ models:
 
   ConsentRevoked:
     kind: event
-    description: ResourceOwner が既存の同意を撤回した (GDPR Art.7(3) 同意撤回権)。以後の発行はブロックされる。
+    description: ResourceOwner または所属テナントの Administrator が既存の同意を撤回した (GDPR Art.7(3) 同意撤回権)。以後の発行はブロックされる。
     payload:
       occurredAt:   { type: Timestamp }
+      actorSub:     { type: String, optional: true, description: "管理 API からの撤回時の Administrator sub。ResourceOwner 自身の撤回では省略可。" }
       sub:          { type: String }
       clientId:     { type: String }
 
@@ -2604,7 +2631,7 @@ interfaces:
     errors: [AccessDeniedError]
     read_only: true
     bindings:
-      - { kind: http, method: GET, path: /admin/users }
+      - { kind: http, method: GET, path: /api/admin/users }
 
   GetAdminUser:
     description: 管理者が sub を指定してユーザーを取得する。
@@ -2615,7 +2642,7 @@ interfaces:
     errors: [InvalidRequestError, AccessDeniedError]
     read_only: true
     bindings:
-      - { kind: http, method: GET, path: "/admin/users/{sub}" }
+      - { kind: http, method: GET, path: "/api/admin/users/{sub}" }
 
   CreateAdminUser:
     description: 管理者が password_policy を満たす初期パスワードでユーザーを作成する。
@@ -2626,7 +2653,7 @@ interfaces:
     errors: [InvalidRequestError, AccessDeniedError]
     emits: [UserCreated]
     bindings:
-      - { kind: http, method: POST, path: /admin/users, request_form: body, successful_status_codes: ["201"] }
+      - { kind: http, method: POST, path: /api/admin/users, request_form: body, successful_status_codes: ["201"] }
 
   UpdateAdminUser:
     description: 管理者がユーザーのプロフィール、email_verified、roles を更新する。
@@ -2638,7 +2665,7 @@ interfaces:
     errors: [InvalidRequestError, AccessDeniedError]
     emits: [UserUpdated]
     bindings:
-      - { kind: http, method: PATCH, path: "/admin/users/{sub}", request_form: body }
+      - { kind: http, method: PATCH, path: "/api/admin/users/{sub}", request_form: body }
 
   DisableAdminUser:
     description: 管理者がユーザーを無効化し、新規ログインと既存セッション利用を拒否する。
@@ -2647,7 +2674,7 @@ interfaces:
     errors: [InvalidRequestError, AccessDeniedError]
     emits: [UserDisabled]
     bindings:
-      - { kind: http, method: POST, path: "/admin/users/{sub}/disable", successful_status_codes: ["204"] }
+      - { kind: http, method: POST, path: "/api/admin/users/{sub}/disable", successful_status_codes: ["204"] }
 
   EnableAdminUser:
     description: 管理者が無効化済みユーザーを再有効化する。
@@ -2656,7 +2683,7 @@ interfaces:
     errors: [InvalidRequestError, AccessDeniedError]
     emits: [UserEnabled]
     bindings:
-      - { kind: http, method: POST, path: "/admin/users/{sub}/enable", successful_status_codes: ["204"] }
+      - { kind: http, method: POST, path: "/api/admin/users/{sub}/enable", successful_status_codes: ["204"] }
 
   ListAdminClients:
     description: 管理者が所属テナントの client を一覧する。
@@ -2665,7 +2692,7 @@ interfaces:
     errors: [AccessDeniedError]
     read_only: true
     bindings:
-      - { kind: http, method: GET, path: /admin/clients }
+      - { kind: http, method: GET, path: /api/admin/clients }
 
   GetAdminClient:
     description: 管理者が所属テナントの client を取得する。別テナントの client は未存在として扱う。
@@ -2676,7 +2703,7 @@ interfaces:
     errors: [InvalidRequestError, AccessDeniedError]
     read_only: true
     bindings:
-      - { kind: http, method: GET, path: "/admin/clients/{client_id}" }
+      - { kind: http, method: GET, path: "/api/admin/clients/{client_id}" }
 
   CreateAdminClient:
     description: 管理者が所属テナントに client を作成する。
@@ -2687,7 +2714,7 @@ interfaces:
     errors: [InvalidRequestError, AccessDeniedError]
     emits: [AdminClientCreated]
     bindings:
-      - { kind: http, method: POST, path: /admin/clients, request_form: body, successful_status_codes: ["201"] }
+      - { kind: http, method: POST, path: /api/admin/clients, request_form: body, successful_status_codes: ["201"] }
 
   UpdateAdminClient:
     description: 管理者が所属テナントの client metadata を更新する。
@@ -2699,7 +2726,7 @@ interfaces:
     errors: [InvalidRequestError, AccessDeniedError]
     emits: [AdminClientUpdated]
     bindings:
-      - { kind: http, method: PATCH, path: "/admin/clients/{client_id}", request_form: body }
+      - { kind: http, method: PATCH, path: "/api/admin/clients/{client_id}", request_form: body }
 
   DeleteAdminClient:
     description: 管理者が所属テナントの client を削除する。
@@ -2708,7 +2735,38 @@ interfaces:
     errors: [InvalidRequestError, AccessDeniedError]
     emits: [AdminClientDeleted]
     bindings:
-      - { kind: http, method: DELETE, path: "/admin/clients/{client_id}", successful_status_codes: ["204"] }
+      - { kind: http, method: DELETE, path: "/api/admin/clients/{client_id}", successful_status_codes: ["204"] }
+
+  ListAdminConsents:
+    description: 管理者が所属テナントの Consent を監査目的で一覧する。
+    output:
+      response: { type: AdminConsentListResponse }
+    errors: [AccessDeniedError]
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: /admin/consents }
+
+  GetAdminConsent:
+    description: 管理者が所属テナントの Consent を subject と client_id で取得する。別テナントの Consent は未存在として扱う。
+    input:
+      sub:       { type: String }
+      client_id: { type: String }
+    output:
+      consent: { type: AdminConsentResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: "/admin/consents/{sub}/{client_id}" }
+
+  RevokeAdminConsent:
+    description: 管理者が所属テナントの Consent を論理撤回する。管理者による Consent の作成・scope 拡張は許可しない。
+    input:
+      sub:       { type: String }
+      client_id: { type: String }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [ConsentRevoked]
+    bindings:
+      - { kind: http, method: DELETE, path: "/admin/consents/{sub}/{client_id}", successful_status_codes: ["204"] }
 
   ResolveTenant:
     description: |
@@ -3516,6 +3574,22 @@ scenarios:
       - 'tenant_id "default" の管理者が client_id "portal" を取得する'
       - 'エラー "InvalidRequestError"'
 
+  管理者は所属テナントの同意を参照・撤回できるが付与は代行できない:
+    steps:
+      - 'tenant_id "acme" の roles=["admin"] のユーザー "operator" が認証済みである'
+      - 'tenant_id "acme" のユーザー "alice" と client "portal" の Consent が Granted で存在する'
+      - '管理者 "operator" が Consent 一覧と単一 Consent を取得する'
+      - '管理者 "operator" がユーザー "alice" と client "portal" の Consent を撤回する'
+      - 'Consent の state は Revoked で revoked_at が記録される'
+      - '"ConsentRevoked" が actorSub "operator" で発行される'
+      - '管理者が Consent を作成または scope 拡張する interface は存在しない'
+
+  管理 consent API は別テナントの同意を公開しない:
+    steps:
+      - 'tenant_id "acme" のユーザー "alice" と client "portal" の Consent が存在する'
+      - 'tenant_id "default" の管理者が同じ sub と client_id の Consent を取得する'
+      - 'エラー "InvalidRequestError"'
+
   管理者は管理画面で client を作成・編集・削除できる:
     steps:
       - 'roles=["admin"] のユーザー "operator" が管理画面のアプリケーション一覧を開く'
@@ -3724,6 +3798,18 @@ permissions:
     actor: User
     action: AdminClientsManage
     resource: OAuth2Client
+    allow_when:
+      and:
+        - "admin in actor.roles"
+        - "actor.disabled_at == null"
+        - "context.authenticated == true"
+        - "actor.tenant_id == resource.tenant_id"
+
+  AdminConsentsManage:
+    description: 所属テナント内の Consent 一覧・取得・撤回。同意の付与と scope 拡張は ResourceOwner に限定する。
+    actor: User
+    action: AdminConsentsManage
+    resource: Consent
     allow_when:
       and:
         - "admin in actor.roles"
@@ -4304,7 +4390,7 @@ user_experience:
     - id: UX-TRANSACTION-BOUND
       category: security
       adoption: required
-      statement: Login、Totp、Consentは有効なHttpOnly authorization transaction cookieなしでは表示も送信もできない。
+      statement: Consentは有効なHttpOnly authorization transaction cookieなしでは表示も送信もできない。LoginとTotpは通常同cookieに拘束し、管理画面への直接ログイン時だけ同一realmの/admin配下へ検証済みreturn_toで継続できる。
       screens: [Login, Totp, Consent]
       interfaces: [GetBrowserTransaction, SubmitBrowserLogin, SubmitBrowserTotp, SubmitBrowserConsent]
       standards: [RFC9700]
@@ -4742,11 +4828,20 @@ annotations:
       status: covered
       evidence:
         - { file: ../ra-idp-go/internal/adapters/http/admin_client_handler_test.go, test: TestAdminClientCannotCrossTenantBoundary }
+    "管理者は所属テナントの同意を参照・撤回できるが付与は代行できない":
+      status: covered
+      evidence:
+        - { file: ../ra-idp-go/internal/adapters/http/admin_consent_handler_test.go, test: TestAdminConsentListsGetsAndRevokesWithinTenant }
+    "管理 consent API は別テナントの同意を公開しない":
+      status: covered
+      evidence:
+        - { file: ../ra-idp-go/internal/adapters/http/admin_consent_handler_test.go, test: TestAdminConsentRequiresAdminAndHidesOtherTenant }
     "管理者は管理画面で client を作成・編集・削除できる":
       status: covered
       evidence:
         - { file: ../ra-idp-go/ui/src/pages/AdminClientsPage.tsx, test: handleSubmit }
         - { file: ../ra-idp-go/ui/src/pages/AdminClientsPage.tsx, test: handleDelete }
+        - { file: ui/src/pages/AdminClientsPage.tsx, test: AdminClientsPage }
     "default テナントは起動時に自動作成され削除不可":
       status: covered
       evidence:

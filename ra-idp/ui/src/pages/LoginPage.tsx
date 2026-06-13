@@ -32,8 +32,9 @@ export function LoginPage() {
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
+    if (ctx.returnTo) return
     let active = true
-    loadBrowserTransaction()
+    loadBrowserTransaction(ctx.basePath)
       .then((transaction) => {
         if (!active) return
         if (transaction.kind === 'totp') {
@@ -52,20 +53,20 @@ export function LoginPage() {
     return () => {
       active = false
     }
-  }, [m.login.invalidRequestBody])
+  }, [ctx.basePath, ctx.returnTo, m.login.invalidRequestBody])
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
     setError(null)
     setSubmitting(true)
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await fetch(`${ctx.basePath}/api/auth/login`, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
           'X-CSRF-Token': csrf,
         },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username, password, return_to: ctx.returnTo || undefined }),
         credentials: 'same-origin',
       })
       if (res.ok) {
@@ -108,7 +109,7 @@ export function LoginPage() {
             noValidate
             aria-describedby={error ? errorId : undefined}
           >
-            {!csrf ? (
+            {!csrf && !ctx.returnTo ? (
               <Alert>
                 <IconInfoCircle className="h-4 w-4" aria-hidden />
                 <AlertTitle>{m.login.invalidRequestTitle}</AlertTitle>

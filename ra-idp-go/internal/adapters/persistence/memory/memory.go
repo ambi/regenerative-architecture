@@ -288,14 +288,43 @@ func NewConsentRepository() *ConsentRepository {
 func (r *ConsentRepository) Find(_ context.Context, tenantID, sub, clientID string) (*spec.Consent, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	return r.consents[consentKey(tenantID, sub, clientID)], nil
+	consent := r.consents[consentKey(tenantID, sub, clientID)]
+	if consent == nil {
+		return nil, nil
+	}
+	cloned := *consent
+	cloned.Scopes = slices.Clone(consent.Scopes)
+	return &cloned, nil
+}
+
+func (r *ConsentRepository) FindAll(_ context.Context, tenantID string) ([]*spec.Consent, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	out := make([]*spec.Consent, 0)
+	for _, consent := range r.consents {
+		if consent.TenantID != tenantID {
+			continue
+		}
+		cloned := *consent
+		cloned.Scopes = slices.Clone(consent.Scopes)
+		out = append(out, &cloned)
+	}
+	slices.SortFunc(out, func(a, b *spec.Consent) int {
+		if a.Sub != b.Sub {
+			return strings.Compare(a.Sub, b.Sub)
+		}
+		return strings.Compare(a.ClientID, b.ClientID)
+	})
+	return out, nil
 }
 
 func (r *ConsentRepository) Save(_ context.Context, c *spec.Consent) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	defaultTenant(&c.TenantID)
-	r.consents[consentKey(c.TenantID, c.Sub, c.ClientID)] = c
+	cloned := *c
+	defaultTenant(&cloned.TenantID)
+	cloned.Scopes = slices.Clone(c.Scopes)
+	r.consents[consentKey(cloned.TenantID, cloned.Sub, cloned.ClientID)] = &cloned
 	return nil
 }
 

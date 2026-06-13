@@ -31,16 +31,17 @@ export function TotpPage() {
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
+    if (ctx.returnTo) return
     let active = true
-    loadBrowserTransaction()
+    loadBrowserTransaction(ctx.basePath)
       .then((transaction) => {
         if (!active) return
         if (transaction.kind === 'login') {
-          window.location.assign('/login')
+          window.location.assign(`${ctx.basePath}/login`)
           return
         }
         if (transaction.kind === 'consent') {
-          window.location.assign('/consent')
+          window.location.assign(`${ctx.basePath}/consent`)
           return
         }
         setCsrf(transaction.csrf_token)
@@ -51,7 +52,7 @@ export function TotpPage() {
     return () => {
       active = false
     }
-  }, [m.totp.errorBody])
+  }, [ctx.basePath, ctx.returnTo, m.totp.errorBody])
 
   function onChange(e: ChangeEvent<HTMLInputElement>) {
     setCode(e.target.value.replace(/\D/g, '').slice(0, 6))
@@ -67,13 +68,13 @@ export function TotpPage() {
     setError(null)
     setSubmitting(true)
     try {
-      const res = await fetch('/api/auth/totp', {
+      const res = await fetch(`${ctx.basePath}/api/auth/totp`, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
           'X-CSRF-Token': csrf,
         },
-        body: JSON.stringify({ code }),
+        body: JSON.stringify({ code, return_to: ctx.returnTo || undefined }),
         credentials: 'same-origin',
       })
       if (res.ok) {

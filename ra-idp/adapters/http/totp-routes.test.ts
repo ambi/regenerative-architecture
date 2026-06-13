@@ -229,6 +229,52 @@ async function passwordLogin(
 }
 
 describe('totp routes — login flow integration', () => {
+  it('管理画面への直接ログインでも TOTP 後に return_to へ進む', async () => {
+    const { app } = await setup()
+    const loginPage = await app.request('http://idp.example.com/login?return_to=%2Fadmin%2Fusers')
+    const loginCsrf = extractInput(await loginPage.text(), 'csrf')
+    const loginCsrfCookie = loginPage.headers.get('set-cookie') ?? ''
+    const login = await app.request('http://idp.example.com/api/auth/login', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-csrf-token': loginCsrf,
+        cookie: loginCsrfCookie,
+      },
+      body: JSON.stringify({
+        username: 'alice',
+        password: 'pw',
+        return_to: '/admin/users',
+      }),
+    })
+    expect(login.status).toBe(200)
+    expect(await login.clone().json()).toEqual({
+      next: '/totp?return_to=%2Fadmin%2Fusers',
+    })
+    const sessionCookie =
+      login.headers.getSetCookie().find((value) => value.startsWith('ra_idp_session=')) ?? ''
+
+    const totpPage = await app.request('http://idp.example.com/totp?return_to=%2Fadmin%2Fusers', {
+      headers: { cookie: sessionCookie },
+    })
+    const totpCsrf = extractInput(await totpPage.text(), 'csrf')
+    const totpCsrfCookie = totpPage.headers.get('set-cookie') ?? ''
+    const verify = await app.request('http://idp.example.com/api/auth/totp', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-csrf-token': totpCsrf,
+        cookie: `${sessionCookie}; ${totpCsrfCookie}`,
+      },
+      body: JSON.stringify({
+        code: generateTotp(TOTP_SECRET, Math.floor(Date.now() / 1000)),
+        return_to: '/admin/users',
+      }),
+    })
+    expect(verify.status).toBe(200)
+    expect(await verify.json()).toEqual({ next: '/admin/users' })
+  })
+
   it('mfa_enrolled なユーザは password 成功後 /totp にリダイレクトされる', async () => {
     const { app } = await setup()
     const start = await app.request(authorizeUrl())

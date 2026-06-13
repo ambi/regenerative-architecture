@@ -102,6 +102,9 @@ func registerTenantRoutes(g *echo.Group, d Deps) {
 	g.POST("/admin/clients", d.handleCreateAdminClient)
 	g.PATCH("/admin/clients/:client_id", d.handleUpdateAdminClient)
 	g.DELETE("/admin/clients/:client_id", d.handleDeleteAdminClient)
+	g.GET("/admin/consents", d.handleListAdminConsents)
+	g.GET("/admin/consents/:sub/:client_id", d.handleGetAdminConsent)
+	g.DELETE("/admin/consents/:sub/:client_id", d.handleRevokeAdminConsent)
 	g.GET("/api/admin/users", d.handleListAdminUsers)
 	g.GET("/api/admin/users/:sub", d.handleGetAdminUser)
 	g.POST("/api/admin/users", d.handleCreateAdminUser)
@@ -113,4 +116,7 @@ func registerTenantRoutes(g *echo.Group, d Deps) {
 	g.POST("/api/admin/clients", d.handleCreateAdminClient)
 	g.PATCH("/api/admin/clients/:client_id", d.handleUpdateAdminClient)
 	g.DELETE("/api/admin/clients/:client_id", d.handleDeleteAdminClient)
+	g.GET("/api/admin/consents", d.handleListAdminConsents)
+	g.GET("/api/admin/consents/:sub/:client_id", d.handleGetAdminConsent)
+	g.DELETE("/api/admin/consents/:sub/:client_id", d.handleRevokeAdminConsent)
 }

@@ -23,6 +23,8 @@ export default defineConfig({
       // SPA が描画する画面 (login / consent / device / end_session) は
       // バックエンドが shell + meta を返す。Vite の dev 環境でもバックエンドを
       // 経由させることで CSRF Cookie と request_id を統一的に受け取れる。
+      // shell が参照する dist の bundle / CSS もバックエンド経由で取得する。
+      '/assets': 'http://localhost:3000',
       '/login': 'http://localhost:3000',
       '/totp': 'http://localhost:3000',
       '/consent': 'http://localhost:3000',
@@ -30,6 +32,7 @@ export default defineConfig({
       '/forgot_password': 'http://localhost:3000',
       '/reset_password': 'http://localhost:3000',
       '/account': 'http://localhost:3000',
+      '/admin': 'http://localhost:3000',
       '/authorize': 'http://localhost:3000',
       '/end_session': 'http://localhost:3000',
       '/api': 'http://localhost:3000',

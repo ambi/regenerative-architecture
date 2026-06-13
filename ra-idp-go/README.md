@@ -12,6 +12,7 @@ TS 側と同じスコープを目標に実装した:
 - メールによるパスワードリセット + 単発・30分TTLトークン (ADR-030)
 - RBACで保護された管理ユーザーAPI (`/admin/users`) + ユーザー無効化 (ADR-031)
 - テナント内に閉じた管理クライアント CRUD (`/admin/clients`)
+- テナント内に閉じた管理 consent 参照・撤回 API (`/admin/consents`)
 - `/realms/{tenant_id}` による tenant 分離、tenant 管理 API、tenant-scoped persistence (ADR-032〜034)
 - トークンエンドポイント `/token` (authorization_code, refresh_token, client_credentials, device_code)
 - リフレッシュトークンのローテーション + ファミリー失効 (ADR-004)

@@ -27,13 +27,14 @@ import {
   createCsrfToken,
   csrfCookie,
   sessionCookie,
+  validatedAdminReturnTo,
   WebSecurityError,
 } from '../../src/shared/web-security'
 import { oauthErrorResponse } from './error-response'
 import { extractClientIp } from './extract-client-ip'
 import { renderShell } from './spa-shell'
 import { noStoreJSON, transactionIdFromCookie } from './browser-transaction'
-import { requestTenantId } from './middleware/tenant-middleware'
+import { requestTenantId, tenantCookiePath, tenantRoute } from './middleware/tenant-middleware'
 
 export interface AuthenticationRoutesDeps {
   userRepo: UserRepository
@@ -56,7 +57,13 @@ export function createAuthenticationRoutes(deps: AuthenticationRoutesDeps) {
   app.get('/login', (c) => {
     const requestId =
       transactionIdFromCookie(c.req.header('Cookie')) || c.req.query('request_id') || ''
-    return loginRequiredResponse(requestId, c.req.header('accept-language'))
+    const returnTo = validatedAdminReturnTo(c.req.query('return_to'), tenantRoute(c, '/admin'))
+    return loginRequiredResponse(
+      requestId,
+      c.req.header('accept-language'),
+      returnTo,
+      tenantRoute(c, ''),
+    )
   })
 
   app.post('/api/auth/login', async (c) => {
@@ -66,7 +73,11 @@ export function createAuthenticationRoutes(deps: AuthenticationRoutesDeps) {
       const username = typeof body?.username === 'string' ? body.username : ''
       const password = typeof body?.password === 'string' ? body.password : ''
       const requestId = transactionIdFromCookie(c.req.header('Cookie'))
-      if (!requestId) {
+      const returnTo = validatedAdminReturnTo(
+        typeof body?.return_to === 'string' ? body.return_to : undefined,
+        tenantRoute(c, '/admin'),
+      )
+      if (!requestId && !returnTo) {
         return noStoreJSON(c, 401, {
           error: 'transaction_unavailable',
           message: '認可トランザクションがありません',
@@ -84,6 +95,8 @@ export function createAuthenticationRoutes(deps: AuthenticationRoutesDeps) {
         clientIp,
         c.req.header('accept-language'),
         true,
+        returnTo,
+        tenantCookiePath(c),
       )
       return response
     } catch (e) {
@@ -115,6 +128,8 @@ export function createAuthenticationRoutes(deps: AuthenticationRoutesDeps) {
         clientIp,
         c.req.header('accept-language'),
         false,
+        undefined,
+        tenantCookiePath(c),
       )
       // CSRF Cookie はクリアしない。次のページ（consent / totp）が新しい CSRF Cookie を
       // 同じ名前でセットするため、ここで Max-Age=0 を append するとブラウザが
@@ -141,6 +156,8 @@ async function completePasswordLogin(
   clientIp: string | null,
   acceptLanguage?: string,
   browserAPI = false,
+  returnTo?: string,
+  cookiePath = '/',
 ): Promise<Response> {
   const normalizedUsername = username.toLowerCase()
   const now = new Date()
@@ -174,7 +191,7 @@ async function completePasswordLogin(
       username,
       reason: 'invalid_credentials',
     })
-    return loginRequiredResponse(requestId, acceptLanguage)
+    return loginRequiredResponse(requestId, acceptLanguage, returnTo)
   }
 
   // ADR-031: disabled_at が立った user は password が正しくても弾く。
@@ -187,7 +204,7 @@ async function completePasswordLogin(
       username,
       reason: 'account_disabled',
     })
-    return loginRequiredResponse(requestId, acceptLanguage)
+    return loginRequiredResponse(requestId, acceptLanguage, returnTo)
   }
 
   // 成功: per-account のみクリア (ADR-029)。per-IP は時間で自然失効させる。
@@ -206,16 +223,22 @@ async function completePasswordLogin(
 
   const response = needsSecondFactor
     ? browserAPI
-      ? browserFlowJSON({ next: '/totp' })
+      ? browserFlowJSON({
+          next: returnTo
+            ? `${cookiePath === '/' ? '' : cookiePath}/totp?return_to=${encodeURIComponent(returnTo)}`
+            : `${cookiePath === '/' ? '' : cookiePath}/totp`,
+        })
       : new Response(null, { status: 303, headers: { location: '/totp' } })
-    : await deps.continuation.continueAfterLogin(requestId, context, {
-        promptLoginSatisfied: true,
-        acceptLanguage,
-      })
+    : returnTo
+      ? browserFlowJSON({ next: returnTo })
+      : await deps.continuation.continueAfterLogin(requestId, context, {
+          promptLoginSatisfied: true,
+          acceptLanguage,
+        })
   if (context.session_id) {
     response.headers.append(
       'set-cookie',
-      sessionCookie(SESSION_COOKIE, context.session_id, SESSION_TTL_SECONDS),
+      sessionCookie(SESSION_COOKIE, context.session_id, SESSION_TTL_SECONDS, cookiePath),
     )
   }
   return browserAPI ? responseToBrowserFlow(response) : response
@@ -311,7 +334,12 @@ function throttledResponse(retryAfterSeconds: number, browserAPI: boolean): Resp
   })
 }
 
-export function loginRequiredResponse(requestId: string, acceptLanguage?: string): Response {
+export function loginRequiredResponse(
+  requestId: string,
+  acceptLanguage?: string,
+  returnTo?: string,
+  basePath = '',
+): Response {
   const csrf = createCsrfToken()
   // SPA shell + 隠しフォーム (no-JS / テスト fallback)。
   // POST /api/auth/login は X-CSRF-Token、no-JS/form fallback の POST /login は
@@ -319,7 +347,12 @@ export function loginRequiredResponse(requestId: string, acceptLanguage?: string
   const html = renderShell({
     page: 'login',
     title: 'サインイン',
-    meta: { 'request-id': requestId, csrf },
+    meta: {
+      'request-id': requestId,
+      csrf,
+      ...(returnTo ? { 'return-to': returnTo } : {}),
+      'base-path': basePath,
+    },
     fallbackForm: {
       action: '/login',
       fields: { request_id: requestId, csrf },
@@ -330,7 +363,7 @@ export function loginRequiredResponse(requestId: string, acceptLanguage?: string
     status: 401,
     headers: {
       'content-type': 'text/html; charset=UTF-8',
-      'set-cookie': csrfCookie(csrf),
+      'set-cookie': csrfCookie(csrf, basePath || '/'),
     },
   })
 }

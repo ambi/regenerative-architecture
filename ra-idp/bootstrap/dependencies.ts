@@ -20,6 +20,8 @@ import { InMemoryRefreshTokenStore } from '../adapters/persistence/memory/refres
 import { InMemoryDpopReplayStore } from '../adapters/persistence/memory/dpop-replay-store'
 import { InMemoryAccessTokenDenylist } from '../adapters/persistence/memory/access-token-denylist'
 import { HmacDpopNonceService } from '../adapters/crypto/hmac-dpop-nonce-service'
+import { NoopBreachedPasswordChecker } from '../adapters/policy/noop-breached-password-checker'
+import { HibpBreachedPasswordChecker } from '../adapters/policy/hibp-breached-password-checker'
 import { InMemoryClientAssertionReplayStore } from '../adapters/persistence/memory/client-assertion-replay-store'
 import { InMemoryDeviceCodeStore } from '../adapters/persistence/memory/device-code-store'
 import { InMemorySessionStore } from '../adapters/persistence/memory/session-store'
@@ -30,6 +32,7 @@ import type { AccessTokenDenylist } from '../src/oauth2/ports/access-token-denyl
 import type { DpopNonceService } from '../src/oauth2/ports/dpop-nonce-service'
 import type { ClientRepository } from '../src/oauth2/ports/client-repository'
 import type { UserRepository } from '../src/authentication/ports/user-repository'
+import type { BreachedPasswordChecker } from '../src/authentication/ports/breached-password-checker'
 import type { PasswordHistoryRepository } from '../src/authentication/ports/password-history-repository'
 import type { MfaFactorRepository } from '../src/authentication/ports/mfa-factor-repository'
 import type { ConsentRepository } from '../src/oauth2/ports/consent-repository'
@@ -53,6 +56,7 @@ export interface AssembledDeps {
   clientRepo: ClientRepository
   userRepo: UserRepository
   passwordHistoryRepo: PasswordHistoryRepository
+  breachedPasswordChecker: BreachedPasswordChecker
   mfaFactorRepo: MfaFactorRepository
   consentRepo: ConsentRepository
   requestStore: AuthorizationRequestStore
@@ -73,12 +77,14 @@ export interface AssembledDeps {
 const DPOP_NONCE_TTL_SECONDS = 60
 
 export async function assemble(config: RuntimeConfig): Promise<AssembledDeps> {
+  const breachedPasswordChecker = makeBreachedPasswordChecker()
   if (config.persistenceMode === 'memory') {
     const consoleSink = new ConsoleEventSink({ collect: true })
     return {
       clientRepo: new InMemoryClientRepository(),
       userRepo: new InMemoryUserRepository(),
       passwordHistoryRepo: new InMemoryPasswordHistoryRepository(),
+      breachedPasswordChecker,
       mfaFactorRepo: new InMemoryMfaFactorRepository(),
       consentRepo: new InMemoryConsentRepository(),
       requestStore: new InMemoryAuthorizationRequestStore(),
@@ -146,6 +152,7 @@ export async function assemble(config: RuntimeConfig): Promise<AssembledDeps> {
     clientRepo: new PostgresClientRepository(pool),
     userRepo: new PostgresUserRepository(pool),
     passwordHistoryRepo: new PostgresPasswordHistoryRepository(pool),
+    breachedPasswordChecker,
     // TOTP factor は Postgres スキーマ未導入のため当面 in-memory。永続化が必要に
     // なった時点で Postgres 実装を追加し、ここで差し替える。
     mfaFactorRepo: new InMemoryMfaFactorRepository(),
@@ -163,6 +170,15 @@ export async function assemble(config: RuntimeConfig): Promise<AssembledDeps> {
     dpopNonceService: makeDpopNonceService(),
     eventSink,
   }
+}
+
+function makeBreachedPasswordChecker(): BreachedPasswordChecker {
+  // ADR-028。`BREACHED_PASSWORD_CHECKER=hibp` のとき HIBP Range API を使う。
+  // 未指定 / それ以外は Noop（in-memory / オフライン起動の既定）。
+  if (process.env.BREACHED_PASSWORD_CHECKER === 'hibp') {
+    return new HibpBreachedPasswordChecker()
+  }
+  return new NoopBreachedPasswordChecker()
 }
 
 function makeDpopNonceService(): DpopNonceService {

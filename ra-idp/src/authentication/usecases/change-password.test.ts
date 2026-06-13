@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import { Argon2idPasswordHasher } from '../../../adapters/crypto/argon2id-password-hasher'
 import { InMemoryPasswordHistoryRepository } from '../../../adapters/persistence/memory/password-history-repo'
 import { InMemoryUserRepository } from '../../../adapters/persistence/memory/user-repo'
+import type { BreachedPasswordChecker } from '../ports/breached-password-checker'
 import type { DomainEvent, User } from '../../spec-bindings/schemas'
 import {
   CurrentPasswordMismatchError,
@@ -164,5 +165,67 @@ describe('changePassword', () => {
         { sub: 'ghost', current_password: 'demo-password-1234', new_password: 'fresh-pass-9182' },
       ),
     ).rejects.toBeInstanceOf(UserNotFoundError)
+  })
+
+  it('breachedPasswordChecker がヒットを返したら PasswordPolicyError([breached])', async () => {
+    const h = await setupUser('demo-password-1234')
+    const seen: string[] = []
+    const breachedPasswordChecker: BreachedPasswordChecker = {
+      async isBreached(plain) {
+        seen.push(plain)
+        return plain === 'leaked-password-9999'
+      },
+    }
+    await expect(
+      changePassword(
+        { ...h, emit: (e) => h.events.push(e), breachedPasswordChecker },
+        {
+          sub: h.sub,
+          current_password: 'demo-password-1234',
+          new_password: 'leaked-password-9999',
+        },
+      ),
+    ).rejects.toMatchObject({
+      name: 'PasswordPolicyError',
+      violations: ['breached'],
+    })
+    expect(seen).toEqual(['leaked-password-9999'])
+    expect(h.events).toEqual([])
+  })
+
+  it('breachedPasswordChecker が false を返せば従来通り成功する', async () => {
+    const h = await setupUser('demo-password-1234')
+    const breachedPasswordChecker: BreachedPasswordChecker = {
+      async isBreached() {
+        return false
+      },
+    }
+    const updated = await changePassword(
+      { ...h, emit: (e) => h.events.push(e), breachedPasswordChecker },
+      {
+        sub: h.sub,
+        current_password: 'demo-password-1234',
+        new_password: 'fresh-pass-9182',
+      },
+    )
+    expect(await h.passwordHasher.verify('fresh-pass-9182', updated.password_hash)).toBe(true)
+  })
+
+  it('bundled policy 違反があるときは breachedPasswordChecker を呼ばない (早期失敗)', async () => {
+    const h = await setupUser('demo-password-1234')
+    let called = false
+    const breachedPasswordChecker: BreachedPasswordChecker = {
+      async isBreached() {
+        called = true
+        return true
+      },
+    }
+    await expect(
+      changePassword(
+        { ...h, emit: (e) => h.events.push(e), breachedPasswordChecker },
+        { sub: h.sub, current_password: 'demo-password-1234', new_password: 'short' },
+      ),
+    ).rejects.toBeInstanceOf(PasswordPolicyError)
+    expect(called).toBe(false)
   })
 })

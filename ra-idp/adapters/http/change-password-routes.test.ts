@@ -10,6 +10,7 @@ import { InMemoryPasswordHistoryRepository } from '../persistence/memory/passwor
 import { InMemorySessionStore } from '../persistence/memory/session-store'
 import { InMemoryUserRepository } from '../persistence/memory/user-repo'
 import { Argon2idPasswordHasher } from '../crypto/argon2id-password-hasher'
+import { NoopBreachedPasswordChecker } from '../policy/noop-breached-password-checker'
 import { LoginSessionManager } from '../../src/authentication/usecases/session-manager'
 import { UserSchema, type DomainEvent } from '../../src/spec-bindings/schemas'
 
@@ -42,6 +43,7 @@ async function setup() {
       userRepo,
       passwordHasher,
       passwordHistoryRepo,
+      breachedPasswordChecker: new NoopBreachedPasswordChecker(),
       emit,
     }),
   )

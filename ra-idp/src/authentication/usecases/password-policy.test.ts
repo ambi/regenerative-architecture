@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 
+import type { BreachedPasswordChecker } from '../ports/breached-password-checker'
 import { COMMON_PASSWORDS } from './common-passwords'
-import { PASSWORD_POLICY, validatePassword } from './password-policy'
+import { PASSWORD_POLICY, validatePassword, validatePasswordAsync } from './password-policy'
 
 describe('password policy — 長さ', () => {
   it('accepts a password at the minimum length', () => {
@@ -82,6 +83,53 @@ describe('password policy — 共通パスワード辞書', () => {
 
   it('passes for a non-dictionary password of sufficient length', () => {
     expect(validatePassword('correct-horse-battery')).toEqual({ ok: true })
+  })
+})
+
+describe('password policy — 漏洩データベース検査 (validatePasswordAsync)', () => {
+  const makeChecker = (breached: boolean): BreachedPasswordChecker => ({
+    async isBreached() {
+      return breached
+    },
+  })
+
+  it('checker 未指定なら同期版と等価', async () => {
+    expect(await validatePasswordAsync('correct-horse-battery')).toEqual({ ok: true })
+    expect(await validatePasswordAsync('short')).toEqual({
+      ok: false,
+      violations: ['too_short'],
+    })
+  })
+
+  it('bundled policy 通過 + checker breached → breached 違反', async () => {
+    const result = await validatePasswordAsync(
+      'correct-horse-battery',
+      undefined,
+      makeChecker(true),
+    )
+    expect(result).toEqual({ ok: false, violations: ['breached'] })
+  })
+
+  it('bundled policy 通過 + checker not breached → ok', async () => {
+    const result = await validatePasswordAsync(
+      'correct-horse-battery',
+      undefined,
+      makeChecker(false),
+    )
+    expect(result).toEqual({ ok: true })
+  })
+
+  it('bundled policy 違反があれば checker を呼ばずに失敗を返す', async () => {
+    let called = false
+    const checker: BreachedPasswordChecker = {
+      async isBreached() {
+        called = true
+        return true
+      },
+    }
+    const result = await validatePasswordAsync('short', undefined, checker)
+    expect(result).toEqual({ ok: false, violations: ['too_short'] })
+    expect(called).toBe(false)
   })
 })
 

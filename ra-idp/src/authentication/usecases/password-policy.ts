@@ -9,6 +9,7 @@
  * rotation は採用しない。詳細は ADR-026 を参照。
  */
 
+import type { BreachedPasswordChecker } from '../ports/breached-password-checker'
 import { COMMON_PASSWORDS } from './common-passwords'
 
 export type PasswordPolicyViolation =
@@ -16,6 +17,7 @@ export type PasswordPolicyViolation =
   | 'too_long'
   | 'similar_to_identifier'
   | 'common_password'
+  | 'breached'
 
 /**
  * 値は SCL `annotations.password_policy` と双子。将来テナント別ポリシー (Phase 4) で
@@ -53,6 +55,24 @@ export function validatePassword(plain: string, context?: PasswordContext): Pass
   if (isSimilarToIdentifier(plain, context)) violations.push('similar_to_identifier')
   if (isCommonPassword(plain)) violations.push('common_password')
   return violations.length === 0 ? { ok: true } : { ok: false, violations }
+}
+
+/**
+ * 同期 `validatePassword` の結果に、外部漏洩データベース検査 (ADR-028) を
+ * 重ねた非同期版。bundled policy で既に違反がある場合は外部 API を呼ばない
+ * （早期失敗）。breachedPasswordChecker 未指定なら同期版と等価。
+ */
+export async function validatePasswordAsync(
+  plain: string,
+  context?: PasswordContext,
+  breachedPasswordChecker?: BreachedPasswordChecker,
+): Promise<PasswordPolicyResult> {
+  const base = validatePassword(plain, context)
+  if (!base.ok) return base
+  if (!breachedPasswordChecker) return base
+  const breached = await breachedPasswordChecker.isBreached(plain)
+  if (breached) return { ok: false, violations: ['breached'] }
+  return { ok: true }
 }
 
 export class PasswordPolicyError extends Error {

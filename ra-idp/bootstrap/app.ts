@@ -102,6 +102,7 @@ export function composeApp(input: ComposeAppInput): Hono {
       userRepo: deps.userRepo,
       passwordHasher,
       passwordHistoryRepo: deps.passwordHistoryRepo,
+      breachedPasswordChecker: deps.breachedPasswordChecker,
       emit,
     }),
   )

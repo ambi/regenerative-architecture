@@ -3279,10 +3279,12 @@ annotations:
       共通パスワード辞書 (bundled) による拒否を行う。最小12文字は本システム固有ポリシーであり、
       単一要素認証に15文字以上を要求する NIST 推奨への完全準拠は表明しない。HIBP 等の外部
       漏洩データベース検査は password_policy とは別に BreachedPasswordChecker port を
-      経由して行う。change-password 経路では直近 history_depth 件のハッシュと一致する
-      新パスワードを拒否する (invariant PasswordHistoryNoReuse / ADR-027)。本値は将来
-      テナント別ポリシー (Phase 4) で上書き可能になる前提で構造化している。詳細は
-      ADR-026 / ADR-027。
+      経由して行い、ヒットした場合は違反語彙 breached を返す (ADR-028)。既定 adapter は
+      Noop、HIBP Range API adapter は BREACHED_PASSWORD_CHECKER=hibp で opt-in、外部
+      API 失敗時は fail-open する。change-password 経路では直近 history_depth 件の
+      ハッシュと一致する新パスワードを拒否する (invariant PasswordHistoryNoReuse /
+      ADR-027)。本値は将来テナント別ポリシー (Phase 4) で上書き可能になる前提で構造化
+      している。詳細は ADR-026 / ADR-027 / ADR-028。
     min_length: 12
     max_length: 128
     forbid_user_identifier_similarity: true

@@ -13,6 +13,7 @@
 
 import { Hono } from 'hono'
 import type { SessionManager } from '../../src/authentication/usecases/session-manager'
+import type { BreachedPasswordChecker } from '../../src/authentication/ports/breached-password-checker'
 import type { PasswordHasher } from '../../src/authentication/ports/password-hasher'
 import type { UserRepository } from '../../src/authentication/ports/user-repository'
 import type { PasswordHistoryRepository } from '../../src/authentication/ports/password-history-repository'
@@ -38,6 +39,7 @@ export interface ChangePasswordRoutesDeps {
   userRepo: UserRepository
   passwordHasher: PasswordHasher
   passwordHistoryRepo: PasswordHistoryRepository
+  breachedPasswordChecker: BreachedPasswordChecker
   emit: (e: DomainEvent) => void
 }
 
@@ -84,6 +86,7 @@ export function createChangePasswordRoutes(deps: ChangePasswordRoutesDeps) {
           userRepo: deps.userRepo,
           passwordHasher: deps.passwordHasher,
           historyRepo: deps.passwordHistoryRepo,
+          breachedPasswordChecker: deps.breachedPasswordChecker,
           emit: deps.emit,
         },
         { sub: context.sub, current_password: current, new_password: next },

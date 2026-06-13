@@ -13,10 +13,11 @@
  */
 
 import type { DomainEvent, User } from '../../spec-bindings/schemas'
+import type { BreachedPasswordChecker } from '../ports/breached-password-checker'
 import type { PasswordHasher } from '../ports/password-hasher'
 import type { PasswordHistoryRepository } from '../ports/password-history-repository'
 import type { UserRepository } from '../ports/user-repository'
-import { PASSWORD_POLICY, PasswordPolicyError, validatePassword } from './password-policy'
+import { PASSWORD_POLICY, PasswordPolicyError, validatePasswordAsync } from './password-policy'
 
 export class CurrentPasswordMismatchError extends Error {
   constructor() {
@@ -46,6 +47,8 @@ export interface ChangePasswordDeps {
   emit: (e: DomainEvent) => void
   /** 将来テナント別ポリシーで上書きする際の差し込み点。省略時は global default。 */
   historyDepth?: number
+  /** ADR-028。省略時は漏洩検査をスキップする（bundled policy のみ）。 */
+  breachedPasswordChecker?: BreachedPasswordChecker
 }
 
 export interface ChangePasswordInput {
@@ -65,10 +68,11 @@ export async function changePassword(
   const currentOk = await deps.passwordHasher.verify(input.current_password, user.password_hash)
   if (!currentOk) throw new CurrentPasswordMismatchError()
 
-  const result = validatePassword(input.new_password, {
-    username: user.preferred_username,
-    email: user.email,
-  })
+  const result = await validatePasswordAsync(
+    input.new_password,
+    { username: user.preferred_username, email: user.email },
+    deps.breachedPasswordChecker,
+  )
   if (!result.ok) throw new PasswordPolicyError(result.violations)
 
   const depth = deps.historyDepth ?? PASSWORD_POLICY.historyDepth

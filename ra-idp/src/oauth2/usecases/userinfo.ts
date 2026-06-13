@@ -52,6 +52,10 @@ export async function userInfoUseCase(
   if (!user) {
     throw new OAuthError('invalid_request', 'ユーザーが存在しません')
   }
+  if (user.disabled_at) {
+    // ADR-031: 無効化された user の UserInfo は invalid_token 相当で拒否する。
+    throw new OAuthError('invalid_token', 'ユーザーは無効化されています')
+  }
 
   const res: UserInfoResponse = { sub: user.sub }
 

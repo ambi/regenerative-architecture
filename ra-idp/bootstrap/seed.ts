@@ -69,6 +69,9 @@ export async function seedDemoData(
     email: 'alice@example.com',
     email_verified: true,
     mfa_enrolled: !!demoTotpSecret,
+    // ADR-031: デモ環境では alice に admin ロールを付与し、/admin/users を試せるようにする。
+    // 本番では明示的な bootstrap 手順で admin ユーザーを作成する。
+    roles: ['admin'],
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   })

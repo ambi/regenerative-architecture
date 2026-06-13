@@ -173,6 +173,19 @@ async function completePasswordLogin(
     return loginRequiredResponse(requestId, acceptLanguage)
   }
 
+  // ADR-031: disabled_at が立った user は password が正しくても弾く。
+  // user enumeration を避けるため UI 表面の応答は invalid_credentials と同じだが、
+  // 監査ログでは account_disabled として区別する。
+  if (user.disabled_at) {
+    deps.emit({
+      type: 'AuthenticationFailed',
+      occurredAt: now.toISOString(),
+      username,
+      reason: 'account_disabled',
+    })
+    return loginRequiredResponse(requestId, acceptLanguage)
+  }
+
   // 成功: per-account のみクリア (ADR-029)。per-IP は時間で自然失効させる。
   await deps.loginAttemptThrottle.recordSuccess('account', normalizedUsername)
 

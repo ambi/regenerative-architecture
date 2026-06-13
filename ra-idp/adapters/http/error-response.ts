@@ -29,6 +29,7 @@ const STATUS: Record<OAuthErrorCode, HttpStatus> = {
   slow_down: 400,
   expired_token: 400,
   insufficient_scope: 403,
+  invalid_token: 401,
   not_found: 404,
 }
 

@@ -4,6 +4,7 @@ import type {
   AuthenticationContext,
   AuthenticationContextResolver,
 } from '../domain/authentication-context'
+import type { UserRepository } from '../ports/user-repository'
 import { deriveAcr } from './acr-vocabulary'
 
 export const SESSION_COOKIE = 'ra_idp_session'
@@ -25,7 +26,15 @@ export interface SessionManager extends AuthenticationContextResolver {
 }
 
 export class LoginSessionManager implements SessionManager {
-  constructor(private readonly sessionStore: SessionStore) {}
+  /**
+   * ADR-031: `userRepo` を渡すと `resolve` が user の `disabled_at` を見て、
+   * 無効化されたユーザーの session は副作用付きで失効させ null を返す。
+   * userRepo を渡さない場合 (旧テスト互換) は session 単独の検証のみ行う。
+   */
+  constructor(
+    private readonly sessionStore: SessionStore,
+    private readonly userRepo?: UserRepository,
+  ) {}
 
   async create(
     sub: string,
@@ -84,6 +93,15 @@ export class LoginSessionManager implements SessionManager {
 
     const session = await this.sessionStore.find(sessionId)
     if (!session) return null
+    if (this.userRepo) {
+      const user = await this.userRepo.findBySub(session.sub)
+      if (!user || user.disabled_at) {
+        // ADR-031: 無効化された user の既存セッションは利用できない。
+        // 副作用として session を即時失効させる。
+        await this.sessionStore.delete(session.id)
+        return null
+      }
+    }
     return {
       sub: session.sub,
       auth_time: session.auth_time,

@@ -30,7 +30,7 @@ const SMALL_CONFIGS: LoginThrottleConfigs = {
   ip: { maxFailures: 5, windowSeconds: 60, lockoutSeconds: 60 },
 }
 
-async function setup(options: { trustedForwardedHops?: number } = {}) {
+async function setup(options: { trustedForwardedHops?: number; disableAlice?: boolean } = {}) {
   const userRepo = new InMemoryUserRepository()
   const sessionStore = new InMemorySessionStore()
   const sessionManager = new LoginSessionManager(sessionStore)
@@ -57,6 +57,7 @@ async function setup(options: { trustedForwardedHops?: number } = {}) {
       password_hash: await passwordHasher.hash('correct-password-1'),
       email_verified: true,
       mfa_enrolled: false,
+      ...(options.disableAlice ? { disabled_at: '2024-02-01T00:00:00.000Z' } : {}),
       created_at: '2024-01-01T00:00:00.000Z',
       updated_at: '2024-01-01T00:00:00.000Z',
     }),
@@ -199,6 +200,21 @@ describe('login throttle — per-IP', () => {
     }
     const thrown = events.filter((e) => e.type === 'LoginThrottled')
     expect(thrown).toHaveLength(0)
+  })
+})
+
+describe('disabled user (ADR-031)', () => {
+  it('正しい password でも disabled なら 401 を返し account_disabled を emit する', async () => {
+    const { app, events } = await setup({ disableAlice: true })
+    const res = await postLogin(app, { username: 'alice', password: 'correct-password-1' })
+    expect(res.status).toBe(401)
+    const failed = events.find(
+      (e) =>
+        e.type === 'AuthenticationFailed' &&
+        (e as { reason?: string }).reason === 'account_disabled',
+    )
+    expect(failed).toBeDefined()
+    expect(events.some((e) => e.type === 'UserAuthenticated')).toBe(false)
   })
 })
 

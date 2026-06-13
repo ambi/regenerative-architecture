@@ -13,5 +13,10 @@ export interface UserRepository {
    * email を持たない user は対象外。詳細は ADR-030。
    */
   findByEmail(email: string): Promise<User | null>
+  /**
+   * 全ユーザーを created_at 昇順で返す。管理 API のユーザー一覧 (ADR-031) で使う。
+   * deleted_at が立った user は含めない。
+   */
+  findAll(): Promise<User[]>
   save(user: User): Promise<void>
 }

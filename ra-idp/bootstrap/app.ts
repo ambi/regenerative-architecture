@@ -10,6 +10,7 @@ import { Hono } from 'hono'
 import { JoseTokenSigner } from '../adapters/crypto/jwt-signer'
 import type { Argon2idPasswordHasher } from '../adapters/crypto/argon2id-password-hasher'
 import { createObservabilityMiddleware } from '../adapters/http/middleware/observability-middleware'
+import { createAdminUserRoutes } from '../adapters/http/admin-user-routes'
 import { createAuthenticationRoutes } from '../adapters/http/authentication-routes'
 import { createChangePasswordRoutes } from '../adapters/http/change-password-routes'
 import { createPasswordResetRoutes } from '../adapters/http/password-reset-routes'
@@ -51,7 +52,7 @@ export function composeApp(input: ComposeAppInput): Hono {
   const { config, deps, observer, passwordHasher, emit, sentinelPasswordHash } = input
 
   const tokenSigner = new JoseTokenSigner(config.issuer, deps.keyStore)
-  const sessionManager = new LoginSessionManager(deps.sessionStore)
+  const sessionManager = new LoginSessionManager(deps.sessionStore, deps.userRepo)
   const demoHeaderResolver = new DemoHeaderResolver(deps.userRepo)
   const authenticationContextResolver: AuthenticationContextResolver = {
     async resolve(headers) {
@@ -108,6 +109,16 @@ export function composeApp(input: ComposeAppInput): Hono {
       passwordHasher,
       passwordHistoryRepo: deps.passwordHistoryRepo,
       breachedPasswordChecker: deps.breachedPasswordChecker,
+      emit,
+    }),
+  )
+  app.route(
+    '/',
+    createAdminUserRoutes({
+      sessionManager,
+      userRepo: deps.userRepo,
+      passwordHasher,
+      passwordHistoryRepo: deps.passwordHistoryRepo,
       emit,
     }),
   )

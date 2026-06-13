@@ -3903,19 +3903,24 @@ annotations:
       status: covered
       evidence:
         - { file: ../ra-idp-go/internal/adapters/http/admin_user_handler_test.go, test: "TestAdminUserAPICreatesAndDisablesUser" }
+        - { file: adapters/http/admin-user-routes.test.ts, test: "正常系: ユーザーを作成し UserCreated を emit" }
     "admin ロールを持たないユーザーは管理 API を利用できない":
       status: covered
       evidence:
         - { file: ../ra-idp-go/internal/adapters/http/admin_user_handler_test.go, test: "TestAdminUserAPIRequiresAdminRole" }
+        - { file: adapters/http/admin-user-routes.test.ts, test: "admin でないユーザーは 403" }
     "無効化されたユーザーはログインできない":
       status: covered
       evidence:
         - { file: ../ra-idp-go/internal/adapters/http/admin_user_handler_test.go, test: "TestDisabledUserCannotLogIn" }
+        - { file: adapters/http/authentication-routes.test.ts, test: "正しい password でも disabled なら 401 を返し account_disabled を emit する" }
     "無効化されたユーザーの既存セッションは利用できない":
       status: covered
       evidence:
         - { file: ../ra-idp-go/internal/adapters/http/admin_user_handler_test.go, test: "disabled session status" }
+        - { file: src/authentication/usecases/session-manager.test.ts, test: "userRepo 注入時、disabled user の session は失効させ null を返す" }
     "管理者は無効化したユーザーを再有効化できる":
       status: covered
       evidence:
         - { file: ../ra-idp-go/internal/administration/usecases/users_test.go, test: "TestCreateUpdateAndDisableUser" }
+        - { file: src/administration/usecases/users.test.ts, test: "disable→enable で UserDisabled / UserEnabled を順に emit" }

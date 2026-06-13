@@ -29,8 +29,9 @@ export type OAuthErrorCode =
   | 'authorization_pending'
   | 'slow_down'
   | 'expired_token'
-  // UserInfo (OIDC Core §5.3.3)
+  // UserInfo (OIDC Core §5.3.3) / Bearer Token Usage (RFC 6750 §3.1)
   | 'insufficient_scope'
+  | 'invalid_token'
   // 内部
   | 'not_found'
 

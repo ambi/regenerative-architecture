@@ -25,6 +25,13 @@ export class InMemoryUserRepository implements UserRepository {
     return sub ? this.findBySub(sub) : null
   }
 
+  async findAll(): Promise<User[]> {
+    return [...this.bySub.values()]
+      .filter((u) => !u.deleted_at)
+      .map((u) => ({ ...u }))
+      .sort((a, b) => a.created_at.localeCompare(b.created_at))
+  }
+
   async save(user: User): Promise<void> {
     this.bySub.set(user.sub, { ...user })
     this.byUsername.set(user.preferred_username, user.sub)

@@ -11,6 +11,11 @@ import { UserSchema, type User } from '../../../src/spec-bindings/schemas'
 import type { UserRepository } from '../../../src/authentication/ports/user-repository'
 import type { PgPool } from './pool'
 
+function toIso(value: unknown): string | undefined {
+  if (!value) return undefined
+  return value instanceof Date ? value.toISOString() : String(value)
+}
+
 function rowToUser(row: any): User {
   return UserSchema.parse({
     sub: row.sub,
@@ -22,13 +27,11 @@ function rowToUser(row: any): User {
     email: row.email ?? undefined,
     email_verified: row.email_verified,
     mfa_enrolled: row.mfa_enrolled,
+    roles: Array.isArray(row.roles) ? row.roles : [],
+    disabled_at: toIso(row.disabled_at),
     created_at: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
     updated_at: row.updated_at instanceof Date ? row.updated_at.toISOString() : row.updated_at,
-    deleted_at: row.deleted_at
-      ? row.deleted_at instanceof Date
-        ? row.deleted_at.toISOString()
-        : row.deleted_at
-      : undefined,
+    deleted_at: toIso(row.deleted_at),
   })
 }
 
@@ -59,6 +62,13 @@ export class PostgresUserRepository implements UserRepository {
     return rows[0] ? rowToUser(rows[0]) : null
   }
 
+  async findAll(): Promise<User[]> {
+    const { rows } = await this.pool.query(
+      `SELECT * FROM users WHERE deleted_at IS NULL ORDER BY created_at ASC`,
+    )
+    return rows.map(rowToUser)
+  }
+
   async save(user: User): Promise<void> {
     await this.pool.query(
       `
@@ -66,8 +76,9 @@ export class PostgresUserRepository implements UserRepository {
         sub, preferred_username, password_hash,
         name, given_name, family_name, email,
         email_verified, mfa_enrolled,
+        roles, disabled_at,
         created_at, updated_at, deleted_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       ON CONFLICT (sub) DO UPDATE SET
         preferred_username = EXCLUDED.preferred_username,
         password_hash      = EXCLUDED.password_hash,
@@ -77,6 +88,8 @@ export class PostgresUserRepository implements UserRepository {
         email              = EXCLUDED.email,
         email_verified     = EXCLUDED.email_verified,
         mfa_enrolled       = EXCLUDED.mfa_enrolled,
+        roles              = EXCLUDED.roles,
+        disabled_at        = EXCLUDED.disabled_at,
         updated_at         = EXCLUDED.updated_at,
         deleted_at         = EXCLUDED.deleted_at
       `,
@@ -90,6 +103,8 @@ export class PostgresUserRepository implements UserRepository {
         user.email ?? null,
         user.email_verified,
         user.mfa_enrolled,
+        JSON.stringify(user.roles),
+        user.disabled_at ?? null,
         user.created_at,
         user.updated_at,
         user.deleted_at ?? null,

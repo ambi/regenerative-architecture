@@ -249,7 +249,9 @@ const ruleEvaluators: Record<string, RuleEvaluator> = {
   },
 
   actor_is_admin(req) {
-    return req.subject.type === 'User' && (req.subject.properties?.roles?.includes('admin') ?? false)
+    return (
+      req.subject.type === 'User' && (req.subject.properties?.roles?.includes('admin') ?? false)
+    )
   },
 
   actor_is_active(req) {

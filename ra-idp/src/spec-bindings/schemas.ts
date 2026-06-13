@@ -16,6 +16,50 @@ import {
 } from './grants/grant-types'
 
 // ===============================================================
+// 管理 API (Phase 4 / ADR-031)
+// ===============================================================
+
+export const AdminUserCreateRequestSchema = z.object({
+  preferred_username: z.string().min(1).max(100),
+  password: z.string(),
+  name: z.string().optional(),
+  email: z.string().email().optional(),
+  email_verified: z.boolean().default(false),
+  roles: z.array(z.string()).default([]),
+})
+export type AdminUserCreateRequest = z.infer<typeof AdminUserCreateRequestSchema>
+
+export const AdminUserUpdateRequestSchema = z
+  .object({
+    preferred_username: z.string().min(1).max(100).optional(),
+    name: z.string().optional(),
+    email: z.string().email().optional(),
+    email_verified: z.boolean().optional(),
+    roles: z.array(z.string()).optional(),
+  })
+  .strict()
+export type AdminUserUpdateRequest = z.infer<typeof AdminUserUpdateRequestSchema>
+
+export const AdminUserResponseSchema = z.object({
+  sub: z.string(),
+  preferred_username: z.string(),
+  name: z.string().optional(),
+  email: z.string().email().optional(),
+  email_verified: z.boolean(),
+  mfa_enrolled: z.boolean(),
+  roles: z.array(z.string()),
+  disabled_at: z.string().datetime().optional(),
+  created_at: z.string().datetime(),
+  updated_at: z.string().datetime(),
+})
+export type AdminUserResponse = z.infer<typeof AdminUserResponseSchema>
+
+export const AdminUserListResponseSchema = z.object({
+  users: z.array(AdminUserResponseSchema),
+})
+export type AdminUserListResponse = z.infer<typeof AdminUserListResponseSchema>
+
+// ===============================================================
 // クライアント
 // ===============================================================
 
@@ -443,6 +487,31 @@ export const DomainEventSchema = z.discriminatedUnion('type', [
     occurredAt: isoDate,
     clientId: z.string(),
     sub: z.string().optional(),
+  }),
+  z.object({
+    type: z.literal('UserCreated'),
+    occurredAt: isoDate,
+    actorSub: z.string(),
+    targetSub: z.string(),
+  }),
+  z.object({
+    type: z.literal('UserUpdated'),
+    occurredAt: isoDate,
+    actorSub: z.string(),
+    targetSub: z.string(),
+    changedFields: z.array(z.string()),
+  }),
+  z.object({
+    type: z.literal('UserDisabled'),
+    occurredAt: isoDate,
+    actorSub: z.string(),
+    targetSub: z.string(),
+  }),
+  z.object({
+    type: z.literal('UserEnabled'),
+    occurredAt: isoDate,
+    actorSub: z.string(),
+    targetSub: z.string(),
   }),
 ])
 export type DomainEvent = z.infer<typeof DomainEventSchema>

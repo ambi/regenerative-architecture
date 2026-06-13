@@ -156,6 +156,10 @@ export async function exchangeCodeForTokenUseCase(
   if (!user) {
     throw new OAuthError('server_error', 'ユーザーが存在しません')
   }
+  if (user.disabled_at) {
+    // ADR-031: 無効化された user のためのトークン発行を拒否する。
+    throw new OAuthError('invalid_grant', 'ユーザーは無効化されています')
+  }
 
   // access_token (JWT) 発行。DPoP と mTLS が両方提示された場合は DPoP を優先する
   // (DPoP はリクエストレベルで明示的に署名されており、より具体的な意図表明)。

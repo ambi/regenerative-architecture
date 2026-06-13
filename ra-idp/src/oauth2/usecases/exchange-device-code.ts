@@ -128,6 +128,10 @@ export async function exchangeDeviceCodeUseCase(
   if (!user) {
     throw new OAuthError('server_error', 'ユーザーが存在しません')
   }
+  if (user.disabled_at) {
+    // ADR-031: device flow でも無効化ユーザーへのトークン発行は拒否する。
+    throw new OAuthError('access_denied', 'ユーザーは無効化されています')
+  }
 
   const senderConstraint:
     | { type: 'dpop'; jkt: string }

@@ -381,5 +381,24 @@ describe('exchangeCodeForTokenUseCase — refresh_token は offline_access ス�
   })
 })
 
+describe('exchangeCodeForTokenUseCase — ADR-031 (disabled user)', () => {
+  it('交換時に user が disabled なら invalid_grant', async () => {
+    const { clientRepo, userRepo, codeStore, refreshStore, tokenIssuer, client, code, user } =
+      await setup()
+    await userRepo.save({ ...user, disabled_at: '2024-02-01T00:00:00.000Z' })
+    await expect(
+      exchangeCodeForTokenUseCase(
+        { clientRepo, userRepo, codeStore, refreshStore, tokenIssuer },
+        {
+          client_id: client.client_id,
+          code: code.code,
+          code_verifier: VERIFIER,
+          redirect_uri: code.redirect_uri,
+        },
+      ),
+    ).rejects.toMatchObject({ code: 'invalid_grant' })
+  })
+})
+
 // generateInitial が refresh-token.test.ts でカバーされていることを確認する用途で使う
 void generateInitial

@@ -66,6 +66,7 @@ export interface ShellInput {
     | 'change-password'
     | 'forgot-password'
     | 'reset-password'
+    | 'admin-users'
     | 'error'
   title: string
   /** SPA / 隠しフォームに伝える初期 props。 */

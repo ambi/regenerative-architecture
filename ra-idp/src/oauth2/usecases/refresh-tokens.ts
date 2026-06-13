@@ -118,6 +118,14 @@ export async function refreshTokenUseCase(
     )
   }
 
+  // ADR-031: 無効化された user のトークン再発行はローテーション前に拒否する。
+  // 状態を壊さないよう、refresh-store rotate より前に確認する。
+  const user = await deps.userRepo.findBySub(record.sub)
+  if (!user) throw new OAuthError('server_error', 'ユーザーが存在しません')
+  if (user.disabled_at) {
+    throw new OAuthError('invalid_grant', 'ユーザーは無効化されています')
+  }
+
   // ローテーション: 新トークン発行 + 旧トークンを rotated にマーク
   const { token: newToken, record: newRecord } = rotate(record, now)
   const rotated = await deps.refreshStore.rotate(record.id, newRecord)
@@ -134,9 +142,6 @@ export async function refreshTokenUseCase(
     newTokenId: newRecord.id,
     familyId: record.family_id,
   })
-
-  const user = await deps.userRepo.findBySub(record.sub)
-  if (!user) throw new OAuthError('server_error', 'ユーザーが存在しません')
 
   const stored = record.sender_constraint
   const senderConstraint:

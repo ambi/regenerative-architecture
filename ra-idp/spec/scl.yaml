@@ -11,34 +11,73 @@ system: ra-idp
 spec_version: "1.2"
 
 components:
+
   Tenancy:
-    description: テナント (realm) 集約、ライフサイクル、HTTP リクエストからのテナント解決、テナント管理 API を所有する。
-    owns_models: [Tenant, TenantSummaryResponse, TenantCreateRequest, TenantUpdateRequest, TenantListResponse]
+    description: テナント (Realm) 集約、ライフサイクル、HTTP リクエストからのテナント解決、テナント管理 API を所有する。テナントは ra-idp のあらゆる集約に共通する境界文脈。
+    owns_models: [Tenant, TenantStatus, TenantCreateRequest, TenantUpdateRequest, TenantSummaryResponse, TenantListResponse]
+    owns_states: [TenantLifecycle]
     owns_events: [TenantCreated, TenantUpdated, TenantDisabled, TenantEnabled]
     owns_interfaces: [ResolveTenant, ListTenants, GetTenant, CreateTenant, UpdateTenant, DisableTenant, EnableTenant]
-  Authentication:
-    description: ユーザー認証、パスワード検証、ブラウザログインセッション、AuthenticationContext 復元を所有する。
-    owns_models: [User, LoginSession, BrowserLoginRequest, BrowserTotpRequest, BrowserChangePasswordRequest, BrowserForgotPasswordRequest, BrowserResetPasswordRequest, PasswordResetTokenRecord, MfaFactor, MfaFactorType, AuthenticationContext]
-    owns_events: [UserAuthenticated, AuthenticationFailed, PasswordChanged, LoginThrottled, PasswordResetRequested, EmailSent]
-    owns_interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, ChangePassword, RequestPasswordReset, ResetPasswordWithToken]
+    owns_permissions: [AdminTenantsManage]
+
+  Identity:
+    description: エンドユーザ (Subject) の identity、credentials、MFA、ログインセッション、パスワードリセット、および管理 API からの User ライフサイクル操作を所有する。
+    owns_models: [User, MfaFactor, MfaFactorType, LoginSession, AuthenticationContext, PasswordResetTokenRecord, BrowserLoginRequest, BrowserTotpRequest, BrowserChangePasswordRequest, BrowserForgotPasswordRequest, BrowserResetPasswordRequest, AdminUserCreateRequest, AdminUserUpdateRequest, AdminUserListResponse, AdminUserResponse]
+    owns_events: [UserAuthenticated, AuthenticationFailed, PasswordChanged, LoginThrottled, PasswordResetRequested, EmailSent, UserCreated, UserUpdated, UserDisabled, UserEnabled]
+    owns_interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, ChangePassword, RequestPasswordReset, ResetPasswordWithToken, ListAdminUsers, GetAdminUser, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser]
+    owns_invariants: [PasswordHistoryNoReuse]
+    owns_permissions: [AdminUserRead, AdminUserCreate, AdminUserUpdate]
+    owns_objectives: [PiiPurgeAfterDeletion]
     depends_on:
-      - { component: Tenancy, reason: ログイン・MFA・パスワードリセットは tenant 解決済みコンテキストで動作する。 }
-  OAuth2:
-    description: OAuth 2.0 / OIDC の認可判断、同意、コード・トークン発行、RP-Initiated Logout endpoint を所有する。
-    owns_models: [AuthorizationRequest, Consent, AuthorizationCodeRecord, TokenRequest, TokenResponse, EndSessionParameters]
-    owns_events: [AuthorizationCodeIssued, ConsentGranted, AccessTokenIssued, RefreshTokenIssued]
-    owns_interfaces: [Authorize, EndSession, Token]
+      - { component: Tenancy, reason: User と LoginSession はテナント境界内に閉じ、User 管理 API もテナント単位で動く。 }
+
+  ClientRegistry:
+    description: OAuth Client の metadata、Dynamic Registration、テナント内の Client 管理 API、Client 認証要件を所有する。
+    owns_models: [OAuth2Client, ClientType, TokenEndpointAuthMethod, FapiProfile, ClientRegistrationRequest, AdminClientCreateRequest, AdminClientUpdateRequest, AdminClientResponse, AdminClientCreateResponse, AdminClientListResponse, InvalidClientError, UnauthorizedClientError]
+    owns_events: [ClientRegistered, AdminClientCreated, AdminClientUpdated, AdminClientDeleted]
+    owns_interfaces: [RegisterClient, ListAdminClients, GetAdminClient, CreateAdminClient, UpdateAdminClient, DeleteAdminClient]
+    owns_invariants: [ClientAuthFailureUniformity]
+    owns_permissions: [AdminClientsManage]
+    owns_objectives: [RegisterLatency, RegisterErrorRate, ClientAuthFailureRateLimit]
     depends_on:
-      - { component: Authentication, reason: /authorize は AuthenticationContext を解決し、/end_session は session revocation を委譲する。 }
-      - { component: Tenancy, reason: client / consent / 認可リクエストはテナント境界内に閉じる。cross-tenant の解決は拒否する。 }
-  Administration:
-    description: 管理者によるユーザーライフサイクル操作、RBAC 判定、管理監査イベントを所有する。
-    owns_models: [AdminUserCreateRequest, AdminUserUpdateRequest, AdminUserResponse, AdminUserListResponse, AdminClientCreateRequest, AdminClientUpdateRequest, AdminClientResponse, AdminClientCreateResponse, AdminClientListResponse]
-    owns_events: [UserCreated, UserUpdated, UserDisabled, UserEnabled, AdminClientCreated, AdminClientUpdated, AdminClientDeleted]
-    owns_interfaces: [ListAdminUsers, GetAdminUser, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser, ListAdminClients, GetAdminClient, CreateAdminClient, UpdateAdminClient, DeleteAdminClient]
+      - { component: Tenancy, reason: Client metadata はテナント境界内に閉じ、Client 管理 API もテナント単位で動く。 }
+
+  Authorization:
+    description: OAuth 2.0 / OIDC の認可判断、Consent、Authorization Code、PAR、Device Authorization、RP-Initiated Logout の責務を所有する。
+    owns_models: [AuthorizationRequest, AuthorizeParameters, Consent, ConsentState, AuthorizationCodeRecord, AuthorizationCodeState, AuthorizationCodeRecordState, ResponseType, ResponseMode, CodeChallengeMethod, GrantType, PARRecord, PARRecordState, ParRequest, ParResponse, BrowserConsentRequest, BrowserTransactionResponse, BrowserFlowResponse, EndSessionParameters, DeviceCodeState, DeviceAuthorization, DeviceAuthorizationRequest, DeviceAuthorizationResponse, BrowserDeviceRequest, BrowserDeviceContextResponse, OAuthError, OAuthErrorCode, InvalidRequestError, InvalidScopeError, AccessDeniedError, ExpiredTokenError, SlowDownError, AuthorizationPendingError, ServerError]
+    owns_states: [AuthorizationCodeFlow, AuthorizationCodeRecordLifecycle, ConsentLifecycle, PARRecordLifecycle, DeviceCodeFlow]
+    owns_events: [AuthorizationCodeIssued, AuthorizationCodeRedeemed, ConsentGranted, ConsentRevoked, PARStored, DeviceAuthorizationRequested, DeviceAuthorizationApproved, DeviceAuthorizationDenied]
+    owns_interfaces: [Authorize, GetBrowserTransaction, SubmitBrowserConsent, PushAuthorizationRequest, DeviceAuthorization, GetBrowserDeviceContext, SubmitBrowserDevice, EndSession]
+    owns_invariants: [PkceRoundTrip, AuthCodeStateSafety, DeviceCodeStateSafety, AuthorizationCodeSingleUse, ParRequestUriSingleUse, AuthorizationCodeTtl, AuthorizationCodeEventuallyResolves, DeviceCodeEventuallyResolves, RedirectUriExactMatch, PkceMandatory, AccessTokenIssuedOnlyAfterConsent]
+    owns_permissions: [AuthorizeInitiate]
+    owns_objectives: [AuthorizeLatency, ParLatency, DeviceAuthorizationLatency, AuthorizeErrorRate, ParErrorRate, DeviceAuthorizationErrorRate, AuthorizeThroughput, AuthorizationCodeLifetime, ParRequestUriLifetime, DeviceCodeLifetime, UserCodeLifetime, DeviceCodePollingDefaultInterval, ConsentRecordsRetention, AuthorizationCodeRedemptionFailureRateLimit]
     depends_on:
-      - { component: Authentication, reason: 管理 API は LoginSession から管理者 User を解決し、roles と disabled_at を評価する。 }
-      - { component: Tenancy, reason: admin ロールはテナント内で閉じ、system_admin だけがテナント境界を越える。 }
+      - { component: Identity, reason: Authorize は AuthenticationContext を Identity から解決する。 }
+      - { component: ClientRegistry, reason: redirect_uri / scope 照合と Client 認証は Client metadata に依存する。 }
+      - { component: Tenancy, reason: 認可リクエストはテナント境界内に閉じる。 }
+
+  Token:
+    description: AccessToken、RefreshToken、ID Token の発行、Introspect、Revoke、UserInfo、proof-of-possession のライフサイクルを所有する。
+    owns_models: [TokenRequest, TokenResponse, IntrospectionRequest, IntrospectionResponse, RevokeRequest, UserInfoResponse, RefreshTokenRecord, RefreshTokenState, AccessTokenClaims, IdTokenClaims, TokenType, AccessTokenSenderConstraint, SenderConstraintKind, SenderConstraintCnf, RefreshTokenSenderConstraint, Audience, InvalidGrantError, UnsupportedGrantTypeError, InvalidTokenError, InvalidDpopProofError, InsufficientScopeError]
+    owns_states: [RefreshTokenLifecycle]
+    owns_events: [AccessTokenIssued, RefreshTokenIssued, RefreshTokenRotated, TokenRevoked, TokenIntrospected, RefreshTokenReuseDetected]
+    owns_interfaces: [Token, Introspect, Revoke, UserInfo, PostUserInfo]
+    owns_invariants: [RefreshFamilyTransitiveRevoke, RefreshRotationParentInvariants, DpopJtiUniquenessWithinWindow, TokenHashOneWay, RefreshTokenAbsoluteTtl, AllAccessTokensCarryAudience]
+    owns_permissions: [TokenGrantAuthorizationCode, TokenGrantRefresh, TokenGrantClientCredentials, TokenGrantDeviceCode, TokenIntrospect, TokenRevoke, UserInfoRead]
+    owns_objectives: [TokenLatency, IntrospectLatency, RevokeLatency, UserInfoLatency, TokenErrorRate, IntrospectErrorRate, RevokeErrorRate, UserInfoErrorRate, TokenEndpointAvailability, TokenThroughput, IntrospectThroughput, AccessTokenLifetime, IdTokenLifetime, RefreshTokenLifetime, RefreshTokenAbsoluteLifetime, DpopProofClockSkewPast, DpopProofClockSkewFuture, DpopJtiReplayWindow, DpopNonceLifetime, RefreshReuseAlertWindow]
+    depends_on:
+      - { component: Authorization, reason: AccessToken と RefreshToken は AuthorizationCode と Consent から派生する。 }
+      - { component: ClientRegistry, reason: Client 認証 (client_secret / private_key_jwt / mTLS) は Client metadata に依存する。 }
+      - { component: Trust, reason: 署名は SigningKey 集合から取得し、proof verification は公開鍵集合に依存する。 }
+
+  Trust:
+    description: 署名鍵、JWKS、Discovery、Authorization Server Metadata の公開、健全性報告、監査保管といった信頼基盤を所有する。
+    owns_models: [SigningKey, SigningKeyState, JWK, JWKS, DiscoveryDocument, SignatureAlgorithm, Uri]
+    owns_states: [SigningKeyLifecycle]
+    owns_events: [SigningKeyRotated]
+    owns_interfaces: [GetJwks, GetOpenidConfiguration, GetOauthAuthorizationServer, Health]
+    owns_invariants: [SigningKeyMaxAge]
+    owns_objectives: [JwksLatency, DiscoveryLatency, JwksErrorRate, DiscoveryErrorRate, OverallAvailability, SigningKeyMaxAge, SigningKeyMinJwksOverlap, SigningKeyArchiveRetention, AuditLogRetention]
 
 # =================================================================
 # 0. standards — 適用する外部標準と規範要件
@@ -3972,7 +4011,6 @@ assurance:
         recheck: affected_change
         covers:
           invariants: [PkceRoundTrip]
-        procedure: bun test src/spec-bindings/property/pkce.property.test.ts
         oracle: S256 の定義と反例反転テスト。
       AuthorizationCodeStoreContract:
         kind: contract_test
@@ -3982,7 +4020,6 @@ assurance:
         recheck: affected_change
         covers:
           invariants: [AuthorizationCodeSingleUse, AuthorizationCodeTtl]
-        procedure: bun test src/spec-bindings/persistence-contract.test.ts
         oracle: 1回目の redeem は成功し、同じコードの2回目は null になる。
       AuthorizationPolicyTests:
         kind: test
@@ -3993,7 +4030,6 @@ assurance:
         covers:
           permissions: [AuthorizeInitiate, TokenGrantAuthorizationCode]
           invariants: [RedirectUriExactMatch]
-        procedure: bun test src/spec-bindings/policy/authorization.test.ts src/oauth2/usecases/authorize-request.test.ts
         oracle: 許可条件の各否定ケースが Deny または InvalidGrant になる。
     approval:
       when: [acceptance_not_met, exception_requested, risk_increased, normative_spec_changed]
@@ -4024,7 +4060,6 @@ assurance:
         recheck: affected_change
         covers:
           invariants: [RefreshFamilyTransitiveRevoke, RefreshRotationParentInvariants, RefreshTokenAbsoluteTtl]
-        procedure: bun test src/spec-bindings/property/refresh-rotation.property.test.ts
         oracle: 生成した任意長チェーンの全要素が revoked になり、子の absolute_expires_at が親と一致する。
       RefreshStoreContract:
         kind: contract_test
@@ -4034,7 +4069,6 @@ assurance:
         recheck: affected_change
         covers:
           permissions: [TokenGrantRefresh]
-        procedure: bun test src/spec-bindings/persistence-contract.test.ts src/oauth2/usecases/exchange-code-for-token.test.ts
         oracle: 同一トークンの再利用が成功せず、同じ family_id の全レコードが revoked になる。
     approval:
       when: [acceptance_not_met, exception_requested, risk_increased, normative_spec_changed]
@@ -4067,7 +4101,6 @@ assurance:
         covers:
           models: [Tenant]
           permissions: [AdminTenantsManage]
-        procedure: bun test src/tenancy/usecases/manage-tenants.test.ts
         oracle: Tenant lifecycle と default tenant の禁止操作が ADR-032 の規則に一致する。
       TenantHttpBoundaryTests:
         kind: test
@@ -4078,7 +4111,6 @@ assurance:
         covers:
           interfaces: [ResolveTenant, ListAdminClients, GetAdminClient, CreateAdminClient, UpdateAdminClient, DeleteAdminClient]
           permissions: [AdminClientsManage, AdminTenantsManage]
-        procedure: cd ../ra-idp-go && go test ./internal/adapters/http -run TestAdminClientCannotCrossTenantBoundary
         oracle: 認証済み主体の tenant_id と対象 Client の tenant_id が一致しない操作は成功しない。
       TenantOAuthBoundaryTests:
         kind: test
@@ -4089,9 +4121,6 @@ assurance:
         covers:
           models: [OAuth2Client, AuthorizationCodeRecord, RefreshTokenRecord, DeviceAuthorization]
           interfaces: [Authorize, Token]
-        procedure: |-
-          cd ../ra-idp-go && go test ./internal/oauth2/usecases -run 'TestAuthorizeCannotResolveAnotherTenantClient|TestAuthorizationCodeCannotCrossTenantBoundary|TestRefreshTokenCannotCrossTenantBoundary|TestDeviceCodeCannotCrossTenantBoundary'
-          bun test src/oauth2/usecases/tenant-isolation.test.ts
         oracle: tenant_id が一致しない Client・認可コード・リフレッシュトークン・device_code は、存在しない場合と同じ結果になる。
     approval:
       when: [acceptance_not_met, exception_requested, risk_increased, normative_spec_changed]
@@ -4123,7 +4152,6 @@ assurance:
         covers:
           invariants: [PasswordHistoryNoReuse]
           interfaces: [ChangePassword]
-        procedure: bun test src/authentication/usecases/password-policy.test.ts src/authentication/usecases/change-password.test.ts
         oracle: 長さ、識別子類似、共通語、漏洩、履歴再利用の各違反が拒否される。
       ResetTokenStorageTests:
         kind: test
@@ -4134,7 +4162,6 @@ assurance:
         covers:
           models: [PasswordResetTokenRecord]
           interfaces: [RequestPasswordReset, ResetPasswordWithToken]
-        procedure: bun test src/authentication/usecases/request-password-reset.test.ts src/authentication/usecases/reset-password-with-token.test.ts
         oracle: 保存値は生トークンと一致せず、成功後の再利用は失敗する。
       PersistenceSecretContracts:
         kind: contract_test
@@ -4145,7 +4172,6 @@ assurance:
         covers:
           models: [RefreshTokenRecord]
           invariants: [TokenHashOneWay]
-        procedure: bun test src/spec-bindings/persistence-contract.test.ts
         oracle: RefreshTokenRecord は hash でラウンドトリップし、平文トークンを永続化しない。
     approval:
       when: [acceptance_not_met, exception_requested, risk_increased, normative_spec_changed]
@@ -4178,7 +4204,6 @@ assurance:
         covers:
           states: [AuthorizationCodeFlow, DeviceCodeFlow]
           scenarios: [認可コードフローでアクセストークンと ID トークンを取得できる]
-        procedure: bun test src/spec-bindings
         oracle: SCL と派生バインディングの集合・参照・被覆が完全一致する。
       CoherenceCheck:
         kind: static_analysis
@@ -4189,7 +4214,6 @@ assurance:
         covers:
           interfaces: [GetOpenidConfiguration, GetJwks, Authorize, Token]
           objectives: [OverallAvailability, TokenEndpointAvailability]
-        procedure: bun run check:coherence
         oracle: 整合性チェッカーが失敗を0件と報告する。
       GeneratedArtifactDriftCheck:
         kind: static_analysis
@@ -4199,7 +4223,6 @@ assurance:
         recheck: every_change
         covers:
           interfaces: [GetOpenidConfiguration, GetJwks, Authorize, Token]
-        procedure: bun run gen:all && git diff --exit-code
         oracle: 再生成後の作業ツリーに生成物差分がない。
     approval:
       when: [acceptance_not_met, exception_requested, risk_increased, normative_spec_changed]

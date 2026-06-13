@@ -27,6 +27,7 @@ spec_version: "1.0"        # 必須: SCL バージョン
 annotations:     { ... }   # 任意: 文書全体への補助情報
 
 standards:       { ... }   # 任意: 外部標準と採用する規範要件
+components:      { ... }   # 任意: 単一ドキュメント内のモジュール分割
 vocabulary:      { ... }   # 用語の定義
 models:          { ... }   # データの形と同一性
 interfaces:      { ... }   # 外部との契約（インターフェース）
@@ -82,7 +83,53 @@ standards:
 
 `relates_to` は `vocabulary`、`models`、`interfaces`、`states`、`invariants`、`scenarios`、`permissions`、`objectives`、`assurance` の名前を参照できる。
 
-### 2.2 user_experience — 画面と利用品質
+### 2.2 components — モジュール
+
+1 つの SCL ドキュメント内で、モデル・状態・イベント・インターフェース・不変条件・認可・目標を所有関係で束ね、論理的なモジュール（DDD のサブドメイン）に分割する。コンテキスト全体を縦割りにする必要が出てきたら §3.10 のコンテキストマップに移行する。
+
+```yaml
+components:
+  TaskAuthoring:
+    description: タスクの作成・編集と担当者割り当てを所有する
+    owns_models: [Task, TaskState]
+    owns_events: [TaskCreated, TaskUpdated]
+    owns_interfaces: [CreateTask, UpdateTask]
+  TaskExecution:
+    description: タスクの開始・完了・中断ライフサイクルを所有する
+    owns_states: [TaskLifecycle]
+    owns_events: [TaskStarted, TaskCompleted]
+    owns_interfaces: [StartTask, CompleteTask]
+    depends_on:
+      - { component: TaskAuthoring, reason: 開始・完了は TaskAuthoring が所有する Task に対する操作である }
+```
+
+**マップキー**: モジュール名 (`<Name>`)。PascalCase。
+
+**プロパティ**:
+
+| プロパティ         | 型             | 必須 | 説明                                                              |
+| ------------------ | -------------- | ---- | ----------------------------------------------------------------- |
+| `description`      | `string`       | ✓    | モジュールの責務                                                  |
+| `owns_models`      | `string[]`     | –    | 所有する `models` 名のリスト（`kind: event` の event 含む）       |
+| `owns_states`      | `string[]`     | –    | 所有する `states` 名のリスト                                      |
+| `owns_events`      | `string[]`     | –    | 所有する `models` のうち `kind: event` の名前のリスト             |
+| `owns_interfaces`  | `string[]`     | –    | 所有する `interfaces` 名のリスト                                  |
+| `owns_invariants`  | `string[]`     | –    | 所有する `invariants` 名のリスト                                  |
+| `owns_permissions` | `string[]`     | –    | 所有する `permissions` 名のリスト                                 |
+| `owns_objectives`  | `string[]`     | –    | 所有する `objectives` 名のリスト                                  |
+| `depends_on`       | `Dependency[]` | –    | 依存先モジュールとその理由                                        |
+| `annotations`      | `Annotation`   | –    | モジュールへの補助情報                                            |
+
+**Dependency**:
+
+| プロパティ  | 型       | 必須 | 説明                 |
+| ----------- | -------- | ---- | -------------------- |
+| `component` | `string` | ✓    | 依存先モジュール名   |
+| `reason`    | `string` | ✓    | 依存の根拠           |
+
+`owns_*` に挙げる名前は対応するセクションに登録されていなければならず、1 つの要素を所有するモジュールは高々 1 つである。`depends_on` は有向非循環で、循環はモジュール境界の見直しを示す。`components` を宣言しないドキュメントは「単一の暗黙モジュール」を持つものとして扱う。
+
+### 2.3 user_experience — 画面と利用品質
 
 人間が操作する画面、画面遷移、セキュリティ・アクセシビリティ・ローカライズ等の横断要件を宣言する。
 

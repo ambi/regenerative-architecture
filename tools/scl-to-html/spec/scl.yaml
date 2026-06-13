@@ -25,9 +25,9 @@ vocabulary:
   Section:
     definition: |
       SCL 文書の論理単位。
-      standards / vocabulary / models / interfaces / states /
+      standards / components / vocabulary / models / interfaces / states /
       invariants / scenarios / permissions / objectives / assurance /
-      user_experience の 11 種。
+      user_experience の 12 種。
 
   Render:
     definition: SclDocument を HtmlDocument に変換する射影。決定的で副作用を持たない。
@@ -49,6 +49,7 @@ models:
     kind: enum
     values:
       - standards
+      - components
       - vocabulary
       - models
       - interfaces
@@ -67,6 +68,7 @@ models:
       system:         { type: String, constraints: [non_empty] }
       spec_version:   { type: String, constraints: [non_empty] }
       annotations:    { type: Map, optional: true }
+      components:     { type: Map, optional: true }
       vocabulary:          { type: Map, optional: true }
       models:         { type: Map, optional: true }
       interfaces:     { type: Map, optional: true }

@@ -10,6 +10,7 @@
 
 export const SECTION_KINDS = [
   'standards',
+  'components',
   'vocabulary',
   'models',
   'interfaces',
@@ -29,6 +30,7 @@ export interface SclDocument {
   spec_version: string
   annotations?: Record<string, unknown>
   standards?: Record<string, Standard>
+  components?: Record<string, Component>
   vocabulary?: Record<string, Vocabulary>
   models?: Record<string, Model>
   interfaces?: Record<string, Interface>
@@ -39,6 +41,19 @@ export interface SclDocument {
   objectives?: Record<string, Objective>
   assurance?: Record<string, AssuranceObligation>
   user_experience?: UserExperience
+}
+
+interface Component {
+  description?: string
+  owns_models?: string[]
+  owns_states?: string[]
+  owns_events?: string[]
+  owns_interfaces?: string[]
+  owns_invariants?: string[]
+  owns_permissions?: string[]
+  owns_objectives?: string[]
+  depends_on?: Array<{ component?: string; reason?: string }>
+  annotations?: Record<string, unknown>
 }
 
 interface Standard {
@@ -280,6 +295,7 @@ const referenceAnchor = (section: string, name: string): string | undefined => {
   const prefixes: Record<string, string> = {
     vocabulary: 'vocab',
     models: 'model',
+    events: 'model',
     interfaces: 'iface',
     states: 'state',
     invariants: 'inv',
@@ -288,6 +304,7 @@ const referenceAnchor = (section: string, name: string): string | undefined => {
     objectives: 'obj',
     standards: 'std',
     assurance: 'assurance',
+    components: 'comp',
   }
   const prefix = prefixes[section]
   return prefix ? `#${prefix}-${slug(name)}` : undefined
@@ -350,6 +367,59 @@ const renderStandards = (standards: Record<string, Standard>): string => {
     `適用する外部標準と規範要件。${requirementCount} requirements。採用方針であり実装状態ではない。`,
     `<div class="cards">${cards}</div>`,
     Object.keys(standards).length,
+  )
+}
+
+// ─── section: components ───────────────────────────────────────────
+
+const OWNS_ORDER: Array<[keyof Component, string]> = [
+  ['owns_models', 'models'],
+  ['owns_states', 'states'],
+  ['owns_events', 'events'],
+  ['owns_interfaces', 'interfaces'],
+  ['owns_invariants', 'invariants'],
+  ['owns_permissions', 'permissions'],
+  ['owns_objectives', 'objectives'],
+]
+
+const renderComponent = (name: string, c: Component): string => {
+  const desc = c.description ? `<p class="desc">${esc(c.description)}</p>` : ''
+  const refs: Record<string, string[]> = {}
+  for (const [key, label] of OWNS_ORDER) {
+    const items = c[key] as string[] | undefined
+    if (items?.length) refs[label] = items
+  }
+  const deps = (c.depends_on ?? [])
+    .map((d) => {
+      const ref = d.component
+        ? link(`#comp-${slug(d.component)}`, d.component, 'ref')
+        : '<span class="muted">?</span>'
+      return `<li>${ref}${d.reason ? ` <span class="muted">— ${esc(d.reason)}</span>` : ''}</li>`
+    })
+    .join('')
+  const depsBlock = deps
+    ? `<div class="io"><div class="label">Depends on</div><ul class="vlist">${deps}</ul></div>`
+    : ''
+  const ann = renderAnnotations(c.annotations)
+  return `<article class="card" id="comp-${esc(slug(name))}">
+    <header><h3>${esc(name)}</h3></header>
+    ${desc}
+    ${renderNamedReferences(refs)}
+    ${depsBlock}
+    ${ann ? `<dl class="kv">${kvRow('annotations', ann)}</dl>` : ''}
+  </article>`
+}
+
+const renderComponents = (components: Record<string, Component>): string => {
+  const cards = Object.entries(components)
+    .map(([n, c]) => renderComponent(n, c))
+    .join('\n')
+  return wrapSection(
+    'components',
+    'Components',
+    '単一ドキュメント内のモジュール分割（DDD のサブドメイン）。所有関係と依存方向を宣言する。',
+    `<div class="cards">${cards}</div>`,
+    Object.keys(components).length,
   )
 }
 
@@ -1264,6 +1334,7 @@ const wrapSection = (
 
 const SECTION_TITLES: Record<SectionKind, string> = {
   standards: 'Standards',
+  components: 'Components',
   vocabulary: 'Vocabulary',
   models: 'Models',
   interfaces: 'Interfaces',
@@ -1314,6 +1385,8 @@ const renderOneSection = (k: SectionKind, scl: SclDocument): string => {
   switch (k) {
     case 'standards':
       return scl.standards ? renderStandards(scl.standards) : ''
+    case 'components':
+      return scl.components ? renderComponents(scl.components) : ''
     case 'vocabulary':
       return scl.vocabulary ? renderVocab(scl.vocabulary) : ''
     case 'models':

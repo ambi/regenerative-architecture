@@ -56,7 +56,12 @@ describe('L5 — Rotation invariants', () => {
   it('rotate 後の child.absolute_expires_at は parent と同一 (越境不可)', () => {
     fc.assert(
       fc.property(fc.string({ minLength: 4, maxLength: 32 }), (clientId) => {
-        const initial = generateInitial({ tenant_id: 'default', client_id: clientId, sub: 'u', scopes: ['x'] })
+        const initial = generateInitial({
+          tenant_id: 'default',
+          client_id: clientId,
+          sub: 'u',
+          scopes: ['x'],
+        })
         const rotated = domainRotate(initial.record)
         return (
           rotated.record.absolute_expires_at === initial.record.absolute_expires_at &&

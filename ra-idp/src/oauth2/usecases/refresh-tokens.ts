@@ -52,6 +52,11 @@ export async function refreshTokenUseCase(
     throw new OAuthError('invalid_grant', 'リフレッシュトークンが無効です')
   }
 
+  // クロステナント境界 (ADR-034): refresh token が別テナント発行なら拒否する。
+  if (record.tenant_id !== input.tenant_id) {
+    throw new OAuthError('invalid_grant', 'リフレッシュトークンが無効です')
+  }
+
   if (record.client_id !== client.client_id) {
     // 他人のリフレッシュトークンの使用 → 即座にファミリー失効
     await deps.refreshStore.revokeFamily(record.family_id)
@@ -122,7 +127,9 @@ export async function refreshTokenUseCase(
   // ADR-031: 無効化された user のトークン再発行はローテーション前に拒否する。
   // 状態を壊さないよう、refresh-store rotate より前に確認する。
   const user = await deps.userRepo.findBySub(record.sub)
-  if (!user) throw new OAuthError('server_error', 'ユーザーが存在しません')
+  if (!user || user.tenant_id !== input.tenant_id) {
+    throw new OAuthError('invalid_grant', 'リフレッシュトークンが無効です')
+  }
   if (user.disabled_at) {
     throw new OAuthError('invalid_grant', 'ユーザーは無効化されています')
   }

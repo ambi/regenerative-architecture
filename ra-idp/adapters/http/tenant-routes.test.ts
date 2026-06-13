@@ -20,7 +20,12 @@ async function setup() {
   const tenants = new InMemoryTenantRepository()
   const now = new Date().toISOString()
   await tenants.save(
-    TenantSchema.parse({ id: 'default', display_name: 'Default', status: 'active', created_at: now }),
+    TenantSchema.parse({
+      id: 'default',
+      display_name: 'Default',
+      status: 'active',
+      created_at: now,
+    }),
   )
   await tenants.save(
     TenantSchema.parse({ id: 'acme', display_name: 'Acme', status: 'active', created_at: now }),
@@ -36,10 +41,7 @@ async function setup() {
   )
 
   const app = new Hono()
-  app.use(
-    '*',
-    createTenantMiddleware({ tenantRepo: tenants, baseIssuer: BASE_ISSUER }),
-  )
+  app.use('*', createTenantMiddleware({ tenantRepo: tenants, baseIssuer: BASE_ISSUER }))
   app.get('/echo', (c) =>
     c.json({
       tenant_id: c.get('tenant_id'),

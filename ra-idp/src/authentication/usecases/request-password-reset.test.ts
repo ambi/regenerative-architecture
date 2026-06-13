@@ -50,26 +50,38 @@ describe('requestPasswordReset', () => {
 
   it('未登録 email でも PasswordResetRequested を emit し送信せず正常終了 (anti-enumeration)', async () => {
     const h = await setupUser()
-    await requestPasswordReset({ ...h, issuer: ISSUER }, { tenant_id: 'default', email: 'unknown@example.com' })
+    await requestPasswordReset(
+      { ...h, issuer: ISSUER },
+      { tenant_id: 'default', email: 'unknown@example.com' },
+    )
     expect(h.emailSender.sent).toHaveLength(0)
     expect(h.events).toEqual([expect.objectContaining({ type: 'PasswordResetRequested' })])
   })
 
   it('email_verified=false の user には送信しない', async () => {
     const h = await setupUser({ emailVerified: false })
-    await requestPasswordReset({ ...h, issuer: ISSUER }, { tenant_id: 'default', email: 'alice@example.com' })
+    await requestPasswordReset(
+      { ...h, issuer: ISSUER },
+      { tenant_id: 'default', email: 'alice@example.com' },
+    )
     expect(h.emailSender.sent).toHaveLength(0)
   })
 
   it('email は大文字小文字を正規化して解決される', async () => {
     const h = await setupUser({ email: 'alice@example.com' })
-    await requestPasswordReset({ ...h, issuer: ISSUER }, { tenant_id: 'default', email: 'ALICE@Example.COM' })
+    await requestPasswordReset(
+      { ...h, issuer: ISSUER },
+      { tenant_id: 'default', email: 'ALICE@Example.COM' },
+    )
     expect(h.emailSender.sent).toHaveLength(1)
   })
 
   it('emailHash は SHA-256 (lowercased email) と一致する', async () => {
     const h = await setupUser()
-    await requestPasswordReset({ ...h, issuer: ISSUER }, { tenant_id: 'default', email: 'ALICE@example.com' })
+    await requestPasswordReset(
+      { ...h, issuer: ISSUER },
+      { tenant_id: 'default', email: 'ALICE@example.com' },
+    )
     const requested = h.events.find((e) => e.type === 'PasswordResetRequested')
     expect(requested).toBeDefined()
     if (requested?.type === 'PasswordResetRequested') {

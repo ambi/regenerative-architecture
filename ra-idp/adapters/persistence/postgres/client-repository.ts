@@ -108,10 +108,10 @@ export class PostgresClientRepository implements ClientRepository {
   }
 
   async delete(tenant_id: string, client_id: string): Promise<void> {
-    await this.pool.query(
-      `DELETE FROM clients WHERE tenant_id = $1 AND client_id = $2`,
-      [tenant_id, client_id],
-    )
+    await this.pool.query(`DELETE FROM clients WHERE tenant_id = $1 AND client_id = $2`, [
+      tenant_id,
+      client_id,
+    ])
   }
 
   async findAll(tenant_id: string): Promise<Client[]> {

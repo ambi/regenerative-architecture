@@ -228,7 +228,11 @@ describe('Device Authorization Grant — エラー分岐', () => {
   test('未知の device_code → invalid_grant', async () => {
     const d = await setup()
     await expect(
-      exchangeDeviceCodeUseCase(d, { tenant_id: 'default', client_id: d.client.client_id, device_code: 'nope' }),
+      exchangeDeviceCodeUseCase(d, {
+        tenant_id: 'default',
+        client_id: d.client.client_id,
+        device_code: 'nope',
+      }),
     ).rejects.toMatchObject({ code: 'invalid_grant' })
   })
 

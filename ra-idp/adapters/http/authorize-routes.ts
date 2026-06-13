@@ -176,6 +176,10 @@ export function createAuthorizeRoutes(deps: AuthorizeRoutesDeps) {
         if (!consumed) {
           throw new OAuthError('invalid_request_uri', 'request_uri が無効または使用済み')
         }
+        // クロステナント境界 (ADR-034): 別テナント発行の PAR を消費しない
+        if (consumed.tenant_id !== requestTenantId(c)) {
+          throw new OAuthError('invalid_request_uri', 'request_uri が無効または使用済み')
+        }
         // RFC 9126 §4: クエリの client_id は任意、与えられた場合は PAR レコードと一致する必要がある
         if (params.client_id && consumed.client_id !== params.client_id) {
           throw new OAuthError('invalid_request', 'client_id が PAR レコードと一致しません')

@@ -24,7 +24,12 @@ describe('generateInitial', () => {
   })
 
   it('absolute_expires_at は expires_at 以上である', () => {
-    const { record } = generateInitial({ tenant_id: 'default', client_id: 'c', sub: 'u', scopes: [] })
+    const { record } = generateInitial({
+      tenant_id: 'default',
+      client_id: 'c',
+      sub: 'u',
+      scopes: [],
+    })
     expect(Date.parse(record.absolute_expires_at)).toBeGreaterThanOrEqual(
       Date.parse(record.expires_at),
     )
@@ -33,7 +38,12 @@ describe('generateInitial', () => {
 
 describe('rotate', () => {
   it('子トークンは親と同じ family_id を持ち、parent_id でリンクされる', () => {
-    const parent = generateInitial({ tenant_id: 'default', client_id: 'c', sub: 'u', scopes: ['openid'] })
+    const parent = generateInitial({
+      tenant_id: 'default',
+      client_id: 'c',
+      sub: 'u',
+      scopes: ['openid'],
+    })
     const child = rotate(parent.record)
     expect(child.record.family_id).toBe(parent.record.family_id)
     expect(child.record.parent_id).toBe(parent.record.id)

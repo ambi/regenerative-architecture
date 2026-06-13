@@ -254,7 +254,7 @@ describe('exchangeCodeForTokenUseCase — 認可コード再利用検出', () =>
         { clientRepo, userRepo, codeStore, refreshStore, tokenIssuer },
         {
           tenant_id: 'default',
-        client_id: client.client_id,
+          client_id: client.client_id,
           code: code.code,
           code_verifier: VERIFIER,
           redirect_uri: code.redirect_uri,
@@ -409,7 +409,7 @@ describe('exchangeCodeForTokenUseCase — ADR-031 (disabled user)', () => {
         { clientRepo, userRepo, codeStore, refreshStore, tokenIssuer },
         {
           tenant_id: 'default',
-        client_id: client.client_id,
+          client_id: client.client_id,
           code: code.code,
           code_verifier: VERIFIER,
           redirect_uri: code.redirect_uri,

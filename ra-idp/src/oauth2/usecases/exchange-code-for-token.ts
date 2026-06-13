@@ -80,6 +80,12 @@ export async function exchangeCodeForTokenUseCase(
     throw new OAuthError('invalid_grant', '認可コードが無効です')
   }
 
+  // クロステナント境界 (ADR-034): リクエスト先のテナントと code 発行時のテナントが
+  // 一致しない場合は generic invalid_grant で拒否する。
+  if (code.tenant_id !== input.tenant_id) {
+    throw new OAuthError('invalid_grant', '認可コードが無効です')
+  }
+
   // コードと提示クライアントの一致確認（RFC 6749 §4.1.3）
   if (code.client_id !== client.client_id) {
     throw new OAuthError('invalid_grant', '認可コードがクライアントと一致しません')
@@ -154,8 +160,10 @@ export async function exchangeCodeForTokenUseCase(
   }
 
   const user = await deps.userRepo.findBySub(code.sub)
-  if (!user) {
-    throw new OAuthError('server_error', 'ユーザーが存在しません')
+  if (!user || user.tenant_id !== input.tenant_id) {
+    // defense-in-depth: sub は global 一意なので通常衝突しないが、
+    // 他テナントの user に紐付いていれば generic invalid_grant で拒否する。
+    throw new OAuthError('invalid_grant', '認可コードが無効です')
   }
   if (user.disabled_at) {
     // ADR-031: 無効化された user のためのトークン発行を拒否する。

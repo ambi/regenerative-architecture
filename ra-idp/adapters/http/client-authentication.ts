@@ -96,14 +96,14 @@ export async function authenticateClient(
     if (idx < 0) throw new OAuthError('invalid_client', 'Basic 認証のフォーマット不正')
     const id = decodeURIComponent(decoded.slice(0, idx))
     const secret = decodeURIComponent(decoded.slice(idx + 1))
-    const client = await loadClient(clientRepo, requestTenantId(c),id)
+    const client = await loadClient(clientRepo, requestTenantId(c), id)
     verifySecret(client, secret, 'client_secret_basic')
     return { client, method: 'client_secret_basic' }
   }
 
   // 2. ボディの client_id + client_secret
   if (body.client_id && body.client_secret) {
-    const client = await loadClient(clientRepo, requestTenantId(c),body.client_id)
+    const client = await loadClient(clientRepo, requestTenantId(c), body.client_id)
     verifySecret(client, body.client_secret, 'client_secret_post')
     return { client, method: 'client_secret_post' }
   }
@@ -113,7 +113,7 @@ export async function authenticateClient(
   //    本層は subject DN 一致と x5t#S256 計算のみを行う。
   const certHeader = c.req.header(CLIENT_CERT_HEADER)
   if (body.client_id && certHeader) {
-    const client = await loadClient(clientRepo, requestTenantId(c),body.client_id)
+    const client = await loadClient(clientRepo, requestTenantId(c), body.client_id)
     if (client.token_endpoint_auth_method === 'tls_client_auth') {
       const cert = parseClientCertificateHeader(certHeader)
       if (!cert) {
@@ -134,7 +134,7 @@ export async function authenticateClient(
 
   // 4. 公開クライアント (none)
   if (body.client_id) {
-    const client = await loadClient(clientRepo, requestTenantId(c),body.client_id)
+    const client = await loadClient(clientRepo, requestTenantId(c), body.client_id)
     if (client.token_endpoint_auth_method !== 'none') {
       throw new OAuthError('invalid_client', 'クライアント認証が必要です')
     }
@@ -267,11 +267,7 @@ function resolveClientKeys(client: Client): ReturnType<typeof createLocalJWKSet>
   throw new OAuthError('invalid_client', 'private_key_jwt 用の鍵が登録されていません')
 }
 
-async function loadClient(
-  repo: ClientRepository,
-  tenantId: string,
-  id: string,
-): Promise<Client> {
+async function loadClient(repo: ClientRepository, tenantId: string, id: string): Promise<Client> {
   const client = await repo.findById(tenantId, id)
   if (!client) {
     // タイミング差を出さないため、ハッシュ計算を空打ちする

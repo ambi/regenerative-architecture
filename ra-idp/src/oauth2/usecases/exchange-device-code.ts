@@ -74,6 +74,10 @@ export async function exchangeDeviceCodeUseCase(
   if (!rec) {
     throw new OAuthError('invalid_grant', 'device_code が無効です')
   }
+  // クロステナント境界 (ADR-034)
+  if (rec.tenant_id !== input.tenant_id) {
+    throw new OAuthError('invalid_grant', 'device_code が無効です')
+  }
   if (rec.client_id !== client.client_id) {
     throw new OAuthError('invalid_grant', 'device_code がクライアントと一致しません')
   }
@@ -126,8 +130,8 @@ export async function exchangeDeviceCodeUseCase(
   }
 
   const user = await deps.userRepo.findBySub(rec.sub)
-  if (!user) {
-    throw new OAuthError('server_error', 'ユーザーが存在しません')
+  if (!user || user.tenant_id !== input.tenant_id) {
+    throw new OAuthError('invalid_grant', 'device_code が無効です')
   }
   if (user.disabled_at) {
     // ADR-031: device flow でも無効化ユーザーへのトークン発行は拒否する。

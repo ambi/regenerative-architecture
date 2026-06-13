@@ -5,7 +5,12 @@
  * default テナントは起動時に idempotent に upsert され、disable は不可。
  */
 
-import { DEFAULT_TENANT_ID, TENANT_ID_PATTERN, TenantSchema, type Tenant } from '../../spec-bindings/schemas'
+import {
+  DEFAULT_TENANT_ID,
+  TENANT_ID_PATTERN,
+  TenantSchema,
+  type Tenant,
+} from '../../spec-bindings/schemas'
 import type { TenantRepository } from '../ports/tenant-repository'
 
 export class TenantNotFoundError extends Error {

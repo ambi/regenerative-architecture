@@ -24,7 +24,7 @@ export async function verifyTotpFactorUseCase(
   now: Date = new Date(),
 ): Promise<VerifyTotpFactorResult> {
   const factor = await deps.mfaFactorRepo.find(input.sub, 'totp')
-  if (!factor || !factor.secret) {
+  if (!factor?.secret) {
     return { ok: false, reason: 'no_factor' }
   }
   const ok = verifyTotp(factor.secret, input.code, Math.floor(now.getTime() / 1000))

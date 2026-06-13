@@ -87,7 +87,6 @@ export async function seedDemoData(
       accountName: demoUser.preferred_username,
       issuer: 'RA IdP (demo)',
     })
-    // biome-ignore lint/suspicious/noConsole: 起動時の demo guidance を運用ログに出す
     console.log(`[seed] TOTP factor enrolled for alice. otpauth URI: ${otpauthUri}`)
   }
 }

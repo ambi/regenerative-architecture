@@ -1,5 +1,6 @@
 export interface LoginSession {
   id: string
+  tenant_id: string
   sub: string
   auth_time: number
   /** OIDC Core §2: 認証成立時に経由した RFC 8176 メソッド列 (pwd / otp / webauthn 等)。 */

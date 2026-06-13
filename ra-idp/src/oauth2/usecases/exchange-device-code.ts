@@ -151,6 +151,7 @@ export async function exchangeDeviceCodeUseCase(
   })
 
   const { token: refresh_token, record: refreshRecord } = generateInitial({
+    tenant_id: rec.tenant_id,
     client_id: client.client_id,
     sub: rec.sub,
     scopes: rec.scopes,

@@ -67,6 +67,7 @@ export async function requestDeviceAuthorizationUseCase(
 
   const record: DeviceAuthorization = DeviceAuthorizationSchema.parse({
     device_code_hash: hashDeviceCode(deviceCode),
+    tenant_id: client.tenant_id,
     user_code: normalizeUserCode(userCode),
     client_id: client.client_id,
     scopes: requested,

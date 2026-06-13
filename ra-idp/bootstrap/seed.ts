@@ -26,6 +26,7 @@ export async function seedDemoData(
 ): Promise<void> {
   const demoClientSecret = process.env.DEMO_CLIENT_SECRET ?? 'demo-secret-please-rotate'
   const demoClient = ClientSchema.parse({
+    tenant_id: 'default',
     client_id: 'demo-web-app',
     client_secret_hash: createHash('sha256').update(demoClientSecret).digest('hex'),
     client_name: 'Demo Web Application',
@@ -61,6 +62,7 @@ export async function seedDemoData(
   const demoTotpSecret = process.env.DEMO_TOTP_SECRET
   const demoUser = UserSchema.parse({
     sub: 'user_alice',
+    tenant_id: 'default',
     preferred_username: 'alice',
     password_hash: await passwordHasher.hash(demoPassword),
     name: 'Alice Demo',

@@ -26,6 +26,7 @@ async function setup() {
   await userRepo.save(
     UserSchema.parse({
       sub: 'user-alice',
+      tenant_id: 'default',
       preferred_username: 'alice',
       password_hash: await passwordHasher.hash('current-password-1'),
       email_verified: true,
@@ -54,7 +55,7 @@ async function setup() {
 async function authenticatedSession(
   sessionManager: LoginSessionManager,
 ): Promise<{ cookieHeader: string }> {
-  const ctx = await sessionManager.create('user-alice', ['pwd'], new Date())
+  const ctx = await sessionManager.create('default', 'user-alice', ['pwd'], new Date())
   return { cookieHeader: `ra_idp_session=${ctx.session_id}` }
 }
 
@@ -87,7 +88,7 @@ describe('GET /account/password', () => {
 
   it('authentication_pending なら /login へ 303 (TOTP 未完了)', async () => {
     const { app, sessionManager } = await setup()
-    const ctx = await sessionManager.create('user-alice', ['pwd'], new Date(), {
+    const ctx = await sessionManager.create('default', 'user-alice', ['pwd'], new Date(), {
       authenticationPending: true,
     })
     const res = await app.request('http://idp.example.com/account/password', {

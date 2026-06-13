@@ -41,6 +41,7 @@ async function setup() {
   const tokenIssuer = new JoseTokenSigner(ISSUER, keyStore)
 
   const client = ClientSchema.parse({
+    tenant_id: 'default',
     client_id: 'tv-app',
     client_type: 'public',
     client_name: 'Smart TV App',
@@ -55,6 +56,7 @@ async function setup() {
 
   const user = UserSchema.parse({
     sub: 'user_alice',
+    tenant_id: 'default',
     preferred_username: 'alice',
     password_hash: 'pw',
     email: 'alice@example.com',
@@ -233,6 +235,7 @@ describe('Device Authorization Grant — エラー分岐', () => {
   test('device_code グラント未宣言のクライアント → unauthorized_client', async () => {
     const d = await setup()
     const noDevice = ClientSchema.parse({
+      tenant_id: 'default',
       client_id: 'web',
       client_type: 'confidential',
       redirect_uris: ['https://w/cb'],

@@ -187,6 +187,7 @@ export async function exchangeCodeForTokenUseCase(
   let refreshFamilyId: string | undefined
   if (code.scopes.includes('offline_access')) {
     const { token, record } = generateInitial({
+      tenant_id: code.tenant_id,
       client_id: client.client_id,
       sub: code.sub,
       scopes: code.scopes,

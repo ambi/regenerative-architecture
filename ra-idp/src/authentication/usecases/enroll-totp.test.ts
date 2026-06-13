@@ -8,6 +8,7 @@ import { generateTotp } from './totp'
 function makeUser(): User {
   return {
     sub: 'user-1',
+    tenant_id: 'default',
     preferred_username: 'alice',
     password_hash: 'x',
     email_verified: false,

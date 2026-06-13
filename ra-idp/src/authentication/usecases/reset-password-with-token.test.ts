@@ -26,6 +26,7 @@ async function setup(currentPassword: string) {
   const emit = (e: DomainEvent) => events.push(e)
   const user: User = {
     sub: 'user-alice',
+    tenant_id: 'default',
     preferred_username: 'alice',
     password_hash: await passwordHasher.hash(currentPassword),
     email: 'alice@example.com',

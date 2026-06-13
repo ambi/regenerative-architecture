@@ -26,6 +26,7 @@ async function setup() {
   await userRepo.save(
     UserSchema.parse({
       sub: 'user-alice',
+      tenant_id: 'default',
       preferred_username: 'alice',
       password_hash: await passwordHasher.hash('current-password-1'),
       email: 'alice@example.com',

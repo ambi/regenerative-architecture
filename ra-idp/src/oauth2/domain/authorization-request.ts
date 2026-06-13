@@ -14,6 +14,7 @@ import { OAuthError } from '../protocol/oauth-error'
 export type { AuthorizationRequest }
 
 export interface CreateAuthorizationRequestInput {
+  tenant_id: string
   client_id: string
   redirect_uri: string
   response_type: 'code'

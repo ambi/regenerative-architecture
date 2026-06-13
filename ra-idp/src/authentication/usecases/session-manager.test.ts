@@ -17,6 +17,7 @@ async function seedActiveAlice(userRepo: InMemoryUserRepository): Promise<void> 
   await userRepo.save(
     UserSchema.parse({
       sub: 'user-alice',
+      tenant_id: 'default',
       preferred_username: 'alice',
       password_hash: 'argon-placeholder',
       email_verified: true,
@@ -35,7 +36,7 @@ describe('LoginSessionManager.resolve (ADR-031)', () => {
   it('userRepo 未注入なら従来どおり session のみ検証する', async () => {
     const sessionStore = new InMemorySessionStore()
     const sm = new LoginSessionManager(sessionStore)
-    const ctx = await sm.create('user-alice', ['pwd'])
+    const ctx = await sm.create('default', 'user-alice', ['pwd'])
     const resolved = await sm.resolve(cookieHeaders(ctx.session_id!))
     expect(resolved?.sub).toBe('user-alice')
   })
@@ -46,7 +47,7 @@ describe('LoginSessionManager.resolve (ADR-031)', () => {
     await seedActiveAlice(userRepo)
     const sm = new LoginSessionManager(sessionStore, userRepo)
 
-    const ctx = await sm.create('user-alice', ['pwd'])
+    const ctx = await sm.create('default', 'user-alice', ['pwd'])
 
     // セッション後に管理者が無効化したケースを模倣
     const alice = await userRepo.findBySub('user-alice')
@@ -65,7 +66,7 @@ describe('LoginSessionManager.resolve (ADR-031)', () => {
     const userRepo = new InMemoryUserRepository()
     const sm = new LoginSessionManager(sessionStore, userRepo)
 
-    const ghostCtx = await sm.create('user-ghost', ['pwd'])
+    const ghostCtx = await sm.create('default', 'user-ghost', ['pwd'])
     const resolved = await sm.resolve(cookieHeaders(ghostCtx.session_id!))
     expect(resolved).toBeNull()
     expect(await sessionStore.find(ghostCtx.session_id!)).toBeNull()

@@ -59,6 +59,7 @@ class FakeTokenIssuer implements TokenIssuer {
 
 function makeClient(overrides: Partial<Client> = {}): Client {
   return ClientSchema.parse({
+    tenant_id: 'default',
     client_id: 'web-app',
     client_secret_hash: createHash('sha256').update('s').digest('hex'),
     client_type: 'confidential',
@@ -79,6 +80,7 @@ function makeClient(overrides: Partial<Client> = {}): Client {
 function makeUser(): User {
   return UserSchema.parse({
     sub: 'user_alice',
+    tenant_id: 'default',
     preferred_username: 'alice',
     password_hash: 'hash',
     name: 'Alice',
@@ -105,9 +107,11 @@ async function setup() {
   await userRepo.save(user)
 
   const code = generateAuthorizationCode({
+    tenant_id: 'default',
     authorization_request_id: '00000000-0000-0000-0000-000000000001',
     client_id: client.client_id,
     sub: user.sub,
+
     scopes: ['openid', 'profile', 'offline_access'],
     redirect_uri: client.redirect_uris[0],
     code_challenge: CHALLENGE,
@@ -324,6 +328,7 @@ describe('exchangeCodeForTokenUseCase — id_token は openid スコープのみ
       await setup()
 
     const noOpenidCode = generateAuthorizationCode({
+      tenant_id: 'default',
       authorization_request_id: '00000000-0000-0000-0000-000000000002',
       client_id: client.client_id,
       sub: user.sub,
@@ -354,6 +359,7 @@ describe('exchangeCodeForTokenUseCase — refresh_token は offline_access ス�
       await setup()
 
     const noOfflineAccessCode = generateAuthorizationCode({
+      tenant_id: 'default',
       authorization_request_id: '00000000-0000-0000-0000-000000000003',
       client_id: client.client_id,
       sub: user.sub,

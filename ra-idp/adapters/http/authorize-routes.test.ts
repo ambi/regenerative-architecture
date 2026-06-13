@@ -44,6 +44,7 @@ const testSentinelHash = await new Argon2idPasswordHasher(8, 1).hash('sentinel-t
 
 function makeClient(overrides: Partial<Client> = {}): Client {
   return ClientSchema.parse({
+    tenant_id: 'default',
     client_id: 'web-app',
     client_secret_hash: createHash('sha256').update('s').digest('hex'),
     client_type: 'confidential',
@@ -84,6 +85,7 @@ async function setup() {
   await userRepo.save(
     UserSchema.parse({
       sub: 'user_alice',
+      tenant_id: 'default',
       preferred_username: 'alice',
       password_hash: await passwordHasher.hash('pw'),
       email: 'alice@example.com',
@@ -94,6 +96,7 @@ async function setup() {
     }),
   )
   await consentRepo.save({
+    tenant_id: 'default',
     sub: 'user_alice',
     client_id: client.client_id,
     scopes: ['openid', 'profile'],
@@ -411,6 +414,7 @@ describe('authorize routes — RP-Initiated Logout', () => {
     const { app, sessionStore } = await setup()
     await sessionStore.save({
       id: 'sid-1',
+      tenant_id: 'default',
       sub: 'user_alice',
       auth_time: Math.floor(Date.now() / 1000),
       amr: ['pwd'],

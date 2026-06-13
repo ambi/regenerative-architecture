@@ -16,6 +16,7 @@ import {
 import { OAuthError } from '../protocol/oauth-error'
 
 const baseInput = {
+  tenant_id: 'default',
   authorization_request_id: '00000000-0000-0000-0000-000000000001',
   client_id: 'cli',
   sub: 'user_alice',

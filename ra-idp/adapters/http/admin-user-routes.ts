@@ -305,6 +305,7 @@ function forbiddenShell(acceptLanguage?: string): Response {
 function toAdminUserResponse(user: User): AdminUserResponse {
   return {
     sub: user.sub,
+    tenant_id: user.tenant_id,
     preferred_username: user.preferred_username,
     name: user.name,
     email: user.email,

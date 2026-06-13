@@ -79,6 +79,7 @@ export async function createAdminUser(
   const passwordHash = await deps.passwordHasher.hash(input.password)
   const user = UserSchema.parse({
     sub: `user_${randomUUID()}`,
+    tenant_id: 'default',
     preferred_username: username,
     password_hash: passwordHash,
     name: input.name,

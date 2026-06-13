@@ -14,6 +14,7 @@ export type { AuthorizationCode }
 const CODE_BYTES = 32 // 256 ビット
 
 export function generateAuthorizationCode(input: {
+  tenant_id: string
   authorization_request_id: string
   client_id: string
   sub: string
@@ -32,6 +33,7 @@ export function generateAuthorizationCode(input: {
   const now = input.now ?? new Date()
   return AuthorizationCodeSchema.parse({
     code: randomBytes(CODE_BYTES).toString('base64url'),
+    tenant_id: input.tenant_id,
     authorization_request_id: input.authorization_request_id,
     client_id: input.client_id,
     sub: input.sub,

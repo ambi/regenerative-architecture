@@ -25,6 +25,7 @@ export async function issueAuthorizationCodeUseCase(
   }
 
   const code = generateAuthorizationCode({
+    tenant_id: req.tenant_id,
     authorization_request_id: req.id,
     client_id: req.client_id,
     sub: req.sub!,

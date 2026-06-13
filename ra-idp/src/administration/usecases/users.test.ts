@@ -34,6 +34,7 @@ async function setup(): Promise<{
   await userRepo.save(
     UserSchema.parse({
       sub: 'user-bob',
+      tenant_id: 'default',
       preferred_username: 'bob',
       password_hash: await HASHER.hash('bob-password-12345'),
       email: 'bob@example.com',

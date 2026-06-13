@@ -15,6 +15,7 @@ import { ClientSchema, type Client } from '../../spec-bindings/schemas'
 
 function makeClient(overrides: Partial<Client> = {}): Client {
   return ClientSchema.parse({
+    tenant_id: 'default',
     client_id: 'web-app',
     client_secret_hash: createHash('sha256').update('s').digest('hex'),
     client_type: 'confidential',
@@ -42,6 +43,7 @@ async function setup(clientOverrides: Partial<Client> = {}) {
 }
 
 const AUTH_INPUT = {
+  tenant_id: 'default',
   client_id: 'web-app',
   redirect_uri: 'https://app.example.com/cb',
   response_type: 'code' as const,
@@ -63,6 +65,7 @@ describe('authorizeRequestUseCase — consent handling', () => {
   it('既存の同意があれば consented まで進み、同意 UI をスキップできる', async () => {
     const { clientRepo, consentRepo, requestStore, client } = await setup()
     await consentRepo.save({
+      tenant_id: 'default',
       sub: 'user_alice',
       client_id: client.client_id,
       scopes: ['openid', 'profile'],
@@ -87,6 +90,7 @@ describe('authorizeRequestUseCase — consent handling', () => {
   it('prompt=consent は既存同意があっても再同意を要求する', async () => {
     const { clientRepo, consentRepo, requestStore, client } = await setup()
     await consentRepo.save({
+      tenant_id: 'default',
       sub: 'user_alice',
       client_id: client.client_id,
       scopes: ['openid', 'profile'],
@@ -113,6 +117,7 @@ describe('authorizeRequestUseCase — OIDC session prompts', () => {
   it('max_age を超えた認証時刻では再認証を要求する', async () => {
     const { clientRepo, consentRepo, requestStore, client } = await setup()
     await consentRepo.save({
+      tenant_id: 'default',
       sub: 'user_alice',
       client_id: client.client_id,
       scopes: ['openid', 'profile'],
@@ -140,6 +145,7 @@ describe('authorizeRequestUseCase — OIDC session prompts', () => {
   it('max_age 内の認証時刻では既存同意により consented まで進む', async () => {
     const { clientRepo, consentRepo, requestStore, client } = await setup()
     await consentRepo.save({
+      tenant_id: 'default',
       sub: 'user_alice',
       client_id: client.client_id,
       scopes: ['openid', 'profile'],
@@ -167,6 +173,7 @@ describe('authorizeRequestUseCase — OIDC session prompts', () => {
   it('prompt=login は既存セッションがあっても再認証を要求する', async () => {
     const { clientRepo, consentRepo, requestStore, client } = await setup()
     await consentRepo.save({
+      tenant_id: 'default',
       sub: 'user_alice',
       client_id: client.client_id,
       scopes: ['openid', 'profile'],
@@ -252,6 +259,7 @@ describe('authorizeRequestUseCase — PAR policy', () => {
 
 describe('authorizeRequestUseCase — PKCE staging (ADR-002 改訂)', () => {
   const AUTH_INPUT_NO_PKCE = {
+    tenant_id: 'default',
     client_id: 'web-app',
     redirect_uri: 'https://app.example.com/cb',
     response_type: 'code' as const,

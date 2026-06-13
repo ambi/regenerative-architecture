@@ -24,6 +24,7 @@ async function setup() {
   const denylist = new InMemoryAccessTokenDenylist()
   const refreshStore = new InMemoryRefreshTokenStore()
   const client = ClientSchema.parse({
+    tenant_id: 'default',
     client_id: 'demo-client',
     client_secret_hash: 'x',
     client_type: 'confidential',

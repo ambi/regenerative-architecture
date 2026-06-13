@@ -190,7 +190,7 @@ async function completePasswordLogin(
   await deps.loginAttemptThrottle.recordSuccess('account', normalizedUsername)
 
   const needsSecondFactor = user.mfa_enrolled
-  const context = await deps.sessionManager.create(user.sub, ['pwd'], now, {
+  const context = await deps.sessionManager.create(user.tenant_id, user.sub, ['pwd'], now, {
     authenticationPending: needsSecondFactor,
   })
   deps.emit({

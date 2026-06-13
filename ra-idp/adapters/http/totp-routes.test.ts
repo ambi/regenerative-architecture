@@ -47,6 +47,7 @@ const testSentinelHash = await new Argon2idPasswordHasher(8, 1).hash('sentinel-t
 
 function makeClient(overrides: Partial<Client> = {}): Client {
   return ClientSchema.parse({
+    tenant_id: 'default',
     client_id: 'web-app',
     client_secret_hash: createHash('sha256').update('s').digest('hex'),
     client_type: 'confidential',
@@ -89,6 +90,7 @@ async function setup(options: { mfaEnrolled?: boolean; prefillConsent?: boolean 
   await userRepo.save(
     UserSchema.parse({
       sub: 'user_alice',
+      tenant_id: 'default',
       preferred_username: 'alice',
       password_hash: await passwordHasher.hash('pw'),
       email: 'alice@example.com',
@@ -108,6 +110,7 @@ async function setup(options: { mfaEnrolled?: boolean; prefillConsent?: boolean 
   }
   if (prefillConsent) {
     await consentRepo.save({
+      tenant_id: 'default',
       sub: 'user_alice',
       client_id: client.client_id,
       scopes: ['openid', 'profile'],
@@ -424,6 +427,7 @@ describe('totp routes — step-up reauth via acr_values', () => {
     const ctx = await setup()
     const session = {
       id: 'session-pwd-only',
+      tenant_id: 'default',
       sub: 'user_alice',
       auth_time: Math.floor(Date.now() / 1000),
       amr: ['pwd'],
@@ -494,6 +498,7 @@ describe('totp routes — step-up reauth via acr_values', () => {
     const { app, sessionStore } = await setup({ mfaEnrolled: false })
     await sessionStore.save({
       id: 'session-no-mfa',
+      tenant_id: 'default',
       sub: 'user_alice',
       auth_time: Math.floor(Date.now() / 1000),
       amr: ['pwd'],

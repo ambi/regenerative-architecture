@@ -22,6 +22,7 @@ async function setupUser(overrides: { email?: string; emailVerified?: boolean } 
   await userRepo.save(
     UserSchema.parse({
       sub: 'user-alice',
+      tenant_id: 'default',
       preferred_username: 'alice',
       password_hash: 'unused',
       email: overrides.email ?? 'alice@example.com',

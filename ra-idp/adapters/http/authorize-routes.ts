@@ -198,6 +198,7 @@ export function createAuthorizeRoutes(deps: AuthorizeRoutesDeps) {
       }
 
       const { request, client } = await authorizeRequestUseCase(deps, {
+        tenant_id: 'default',
         client_id: params.client_id,
         redirect_uri: params.redirect_uri,
         response_type: 'code',

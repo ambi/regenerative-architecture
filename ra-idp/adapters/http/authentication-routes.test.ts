@@ -53,6 +53,7 @@ async function setup(options: { trustedForwardedHops?: number; disableAlice?: bo
   await userRepo.save(
     UserSchema.parse({
       sub: 'user-alice',
+      tenant_id: 'default',
       preferred_username: 'alice',
       password_hash: await passwordHasher.hash('correct-password-1'),
       email_verified: true,

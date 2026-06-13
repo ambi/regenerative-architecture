@@ -26,6 +26,7 @@ const ISSUER = 'http://idp.example.com'
 
 function makeClient(): Client {
   return ClientSchema.parse({
+    tenant_id: 'default',
     client_id: 'web-app',
     client_secret_hash: createHash('sha256').update('s').digest('hex'),
     client_type: 'confidential',
@@ -52,6 +53,7 @@ async function setup() {
   await userRepo.save(
     UserSchema.parse({
       sub: 'user_alice',
+      tenant_id: 'default',
       preferred_username: 'alice',
       password_hash: 'x',
       email: 'alice@example.com',

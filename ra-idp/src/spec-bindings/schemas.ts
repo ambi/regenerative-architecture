@@ -16,6 +16,36 @@ import {
 } from './grants/grant-types'
 
 // ===============================================================
+// テナント (ADR-032 / ADR-033 / ADR-034)
+// ===============================================================
+//
+// `id` は URL-safe slug。予約語 `admin` は path `/admin/...` と衝突するため不可。
+// すべての aggregate root (Client / User / Consent / ...) が `tenant_id` を持つ。
+
+export const DEFAULT_TENANT_ID = 'default'
+
+export const TENANT_ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,62}$/
+
+export const TenantStatusSchema = z.enum(['active', 'disabled'])
+export type TenantStatus = z.infer<typeof TenantStatusSchema>
+
+export const TenantSchema = z.object({
+  id: z
+    .string()
+    .min(1)
+    .max(63)
+    .refine((id) => TENANT_ID_PATTERN.test(id) && id !== 'admin', {
+      message: 'tenant id must be a URL-safe slug and must not be admin',
+    }),
+  display_name: z.string().min(1).max(200),
+  status: TenantStatusSchema,
+  created_at: z.string().datetime(),
+  updated_at: z.string().datetime().optional(),
+  disabled_at: z.string().datetime().optional(),
+})
+export type Tenant = z.infer<typeof TenantSchema>
+
+// ===============================================================
 // 管理 API (Phase 4 / ADR-031)
 // ===============================================================
 
@@ -42,6 +72,7 @@ export type AdminUserUpdateRequest = z.infer<typeof AdminUserUpdateRequestSchema
 
 export const AdminUserResponseSchema = z.object({
   sub: z.string(),
+  tenant_id: z.string(),
   preferred_username: z.string(),
   name: z.string().optional(),
   email: z.string().email().optional(),
@@ -64,6 +95,7 @@ export type AdminUserListResponse = z.infer<typeof AdminUserListResponseSchema>
 // ===============================================================
 
 export const ClientSchema = z.object({
+  tenant_id: z.string().min(1),
   client_id: z.string().min(1).max(128),
   client_secret_hash: z.string().optional(),
   client_name: z.string().min(1).max(200).optional(),
@@ -91,6 +123,7 @@ export type Client = z.infer<typeof ClientSchema>
 
 export const UserSchema = z.object({
   sub: z.string().min(1),
+  tenant_id: z.string().min(1),
   preferred_username: z.string().min(1).max(100),
   password_hash: z.string(),
   name: z.string().optional(),
@@ -139,6 +172,7 @@ export type MfaFactor = z.infer<typeof MfaFactorSchema>
 // ===============================================================
 
 export const ConsentSchema = z.object({
+  tenant_id: z.string().min(1),
   sub: z.string(),
   client_id: z.string(),
   scopes: z.array(z.string()).min(1),
@@ -154,6 +188,7 @@ export type Consent = z.infer<typeof ConsentSchema>
 
 export const AuthorizationRequestSchema = z.object({
   id: z.string().uuid(),
+  tenant_id: z.string().min(1),
   state: z.enum([
     'received',
     'authentication_pending',
@@ -193,6 +228,7 @@ export type AuthorizationRequest = z.infer<typeof AuthorizationRequestSchema>
 
 export const AuthorizationCodeSchema = z.object({
   code: z.string(),
+  tenant_id: z.string().min(1),
   authorization_request_id: z.string().uuid(),
   client_id: z.string(),
   sub: z.string(),
@@ -219,6 +255,7 @@ export type AuthorizationCode = z.infer<typeof AuthorizationCodeSchema>
 
 export const RefreshTokenRecordSchema = z.object({
   id: z.string().uuid(),
+  tenant_id: z.string().min(1),
   hash: z.string(),
   family_id: z.string().uuid(),
   parent_id: z.string().uuid().optional(),
@@ -247,6 +284,7 @@ export type RefreshTokenRecord = z.infer<typeof RefreshTokenRecordSchema>
 
 export const PARRecordSchema = z.object({
   request_uri: z.string(),
+  tenant_id: z.string().min(1),
   client_id: z.string(),
   parameters: z.record(z.string()),
   issued_at: z.string().datetime(),
@@ -263,6 +301,7 @@ export type PARRecord = z.infer<typeof PARRecordSchema>
 export const DeviceAuthorizationSchema = z.object({
   // device_code はベアラ秘密。プレーンテキストは保存せず SHA-256 ハッシュのみ持つ。
   device_code_hash: z.string(),
+  tenant_id: z.string().min(1),
   // user_code は人間が verification_uri で入力する短いコード。索引キーになる。
   user_code: z.string(),
   client_id: z.string(),
@@ -512,6 +551,50 @@ export const DomainEventSchema = z.discriminatedUnion('type', [
     occurredAt: isoDate,
     actorSub: z.string(),
     targetSub: z.string(),
+  }),
+  z.object({
+    type: z.literal('AdminClientCreated'),
+    occurredAt: isoDate,
+    actorSub: z.string(),
+    clientId: z.string(),
+  }),
+  z.object({
+    type: z.literal('AdminClientUpdated'),
+    occurredAt: isoDate,
+    actorSub: z.string(),
+    clientId: z.string(),
+    changedFields: z.array(z.string()),
+  }),
+  z.object({
+    type: z.literal('AdminClientDeleted'),
+    occurredAt: isoDate,
+    actorSub: z.string(),
+    clientId: z.string(),
+  }),
+  z.object({
+    type: z.literal('TenantCreated'),
+    occurredAt: isoDate,
+    actorSub: z.string(),
+    tenantId: z.string(),
+  }),
+  z.object({
+    type: z.literal('TenantUpdated'),
+    occurredAt: isoDate,
+    actorSub: z.string(),
+    tenantId: z.string(),
+    changedFields: z.array(z.string()),
+  }),
+  z.object({
+    type: z.literal('TenantDisabled'),
+    occurredAt: isoDate,
+    actorSub: z.string(),
+    tenantId: z.string(),
+  }),
+  z.object({
+    type: z.literal('TenantEnabled'),
+    occurredAt: isoDate,
+    actorSub: z.string(),
+    tenantId: z.string(),
   }),
 ])
 export type DomainEvent = z.infer<typeof DomainEventSchema>

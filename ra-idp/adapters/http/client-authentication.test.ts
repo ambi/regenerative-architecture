@@ -33,6 +33,7 @@ async function setup() {
   publicJwk.alg = 'ES256'
 
   const client: Client = ClientSchema.parse({
+    tenant_id: 'default',
     client_id: CLIENT_ID,
     client_type: 'confidential',
     client_name: 'Private Key JWT Service',
@@ -185,6 +186,7 @@ describe('authenticateClient + tls_client_auth (RFC 8705 §2.1.2)', () => {
 
   function makeMtlsClient(overrides: Partial<Client> = {}): Client {
     return ClientSchema.parse({
+      tenant_id: 'default',
       client_id: MTLS_CLIENT_ID,
       client_type: 'confidential',
       redirect_uris: ['https://app.example.com/cb'],

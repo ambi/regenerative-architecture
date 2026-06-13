@@ -12,6 +12,7 @@ export const SESSION_TTL_SECONDS = 3600
 
 export interface SessionManager extends AuthenticationContextResolver {
   create(
+    tenantId: string,
     sub: string,
     amr: string[],
     now?: Date,
@@ -37,6 +38,7 @@ export class LoginSessionManager implements SessionManager {
   ) {}
 
   async create(
+    tenantId: string,
     sub: string,
     amr: string[],
     now = new Date(),
@@ -45,6 +47,7 @@ export class LoginSessionManager implements SessionManager {
     const acr = deriveAcr(amr)
     const session: LoginSession = {
       id: randomUUID(),
+      tenant_id: tenantId,
       sub,
       auth_time: Math.floor(now.getTime() / 1000),
       amr,

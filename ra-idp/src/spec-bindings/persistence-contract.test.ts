@@ -60,6 +60,7 @@ import type { KeyStore } from '../oauth2/ports/key-store'
 // ---------------------------------------------------------------
 function makeClient(id = 'test-client'): Client {
   return ClientSchema.parse({
+    tenant_id: 'default',
     client_id: id,
     client_secret_hash: createHash('sha256').update('s').digest('hex'),
     client_type: 'confidential',
@@ -79,6 +80,7 @@ function makeClient(id = 'test-client'): Client {
 function makeUser(sub = 'user_x'): User {
   return UserSchema.parse({
     sub,
+    tenant_id: 'default',
     preferred_username: `user-${sub}`,
     password_hash: 'pw-hash',
     email: `${sub}@example.com`,
@@ -91,6 +93,7 @@ function makeUser(sub = 'user_x'): User {
 function makeConsent(sub: string, client_id: string): Consent {
   const now = new Date()
   return ConsentSchema.parse({
+    tenant_id: 'default',
     sub,
     client_id,
     scopes: ['openid', 'profile'],
@@ -103,6 +106,7 @@ function makeRefresh(client_id: string, sub: string, family_id?: string): Refres
   const now = new Date()
   return RefreshTokenRecordSchema.parse({
     id: randomUUID(),
+    tenant_id: 'default',
     hash: createHash('sha256').update(randomBytes(48)).digest('hex'),
     family_id: family_id ?? randomUUID(),
     client_id,
@@ -121,6 +125,7 @@ function makeAuthCode(client_id: string, sub: string): AuthorizationCode {
   const now = new Date()
   return AuthorizationCodeSchema.parse({
     code: randomBytes(32).toString('base64url'),
+    tenant_id: 'default',
     authorization_request_id: randomUUID(),
     client_id,
     sub,
@@ -138,6 +143,7 @@ function makePAR(client_id: string): PARRecord {
   const now = new Date()
   return PARRecordSchema.parse({
     request_uri: `urn:ietf:params:oauth:request_uri:${randomBytes(16).toString('hex')}`,
+    tenant_id: 'default',
     client_id,
     parameters: { redirect_uri: 'https://app.example.com/cb', scope: 'openid' },
     issued_at: now.toISOString(),

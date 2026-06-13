@@ -28,6 +28,7 @@ async function setupUser(initialPassword: string): Promise<Harness> {
   const hash = await passwordHasher.hash(initialPassword)
   const user: User = {
     sub: 'user-1',
+    tenant_id: 'default',
     preferred_username: 'alice',
     password_hash: hash,
     email_verified: false,

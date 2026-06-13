@@ -210,6 +210,7 @@ export async function grantConsentUseCase(
   const next = advance(req, 'grant_consent')
   // コンセントを永続化
   await deps.consentRepo.save({
+    tenant_id: req.tenant_id,
     sub: req.sub!,
     client_id: req.client_id,
     scopes,

@@ -25,6 +25,7 @@ async function seed(repo: InMemoryUserRepository, overrides: Record<string, unkn
   await repo.save(
     UserSchema.parse({
       sub: 'user_alice',
+      tenant_id: 'default',
       preferred_username: 'alice',
       password_hash: 'x',
       name: 'Alice',

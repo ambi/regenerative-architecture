@@ -29,6 +29,7 @@ export function hashToken(token: string): string {
 }
 
 export function generateInitial(input: {
+  tenant_id: string
   client_id: string
   sub: string
   scopes: string[]
@@ -40,6 +41,7 @@ export function generateInitial(input: {
   const familyId = randomUUID()
   const record = RefreshTokenRecordSchema.parse({
     id: randomUUID(),
+    tenant_id: input.tenant_id,
     hash: hashToken(token),
     family_id: familyId,
     client_id: input.client_id,
@@ -59,6 +61,7 @@ export function rotate(parent: RefreshTokenRecord, now: Date = new Date()): Gene
   const token = randomBytes(TOKEN_BYTES).toString('base64url')
   const record = RefreshTokenRecordSchema.parse({
     id: randomUUID(),
+    tenant_id: parent.tenant_id,
     hash: hashToken(token),
     family_id: parent.family_id,
     parent_id: parent.id,

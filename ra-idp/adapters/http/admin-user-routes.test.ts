@@ -30,6 +30,7 @@ async function setup() {
   await userRepo.save(
     UserSchema.parse({
       sub: 'user-admin',
+      tenant_id: 'default',
       preferred_username: 'operator',
       password_hash: await HASHER.hash('operator-password-1'),
       email: 'operator@example.com',
@@ -43,6 +44,7 @@ async function setup() {
   await userRepo.save(
     UserSchema.parse({
       sub: 'user-bob',
+      tenant_id: 'default',
       preferred_username: 'bob',
       password_hash: await HASHER.hash('bob-password-12345'),
       email: 'bob@example.com',
@@ -70,7 +72,7 @@ async function setup() {
 }
 
 async function sessionFor(sessionManager: LoginSessionManager, sub: string): Promise<string> {
-  const ctx = await sessionManager.create(sub, ['pwd'], new Date())
+  const ctx = await sessionManager.create('default', sub, ['pwd'], new Date())
   return `ra_idp_session=${ctx.session_id}`
 }
 

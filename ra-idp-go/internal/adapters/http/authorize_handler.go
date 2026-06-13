@@ -674,6 +674,11 @@ func (d Deps) resolveAuthentication(c *echo.Context) (*authdomain.Authentication
 		}
 		return nil, nil
 	}
+	// cookie path 分離が破られた場合に備え、リクエスト先のテナントと User の所属テナントが
+	// 一致しないセッションは未認証扱い (defense-in-depth)。
+	if user.TenantID != requestTenantID(c) {
+		return nil, nil
+	}
 	return authn, nil
 }
 

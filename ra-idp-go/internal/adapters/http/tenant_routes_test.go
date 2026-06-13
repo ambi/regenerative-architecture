@@ -110,15 +110,44 @@ func TestTenantAdminRequiresSystemAdmin(t *testing.T) {
 	Register(e, Deps{TenantRepo: tenants, UserRepo: users, AuthnResolver: resolver})
 
 	allowed := httptest.NewRecorder()
-	e.ServeHTTP(allowed, httptest.NewRequest(http.MethodGet, "/admin/tenants", http.NoBody))
+	e.ServeHTTP(allowed, httptest.NewRequest(http.MethodGet, "/realms/default/admin/tenants", http.NoBody))
 	if allowed.Code != http.StatusOK {
 		t.Fatalf("system_admin status = %d, body = %s", allowed.Code, allowed.Body.String())
 	}
 
 	resolver.sub = "admin"
 	denied := httptest.NewRecorder()
-	e.ServeHTTP(denied, httptest.NewRequest(http.MethodGet, "/admin/tenants", http.NoBody))
+	e.ServeHTTP(denied, httptest.NewRequest(http.MethodGet, "/realms/default/admin/tenants", http.NoBody))
 	if denied.Code != http.StatusForbidden {
 		t.Fatalf("admin status = %d, body = %s", denied.Code, denied.Body.String())
+	}
+}
+
+// 別テナントのセッションがリクエストに紛れ込んだ場合、resolveAuthentication が
+// 未認証として弾くこと (cookie path 分離が破られたケースの defense-in-depth)。
+func TestCrossTenantSessionRejectsSystemAdmin(t *testing.T) {
+	tenants := memory.NewTenantRepository()
+	now := time.Now().UTC()
+	for _, tenant := range []*spec.Tenant{
+		{ID: spec.DefaultTenantID, DisplayName: "Default", Status: spec.TenantStatusActive, CreatedAt: now},
+		{ID: "acme", DisplayName: "Acme", Status: spec.TenantStatusActive, CreatedAt: now},
+	} {
+		if err := tenants.Save(context.Background(), tenant); err != nil {
+			t.Fatal(err)
+		}
+	}
+	users := memory.NewUserRepository()
+	users.Seed(&spec.User{
+		Sub: "acme-admin", TenantID: "acme", PreferredUsername: "acme-admin",
+		PasswordHash: "hash", Roles: []string{"system_admin"}, CreatedAt: now, UpdatedAt: now,
+	})
+	resolver := &fixedAuthnResolver{sub: "acme-admin"}
+	e := echo.New()
+	Register(e, Deps{TenantRepo: tenants, UserRepo: users, AuthnResolver: resolver})
+
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/realms/default/admin/tenants", http.NoBody))
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("cross-tenant session status = %d, body = %s", rec.Code, rec.Body.String())
 	}
 }

@@ -53,13 +53,16 @@ type Deps struct {
 func Register(e *echo.Echo, d Deps) {
 	registerTenantRoutes(e.Group("", d.resolveDefaultTenant), d)
 	registerTenantRoutes(e.Group("/realms/:tenant_id", d.resolvePathTenant), d)
+	// テナント CRUD は default control-plane tenant のセッションでのみ操作するため
+	// `/realms/default/admin/tenants` 配下に置き、cookie path と一致させる (ADR-032)。
+	controlPlane := e.Group("/realms/"+spec.DefaultTenantID, d.resolveControlPlaneTenant)
+	controlPlane.GET("/admin/tenants", d.handleListTenants)
+	controlPlane.GET("/admin/tenants/:tenant_id", d.handleGetTenant)
+	controlPlane.POST("/admin/tenants", d.handleCreateTenant)
+	controlPlane.PATCH("/admin/tenants/:tenant_id", d.handleUpdateTenant)
+	controlPlane.POST("/admin/tenants/:tenant_id/disable", d.handleDisableTenant)
+	controlPlane.POST("/admin/tenants/:tenant_id/enable", d.handleEnableTenant)
 	e.GET("/health", d.handleHealth)
-	e.GET("/admin/tenants", d.handleListTenants)
-	e.GET("/admin/tenants/:tenant_id", d.handleGetTenant)
-	e.POST("/admin/tenants", d.handleCreateTenant)
-	e.PATCH("/admin/tenants/:tenant_id", d.handleUpdateTenant)
-	e.POST("/admin/tenants/:tenant_id/disable", d.handleDisableTenant)
-	e.POST("/admin/tenants/:tenant_id/enable", d.handleEnableTenant)
 }
 
 func registerTenantRoutes(g *echo.Group, d Deps) {

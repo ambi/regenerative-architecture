@@ -12,17 +12,27 @@ import (
 
 func (d Deps) resolveDefaultTenant(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c *echo.Context) error {
-		return d.resolveTenant(c, next, spec.DefaultTenantID, true)
+		return d.resolveTenant(c, next, spec.DefaultTenantID, "", true)
 	}
 }
 
 func (d Deps) resolvePathTenant(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c *echo.Context) error {
-		return d.resolveTenant(c, next, c.Param("tenant_id"), false)
+		tenantID := c.Param("tenant_id")
+		return d.resolveTenant(c, next, tenantID, "/realms/"+tenantID, false)
 	}
 }
 
-func (d Deps) resolveTenant(c *echo.Context, next echo.HandlerFunc, tenantID string, bare bool) error {
+// resolveControlPlaneTenant は固定で default テナントを resolve し、URL prefix
+// /realms/default を ctx に載せる (cookie path 整合のため)。/realms/default/admin/tenants
+// 等の control-plane 経路で使う。
+func (d Deps) resolveControlPlaneTenant(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c *echo.Context) error {
+		return d.resolveTenant(c, next, spec.DefaultTenantID, "/realms/"+spec.DefaultTenantID, false)
+	}
+}
+
+func (d Deps) resolveTenant(c *echo.Context, next echo.HandlerFunc, tenantID, urlPrefix string, bare bool) error {
 	if d.TenantRepo == nil {
 		if tenantID != spec.DefaultTenantID {
 			return c.JSON(http.StatusNotFound, map[string]string{"error": "tenant_not_found"})
@@ -32,7 +42,7 @@ func (d Deps) resolveTenant(c *echo.Context, next echo.HandlerFunc, tenantID str
 		if bare && d.LegacyBareIssuer {
 			issuer = strings.TrimSuffix(d.Issuer, "/")
 		}
-		c.SetRequest(c.Request().WithContext(tenancy.WithTenant(c.Request().Context(), tenant, issuer)))
+		c.SetRequest(c.Request().WithContext(tenancy.WithTenant(c.Request().Context(), tenant, issuer, urlPrefix)))
 		return next(c)
 	}
 	tenant, err := d.TenantRepo.FindByID(c.Request().Context(), tenantID)
@@ -49,7 +59,7 @@ func (d Deps) resolveTenant(c *echo.Context, next echo.HandlerFunc, tenantID str
 	if bare && d.LegacyBareIssuer {
 		issuer = strings.TrimSuffix(d.Issuer, "/")
 	}
-	c.SetRequest(c.Request().WithContext(tenancy.WithTenant(c.Request().Context(), tenant, issuer)))
+	c.SetRequest(c.Request().WithContext(tenancy.WithTenant(c.Request().Context(), tenant, issuer, urlPrefix)))
 	return next(c)
 }
 
@@ -66,15 +76,15 @@ func requestIssuer(c *echo.Context, fallback string) string {
 }
 
 func tenantRoute(c *echo.Context, path string) string {
-	if tenantID := c.Param("tenant_id"); tenantID != "" {
-		return "/realms/" + tenantID + path
+	if prefix := tenancy.URLPrefix(c.Request().Context()); prefix != "" {
+		return prefix + path
 	}
 	return path
 }
 
 func tenantCookiePath(c *echo.Context) string {
-	if tenantID := c.Param("tenant_id"); tenantID != "" {
-		return "/realms/" + tenantID
+	if prefix := tenancy.URLPrefix(c.Request().Context()); prefix != "" {
+		return prefix
 	}
 	return "/"
 }

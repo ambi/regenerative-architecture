@@ -756,7 +756,7 @@ vocabulary:
       - { term: Client, reason: Administrator は人間の User に付与されるロールであり、OAuth Client の権限ではない。 }
       - { term: SystemAdministrator, reason: Administrator はテナント内に閉じ、SystemAdministrator はテナント境界を越えて tenant lifecycle 操作と cross-tenant 管理を行える。 }
   SystemAdministrator:
-    definition: default control-plane tenant に所属し、User.roles に system_admin を持つ認証済みユーザー (ADR-032)。テナント管理 (CRUD・disable・enable) と cross-tenant 操作を許可され、`/admin/tenants/*` を呼び出せる。
+    definition: default control-plane tenant に所属し、User.roles に system_admin を持つ認証済みユーザー (ADR-032)。テナント管理 (CRUD・disable・enable) と cross-tenant 操作を許可され、`/realms/default/admin/tenants/*` を呼び出せる。
     aliases: [system_admin, システム管理者]
   UserDisablement:
     definition: User.disabled_at を設定して認証とセッション利用を停止する復活可能な管理操作。削除や PII purge とは異なる。
@@ -1022,10 +1022,10 @@ vocabulary:
     definition: 復活可能な無効化状態。Tenant と (慣例的に) User の disabled_at 経路で共有される。
     aliases: [disabled]
   Disable:
-    definition: 対象を Disabled に遷移させる。Tenant では `/admin/tenants/{id}/disable` から発火。
+    definition: 対象を Disabled に遷移させる。Tenant では `/realms/default/admin/tenants/{id}/disable` から発火。
     aliases: [disable]
   Enable:
-    definition: Disabled の対象を Active に戻す。Tenant では `/admin/tenants/{id}/enable` から発火。
+    definition: Disabled の対象を Active に戻す。Tenant では `/realms/default/admin/tenants/{id}/enable` から発火。
     aliases: [enable]
 
   # ---------- 用語として使わないもの ----------
@@ -2685,13 +2685,13 @@ interfaces:
     errors: [InvalidRequestError]
 
   ListTenants:
-    description: system_admin がテナント一覧を取得する。
+    description: system_admin がテナント一覧を取得する。default control-plane tenant のセッションで認証する (ADR-032)。
     output:
       response: { type: TenantListResponse }
     errors: [AccessDeniedError]
     read_only: true
     bindings:
-      - { kind: http, method: GET, path: /admin/tenants }
+      - { kind: http, method: GET, path: /realms/default/admin/tenants }
 
   GetTenant:
     description: system_admin が単一テナントを取得する。
@@ -2702,7 +2702,7 @@ interfaces:
     errors: [InvalidRequestError, AccessDeniedError]
     read_only: true
     bindings:
-      - { kind: http, method: GET, path: "/admin/tenants/{tenant_id}" }
+      - { kind: http, method: GET, path: "/realms/default/admin/tenants/{tenant_id}" }
 
   CreateTenant:
     description: system_admin が新規テナントを作成する。
@@ -2713,7 +2713,7 @@ interfaces:
     errors: [InvalidRequestError, AccessDeniedError]
     emits: [TenantCreated]
     bindings:
-      - { kind: http, method: POST, path: /admin/tenants, request_form: body, successful_status_codes: ["201"] }
+      - { kind: http, method: POST, path: /realms/default/admin/tenants, request_form: body, successful_status_codes: ["201"] }
 
   UpdateTenant:
     description: system_admin がテナントの表示名を更新する。
@@ -2725,7 +2725,7 @@ interfaces:
     errors: [InvalidRequestError, AccessDeniedError]
     emits: [TenantUpdated]
     bindings:
-      - { kind: http, method: PATCH, path: "/admin/tenants/{tenant_id}", request_form: body }
+      - { kind: http, method: PATCH, path: "/realms/default/admin/tenants/{tenant_id}", request_form: body }
 
   DisableTenant:
     description: system_admin が default 以外のテナントを無効化する。/authorize / /token / /login 等は一律 invalid_request になる。
@@ -2734,7 +2734,7 @@ interfaces:
     errors: [InvalidRequestError, AccessDeniedError]
     emits: [TenantDisabled]
     bindings:
-      - { kind: http, method: POST, path: "/admin/tenants/{tenant_id}/disable", successful_status_codes: ["204"] }
+      - { kind: http, method: POST, path: "/realms/default/admin/tenants/{tenant_id}/disable", successful_status_codes: ["204"] }
 
   EnableTenant:
     description: system_admin が無効化済みテナントを再有効化する。
@@ -2743,7 +2743,7 @@ interfaces:
     errors: [InvalidRequestError, AccessDeniedError]
     emits: [TenantEnabled]
     bindings:
-      - { kind: http, method: POST, path: "/admin/tenants/{tenant_id}/enable", successful_status_codes: ["204"] }
+      - { kind: http, method: POST, path: "/realms/default/admin/tenants/{tenant_id}/enable", successful_status_codes: ["204"] }
 
 
 # =================================================================
@@ -3531,14 +3531,14 @@ scenarios:
       - '"/realms/acme/authorize" にリクエストを送る'
       - 'エラー "InvalidRequestError"'
 
-  system_admin だけが /admin/tenants を呼べ admin は 403:
+  system_admin だけが /realms/default/admin/tenants を呼べ admin は 403:
     description: ADR-032 の RBAC 境界。
     steps:
       - 'roles=["system_admin"] のユーザー "ops" が認証済みである'
-      - 'ユーザー "ops" が /admin/tenants にアクセスする'
+      - 'ユーザー "ops" が /realms/default/admin/tenants にアクセスする'
       - '応答は 200 でテナント一覧を返す'
       - 'roles=["admin"] のユーザー "tadmin" が認証済みである'
-      - 'ユーザー "tadmin" が /admin/tenants にアクセスする'
+      - 'ユーザー "tadmin" が /realms/default/admin/tenants にアクセスする'
       - 'エラー "AccessDeniedError"'
 
 
@@ -4460,7 +4460,7 @@ annotations:
       status: covered
       evidence:
         - { file: ../ra-idp-go/internal/adapters/http/tenant_routes_test.go, test: TestBareRouteUsesDefaultAndDisabledTenantIsRejected }
-    "system_admin だけが /admin/tenants を呼べ admin は 403":
+    "system_admin だけが /realms/default/admin/tenants を呼べ admin は 403":
       status: covered
       evidence:
         - { file: ../ra-idp-go/internal/adapters/http/tenant_routes_test.go, test: TestTenantAdminRequiresSystemAdmin }

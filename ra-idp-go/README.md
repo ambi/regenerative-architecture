@@ -116,13 +116,23 @@ userinfo、fragmentを拒否する。取得は3秒timeout、1 MiB上限、5分ca
 の形式を正とする。prefix のない既存 route は `default` tenant に解決される。
 issuer は通常 `{ISSUER}/realms/{tenant_id}` となる。
 
-tenant lifecycle API (`/admin/tenants`) は system-wide API のため realm prefix
-を持たず、`system_admin` role だけが利用できる。`admin` role の
-`/admin/users` 操作は request tenant 内に限定される。
+tenant lifecycle API (`/realms/default/admin/tenants/...`) は cross-tenant 操作だが、
+ADR-032 で `system_admin` を default control-plane tenant に所属させているため
+default realm prefix 配下に置く (default tenant の session cookie path で覆えるため、
+root への cookie 広げが不要になる)。`admin` role の `/admin/users` 操作は request
+tenant 内に限定される。
 
 Redis の一時状態 key は `tenant:{id}:` namespace に分離される。旧形式 key
 は migration せず TTL により失効するため、切替直後の in-flight 認可・device
 flow・session は再実行が必要になる場合がある。
+
+**署名鍵はテナント間で共有される (Phase 8 で per-tenant 鍵化予定)。**
+すべてのテナントが同じ `KeyStore` を参照し、`/realms/{tenant_id}/jwks` は同一の
+JWKS を返す。トークン整合性は `iss` claim (`{base}/realms/{tenant_id}`) と
+audience の検証に依存するため、RP / Resource Server が **`iss` を厳格に検証する
+ことが前提条件** となる。`iss` を見ない RP は、テナント A 向けに発行された
+アクセストークンをテナント B の RS に持ち込んでも署名検証が通ってしまう。
+本番マルチテナント環境に投入する前に per-tenant 鍵への切替を完了させること。
 
 ## 検証
 

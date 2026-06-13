@@ -14,7 +14,7 @@ import (
 func tenantContext(id string) context.Context {
 	return tenancy.WithTenant(context.Background(), &spec.Tenant{
 		ID: id, DisplayName: id, Status: spec.TenantStatusActive, CreatedAt: time.Now().UTC(),
-	}, "https://idp.example/realms/"+id)
+	}, "https://idp.example/realms/"+id, "/realms/"+id)
 }
 
 func TestAuthorizeCannotResolveAnotherTenantClient(t *testing.T) {

@@ -40,7 +40,8 @@ ADR-031 §7 はこの増分を予期して
    - `admin` ロール — 自テナント内のユーザー / クライアント管理に閉じる
    - `system_admin` ロール — テナント CRUD と cross-tenant 操作を許可
    - `system_admin` を持つ User は `default` control-plane tenant に所属する。
-     global `/admin/tenants` は default tenant の session で認証する
+     テナント CRUD endpoint は `/realms/default/admin/tenants/...` に置き、default
+     tenant の session cookie がそのまま path 一致する形で認証する (ADR-033 §1)
    - `roles` フィールドは ADR-031 の `string[]` 構造を維持し、テナント ID
      を埋め込まない。所属テナントは `User.tenant_id` で表す。
 7. 既存 demo は `default` テナントに収める。isolation テストでは第二

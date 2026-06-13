@@ -729,13 +729,13 @@ paths:
           required: true
           schema:
             type: string
-  /admin/tenants:
+  /realms/default/admin/tenants:
     get:
       operationId: listTenants
-      summary: system_admin がテナント一覧を取得する。
+      summary: "system_admin がテナント一覧を取得する。default control-plane tenant のセッションで認証する (ADR-032)。"
       responses:
         200:
-          description: system_admin がテナント一覧を取得する。
+          description: "system_admin がテナント一覧を取得する。default control-plane tenant のセッションで認証する (ADR-032)。"
           content:
             application/json:
               schema:
@@ -768,7 +768,7 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/TenantCreateRequest"
-  /admin/tenants/{tenant_id}:
+  /realms/default/admin/tenants/{tenant_id}:
     get:
       operationId: getTenant
       summary: system_admin が単一テナントを取得する。
@@ -819,7 +819,7 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/TenantUpdateRequest"
-  /admin/tenants/{tenant_id}/disable:
+  /realms/default/admin/tenants/{tenant_id}/disable:
     post:
       operationId: disableTenant
       summary: system_admin が default 以外のテナントを無効化する。/authorize / /token / /login 等は一律 invalid_request になる。
@@ -838,7 +838,7 @@ paths:
           required: true
           schema:
             type: string
-  /admin/tenants/{tenant_id}/enable:
+  /realms/default/admin/tenants/{tenant_id}/enable:
     post:
       operationId: enableTenant
       summary: system_admin が無効化済みテナントを再有効化する。

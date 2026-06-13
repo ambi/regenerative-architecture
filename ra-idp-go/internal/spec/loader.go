@@ -199,10 +199,11 @@ type Objective struct {
 }
 
 type SCLAnnotations struct {
-	PasswordPolicy    SCLPasswordPolicy    `yaml:"password_policy"`
-	DiscoveryTemplate SCLDiscoveryTemplate `yaml:"discovery_template"`
-	ACRVocabulary     SCLACRVocabulary     `yaml:"acr_vocabulary"`
-	TOTPPolicy        SCLTOTPPolicy        `yaml:"totp_policy"`
+	PasswordPolicy      SCLPasswordPolicy      `yaml:"password_policy"`
+	PasswordResetPolicy SCLPasswordResetPolicy `yaml:"password_reset_policy"`
+	DiscoveryTemplate   SCLDiscoveryTemplate   `yaml:"discovery_template"`
+	ACRVocabulary       SCLACRVocabulary       `yaml:"acr_vocabulary"`
+	TOTPPolicy          SCLTOTPPolicy          `yaml:"totp_policy"`
 }
 
 type SCLPasswordPolicy struct {
@@ -212,6 +213,13 @@ type SCLPasswordPolicy struct {
 	ForbidUserIdentifierSimilarity bool   `yaml:"forbid_user_identifier_similarity"`
 	CommonPasswordDictionary       string `yaml:"common_password_dictionary"`
 	HistoryDepth                   int    `yaml:"history_depth"`
+}
+
+type SCLPasswordResetPolicy struct {
+	Description           string `yaml:"description"`
+	TokenTTLSeconds       int    `yaml:"token_ttl_seconds"`
+	SingleUse             bool   `yaml:"single_use"`
+	EmailVerifiedRequired bool   `yaml:"email_verified_required"`
 }
 
 type SCLDiscoveryTemplate struct {

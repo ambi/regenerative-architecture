@@ -41,6 +41,16 @@ func TestPasswordPolicyHistoryDepthMatchesSCL(t *testing.T) {
 	}
 }
 
+func TestPasswordResetTokenTTLMatchesSCL(t *testing.T) {
+	s, err := spec.LoadSCL()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := s.Annotations.PasswordResetPolicy.TokenTTLSeconds, usecases.PasswordResetTokenTTLSeconds; got != want {
+		t.Fatalf("scl.annotations.password_reset_policy.token_ttl_seconds=%d, Go PasswordResetTokenTTLSeconds=%d", got, want)
+	}
+}
+
 func TestMfaFactorTypeMatchesSCL(t *testing.T) {
 	s, err := spec.LoadSCL()
 	if err != nil {

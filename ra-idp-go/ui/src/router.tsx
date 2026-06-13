@@ -11,6 +11,8 @@ import { ConsentPage } from './pages/ConsentPage'
 import { DevicePage } from './pages/DevicePage'
 import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
+import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { StatusPage } from './pages/StatusPage'
 import { TotpPage } from './pages/TotpPage'
 import type { PageData } from './types'
@@ -60,6 +62,16 @@ export function createAppRouter(data: PageData) {
     path: '/account/password',
     component: () => (data.kind === 'change-password' ? <ChangePasswordPage {...data} /> : null),
   })
+  const forgotPasswordRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/forgot_password',
+    component: () => (data.kind === 'forgot-password' ? <ForgotPasswordPage {...data} /> : null),
+  })
+  const resetPasswordRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/reset_password',
+    component: () => (data.kind === 'reset-password' ? <ResetPasswordPage {...data} /> : null),
+  })
 
   return createRouter({
     routeTree: rootRoute.addChildren([
@@ -71,6 +83,8 @@ export function createAppRouter(data: PageData) {
       statusRoute,
       callbackRoute,
       changePasswordRoute,
+      forgotPasswordRoute,
+      resetPasswordRoute,
     ]),
     history: createBrowserHistory(),
   })

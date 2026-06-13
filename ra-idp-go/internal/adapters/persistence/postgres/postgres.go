@@ -144,6 +144,14 @@ func (r *UserRepository) FindByUsername(ctx context.Context, username string) (*
 	return scanUser(r.Pool.QueryRow(ctx, userSelect+" WHERE preferred_username=$1 AND deleted_at IS NULL", username))
 }
 
+func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*spec.User, error) {
+	return scanUser(r.Pool.QueryRow(
+		ctx,
+		userSelect+" WHERE lower(email)=lower($1) AND deleted_at IS NULL LIMIT 1",
+		email,
+	))
+}
+
 func (r *UserRepository) Save(ctx context.Context, u *spec.User) error {
 	_, err := r.Pool.Exec(ctx, `
 INSERT INTO users (sub,preferred_username,password_hash,name,given_name,family_name,email,
@@ -209,6 +217,50 @@ func (r *PasswordHistoryRepository) Add(ctx context.Context, sub, encoded string
 	_, err := r.Pool.Exec(ctx, `INSERT INTO password_history (sub,encoded,created_at) VALUES ($1,$2,$3)`,
 		sub, encoded, now)
 	return err
+}
+
+type PasswordResetTokenStore struct{ Pool *pgxpool.Pool }
+
+func (s *PasswordResetTokenStore) Save(
+	ctx context.Context,
+	record authports.PasswordResetTokenRecord,
+) error {
+	tx, err := s.Pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	if _, err := tx.Exec(ctx, "DELETE FROM password_reset_tokens WHERE sub=$1", record.Sub); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `INSERT INTO password_reset_tokens
+(token_hash,sub,created_at,expires_at) VALUES ($1,$2,$3,$4)`,
+		record.TokenHash, record.Sub, record.CreatedAt, record.ExpiresAt); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+func (s *PasswordResetTokenStore) Consume(
+	ctx context.Context,
+	tokenHash string,
+	now time.Time,
+) (*authports.PasswordResetTokenRecord, error) {
+	var record authports.PasswordResetTokenRecord
+	err := s.Pool.QueryRow(ctx, `DELETE FROM password_reset_tokens
+WHERE token_hash=$1
+RETURNING sub,token_hash,created_at,expires_at`, tokenHash).
+		Scan(&record.Sub, &record.TokenHash, &record.CreatedAt, &record.ExpiresAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if !now.Before(record.ExpiresAt) {
+		return nil, nil
+	}
+	return &record, nil
 }
 
 type MfaFactorRepository struct{ Pool *pgxpool.Pool }

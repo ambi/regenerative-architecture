@@ -9,6 +9,7 @@ TS 側と同じスコープを目標に実装した:
 - 全 SCL バインディング (vocabulary / models / state_machines / objectives / properties / scenarios / permissions / interfaces / annotations)
 - 認可エンドポイント `/authorize` + React Login / Consent UI + End Session (`/end_session`)
 - ブラウザ認証API `/api/auth/*` + Session Cookie + CSRF
+- メールによるパスワードリセット + 単発・30分TTLトークン (ADR-030)
 - トークンエンドポイント `/token` (authorization_code, refresh_token, client_credentials, device_code)
 - リフレッシュトークンのローテーション + ファミリー失効 (ADR-004)
 - DPoP (RFC 9449) プルーフ検証

@@ -38,6 +38,9 @@ type Deps struct {
 	PasswordHasher             authports.PasswordHasher
 	MfaFactorRepo              authports.MfaFactorRepository
 	PasswordHistoryRepo        authports.PasswordHistoryRepository
+	PasswordResetTokenStore    authports.PasswordResetTokenStore
+	EmailSender                authports.EmailSender
+	BreachedPasswordChecker    authports.BreachedPasswordChecker
 	SessionManager             *authusecases.SessionManager
 	AuthnResolver              authdomain.AuthenticationContextResolver
 	Emit                       func(spec.DomainEvent)
@@ -52,6 +55,9 @@ func Register(e *echo.Echo, d Deps) {
 	e.GET("/api/auth/account", d.handleAccountContext)
 	e.POST("/api/auth/login", d.handleLoginAPI)
 	e.POST("/api/auth/change_password", d.handleChangePasswordAPI)
+	e.GET("/api/auth/password_reset_context", d.handlePasswordResetContext)
+	e.POST("/api/auth/forgot_password", d.handleForgotPasswordAPI)
+	e.POST("/api/auth/reset_password", d.handleResetPasswordAPI)
 	e.POST("/api/auth/consent", d.handleConsentAPI)
 	e.POST("/api/auth/totp", d.handleTOTPAPI)
 	e.GET("/api/auth/device", d.handleDeviceContext)

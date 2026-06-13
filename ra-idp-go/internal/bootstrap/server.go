@@ -13,7 +13,9 @@ import (
 
 	"ra-idp-go/internal/adapters/crypto"
 	httpadapter "ra-idp-go/internal/adapters/http"
+	"ra-idp-go/internal/adapters/notification"
 	"ra-idp-go/internal/adapters/observability"
+	"ra-idp-go/internal/adapters/policy"
 	authusecases "ra-idp-go/internal/authentication/usecases"
 	"ra-idp-go/internal/spec"
 
@@ -79,7 +81,10 @@ func Run() error {
 		KeyStore:            deps.KeyStore, TokenIssuer: tokenSigner, TokenIntrospector: tokenSigner,
 		Authorizer: authorizer, JWKResolver: jwkResolver,
 		PasswordHasher: hasher, MfaFactorRepo: deps.MfaFactorRepo, PasswordHistoryRepo: deps.PasswordHistoryRepo,
-		SessionManager: sessionManager, AuthnResolver: sessionManager,
+		PasswordResetTokenStore: deps.PasswordResetTokenStore,
+		EmailSender:             notification.ConsoleEmailSender{},
+		BreachedPasswordChecker: policy.NoopBreachedPasswordChecker{},
+		SessionManager:          sessionManager, AuthnResolver: sessionManager,
 		Emit: emit,
 		HealthInfo: httpadapter.HealthInfo{
 			Persistence:   runtime.Persistence,

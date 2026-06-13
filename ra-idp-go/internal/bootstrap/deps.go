@@ -11,23 +11,24 @@ import (
 // Dependencies は HTTP 層に渡す全境界をまとめた DI コンテナ。
 // 永続層 (memory/postgres) や event sink の差分を本構造体で吸収する。
 type Dependencies struct {
-	ClientRepo            oauthports.ClientRepository
-	UserRepo              oauthports.UserRepository
-	MfaFactorRepo         authports.MfaFactorRepository
-	PasswordHistoryRepo   authports.PasswordHistoryRepository
-	ConsentRepo           oauthports.ConsentRepository
-	RequestStore          oauthports.AuthorizationRequestStore
-	CodeStore             oauthports.AuthorizationCodeStore
-	PARStore              oauthports.PARStore
-	RefreshStore          oauthports.RefreshTokenStore
-	DeviceCodeStore       oauthports.DeviceCodeStore
-	DpopReplay            oauthports.DpopReplayStore
-	ClientAssertionReplay oauthports.ClientAssertionReplayStore
-	AccessTokenDenylist   oauthports.AccessTokenDenylist
-	SessionStore          oauthports.SessionStore
-	KeyStore              oauthports.KeyStore
-	EventSink             oauthports.EventSink
-	Close                 func()
+	ClientRepo              oauthports.ClientRepository
+	UserRepo                oauthports.UserRepository
+	MfaFactorRepo           authports.MfaFactorRepository
+	PasswordHistoryRepo     authports.PasswordHistoryRepository
+	PasswordResetTokenStore authports.PasswordResetTokenStore
+	ConsentRepo             oauthports.ConsentRepository
+	RequestStore            oauthports.AuthorizationRequestStore
+	CodeStore               oauthports.AuthorizationCodeStore
+	PARStore                oauthports.PARStore
+	RefreshStore            oauthports.RefreshTokenStore
+	DeviceCodeStore         oauthports.DeviceCodeStore
+	DpopReplay              oauthports.DpopReplayStore
+	ClientAssertionReplay   oauthports.ClientAssertionReplayStore
+	AccessTokenDenylist     oauthports.AccessTokenDenylist
+	SessionStore            oauthports.SessionStore
+	KeyStore                oauthports.KeyStore
+	EventSink               oauthports.EventSink
+	Close                   func()
 }
 
 // RuntimeConfig は /health などで露出するための実行時構成ラベルを集約する。

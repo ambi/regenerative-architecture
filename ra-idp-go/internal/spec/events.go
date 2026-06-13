@@ -48,6 +48,24 @@ type PasswordChanged struct {
 func (e *PasswordChanged) EventType() string     { return "PasswordChanged" }
 func (e *PasswordChanged) OccurredAt() time.Time { return e.At }
 
+type PasswordResetRequested struct {
+	At        time.Time `json:"-"`
+	EmailHash string    `json:"emailHash"`
+}
+
+func (e *PasswordResetRequested) EventType() string     { return "PasswordResetRequested" }
+func (e *PasswordResetRequested) OccurredAt() time.Time { return e.At }
+
+type EmailSent struct {
+	At        time.Time `json:"-"`
+	ToHash    string    `json:"toHash"`
+	Purpose   string    `json:"purpose"`
+	Delivered bool      `json:"delivered"`
+}
+
+func (e *EmailSent) EventType() string     { return "EmailSent" }
+func (e *EmailSent) OccurredAt() time.Time { return e.At }
+
 type ConsentGrantedEvent struct {
 	At       time.Time `json:"-"`
 	Sub      string    `json:"sub"`

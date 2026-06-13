@@ -18,6 +18,7 @@ type PasswordPolicyViolation string
 const (
 	ViolationTooShort PasswordPolicyViolation = "too_short"
 	ViolationTooLong  PasswordPolicyViolation = "too_long"
+	ViolationBreached PasswordPolicyViolation = "breached"
 )
 
 const (

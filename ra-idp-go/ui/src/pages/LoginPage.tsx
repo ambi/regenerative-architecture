@@ -95,7 +95,9 @@ export function LoginPage({ csrfToken }: LoginPageData) {
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">パスワード</Label>
-                <span className="text-xs text-slate-500">大文字・小文字を区別します</span>
+                <a className="text-xs font-medium text-blue-700 hover:underline" href="/forgot_password">
+                  パスワードを忘れた場合
+                </a>
               </div>
               <div className="relative">
                 <IconLock

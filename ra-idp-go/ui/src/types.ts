@@ -45,6 +45,17 @@ export type ChangePasswordPage = {
   preferredUsername?: string
 }
 
+export type ForgotPasswordPage = {
+  kind: 'forgot-password'
+  csrfToken: string
+}
+
+export type ResetPasswordPage = {
+  kind: 'reset-password'
+  csrfToken: string
+  token: string
+}
+
 export type PageData =
   | HomePage
   | LoginPage
@@ -54,6 +65,8 @@ export type PageData =
   | StatusPage
   | CallbackPage
   | ChangePasswordPage
+  | ForgotPasswordPage
+  | ResetPasswordPage
 
 export type BrowserFlowResponse = {
   next?: string

@@ -23,6 +23,13 @@ components:
     owns_interfaces: [Authorize, EndSession, Token]
     depends_on:
       - { component: Authentication, reason: /authorize は AuthenticationContext を解決し、/end_session は session revocation を委譲する。 }
+  Administration:
+    description: 管理者によるユーザーライフサイクル操作、RBAC 判定、管理監査イベントを所有する。
+    owns_models: [AdminUserCreateRequest, AdminUserUpdateRequest, AdminUserResponse, AdminUserListResponse]
+    owns_events: [UserCreated, UserUpdated, UserDisabled, UserEnabled]
+    owns_interfaces: [ListAdminUsers, GetAdminUser, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser]
+    depends_on:
+      - { component: Authentication, reason: 管理 API は LoginSession から管理者 User を解決し、roles と disabled_at を評価する。 }
 
 # =================================================================
 # 0. standards — 適用する外部標準と規範要件
@@ -733,6 +740,14 @@ vocabulary:
   PreferredUsername:
     definition: 表示用のユーザー名。可変。
     aliases: [preferred_username]
+  Administrator:
+    definition: User.roles に admin を持ち、管理 API の操作を許可された認証済みユーザー。
+    aliases: [admin, 管理者]
+    not_to_confuse_with:
+      - { term: Client, reason: Administrator は人間の User に付与されるロールであり、OAuth Client の権限ではない。 }
+  UserDisablement:
+    definition: User.disabled_at を設定して認証とセッション利用を停止する復活可能な管理操作。削除や PII purge とは異なる。
+    aliases: [disable user, アカウント無効化]
 
   # ---------- クライアント認証方式 ----------
   ClientSecretBasic:
@@ -1151,6 +1166,8 @@ models:
       email:                { type: String, optional: true, constraints: [{ format: email }], annotations: { pii: true, purge_on_deletion: true, purge_deadline_days: 30 } }
       email_verified:       { type: Boolean, default: false }
       mfa_enrolled:         { type: Boolean, default: false }
+      roles:                { type: "List<String>", default: [], description: "RBAC ロール名の集合 (重複なし)。ADR-031。値 admin を持つ user だけが /admin/* を呼べる。空配列は通常ユーザ。" }
+      disabled_at:          { type: Timestamp, optional: true, description: "管理操作で無効化された時刻 (ADR-031)。non-null なら login / token 経路は active=false 相当。deleted_at と独立で、復活可能。" }
       created_at:           { type: Timestamp }
       updated_at:           { type: Timestamp, optional: true }
       deleted_at:           { type: Timestamp, optional: true, description: ソフトデリート時刻。+30日でPII物理消去。 }
@@ -1455,6 +1472,52 @@ models:
       require_pkce:                   { type: Boolean, optional: true }
       require_pushed_authorization_requests: { type: Boolean, optional: true }
       dpop_bound_access_tokens:       { type: Boolean, optional: true }
+
+  AdminUserCreateRequest:
+    kind: value_object
+    description: 管理者がユーザーを作成する JSON リクエスト。初期パスワードには password_policy を適用する。
+    annotations: { component: Administration }
+    fields:
+      preferred_username: { type: String, constraints: [non_empty, { max_length: 100 }], annotations: { pii: true } }
+      password:           { type: String, annotations: { sensitive: true } }
+      name:               { type: String, optional: true, annotations: { pii: true } }
+      email:              { type: String, optional: true, constraints: [{ format: email }], annotations: { pii: true } }
+      email_verified:     { type: Boolean, default: false }
+      roles:              { type: "List<String>", default: [] }
+
+  AdminUserUpdateRequest:
+    kind: value_object
+    description: 管理者がユーザーの可変プロフィールとロールを更新する JSON リクエスト。sub と password_hash は変更しない。
+    annotations: { component: Administration }
+    fields:
+      preferred_username: { type: String, optional: true, constraints: [non_empty, { max_length: 100 }], annotations: { pii: true } }
+      name:               { type: String, optional: true, annotations: { pii: true } }
+      email:              { type: String, optional: true, constraints: [{ format: email }], annotations: { pii: true } }
+      email_verified:     { type: Boolean, optional: true }
+      roles:              { type: "List<String>", optional: true }
+
+  AdminUserListResponse:
+    kind: value_object
+    description: 管理 API のユーザー一覧。
+    annotations: { component: Administration }
+    fields:
+      users: { type: "List<AdminUserResponse>" }
+
+  AdminUserResponse:
+    kind: value_object
+    description: 管理 API が返すユーザー表現。password_hash は契約上含めない。
+    annotations: { component: Administration }
+    fields:
+      sub:                { type: String }
+      preferred_username: { type: String, annotations: { pii: true } }
+      name:               { type: String, optional: true, annotations: { pii: true } }
+      email:              { type: String, optional: true, constraints: [{ format: email }], annotations: { pii: true } }
+      email_verified:     { type: Boolean }
+      mfa_enrolled:       { type: Boolean }
+      roles:              { type: "List<String>" }
+      disabled_at:        { type: Timestamp, optional: true }
+      created_at:         { type: Timestamp }
+      updated_at:         { type: Timestamp, optional: true }
 
   TokenRequest:
     kind: value_object
@@ -1795,6 +1858,43 @@ models:
       toHash:     { type: String, description: "宛先 email の SHA-256 hex" }
       purpose:    { type: String, description: "password_reset / email_verification など。" }
       delivered:  { type: Boolean }
+
+  UserCreated:
+    kind: event
+    description: 管理者がユーザーを作成した。初期パスワードと password_hash は監査イベントに含めない。
+    annotations: { component: Administration }
+    payload:
+      occurredAt: { type: Timestamp }
+      actorSub:   { type: String }
+      targetSub:  { type: String }
+
+  UserUpdated:
+    kind: event
+    description: 管理者がユーザーのプロフィールまたは roles を更新した。
+    annotations: { component: Administration }
+    payload:
+      occurredAt:    { type: Timestamp }
+      actorSub:      { type: String }
+      targetSub:     { type: String }
+      changedFields: { type: "List<String>" }
+
+  UserDisabled:
+    kind: event
+    description: 管理者がユーザーを無効化した。対象ユーザーの新規ログインと既存セッション利用を拒否する。
+    annotations: { component: Administration }
+    payload:
+      occurredAt: { type: Timestamp }
+      actorSub:   { type: String }
+      targetSub:  { type: String }
+
+  UserEnabled:
+    kind: event
+    description: 管理者が無効化済みユーザーを再有効化した。
+    annotations: { component: Administration }
+    payload:
+      occurredAt: { type: Timestamp }
+      actorSub:   { type: String }
+      targetSub:  { type: String }
 
   ConsentGranted:
     kind: event
@@ -2226,6 +2326,67 @@ interfaces:
     read_only: true
     bindings:
       - { kind: http, method: GET, path: /health, successful_status_codes: ["200"] }
+
+  ListAdminUsers:
+    description: 管理者が削除されていないユーザーを一覧する。
+    output:
+      response: { type: AdminUserListResponse }
+    errors: [AccessDeniedError]
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: /admin/users }
+
+  GetAdminUser:
+    description: 管理者が sub を指定してユーザーを取得する。
+    input:
+      sub: { type: String }
+    output:
+      user: { type: AdminUserResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: "/admin/users/{sub}" }
+
+  CreateAdminUser:
+    description: 管理者が password_policy を満たす初期パスワードでユーザーを作成する。
+    input:
+      request: { type: AdminUserCreateRequest }
+    output:
+      user: { type: AdminUserResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [UserCreated]
+    bindings:
+      - { kind: http, method: POST, path: /admin/users, request_form: body, successful_status_codes: ["201"] }
+
+  UpdateAdminUser:
+    description: 管理者がユーザーのプロフィール、email_verified、roles を更新する。
+    input:
+      sub: { type: String }
+      request: { type: AdminUserUpdateRequest }
+    output:
+      user: { type: AdminUserResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [UserUpdated]
+    bindings:
+      - { kind: http, method: PATCH, path: "/admin/users/{sub}", request_form: body }
+
+  DisableAdminUser:
+    description: 管理者がユーザーを無効化し、新規ログインと既存セッション利用を拒否する。
+    input:
+      sub: { type: String }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [UserDisabled]
+    bindings:
+      - { kind: http, method: POST, path: "/admin/users/{sub}/disable", successful_status_codes: ["204"] }
+
+  EnableAdminUser:
+    description: 管理者が無効化済みユーザーを再有効化する。
+    input:
+      sub: { type: String }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [UserEnabled]
+    bindings:
+      - { kind: http, method: POST, path: "/admin/users/{sub}/enable", successful_status_codes: ["204"] }
 
 
 # =================================================================
@@ -2899,6 +3060,42 @@ scenarios:
       - Authorization Server メタデータを取得する
       - 応答に issuer・authorization_endpoint・token_endpoint・jwks_uri・grant_types_supported が含まれる
 
+  # ---------- 管理 / RBAC ----------
+  admin ロールを持つユーザーはユーザー管理 API を利用できる:
+    steps:
+      - roles に "admin" を持つユーザー "operator" が認証済みである
+      - 管理者 "operator" が preferred_username "bob" のユーザーを作成する
+      - 管理者 "operator" がユーザー一覧を取得する
+      - 応答にユーザー "bob" が含まれる
+      - '"UserCreated" が発行される'
+
+  admin ロールを持たないユーザーは管理 API を利用できない:
+    steps:
+      - roles が空のユーザー "alice" が認証済みである
+      - ユーザー "alice" がユーザー一覧を取得する
+      - 'エラー "AccessDeniedError"'
+
+  無効化されたユーザーはログインできない:
+    steps:
+      - 管理者がユーザー "alice" を無効化する
+      - ユーザー "alice" が正しい password で browser login API を送信する
+      - 'エラー "AccessDeniedError"'
+      - '"UserDisabled" が発行される'
+
+  無効化されたユーザーの既存セッションは利用できない:
+    steps:
+      - ユーザー "alice" が認証済みセッションを持つ
+      - 管理者がユーザー "alice" を無効化する
+      - ユーザー "alice" が既存セッションで認証必須 API を呼ぶ
+      - 'エラー "AccessDeniedError"'
+
+  管理者は無効化したユーザーを再有効化できる:
+    steps:
+      - 管理者がユーザー "alice" を無効化する
+      - 管理者がユーザー "alice" を再有効化する
+      - ユーザー "alice" の disabled_at は空である
+      - '"UserEnabled" が発行される'
+
 
 # =================================================================
 # 7. permissions — 認可ルール
@@ -2990,6 +3187,39 @@ permissions:
         - "subset(context.requested_scopes, actor.scopes)"
         - "(actor.require_pkce == false) or (context.code_challenge != null)"
         - "(actor.require_pushed_authorization_requests == false) or (context.par_used == true)"
+
+  AdminUserRead:
+    description: 管理ユーザー情報の一覧・取得。
+    actor: User
+    action: AdminUserRead
+    resource: User
+    allow_when:
+      and:
+        - "admin in actor.roles"
+        - "actor.disabled_at == null"
+        - "context.authenticated == true"
+
+  AdminUserCreate:
+    description: 管理者によるユーザー作成。
+    actor: User
+    action: AdminUserCreate
+    resource: User
+    allow_when:
+      and:
+        - "admin in actor.roles"
+        - "actor.disabled_at == null"
+        - "context.authenticated == true"
+
+  AdminUserUpdate:
+    description: 管理者によるプロフィール・roles・有効状態の更新。
+    actor: User
+    action: AdminUserUpdate
+    resource: User
+    allow_when:
+      and:
+        - "admin in actor.roles"
+        - "actor.disabled_at == null"
+        - "context.authenticated == true"
 
 
 # =================================================================
@@ -3669,3 +3899,23 @@ annotations:
       evidence:
         - { file: adapters/http/discovery-routes.ts, test: "oauth-authorization-server" }
       note: OIDC Discovery との同等性テストは未分離。
+    "admin ロールを持つユーザーはユーザー管理 API を利用できる":
+      status: covered
+      evidence:
+        - { file: ../ra-idp-go/internal/adapters/http/admin_user_handler_test.go, test: "TestAdminUserAPICreatesAndDisablesUser" }
+    "admin ロールを持たないユーザーは管理 API を利用できない":
+      status: covered
+      evidence:
+        - { file: ../ra-idp-go/internal/adapters/http/admin_user_handler_test.go, test: "TestAdminUserAPIRequiresAdminRole" }
+    "無効化されたユーザーはログインできない":
+      status: covered
+      evidence:
+        - { file: ../ra-idp-go/internal/adapters/http/admin_user_handler_test.go, test: "TestDisabledUserCannotLogIn" }
+    "無効化されたユーザーの既存セッションは利用できない":
+      status: covered
+      evidence:
+        - { file: ../ra-idp-go/internal/adapters/http/admin_user_handler_test.go, test: "disabled session status" }
+    "管理者は無効化したユーザーを再有効化できる":
+      status: covered
+      evidence:
+        - { file: ../ra-idp-go/internal/administration/usecases/users_test.go, test: "TestCreateUpdateAndDisableUser" }

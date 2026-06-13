@@ -63,6 +63,7 @@ var userSchema = z.Struct(z.Shape{
 	"PreferredUsername": z.String().Min(1).Max(100).Required(),
 	"PasswordHash":      z.String().Required(),
 	"Email":             z.Ptr(z.String().Email()),
+	"Roles":             z.Slice(z.String().Min(1)),
 	"CreatedAt":         z.Time().Required(),
 	"UpdatedAt":         z.Time().Required(),
 })

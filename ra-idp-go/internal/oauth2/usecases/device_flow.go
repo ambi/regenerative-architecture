@@ -269,6 +269,9 @@ func ExchangeDeviceCode(ctx context.Context, deps ExchangeDeviceCodeDeps, in Exc
 	if user == nil {
 		return nil, NewOAuthError("server_error", "user missing")
 	}
+	if user.DisabledAt != nil {
+		return nil, NewOAuthError("invalid_grant", "ユーザーは無効化されています")
+	}
 
 	var sc *spec.SenderConstraint
 	if in.ProofJKT != "" {

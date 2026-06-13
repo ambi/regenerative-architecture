@@ -74,4 +74,10 @@ func Register(e *echo.Echo, d Deps) {
 	e.GET("/.well-known/oauth-authorization-server", d.handleDiscovery)
 	e.GET("/jwks", d.handleJWKS)
 	e.GET("/health", d.handleHealth)
+	e.GET("/admin/users", d.handleListAdminUsers)
+	e.GET("/admin/users/:sub", d.handleGetAdminUser)
+	e.POST("/admin/users", d.handleCreateAdminUser)
+	e.PATCH("/admin/users/:sub", d.handleUpdateAdminUser)
+	e.POST("/admin/users/:sub/disable", d.handleDisableAdminUser)
+	e.POST("/admin/users/:sub/enable", d.handleEnableAdminUser)
 }

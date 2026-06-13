@@ -1,0 +1,29 @@
+{
+  "$id": "urn:idp:AdminUserUpdateRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "description": "管理者がユーザーの可変プロフィールとロールを更新する JSON リクエスト。sub と password_hash は変更しない。",
+  "properties": {
+    "preferred_username": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "name": {
+      "type": "string"
+    },
+    "email": {
+      "type": "string",
+      "format": "email"
+    },
+    "email_verified": {
+      "type": "boolean"
+    },
+    "roles": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

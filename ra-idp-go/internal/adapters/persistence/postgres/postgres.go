@@ -152,27 +152,45 @@ func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*spec.U
 	))
 }
 
+func (r *UserRepository) FindAll(ctx context.Context) ([]*spec.User, error) {
+	rows, err := r.Pool.Query(ctx, userSelect+" WHERE deleted_at IS NULL ORDER BY preferred_username")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var users []*spec.User
+	for rows.Next() {
+		user, err := scanUser(rows)
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, user)
+	}
+	return users, rows.Err()
+}
+
 func (r *UserRepository) Save(ctx context.Context, u *spec.User) error {
 	_, err := r.Pool.Exec(ctx, `
 INSERT INTO users (sub,preferred_username,password_hash,name,given_name,family_name,email,
- email_verified,mfa_enrolled,created_at,updated_at,deleted_at)
-VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+ email_verified,mfa_enrolled,roles,disabled_at,created_at,updated_at,deleted_at)
+VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
 ON CONFLICT (sub) DO UPDATE SET preferred_username=EXCLUDED.preferred_username,
  password_hash=EXCLUDED.password_hash,name=EXCLUDED.name,given_name=EXCLUDED.given_name,
  family_name=EXCLUDED.family_name,email=EXCLUDED.email,email_verified=EXCLUDED.email_verified,
- mfa_enrolled=EXCLUDED.mfa_enrolled,updated_at=EXCLUDED.updated_at,deleted_at=EXCLUDED.deleted_at`,
+ mfa_enrolled=EXCLUDED.mfa_enrolled,roles=EXCLUDED.roles,disabled_at=EXCLUDED.disabled_at,
+ updated_at=EXCLUDED.updated_at,deleted_at=EXCLUDED.deleted_at`,
 		u.Sub, u.PreferredUsername, u.PasswordHash, u.Name, u.GivenName, u.FamilyName, u.Email,
-		u.EmailVerified, u.MfaEnrolled, u.CreatedAt, u.UpdatedAt, u.DeletedAt)
+		u.EmailVerified, u.MfaEnrolled, u.Roles, u.DisabledAt, u.CreatedAt, u.UpdatedAt, u.DeletedAt)
 	return err
 }
 
 const userSelect = `SELECT sub,preferred_username,password_hash,name,given_name,family_name,email,
-email_verified,mfa_enrolled,created_at,updated_at,deleted_at FROM users`
+email_verified,mfa_enrolled,roles,disabled_at,created_at,updated_at,deleted_at FROM users`
 
 func scanUser(row rowScanner) (*spec.User, error) {
 	var u spec.User
 	err := row.Scan(&u.Sub, &u.PreferredUsername, &u.PasswordHash, &u.Name, &u.GivenName,
-		&u.FamilyName, &u.Email, &u.EmailVerified, &u.MfaEnrolled, &u.CreatedAt,
+		&u.FamilyName, &u.Email, &u.EmailVerified, &u.MfaEnrolled, &u.Roles, &u.DisabledAt, &u.CreatedAt,
 		&u.UpdatedAt, &u.DeletedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil

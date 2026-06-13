@@ -57,6 +57,8 @@ type User struct {
 	Email             *string    `json:"email,omitempty"`
 	EmailVerified     bool       `json:"email_verified"`
 	MfaEnrolled       bool       `json:"mfa_enrolled"`
+	Roles             []string   `json:"roles"`
+	DisabledAt        *time.Time `json:"disabled_at,omitempty"`
 	CreatedAt         time.Time  `json:"created_at"`
 	UpdatedAt         time.Time  `json:"updated_at"`
 	DeletedAt         *time.Time `json:"deleted_at,omitempty"`

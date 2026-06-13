@@ -18,6 +18,7 @@ type UserRepository interface {
 	FindBySub(ctx context.Context, sub string) (*spec.User, error)
 	FindByUsername(ctx context.Context, username string) (*spec.User, error)
 	FindByEmail(ctx context.Context, email string) (*spec.User, error)
+	FindAll(ctx context.Context) ([]*spec.User, error)
 	Save(ctx context.Context, user *spec.User) error
 }
 

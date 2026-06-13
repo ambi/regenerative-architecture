@@ -1,0 +1,200 @@
+package http_test
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"time"
+
+	"ra-idp-go/internal/adapters/crypto"
+	httpadapter "ra-idp-go/internal/adapters/http"
+	"ra-idp-go/internal/adapters/persistence/memory"
+	authusecases "ra-idp-go/internal/authentication/usecases"
+	"ra-idp-go/internal/spec"
+
+	"github.com/labstack/echo/v5"
+)
+
+func TestAdminUserAPIRequiresAdminRole(t *testing.T) {
+	e, _, _, _ := newAdminUserHandler(t)
+	request := httptest.NewRequest(http.MethodGet, "/admin/users", nil)
+	request.Header.Set("X-Demo-Sub", "regular")
+	response := httptest.NewRecorder()
+	e.ServeHTTP(response, request)
+	if response.Code != http.StatusForbidden {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+}
+
+func TestAdminUserAPICreatesAndDisablesUser(t *testing.T) {
+	e, repo, _, _ := newAdminUserHandler(t)
+	csrf, cookie := adminCSRF(t, e, "admin")
+
+	create := adminJSONRequest(t, e, http.MethodPost, "/admin/users", "admin", csrf, cookie, map[string]any{
+		"preferred_username": "bob",
+		"password":           "initial-password-9182",
+		"email":              "bob@example.com",
+		"roles":              []string{"support"},
+	})
+	if create.Code != http.StatusCreated {
+		t.Fatalf("create status=%d body=%s", create.Code, create.Body.String())
+	}
+	if strings.Contains(create.Body.String(), "password") {
+		t.Fatalf("password material leaked in response: %s", create.Body.String())
+	}
+	var created struct {
+		Sub string `json:"sub"`
+	}
+	if err := json.Unmarshal(create.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+	if created.Sub == "" {
+		t.Fatal("created sub is empty")
+	}
+
+	disable := adminJSONRequest(
+		t, e, http.MethodPost, "/admin/users/"+created.Sub+"/disable", "admin", csrf, cookie, nil,
+	)
+	if disable.Code != http.StatusNoContent {
+		t.Fatalf("disable status=%d body=%s", disable.Code, disable.Body.String())
+	}
+	user, err := repo.FindBySub(context.Background(), created.Sub)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if user == nil || user.DisabledAt == nil {
+		t.Fatalf("disabled user=%+v", user)
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/api/auth/account", nil)
+	request.Header.Set("X-Demo-Sub", created.Sub)
+	response := httptest.NewRecorder()
+	e.ServeHTTP(response, request)
+	if response.Code != http.StatusUnauthorized {
+		t.Fatalf("disabled session status=%d body=%s", response.Code, response.Body.String())
+	}
+}
+
+func TestDisabledUserCannotLogIn(t *testing.T) {
+	repo := memory.NewUserRepository()
+	requestStore := memory.NewAuthorizationRequestStore()
+	hasher := crypto.NewArgon2idPasswordHasher()
+	hash, err := hasher.Hash("current-password-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UTC()
+	repo.Seed(&spec.User{
+		Sub: "disabled", PreferredUsername: "disabled", PasswordHash: hash,
+		DisabledAt: &now, CreatedAt: now, UpdatedAt: now,
+	})
+	if err := requestStore.Save(context.Background(), &spec.AuthorizationRequest{
+		ID: "transaction", State: spec.AuthFlowReceived, ExpiresAt: now.Add(time.Minute),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	e := echo.New()
+	httpadapter.Register(e, httpadapter.Deps{
+		Issuer: "http://idp.test", UserRepo: repo, RequestStore: requestStore,
+		PasswordHasher: hasher,
+	})
+	csrf, csrfCookie := passwordResetCSRF(t, e)
+	requestBody, _ := json.Marshal(map[string]string{
+		"username": "disabled", "password": "current-password-1",
+	})
+	request := httptest.NewRequest(http.MethodPost, "/api/auth/login", bytes.NewReader(requestBody))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Origin", "http://idp.test")
+	request.Header.Set("X-CSRF-Token", csrf)
+	request.AddCookie(csrfCookie)
+	request.AddCookie(&http.Cookie{Name: "ra_idp_transaction", Value: "transaction"})
+	response := httptest.NewRecorder()
+	e.ServeHTTP(response, request)
+	if response.Code != http.StatusUnauthorized {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), `"invalid_credentials"`) {
+		t.Fatalf("unexpected body=%s", response.Body.String())
+	}
+}
+
+func newAdminUserHandler(
+	t *testing.T,
+) (*echo.Echo, *memory.UserRepository, *memory.PasswordHistoryRepository, *crypto.Argon2idPasswordHasher) {
+	t.Helper()
+	repo := memory.NewUserRepository()
+	history := memory.NewPasswordHistoryRepository()
+	hasher := crypto.NewArgon2idPasswordHasher()
+	now := time.Now().UTC()
+	for _, user := range []*spec.User{
+		{
+			Sub: "admin", PreferredUsername: "admin", PasswordHash: "unused",
+			Roles: []string{"admin"}, CreatedAt: now, UpdatedAt: now,
+		},
+		{
+			Sub: "regular", PreferredUsername: "regular", PasswordHash: "unused",
+			CreatedAt: now, UpdatedAt: now,
+		},
+	} {
+		repo.Seed(user)
+	}
+	e := echo.New()
+	httpadapter.Register(e, httpadapter.Deps{
+		Issuer: "http://idp.test", UserRepo: repo, PasswordHasher: hasher,
+		PasswordHistoryRepo: history, AuthnResolver: authusecases.DemoHeaderResolver{},
+	})
+	return e, repo, history, hasher
+}
+
+func adminCSRF(t *testing.T, e *echo.Echo, sub string) (string, *http.Cookie) {
+	t.Helper()
+	request := httptest.NewRequest(http.MethodGet, "/api/auth/account", nil)
+	request.Header.Set("X-Demo-Sub", sub)
+	response := httptest.NewRecorder()
+	e.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("account status=%d body=%s", response.Code, response.Body.String())
+	}
+	var body struct {
+		CSRFToken string `json:"csrf_token"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	cookies := response.Result().Cookies()
+	if len(cookies) == 0 {
+		t.Fatal("csrf cookie missing")
+	}
+	return body.CSRFToken, cookies[0]
+}
+
+func adminJSONRequest(
+	t *testing.T,
+	e *echo.Echo,
+	method, path, sub, csrf string,
+	cookie *http.Cookie,
+	body any,
+) *httptest.ResponseRecorder {
+	t.Helper()
+	var payload []byte
+	if body != nil {
+		var err error
+		payload, err = json.Marshal(body)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	request := httptest.NewRequest(method, path, bytes.NewReader(payload))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Origin", "http://idp.test")
+	request.Header.Set("X-CSRF-Token", csrf)
+	request.Header.Set("X-Demo-Sub", sub)
+	request.AddCookie(cookie)
+	response := httptest.NewRecorder()
+	e.ServeHTTP(response, request)
+	return response
+}

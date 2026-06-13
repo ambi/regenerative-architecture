@@ -60,6 +60,9 @@ func UserInfo(
 	if u == nil {
 		return nil, NewOAuthError("invalid_request", "ユーザーが存在しません")
 	}
+	if u.DisabledAt != nil {
+		return nil, NewOAuthError("invalid_token", "ユーザーは無効化されています")
+	}
 	res := &UserInfoResponse{Sub: u.Sub}
 	if slices.Contains(in.Scopes, "profile") {
 		if u.Name != nil {

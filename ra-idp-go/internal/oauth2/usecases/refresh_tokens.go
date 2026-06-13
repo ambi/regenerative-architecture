@@ -67,6 +67,17 @@ func RefreshTokens(ctx context.Context, deps RefreshDeps, in RefreshInput, now t
 	if domain.IsRefreshTokenAbsoluteExpired(record, now) {
 		return nil, NewOAuthError("invalid_grant", "リフレッシュトークン絶対期限切れ")
 	}
+	user, err := deps.UserRepo.FindBySub(ctx, record.Sub)
+	if err != nil {
+		return nil, err
+	}
+	if user == nil {
+		return nil, NewOAuthError("server_error", "ユーザーが存在しません")
+	}
+	if user.DisabledAt != nil {
+		_ = deps.RefreshStore.RevokeFamily(ctx, record.FamilyID)
+		return nil, NewOAuthError("invalid_grant", "ユーザーは無効化されています")
+	}
 
 	d, err := evaluateRefreshPolicy(ctx, deps.Authorizer, client, record, in, now)
 	if err != nil {
@@ -89,14 +100,6 @@ func RefreshTokens(ctx context.Context, deps RefreshDeps, in RefreshInput, now t
 		return nil, NewOAuthError("invalid_grant", "並行リフレッシュにより失効")
 	}
 	emit(deps.Emit, &spec.RefreshTokenRotated{At: now, OldTokenID: record.ID, NewTokenID: newTok.Record.ID, FamilyID: record.FamilyID})
-
-	user, err := deps.UserRepo.FindBySub(ctx, record.Sub)
-	if err != nil {
-		return nil, err
-	}
-	if user == nil {
-		return nil, NewOAuthError("server_error", "ユーザーが存在しません")
-	}
 
 	access, jti, err := deps.TokenIssuer.SignAccessToken(ctx, ports.AccessTokenInput{
 		Client:           client,

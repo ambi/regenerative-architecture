@@ -55,6 +55,8 @@ export const UserSchema = z.object({
   email: z.string().email().optional(),
   email_verified: z.boolean().default(false),
   mfa_enrolled: z.boolean().default(false),
+  roles: z.array(z.string().min(1)).default([]),
+  disabled_at: z.string().datetime().optional(),
   created_at: z.string().datetime(),
   updated_at: z.string().datetime(),
   deleted_at: z.string().datetime().optional(),

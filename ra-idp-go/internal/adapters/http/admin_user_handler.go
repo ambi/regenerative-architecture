@@ -1,0 +1,226 @@
+package http
+
+import (
+	"errors"
+	"net/http"
+	"slices"
+	"time"
+
+	adminusecases "ra-idp-go/internal/administration/usecases"
+	authusecases "ra-idp-go/internal/authentication/usecases"
+	"ra-idp-go/internal/spec"
+
+	"github.com/labstack/echo/v5"
+)
+
+var (
+	errAdminAuthenticationRequired = errors.New("admin authentication required")
+	errAdminAccessDenied           = errors.New("admin access denied")
+)
+
+type adminUserCreateRequest struct {
+	PreferredUsername string   `json:"preferred_username"`
+	Password          string   `json:"password"`
+	Name              *string  `json:"name"`
+	Email             *string  `json:"email"`
+	EmailVerified     bool     `json:"email_verified"`
+	Roles             []string `json:"roles"`
+}
+
+type adminUserUpdateRequest struct {
+	PreferredUsername *string   `json:"preferred_username"`
+	Name              *string   `json:"name"`
+	Email             *string   `json:"email"`
+	EmailVerified     *bool     `json:"email_verified"`
+	Roles             *[]string `json:"roles"`
+}
+
+type adminUserResponse struct {
+	Sub               string     `json:"sub"`
+	PreferredUsername string     `json:"preferred_username"`
+	Name              *string    `json:"name,omitempty"`
+	Email             *string    `json:"email,omitempty"`
+	EmailVerified     bool       `json:"email_verified"`
+	MfaEnrolled       bool       `json:"mfa_enrolled"`
+	Roles             []string   `json:"roles"`
+	DisabledAt        *time.Time `json:"disabled_at,omitempty"`
+	CreatedAt         time.Time  `json:"created_at"`
+	UpdatedAt         time.Time  `json:"updated_at"`
+}
+
+func (d Deps) handleListAdminUsers(c *echo.Context) error {
+	if _, err := d.requireAdmin(c); err != nil {
+		return d.writeAdminAccessError(c, err)
+	}
+	users, err := d.UserRepo.FindAll(c.Request().Context())
+	if err != nil {
+		return err
+	}
+	response := make([]adminUserResponse, len(users))
+	for i, user := range users {
+		response[i] = toAdminUserResponse(user)
+	}
+	return noStoreJSON(c, http.StatusOK, map[string]any{"users": response})
+}
+
+func (d Deps) handleGetAdminUser(c *echo.Context) error {
+	if _, err := d.requireAdmin(c); err != nil {
+		return d.writeAdminAccessError(c, err)
+	}
+	user, err := d.UserRepo.FindBySub(c.Request().Context(), c.Param("sub"))
+	if err != nil {
+		return err
+	}
+	if user == nil {
+		return writeBrowserError(c, http.StatusNotFound, "user_not_found", "ユーザーが存在しません")
+	}
+	return noStoreJSON(c, http.StatusOK, toAdminUserResponse(user))
+}
+
+func (d Deps) handleCreateAdminUser(c *echo.Context) error {
+	if err := d.verifyBrowserRequest(c); err != nil {
+		return err
+	}
+	actor, err := d.requireAdmin(c)
+	if err != nil {
+		return d.writeAdminAccessError(c, err)
+	}
+	var input adminUserCreateRequest
+	if err := decodeJSON(c.Request(), &input); err != nil {
+		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	}
+	user, err := adminusecases.CreateUser(
+		c.Request().Context(),
+		d.adminUserDeps(),
+		adminusecases.CreateUserInput{
+			ActorSub: actor.Sub, PreferredUsername: input.PreferredUsername,
+			Password: input.Password, Name: input.Name, Email: input.Email,
+			EmailVerified: input.EmailVerified, Roles: input.Roles, Now: time.Now().UTC(),
+		},
+	)
+	if err != nil {
+		return d.writeAdminUserError(c, err)
+	}
+	return noStoreJSON(c, http.StatusCreated, toAdminUserResponse(user))
+}
+
+func (d Deps) handleUpdateAdminUser(c *echo.Context) error {
+	if err := d.verifyBrowserRequest(c); err != nil {
+		return err
+	}
+	actor, err := d.requireAdmin(c)
+	if err != nil {
+		return d.writeAdminAccessError(c, err)
+	}
+	var input adminUserUpdateRequest
+	if err := decodeJSON(c.Request(), &input); err != nil {
+		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	}
+	user, err := adminusecases.UpdateUser(
+		c.Request().Context(),
+		d.adminUserDeps(),
+		adminusecases.UpdateUserInput{
+			ActorSub: actor.Sub, Sub: c.Param("sub"),
+			PreferredUsername: input.PreferredUsername, Name: input.Name, Email: input.Email,
+			EmailVerified: input.EmailVerified, Roles: input.Roles, Now: time.Now().UTC(),
+		},
+	)
+	if err != nil {
+		return d.writeAdminUserError(c, err)
+	}
+	return noStoreJSON(c, http.StatusOK, toAdminUserResponse(user))
+}
+
+func (d Deps) handleDisableAdminUser(c *echo.Context) error {
+	return d.handleSetAdminUserDisabled(c, true)
+}
+
+func (d Deps) handleEnableAdminUser(c *echo.Context) error {
+	return d.handleSetAdminUserDisabled(c, false)
+}
+
+func (d Deps) handleSetAdminUserDisabled(c *echo.Context, disabled bool) error {
+	if err := d.verifyBrowserRequest(c); err != nil {
+		return err
+	}
+	actor, err := d.requireAdmin(c)
+	if err != nil {
+		return d.writeAdminAccessError(c, err)
+	}
+	_, err = adminusecases.SetUserDisabled(
+		c.Request().Context(), d.adminUserDeps(), actor.Sub, c.Param("sub"), disabled, time.Now().UTC(),
+	)
+	if err != nil {
+		return d.writeAdminUserError(c, err)
+	}
+	c.Response().Header().Set("Cache-Control", "no-store")
+	return c.NoContent(http.StatusNoContent)
+}
+
+func (d Deps) requireAdmin(c *echo.Context) (*spec.User, error) {
+	authn, err := d.resolveAuthentication(c)
+	if err != nil {
+		return nil, err
+	}
+	if authn == nil || authn.AuthenticationPending {
+		return nil, errAdminAuthenticationRequired
+	}
+	user, err := d.UserRepo.FindBySub(c.Request().Context(), authn.Sub)
+	if err != nil {
+		return nil, err
+	}
+	if user == nil || user.DisabledAt != nil || !slices.Contains(user.Roles, "admin") {
+		return nil, errAdminAccessDenied
+	}
+	return user, nil
+}
+
+func (d Deps) writeAdminAccessError(c *echo.Context, err error) error {
+	if errors.Is(err, errAdminAuthenticationRequired) {
+		return writeBrowserError(c, http.StatusUnauthorized, "authentication_required", "認証済みセッションが必要です")
+	}
+	if errors.Is(err, errAdminAccessDenied) {
+		return writeBrowserError(c, http.StatusForbidden, "access_denied", "管理者権限が必要です")
+	}
+	return err
+}
+
+func (d Deps) adminUserDeps() adminusecases.Deps {
+	return adminusecases.Deps{
+		UserRepo: d.UserRepo, PasswordHasher: d.PasswordHasher,
+		PasswordHistoryRepo: d.PasswordHistoryRepo, Emit: d.Emit,
+	}
+}
+
+func (d Deps) writeAdminUserError(c *echo.Context, err error) error {
+	switch {
+	case errors.Is(err, adminusecases.ErrUserNotFound):
+		return writeBrowserError(c, http.StatusNotFound, "user_not_found", "ユーザーが存在しません")
+	case errors.Is(err, adminusecases.ErrUsernameConflict):
+		return writeBrowserError(c, http.StatusConflict, "username_conflict", "ユーザー名は既に使用されています")
+	case errors.Is(err, adminusecases.ErrInvalidRole):
+		return writeBrowserError(c, http.StatusBadRequest, "invalid_role", "roleが不正です")
+	default:
+		var policyErr *authusecases.PasswordPolicyError
+		if errors.As(err, &policyErr) {
+			violations := make([]string, len(policyErr.Violations))
+			for i, violation := range policyErr.Violations {
+				violations[i] = string(violation)
+			}
+			return noStoreJSON(c, http.StatusBadRequest, map[string]any{
+				"error": "password_policy", "message": "パスワードがセキュリティ要件を満たしていません。",
+				"violations": violations,
+			})
+		}
+		return err
+	}
+}
+
+func toAdminUserResponse(user *spec.User) adminUserResponse {
+	return adminUserResponse{
+		Sub: user.Sub, PreferredUsername: user.PreferredUsername, Name: user.Name,
+		Email: user.Email, EmailVerified: user.EmailVerified, MfaEnrolled: user.MfaEnrolled,
+		Roles: slices.Clone(user.Roles), DisabledAt: user.DisabledAt,
+		CreatedAt: user.CreatedAt, UpdatedAt: user.UpdatedAt,
+	}
+}

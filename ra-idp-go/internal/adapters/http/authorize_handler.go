@@ -250,6 +250,10 @@ func (d Deps) handleLoginAPI(c *echo.Context) error {
 		d.emitAuthenticationFailure(input.Username, "invalid_credentials")
 		return writeBrowserError(c, http.StatusUnauthorized, "invalid_credentials", "ユーザー名またはパスワードを確認してください。")
 	}
+	if user.DisabledAt != nil {
+		d.emitAuthenticationFailure(input.Username, "account_disabled")
+		return writeBrowserError(c, http.StatusUnauthorized, "invalid_credentials", "ユーザー名またはパスワードを確認してください。")
+	}
 	if result := authusecases.ValidatePassword(input.Password); !result.OK {
 		return writeBrowserError(c, http.StatusUnauthorized, "password_policy", "パスワードがセキュリティ要件を満たしていません。")
 	}
@@ -646,10 +650,24 @@ func (d Deps) resolveAuthentication(c *echo.Context) (*authdomain.Authentication
 	if d.AuthnResolver == nil {
 		return nil, nil
 	}
-	return d.AuthnResolver.Resolve(
+	authn, err := d.AuthnResolver.Resolve(
 		c.Request().Context(),
 		authdomain.HTTPHeadersAdapter{H: c.Request().Header},
 	)
+	if err != nil || authn == nil || d.UserRepo == nil {
+		return authn, err
+	}
+	user, err := d.UserRepo.FindBySub(c.Request().Context(), authn.Sub)
+	if err != nil {
+		return nil, err
+	}
+	if user == nil || user.DisabledAt != nil {
+		if d.SessionManager != nil && authn.SessionID != "" {
+			_ = d.SessionManager.Store.Delete(c.Request().Context(), authn.SessionID)
+		}
+		return nil, nil
+	}
+	return authn, nil
 }
 
 func (d Deps) verifyBrowserRequest(c *echo.Context) error {

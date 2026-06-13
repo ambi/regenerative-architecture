@@ -23,6 +23,18 @@
       "$ref": "EmailSent.json"
     },
     {
+      "$ref": "UserCreated.json"
+    },
+    {
+      "$ref": "UserUpdated.json"
+    },
+    {
+      "$ref": "UserDisabled.json"
+    },
+    {
+      "$ref": "UserEnabled.json"
+    },
+    {
       "$ref": "ConsentGranted.json"
     },
     {

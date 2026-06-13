@@ -83,6 +83,12 @@ topics:
       EmailSender 経由のメール送信記録 (ADR-030)。purpose ごとの
       配送成功率 / spam スコア検知の input。to 平文は乗らない。
 
+  oauth2.administration.v1:
+    partition_key: targetSub
+    partitions: 3
+    replicas: 3
+    description: 管理者によるユーザーライフサイクル変更の監査イベント。
+
 # -------------------------------------------------------------------
 # Event → Topic mapping
 # -------------------------------------------------------------------
@@ -96,6 +102,10 @@ event_to_topic:
   LoginThrottled:               oauth2.authentication.v1
   PasswordResetRequested:       oauth2.authentication.v1
   EmailSent:                    oauth2.notification.v1
+  UserCreated:                  oauth2.administration.v1
+  UserUpdated:                  oauth2.administration.v1
+  UserDisabled:                 oauth2.administration.v1
+  UserEnabled:                  oauth2.administration.v1
   ConsentGranted:               oauth2.consent.v1
   ConsentRevoked:               oauth2.consent.v1
   AuthorizationCodeIssued:      oauth2.authorization-code.v1

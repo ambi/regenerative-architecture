@@ -267,14 +267,22 @@ function outputBodyType(iface: Interface): string | null {
   return null
 }
 
-function inputSchema(iface: Interface): any | null {
-  const singleType = inputBodyType(iface)
-  if (singleType) return typeToSchema(singleType)
+function pathParameterNames(path: string): string[] {
+  return [...path.matchAll(/\{([^}]+)\}/g)].map((match) => match[1])
+}
+
+function inputSchemaExcluding(iface: Interface, excluded: Set<string>): any | null {
   if (!iface.input) return null
+  const fields = Object.fromEntries(
+    Object.entries(iface.input).filter(([name]) => !excluded.has(name)),
+  )
+  const keys = Object.keys(fields)
+  if (keys.length === 0) return null
+  if (keys.length === 1) return typeToSchema(fields[keys[0]].type)
 
   const properties: Record<string, any> = {}
   const required: string[] = []
-  for (const [name, field] of Object.entries(iface.input)) {
+  for (const [name, field] of Object.entries(fields)) {
     properties[name] = fieldToSchema(field)
     if (!field.optional) required.push(name)
   }
@@ -308,16 +316,38 @@ async function emitOpenApi(outPath: string) {
       summary: iface.description ?? '',
       responses: {},
     }
-    const schema = inputSchema(iface)
+    const pathParameters = pathParameterNames(path)
+    const pathParameterSet = new Set(pathParameters)
+    if (pathParameters.length > 0) {
+      op.parameters = pathParameters.map((paramName) => {
+        const field = iface.input?.[paramName]
+        if (!field) {
+          throw new Error(`${name}: path parameter {${paramName}} is missing from interface input`)
+        }
+        return {
+          name: paramName,
+          in: 'path',
+          required: true,
+          schema: fieldToSchema(field),
+          ...(field.description ? { description: field.description } : {}),
+        }
+      })
+    }
+    const schema = inputSchemaExcluding(iface, pathParameterSet)
     const requestForm = http.request_form ?? 'body'
     if (schema && requestForm === 'query') {
-      op.parameters = Object.entries(inputFields(iface)).map(([paramName, field]) => ({
-        name: paramName,
-        in: 'query',
-        required: !field.optional,
-        schema: fieldToSchema(field),
-        ...(field.description ? { description: field.description } : {}),
-      }))
+      op.parameters = [
+        ...(op.parameters ?? []),
+        ...Object.entries(inputFields(iface))
+          .filter(([paramName]) => !pathParameterSet.has(paramName))
+          .map(([paramName, field]) => ({
+            name: paramName,
+            in: 'query',
+            required: !field.optional,
+            schema: fieldToSchema(field),
+            ...(field.description ? { description: field.description } : {}),
+          })),
+      ]
     } else if (schema) {
       op.requestBody = {
         required: true,

@@ -93,6 +93,9 @@ func ExchangeCodeForToken(ctx context.Context, deps ExchangeCodeDeps, in Exchang
 	if user == nil {
 		return nil, errors.New("user attached to code no longer exists")
 	}
+	if user.DisabledAt != nil {
+		return nil, NewOAuthError("invalid_grant", "ユーザーは無効化されています")
+	}
 	redeemed, err := deps.CodeStore.Redeem(ctx, in.Code, now)
 	if err != nil {
 		return nil, err

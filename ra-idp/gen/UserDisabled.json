@@ -1,0 +1,26 @@
+{
+  "$id": "urn:idp:UserDisabled",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "UserDisabled",
+      "type": "string"
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "actorSub": {
+      "type": "string"
+    },
+    "targetSub": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "type",
+    "occurredAt",
+    "actorSub",
+    "targetSub"
+  ]
+}

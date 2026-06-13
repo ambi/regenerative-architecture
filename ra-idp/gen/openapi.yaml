@@ -493,6 +493,134 @@ paths:
       responses:
         200:
           description: Health check
+  /admin/users:
+    get:
+      operationId: listAdminUsers
+      summary: 管理者が削除されていないユーザーを一覧する。
+      responses:
+        200:
+          description: 管理者が削除されていないユーザーを一覧する。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUserListResponse"
+        400:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthError"
+    post:
+      operationId: createAdminUser
+      summary: 管理者が password_policy を満たす初期パスワードでユーザーを作成する。
+      responses:
+        201:
+          description: 管理者が password_policy を満たす初期パスワードでユーザーを作成する。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUserResponse"
+        400:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthError"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminUserCreateRequest"
+  /admin/users/{sub}:
+    get:
+      operationId: getAdminUser
+      summary: 管理者が sub を指定してユーザーを取得する。
+      responses:
+        200:
+          description: 管理者が sub を指定してユーザーを取得する。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUserResponse"
+        400:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthError"
+      parameters:
+        - name: sub
+          in: path
+          required: true
+          schema:
+            type: string
+    patch:
+      operationId: updateAdminUser
+      summary: 管理者がユーザーのプロフィール、email_verified、roles を更新する。
+      responses:
+        200:
+          description: 管理者がユーザーのプロフィール、email_verified、roles を更新する。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUserResponse"
+        400:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthError"
+      parameters:
+        - name: sub
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminUserUpdateRequest"
+  /admin/users/{sub}/disable:
+    post:
+      operationId: disableAdminUser
+      summary: 管理者がユーザーを無効化し、新規ログインと既存セッション利用を拒否する。
+      responses:
+        204:
+          description: 管理者がユーザーを無効化し、新規ログインと既存セッション利用を拒否する。
+        400:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthError"
+      parameters:
+        - name: sub
+          in: path
+          required: true
+          schema:
+            type: string
+  /admin/users/{sub}/enable:
+    post:
+      operationId: enableAdminUser
+      summary: 管理者が無効化済みユーザーを再有効化する。
+      responses:
+        204:
+          description: 管理者が無効化済みユーザーを再有効化する。
+        400:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthError"
+      parameters:
+        - name: sub
+          in: path
+          required: true
+          schema:
+            type: string
 components:
   schemas:
     ClientType:
@@ -748,6 +876,13 @@ components:
           type: boolean
         mfa_enrolled:
           type: boolean
+        roles:
+          type: array
+          items:
+            type: string
+        disabled_at:
+          type: string
+          format: "date-time"
         created_at:
           type: string
           format: "date-time"
@@ -763,6 +898,7 @@ components:
         - password_hash
         - email_verified
         - mfa_enrolled
+        - roles
         - created_at
     MfaFactor:
       type: object
@@ -1572,6 +1708,102 @@ components:
       required:
         - redirect_uris
         - grant_types
+    AdminUserCreateRequest:
+      type: object
+      additionalProperties: false
+      description: 管理者がユーザーを作成する JSON リクエスト。初期パスワードには password_policy を適用する。
+      properties:
+        preferred_username:
+          type: string
+          minLength: 1
+          maxLength: 100
+        password:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        email_verified:
+          type: boolean
+        roles:
+          type: array
+          items:
+            type: string
+      required:
+        - preferred_username
+        - password
+        - email_verified
+        - roles
+    AdminUserUpdateRequest:
+      type: object
+      additionalProperties: false
+      description: 管理者がユーザーの可変プロフィールとロールを更新する JSON リクエスト。sub と password_hash は変更しない。
+      properties:
+        preferred_username:
+          type: string
+          minLength: 1
+          maxLength: 100
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        email_verified:
+          type: boolean
+        roles:
+          type: array
+          items:
+            type: string
+    AdminUserListResponse:
+      type: object
+      additionalProperties: false
+      description: 管理 API のユーザー一覧。
+      properties:
+        users:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminUserResponse"
+      required:
+        - users
+    AdminUserResponse:
+      type: object
+      additionalProperties: false
+      description: 管理 API が返すユーザー表現。password_hash は契約上含めない。
+      properties:
+        sub:
+          type: string
+        preferred_username:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        email_verified:
+          type: boolean
+        mfa_enrolled:
+          type: boolean
+        roles:
+          type: array
+          items:
+            type: string
+        disabled_at:
+          type: string
+          format: "date-time"
+        created_at:
+          type: string
+          format: "date-time"
+        updated_at:
+          type: string
+          format: "date-time"
+      required:
+        - sub
+        - preferred_username
+        - email_verified
+        - mfa_enrolled
+        - roles
+        - created_at
     TokenRequest:
       type: object
       additionalProperties: false
@@ -2195,6 +2427,83 @@ components:
         - toHash
         - purpose
         - delivered
+    UserCreated:
+      type: object
+      properties:
+        type:
+          const: UserCreated
+          type: string
+        occurredAt:
+          type: string
+          format: "date-time"
+        actorSub:
+          type: string
+        targetSub:
+          type: string
+      required:
+        - type
+        - occurredAt
+        - actorSub
+        - targetSub
+    UserUpdated:
+      type: object
+      properties:
+        type:
+          const: UserUpdated
+          type: string
+        occurredAt:
+          type: string
+          format: "date-time"
+        actorSub:
+          type: string
+        targetSub:
+          type: string
+        changedFields:
+          type: array
+          items:
+            type: string
+      required:
+        - type
+        - occurredAt
+        - actorSub
+        - targetSub
+        - changedFields
+    UserDisabled:
+      type: object
+      properties:
+        type:
+          const: UserDisabled
+          type: string
+        occurredAt:
+          type: string
+          format: "date-time"
+        actorSub:
+          type: string
+        targetSub:
+          type: string
+      required:
+        - type
+        - occurredAt
+        - actorSub
+        - targetSub
+    UserEnabled:
+      type: object
+      properties:
+        type:
+          const: UserEnabled
+          type: string
+        occurredAt:
+          type: string
+          format: "date-time"
+        actorSub:
+          type: string
+        targetSub:
+          type: string
+      required:
+        - type
+        - occurredAt
+        - actorSub
+        - targetSub
     ConsentGranted:
       type: object
       properties:

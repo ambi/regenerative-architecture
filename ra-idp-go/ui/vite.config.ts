@@ -10,6 +10,7 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       '/api': 'http://localhost:8081',
+      '/admin': 'http://localhost:8081',
       '/authorize': 'http://localhost:8081',
       '/token': 'http://localhost:8081',
       '/revoke': 'http://localhost:8081',

@@ -30,6 +30,8 @@ export interface AuthZENSubject {
      *  public / FAPI クライアントは true、confidential は明示 false で opt-out 可。 */
     requirePkce?: boolean
     authenticated?: boolean
+    roles?: string[]
+    disabledAt?: string | null
   }
 }
 
@@ -45,6 +47,9 @@ export const ACTION_NAMES = {
   TokenRevoke: 'token:revoke',
   UserInfoRead: 'userinfo:read',
   AuthorizeInitiate: 'authorize:initiate',
+  AdminUserRead: 'admin:user_read',
+  AdminUserCreate: 'admin:user_create',
+  AdminUserUpdate: 'admin:user_update',
 } as const
 
 export type ActionName = (typeof ACTION_NAMES)[keyof typeof ACTION_NAMES]
@@ -61,6 +66,7 @@ export interface AuthZENResource {
     | 'AuthorizationRequest'
     | 'UserInfo'
     | 'DeviceCode'
+    | 'User'
   id?: string
   properties?: {
     issuedToClientId?: string
@@ -84,6 +90,7 @@ export interface AuthZENContext {
   redirectUri?: string
   proofOfPossession?: { valid: boolean; jkt?: string; x5tS256?: string } | null
   parUsed?: boolean
+  authenticated?: boolean
   now?: string
 }
 
@@ -132,6 +139,9 @@ const ACTION_RULES: Record<ActionName, string[]> = {
     'pkce_present',
     'par_required_if_fapi',
   ],
+  'admin:user_read': ['actor_is_admin', 'actor_is_active', 'actor_is_authenticated'],
+  'admin:user_create': ['actor_is_admin', 'actor_is_active', 'actor_is_authenticated'],
+  'admin:user_update': ['actor_is_admin', 'actor_is_active', 'actor_is_authenticated'],
 }
 
 // ---------------------------------------------------------------
@@ -236,6 +246,18 @@ const ruleEvaluators: Record<string, RuleEvaluator> = {
   par_required_if_fapi(req) {
     if (req.subject.properties?.requirePAR !== true) return true
     return req.context?.parUsed === true
+  },
+
+  actor_is_admin(req) {
+    return req.subject.type === 'User' && (req.subject.properties?.roles?.includes('admin') ?? false)
+  },
+
+  actor_is_active(req) {
+    return req.subject.type === 'User' && !req.subject.properties?.disabledAt
+  },
+
+  actor_is_authenticated(req) {
+    return req.subject.type === 'User' && req.context?.authenticated === true
   },
 }
 

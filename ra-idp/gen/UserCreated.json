@@ -1,0 +1,26 @@
+{
+  "$id": "urn:idp:UserCreated",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "UserCreated",
+      "type": "string"
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "actorSub": {
+      "type": "string"
+    },
+    "targetSub": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "type",
+    "occurredAt",
+    "actorSub",
+    "targetSub"
+  ]
+}

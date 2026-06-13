@@ -12,6 +12,7 @@ function makeUser(): User {
     password_hash: 'x',
     email_verified: false,
     mfa_enrolled: false,
+    roles: [],
     created_at: new Date('2024-01-01T00:00:00Z').toISOString(),
     updated_at: new Date('2024-01-01T00:00:00Z').toISOString(),
   }

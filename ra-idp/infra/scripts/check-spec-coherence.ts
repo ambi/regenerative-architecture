@@ -316,7 +316,15 @@ function openApiOperationBlock(openapi: string, interfaceName: string): string |
   const start = openapi.indexOf(marker)
   if (start < 0) return null
   const nextPath = openapi.indexOf('\n  /', start + marker.length)
-  return openapi.slice(start, nextPath < 0 ? undefined : nextPath)
+  const nextMethodMatch = openapi
+    .slice(start + marker.length)
+    .match(/\n    (get|post|put|patch|delete|options|head|trace):\n/)
+  const nextMethod =
+    nextMethodMatch?.index === undefined
+      ? -1
+      : start + marker.length + nextMethodMatch.index
+  const boundaries = [nextPath, nextMethod].filter((position) => position >= 0)
+  return openapi.slice(start, boundaries.length > 0 ? Math.min(...boundaries) : undefined)
 }
 
 // ---------------------------------------------------------------
@@ -364,7 +372,28 @@ async function checkOpenApiVsSclInterfaces() {
     }
 
     if (!iface.input) continue
+    const pathParameters = [...http.path.matchAll(/\{([^}]+)\}/g)].map((match) => match[1])
+    for (const paramName of pathParameters) {
+      if (
+        block.includes(`name: ${paramName}`) &&
+        block.includes('in: path') &&
+        block.includes('required: true')
+      ) {
+        ok(`gen/openapi.yaml ${name} path parameter:${paramName}`)
+      } else {
+        bad(`gen/openapi.yaml ${name} が path parameter ${paramName} を生成していない`)
+      }
+    }
+    const bodyInputNames = Object.keys(iface.input).filter(
+      (name) => !pathParameters.includes(name),
+    )
     const requestForm = http.request_form ?? 'body'
+    if (bodyInputNames.length === 0) {
+      if (block.includes('requestBody:'))
+        bad(`gen/openapi.yaml ${name} に不要な requestBody がある`)
+      else ok(`gen/openapi.yaml ${name} は path parameter 以外の request body を持たない`)
+      continue
+    }
     if (requestForm === 'query') {
       if (block.includes('parameters:')) ok(`gen/openapi.yaml ${name} request_form=query`)
       else bad(`gen/openapi.yaml ${name} が query parameters を生成していない`)

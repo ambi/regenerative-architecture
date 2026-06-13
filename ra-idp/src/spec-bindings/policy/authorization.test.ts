@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from 'bun:test'
-import { evaluate } from './client-authorization'
+import { ACTION_NAMES, evaluate } from './client-authorization'
 import type { AuthZENRequest } from './client-authorization'
 
 const now = '2030-01-01T00:00:00.000Z'
@@ -388,5 +388,41 @@ describe('token:grant_client_credentials', () => {
     const res = evaluate(req)
     expect(res.decision).toBe('Deny')
     expect(res.reasons).toContain('client_is_confidential')
+  })
+})
+
+describe('admin user management', () => {
+  const request = {
+    subject: {
+      type: 'User' as const,
+      id: 'admin-sub',
+      properties: { roles: ['admin'], disabledAt: null },
+    },
+    action: { name: ACTION_NAMES.AdminUserRead },
+    resource: { type: 'User' as const, id: 'target-sub' },
+    context: { authenticated: true },
+  }
+
+  it('active admin user is permitted', () => {
+    expect(evaluate(request).decision).toBe('Permit')
+  })
+
+  it('non-admin, disabled, or unauthenticated user is denied', () => {
+    expect(
+      evaluate({
+        ...request,
+        subject: { ...request.subject, properties: { roles: [], disabledAt: null } },
+      }).decision,
+    ).toBe('Deny')
+    expect(
+      evaluate({
+        ...request,
+        subject: {
+          ...request.subject,
+          properties: { roles: ['admin'], disabledAt: '2026-06-13T00:00:00Z' },
+        },
+      }).decision,
+    ).toBe('Deny')
+    expect(evaluate({ ...request, context: { authenticated: false } }).decision).toBe('Deny')
   })
 })

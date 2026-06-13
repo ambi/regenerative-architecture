@@ -85,6 +85,10 @@ func (r *UserRepository) Seed(u *spec.User) {
 func (r *UserRepository) Save(_ context.Context, u *spec.User) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if existing := r.bySub[u.Sub]; existing != nil &&
+		existing.PreferredUsername != u.PreferredUsername {
+		delete(r.byUser, existing.PreferredUsername)
+	}
 	r.bySub[u.Sub] = u
 	r.byUser[u.PreferredUsername] = u
 	return nil
@@ -111,6 +115,21 @@ func (r *UserRepository) FindByEmail(_ context.Context, email string) (*spec.Use
 		}
 	}
 	return nil, nil
+}
+
+func (r *UserRepository) FindAll(_ context.Context) ([]*spec.User, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	out := make([]*spec.User, 0, len(r.bySub))
+	for _, user := range r.bySub {
+		if user.DeletedAt == nil {
+			out = append(out, user)
+		}
+	}
+	slices.SortFunc(out, func(a, b *spec.User) int {
+		return strings.Compare(a.PreferredUsername, b.PreferredUsername)
+	})
+	return out, nil
 }
 
 // =====================================================================

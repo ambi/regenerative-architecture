@@ -1,28 +1,16 @@
 {
-  "$id": "urn:idp:User",
+  "$id": "urn:idp:AdminUserResponse",
   "type": "object",
   "additionalProperties": false,
-  "description": "OIDC Core §5.1 標準クレーム + PII 注釈付きユーザー。",
+  "description": "管理 API が返すユーザー表現。password_hash は契約上含めない。",
   "properties": {
     "sub": {
-      "type": "string",
-      "minLength": 1
+      "type": "string"
     },
     "preferred_username": {
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 100
-    },
-    "password_hash": {
       "type": "string"
     },
     "name": {
-      "type": "string"
-    },
-    "given_name": {
-      "type": "string"
-    },
-    "family_name": {
       "type": "string"
     },
     "email": {
@@ -52,16 +40,11 @@
     "updated_at": {
       "type": "string",
       "format": "date-time"
-    },
-    "deleted_at": {
-      "type": "string",
-      "format": "date-time"
     }
   },
   "required": [
     "sub",
     "preferred_username",
-    "password_hash",
     "email_verified",
     "mfa_enrolled",
     "roles",

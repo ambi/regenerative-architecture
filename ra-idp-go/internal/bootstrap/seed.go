@@ -54,6 +54,7 @@ func seedDemoData(
 	if err := users.Save(ctx, &spec.User{
 		Sub: "user_alice", PreferredUsername: "alice", PasswordHash: hash,
 		Email: &email, EmailVerified: true, MfaEnrolled: totpSecret != "",
+		Roles:     []string{"admin"},
 		CreatedAt: now, UpdatedAt: now,
 	}); err != nil {
 		return err

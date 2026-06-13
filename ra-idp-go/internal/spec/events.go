@@ -66,6 +66,43 @@ type EmailSent struct {
 func (e *EmailSent) EventType() string     { return "EmailSent" }
 func (e *EmailSent) OccurredAt() time.Time { return e.At }
 
+type UserCreated struct {
+	At        time.Time `json:"-"`
+	ActorSub  string    `json:"actorSub"`
+	TargetSub string    `json:"targetSub"`
+}
+
+func (e *UserCreated) EventType() string     { return "UserCreated" }
+func (e *UserCreated) OccurredAt() time.Time { return e.At }
+
+type UserUpdated struct {
+	At            time.Time `json:"-"`
+	ActorSub      string    `json:"actorSub"`
+	TargetSub     string    `json:"targetSub"`
+	ChangedFields []string  `json:"changedFields"`
+}
+
+func (e *UserUpdated) EventType() string     { return "UserUpdated" }
+func (e *UserUpdated) OccurredAt() time.Time { return e.At }
+
+type UserDisabled struct {
+	At        time.Time `json:"-"`
+	ActorSub  string    `json:"actorSub"`
+	TargetSub string    `json:"targetSub"`
+}
+
+func (e *UserDisabled) EventType() string     { return "UserDisabled" }
+func (e *UserDisabled) OccurredAt() time.Time { return e.At }
+
+type UserEnabled struct {
+	At        time.Time `json:"-"`
+	ActorSub  string    `json:"actorSub"`
+	TargetSub string    `json:"targetSub"`
+}
+
+func (e *UserEnabled) EventType() string     { return "UserEnabled" }
+func (e *UserEnabled) OccurredAt() time.Time { return e.At }
+
 type ConsentGrantedEvent struct {
 	At       time.Time `json:"-"`
 	Sub      string    `json:"sub"`

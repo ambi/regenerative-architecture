@@ -58,7 +58,15 @@ function escapeHtml(value: string): string {
 
 export interface ShellInput {
   /** ページ名 (title 表示と SPA ルーティング判定の hint)。 */
-  page: 'login' | 'totp' | 'consent' | 'device' | 'change-password' | 'error'
+  page:
+    | 'login'
+    | 'totp'
+    | 'consent'
+    | 'device'
+    | 'change-password'
+    | 'forgot-password'
+    | 'reset-password'
+    | 'error'
   title: string
   /** SPA / 隠しフォームに伝える初期 props。 */
   meta: Record<string, string>

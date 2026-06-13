@@ -12,6 +12,7 @@ import type { Argon2idPasswordHasher } from '../adapters/crypto/argon2id-passwor
 import { createObservabilityMiddleware } from '../adapters/http/middleware/observability-middleware'
 import { createAuthenticationRoutes } from '../adapters/http/authentication-routes'
 import { createChangePasswordRoutes } from '../adapters/http/change-password-routes'
+import { createPasswordResetRoutes } from '../adapters/http/password-reset-routes'
 import {
   createAuthorizationLoginContinuation,
   createAuthorizeRoutes,
@@ -108,6 +109,19 @@ export function composeApp(input: ComposeAppInput): Hono {
       passwordHistoryRepo: deps.passwordHistoryRepo,
       breachedPasswordChecker: deps.breachedPasswordChecker,
       emit,
+    }),
+  )
+  app.route(
+    '/',
+    createPasswordResetRoutes({
+      userRepo: deps.userRepo,
+      passwordHasher,
+      passwordHistoryRepo: deps.passwordHistoryRepo,
+      passwordResetTokenStore: deps.passwordResetTokenStore,
+      emailSender: deps.emailSender,
+      breachedPasswordChecker: deps.breachedPasswordChecker,
+      emit,
+      issuer: config.issuer,
     }),
   )
   app.route(

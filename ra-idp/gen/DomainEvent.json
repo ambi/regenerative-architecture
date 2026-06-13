@@ -17,6 +17,12 @@
       "$ref": "LoginThrottled.json"
     },
     {
+      "$ref": "PasswordResetRequested.json"
+    },
+    {
+      "$ref": "EmailSent.json"
+    },
+    {
       "$ref": "ConsentGranted.json"
     },
     {

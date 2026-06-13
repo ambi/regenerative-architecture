@@ -80,6 +80,7 @@ Argon2id ハッシャ + 長さ (12–128 chars) + ユーザー識別子との類
 | ブルートフォース防御 | per-account / per-IP のログイン試行レート制限、CAPTCHA / 行動分析、ユーザー名列挙対策 |
 | エンドポイント保護 | `/token` `/authorize` `/par` `/device_authorization` の一般 rate limit / bot 対策 |
 | アカウント整合性 | メール・電話番号検証 |
+| メール配送 | 実 SMTP / HTTP プロバイダ (SendGrid / Resend / AWS SES など) の `EmailSender` adapter (ADR-030)。現状の `ConsoleEmailSender` は dev / demo 用。forgot-password / email verification / 異常検知通知の配信経路として本番投入の必須条件 |
 
 ### Phase 1 — Secret / 鍵のライフサイクル運用
 

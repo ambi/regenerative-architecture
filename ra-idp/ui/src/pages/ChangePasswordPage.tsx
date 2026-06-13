@@ -36,6 +36,8 @@ export function ChangePasswordPage() {
         return m.changePassword.errorPolicySimilar
       case 'common_password':
         return m.changePassword.errorPolicyCommon
+      case 'breached':
+        return m.changePassword.errorPolicyBreached
       default:
         return m.changePassword.errorGeneric
     }

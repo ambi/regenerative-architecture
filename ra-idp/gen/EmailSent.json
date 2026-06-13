@@ -1,0 +1,30 @@
+{
+  "$id": "urn:idp:EmailSent",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "EmailSent",
+      "type": "string"
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "toHash": {
+      "type": "string"
+    },
+    "purpose": {
+      "type": "string"
+    },
+    "delivered": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "type",
+    "occurredAt",
+    "toHash",
+    "purpose",
+    "delivered"
+  ]
+}

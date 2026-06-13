@@ -160,6 +160,13 @@ export function LoginPage() {
                 m.login.submit
               )}
             </Button>
+
+            <a
+              href="/forgot_password"
+              className="block text-center text-sm text-muted-foreground underline-offset-4 hover:underline"
+            >
+              {m.forgotPassword.loginLink}
+            </a>
           </form>
         </CardContent>
       </Card>

@@ -115,10 +115,53 @@ const ja = {
     errorPolicyTooLong: 'パスワードが長すぎます。',
     errorPolicySimilar: 'ユーザー名やメールアドレスを含むパスワードは使えません。',
     errorPolicyCommon: 'よく使われるパスワードは使えません。',
+    errorPolicyBreached:
+      'このパスワードは過去の流出データに含まれています。別のパスワードを選んでください。',
     errorSession: 'ログインが必要です。',
     errorGeneric: 'リクエストの処理に失敗しました。',
     networkError: '通信エラーが発生しました。時間をおいて再試行してください。',
     footer: 'パスワード変更は ',
+    footerCode: 'audit log',
+    footerTail: ' に記録されます',
+  },
+  forgotPassword: {
+    title: 'パスワードのリセット',
+    description: '登録済みのメールアドレスを入力すると、リセット用のリンクをお送りします',
+    email: 'メールアドレス',
+    submit: 'リセットリンクを送信',
+    submitting: '送信中…',
+    successTitle: 'リクエストを受け付けました',
+    successBody:
+      '登録されているメールアドレスであれば、まもなくリセットリンクをお送りします。受信トレイをご確認ください。',
+    backToLogin: 'サインインに戻る',
+    networkError: '通信エラーが発生しました。時間をおいて再試行してください。',
+    footer: 'リンクの有効期間は ',
+    footerCode: '30 分',
+    footerTail: ' です',
+    loginLink: 'パスワードをお忘れですか？',
+  },
+  resetPassword: {
+    title: '新しいパスワードの設定',
+    description: '新しいパスワードを入力してください',
+    newPassword: '新しいパスワード',
+    submit: 'パスワードを更新',
+    submitting: '更新中…',
+    successTitle: '更新しました',
+    successBody: 'パスワードを更新しました。サインインしてください。',
+    backToLogin: 'サインインに戻る',
+    errorTitle: '更新できませんでした',
+    errorInvalidToken: 'リセットリンクが無効か期限切れです。もう一度リセットを要求してください。',
+    errorReuse: '直近に使ったパスワードは再利用できません。',
+    errorPolicyTooShort: 'パスワードが短すぎます。',
+    errorPolicyTooLong: 'パスワードが長すぎます。',
+    errorPolicySimilar: 'ユーザー名やメールアドレスを含むパスワードは使えません。',
+    errorPolicyCommon: 'よく使われるパスワードは使えません。',
+    errorPolicyBreached:
+      'このパスワードは過去の流出データに含まれています。別のパスワードを選んでください。',
+    errorGeneric: 'リクエストの処理に失敗しました。',
+    errorMissingToken: 'リセットリンクに token が含まれていません。',
+    networkError: '通信エラーが発生しました。時間をおいて再試行してください。',
+    footer: 'パスワード更新は ',
     footerCode: 'audit log',
     footerTail: ' に記録されます',
   },
@@ -263,8 +306,48 @@ interface Messages {
     errorPolicyTooLong: string
     errorPolicySimilar: string
     errorPolicyCommon: string
+    errorPolicyBreached: string
     errorSession: string
     errorGeneric: string
+    networkError: string
+    footer: string
+    footerCode: string
+    footerTail: string
+  }
+  forgotPassword: {
+    title: string
+    description: string
+    email: string
+    submit: string
+    submitting: string
+    successTitle: string
+    successBody: string
+    backToLogin: string
+    networkError: string
+    footer: string
+    footerCode: string
+    footerTail: string
+    loginLink: string
+  }
+  resetPassword: {
+    title: string
+    description: string
+    newPassword: string
+    submit: string
+    submitting: string
+    successTitle: string
+    successBody: string
+    backToLogin: string
+    errorTitle: string
+    errorInvalidToken: string
+    errorReuse: string
+    errorPolicyTooShort: string
+    errorPolicyTooLong: string
+    errorPolicySimilar: string
+    errorPolicyCommon: string
+    errorPolicyBreached: string
+    errorGeneric: string
+    errorMissingToken: string
     networkError: string
     footer: string
     footerCode: string
@@ -391,10 +474,53 @@ const en: Messages = {
     errorPolicyTooLong: 'Password is too long.',
     errorPolicySimilar: 'Password must not contain your username or email.',
     errorPolicyCommon: 'This password is too common.',
+    errorPolicyBreached:
+      'This password appears in a known breach. Please choose a different password.',
     errorSession: 'Sign in is required.',
     errorGeneric: 'Could not complete the request.',
     networkError: 'A network error occurred. Please try again shortly.',
     footer: 'Password changes are recorded to the ',
+    footerCode: 'audit log',
+    footerTail: '',
+  },
+  forgotPassword: {
+    title: 'Reset your password',
+    description: 'Enter your registered email and we will send a reset link',
+    email: 'Email address',
+    submit: 'Send reset link',
+    submitting: 'Sending…',
+    successTitle: 'Request received',
+    successBody:
+      'If the email is registered, a reset link will arrive shortly. Please check your inbox.',
+    backToLogin: 'Back to sign in',
+    networkError: 'A network error occurred. Please try again shortly.',
+    footer: 'The link is valid for ',
+    footerCode: '30 minutes',
+    footerTail: '',
+    loginLink: 'Forgot your password?',
+  },
+  resetPassword: {
+    title: 'Set a new password',
+    description: 'Enter a new password',
+    newPassword: 'New password',
+    submit: 'Update password',
+    submitting: 'Updating…',
+    successTitle: 'Password updated',
+    successBody: 'Your password has been updated. Please sign in.',
+    backToLogin: 'Back to sign in',
+    errorTitle: 'Could not update password',
+    errorInvalidToken: 'The reset link is invalid or expired. Please request a new one.',
+    errorReuse: 'You cannot reuse a recently used password.',
+    errorPolicyTooShort: 'Password is too short.',
+    errorPolicyTooLong: 'Password is too long.',
+    errorPolicySimilar: 'Password must not contain your username or email.',
+    errorPolicyCommon: 'This password is too common.',
+    errorPolicyBreached:
+      'This password appears in a known breach. Please choose a different password.',
+    errorGeneric: 'Could not complete the request.',
+    errorMissingToken: 'The reset link is missing its token.',
+    networkError: 'A network error occurred. Please try again shortly.',
+    footer: 'Password updates are recorded to the ',
     footerCode: 'audit log',
     footerTail: '',
   },

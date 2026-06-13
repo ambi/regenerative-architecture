@@ -51,6 +51,14 @@ export class PostgresUserRepository implements UserRepository {
     return rows[0] ? rowToUser(rows[0]) : null
   }
 
+  async findByEmail(email: string): Promise<User | null> {
+    const { rows } = await this.pool.query(
+      `SELECT * FROM users WHERE LOWER(email) = LOWER($1) AND deleted_at IS NULL LIMIT 1`,
+      [email],
+    )
+    return rows[0] ? rowToUser(rows[0]) : null
+  }
+
   async save(user: User): Promise<void> {
     await this.pool.query(
       `

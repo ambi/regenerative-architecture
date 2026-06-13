@@ -8,6 +8,7 @@ import type { UserRepository } from '../../../src/authentication/ports/user-repo
 export class InMemoryUserRepository implements UserRepository {
   private readonly bySub = new Map<string, User>()
   private readonly byUsername = new Map<string, string>()
+  private readonly byEmail = new Map<string, string>()
 
   async findBySub(sub: string): Promise<User | null> {
     const u = this.bySub.get(sub)
@@ -19,8 +20,14 @@ export class InMemoryUserRepository implements UserRepository {
     return sub ? this.findBySub(sub) : null
   }
 
+  async findByEmail(email: string): Promise<User | null> {
+    const sub = this.byEmail.get(email.toLowerCase())
+    return sub ? this.findBySub(sub) : null
+  }
+
   async save(user: User): Promise<void> {
     this.bySub.set(user.sub, { ...user })
     this.byUsername.set(user.preferred_username, user.sub)
+    if (user.email) this.byEmail.set(user.email.toLowerCase(), user.sub)
   }
 }

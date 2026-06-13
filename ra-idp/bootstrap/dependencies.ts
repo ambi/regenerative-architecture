@@ -26,6 +26,8 @@ import {
   InMemoryLoginAttemptThrottle,
   type LoginThrottleConfigs,
 } from '../adapters/persistence/memory/login-attempt-throttle'
+import { InMemoryPasswordResetTokenStore } from '../adapters/persistence/memory/password-reset-token-store'
+import { ConsoleEmailSender } from '../adapters/notification/console-email-sender'
 import { InMemoryClientAssertionReplayStore } from '../adapters/persistence/memory/client-assertion-replay-store'
 import { InMemoryDeviceCodeStore } from '../adapters/persistence/memory/device-code-store'
 import { InMemorySessionStore } from '../adapters/persistence/memory/session-store'
@@ -37,8 +39,10 @@ import type { DpopNonceService } from '../src/oauth2/ports/dpop-nonce-service'
 import type { ClientRepository } from '../src/oauth2/ports/client-repository'
 import type { UserRepository } from '../src/authentication/ports/user-repository'
 import type { BreachedPasswordChecker } from '../src/authentication/ports/breached-password-checker'
+import type { EmailSender } from '../src/authentication/ports/email-sender'
 import type { LoginAttemptThrottle } from '../src/authentication/ports/login-attempt-throttle'
 import type { PasswordHistoryRepository } from '../src/authentication/ports/password-history-repository'
+import type { PasswordResetTokenStore } from '../src/authentication/ports/password-reset-token-store'
 import type { MfaFactorRepository } from '../src/authentication/ports/mfa-factor-repository'
 import type { ConsentRepository } from '../src/oauth2/ports/consent-repository'
 import type { RefreshTokenStore } from '../src/oauth2/ports/refresh-token-store'
@@ -79,6 +83,8 @@ export interface AssembledDeps {
   collectedConsoleEvents?: ConsoleEventSink
   loginAttemptThrottle: LoginAttemptThrottle
   trustedForwardedHops: number
+  passwordResetTokenStore: PasswordResetTokenStore
+  emailSender: EmailSender
 }
 
 const DPOP_NONCE_TTL_SECONDS = 60
@@ -95,6 +101,7 @@ const LOGIN_THROTTLE_CONFIGS: LoginThrottleConfigs = {
 export async function assemble(config: RuntimeConfig): Promise<AssembledDeps> {
   const breachedPasswordChecker = makeBreachedPasswordChecker()
   const trustedForwardedHops = readTrustedForwardedHops()
+  const emailSender = new ConsoleEmailSender()
   if (config.persistenceMode === 'memory') {
     const consoleSink = new ConsoleEventSink({ collect: true })
     return {
@@ -104,6 +111,8 @@ export async function assemble(config: RuntimeConfig): Promise<AssembledDeps> {
       breachedPasswordChecker,
       loginAttemptThrottle: new InMemoryLoginAttemptThrottle(LOGIN_THROTTLE_CONFIGS),
       trustedForwardedHops,
+      passwordResetTokenStore: new InMemoryPasswordResetTokenStore(),
+      emailSender,
       mfaFactorRepo: new InMemoryMfaFactorRepository(),
       consentRepo: new InMemoryConsentRepository(),
       requestStore: new InMemoryAuthorizationRequestStore(),
@@ -166,6 +175,9 @@ export async function assemble(config: RuntimeConfig): Promise<AssembledDeps> {
   const { RedisLoginAttemptThrottle } = await import(
     '../adapters/persistence/redis/login-attempt-throttle'
   )
+  const { PostgresPasswordResetTokenStore } = await import(
+    '../adapters/persistence/postgres/password-reset-token-store'
+  )
 
   const eventSink: EventSink =
     config.eventSinkMode === 'outbox' ? new PostgresOutboxEventSink(pool) : new ConsoleEventSink()
@@ -177,6 +189,8 @@ export async function assemble(config: RuntimeConfig): Promise<AssembledDeps> {
     breachedPasswordChecker,
     loginAttemptThrottle: new RedisLoginAttemptThrottle(redis, LOGIN_THROTTLE_CONFIGS),
     trustedForwardedHops,
+    passwordResetTokenStore: new PostgresPasswordResetTokenStore(pool),
+    emailSender,
     // TOTP factor は Postgres スキーマ未導入のため当面 in-memory。永続化が必要に
     // なった時点で Postgres 実装を追加し、ここで差し替える。
     mfaFactorRepo: new InMemoryMfaFactorRepository(),

@@ -79,6 +79,28 @@ export function readChangePasswordContext(): ChangePasswordContext {
   }
 }
 
+export interface ForgotPasswordContext {
+  csrf: string
+}
+
+export function readForgotPasswordContext(): ForgotPasswordContext {
+  return {
+    csrf: readMeta('ra-idp:csrf') ?? '',
+  }
+}
+
+export interface ResetPasswordContext {
+  csrf: string
+  token: string
+}
+
+export function readResetPasswordContext(): ResetPasswordContext {
+  return {
+    csrf: readMeta('ra-idp:csrf') ?? '',
+    token: readMeta('ra-idp:reset-token') ?? '',
+  }
+}
+
 export interface ErrorContext {
   /** 'logged_out' / 'access_denied' / 'invalid_request' / 'server_error' など。 */
   kind: string

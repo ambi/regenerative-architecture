@@ -13,9 +13,9 @@ spec_version: "1.1"
 components:
   Authentication:
     description: ユーザー認証、パスワード検証、ブラウザログインセッション、AuthenticationContext 復元を所有する。
-    owns_models: [User, LoginSession, BrowserLoginRequest, BrowserTotpRequest, BrowserChangePasswordRequest, MfaFactor, MfaFactorType, AuthenticationContext]
-    owns_events: [UserAuthenticated, AuthenticationFailed, PasswordChanged, LoginThrottled]
-    owns_interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, ChangePassword]
+    owns_models: [User, LoginSession, BrowserLoginRequest, BrowserTotpRequest, BrowserChangePasswordRequest, BrowserForgotPasswordRequest, BrowserResetPasswordRequest, PasswordResetTokenRecord, MfaFactor, MfaFactorType, AuthenticationContext]
+    owns_events: [UserAuthenticated, AuthenticationFailed, PasswordChanged, LoginThrottled, PasswordResetRequested, EmailSent]
+    owns_interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, ChangePassword, RequestPasswordReset, ResetPasswordWithToken]
   OAuth2:
     description: OAuth 2.0 / OIDC の認可判断、同意、コード・トークン発行、RP-Initiated Logout endpoint を所有する。
     owns_models: [AuthorizationRequest, Consent, AuthorizationCodeRecord, TokenRequest, TokenResponse, EndSessionParameters]
@@ -1600,6 +1600,36 @@ models:
       current_password: { type: String, annotations: { sensitive: true } }
       new_password:     { type: String, annotations: { sensitive: true } }
 
+  BrowserForgotPasswordRequest:
+    kind: value_object
+    description: SPA が POST /api/auth/forgot_password に送る JSON。未認証経路。anti-enumeration のため email 存在有無に関わらず常に 204 を返す (ADR-030)。
+    annotations: { component: Authentication }
+    fields:
+      email:        { type: String, annotations: { pii: true } }
+
+  BrowserResetPasswordRequest:
+    kind: value_object
+    description: SPA が POST /api/auth/reset_password に送る JSON。email リンクに含まれた単発消費 token と新パスワードを受ける (ADR-030)。
+    annotations: { component: Authentication }
+    fields:
+      token:        { type: String, annotations: { sensitive: true } }
+      new_password: { type: String, annotations: { sensitive: true } }
+
+  PasswordResetTokenRecord:
+    kind: aggregate
+    description: |
+      パスワードリセット用の単発消費トークン (ADR-030)。
+      token は base64url の 32 バイト乱数で、保存時は SHA-256 hash のみ。
+      期限切れ / consume 済みの行は GC するが、INSERT 時に同 sub の未消費を
+      失効させる軽い掃除も行う。
+    annotations: { component: Authentication, purge_on_deletion: true }
+    fields:
+      sub:          { type: String }
+      token_hash:   { type: String, annotations: { sensitive: true } }
+      created_at:   { type: Timestamp }
+      expires_at:   { type: Timestamp }
+      consumed_at:  { type: Timestamp, optional: true }
+
   BrowserTransactionResponse:
     kind: value_object
     description: SPA が現在の browser authorization transaction を描画するための no-store JSON。
@@ -1740,6 +1770,31 @@ models:
       kind:              { type: String, description: "account または ip" }
       keyHash:           { type: String, description: "username (lowercased) または IP の SHA-256 hex" }
       retryAfterSeconds: { type: Integer }
+
+  PasswordResetRequested:
+    kind: event
+    description: |
+      パスワードリセットリンクを発行した。anti-enumeration のため
+      「リクエストが届いた」ことのみ記録し、発行有無 (verified email を持つ
+      user が存在したか) は別途 EmailSent イベントで観測する (ADR-030)。
+      emailHash は SHA-256 で、平文を audit log に流さない。
+    annotations: { component: Authentication }
+    payload:
+      occurredAt: { type: Timestamp }
+      emailHash:  { type: String, description: "送信元 email の SHA-256 hex" }
+
+  EmailSent:
+    kind: event
+    description: |
+      EmailSender port 経由でメールを送信した。fail-open の port なので
+      送信失敗時も use case 層には伝播しないが、本イベントの有無で
+      SIEM 側からは観測できる (ADR-030)。to は SHA-256 hash で記録する。
+    annotations: { component: Authentication }
+    payload:
+      occurredAt: { type: Timestamp }
+      toHash:     { type: String, description: "宛先 email の SHA-256 hex" }
+      purpose:    { type: String, description: "password_reset / email_verification など。" }
+      delivered:  { type: Boolean }
 
   ConsentGranted:
     kind: event
@@ -1973,6 +2028,35 @@ interfaces:
     emits: [PasswordChanged]
     bindings:
       - { kind: http, method: POST, path: /api/auth/change_password, request_body: json }
+
+  RequestPasswordReset:
+    description: |
+      未認証ユーザーがパスワードリセットリンクの送信を要求する (ADR-030)。
+      anti-enumeration のため、email の存在有無に関わらず常に 204 を返し、
+      verified email を持つ user が見つかった場合のみ token を発行して
+      EmailSender 経由で送信する。
+    steps:
+      - "未認証ユーザーが email を指定して reset リンクを要求する"
+    input:
+      request: { type: BrowserForgotPasswordRequest }
+    emits: [PasswordResetRequested, EmailSent]
+    bindings:
+      - { kind: http, method: POST, path: /api/auth/forgot_password, request_body: json }
+
+  ResetPasswordWithToken:
+    description: |
+      reset リンクから戻ってきたユーザーが新パスワードを設定する (ADR-030)。
+      token を単発消費し、password_policy / PasswordHistoryNoReuse /
+      BreachedPasswordChecker を通過した new_password で User.password_hash を
+      更新する。成功時 PasswordChanged を emit。
+    steps:
+      - "未認証ユーザーが reset token と new_password で reset を完了する"
+    input:
+      request: { type: BrowserResetPasswordRequest }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [PasswordChanged]
+    bindings:
+      - { kind: http, method: POST, path: /api/auth/reset_password, request_body: json }
 
   GetBrowserDeviceContext:
     description: SPA が device user_code と CSRF token を取得する。
@@ -3300,6 +3384,17 @@ annotations:
     forbid_user_identifier_similarity: true
     common_password_dictionary: bundled
     history_depth: 5
+
+  password_reset_policy:
+    description: |
+      メール経由のパスワードリセット (ADR-030)。token は 32 バイト乱数 →
+      base64url、保存時は SHA-256。TTL は OWASP "Forgot Password Cheat Sheet"
+      推奨と整合する 30 分。単発消費 (consume で原子的に失効)。verified email
+      を持つ user のみリンクを送る (self-registration 導入時にも有効)。
+      anti-enumeration のため /api/auth/forgot_password は常に 204 を返す。
+    token_ttl_seconds:        1800
+    single_use:               true
+    email_verified_required:  true
 
   login_throttle_policy:
     description: |

@@ -328,6 +328,18 @@ export const DomainEventSchema = z.discriminatedUnion('type', [
     retryAfterSeconds: z.number().int().nonnegative(),
   }),
   z.object({
+    type: z.literal('PasswordResetRequested'),
+    occurredAt: isoDate,
+    emailHash: z.string(),
+  }),
+  z.object({
+    type: z.literal('EmailSent'),
+    occurredAt: isoDate,
+    toHash: z.string(),
+    purpose: z.string(),
+    delivered: z.boolean(),
+  }),
+  z.object({
     type: z.literal('ConsentGranted'),
     occurredAt: isoDate,
     sub: z.string(),

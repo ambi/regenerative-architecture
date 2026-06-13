@@ -242,6 +242,38 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/BrowserChangePasswordRequest"
+  /api/auth/forgot_password:
+    post:
+      operationId: requestPasswordReset
+      summary: "未認証ユーザーがパスワードリセットリンクの送信を要求する (ADR-030)。\nanti-enumeration のため、email の存在有無に関わらず常に 204 を返し、\nverified email を持つ user が見つかった場合のみ token を発行して\nEmailSender 経由で送信する。\n"
+      responses:
+        200:
+          description: "未認証ユーザーがパスワードリセットリンクの送信を要求する (ADR-030)。\nanti-enumeration のため、email の存在有無に関わらず常に 204 を返し、\nverified email を持つ user が見つかった場合のみ token を発行して\nEmailSender 経由で送信する。\n"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BrowserForgotPasswordRequest"
+  /api/auth/reset_password:
+    post:
+      operationId: resetPasswordWithToken
+      summary: "reset リンクから戻ってきたユーザーが新パスワードを設定する (ADR-030)。\ntoken を単発消費し、password_policy / PasswordHistoryNoReuse /\nBreachedPasswordChecker を通過した new_password で User.password_hash を\n更新する。成功時 PasswordChanged を emit。\n"
+      responses:
+        200:
+          description: "reset リンクから戻ってきたユーザーが新パスワードを設定する (ADR-030)。\ntoken を単発消費し、password_policy / PasswordHistoryNoReuse /\nBreachedPasswordChecker を通過した new_password で User.password_hash を\n更新する。成功時 PasswordChanged を emit。\n"
+        400:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OAuthError"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BrowserResetPasswordRequest"
   /end_session:
     get:
       operationId: endSession
@@ -1802,6 +1834,28 @@ components:
       required:
         - current_password
         - new_password
+    BrowserForgotPasswordRequest:
+      type: object
+      additionalProperties: false
+      description: "SPA が POST /api/auth/forgot_password に送る JSON。未認証経路。anti-enumeration のため email 存在有無に関わらず常に 204 を返す (ADR-030)。"
+      properties:
+        email:
+          type: string
+      required:
+        - email
+    BrowserResetPasswordRequest:
+      type: object
+      additionalProperties: false
+      description: "SPA が POST /api/auth/reset_password に送る JSON。email リンクに含まれた単発消費 token と新パスワードを受ける (ADR-030)。"
+      properties:
+        token:
+          type: string
+        new_password:
+          type: string
+      required:
+        - token
+        - new_password
+    PasswordResetTokenRecord: null
     BrowserTransactionResponse:
       type: object
       additionalProperties: false
@@ -2105,6 +2159,42 @@ components:
         - kind
         - keyHash
         - retryAfterSeconds
+    PasswordResetRequested:
+      type: object
+      properties:
+        type:
+          const: PasswordResetRequested
+          type: string
+        occurredAt:
+          type: string
+          format: "date-time"
+        emailHash:
+          type: string
+      required:
+        - type
+        - occurredAt
+        - emailHash
+    EmailSent:
+      type: object
+      properties:
+        type:
+          const: EmailSent
+          type: string
+        occurredAt:
+          type: string
+          format: "date-time"
+        toHash:
+          type: string
+        purpose:
+          type: string
+        delivered:
+          type: boolean
+      required:
+        - type
+        - occurredAt
+        - toHash
+        - purpose
+        - delivered
     ConsentGranted:
       type: object
       properties:

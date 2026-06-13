@@ -3,7 +3,9 @@ import { ChangePasswordPage } from '@/pages/ChangePasswordPage'
 import { ConsentPage } from '@/pages/ConsentPage'
 import { DevicePage } from '@/pages/DevicePage'
 import { ErrorPage } from '@/pages/ErrorPage'
+import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage'
 import { LoginPage } from '@/pages/LoginPage'
+import { ResetPasswordPage } from '@/pages/ResetPasswordPage'
 import { TotpPage } from '@/pages/TotpPage'
 import { readMeta } from '@/lib/page-context'
 
@@ -32,6 +34,10 @@ function PageDispatcher() {
       return <DevicePage />
     case 'change-password':
       return <ChangePasswordPage />
+    case 'forgot-password':
+      return <ForgotPasswordPage />
+    case 'reset-password':
+      return <ResetPasswordPage />
     case 'error':
       return <ErrorPage />
     default:

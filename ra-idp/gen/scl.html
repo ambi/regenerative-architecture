@@ -381,7 +381,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
       <h1>ra-idp</h1>
       <div class="page-meta"><span class="badge badge-version">spec 1.1</span></div>
     </header>
-    <div class="stats"><a class="stat" href="#standards"><span class="stat-num">30</span><span class="stat-label">standards</span></a><a class="stat" href="#vocabulary"><span class="stat-num">98</span><span class="stat-label">vocabulary</span></a><a class="stat" href="#models"><span class="stat-num">97</span><span class="stat-label">models</span></a><a class="stat" href="#interfaces"><span class="stat-num">21</span><span class="stat-label">interfaces</span></a><a class="stat" href="#states"><span class="stat-num">7</span><span class="stat-label">states</span></a><a class="stat" href="#invariants"><span class="stat-num">20</span><span class="stat-label">invariants</span></a><a class="stat" href="#scenarios"><span class="stat-num">50</span><span class="stat-label">scenarios</span></a><a class="stat" href="#permissions"><span class="stat-num">8</span><span class="stat-label">permissions</span></a><a class="stat" href="#objectives"><span class="stat-num">47</span><span class="stat-label">objectives</span></a><a class="stat" href="#user_experience"><span class="stat-num">7</span><span class="stat-label">user experience</span></a></div>
+    <div class="stats"><a class="stat" href="#standards"><span class="stat-num">30</span><span class="stat-label">standards</span></a><a class="stat" href="#vocabulary"><span class="stat-num">98</span><span class="stat-label">vocabulary</span></a><a class="stat" href="#models"><span class="stat-num">102</span><span class="stat-label">models</span></a><a class="stat" href="#interfaces"><span class="stat-num">23</span><span class="stat-label">interfaces</span></a><a class="stat" href="#states"><span class="stat-num">7</span><span class="stat-label">states</span></a><a class="stat" href="#invariants"><span class="stat-num">20</span><span class="stat-label">invariants</span></a><a class="stat" href="#scenarios"><span class="stat-num">50</span><span class="stat-label">scenarios</span></a><a class="stat" href="#permissions"><span class="stat-num">8</span><span class="stat-label">permissions</span></a><a class="stat" href="#objectives"><span class="stat-num">47</span><span class="stat-label">objectives</span></a><a class="stat" href="#user_experience"><span class="stat-num">7</span><span class="stat-label">user experience</span></a></div>
   </section>
 <section id="standards">
     <h2>Standards <span class="count">30</span></h2>
@@ -2143,7 +2143,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
     </article></div>
   </section>
 <section id="models">
-    <h2>Models <span class="count">97</span></h2>
+    <h2>Models <span class="count">102</span></h2>
 
     <div class="group">
       <h3 class="grp-title">entity <span class="count">11</span></h3>
@@ -2998,7 +2998,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
   </article></div>
     </div>
 <div class="group">
-      <h3 class="grp-title">value object <span class="count">31</span></h3>
+      <h3 class="grp-title">value object <span class="count">33</span></h3>
       <div class="cards"><article class="card" id="model-authenticationcontext">
     <header><h3>AuthenticationContext</h3><span class="badge badge-kind-value_object">value object</span></header>
     <p class="desc">Authentication component が OAuth2/OIDC component に渡す認証結果。OAuth2/OIDC は password、UserRepository、session cookie の詳細を参照しない。</p>
@@ -4139,6 +4139,42 @@ table.fields tbody tr:last-child td { border-bottom: none; }
   </tr></tbody>
   </table>
   </article>
+<article class="card" id="model-browserforgotpasswordrequest">
+    <header><h3>BrowserForgotPasswordRequest</h3><span class="badge badge-kind-value_object">value object</span></header>
+    <p class="desc">SPA が POST /api/auth/forgot_password に送る JSON。未認証経路。anti-enumeration のため email 存在有無に関わらず常に 204 を返す (ADR-030)。</p>
+    <dl class="kv"><dt>annotations</dt><dd><span class="chip chip-annotation">component: Authentication</span></dd></dl>
+    <table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">email</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="chip chip-annotation">pii</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="model-browserresetpasswordrequest">
+    <header><h3>BrowserResetPasswordRequest</h3><span class="badge badge-kind-value_object">value object</span></header>
+    <p class="desc">SPA が POST /api/auth/reset_password に送る JSON。email リンクに含まれた単発消費 token と新パスワードを受ける (ADR-030)。</p>
+    <dl class="kv"><dt>annotations</dt><dd><span class="chip chip-annotation">component: Authentication</span></dd></dl>
+    <table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">token</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="chip chip-annotation">sensitive</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">new_password</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="chip chip-annotation">sensitive</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
 <article class="card" id="model-browsertransactionresponse">
     <header><h3>BrowserTransactionResponse</h3><span class="badge badge-kind-value_object">value object</span></header>
     <p class="desc">SPA が現在の browser authorization transaction を描画するための no-store JSON。</p>
@@ -4399,7 +4435,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
   </article></div>
     </div>
 <div class="group">
-      <h3 class="grp-title">event <span class="count">20</span></h3>
+      <h3 class="grp-title">event <span class="count">22</span></h3>
       <div class="cards"><article class="card" id="model-clientregistered">
     <header><h3>ClientRegistered</h3><span class="badge badge-kind-event">event</span></header>
     <p class="desc">/register で新しいクライアントが動的登録された (RFC 7591)。クライアント登録監査の起点。</p>
@@ -4529,6 +4565,67 @@ table.fields tbody tr:last-child td { border-bottom: none; }
   </tr><tr>
     <td><code class="name">retryAfterSeconds</code></td>
     <td><code class="type">Integer</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="model-passwordresetrequested">
+    <header><h3>PasswordResetRequested</h3><span class="badge badge-kind-event">event</span></header>
+    <p class="desc">パスワードリセットリンクを発行した。anti-enumeration のため
+「リクエストが届いた」ことのみ記録し、発行有無 (verified email を持つ
+user が存在したか) は別途 EmailSent イベントで観測する (ADR-030)。
+emailHash は SHA-256 で、平文を audit log に流さない。
+</p>
+    <dl class="kv"><dt>annotations</dt><dd><span class="chip chip-annotation">component: Authentication</span></dd></dl>
+    <div class="label">Payload</div><table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">occurredAt</code></td>
+    <td><code class="type">Timestamp</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">emailHash</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td>送信元 email の SHA-256 hex</td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="model-emailsent">
+    <header><h3>EmailSent</h3><span class="badge badge-kind-event">event</span></header>
+    <p class="desc">EmailSender port 経由でメールを送信した。fail-open の port なので
+送信失敗時も use case 層には伝播しないが、本イベントの有無で
+SIEM 側からは観測できる (ADR-030)。to は SHA-256 hash で記録する。
+</p>
+    <dl class="kv"><dt>annotations</dt><dd><span class="chip chip-annotation">component: Authentication</span></dd></dl>
+    <div class="label">Payload</div><table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">occurredAt</code></td>
+    <td><code class="type">Timestamp</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">toHash</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td>宛先 email の SHA-256 hex</td>
+  </tr><tr>
+    <td><code class="name">purpose</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td>password_reset / email_verification など。</td>
+  </tr><tr>
+    <td><code class="name">delivered</code></td>
+    <td><code class="type">Boolean</code></td>
     <td><span class="badge badge-required">required</span></td>
     <td><span class="muted">—</span></td>
     <td></td>
@@ -5151,9 +5248,55 @@ table.fields tbody tr:last-child td { border-bottom: none; }
     <p class="muted">(no fields)</p>
   </article></div>
     </div>
+<div class="group">
+      <h3 class="grp-title">aggregate <span class="count">1</span></h3>
+      <div class="cards"><article class="card" id="model-passwordresettokenrecord">
+    <header><h3>PasswordResetTokenRecord</h3><span class="badge badge-kind-aggregate">aggregate</span></header>
+    <p class="desc">パスワードリセット用の単発消費トークン (ADR-030)。
+token は base64url の 32 バイト乱数で、保存時は SHA-256 hash のみ。
+期限切れ / consume 済みの行は GC するが、INSERT 時に同 sub の未消費を
+失効させる軽い掃除も行う。
+</p>
+    <dl class="kv"><dt>annotations</dt><dd><span class="chip chip-annotation">component: Authentication</span> <span class="chip chip-annotation">purge on deletion</span></dd></dl>
+    <table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">sub</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">token_hash</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="chip chip-annotation">sensitive</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">created_at</code></td>
+    <td><code class="type">Timestamp</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">expires_at</code></td>
+    <td><code class="type">Timestamp</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">consumed_at</code></td>
+    <td><code class="type">Timestamp</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article></div>
+    </div>
   </section>
 <section id="interfaces">
-    <h2>Interfaces <span class="count">21</span></h2>
+    <h2>Interfaces <span class="count">23</span></h2>
     <p class="lead">外部との契約。入力・出力・エラー・発行イベントと、それを露出する複数のトランスポート（bindings）。</p>
     <div class="cards"><article class="card" id="iface-registerclient">
     <header><h3>RegisterClient</h3></header>
@@ -5399,6 +5542,59 @@ table.fields tbody tr:last-child td { border-bottom: none; }
 <div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
     <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
     <div class="binding-body"><div class="binding-head"><span class="badge badge-method-post">POST</span> <code class="path">/api/auth/change_password</code></div></div>
+  </div></div></div>
+  </article>
+<article class="card" id="iface-requestpasswordreset">
+    <header><h3>RequestPasswordReset</h3></header>
+    <p class="desc">未認証ユーザーがパスワードリセットリンクの送信を要求する (ADR-030)。
+anti-enumeration のため、email の存在有無に関わらず常に 204 を返し、
+verified email を持つ user が見つかった場合のみ token を発行して
+EmailSender 経由で送信する。
+</p>
+    <div class="iface-step"><span class="step-kind-label">STEP</span> <code class="step-tpl">未認証ユーザーが email を指定して reset リンクを要求する</code></div>
+    <div class="io">
+    <div class="label">Input</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">request</code></td>
+    <td><code class="type">BrowserForgotPasswordRequest</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io"><div class="label">Emits</div><div class="chip-row"><a class="chip chip-event-ref" href="#model-passwordresetrequested">PasswordResetRequested</a> <a class="chip chip-event-ref" href="#model-emailsent">EmailSent</a></div></div>
+<div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
+    <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
+    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-post">POST</span> <code class="path">/api/auth/forgot_password</code></div></div>
+  </div></div></div>
+  </article>
+<article class="card" id="iface-resetpasswordwithtoken">
+    <header><h3>ResetPasswordWithToken</h3></header>
+    <p class="desc">reset リンクから戻ってきたユーザーが新パスワードを設定する (ADR-030)。
+token を単発消費し、password_policy / PasswordHistoryNoReuse /
+BreachedPasswordChecker を通過した new_password で User.password_hash を
+更新する。成功時 PasswordChanged を emit。
+</p>
+    <div class="iface-step"><span class="step-kind-label">STEP</span> <code class="step-tpl">未認証ユーザーが reset token と new_password で reset を完了する</code></div>
+    <div class="io">
+    <div class="label">Input</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">request</code></td>
+    <td><code class="type">BrowserResetPasswordRequest</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io"><div class="label">Errors</div><div class="chip-row"><a class="chip chip-error-ref" href="#model-invalidrequesterror">InvalidRequestError</a> <a class="chip chip-error-ref" href="#model-accessdeniederror">AccessDeniedError</a></div></div>
+<div class="io"><div class="label">Emits</div><div class="chip-row"><a class="chip chip-event-ref" href="#model-passwordchanged">PasswordChanged</a></div></div>
+<div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
+    <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
+    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-post">POST</span> <code class="path">/api/auth/reset_password</code></div></div>
   </div></div></div>
   </article>
 <article class="card" id="iface-getbrowserdevicecontext">

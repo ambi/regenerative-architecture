@@ -1,4 +1,5 @@
 import { Outlet, createRootRoute } from '@tanstack/react-router'
+import { AdminUsersPage } from '@/pages/AdminUsersPage'
 import { ChangePasswordPage } from '@/pages/ChangePasswordPage'
 import { ConsentPage } from '@/pages/ConsentPage'
 import { DevicePage } from '@/pages/DevicePage'
@@ -38,6 +39,8 @@ function PageDispatcher() {
       return <ForgotPasswordPage />
     case 'reset-password':
       return <ResetPasswordPage />
+    case 'admin-users':
+      return <AdminUsersPage />
     case 'error':
       return <ErrorPage />
     default:

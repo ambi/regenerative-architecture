@@ -101,6 +101,16 @@ export function readResetPasswordContext(): ResetPasswordContext {
   }
 }
 
+export interface AdminUsersContext {
+  csrf: string
+}
+
+export function readAdminUsersContext(): AdminUsersContext {
+  return {
+    csrf: readMeta('ra-idp:csrf') ?? '',
+  }
+}
+
 export interface ErrorContext {
   /** 'logged_out' / 'access_denied' / 'invalid_request' / 'server_error' など。 */
   kind: string

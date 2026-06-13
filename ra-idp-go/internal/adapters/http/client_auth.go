@@ -52,7 +52,7 @@ func (d Deps) authenticateTokenClient(c *echo.Context) (authedClient, error) {
 			return authedClient{}, usecases.NewOAuthError("invalid_request", "client_assertion が必要です")
 		}
 		clientID := c.Request().PostFormValue("client_id")
-		client, err := d.ClientRepo.FindByID(c.Request().Context(), clientID)
+		client, err := d.ClientRepo.FindByID(c.Request().Context(), requestTenantID(c), clientID)
 		if err != nil || client == nil || client.TokenEndpointAuthMethod != spec.AuthMethodPrivateKeyJwt {
 			return authedClient{}, usecases.NewOAuthError("invalid_client", "クライアント認証に失敗しました")
 		}
@@ -62,9 +62,9 @@ func (d Deps) authenticateTokenClient(c *echo.Context) (authedClient, error) {
 		}
 		_, err = crypto.VerifyClientAssertion(
 			c.Request().Context(), a, clientID,
-			acceptableClientAssertionAudiences(d.Issuer, c.Request()),
+			acceptableClientAssertionAudiences(requestIssuer(c, d.Issuer), c.Request()),
 			func(ctx context.Context, cid string) ([]map[string]any, error) {
-				cl, err := d.ClientRepo.FindByID(ctx, cid)
+				cl, err := d.ClientRepo.FindByID(ctx, requestTenantID(c), cid)
 				if err != nil {
 					return nil, err
 				}
@@ -84,7 +84,7 @@ func (d Deps) authenticateTokenClient(c *echo.Context) (authedClient, error) {
 	// 2. tls_client_auth
 	if hasCertificate {
 		clientID := c.Request().PostFormValue("client_id")
-		client, err := d.ClientRepo.FindByID(c.Request().Context(), clientID)
+		client, err := d.ClientRepo.FindByID(c.Request().Context(), requestTenantID(c), clientID)
 		if err != nil || client == nil ||
 			client.TokenEndpointAuthMethod != spec.AuthMethodTlsClientAuth ||
 			client.TlsClientAuthSubjectDN == nil {
@@ -126,7 +126,7 @@ func (d Deps) authenticateTokenClient(c *echo.Context) (authedClient, error) {
 	default:
 		clientID = c.Request().PostFormValue("client_id")
 	}
-	client, err := d.ClientRepo.FindByID(c.Request().Context(), clientID)
+	client, err := d.ClientRepo.FindByID(c.Request().Context(), requestTenantID(c), clientID)
 	if err != nil || client == nil {
 		return authedClient{}, usecases.NewOAuthError("invalid_client", "未知の client_id")
 	}

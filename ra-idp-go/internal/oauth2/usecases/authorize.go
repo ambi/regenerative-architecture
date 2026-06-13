@@ -12,6 +12,7 @@ import (
 
 	"ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/tenancy"
 )
 
 // =====================================================================
@@ -64,7 +65,8 @@ func Authorize(ctx context.Context, deps AuthorizeDeps, in AuthorizeRequestInput
 		return nil, NewOAuthError("invalid_request", "code_challenge_method は S256 のみ")
 	}
 
-	client, err := deps.ClientRepo.FindByID(ctx, in.ClientID)
+	tenantID := tenancy.TenantID(ctx)
+	client, err := deps.ClientRepo.FindByID(ctx, tenantID, in.ClientID)
 	if err != nil {
 		return nil, err
 	}
@@ -97,6 +99,7 @@ func Authorize(ctx context.Context, deps AuthorizeDeps, in AuthorizeRequestInput
 	}
 	now := time.Now().UTC()
 	req := &spec.AuthorizationRequest{
+		TenantID:            tenantID,
 		ID:                  id,
 		State:               spec.AuthFlowReceived,
 		ClientID:            in.ClientID,

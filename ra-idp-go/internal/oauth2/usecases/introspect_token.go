@@ -8,6 +8,7 @@ import (
 
 	"ra-idp-go/internal/oauth2/domain"
 	"ra-idp-go/internal/oauth2/ports"
+	"ra-idp-go/internal/tenancy"
 )
 
 type IntrospectInput struct {
@@ -45,6 +46,9 @@ func IntrospectToken(ctx context.Context, deps IntrospectDeps, in IntrospectInpu
 			return nil, err
 		}
 		if rec != nil {
+			if rec.TenantID != tenancy.TenantID(ctx) {
+				return &IntrospectionResponse{Active: false}, nil
+			}
 			active := !rec.Revoked && !rec.Rotated && now.Before(rec.AbsoluteExpiresAt)
 			if !active {
 				return &IntrospectionResponse{Active: false}, nil

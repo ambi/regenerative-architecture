@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"net/url"
 	"strings"
 	"testing"
@@ -117,7 +118,7 @@ func TestResetPasswordWithTokenConsumesTokenAndUpdatesPassword(t *testing.T) {
 		PasswordHistoryRepo: historyRepo,
 	}, usecases.ResetPasswordWithTokenInput{
 		Token: rawToken, NewPassword: "another-password-9182", Now: now,
-	}); err != usecases.ErrInvalidResetToken {
+	}); !errors.Is(err, usecases.ErrInvalidResetToken) {
 		t.Fatalf("reused token error=%v, want ErrInvalidResetToken", err)
 	}
 }
@@ -136,7 +137,7 @@ func TestResetPasswordWithTokenRejectsExpiredToken(t *testing.T) {
 	}, usecases.ResetPasswordWithTokenInput{
 		Token: "expired", NewPassword: "fresh-password-9182", Now: now,
 	})
-	if err != usecases.ErrInvalidResetToken {
+	if !errors.Is(err, usecases.ErrInvalidResetToken) {
 		t.Fatalf("error=%v, want ErrInvalidResetToken", err)
 	}
 }

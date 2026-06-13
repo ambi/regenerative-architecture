@@ -12,6 +12,7 @@ import (
 	authusecases "ra-idp-go/internal/authentication/usecases"
 	oauthports "ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/spec"
+	tenantports "ra-idp-go/internal/tenancy/ports"
 
 	"github.com/labstack/echo/v5"
 )
@@ -19,6 +20,8 @@ import (
 type Deps struct {
 	Issuer                     string
 	SCL                        *spec.SCL
+	TenantRepo                 tenantports.TenantRepository
+	LegacyBareIssuer           bool
 	ClientRepo                 oauthports.ClientRepository
 	UserRepo                   oauthports.UserRepository
 	ConsentRepo                oauthports.ConsentRepository
@@ -48,42 +51,63 @@ type Deps struct {
 }
 
 func Register(e *echo.Echo, d Deps) {
-	e.GET("/authorize", d.handleAuthorize)
-	e.GET("/end_session", d.handleEndSession)
-	e.POST("/end_session", d.handleEndSession)
-	e.GET("/api/auth/transaction", d.handleTransaction)
-	e.GET("/api/auth/account", d.handleAccountContext)
-	e.POST("/api/auth/login", d.handleLoginAPI)
-	e.POST("/api/auth/change_password", d.handleChangePasswordAPI)
-	e.GET("/api/auth/password_reset_context", d.handlePasswordResetContext)
-	e.POST("/api/auth/forgot_password", d.handleForgotPasswordAPI)
-	e.POST("/api/auth/reset_password", d.handleResetPasswordAPI)
-	e.POST("/api/auth/consent", d.handleConsentAPI)
-	e.POST("/api/auth/totp", d.handleTOTPAPI)
-	e.GET("/api/auth/device", d.handleDeviceContext)
-	e.POST("/api/auth/device", d.handleDeviceAPI)
-	e.POST("/token", d.handleToken)
-	e.POST("/revoke", d.handleRevoke)
-	e.POST("/introspect", d.handleIntrospect)
-	e.GET("/userinfo", d.handleUserInfo)
-	e.POST("/userinfo", d.handleUserInfo)
-	e.POST("/register", d.handleRegisterClient)
-	e.POST("/par", d.handlePAR)
-	e.POST("/device_authorization", d.handleDeviceAuthorization)
-	e.GET("/.well-known/openid-configuration", d.handleDiscovery)
-	e.GET("/.well-known/oauth-authorization-server", d.handleDiscovery)
-	e.GET("/jwks", d.handleJWKS)
+	registerTenantRoutes(e.Group("", d.resolveDefaultTenant), d)
+	registerTenantRoutes(e.Group("/realms/:tenant_id", d.resolvePathTenant), d)
 	e.GET("/health", d.handleHealth)
-	e.GET("/admin/users", d.handleListAdminUsers)
-	e.GET("/admin/users/:sub", d.handleGetAdminUser)
-	e.POST("/admin/users", d.handleCreateAdminUser)
-	e.PATCH("/admin/users/:sub", d.handleUpdateAdminUser)
-	e.POST("/admin/users/:sub/disable", d.handleDisableAdminUser)
-	e.POST("/admin/users/:sub/enable", d.handleEnableAdminUser)
-	e.GET("/api/admin/users", d.handleListAdminUsers)
-	e.GET("/api/admin/users/:sub", d.handleGetAdminUser)
-	e.POST("/api/admin/users", d.handleCreateAdminUser)
-	e.PATCH("/api/admin/users/:sub", d.handleUpdateAdminUser)
-	e.POST("/api/admin/users/:sub/disable", d.handleDisableAdminUser)
-	e.POST("/api/admin/users/:sub/enable", d.handleEnableAdminUser)
+	e.GET("/admin/tenants", d.handleListTenants)
+	e.GET("/admin/tenants/:tenant_id", d.handleGetTenant)
+	e.POST("/admin/tenants", d.handleCreateTenant)
+	e.PATCH("/admin/tenants/:tenant_id", d.handleUpdateTenant)
+	e.POST("/admin/tenants/:tenant_id/disable", d.handleDisableTenant)
+	e.POST("/admin/tenants/:tenant_id/enable", d.handleEnableTenant)
+}
+
+func registerTenantRoutes(g *echo.Group, d Deps) {
+	g.GET("/authorize", d.handleAuthorize)
+	g.GET("/end_session", d.handleEndSession)
+	g.POST("/end_session", d.handleEndSession)
+	g.GET("/api/auth/transaction", d.handleTransaction)
+	g.GET("/api/auth/account", d.handleAccountContext)
+	g.POST("/api/auth/login", d.handleLoginAPI)
+	g.POST("/api/auth/change_password", d.handleChangePasswordAPI)
+	g.GET("/api/auth/password_reset_context", d.handlePasswordResetContext)
+	g.POST("/api/auth/forgot_password", d.handleForgotPasswordAPI)
+	g.POST("/api/auth/reset_password", d.handleResetPasswordAPI)
+	g.POST("/api/auth/consent", d.handleConsentAPI)
+	g.POST("/api/auth/totp", d.handleTOTPAPI)
+	g.GET("/api/auth/device", d.handleDeviceContext)
+	g.POST("/api/auth/device", d.handleDeviceAPI)
+	g.POST("/token", d.handleToken)
+	g.POST("/revoke", d.handleRevoke)
+	g.POST("/introspect", d.handleIntrospect)
+	g.GET("/userinfo", d.handleUserInfo)
+	g.POST("/userinfo", d.handleUserInfo)
+	g.POST("/register", d.handleRegisterClient)
+	g.POST("/par", d.handlePAR)
+	g.POST("/device_authorization", d.handleDeviceAuthorization)
+	g.GET("/.well-known/openid-configuration", d.handleDiscovery)
+	g.GET("/.well-known/oauth-authorization-server", d.handleDiscovery)
+	g.GET("/jwks", d.handleJWKS)
+	g.GET("/admin/users", d.handleListAdminUsers)
+	g.GET("/admin/users/:sub", d.handleGetAdminUser)
+	g.POST("/admin/users", d.handleCreateAdminUser)
+	g.PATCH("/admin/users/:sub", d.handleUpdateAdminUser)
+	g.POST("/admin/users/:sub/disable", d.handleDisableAdminUser)
+	g.POST("/admin/users/:sub/enable", d.handleEnableAdminUser)
+	g.GET("/admin/clients", d.handleListAdminClients)
+	g.GET("/admin/clients/:client_id", d.handleGetAdminClient)
+	g.POST("/admin/clients", d.handleCreateAdminClient)
+	g.PATCH("/admin/clients/:client_id", d.handleUpdateAdminClient)
+	g.DELETE("/admin/clients/:client_id", d.handleDeleteAdminClient)
+	g.GET("/api/admin/users", d.handleListAdminUsers)
+	g.GET("/api/admin/users/:sub", d.handleGetAdminUser)
+	g.POST("/api/admin/users", d.handleCreateAdminUser)
+	g.PATCH("/api/admin/users/:sub", d.handleUpdateAdminUser)
+	g.POST("/api/admin/users/:sub/disable", d.handleDisableAdminUser)
+	g.POST("/api/admin/users/:sub/enable", d.handleEnableAdminUser)
+	g.GET("/api/admin/clients", d.handleListAdminClients)
+	g.GET("/api/admin/clients/:client_id", d.handleGetAdminClient)
+	g.POST("/api/admin/clients", d.handleCreateAdminClient)
+	g.PATCH("/api/admin/clients/:client_id", d.handleUpdateAdminClient)
+	g.DELETE("/api/admin/clients/:client_id", d.handleDeleteAdminClient)
 }

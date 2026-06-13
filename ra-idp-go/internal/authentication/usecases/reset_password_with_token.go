@@ -8,6 +8,7 @@ import (
 	authports "ra-idp-go/internal/authentication/ports"
 	oauthports "ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/tenancy"
 )
 
 var ErrInvalidResetToken = errors.New("reset token is invalid or expired")
@@ -48,7 +49,7 @@ func ResetPasswordWithToken(
 	if err != nil {
 		return nil, err
 	}
-	if user == nil {
+	if user == nil || user.TenantID != tenancy.TenantID(ctx) {
 		return nil, ErrInvalidResetToken
 	}
 

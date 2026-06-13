@@ -16,6 +16,49 @@ import (
 )
 
 // =====================================================================
+// TenantRepository
+// =====================================================================
+
+type TenantRepository struct {
+	mu      sync.RWMutex
+	tenants map[string]*spec.Tenant
+}
+
+func NewTenantRepository() *TenantRepository {
+	return &TenantRepository{tenants: map[string]*spec.Tenant{}}
+}
+
+func (r *TenantRepository) FindByID(_ context.Context, id string) (*spec.Tenant, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if tenant := r.tenants[id]; tenant != nil {
+		cloned := *tenant
+		return &cloned, nil
+	}
+	return nil, nil
+}
+
+func (r *TenantRepository) FindAll(_ context.Context) ([]*spec.Tenant, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	out := make([]*spec.Tenant, 0, len(r.tenants))
+	for _, tenant := range r.tenants {
+		cloned := *tenant
+		out = append(out, &cloned)
+	}
+	slices.SortFunc(out, func(a, b *spec.Tenant) int { return strings.Compare(a.ID, b.ID) })
+	return out, nil
+}
+
+func (r *TenantRepository) Save(_ context.Context, tenant *spec.Tenant) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	cloned := *tenant
+	r.tenants[tenant.ID] = &cloned
+	return nil
+}
+
+// =====================================================================
 // ClientRepository
 // =====================================================================
 
@@ -29,37 +72,38 @@ func NewClientRepository() *ClientRepository {
 }
 
 func (r *ClientRepository) Seed(c *spec.Client) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.clients[c.ClientID] = c
+	_ = r.Save(context.Background(), c)
 }
 
-func (r *ClientRepository) FindByID(_ context.Context, clientID string) (*spec.Client, error) {
+func (r *ClientRepository) FindByID(_ context.Context, tenantID, clientID string) (*spec.Client, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	return r.clients[clientID], nil
+	return r.clients[tenantKey(tenantID, clientID)], nil
 }
 
 func (r *ClientRepository) Save(_ context.Context, c *spec.Client) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.clients[c.ClientID] = c
+	defaultTenant(&c.TenantID)
+	r.clients[tenantKey(c.TenantID, c.ClientID)] = c
 	return nil
 }
 
-func (r *ClientRepository) Delete(_ context.Context, clientID string) error {
+func (r *ClientRepository) Delete(_ context.Context, tenantID, clientID string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	delete(r.clients, clientID)
+	delete(r.clients, tenantKey(tenantID, clientID))
 	return nil
 }
 
-func (r *ClientRepository) FindAll(_ context.Context) ([]*spec.Client, error) {
+func (r *ClientRepository) FindAll(_ context.Context, tenantID string) ([]*spec.Client, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	out := make([]*spec.Client, 0, len(r.clients))
 	for _, c := range r.clients {
-		out = append(out, c)
+		if c.TenantID == tenantID {
+			out = append(out, c)
+		}
 	}
 	return out, nil
 }
@@ -87,10 +131,11 @@ func (r *UserRepository) Save(_ context.Context, u *spec.User) error {
 	defer r.mu.Unlock()
 	if existing := r.bySub[u.Sub]; existing != nil &&
 		existing.PreferredUsername != u.PreferredUsername {
-		delete(r.byUser, existing.PreferredUsername)
+		delete(r.byUser, tenantKey(existing.TenantID, existing.PreferredUsername))
 	}
+	defaultTenant(&u.TenantID)
 	r.bySub[u.Sub] = u
-	r.byUser[u.PreferredUsername] = u
+	r.byUser[tenantKey(u.TenantID, u.PreferredUsername)] = u
 	return nil
 }
 
@@ -100,29 +145,29 @@ func (r *UserRepository) FindBySub(_ context.Context, sub string) (*spec.User, e
 	return r.bySub[sub], nil
 }
 
-func (r *UserRepository) FindByUsername(_ context.Context, username string) (*spec.User, error) {
+func (r *UserRepository) FindByUsername(_ context.Context, tenantID, username string) (*spec.User, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	return r.byUser[username], nil
+	return r.byUser[tenantKey(tenantID, username)], nil
 }
 
-func (r *UserRepository) FindByEmail(_ context.Context, email string) (*spec.User, error) {
+func (r *UserRepository) FindByEmail(_ context.Context, tenantID, email string) (*spec.User, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	for _, user := range r.bySub {
-		if user.Email != nil && strings.EqualFold(*user.Email, email) {
+		if user.TenantID == tenantID && user.Email != nil && strings.EqualFold(*user.Email, email) {
 			return user, nil
 		}
 	}
 	return nil, nil
 }
 
-func (r *UserRepository) FindAll(_ context.Context) ([]*spec.User, error) {
+func (r *UserRepository) FindAll(_ context.Context, tenantID string) ([]*spec.User, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	out := make([]*spec.User, 0, len(r.bySub))
 	for _, user := range r.bySub {
-		if user.DeletedAt == nil {
+		if user.TenantID == tenantID && user.DeletedAt == nil {
 			out = append(out, user)
 		}
 	}
@@ -240,23 +285,24 @@ func NewConsentRepository() *ConsentRepository {
 	return &ConsentRepository{consents: map[string]*spec.Consent{}}
 }
 
-func (r *ConsentRepository) Find(_ context.Context, sub, clientID string) (*spec.Consent, error) {
+func (r *ConsentRepository) Find(_ context.Context, tenantID, sub, clientID string) (*spec.Consent, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	return r.consents[consentKey(sub, clientID)], nil
+	return r.consents[consentKey(tenantID, sub, clientID)], nil
 }
 
 func (r *ConsentRepository) Save(_ context.Context, c *spec.Consent) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.consents[consentKey(c.Sub, c.ClientID)] = c
+	defaultTenant(&c.TenantID)
+	r.consents[consentKey(c.TenantID, c.Sub, c.ClientID)] = c
 	return nil
 }
 
-func (r *ConsentRepository) Revoke(_ context.Context, sub, clientID string) error {
+func (r *ConsentRepository) Revoke(_ context.Context, tenantID, sub, clientID string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	c, ok := r.consents[consentKey(sub, clientID)]
+	c, ok := r.consents[consentKey(tenantID, sub, clientID)]
 	if !ok {
 		return nil
 	}
@@ -266,7 +312,9 @@ func (r *ConsentRepository) Revoke(_ context.Context, sub, clientID string) erro
 	return nil
 }
 
-func consentKey(sub, clientID string) string { return sub + "|" + clientID }
+func consentKey(tenantID, sub, clientID string) string {
+	return tenantKey(tenantID, sub+"|"+clientID)
+}
 
 // =====================================================================
 // MfaFactorRepository
@@ -357,6 +405,7 @@ func NewAuthorizationRequestStore() *AuthorizationRequestStore {
 func (s *AuthorizationRequestStore) Save(_ context.Context, req *spec.AuthorizationRequest) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	defaultTenant(&req.TenantID)
 	s.requests[req.ID] = req
 	return nil
 }
@@ -440,6 +489,7 @@ func NewAuthorizationCodeStore() *AuthorizationCodeStore {
 func (s *AuthorizationCodeStore) Save(_ context.Context, code *spec.AuthorizationCodeRecord) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	defaultTenant(&code.TenantID)
 	s.codes[code.Code] = cloneAuthorizationCode(code)
 	return nil
 }
@@ -498,6 +548,7 @@ func NewPARStore() *PARStore {
 func (s *PARStore) Save(_ context.Context, rec *spec.PARRecord) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	defaultTenant(&rec.TenantID)
 	s.records[rec.RequestURI] = rec
 	return nil
 }
@@ -545,6 +596,7 @@ func (s *RefreshTokenStore) FindByHash(_ context.Context, hash string) (*spec.Re
 func (s *RefreshTokenStore) Save(_ context.Context, rec *spec.RefreshTokenRecord) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	defaultTenant(&rec.TenantID)
 	stored := cloneRefreshToken(rec)
 	s.byHash[stored.Hash] = stored
 	s.byID[stored.ID] = stored
@@ -562,6 +614,7 @@ func (s *RefreshTokenStore) Rotate(_ context.Context, parentID string, newRec *s
 		return nil, nil
 	}
 	parent.Rotated = true
+	defaultTenant(&newRec.TenantID)
 	stored := cloneRefreshToken(newRec)
 	s.byHash[stored.Hash] = stored
 	s.byID[stored.ID] = stored
@@ -599,6 +652,7 @@ func NewDeviceCodeStore() *DeviceCodeStore {
 func (s *DeviceCodeStore) Save(_ context.Context, rec *spec.DeviceAuthorization) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	defaultTenant(&rec.TenantID)
 	stored := cloneDeviceAuthorization(rec)
 	s.byHash[stored.DeviceCodeHash] = stored
 	s.byUserCode[stored.UserCode] = stored
@@ -620,6 +674,7 @@ func (s *DeviceCodeStore) FindByUserCode(_ context.Context, userCode string) (*s
 func (s *DeviceCodeStore) Update(_ context.Context, rec *spec.DeviceAuthorization) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	defaultTenant(&rec.TenantID)
 	stored := cloneDeviceAuthorization(rec)
 	s.byHash[stored.DeviceCodeHash] = stored
 	s.byUserCode[stored.UserCode] = stored
@@ -670,6 +725,19 @@ func cloneDeviceAuthorization(in *spec.DeviceAuthorization) *spec.DeviceAuthoriz
 	out := *in
 	out.Scopes = append([]string(nil), in.Scopes...)
 	return &out
+}
+
+func defaultTenant(tenantID *string) {
+	if *tenantID == "" {
+		*tenantID = spec.DefaultTenantID
+	}
+}
+
+func tenantKey(tenantID, id string) string {
+	if tenantID == "" {
+		tenantID = spec.DefaultTenantID
+	}
+	return tenantID + "|" + id
 }
 
 // =====================================================================
@@ -766,6 +834,7 @@ func NewSessionStore() *SessionStore {
 func (s *SessionStore) Save(_ context.Context, sess *spec.LoginSession) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	defaultTenant(&sess.TenantID)
 	s.sessions[sess.ID] = sess
 	return nil
 }

@@ -18,6 +18,7 @@ import (
 
 	"ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/tenancy"
 )
 
 const (
@@ -47,8 +48,9 @@ func (s *JWTSigner) SignAccessToken(ctx context.Context, in ports.AccessTokenInp
 		return "", "", err
 	}
 	now := nowUnix()
+	issuer := tenancy.Issuer(ctx, s.Issuer)
 	claims := map[string]any{
-		"iss":       s.Issuer,
+		"iss":       issuer,
 		"sub":       in.Sub,
 		"aud":       in.Client.ClientID,
 		"client_id": in.Client.ClientID,
@@ -87,8 +89,9 @@ func (s *JWTSigner) SignIDToken(ctx context.Context, in ports.IDTokenInput) (str
 		return "", err
 	}
 	now := nowUnix()
+	issuer := tenancy.Issuer(ctx, s.Issuer)
 	claims := map[string]any{
-		"iss":       s.Issuer,
+		"iss":       issuer,
 		"sub":       in.User.Sub,
 		"aud":       in.Client.ClientID,
 		"iat":       now,
@@ -132,7 +135,7 @@ func (s *JWTSigner) IntrospectAccessToken(ctx context.Context, token string) (*p
 		// 検証エラーは leak しない（呼び出し側 RS のクライアントに署名失敗を知らせない）。
 		return &ports.IntrospectionResult{Active: false}, nil //nolint:nilerr // intentional per RFC 7662
 	}
-	if iss, _ := payload["iss"].(string); iss != s.Issuer {
+	if iss, _ := payload["iss"].(string); iss != tenancy.Issuer(ctx, s.Issuer) {
 		return &ports.IntrospectionResult{Active: false}, nil
 	}
 	if expF, _ := payload["exp"].(float64); int64(expF) < nowUnix() {

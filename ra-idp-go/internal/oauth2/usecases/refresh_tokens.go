@@ -9,6 +9,7 @@ import (
 	"ra-idp-go/internal/oauth2/domain"
 	"ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/tenancy"
 )
 
 type RefreshInput struct {
@@ -39,7 +40,8 @@ func RefreshTokens(ctx context.Context, deps RefreshDeps, in RefreshInput, now t
 	if now.IsZero() {
 		now = time.Now().UTC()
 	}
-	client, err := deps.ClientRepo.FindByID(ctx, in.ClientID)
+	tenantID := tenancy.TenantID(ctx)
+	client, err := deps.ClientRepo.FindByID(ctx, tenantID, in.ClientID)
 	if err != nil {
 		return nil, err
 	}
@@ -52,6 +54,9 @@ func RefreshTokens(ctx context.Context, deps RefreshDeps, in RefreshInput, now t
 		return nil, err
 	}
 	if record == nil {
+		return nil, NewOAuthError("invalid_grant", "リフレッシュトークンが無効")
+	}
+	if record.TenantID != tenantID {
 		return nil, NewOAuthError("invalid_grant", "リフレッシュトークンが無効")
 	}
 	if record.ClientID != client.ClientID {
@@ -73,6 +78,9 @@ func RefreshTokens(ctx context.Context, deps RefreshDeps, in RefreshInput, now t
 	}
 	if user == nil {
 		return nil, NewOAuthError("server_error", "ユーザーが存在しません")
+	}
+	if user.TenantID != tenantID {
+		return nil, NewOAuthError("invalid_grant", "リフレッシュトークンが無効")
 	}
 	if user.DisabledAt != nil {
 		_ = deps.RefreshStore.RevokeFamily(ctx, record.FamilyID)

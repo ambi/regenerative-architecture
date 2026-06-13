@@ -11,6 +11,7 @@ import (
 	"ra-idp-go/internal/oauth2/domain"
 	"ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/tenancy"
 )
 
 // =====================================================================
@@ -42,7 +43,8 @@ func RequestDeviceAuthorization(ctx context.Context, deps DeviceAuthorizationDep
 	if now.IsZero() {
 		now = time.Now().UTC()
 	}
-	client, err := deps.ClientRepo.FindByID(ctx, in.ClientID)
+	tenantID := tenancy.TenantID(ctx)
+	client, err := deps.ClientRepo.FindByID(ctx, tenantID, in.ClientID)
 	if err != nil {
 		return nil, err
 	}
@@ -73,6 +75,7 @@ func RequestDeviceAuthorization(ctx context.Context, deps DeviceAuthorizationDep
 		}
 	}
 	rec := &spec.DeviceAuthorization{
+		TenantID:        tenantID,
 		DeviceCodeHash:  domain.HashDeviceCode(deviceCode),
 		UserCode:        domain.NormalizeUserCode(userCode),
 		ClientID:        client.ClientID,
@@ -120,6 +123,9 @@ func ApproveUserCode(ctx context.Context, deps VerifyUserCodeDeps, userCode, sub
 	if rec == nil {
 		return NewOAuthError("invalid_request", "未知の user_code")
 	}
+	if rec.TenantID != tenancy.TenantID(ctx) {
+		return NewOAuthError("invalid_request", "未知の user_code")
+	}
 	if domain.IsDeviceExpired(rec, now) {
 		return NewOAuthError("expired_token", "user_code 期限切れ")
 	}
@@ -155,6 +161,9 @@ func DenyUserCode(ctx context.Context, deps VerifyUserCodeDeps, userCode, sub st
 		return err
 	}
 	if rec == nil {
+		return NewOAuthError("invalid_request", "未知の user_code")
+	}
+	if rec.TenantID != tenancy.TenantID(ctx) {
 		return NewOAuthError("invalid_request", "未知の user_code")
 	}
 	if rec.State == spec.DeviceFlowIssued {
@@ -215,6 +224,10 @@ func ExchangeDeviceCode(ctx context.Context, deps ExchangeDeviceCodeDeps, in Exc
 	if rec == nil {
 		return nil, NewOAuthError("invalid_grant", "未知の device_code")
 	}
+	tenantID := tenancy.TenantID(ctx)
+	if rec.TenantID != tenantID {
+		return nil, NewOAuthError("invalid_grant", "未知の device_code")
+	}
 	if rec.ClientID != in.ClientID {
 		return nil, NewOAuthError("invalid_grant", "device_code がクライアントに紐づきません")
 	}
@@ -255,7 +268,7 @@ func ExchangeDeviceCode(ctx context.Context, deps ExchangeDeviceCodeDeps, in Exc
 	}
 	rec = exchanged
 
-	client, err := deps.ClientRepo.FindByID(ctx, in.ClientID)
+	client, err := deps.ClientRepo.FindByID(ctx, tenantID, in.ClientID)
 	if err != nil {
 		return nil, err
 	}
@@ -268,6 +281,9 @@ func ExchangeDeviceCode(ctx context.Context, deps ExchangeDeviceCodeDeps, in Exc
 	}
 	if user == nil {
 		return nil, NewOAuthError("server_error", "user missing")
+	}
+	if user.TenantID != tenantID {
+		return nil, NewOAuthError("invalid_grant", "未知の device_code")
 	}
 	if user.DisabledAt != nil {
 		return nil, NewOAuthError("invalid_grant", "ユーザーは無効化されています")
@@ -299,6 +315,7 @@ func ExchangeDeviceCode(ctx context.Context, deps ExchangeDeviceCodeDeps, in Exc
 	if err != nil {
 		return nil, err
 	}
+	refresh.Record.TenantID = tenantID
 	if err := deps.RefreshStore.Save(ctx, refresh.Record); err != nil {
 		return nil, err
 	}

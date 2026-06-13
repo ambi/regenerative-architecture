@@ -11,6 +11,8 @@ TS 側と同じスコープを目標に実装した:
 - ブラウザ認証API `/api/auth/*` + Session Cookie + CSRF
 - メールによるパスワードリセット + 単発・30分TTLトークン (ADR-030)
 - RBACで保護された管理ユーザーAPI (`/admin/users`) + ユーザー無効化 (ADR-031)
+- テナント内に閉じた管理クライアント CRUD (`/admin/clients`)
+- `/realms/{tenant_id}` による tenant 分離、tenant 管理 API、tenant-scoped persistence (ADR-032〜034)
 - トークンエンドポイント `/token` (authorization_code, refresh_token, client_credentials, device_code)
 - リフレッシュトークンのローテーション + ファミリー失効 (ADR-004)
 - DPoP (RFC 9449) プルーフ検証
@@ -85,19 +87,20 @@ go run ./cmd/ra-idp-relay
 
 ### 設定
 
-| 環境変数         | 値 / 既定値                          |
-| ---------------- | ------------------------------------ |
-| `PERSISTENCE`    | `memory` / `postgres` (`memory`)     |
-| `DATABASE_URL`   | PostgreSQL接続先。`postgres`時に必須 |
-| `REDIS_URL`      | Redis接続先。`postgres`時に必須      |
-| `AUTO_MIGRATE`   | 起動時migration (`true`)             |
-| `MIGRATIONS_DIR` | `infra/migrations`                   |
-| `EVENT_SINK`     | `console` / `outbox` (`console`)     |
-| `OBSERVABILITY`  | `noop` / `otel` (`noop`)             |
-| `AUTHZEN`        | `local` / `remote` (`local`)         |
-| `AUTHZEN_URL`    | remote AuthZENのbase URL             |
-| `KAFKA_BROKERS`  | relay用comma-separated broker        |
-| `SKIP_DEMO_SEED` | 設定時はデモデータを保存しない       |
+| 環境変数             | 値 / 既定値                                                                       |
+| -------------------- | --------------------------------------------------------------------------------- |
+| `PERSISTENCE`        | `memory` / `postgres` (`memory`)                                                  |
+| `DATABASE_URL`       | PostgreSQL接続先。`postgres`時に必須                                              |
+| `REDIS_URL`          | Redis接続先。`postgres`時に必須                                                   |
+| `AUTO_MIGRATE`       | 起動時migration (`true`)                                                          |
+| `MIGRATIONS_DIR`     | `infra/migrations`                                                                |
+| `EVENT_SINK`         | `console` / `outbox` (`console`)                                                  |
+| `OBSERVABILITY`      | `noop` / `otel` (`noop`)                                                          |
+| `AUTHZEN`            | `local` / `remote` (`local`)                                                      |
+| `AUTHZEN_URL`        | remote AuthZENのbase URL                                                          |
+| `KAFKA_BROKERS`      | relay用comma-separated broker                                                     |
+| `SKIP_DEMO_SEED`     | 設定時はデモデータを保存しない                                                    |
+| `LEGACY_BARE_ISSUER` | `true` の場合だけ bare route の default issuer を旧 `{base}` 形式にする (`false`) |
 
 `jwks_uri` はHTTPSのみ許可し、private / loopback / link-localアドレス、
 userinfo、fragmentを拒否する。取得は3秒timeout、1 MiB上限、5分cacheとする。
@@ -106,11 +109,25 @@ userinfo、fragmentを拒否する。取得は3秒timeout、1 MiB上限、5分ca
 [Zog](https://zog.dev/) を使う。登録済みredirect URIとの一致、スコープ許可、
 状態遷移、PKCEなど実行時コンテキストを必要とする検証はusecase/domainに置く。
 
+### マルチテナンシー
+
+プロトコル route は `/realms/{tenant_id}/authorize`、
+`/realms/{tenant_id}/token`、`/realms/{tenant_id}/.well-known/openid-configuration`
+の形式を正とする。prefix のない既存 route は `default` tenant に解決される。
+issuer は通常 `{ISSUER}/realms/{tenant_id}` となる。
+
+tenant lifecycle API (`/admin/tenants`) は system-wide API のため realm prefix
+を持たず、`system_admin` role だけが利用できる。`admin` role の
+`/admin/users` 操作は request tenant 内に限定される。
+
+Redis の一時状態 key は `tenant:{id}:` namespace に分離される。旧形式 key
+は migration せず TTL により失効するため、切替直後の in-flight 認可・device
+flow・session は再実行が必要になる場合がある。
+
 ## 検証
 
 ```bash
 go test -race ./...
-go vet ./...
 golangci-lint run
 ```
 

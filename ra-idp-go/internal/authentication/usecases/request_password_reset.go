@@ -14,6 +14,7 @@ import (
 	authports "ra-idp-go/internal/authentication/ports"
 	oauthports "ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/tenancy"
 )
 
 const PasswordResetTokenTTLSeconds = 1800
@@ -45,7 +46,7 @@ func RequestPasswordReset(ctx context.Context, deps RequestPasswordResetDeps, in
 		return nil
 	}
 
-	user, err := deps.UserRepo.FindByEmail(ctx, email)
+	user, err := deps.UserRepo.FindByEmail(ctx, tenancy.TenantID(ctx), email)
 	if err != nil {
 		return err
 	}

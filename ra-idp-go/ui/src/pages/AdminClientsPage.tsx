@@ -1,0 +1,500 @@
+import {
+  IconActivity,
+  IconAlertTriangle,
+  IconCheck,
+  IconChevronRight,
+  IconCopy,
+  IconEdit,
+  IconKey,
+  IconLayoutDashboard,
+  IconLogout,
+  IconPlus,
+  IconRefresh,
+  IconSearch,
+  IconShield,
+  IconShieldCheck,
+  IconTrash,
+  IconUsers,
+  IconX,
+} from '@tabler/icons-react'
+import { type FormEvent, useMemo, useState } from 'react'
+import {
+  AuthenticationAPIError,
+  createAdminClient,
+  deleteAdminClient,
+  listAdminClients,
+  tenantURL,
+  updateAdminClient,
+} from '../api'
+import { Brand } from '../components/Brand'
+import { Alert } from '../components/ui/alert'
+import { Button } from '../components/ui/button'
+import { Card } from '../components/ui/card'
+import { Input } from '../components/ui/input'
+import { Label } from '../components/ui/label'
+import { cn } from '../lib/utils'
+import type { AdminClient, AdminClientsPage as AdminClientsPageData } from '../types'
+
+type ClientForm = {
+  client_name: string
+  client_type: 'public' | 'confidential'
+  redirect_uris: string
+  grant_types: string
+  response_types: string
+  token_endpoint_auth_method: AdminClient['token_endpoint_auth_method']
+  scope: string
+  jwks_uri: string
+  tls_client_auth_subject_dn: string
+  require_pushed_authorization_requests: boolean
+  dpop_bound_access_tokens: boolean
+}
+
+const emptyForm: ClientForm = {
+  client_name: '',
+  client_type: 'confidential',
+  redirect_uris: '',
+  grant_types: 'authorization_code, refresh_token',
+  response_types: 'code',
+  token_endpoint_auth_method: 'client_secret_basic',
+  scope: 'openid profile email',
+  jwks_uri: '',
+  tls_client_auth_subject_dn: '',
+  require_pushed_authorization_requests: false,
+  dpop_bound_access_tokens: false,
+}
+
+export function AdminClientsPage({
+  csrfToken,
+  actorUsername,
+  clients: initialClients,
+}: AdminClientsPageData) {
+  const [clients, setClients] = useState(initialClients)
+  const [selectedID, setSelectedID] = useState(initialClients[0]?.client_id ?? '')
+  const [query, setQuery] = useState('')
+  const [form, setForm] = useState<ClientForm>(emptyForm)
+  const [dialog, setDialog] = useState<'create' | 'edit' | 'delete' | null>(null)
+  const [issuedSecret, setIssuedSecret] = useState<{ clientID: string; secret: string } | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
+
+  const selected = clients.find((client) => client.client_id === selectedID)
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    return clients.filter((client) =>
+      !needle
+        ? true
+        : [
+            client.client_id,
+            client.client_name,
+            client.client_type,
+            client.token_endpoint_auth_method,
+            client.scope,
+            ...client.redirect_uris,
+          ].some((value) => value?.toLowerCase().includes(needle)),
+    )
+  }, [clients, query])
+
+  async function refresh(preferredID = selectedID) {
+    const next = await listAdminClients()
+    setClients(next)
+    setSelectedID(next.find((client) => client.client_id === preferredID)?.client_id ?? next[0]?.client_id ?? '')
+  }
+
+  async function run(action: () => Promise<void>, success: string) {
+    setBusy(true)
+    setError('')
+    setNotice('')
+    try {
+      await action()
+      setNotice(success)
+    } catch (cause) {
+      setError(
+        cause instanceof AuthenticationAPIError
+          ? cause.message
+          : 'クライアント管理操作を完了できませんでした。',
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  function openCreate() {
+    setForm(emptyForm)
+    setDialog('create')
+  }
+
+  function openEdit(client: AdminClient) {
+    setForm({
+      client_name: client.client_name ?? '',
+      client_type: client.client_type,
+      redirect_uris: client.redirect_uris.join('\n'),
+      grant_types: client.grant_types.join(', '),
+      response_types: client.response_types.join(', '),
+      token_endpoint_auth_method: client.token_endpoint_auth_method,
+      scope: client.scope,
+      jwks_uri: client.jwks_uri ?? '',
+      tls_client_auth_subject_dn: client.tls_client_auth_subject_dn ?? '',
+      require_pushed_authorization_requests: client.require_pushed_authorization_requests,
+      dpop_bound_access_tokens: client.dpop_bound_access_tokens,
+    })
+    setDialog('edit')
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (dialog === 'create') {
+      await run(async () => {
+        const result = await createAdminClient(csrfToken, {
+          client_name: optional(form.client_name),
+          client_type: form.client_type,
+          redirect_uris: lines(form.redirect_uris),
+          grant_types: values(form.grant_types),
+          response_types: values(form.response_types),
+          token_endpoint_auth_method: form.token_endpoint_auth_method,
+          scope: form.scope.trim(),
+          jwks_uri: optional(form.jwks_uri),
+          tls_client_auth_subject_dn: optional(form.tls_client_auth_subject_dn),
+          require_pushed_authorization_requests: form.require_pushed_authorization_requests,
+          dpop_bound_access_tokens: form.dpop_bound_access_tokens,
+        })
+        setDialog(null)
+        if (result.client_secret) {
+          setIssuedSecret({ clientID: result.client.client_id, secret: result.client_secret })
+        }
+        await refresh(result.client.client_id)
+      }, 'クライアントを作成しました。')
+      return
+    }
+    if (!selected) return
+    await run(async () => {
+      await updateAdminClient(csrfToken, selected.client_id, {
+        client_name: optional(form.client_name),
+        redirect_uris: lines(form.redirect_uris),
+        grant_types: values(form.grant_types),
+        response_types: values(form.response_types),
+        scope: form.scope.trim(),
+        require_pushed_authorization_requests: form.require_pushed_authorization_requests,
+        dpop_bound_access_tokens: form.dpop_bound_access_tokens,
+      })
+      setDialog(null)
+      await refresh(selected.client_id)
+    }, 'クライアントを更新しました。')
+  }
+
+  async function handleDelete() {
+    if (!selected) return
+    await run(async () => {
+      await deleteAdminClient(csrfToken, selected.client_id)
+      setDialog(null)
+      await refresh('')
+    }, 'クライアントを削除しました。')
+  }
+
+  return (
+    <div className="min-h-screen bg-[#f5f7fa] text-slate-950">
+      <AdminHeader actorUsername={actorUsername} />
+      <div className="grid min-h-[calc(100vh-4rem)] lg:grid-cols-[248px_minmax(0,1fr)]">
+        <AdminNavigation />
+        <main className="min-w-0">
+          <div className="mx-auto flex max-w-[1500px] flex-col gap-6 p-5 lg:p-8">
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                  Identity management
+                  <IconChevronRight size={14} aria-hidden="true" />
+                  Applications
+                </div>
+                <h1 className="mt-2 text-3xl font-semibold tracking-[-0.03em]">アプリケーション</h1>
+                <p className="mt-2 text-sm text-slate-600">
+                  OAuth client の接続先、認証方式、許可する grant と scope を管理します。
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" disabled={busy} onClick={() => void run(() => refresh(), '一覧を更新しました。')}>
+                  <IconRefresh size={17} aria-hidden="true" />
+                  更新
+                </Button>
+                <Button onClick={openCreate}>
+                  <IconPlus size={17} aria-hidden="true" />
+                  クライアントを追加
+                </Button>
+              </div>
+            </div>
+
+            <section className="grid gap-3 sm:grid-cols-3" aria-label="クライアント概要">
+              <Metric label="総クライアント" value={clients.length} />
+              <Metric label="Confidential" value={clients.filter((client) => client.client_type === 'confidential').length} />
+              <Metric label="PAR 必須" value={clients.filter((client) => client.require_pushed_authorization_requests).length} />
+            </section>
+
+            {error && <Alert>{error}</Alert>}
+            {notice && (
+              <div role="status" className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+                <IconCheck size={18} aria-hidden="true" />
+                {notice}
+              </div>
+            )}
+
+            <Card className="overflow-hidden shadow-[0_1px_2px_rgb(15_23_42/4%)]">
+              <div className="border-b border-slate-200 p-4">
+                <div className="relative max-w-xl">
+                  <IconSearch size={18} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+                  <Input value={query} onChange={(event) => setQuery(event.target.value)} className="h-10 pl-10" placeholder="名前、client ID、redirect URI、scope で検索" aria-label="クライアントを検索" />
+                </div>
+              </div>
+              <div className="grid min-h-[520px] xl:grid-cols-[minmax(0,1.55fr)_420px]">
+                <div className="min-w-0 overflow-x-auto">
+                  <table className="w-full min-w-[760px] text-left text-sm">
+                    <thead className="border-b border-slate-200 bg-slate-50/80 text-[0.68rem] font-bold uppercase tracking-[0.08em] text-slate-500">
+                      <tr>
+                        <th className="px-5 py-3.5">クライアント</th>
+                        <th className="px-5 py-3.5">種別</th>
+                        <th className="px-5 py-3.5">認証方式</th>
+                        <th className="px-5 py-3.5">Grant</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {filtered.map((client) => (
+                        <tr key={client.client_id} onClick={() => setSelectedID(client.client_id)} className={cn('cursor-pointer bg-white hover:bg-slate-50', selectedID === client.client_id && 'bg-blue-50/60 hover:bg-blue-50/80')}>
+                          <td className="px-5 py-4">
+                            <p className="font-semibold text-slate-900">{client.client_name || client.client_id}</p>
+                            <p className="mt-1 font-mono text-xs text-slate-500">{client.client_id}</p>
+                          </td>
+                          <td className="px-5 py-4"><Badge>{client.client_type}</Badge></td>
+                          <td className="px-5 py-4 text-xs text-slate-600">{client.token_endpoint_auth_method}</td>
+                          <td className="px-5 py-4 text-xs text-slate-600">{client.grant_types.join(', ')}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {filtered.length === 0 && (
+                    <div className="flex min-h-64 flex-col items-center justify-center px-6 text-center">
+                      <IconKey size={28} className="text-slate-300" aria-hidden="true" />
+                      <p className="mt-3 font-semibold text-slate-800">クライアントが見つかりません</p>
+                      <p className="mt-1 text-sm text-slate-500">検索語を変更するか、新しいクライアントを追加してください。</p>
+                    </div>
+                  )}
+                </div>
+                <aside className="border-t border-slate-200 bg-slate-50/40 xl:border-l xl:border-t-0">
+                  {selected ? (
+                    <ClientDetails client={selected} busy={busy} onEdit={() => openEdit(selected)} onDelete={() => setDialog('delete')} />
+                  ) : (
+                    <div className="flex h-full min-h-80 items-center justify-center p-8 text-center text-sm text-slate-500">クライアントを選択すると詳細が表示されます。</div>
+                  )}
+                </aside>
+              </div>
+              <div className="border-t border-slate-200 bg-slate-50/70 px-5 py-3 text-xs text-slate-500">{filtered.length} 件を表示</div>
+            </Card>
+          </div>
+        </main>
+      </div>
+
+      {(dialog === 'create' || dialog === 'edit') && (
+        <ClientFormDialog mode={dialog} form={form} busy={busy} onChange={setForm} onClose={() => setDialog(null)} onSubmit={handleSubmit} />
+      )}
+      {dialog === 'delete' && selected && (
+        <DeleteDialog client={selected} busy={busy} onClose={() => setDialog(null)} onConfirm={() => void handleDelete()} />
+      )}
+      {issuedSecret && <SecretDialog value={issuedSecret} onClose={() => setIssuedSecret(null)} />}
+    </div>
+  )
+}
+
+function AdminHeader({ actorUsername }: { actorUsername?: string }) {
+  return (
+    <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
+      <div className="flex h-16 items-center justify-between px-5 lg:px-7">
+        <Brand compact />
+        <div className="flex items-center gap-3">
+          <div className="hidden text-right sm:block">
+            <p className="text-sm font-semibold text-slate-800">{actorUsername ?? 'administrator'}</p>
+            <p className="text-xs text-slate-500">Organization administrator</p>
+          </div>
+          <span className="flex size-9 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white">{(actorUsername ?? 'A').slice(0, 1).toUpperCase()}</span>
+          <Button asChild variant="ghost" className="px-2.5" aria-label="ログアウト">
+            <a href={tenantURL('/end_session')}><IconLogout size={18} aria-hidden="true" /></a>
+          </Button>
+        </div>
+      </div>
+    </header>
+  )
+}
+
+function AdminNavigation() {
+  const items = [
+    { label: '概要', icon: IconLayoutDashboard },
+    { label: 'ユーザー', icon: IconUsers, href: tenantURL('/admin/users') },
+    { label: 'ロールと権限', icon: IconShield },
+    { label: 'アプリケーション', icon: IconKey, href: tenantURL('/admin/clients'), active: true },
+    { label: '監査ログ', icon: IconActivity },
+  ]
+  return (
+    <aside className="hidden border-r border-slate-200 bg-white lg:flex lg:flex-col">
+      <nav className="flex flex-1 flex-col gap-1 p-4" aria-label="管理メニュー">
+        <p className="mb-2 px-3 text-[0.67rem] font-bold uppercase tracking-[0.14em] text-slate-400">Identity management</p>
+        {items.map((item) => {
+          const content = <><item.icon size={18} stroke={1.8} aria-hidden="true" />{item.label}{!item.href && <span className="ml-auto text-[0.6rem] font-bold uppercase tracking-wide text-slate-400">Soon</span>}</>
+          const classes = cn('flex h-10 w-full items-center gap-3 rounded-lg px-3 text-left text-sm font-medium', item.active ? 'bg-blue-50 text-blue-800' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900', !item.href && 'cursor-default opacity-55')
+          return item.href ? <a key={item.label} href={item.href} className={classes}>{content}</a> : <span key={item.label} className={classes}>{content}</span>
+        })}
+      </nav>
+      <div className="border-t border-slate-200 p-4">
+        <div className="rounded-xl bg-slate-50 p-3.5 text-xs leading-5 text-slate-500">
+          <p className="flex items-center gap-2 font-semibold text-slate-700"><IconShieldCheck size={16} className="text-emerald-600" />Security posture</p>
+          <p className="mt-2">秘密情報は作成直後にだけ表示され、管理 API から再取得できません。</p>
+        </div>
+      </div>
+    </aside>
+  )
+}
+
+function ClientDetails({ client, busy, onEdit, onDelete }: { client: AdminClient; busy: boolean; onEdit: () => void; onDelete: () => void }) {
+  return (
+    <div className="flex h-full flex-col">
+      <div className="border-b border-slate-200 bg-white p-5">
+        <h2 className="text-lg font-semibold">{client.client_name || client.client_id}</h2>
+        <p className="mt-1 break-all font-mono text-xs text-slate-500">{client.client_id}</p>
+      </div>
+      <div className="flex flex-1 flex-col gap-5 p-5">
+        <Detail label="Client type" value={client.client_type} />
+        <Detail label="認証方式" value={client.token_endpoint_auth_method} />
+        <Detail label="Redirect URI" value={client.redirect_uris.join('\n')} mono />
+        <Detail label="Grant types" value={client.grant_types.join(', ')} />
+        <Detail label="Scope" value={client.scope || '未設定'} />
+        <Detail label="Security" value={[client.require_pushed_authorization_requests ? 'PAR required' : '', client.dpop_bound_access_tokens ? 'DPoP bound' : ''].filter(Boolean).join(', ') || '標準'} />
+        <div className="mt-auto grid gap-2 border-t border-slate-200 pt-5">
+          <Button variant="outline" disabled={busy} onClick={onEdit}><IconEdit size={16} />Metadata を編集</Button>
+          <Button variant="destructive" disabled={busy} onClick={onDelete}><IconTrash size={16} />クライアントを削除</Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ClientFormDialog({ mode, form, busy, onChange, onClose, onSubmit }: { mode: 'create' | 'edit'; form: ClientForm; busy: boolean; onChange: (form: ClientForm) => void; onClose: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void }) {
+  const set = <K extends keyof ClientForm>(key: K, value: ClientForm[K]) => onChange({ ...form, [key]: value })
+  return (
+    <Dialog title={mode === 'create' ? 'クライアントを追加' : 'Metadata を編集'} onClose={onClose}>
+      <form onSubmit={onSubmit}>
+        <div className="grid max-h-[70vh] gap-5 overflow-y-auto p-6">
+          <Field label="表示名"><Input value={form.client_name} onChange={(event) => set('client_name', event.target.value)} /></Field>
+          {mode === 'create' && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Client type"><Select value={form.client_type} onChange={(value) => { const type = value as ClientForm['client_type']; set('client_type', type); set('token_endpoint_auth_method', type === 'public' ? 'none' : 'client_secret_basic') }} options={['confidential', 'public']} /></Field>
+              <Field label="認証方式"><Select value={form.token_endpoint_auth_method} onChange={(value) => set('token_endpoint_auth_method', value as AdminClient['token_endpoint_auth_method'])} options={['client_secret_basic', 'client_secret_post', 'private_key_jwt', 'tls_client_auth', 'none']} /></Field>
+            </div>
+          )}
+          <Field label="Redirect URI" hint="1行に1 URI"><Textarea required value={form.redirect_uris} onChange={(event) => set('redirect_uris', event.target.value)} /></Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Grant types" hint="カンマ区切り"><Input required value={form.grant_types} onChange={(event) => set('grant_types', event.target.value)} /></Field>
+            <Field label="Response types" hint="カンマ区切り"><Input value={form.response_types} onChange={(event) => set('response_types', event.target.value)} /></Field>
+          </div>
+          <Field label="Scope" hint="空白区切り"><Input value={form.scope} onChange={(event) => set('scope', event.target.value)} /></Field>
+          {mode === 'create' && form.token_endpoint_auth_method === 'private_key_jwt' && <Field label="JWKS URI"><Input type="url" required value={form.jwks_uri} onChange={(event) => set('jwks_uri', event.target.value)} /></Field>}
+          {mode === 'create' && form.token_endpoint_auth_method === 'tls_client_auth' && <Field label="TLS client certificate Subject DN"><Input required value={form.tls_client_auth_subject_dn} onChange={(event) => set('tls_client_auth_subject_dn', event.target.value)} /></Field>}
+          <Check label="PAR を必須にする" checked={form.require_pushed_authorization_requests} onChange={(value) => set('require_pushed_authorization_requests', value)} />
+          <Check label="DPoP bound access token を要求する" checked={form.dpop_bound_access_tokens} onChange={(value) => set('dpop_bound_access_tokens', value)} />
+        </div>
+        <div className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-6 py-4">
+          <Button type="button" variant="outline" onClick={onClose}>キャンセル</Button>
+          <Button type="submit" disabled={busy}>{mode === 'create' ? '作成' : '保存'}</Button>
+        </div>
+      </form>
+    </Dialog>
+  )
+}
+
+function DeleteDialog({ client, busy, onClose, onConfirm }: { client: AdminClient; busy: boolean; onClose: () => void; onConfirm: () => void }) {
+  return (
+    <Dialog title="クライアントを削除" onClose={onClose}>
+      <div className="p-6">
+        <div className="flex gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
+          <IconAlertTriangle className="shrink-0" size={20} />
+          <p>削除後、この client ID を使う新しい認可・トークン要求は失敗します。参照中のデータがある場合、削除は拒否されます。</p>
+        </div>
+        <p className="mt-5 text-sm text-slate-600">削除対象:</p>
+        <p className="mt-1 break-all font-mono text-sm font-semibold">{client.client_id}</p>
+      </div>
+      <div className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-6 py-4">
+        <Button variant="outline" onClick={onClose}>キャンセル</Button>
+        <Button variant="destructive" disabled={busy} onClick={onConfirm}>削除を確定</Button>
+      </div>
+    </Dialog>
+  )
+}
+
+function SecretDialog({ value, onClose }: { value: { clientID: string; secret: string }; onClose: () => void }) {
+  const [copied, setCopied] = useState(false)
+  async function copy() {
+    await navigator.clipboard.writeText(value.secret)
+    setCopied(true)
+  }
+  return (
+    <Dialog title="Client secret を保存してください" onClose={onClose}>
+      <div className="p-6">
+        <Alert>この secret はこの画面を閉じると再表示できません。安全な保管先へ保存してください。</Alert>
+        <p className="mt-5 text-xs font-semibold text-slate-500">Client ID</p>
+        <p className="mt-1 break-all font-mono text-sm">{value.clientID}</p>
+        <p className="mt-4 text-xs font-semibold text-slate-500">Client secret</p>
+        <div className="mt-1 flex gap-2">
+          <code className="min-w-0 flex-1 break-all rounded-lg bg-slate-950 p-3 text-sm text-white">{value.secret}</code>
+          <Button variant="outline" onClick={() => void copy()} aria-label="secretをコピー"><IconCopy size={17} />{copied ? 'コピー済み' : 'コピー'}</Button>
+        </div>
+      </div>
+      <div className="flex justify-end border-t border-slate-200 bg-slate-50 px-6 py-4"><Button onClick={onClose}>保存しました</Button></div>
+    </Dialog>
+  )
+}
+
+function Dialog({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 p-5 backdrop-blur-[2px]" role="dialog" aria-modal="true" aria-label={title}>
+      <button type="button" className="absolute inset-0 cursor-default" aria-label="閉じる" onClick={onClose} />
+      <Card className="relative w-full max-w-2xl overflow-hidden shadow-2xl">
+        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5"><h2 className="text-xl font-semibold">{title}</h2><Button variant="ghost" className="px-2.5" onClick={onClose} aria-label="閉じる"><IconX size={18} /></Button></div>
+        {children}
+      </Card>
+    </div>
+  )
+}
+
+function Metric({ label, value }: { label: string; value: number }) {
+  return <Card className="p-4"><p className="text-xs font-semibold text-slate-500">{label}</p><p className="mt-2 text-2xl font-semibold">{value}</p></Card>
+}
+
+function Detail({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+  return <div><p className="text-xs font-semibold text-slate-500">{label}</p><p className={cn('mt-1 whitespace-pre-wrap break-all text-sm text-slate-900', mono && 'font-mono text-xs')}>{value}</p></div>
+}
+
+function Badge({ children }: { children: React.ReactNode }) {
+  return <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">{children}</span>
+}
+
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return <div className="grid gap-2"><Label>{label}</Label>{children}{hint && <p className="text-xs text-slate-500">{hint}</p>}</div>
+}
+
+function Select({ value, options, onChange }: { value: string; options: string[]; onChange: (value: string) => void }) {
+  return <select value={value} onChange={(event) => onChange(event.target.value)} className="h-12 w-full rounded-lg border border-slate-300 bg-white px-3.5 text-sm outline-none focus:border-blue-600 focus:ring-3 focus:ring-blue-600/10">{options.map((option) => <option key={option}>{option}</option>)}</select>
+}
+
+function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return <textarea {...props} className="min-h-24 w-full rounded-lg border border-slate-300 bg-white px-3.5 py-3 text-sm outline-none focus:border-blue-600 focus:ring-3 focus:ring-blue-600/10" />
+}
+
+function Check({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
+  return <label className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm font-medium"><input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} className="size-4" />{label}</label>
+}
+
+function values(value: string) {
+  return value.split(',').map((item) => item.trim()).filter(Boolean)
+}
+
+function lines(value: string) {
+  return value.split(/\r?\n/).map((item) => item.trim()).filter(Boolean)
+}
+
+function optional(value: string) {
+  return value.trim() || undefined
+}

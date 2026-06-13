@@ -44,7 +44,8 @@ func (d Deps) handleForgotPasswordAPI(c *echo.Context) error {
 		c.Request().Context(),
 		authusecases.RequestPasswordResetDeps{
 			UserRepo: d.UserRepo, TokenStore: d.PasswordResetTokenStore,
-			EmailSender: d.EmailSender, Emit: d.Emit, Issuer: d.Issuer, TokenTTL: ttl,
+			EmailSender: d.EmailSender, Emit: d.Emit,
+			Issuer: requestIssuer(c, d.Issuer), TokenTTL: ttl,
 		},
 		authusecases.RequestPasswordResetInput{Email: input.Email, Now: time.Now().UTC()},
 	); err != nil {

@@ -20,8 +20,8 @@ import (
 )
 
 func TestAdminUserAPIRequiresAdminRole(t *testing.T) {
-	e, _, _, _ := newAdminUserHandler(t)
-	request := httptest.NewRequest(http.MethodGet, "/admin/users", nil)
+	e, _ := newAdminUserHandler(t)
+	request := httptest.NewRequest(http.MethodGet, "/admin/users", http.NoBody)
 	request.Header.Set("X-Demo-Sub", "regular")
 	response := httptest.NewRecorder()
 	e.ServeHTTP(response, request)
@@ -31,8 +31,8 @@ func TestAdminUserAPIRequiresAdminRole(t *testing.T) {
 }
 
 func TestAdminUserAPIIsAvailableUnderAPIPath(t *testing.T) {
-	e, _, _, _ := newAdminUserHandler(t)
-	request := httptest.NewRequest(http.MethodGet, "/api/admin/users", nil)
+	e, _ := newAdminUserHandler(t)
+	request := httptest.NewRequest(http.MethodGet, "/api/admin/users", http.NoBody)
 	request.Header.Set("X-Demo-Sub", "admin")
 	response := httptest.NewRecorder()
 	e.ServeHTTP(response, request)
@@ -42,7 +42,7 @@ func TestAdminUserAPIIsAvailableUnderAPIPath(t *testing.T) {
 }
 
 func TestAdminUserAPICreatesAndDisablesUser(t *testing.T) {
-	e, repo, _, _ := newAdminUserHandler(t)
+	e, repo := newAdminUserHandler(t)
 	csrf, cookie := adminCSRF(t, e, "admin")
 
 	create := adminJSONRequest(t, e, http.MethodPost, "/admin/users", "admin", csrf, cookie, map[string]any{
@@ -81,7 +81,7 @@ func TestAdminUserAPICreatesAndDisablesUser(t *testing.T) {
 		t.Fatalf("disabled user=%+v", user)
 	}
 
-	request := httptest.NewRequest(http.MethodGet, "/api/auth/account", nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/auth/account", http.NoBody)
 	request.Header.Set("X-Demo-Sub", created.Sub)
 	response := httptest.NewRecorder()
 	e.ServeHTTP(response, request)
@@ -135,7 +135,7 @@ func TestDisabledUserCannotLogIn(t *testing.T) {
 
 func newAdminUserHandler(
 	t *testing.T,
-) (*echo.Echo, *memory.UserRepository, *memory.PasswordHistoryRepository, *crypto.Argon2idPasswordHasher) {
+) (*echo.Echo, *memory.UserRepository) {
 	t.Helper()
 	repo := memory.NewUserRepository()
 	history := memory.NewPasswordHistoryRepository()
@@ -158,12 +158,12 @@ func newAdminUserHandler(
 		Issuer: "http://idp.test", UserRepo: repo, PasswordHasher: hasher,
 		PasswordHistoryRepo: history, AuthnResolver: authusecases.DemoHeaderResolver{},
 	})
-	return e, repo, history, hasher
+	return e, repo
 }
 
 func adminCSRF(t *testing.T, e *echo.Echo, sub string) (string, *http.Cookie) {
 	t.Helper()
-	request := httptest.NewRequest(http.MethodGet, "/api/auth/account", nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/auth/account", http.NoBody)
 	request.Header.Set("X-Demo-Sub", sub)
 	response := httptest.NewRecorder()
 	e.ServeHTTP(response, request)

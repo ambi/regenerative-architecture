@@ -30,7 +30,7 @@ func (d Deps) handleToken(c *echo.Context) error {
 	if !spec.GrantType(grantType).Valid() {
 		return writeOAuthError(c, usecases.NewOAuthError("unsupported_grant_type", "未対応 grant_type: "+grantType))
 	}
-	client, err := d.ClientRepo.FindByID(c.Request().Context(), clientStub.ID)
+	client, err := d.ClientRepo.FindByID(c.Request().Context(), requestTenantID(c), clientStub.ID)
 	if err != nil {
 		return writeOAuthError(c, err)
 	}
@@ -44,7 +44,7 @@ func (d Deps) handleToken(c *echo.Context) error {
 	// DPoP 検証 (任意)
 	var dpopJKT string
 	if proof := c.Request().Header.Get("DPoP"); proof != "" && d.DpopReplayStore != nil {
-		htu := d.Issuer + "/token"
+		htu := requestIssuer(c, d.Issuer) + "/token"
 		r, err := crypto.VerifyDPoP(c.Request().Context(), proof, "POST", htu, d.DpopReplayStore, time.Now().UTC())
 		if err != nil {
 			return writeOAuthError(c, usecases.NewOAuthError("invalid_dpop_proof", err.Error()))

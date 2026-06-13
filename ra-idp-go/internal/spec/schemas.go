@@ -4,11 +4,27 @@ import (
 	"time"
 )
 
+const DefaultTenantID = "default"
+
+type Tenant struct {
+	ID          string       `json:"id"`
+	DisplayName string       `json:"display_name"`
+	Status      TenantStatus `json:"status"`
+	CreatedAt   time.Time    `json:"created_at"`
+	UpdatedAt   *time.Time   `json:"updated_at,omitempty"`
+	DisabledAt  *time.Time   `json:"disabled_at,omitempty"`
+}
+
+func (t Tenant) Validate() error {
+	return validate(tenantSchema, &t)
+}
+
 // ===============================================================
 // クライアント
 // ===============================================================
 
 type Client struct {
+	TenantID                           string                  `json:"tenant_id"`
 	ClientID                           string                  `json:"client_id"`
 	ClientSecretHash                   *string                 `json:"client_secret_hash,omitempty"`
 	ClientName                         *string                 `json:"client_name,omitempty"`
@@ -49,6 +65,7 @@ func hasJWKs(jwks map[string]any) bool {
 
 type User struct {
 	Sub               string     `json:"sub"`
+	TenantID          string     `json:"tenant_id"`
 	PreferredUsername string     `json:"preferred_username"`
 	PasswordHash      string     `json:"password_hash"`
 	Name              *string    `json:"name,omitempty"`
@@ -86,6 +103,7 @@ func (m MfaFactor) Validate() error {
 // ===============================================================
 
 type Consent struct {
+	TenantID  string       `json:"tenant_id"`
 	Sub       string       `json:"sub"`
 	ClientID  string       `json:"client_id"`
 	Scopes    []string     `json:"scopes"`
@@ -105,6 +123,7 @@ func (c Consent) Validate() error {
 
 type AuthorizationRequest struct {
 	ID                  string                     `json:"id"`
+	TenantID            string                     `json:"tenant_id"`
 	State               AuthorizationCodeFlowState `json:"state"`
 	ClientID            string                     `json:"client_id"`
 	RedirectURI         string                     `json:"redirect_uri"`
@@ -136,6 +155,7 @@ func (a AuthorizationRequest) Validate() error {
 
 type AuthorizationCodeRecord struct {
 	Code                   string                       `json:"code"`
+	TenantID               string                       `json:"tenant_id"`
 	AuthorizationRequestID string                       `json:"authorization_request_id"`
 	ClientID               string                       `json:"client_id"`
 	Sub                    string                       `json:"sub"`
@@ -164,6 +184,7 @@ func (a AuthorizationCodeRecord) Validate() error {
 
 type LoginSession struct {
 	ID                    string    `json:"id"`
+	TenantID              string    `json:"tenant_id"`
 	Sub                   string    `json:"sub"`
 	AuthTime              int64     `json:"auth_time"`
 	AMR                   []string  `json:"amr"`
@@ -203,6 +224,7 @@ type SenderConstraint struct {
 
 type RefreshTokenRecord struct {
 	ID                string            `json:"id"`
+	TenantID          string            `json:"tenant_id"`
 	Hash              string            `json:"hash"`
 	FamilyID          string            `json:"family_id"`
 	ParentID          *string           `json:"parent_id,omitempty"`
@@ -227,6 +249,7 @@ func (r RefreshTokenRecord) Validate() error {
 
 type PARRecord struct {
 	RequestURI string            `json:"request_uri"`
+	TenantID   string            `json:"tenant_id"`
 	ClientID   string            `json:"client_id"`
 	Parameters map[string]string `json:"parameters"`
 	IssuedAt   time.Time         `json:"issued_at"`
@@ -244,6 +267,7 @@ func (p PARRecord) Validate() error {
 
 type DeviceAuthorization struct {
 	DeviceCodeHash  string              `json:"device_code_hash"`
+	TenantID        string              `json:"tenant_id"`
 	UserCode        string              `json:"user_code"`
 	ClientID        string              `json:"client_id"`
 	Scopes          []string            `json:"scopes"`

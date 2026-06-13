@@ -18,6 +18,7 @@ import (
 	"ra-idp-go/internal/adapters/policy"
 	authusecases "ra-idp-go/internal/authentication/usecases"
 	"ra-idp-go/internal/spec"
+	tenantusecases "ra-idp-go/internal/tenancy/usecases"
 
 	"github.com/labstack/echo/v5"
 )
@@ -38,6 +39,9 @@ func Run() error {
 	defer stop()
 
 	hasher := crypto.NewArgon2idPasswordHasher()
+	if err := tenantusecases.EnsureDefault(ctx, deps.TenantRepo, time.Now().UTC()); err != nil {
+		return fmt.Errorf("ensure default tenant: %w", err)
+	}
 	if os.Getenv("SKIP_DEMO_SEED") == "" {
 		if err := seedDemoData(ctx, deps.ClientRepo, deps.UserRepo, deps.MfaFactorRepo, deps.PasswordHistoryRepo, hasher); err != nil {
 			return fmt.Errorf("seed demo data: %w", err)
@@ -73,7 +77,9 @@ func Run() error {
 	}
 	httpadapter.Register(e, httpadapter.Deps{
 		Issuer: issuer, SCL: sclDoc,
-		ClientRepo: deps.ClientRepo, UserRepo: deps.UserRepo, ConsentRepo: deps.ConsentRepo,
+		TenantRepo:       deps.TenantRepo,
+		LegacyBareIssuer: envDefault("LEGACY_BARE_ISSUER", "false") == "true",
+		ClientRepo:       deps.ClientRepo, UserRepo: deps.UserRepo, ConsentRepo: deps.ConsentRepo,
 		RequestStore: deps.RequestStore, CodeStore: deps.CodeStore, PARStore: deps.PARStore,
 		RefreshStore: deps.RefreshStore, DeviceCodeStore: deps.DeviceCodeStore,
 		DpopReplayStore: deps.DpopReplay, ClientAssertionReplayStore: deps.ClientAssertionReplay,

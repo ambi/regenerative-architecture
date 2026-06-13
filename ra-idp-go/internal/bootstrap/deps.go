@@ -6,12 +6,14 @@ import (
 
 	authports "ra-idp-go/internal/authentication/ports"
 	oauthports "ra-idp-go/internal/oauth2/ports"
+	tenantports "ra-idp-go/internal/tenancy/ports"
 )
 
 // Dependencies は HTTP 層に渡す全境界をまとめた DI コンテナ。
 // 永続層 (memory/postgres) や event sink の差分を本構造体で吸収する。
 type Dependencies struct {
 	ClientRepo              oauthports.ClientRepository
+	TenantRepo              tenantports.TenantRepository
 	UserRepo                oauthports.UserRepository
 	MfaFactorRepo           authports.MfaFactorRepository
 	PasswordHistoryRepo     authports.PasswordHistoryRepository

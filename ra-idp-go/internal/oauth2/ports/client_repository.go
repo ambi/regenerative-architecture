@@ -8,22 +8,22 @@ import (
 )
 
 type ClientRepository interface {
-	FindByID(ctx context.Context, clientID string) (*spec.Client, error)
+	FindByID(ctx context.Context, tenantID, clientID string) (*spec.Client, error)
 	Save(ctx context.Context, c *spec.Client) error
-	Delete(ctx context.Context, clientID string) error
-	FindAll(ctx context.Context) ([]*spec.Client, error)
+	Delete(ctx context.Context, tenantID, clientID string) error
+	FindAll(ctx context.Context, tenantID string) ([]*spec.Client, error)
 }
 
 type UserRepository interface {
 	FindBySub(ctx context.Context, sub string) (*spec.User, error)
-	FindByUsername(ctx context.Context, username string) (*spec.User, error)
-	FindByEmail(ctx context.Context, email string) (*spec.User, error)
-	FindAll(ctx context.Context) ([]*spec.User, error)
+	FindByUsername(ctx context.Context, tenantID, username string) (*spec.User, error)
+	FindByEmail(ctx context.Context, tenantID, email string) (*spec.User, error)
+	FindAll(ctx context.Context, tenantID string) ([]*spec.User, error)
 	Save(ctx context.Context, user *spec.User) error
 }
 
 type ConsentRepository interface {
-	Find(ctx context.Context, sub, clientID string) (*spec.Consent, error)
+	Find(ctx context.Context, tenantID, sub, clientID string) (*spec.Consent, error)
 	Save(ctx context.Context, c *spec.Consent) error
-	Revoke(ctx context.Context, sub, clientID string) error
+	Revoke(ctx context.Context, tenantID, sub, clientID string) error
 }

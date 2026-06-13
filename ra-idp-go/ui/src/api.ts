@@ -2,6 +2,8 @@ import type {
   BrowserFlowResponse,
   AdminUser,
   AdminUsersPage,
+  AdminClient,
+  AdminClientsPage,
   ChangePasswordPage,
   ConsentPage,
   CallbackPage,
@@ -48,6 +50,10 @@ type AdminUserListResponse = {
   users: AdminUser[]
 }
 
+type AdminClientListResponse = {
+  clients: AdminClient[]
+}
+
 export class AuthenticationAPIError extends Error {
   code?: string
 
@@ -59,7 +65,7 @@ export class AuthenticationAPIError extends Error {
 }
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, {
+  const response = await fetch(tenantURL(url), {
     credentials: 'same-origin',
     cache: 'no-store',
     ...init,
@@ -75,7 +81,7 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 export async function loadPageData(): Promise<PageData> {
-  const path = window.location.pathname
+  const path = tenantLocalPath()
   if (path === '/') {
     return { kind: 'home', demoEnabled: import.meta.env.DEV } satisfies HomePage
   }
@@ -126,6 +132,18 @@ export async function loadPageData(): Promise<PageData> {
       users: users.users,
     } satisfies AdminUsersPage
   }
+  if (path === '/admin/clients') {
+    const [account, clients] = await Promise.all([
+      request<AccountContextResponse>('/api/auth/account'),
+      request<AdminClientListResponse>('/api/admin/clients'),
+    ])
+    return {
+      kind: 'admin-clients',
+      csrfToken: account.csrf_token,
+      actorUsername: account.preferred_username,
+      clients: clients.clients,
+    } satisfies AdminClientsPage
+  }
   if (path === '/forgot_password' || path === '/reset_password') {
     const data = await request<PasswordResetContextResponse>('/api/auth/password_reset_context')
     if (path === '/forgot_password') {
@@ -141,7 +159,7 @@ export async function loadPageData(): Promise<PageData> {
   const data = await request<TransactionResponse>('/api/auth/transaction')
   if (data.kind === 'consent') {
     if (path !== '/consent') {
-      window.history.replaceState(null, '', '/consent')
+      window.history.replaceState(null, '', tenantURL('/consent'))
     }
     return {
       kind: 'consent',
@@ -152,12 +170,12 @@ export async function loadPageData(): Promise<PageData> {
   }
   if (data.kind === 'totp') {
     if (path !== '/totp') {
-      window.history.replaceState(null, '', '/totp')
+      window.history.replaceState(null, '', tenantURL('/totp'))
     }
     return { kind: 'totp', csrfToken: data.csrf_token } satisfies TotpPage
   }
   if (path !== '/login') {
-    window.history.replaceState(null, '', '/login')
+    window.history.replaceState(null, '', tenantURL('/login'))
   }
   return { kind: 'login', csrfToken: data.csrf_token } satisfies LoginPage
 }
@@ -217,7 +235,7 @@ export async function changePassword(
   currentPassword: string,
   newPassword: string,
 ): Promise<void> {
-  const response = await fetch('/api/auth/change_password', {
+  const response = await fetch(tenantURL('/api/auth/change_password'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -246,7 +264,7 @@ export async function changePassword(
 }
 
 export async function requestPasswordReset(csrfToken: string, email: string): Promise<void> {
-  const response = await fetch('/api/auth/forgot_password', {
+  const response = await fetch(tenantURL('/api/auth/forgot_password'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
     body: JSON.stringify({ email }),
@@ -263,7 +281,7 @@ export async function resetPassword(
   token: string,
   newPassword: string,
 ): Promise<void> {
-  const response = await fetch('/api/auth/reset_password', {
+  const response = await fetch(tenantURL('/api/auth/reset_password'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
     body: JSON.stringify({ token, new_password: newPassword }),
@@ -341,6 +359,59 @@ export async function setAdminUserDisabled(
   )
 }
 
+export type CreateAdminClientInput = {
+  client_name?: string
+  client_type: 'public' | 'confidential'
+  redirect_uris: string[]
+  grant_types: string[]
+  response_types: string[]
+  token_endpoint_auth_method: AdminClient['token_endpoint_auth_method']
+  scope: string
+  jwks_uri?: string
+  tls_client_auth_subject_dn?: string
+  require_pushed_authorization_requests: boolean
+  dpop_bound_access_tokens: boolean
+}
+
+export type UpdateAdminClientInput = {
+  client_name?: string
+  redirect_uris: string[]
+  grant_types: string[]
+  response_types: string[]
+  scope: string
+  require_pushed_authorization_requests: boolean
+  dpop_bound_access_tokens: boolean
+}
+
+export async function listAdminClients(): Promise<AdminClient[]> {
+  return (await request<AdminClientListResponse>('/api/admin/clients')).clients
+}
+
+export async function createAdminClient(
+  csrfToken: string,
+  input: CreateAdminClientInput,
+): Promise<{ client: AdminClient; client_secret?: string }> {
+  return request('/api/admin/clients', adminRequest(csrfToken, 'POST', input))
+}
+
+export async function updateAdminClient(
+  csrfToken: string,
+  clientID: string,
+  input: UpdateAdminClientInput,
+): Promise<AdminClient> {
+  return request(
+    `/api/admin/clients/${encodeURIComponent(clientID)}`,
+    adminRequest(csrfToken, 'PATCH', input),
+  )
+}
+
+export async function deleteAdminClient(csrfToken: string, clientID: string): Promise<void> {
+  await request(
+    `/api/admin/clients/${encodeURIComponent(clientID)}`,
+    adminRequest(csrfToken, 'DELETE'),
+  )
+}
+
 function adminRequest(csrfToken: string, method: string, body?: unknown): RequestInit {
   return {
     method,
@@ -371,14 +442,29 @@ export async function startDemoAuthorization() {
   const parameters = new URLSearchParams({
     response_type: 'code',
     client_id: 'demo-client',
-    redirect_uri: `${window.location.origin}/callback`,
+    redirect_uri: `${window.location.origin}${tenantURL('/callback')}`,
     scope: 'openid profile email offline_access',
     state,
     nonce,
     code_challenge: base64URL(new Uint8Array(digest)),
     code_challenge_method: 'S256',
   })
-  window.location.assign(`/authorize?${parameters.toString()}`)
+  window.location.assign(`${tenantURL('/authorize')}?${parameters.toString()}`)
+}
+
+export function tenantBasePath(path = window.location.pathname): string {
+  const match = path.match(/^\/realms\/([a-z0-9][a-z0-9-]{0,62})(?:\/|$)/)
+  return match ? `/realms/${match[1]}` : ''
+}
+
+function tenantLocalPath(): string {
+  const base = tenantBasePath()
+  const path = window.location.pathname.slice(base.length)
+  return path === '' ? '/' : path
+}
+
+export function tenantURL(path: string): string {
+  return `${tenantBasePath()}${path}`
 }
 
 function base64URL(value: Uint8Array) {

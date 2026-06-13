@@ -122,6 +122,9 @@ func partitionKey(eventType string, payload []byte) string {
 	}
 	fields := map[string][]string{
 		"ClientRegistered":             {"ClientID", "clientId"},
+		"AdminClientCreated":           {"ClientID", "clientId"},
+		"AdminClientUpdated":           {"ClientID", "clientId"},
+		"AdminClientDeleted":           {"ClientID", "clientId"},
 		"UserAuthenticated":            {"Sub", "sub"},
 		"AuthenticationFailed":         {"Username", "username"},
 		"PasswordChanged":              {"Sub", "sub"},

@@ -39,10 +39,58 @@ func Open(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
 	return pool, nil
 }
 
+type TenantRepository struct{ Pool *pgxpool.Pool }
+
+func (r *TenantRepository) FindByID(ctx context.Context, id string) (*spec.Tenant, error) {
+	return scanTenant(r.Pool.QueryRow(ctx, tenantSelect+" WHERE id=$1", id))
+}
+
+func (r *TenantRepository) FindAll(ctx context.Context) ([]*spec.Tenant, error) {
+	rows, err := r.Pool.Query(ctx, tenantSelect+" ORDER BY id")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []*spec.Tenant{}
+	for rows.Next() {
+		tenant, err := scanTenant(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, tenant)
+	}
+	return out, rows.Err()
+}
+
+func (r *TenantRepository) Save(ctx context.Context, tenant *spec.Tenant) error {
+	_, err := r.Pool.Exec(ctx, `INSERT INTO tenants
+(id,display_name,status,created_at,updated_at,disabled_at)
+VALUES ($1,$2,$3,$4,$5,$6)
+ON CONFLICT (id) DO UPDATE SET display_name=EXCLUDED.display_name,
+status=EXCLUDED.status,updated_at=EXCLUDED.updated_at,disabled_at=EXCLUDED.disabled_at`,
+		tenant.ID, tenant.DisplayName, tenant.Status, tenant.CreatedAt, tenant.UpdatedAt, tenant.DisabledAt)
+	return err
+}
+
+const tenantSelect = `SELECT id,display_name,status,created_at,updated_at,disabled_at FROM tenants`
+
+func scanTenant(row rowScanner) (*spec.Tenant, error) {
+	var tenant spec.Tenant
+	err := row.Scan(&tenant.ID, &tenant.DisplayName, &tenant.Status, &tenant.CreatedAt,
+		&tenant.UpdatedAt, &tenant.DisabledAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &tenant, tenant.Validate()
+}
+
 type ClientRepository struct{ Pool *pgxpool.Pool }
 
-func (r *ClientRepository) FindByID(ctx context.Context, id string) (*spec.Client, error) {
-	row := r.Pool.QueryRow(ctx, clientSelect+" WHERE client_id=$1", id)
+func (r *ClientRepository) FindByID(ctx context.Context, tenantID, id string) (*spec.Client, error) {
+	row := r.Pool.QueryRow(ctx, clientSelect+" WHERE tenant_id=$1 AND client_id=$2", tenantID, id)
 	return scanClient(row)
 }
 
@@ -53,12 +101,12 @@ func (r *ClientRepository) Save(ctx context.Context, c *spec.Client) error {
 	jwks, _ := json.Marshal(c.JWKS)
 	_, err := r.Pool.Exec(ctx, `
 INSERT INTO clients (
- client_id,client_secret_hash,client_name,client_type,redirect_uris,grant_types,response_types,
+ tenant_id,client_id,client_secret_hash,client_name,client_type,redirect_uris,grant_types,response_types,
  token_endpoint_auth_method,scope,jwks_uri,jwks,tls_client_auth_subject_dn,
  id_token_signed_response_alg,require_pushed_authorization_requests,dpop_bound_access_tokens,
  fapi_profile,created_at
-) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NULLIF($11,'null')::jsonb,$12,$13,$14,$15,$16,$17)
-ON CONFLICT (client_id) DO UPDATE SET
+) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NULLIF($12,'null')::jsonb,$13,$14,$15,$16,$17,$18)
+ON CONFLICT (tenant_id,client_id) DO UPDATE SET
  client_secret_hash=COALESCE(EXCLUDED.client_secret_hash,clients.client_secret_hash),
  client_name=EXCLUDED.client_name,client_type=EXCLUDED.client_type,
  redirect_uris=EXCLUDED.redirect_uris,grant_types=EXCLUDED.grant_types,
@@ -68,20 +116,20 @@ ON CONFLICT (client_id) DO UPDATE SET
  id_token_signed_response_alg=EXCLUDED.id_token_signed_response_alg,
  require_pushed_authorization_requests=EXCLUDED.require_pushed_authorization_requests,
  dpop_bound_access_tokens=EXCLUDED.dpop_bound_access_tokens,fapi_profile=EXCLUDED.fapi_profile`,
-		c.ClientID, c.ClientSecretHash, c.ClientName, c.ClientType, string(redirectURIs), string(grantTypes),
+		c.TenantID, c.ClientID, c.ClientSecretHash, c.ClientName, c.ClientType, string(redirectURIs), string(grantTypes),
 		string(responseTypes), c.TokenEndpointAuthMethod, c.Scope, c.JwksURI, string(jwks),
 		c.TlsClientAuthSubjectDN, c.IDTokenSignedResponseAlg,
 		c.RequirePushedAuthorizationRequests, c.DpopBoundAccessTokens, c.FapiProfile, c.CreatedAt)
 	return err
 }
 
-func (r *ClientRepository) Delete(ctx context.Context, id string) error {
-	_, err := r.Pool.Exec(ctx, "DELETE FROM clients WHERE client_id=$1", id)
+func (r *ClientRepository) Delete(ctx context.Context, tenantID, id string) error {
+	_, err := r.Pool.Exec(ctx, "DELETE FROM clients WHERE tenant_id=$1 AND client_id=$2", tenantID, id)
 	return err
 }
 
-func (r *ClientRepository) FindAll(ctx context.Context) ([]*spec.Client, error) {
-	rows, err := r.Pool.Query(ctx, clientSelect+" ORDER BY created_at")
+func (r *ClientRepository) FindAll(ctx context.Context, tenantID string) ([]*spec.Client, error) {
+	rows, err := r.Pool.Query(ctx, clientSelect+" WHERE tenant_id=$1 ORDER BY created_at", tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +145,7 @@ func (r *ClientRepository) FindAll(ctx context.Context) ([]*spec.Client, error) 
 	return out, rows.Err()
 }
 
-const clientSelect = `SELECT client_id,client_secret_hash,client_name,client_type,redirect_uris,
+const clientSelect = `SELECT tenant_id,client_id,client_secret_hash,client_name,client_type,redirect_uris,
 grant_types,response_types,token_endpoint_auth_method,scope,jwks_uri,jwks,
 tls_client_auth_subject_dn,id_token_signed_response_alg,
 require_pushed_authorization_requests,dpop_bound_access_tokens,fapi_profile,created_at FROM clients`
@@ -107,7 +155,7 @@ type rowScanner interface{ Scan(...any) error }
 func scanClient(row rowScanner) (*spec.Client, error) {
 	var c spec.Client
 	var redirectURIs, grantTypes, responseTypes, jwks []byte
-	err := row.Scan(&c.ClientID, &c.ClientSecretHash, &c.ClientName, &c.ClientType,
+	err := row.Scan(&c.TenantID, &c.ClientID, &c.ClientSecretHash, &c.ClientName, &c.ClientType,
 		&redirectURIs, &grantTypes, &responseTypes, &c.TokenEndpointAuthMethod, &c.Scope,
 		&c.JwksURI, &jwks, &c.TlsClientAuthSubjectDN, &c.IDTokenSignedResponseAlg,
 		&c.RequirePushedAuthorizationRequests, &c.DpopBoundAccessTokens, &c.FapiProfile, &c.CreatedAt)
@@ -140,20 +188,20 @@ func (r *UserRepository) FindBySub(ctx context.Context, sub string) (*spec.User,
 	return scanUser(r.Pool.QueryRow(ctx, userSelect+" WHERE sub=$1 AND deleted_at IS NULL", sub))
 }
 
-func (r *UserRepository) FindByUsername(ctx context.Context, username string) (*spec.User, error) {
-	return scanUser(r.Pool.QueryRow(ctx, userSelect+" WHERE preferred_username=$1 AND deleted_at IS NULL", username))
+func (r *UserRepository) FindByUsername(ctx context.Context, tenantID, username string) (*spec.User, error) {
+	return scanUser(r.Pool.QueryRow(ctx, userSelect+" WHERE tenant_id=$1 AND preferred_username=$2 AND deleted_at IS NULL", tenantID, username))
 }
 
-func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*spec.User, error) {
+func (r *UserRepository) FindByEmail(ctx context.Context, tenantID, email string) (*spec.User, error) {
 	return scanUser(r.Pool.QueryRow(
 		ctx,
-		userSelect+" WHERE lower(email)=lower($1) AND deleted_at IS NULL LIMIT 1",
-		email,
+		userSelect+" WHERE tenant_id=$1 AND lower(email)=lower($2) AND deleted_at IS NULL LIMIT 1",
+		tenantID, email,
 	))
 }
 
-func (r *UserRepository) FindAll(ctx context.Context) ([]*spec.User, error) {
-	rows, err := r.Pool.Query(ctx, userSelect+" WHERE deleted_at IS NULL ORDER BY preferred_username")
+func (r *UserRepository) FindAll(ctx context.Context, tenantID string) ([]*spec.User, error) {
+	rows, err := r.Pool.Query(ctx, userSelect+" WHERE tenant_id=$1 AND deleted_at IS NULL ORDER BY preferred_username", tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -171,25 +219,25 @@ func (r *UserRepository) FindAll(ctx context.Context) ([]*spec.User, error) {
 
 func (r *UserRepository) Save(ctx context.Context, u *spec.User) error {
 	_, err := r.Pool.Exec(ctx, `
-INSERT INTO users (sub,preferred_username,password_hash,name,given_name,family_name,email,
+INSERT INTO users (sub,tenant_id,preferred_username,password_hash,name,given_name,family_name,email,
  email_verified,mfa_enrolled,roles,disabled_at,created_at,updated_at,deleted_at)
-VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
 ON CONFLICT (sub) DO UPDATE SET preferred_username=EXCLUDED.preferred_username,
  password_hash=EXCLUDED.password_hash,name=EXCLUDED.name,given_name=EXCLUDED.given_name,
  family_name=EXCLUDED.family_name,email=EXCLUDED.email,email_verified=EXCLUDED.email_verified,
  mfa_enrolled=EXCLUDED.mfa_enrolled,roles=EXCLUDED.roles,disabled_at=EXCLUDED.disabled_at,
  updated_at=EXCLUDED.updated_at,deleted_at=EXCLUDED.deleted_at`,
-		u.Sub, u.PreferredUsername, u.PasswordHash, u.Name, u.GivenName, u.FamilyName, u.Email,
+		u.Sub, u.TenantID, u.PreferredUsername, u.PasswordHash, u.Name, u.GivenName, u.FamilyName, u.Email,
 		u.EmailVerified, u.MfaEnrolled, u.Roles, u.DisabledAt, u.CreatedAt, u.UpdatedAt, u.DeletedAt)
 	return err
 }
 
-const userSelect = `SELECT sub,preferred_username,password_hash,name,given_name,family_name,email,
+const userSelect = `SELECT sub,tenant_id,preferred_username,password_hash,name,given_name,family_name,email,
 email_verified,mfa_enrolled,roles,disabled_at,created_at,updated_at,deleted_at FROM users`
 
 func scanUser(row rowScanner) (*spec.User, error) {
 	var u spec.User
-	err := row.Scan(&u.Sub, &u.PreferredUsername, &u.PasswordHash, &u.Name, &u.GivenName,
+	err := row.Scan(&u.Sub, &u.TenantID, &u.PreferredUsername, &u.PasswordHash, &u.Name, &u.GivenName,
 		&u.FamilyName, &u.Email, &u.EmailVerified, &u.MfaEnrolled, &u.Roles, &u.DisabledAt, &u.CreatedAt,
 		&u.UpdatedAt, &u.DeletedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -338,12 +386,12 @@ func scanMfaFactor(row rowScanner) (*spec.MfaFactor, error) {
 
 type ConsentRepository struct{ Pool *pgxpool.Pool }
 
-func (r *ConsentRepository) Find(ctx context.Context, sub, clientID string) (*spec.Consent, error) {
+func (r *ConsentRepository) Find(ctx context.Context, tenantID, sub, clientID string) (*spec.Consent, error) {
 	var c spec.Consent
 	var scopes []byte
-	err := r.Pool.QueryRow(ctx, `SELECT sub,client_id,scopes,granted_at,expires_at,revoked_at
-FROM consents WHERE sub=$1 AND client_id=$2`, sub, clientID).
-		Scan(&c.Sub, &c.ClientID, &scopes, &c.GrantedAt, &c.ExpiresAt, &c.RevokedAt)
+	err := r.Pool.QueryRow(ctx, `SELECT tenant_id,sub,client_id,scopes,granted_at,expires_at,revoked_at
+FROM consents WHERE tenant_id=$1 AND sub=$2 AND client_id=$3`, tenantID, sub, clientID).
+		Scan(&c.TenantID, &c.Sub, &c.ClientID, &scopes, &c.GrantedAt, &c.ExpiresAt, &c.RevokedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
@@ -367,16 +415,16 @@ FROM consents WHERE sub=$1 AND client_id=$2`, sub, clientID).
 func (r *ConsentRepository) Save(ctx context.Context, c *spec.Consent) error {
 	scopes, _ := json.Marshal(c.Scopes)
 	_, err := r.Pool.Exec(ctx, `INSERT INTO consents
-(sub,client_id,scopes,granted_at,expires_at,revoked_at) VALUES ($1,$2,$3,$4,$5,$6)
-ON CONFLICT (sub,client_id) DO UPDATE SET scopes=EXCLUDED.scopes,
+(tenant_id,sub,client_id,scopes,granted_at,expires_at,revoked_at) VALUES ($1,$2,$3,$4,$5,$6,$7)
+ON CONFLICT (tenant_id,sub,client_id) DO UPDATE SET scopes=EXCLUDED.scopes,
 granted_at=EXCLUDED.granted_at,expires_at=EXCLUDED.expires_at,revoked_at=EXCLUDED.revoked_at`,
-		c.Sub, c.ClientID, string(scopes), c.GrantedAt, c.ExpiresAt, c.RevokedAt)
+		c.TenantID, c.Sub, c.ClientID, string(scopes), c.GrantedAt, c.ExpiresAt, c.RevokedAt)
 	return err
 }
 
-func (r *ConsentRepository) Revoke(ctx context.Context, sub, clientID string) error {
+func (r *ConsentRepository) Revoke(ctx context.Context, tenantID, sub, clientID string) error {
 	_, err := r.Pool.Exec(ctx, `UPDATE consents SET revoked_at=now()
-WHERE sub=$1 AND client_id=$2 AND revoked_at IS NULL`, sub, clientID)
+WHERE tenant_id=$1 AND sub=$2 AND client_id=$3 AND revoked_at IS NULL`, tenantID, sub, clientID)
 	return err
 }
 
@@ -422,14 +470,14 @@ func (s *RefreshTokenStore) RevokeFamily(ctx context.Context, familyID string) e
 	return err
 }
 
-const refreshSelect = `SELECT id::text,hash,family_id::text,parent_id::text,client_id,sub,scopes,
+const refreshSelect = `SELECT id::text,tenant_id,hash,family_id::text,parent_id::text,client_id,sub,scopes,
 issued_at,expires_at,absolute_expires_at,revoked,rotated,sender_constraint FROM refresh_tokens`
 
 func scanRefresh(row rowScanner) (*spec.RefreshTokenRecord, error) {
 	var rec spec.RefreshTokenRecord
 	var parentID *string
 	var scopes, constraint []byte
-	err := row.Scan(&rec.ID, &rec.Hash, &rec.FamilyID, &parentID, &rec.ClientID, &rec.Sub,
+	err := row.Scan(&rec.ID, &rec.TenantID, &rec.Hash, &rec.FamilyID, &parentID, &rec.ClientID, &rec.Sub,
 		&scopes, &rec.IssuedAt, &rec.ExpiresAt, &rec.AbsoluteExpiresAt, &rec.Revoked,
 		&rec.Rotated, &constraint)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -457,9 +505,9 @@ func insertRefresh(ctx context.Context, db interface {
 	scopes, _ := json.Marshal(rec.Scopes)
 	constraint, _ := json.Marshal(rec.SenderConstraint)
 	_, err := db.Exec(ctx, `INSERT INTO refresh_tokens
-(id,hash,family_id,parent_id,client_id,sub,scopes,issued_at,expires_at,absolute_expires_at,
-revoked,rotated,sender_constraint) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NULLIF($13,'null')::jsonb)`,
-		rec.ID, rec.Hash, rec.FamilyID, rec.ParentID, rec.ClientID, rec.Sub, string(scopes),
+(id,tenant_id,hash,family_id,parent_id,client_id,sub,scopes,issued_at,expires_at,absolute_expires_at,
+revoked,rotated,sender_constraint) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,NULLIF($14,'null')::jsonb)`,
+		rec.ID, rec.TenantID, rec.Hash, rec.FamilyID, rec.ParentID, rec.ClientID, rec.Sub, string(scopes),
 		rec.IssuedAt, rec.ExpiresAt, rec.AbsoluteExpiresAt, rec.Revoked, rec.Rotated, string(constraint))
 	return err
 }
@@ -574,6 +622,10 @@ var eventTopics = map[string]string{
 	"RefreshTokenReuseDetected": "oauth2.security-incident.v1", "SigningKeyRotated": "oauth2.key-management.v1",
 	"PARStored": "oauth2.par.v1", "DeviceAuthorizationRequested": "oauth2.device-authorization.v1",
 	"DeviceAuthorizationApproved": "oauth2.device-authorization.v1", "DeviceAuthorizationDenied": "oauth2.device-authorization.v1",
+	"TenantCreated": "tenancy.lifecycle.v1", "TenantUpdated": "tenancy.lifecycle.v1",
+	"TenantDisabled": "tenancy.lifecycle.v1", "TenantEnabled": "tenancy.lifecycle.v1",
+	"AdminClientCreated": "oauth2.administration.v1", "AdminClientUpdated": "oauth2.administration.v1",
+	"AdminClientDeleted": "oauth2.administration.v1",
 }
 
 type OutboxEventSink struct{ Pool *pgxpool.Pool }

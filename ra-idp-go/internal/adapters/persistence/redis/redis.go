@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/tenancy"
 
 	goredis "github.com/redis/go-redis/v9"
 )
@@ -52,15 +53,20 @@ func ttlUntil(expiresAt time.Time) time.Duration {
 	return ttl
 }
 
+func tenantKey(ctx context.Context, suffix string) string {
+	return "tenant:" + tenancy.TenantID(ctx) + ":" + suffix
+}
+
 type AuthorizationRequestStore struct{ Client *goredis.Client }
 
 func (s *AuthorizationRequestStore) Save(ctx context.Context, req *spec.AuthorizationRequest) error {
-	return setJSON(ctx, s.Client, "idp:authreq:"+req.ID, req, ttlUntil(req.ExpiresAt))
+	req.TenantID = tenancy.TenantID(ctx)
+	return setJSON(ctx, s.Client, tenantKey(ctx, "auth_request:"+req.ID), req, ttlUntil(req.ExpiresAt))
 }
 
 func (s *AuthorizationRequestStore) Find(ctx context.Context, id string) (*spec.AuthorizationRequest, error) {
 	var req spec.AuthorizationRequest
-	if err := getJSON(ctx, s.Client, "idp:authreq:"+id, &req); err != nil {
+	if err := getJSON(ctx, s.Client, tenantKey(ctx, "auth_request:"+id), &req); err != nil {
 		return nil, err
 	}
 	if req.ID == "" {
@@ -99,7 +105,7 @@ func (s *AuthorizationRequestStore) update(
 	id string,
 	change func(*spec.AuthorizationRequest) error,
 ) error {
-	key := "idp:authreq:" + id
+	key := tenantKey(ctx, "auth_request:"+id)
 	return s.Client.Watch(ctx, func(tx *goredis.Tx) error {
 		var req spec.AuthorizationRequest
 		if err := getJSON(ctx, tx, key, &req); err != nil {
@@ -153,12 +159,13 @@ func eventForTargetState(to spec.AuthorizationCodeFlowState) spec.AuthorizationC
 type AuthorizationCodeStore struct{ Client *goredis.Client }
 
 func (s *AuthorizationCodeStore) Save(ctx context.Context, rec *spec.AuthorizationCodeRecord) error {
-	return setJSON(ctx, s.Client, "idp:code:"+rec.Code, rec, ttlUntil(rec.ExpiresAt))
+	rec.TenantID = tenancy.TenantID(ctx)
+	return setJSON(ctx, s.Client, tenantKey(ctx, "auth_code:"+rec.Code), rec, ttlUntil(rec.ExpiresAt))
 }
 
 func (s *AuthorizationCodeStore) Find(ctx context.Context, code string) (*spec.AuthorizationCodeRecord, error) {
 	var rec spec.AuthorizationCodeRecord
-	if err := getJSON(ctx, s.Client, "idp:code:"+code, &rec); err != nil {
+	if err := getJSON(ctx, s.Client, tenantKey(ctx, "auth_code:"+code), &rec); err != nil {
 		return nil, err
 	}
 	if rec.Code == "" {
@@ -179,7 +186,7 @@ return cjson.encode(rec)
 `)
 
 func (s *AuthorizationCodeStore) Redeem(ctx context.Context, code string, now time.Time) (*spec.AuthorizationCodeRecord, error) {
-	result, err := redeemCode.Run(ctx, s.Client, []string{"idp:code:" + code}, now.UTC().Format(time.RFC3339Nano)).Text()
+	result, err := redeemCode.Run(ctx, s.Client, []string{tenantKey(ctx, "auth_code:"+code)}, now.UTC().Format(time.RFC3339Nano)).Text()
 	if errors.Is(err, goredis.Nil) {
 		return nil, nil
 	}
@@ -194,7 +201,7 @@ func (s *AuthorizationCodeStore) Redeem(ctx context.Context, code string, now ti
 }
 
 func (s *AuthorizationCodeStore) LinkFamily(ctx context.Context, code, familyID string) error {
-	key := "idp:code:" + code
+	key := tenantKey(ctx, "auth_code:"+code)
 	return s.Client.Watch(ctx, func(tx *goredis.Tx) error {
 		var rec spec.AuthorizationCodeRecord
 		if err := getJSON(ctx, tx, key, &rec); err != nil {
@@ -220,12 +227,13 @@ func (s *AuthorizationCodeStore) LinkFamily(ctx context.Context, code, familyID 
 type PARStore struct{ Client *goredis.Client }
 
 func (s *PARStore) Save(ctx context.Context, rec *spec.PARRecord) error {
-	return setJSON(ctx, s.Client, "idp:par:"+rec.RequestURI, rec, ttlUntil(rec.ExpiresAt))
+	rec.TenantID = tenancy.TenantID(ctx)
+	return setJSON(ctx, s.Client, tenantKey(ctx, "par:"+rec.RequestURI), rec, ttlUntil(rec.ExpiresAt))
 }
 
 func (s *PARStore) Find(ctx context.Context, uri string) (*spec.PARRecord, error) {
 	var rec spec.PARRecord
-	if err := getJSON(ctx, s.Client, "idp:par:"+uri, &rec); err != nil {
+	if err := getJSON(ctx, s.Client, tenantKey(ctx, "par:"+uri), &rec); err != nil {
 		return nil, err
 	}
 	if rec.RequestURI == "" {
@@ -245,7 +253,7 @@ return cjson.encode(rec)
 `)
 
 func (s *PARStore) Consume(ctx context.Context, uri string) (*spec.PARRecord, error) {
-	result, err := consumePAR.Run(ctx, s.Client, []string{"idp:par:" + uri}).Text()
+	result, err := consumePAR.Run(ctx, s.Client, []string{tenantKey(ctx, "par:"+uri)}).Text()
 	if errors.Is(err, goredis.Nil) {
 		return nil, nil
 	}
@@ -262,21 +270,22 @@ func (s *PARStore) Consume(ctx context.Context, uri string) (*spec.PARRecord, er
 type DeviceCodeStore struct{ Client *goredis.Client }
 
 func (s *DeviceCodeStore) Save(ctx context.Context, rec *spec.DeviceAuthorization) error {
+	rec.TenantID = tenancy.TenantID(ctx)
 	ttl := ttlUntil(rec.ExpiresAt)
 	pipe := s.Client.TxPipeline()
 	payload, err := json.Marshal(rec)
 	if err != nil {
 		return err
 	}
-	pipe.Set(ctx, "idp:device:"+rec.DeviceCodeHash, payload, ttl)
-	pipe.Set(ctx, "idp:device:uc:"+rec.UserCode, rec.DeviceCodeHash, ttl)
+	pipe.Set(ctx, tenantKey(ctx, "device:"+rec.DeviceCodeHash), payload, ttl)
+	pipe.Set(ctx, tenantKey(ctx, "device:user_code:"+rec.UserCode), rec.DeviceCodeHash, ttl)
 	_, err = pipe.Exec(ctx)
 	return err
 }
 
 func (s *DeviceCodeStore) FindByDeviceCodeHash(ctx context.Context, hash string) (*spec.DeviceAuthorization, error) {
 	var rec spec.DeviceAuthorization
-	if err := getJSON(ctx, s.Client, "idp:device:"+hash, &rec); err != nil {
+	if err := getJSON(ctx, s.Client, tenantKey(ctx, "device:"+hash), &rec); err != nil {
 		return nil, err
 	}
 	if rec.DeviceCodeHash == "" {
@@ -286,7 +295,7 @@ func (s *DeviceCodeStore) FindByDeviceCodeHash(ctx context.Context, hash string)
 }
 
 func (s *DeviceCodeStore) FindByUserCode(ctx context.Context, code string) (*spec.DeviceAuthorization, error) {
-	hash, err := s.Client.Get(ctx, "idp:device:uc:"+code).Result()
+	hash, err := s.Client.Get(ctx, tenantKey(ctx, "device:user_code:"+code)).Result()
 	if errors.Is(err, goredis.Nil) {
 		return nil, nil
 	}
@@ -297,7 +306,7 @@ func (s *DeviceCodeStore) FindByUserCode(ctx context.Context, code string) (*spe
 }
 
 func (s *DeviceCodeStore) Update(ctx context.Context, rec *spec.DeviceAuthorization) error {
-	key := "idp:device:" + rec.DeviceCodeHash
+	key := tenantKey(ctx, "device:"+rec.DeviceCodeHash)
 	ttl, err := s.Client.TTL(ctx, key).Result()
 	if err != nil {
 		return err
@@ -316,7 +325,7 @@ return cjson.encode(rec)
 `)
 
 func (s *DeviceCodeStore) Exchange(ctx context.Context, hash string) (*spec.DeviceAuthorization, error) {
-	result, err := exchangeDevice.Run(ctx, s.Client, []string{"idp:device:" + hash}).Text()
+	result, err := exchangeDevice.Run(ctx, s.Client, []string{tenantKey(ctx, "device:"+hash)}).Text()
 	if errors.Is(err, goredis.Nil) {
 		return nil, nil
 	}
@@ -336,29 +345,30 @@ type ReplayStore struct {
 }
 
 func (s *ReplayStore) RecordIfNew(ctx context.Context, jti string, seconds int, _ time.Time) (bool, error) {
-	return s.Client.SetNX(ctx, s.Prefix+jti, "1", time.Duration(seconds)*time.Second).Result()
+	return s.Client.SetNX(ctx, tenantKey(ctx, s.Prefix+jti), "1", time.Duration(seconds)*time.Second).Result()
 }
 
 type AccessTokenDenylist struct{ Client *goredis.Client }
 
 func (d *AccessTokenDenylist) Add(ctx context.Context, jti string, expiresAt time.Time) error {
-	return d.Client.Set(ctx, "idp:at:denylist:"+jti, "1", ttlUntil(expiresAt)).Err()
+	return d.Client.Set(ctx, tenantKey(ctx, "token_denylist:"+jti), "1", ttlUntil(expiresAt)).Err()
 }
 
 func (d *AccessTokenDenylist) IsRevoked(ctx context.Context, jti string) (bool, error) {
-	count, err := d.Client.Exists(ctx, "idp:at:denylist:"+jti).Result()
+	count, err := d.Client.Exists(ctx, tenantKey(ctx, "token_denylist:"+jti)).Result()
 	return count > 0, err
 }
 
 type SessionStore struct{ Client *goredis.Client }
 
 func (s *SessionStore) Save(ctx context.Context, session *spec.LoginSession) error {
-	return setJSON(ctx, s.Client, "idp:session:"+session.ID, session, ttlUntil(session.ExpiresAt))
+	session.TenantID = tenancy.TenantID(ctx)
+	return setJSON(ctx, s.Client, tenantKey(ctx, "session:"+session.ID), session, ttlUntil(session.ExpiresAt))
 }
 
 func (s *SessionStore) Find(ctx context.Context, id string) (*spec.LoginSession, error) {
 	var session spec.LoginSession
-	if err := getJSON(ctx, s.Client, "idp:session:"+id, &session); err != nil {
+	if err := getJSON(ctx, s.Client, tenantKey(ctx, "session:"+id), &session); err != nil {
 		return nil, err
 	}
 	if session.ID == "" {
@@ -368,5 +378,5 @@ func (s *SessionStore) Find(ctx context.Context, id string) (*spec.LoginSession,
 }
 
 func (s *SessionStore) Delete(ctx context.Context, id string) error {
-	return s.Client.Del(ctx, "idp:session:"+id).Err()
+	return s.Client.Del(ctx, tenantKey(ctx, "session:"+id)).Err()
 }

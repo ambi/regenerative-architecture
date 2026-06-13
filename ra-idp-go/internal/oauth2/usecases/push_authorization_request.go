@@ -7,6 +7,7 @@ import (
 
 	"ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/tenancy"
 )
 
 type PARInput struct {
@@ -29,7 +30,8 @@ func PushAuthorizationRequest(ctx context.Context, deps PARDeps, in PARInput, no
 	if now.IsZero() {
 		now = time.Now().UTC()
 	}
-	client, err := deps.ClientRepo.FindByID(ctx, in.ClientID)
+	tenantID := tenancy.TenantID(ctx)
+	client, err := deps.ClientRepo.FindByID(ctx, tenantID, in.ClientID)
 	if err != nil {
 		return nil, err
 	}
@@ -42,6 +44,7 @@ func PushAuthorizationRequest(ctx context.Context, deps PARDeps, in PARInput, no
 	}
 	requestURI := "urn:ietf:params:oauth:request_uri:" + id
 	rec := &spec.PARRecord{
+		TenantID:   tenantID,
 		RequestURI: requestURI,
 		ClientID:   in.ClientID,
 		Parameters: in.Parameters,

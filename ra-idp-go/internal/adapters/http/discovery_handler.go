@@ -13,7 +13,7 @@ func (d Deps) handleDiscovery(c *echo.Context) error {
 	if d.SCL == nil {
 		return writeOAuthError(c, usecases.NewOAuthError("server_error", "SCL not loaded"))
 	}
-	doc, err := d.SCL.BuildDiscoveryDocument(d.Issuer)
+	doc, err := d.SCL.BuildDiscoveryDocument(requestIssuer(c, d.Issuer))
 	if err != nil {
 		return writeOAuthError(c, err)
 	}

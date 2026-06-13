@@ -9,6 +9,8 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     proxy: {
+      '^/realms/[^/]+/(api|authorize|token|revoke|introspect|userinfo|register|par|device_authorization|end_session|\\.well-known|jwks)(/|\\?|$)':
+        'http://localhost:8081',
       '/api': 'http://localhost:8081',
       '/authorize': 'http://localhost:8081',
       '/token': 'http://localhost:8081',

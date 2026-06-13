@@ -12,6 +12,7 @@ import (
 	"ra-idp-go/internal/authentication/domain"
 	"ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/tenancy"
 )
 
 const (
@@ -47,6 +48,7 @@ func (m *SessionManager) CreateWithPending(
 	}
 	sess := &spec.LoginSession{
 		ID:                    id,
+		TenantID:              tenancy.TenantID(ctx),
 		Sub:                   sub,
 		AuthTime:              now.Unix(),
 		AMR:                   amr,
@@ -75,6 +77,9 @@ func (m *SessionManager) CompleteFactor(
 	sess, err := m.Store.Find(ctx, sessionID)
 	if err != nil || sess == nil {
 		return nil, err
+	}
+	if sess.TenantID != tenancy.TenantID(ctx) {
+		return nil, nil
 	}
 	merged := slices.Clone(sess.AMR)
 	for _, method := range additionalAMR {
@@ -108,6 +113,9 @@ func (m *SessionManager) Resolve(ctx context.Context, headers domain.Headers) (*
 		return nil, err
 	}
 	if sess == nil {
+		return nil, nil
+	}
+	if sess.TenantID != tenancy.TenantID(ctx) {
 		return nil, nil
 	}
 	return &domain.AuthenticationContext{

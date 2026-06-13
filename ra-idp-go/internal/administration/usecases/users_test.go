@@ -2,6 +2,7 @@ package usecases_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -86,7 +87,7 @@ func TestCreateUserRejectsDuplicateUsername(t *testing.T) {
 	}, adminusecases.CreateUserInput{
 		PreferredUsername: "bob", Password: "initial-password-9182",
 	})
-	if err != adminusecases.ErrUsernameConflict {
+	if !errors.Is(err, adminusecases.ErrUsernameConflict) {
 		t.Fatalf("error=%v, want ErrUsernameConflict", err)
 	}
 }

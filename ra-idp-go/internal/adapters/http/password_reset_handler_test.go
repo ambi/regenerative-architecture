@@ -106,7 +106,7 @@ func newPasswordResetHandler(
 
 func passwordResetCSRF(t *testing.T, e *echo.Echo) (string, *http.Cookie) {
 	t.Helper()
-	request := httptest.NewRequest(http.MethodGet, "/api/auth/password_reset_context", nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/auth/password_reset_context", http.NoBody)
 	response := httptest.NewRecorder()
 	e.ServeHTTP(response, request)
 	if response.Code != http.StatusOK {

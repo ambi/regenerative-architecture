@@ -76,6 +76,38 @@ export type AdminUsersPage = {
   users: AdminUser[]
 }
 
+export type AdminClient = {
+  tenant_id: string
+  client_id: string
+  client_name?: string
+  client_type: 'public' | 'confidential'
+  redirect_uris: string[]
+  grant_types: string[]
+  response_types: string[]
+  token_endpoint_auth_method:
+    | 'client_secret_basic'
+    | 'client_secret_post'
+    | 'private_key_jwt'
+    | 'tls_client_auth'
+    | 'none'
+  scope: string
+  jwks_uri?: string
+  jwks?: Record<string, unknown>
+  tls_client_auth_subject_dn?: string
+  id_token_signed_response_alg: string
+  require_pushed_authorization_requests: boolean
+  dpop_bound_access_tokens: boolean
+  fapi_profile: string
+  created_at: string
+}
+
+export type AdminClientsPage = {
+  kind: 'admin-clients'
+  csrfToken: string
+  actorUsername?: string
+  clients: AdminClient[]
+}
+
 export type PageData =
   | HomePage
   | LoginPage
@@ -88,6 +120,7 @@ export type PageData =
   | ForgotPasswordPage
   | ResetPasswordPage
   | AdminUsersPage
+  | AdminClientsPage
 
 export type BrowserFlowResponse = {
   next?: string

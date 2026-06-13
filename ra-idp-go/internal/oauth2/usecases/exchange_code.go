@@ -10,6 +10,7 @@ import (
 	"ra-idp-go/internal/oauth2/domain"
 	"ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/tenancy"
 )
 
 // =====================================================================
@@ -62,6 +63,10 @@ func ExchangeCodeForToken(ctx context.Context, deps ExchangeCodeDeps, in Exchang
 	if rec == nil {
 		return nil, NewOAuthError("invalid_grant", "code が無効です")
 	}
+	tenantID := tenancy.TenantID(ctx)
+	if rec.TenantID != tenantID {
+		return nil, NewOAuthError("invalid_grant", "code が無効です")
+	}
 	now := time.Now().UTC()
 	if rec.State != spec.AuthCodeRecordIssued || !now.Before(rec.ExpiresAt) {
 		if rec.IssuedFamilyID != nil && deps.RefreshStore != nil {
@@ -79,7 +84,7 @@ func ExchangeCodeForToken(ctx context.Context, deps ExchangeCodeDeps, in Exchang
 		return nil, NewOAuthError("invalid_grant", "PKCE 検証失敗")
 	}
 
-	client, err := deps.ClientRepo.FindByID(ctx, in.ClientID)
+	client, err := deps.ClientRepo.FindByID(ctx, tenantID, in.ClientID)
 	if err != nil {
 		return nil, err
 	}
@@ -92,6 +97,9 @@ func ExchangeCodeForToken(ctx context.Context, deps ExchangeCodeDeps, in Exchang
 	}
 	if user == nil {
 		return nil, errors.New("user attached to code no longer exists")
+	}
+	if user.TenantID != tenantID {
+		return nil, NewOAuthError("invalid_grant", "code が無効です")
 	}
 	if user.DisabledAt != nil {
 		return nil, NewOAuthError("invalid_grant", "ユーザーは無効化されています")
@@ -153,6 +161,7 @@ func ExchangeCodeForToken(ctx context.Context, deps ExchangeCodeDeps, in Exchang
 		if err != nil {
 			return nil, err
 		}
+		gen.Record.TenantID = tenantID
 		if err := deps.RefreshStore.Save(ctx, gen.Record); err != nil {
 			return nil, err
 		}

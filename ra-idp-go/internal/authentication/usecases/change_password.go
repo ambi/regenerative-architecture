@@ -10,9 +10,11 @@ import (
 	"ra-idp-go/internal/spec"
 )
 
-var ErrCurrentPasswordMismatch = errors.New("current password does not match")
-var ErrPasswordReused = errors.New("new password matches a recent password")
-var ErrUserNotFound = errors.New("user not found")
+var (
+	ErrCurrentPasswordMismatch = errors.New("current password does not match")
+	ErrPasswordReused          = errors.New("new password matches a recent password")
+	ErrUserNotFound            = errors.New("user not found")
+)
 
 type ChangePasswordInput struct {
 	Sub             string

@@ -200,3 +200,14 @@ const (
 	SenderConstraintDPoP SenderConstraintType = "dpop"
 	SenderConstraintMTLS SenderConstraintType = "mtls"
 )
+
+type TenantStatus string
+
+const (
+	TenantStatusActive   TenantStatus = "active"
+	TenantStatusDisabled TenantStatus = "disabled"
+)
+
+func (s TenantStatus) Valid() bool {
+	return s == TenantStatusActive || s == TenantStatusDisabled
+}

@@ -12,6 +12,7 @@ import (
 const authCodeBytes = 32
 
 type AuthorizationCodeInput struct {
+	TenantID               string
 	AuthorizationRequestID string
 	ClientID               string
 	Sub                    string
@@ -26,6 +27,9 @@ type AuthorizationCodeInput struct {
 }
 
 func GenerateAuthorizationCode(in AuthorizationCodeInput) (*spec.AuthorizationCodeRecord, error) {
+	if in.TenantID == "" {
+		in.TenantID = spec.DefaultTenantID
+	}
 	if in.TTLSeconds == 0 {
 		in.TTLSeconds = 60
 	}
@@ -38,6 +42,7 @@ func GenerateAuthorizationCode(in AuthorizationCodeInput) (*spec.AuthorizationCo
 	}
 	rec := &spec.AuthorizationCodeRecord{
 		Code:                   base64.RawURLEncoding.EncodeToString(b),
+		TenantID:               in.TenantID,
 		AuthorizationRequestID: in.AuthorizationRequestID,
 		ClientID:               in.ClientID,
 		Sub:                    in.Sub,

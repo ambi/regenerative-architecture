@@ -49,6 +49,7 @@ func assemblePostgres(ctx context.Context) (*Dependencies, error) {
 		return nil, errors.New("EVENT_SINK must be console or outbox")
 	}
 	return &Dependencies{
+		TenantRepo:              &postgres.TenantRepository{Pool: pool},
 		ClientRepo:              &postgres.ClientRepository{Pool: pool},
 		UserRepo:                &postgres.UserRepository{Pool: pool},
 		MfaFactorRepo:           &postgres.MfaFactorRepository{Pool: pool},
@@ -60,8 +61,8 @@ func assemblePostgres(ctx context.Context) (*Dependencies, error) {
 		PARStore:                &redisstore.PARStore{Client: redisClient},
 		RefreshStore:            &postgres.RefreshTokenStore{Pool: pool},
 		DeviceCodeStore:         &redisstore.DeviceCodeStore{Client: redisClient},
-		DpopReplay:              &redisstore.ReplayStore{Client: redisClient, Prefix: "idp:dpop:jti:"},
-		ClientAssertionReplay:   &redisstore.ReplayStore{Client: redisClient, Prefix: "idp:cassert:jti:"},
+		DpopReplay:              &redisstore.ReplayStore{Client: redisClient, Prefix: "dpop_replay:"},
+		ClientAssertionReplay:   &redisstore.ReplayStore{Client: redisClient, Prefix: "client_assertion:"},
 		AccessTokenDenylist:     &redisstore.AccessTokenDenylist{Client: redisClient},
 		SessionStore:            &redisstore.SessionStore{Client: redisClient},
 		KeyStore:                keyStore,

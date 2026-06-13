@@ -25,7 +25,8 @@ func seedDemoData(
 	secretHash := oauthdomain.HashClientSecret(envDefault("DEMO_CLIENT_SECRET", "demo-client-secret"))
 	now := time.Now().UTC()
 	if err := clients.Save(ctx, &spec.Client{
-		ClientID: "demo-client", ClientSecretHash: &secretHash, ClientType: spec.ClientConfidential,
+		TenantID: spec.DefaultTenantID, ClientID: "demo-client",
+		ClientSecretHash: &secretHash, ClientType: spec.ClientConfidential,
 		RedirectURIs: []string{
 			"http://localhost:3000/callback",
 			"http://localhost:5173/callback",
@@ -52,7 +53,8 @@ func seedDemoData(
 	email := "alice@example.com"
 	totpSecret := envDefault("DEMO_TOTP_SECRET", "")
 	if err := users.Save(ctx, &spec.User{
-		Sub: "user_alice", PreferredUsername: "alice", PasswordHash: hash,
+		Sub: "user_alice", TenantID: spec.DefaultTenantID,
+		PreferredUsername: "alice", PasswordHash: hash,
 		Email: &email, EmailVerified: true, MfaEnrolled: totpSecret != "",
 		Roles:     []string{"admin"},
 		CreatedAt: now, UpdatedAt: now,

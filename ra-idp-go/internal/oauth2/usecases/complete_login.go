@@ -8,6 +8,7 @@ import (
 
 	"ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/tenancy"
 )
 
 // =====================================================================
@@ -40,6 +41,9 @@ func CompleteLogin(ctx context.Context, deps CompleteLoginDeps, in CompleteLogin
 		return nil, err
 	}
 	if req == nil {
+		return nil, NewOAuthError("invalid_request", "未知の authorization request")
+	}
+	if req.TenantID != tenancy.TenantID(ctx) {
 		return nil, NewOAuthError("invalid_request", "未知の authorization request")
 	}
 	if time.Now().After(req.ExpiresAt) {
@@ -75,6 +79,7 @@ func CompleteLogin(ctx context.Context, deps CompleteLoginDeps, in CompleteLogin
 	now := time.Now().UTC()
 	record := &spec.AuthorizationCodeRecord{
 		Code:                   codeValue,
+		TenantID:               req.TenantID,
 		AuthorizationRequestID: req.ID,
 		ClientID:               req.ClientID,
 		Sub:                    in.Sub,

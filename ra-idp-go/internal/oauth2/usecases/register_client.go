@@ -8,6 +8,7 @@ import (
 	"ra-idp-go/internal/oauth2/domain"
 	"ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/tenancy"
 )
 
 type RegisterClientInput struct {
@@ -61,7 +62,7 @@ func RegisterClient(ctx context.Context, deps RegisterClientDeps, in RegisterCli
 	}
 	if in.TokenEndpointAuthMethod == spec.AuthMethodPrivateKeyJwt {
 		candidate := spec.Client{
-			ClientID: "validation", ClientType: in.ClientType,
+			TenantID: spec.DefaultTenantID, ClientID: "validation", ClientType: in.ClientType,
 			RedirectURIs:             []string{"https://validation.invalid/callback"},
 			GrantTypes:               []spec.GrantType{spec.GrantClientCredentials},
 			TokenEndpointAuthMethod:  spec.AuthMethodPrivateKeyJwt,
@@ -102,6 +103,7 @@ func RegisterClient(ctx context.Context, deps RegisterClientDeps, in RegisterCli
 		scope = "openid profile email"
 	}
 	c := &spec.Client{
+		TenantID:                           tenancy.TenantID(ctx),
 		ClientID:                           clientID,
 		ClientSecretHash:                   secretHash,
 		ClientType:                         in.ClientType,

@@ -103,6 +103,34 @@ type UserEnabled struct {
 func (e *UserEnabled) EventType() string     { return "UserEnabled" }
 func (e *UserEnabled) OccurredAt() time.Time { return e.At }
 
+type AdminClientCreated struct {
+	At       time.Time `json:"-"`
+	ActorSub string    `json:"actorSub"`
+	ClientID string    `json:"clientId"`
+}
+
+func (e *AdminClientCreated) EventType() string     { return "AdminClientCreated" }
+func (e *AdminClientCreated) OccurredAt() time.Time { return e.At }
+
+type AdminClientUpdated struct {
+	At            time.Time `json:"-"`
+	ActorSub      string    `json:"actorSub"`
+	ClientID      string    `json:"clientId"`
+	ChangedFields []string  `json:"changedFields"`
+}
+
+func (e *AdminClientUpdated) EventType() string     { return "AdminClientUpdated" }
+func (e *AdminClientUpdated) OccurredAt() time.Time { return e.At }
+
+type AdminClientDeleted struct {
+	At       time.Time `json:"-"`
+	ActorSub string    `json:"actorSub"`
+	ClientID string    `json:"clientId"`
+}
+
+func (e *AdminClientDeleted) EventType() string     { return "AdminClientDeleted" }
+func (e *AdminClientDeleted) OccurredAt() time.Time { return e.At }
+
 type ConsentGrantedEvent struct {
 	At       time.Time `json:"-"`
 	Sub      string    `json:"sub"`
@@ -250,6 +278,43 @@ type DeviceAuthorizationDenied struct {
 
 func (e *DeviceAuthorizationDenied) EventType() string     { return "DeviceAuthorizationDenied" }
 func (e *DeviceAuthorizationDenied) OccurredAt() time.Time { return e.At }
+
+type TenantCreated struct {
+	At       time.Time `json:"-"`
+	ActorSub string    `json:"actorSub"`
+	TenantID string    `json:"tenantId"`
+}
+
+func (e *TenantCreated) EventType() string     { return "TenantCreated" }
+func (e *TenantCreated) OccurredAt() time.Time { return e.At }
+
+type TenantUpdated struct {
+	At            time.Time `json:"-"`
+	ActorSub      string    `json:"actorSub"`
+	TenantID      string    `json:"tenantId"`
+	ChangedFields []string  `json:"changedFields"`
+}
+
+func (e *TenantUpdated) EventType() string     { return "TenantUpdated" }
+func (e *TenantUpdated) OccurredAt() time.Time { return e.At }
+
+type TenantDisabled struct {
+	At       time.Time `json:"-"`
+	ActorSub string    `json:"actorSub"`
+	TenantID string    `json:"tenantId"`
+}
+
+func (e *TenantDisabled) EventType() string     { return "TenantDisabled" }
+func (e *TenantDisabled) OccurredAt() time.Time { return e.At }
+
+type TenantEnabled struct {
+	At       time.Time `json:"-"`
+	ActorSub string    `json:"actorSub"`
+	TenantID string    `json:"tenantId"`
+}
+
+func (e *TenantEnabled) EventType() string     { return "TenantEnabled" }
+func (e *TenantEnabled) OccurredAt() time.Time { return e.At }
 
 func MarshalDomainEvent(event DomainEvent) ([]byte, error) {
 	payload, err := json.Marshal(event)

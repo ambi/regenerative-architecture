@@ -31,7 +31,7 @@ func (d Deps) handleDeviceAuthorization(c *echo.Context) error {
 	}
 	res, err := usecases.RequestDeviceAuthorization(c.Request().Context(), usecases.DeviceAuthorizationDeps{
 		ClientRepo: d.ClientRepo, DeviceCodeStore: d.DeviceCodeStore,
-		BaseVerification: d.Issuer + "/device", Emit: d.Emit,
+		BaseVerification: requestIssuer(c, d.Issuer) + "/device", Emit: d.Emit,
 	}, in, time.Now().UTC())
 	if err != nil {
 		return writeOAuthError(c, err)

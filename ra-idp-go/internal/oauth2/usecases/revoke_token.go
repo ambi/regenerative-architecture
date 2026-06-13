@@ -8,6 +8,7 @@ import (
 	"ra-idp-go/internal/oauth2/domain"
 	"ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/tenancy"
 )
 
 type RevokeDeps struct {
@@ -29,7 +30,7 @@ func RevokeToken(ctx context.Context, deps RevokeDeps, clientID, token string, n
 	if rec == nil {
 		return revokeAccessToken(ctx, deps, clientID, token, now)
 	}
-	if rec.ClientID != clientID {
+	if rec.TenantID != tenancy.TenantID(ctx) || rec.ClientID != clientID {
 		// RFC 7009 §2.2: 所有者でない要求も 200 OK no-op
 		return nil
 	}

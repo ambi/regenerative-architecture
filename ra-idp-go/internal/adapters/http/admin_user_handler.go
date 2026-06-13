@@ -52,7 +52,7 @@ func (d Deps) handleListAdminUsers(c *echo.Context) error {
 	if _, err := d.requireAdmin(c); err != nil {
 		return d.writeAdminAccessError(c, err)
 	}
-	users, err := d.UserRepo.FindAll(c.Request().Context())
+	users, err := d.UserRepo.FindAll(c.Request().Context(), requestTenantID(c))
 	if err != nil {
 		return err
 	}
@@ -72,6 +72,9 @@ func (d Deps) handleGetAdminUser(c *echo.Context) error {
 		return err
 	}
 	if user == nil {
+		return writeBrowserError(c, http.StatusNotFound, "user_not_found", "ユーザーが存在しません")
+	}
+	if user.TenantID != requestTenantID(c) {
 		return writeBrowserError(c, http.StatusNotFound, "user_not_found", "ユーザーが存在しません")
 	}
 	return noStoreJSON(c, http.StatusOK, toAdminUserResponse(user))
@@ -169,7 +172,8 @@ func (d Deps) requireAdmin(c *echo.Context) (*spec.User, error) {
 	if err != nil {
 		return nil, err
 	}
-	if user == nil || user.DisabledAt != nil || !slices.Contains(user.Roles, "admin") {
+	if user == nil || user.TenantID != requestTenantID(c) || user.DisabledAt != nil ||
+		!slices.Contains(user.Roles, "admin") {
 		return nil, errAdminAccessDenied
 	}
 	return user, nil

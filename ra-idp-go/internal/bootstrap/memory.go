@@ -13,6 +13,7 @@ func assembleMemory() (*Dependencies, error) {
 		return nil, err
 	}
 	return &Dependencies{
+		TenantRepo:              memory.NewTenantRepository(),
 		ClientRepo:              memory.NewClientRepository(),
 		UserRepo:                memory.NewUserRepository(),
 		MfaFactorRepo:           memory.NewMfaFactorRepository(),

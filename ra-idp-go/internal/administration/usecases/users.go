@@ -11,6 +11,7 @@ import (
 	authusecases "ra-idp-go/internal/authentication/usecases"
 	oauthports "ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/tenancy"
 )
 
 var (
@@ -42,7 +43,8 @@ func CreateUser(ctx context.Context, deps Deps, in CreateUserInput) (*spec.User,
 	if username == "" {
 		return nil, errors.New("preferred username is required")
 	}
-	existing, err := deps.UserRepo.FindByUsername(ctx, username)
+	tenantID := tenancy.TenantID(ctx)
+	existing, err := deps.UserRepo.FindByUsername(ctx, tenantID, username)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +69,7 @@ func CreateUser(ctx context.Context, deps Deps, in CreateUserInput) (*spec.User,
 	}
 	now := normalizedNow(in.Now)
 	user := &spec.User{
-		Sub: "user_" + id, PreferredUsername: username, PasswordHash: passwordHash,
+		Sub: "user_" + id, TenantID: tenantID, PreferredUsername: username, PasswordHash: passwordHash,
 		Name: in.Name, Email: in.Email, EmailVerified: in.EmailVerified, Roles: roles,
 		CreatedAt: now, UpdatedAt: now,
 	}
@@ -103,6 +105,9 @@ func UpdateUser(ctx context.Context, deps Deps, in UpdateUserInput) (*spec.User,
 	if user == nil {
 		return nil, ErrUserNotFound
 	}
+	if user.TenantID != tenancy.TenantID(ctx) {
+		return nil, ErrUserNotFound
+	}
 	updated := *user
 	changed := []string{}
 	if in.PreferredUsername != nil {
@@ -111,7 +116,7 @@ func UpdateUser(ctx context.Context, deps Deps, in UpdateUserInput) (*spec.User,
 			return nil, errors.New("preferred username must not be empty")
 		}
 		if username != user.PreferredUsername {
-			existing, err := deps.UserRepo.FindByUsername(ctx, username)
+			existing, err := deps.UserRepo.FindByUsername(ctx, user.TenantID, username)
 			if err != nil {
 				return nil, err
 			}
@@ -173,6 +178,9 @@ func SetUserDisabled(
 		return nil, err
 	}
 	if user == nil {
+		return nil, ErrUserNotFound
+	}
+	if user.TenantID != tenancy.TenantID(ctx) {
 		return nil, ErrUserNotFound
 	}
 	updated := *user

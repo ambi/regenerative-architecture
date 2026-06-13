@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"ra-idp-go/internal/adapters/persistence/memory"
+	"ra-idp-go/internal/oauth2/domain"
 	"ra-idp-go/internal/spec"
 	"ra-idp-go/internal/tenancy"
 )
@@ -55,6 +56,85 @@ func TestAuthorizationCodeCannotCrossTenantBoundary(t *testing.T) {
 		ClientID: "web-app", Code: "AC1", CodeVerifier: "verifier",
 		RedirectURI: "https://app.example/callback",
 	})
+	assertOAuthErrorCode(t, err, "invalid_grant")
+}
+
+func TestRefreshTokenCannotCrossTenantBoundary(t *testing.T) {
+	clients := memory.NewClientRepository()
+	clients.Seed(&spec.Client{
+		TenantID: spec.DefaultTenantID, ClientID: "web-app", ClientType: spec.ClientPublic,
+		RedirectURIs:            []string{"https://app.example/cb"},
+		GrantTypes:              []spec.GrantType{spec.GrantAuthorizationCode, spec.GrantRefreshToken},
+		ResponseTypes:           []spec.ResponseType{spec.ResponseTypeCode},
+		TokenEndpointAuthMethod: spec.AuthMethodNone, Scope: "openid",
+		IDTokenSignedResponseAlg: spec.SigAlgPS256, FapiProfile: spec.FapiNone,
+		CreatedAt: time.Now().UTC(),
+	})
+	users := memory.NewUserRepository()
+	users.Seed(&spec.User{
+		Sub: "user", TenantID: spec.DefaultTenantID, PreferredUsername: "alice",
+		PasswordHash: "hash", CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC(),
+	})
+
+	store := memory.NewRefreshTokenStore()
+	gen, err := domain.GenerateInitialRefreshToken("web-app", "user", []string{"openid"}, nil, time.Now().UTC())
+	if err != nil {
+		t.Fatal(err)
+	}
+	gen.Record.TenantID = "acme" // テナント "acme" 発行
+	if err := store.Save(context.Background(), gen.Record); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = RefreshTokens(tenantContext(spec.DefaultTenantID), RefreshDeps{
+		ClientRepo: clients, UserRepo: users, RefreshStore: store,
+	}, RefreshInput{ClientID: "web-app", RefreshToken: gen.Token}, time.Now().UTC())
+	assertOAuthErrorCode(t, err, "invalid_grant")
+}
+
+func TestDeviceCodeCannotCrossTenantBoundary(t *testing.T) {
+	clients := memory.NewClientRepository()
+	clients.Seed(&spec.Client{
+		TenantID: spec.DefaultTenantID, ClientID: "tv-app", ClientType: spec.ClientPublic,
+		RedirectURIs:            []string{"https://tv.example/cb"},
+		GrantTypes:              []spec.GrantType{spec.GrantDeviceCode, spec.GrantRefreshToken},
+		ResponseTypes:           []spec.ResponseType{},
+		TokenEndpointAuthMethod: spec.AuthMethodNone, Scope: "openid",
+		IDTokenSignedResponseAlg: spec.SigAlgPS256, FapiProfile: spec.FapiNone,
+		CreatedAt: time.Now().UTC(),
+	})
+	users := memory.NewUserRepository()
+	now := time.Now().UTC()
+	users.Seed(&spec.User{
+		Sub: "user", TenantID: spec.DefaultTenantID, PreferredUsername: "alice",
+		PasswordHash: "hash", CreatedAt: now, UpdatedAt: now,
+	})
+
+	deviceStore := memory.NewDeviceCodeStore()
+	deviceCode := "DEVCODE-acme-1234567890"
+	sub := "user"
+	authTime := now.Unix()
+	rec := &spec.DeviceAuthorization{
+		DeviceCodeHash:  domain.HashDeviceCode(deviceCode),
+		TenantID:        "acme", // テナント "acme" 発行
+		UserCode:        "ABCD-EFGH",
+		ClientID:        "tv-app",
+		Scopes:          []string{"openid"},
+		State:           spec.DeviceFlowApproved,
+		Sub:             &sub,
+		AuthTime:        &authTime,
+		IntervalSeconds: 5,
+		IssuedAt:        now,
+		ExpiresAt:       now.Add(10 * time.Minute),
+	}
+	if err := deviceStore.Save(context.Background(), rec); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := ExchangeDeviceCode(tenantContext(spec.DefaultTenantID), ExchangeDeviceCodeDeps{
+		ClientRepo: clients, UserRepo: users, DeviceCodeStore: deviceStore,
+		RefreshStore: memory.NewRefreshTokenStore(), TokenIssuer: &fakeTokenIssuer{},
+	}, ExchangeDeviceCodeInput{ClientID: "tv-app", DeviceCode: deviceCode}, now.Add(20*time.Second))
 	assertOAuthErrorCode(t, err, "invalid_grant")
 }
 

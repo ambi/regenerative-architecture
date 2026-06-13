@@ -3523,6 +3523,20 @@ scenarios:
       - '"/realms/default/token" で認可コード "AC1" を交換する'
       - 'エラー "InvalidGrantError"'
 
+  他テナントのリフレッシュトークンを別テナントの token endpoint で再発行できない:
+    description: ADR-034。refresh_token 解決時に record.tenant_id != ctx.tenant_id を確認し、存在しないトークンと同じ応答にする。
+    steps:
+      - 'tenant_id "acme" でリフレッシュトークン "RT1" を発行する'
+      - '"/realms/default/token" でリフレッシュトークン "RT1" を再発行する'
+      - 'エラー "InvalidGrantError"'
+
+  他テナントの device_code を別テナントの token endpoint で交換できない:
+    description: ADR-034。device flow の record.tenant_id != ctx.tenant_id を確認。
+    steps:
+      - 'tenant_id "acme" で device_code "DC1" を発行し承認する'
+      - '"/realms/default/token" で device_code "DC1" を交換する'
+      - 'エラー "InvalidGrantError"'
+
   無効化されたテナントへの /authorize は invalid_request で拒否される:
     description: ADR-032 の disable 効果。tenant の存在を漏らさないため 404 ではなく invalid_request。
     steps:
@@ -4073,10 +4087,12 @@ assurance:
         environments: [ci]
         recheck: affected_change
         covers:
-          models: [OAuth2Client, AuthorizationCodeRecord]
+          models: [OAuth2Client, AuthorizationCodeRecord, RefreshTokenRecord, DeviceAuthorization]
           interfaces: [Authorize, Token]
-        procedure: cd ../ra-idp-go && go test ./internal/oauth2/usecases -run 'TestAuthorizeCannotResolveAnotherTenantClient|TestAuthorizationCodeCannotCrossTenantBoundary'
-        oracle: tenant_id が一致しない Client と認可コードは、存在しない場合と同じ結果になる。
+        procedure: |-
+          cd ../ra-idp-go && go test ./internal/oauth2/usecases -run 'TestAuthorizeCannotResolveAnotherTenantClient|TestAuthorizationCodeCannotCrossTenantBoundary|TestRefreshTokenCannotCrossTenantBoundary|TestDeviceCodeCannotCrossTenantBoundary'
+          bun test src/oauth2/usecases/tenant-isolation.test.ts
+        oracle: tenant_id が一致しない Client・認可コード・リフレッシュトークン・device_code は、存在しない場合と同じ結果になる。
     approval:
       when: [acceptance_not_met, exception_requested, risk_increased, normative_spec_changed]
       role: SecurityOwner
@@ -4724,10 +4740,22 @@ annotations:
       status: covered
       evidence:
         - { file: ../ra-idp-go/internal/oauth2/usecases/tenant_isolation_test.go, test: TestAuthorizeCannotResolveAnotherTenantClient }
+        - { file: src/oauth2/usecases/tenant-isolation.test.ts, test: "authorize cannot resolve another tenant client" }
     "他テナントの認可コードを別テナントの token endpoint で交換できない":
       status: covered
       evidence:
         - { file: ../ra-idp-go/internal/oauth2/usecases/tenant_isolation_test.go, test: TestAuthorizationCodeCannotCrossTenantBoundary }
+        - { file: src/oauth2/usecases/tenant-isolation.test.ts, test: "authorization_code cannot cross tenant boundary" }
+    "他テナントのリフレッシュトークンを別テナントの token endpoint で再発行できない":
+      status: covered
+      evidence:
+        - { file: ../ra-idp-go/internal/oauth2/usecases/tenant_isolation_test.go, test: TestRefreshTokenCannotCrossTenantBoundary }
+        - { file: src/oauth2/usecases/tenant-isolation.test.ts, test: "refresh_token cannot cross tenant boundary" }
+    "他テナントの device_code を別テナントの token endpoint で交換できない":
+      status: covered
+      evidence:
+        - { file: ../ra-idp-go/internal/oauth2/usecases/tenant_isolation_test.go, test: TestDeviceCodeCannotCrossTenantBoundary }
+        - { file: src/oauth2/usecases/tenant-isolation.test.ts, test: "device_code cannot cross tenant boundary" }
     "無効化されたテナントへの /authorize は invalid_request で拒否される":
       status: covered
       evidence:

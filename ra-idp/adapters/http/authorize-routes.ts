@@ -35,6 +35,7 @@ import {
   type SessionManager,
 } from '../../src/authentication/usecases/session-manager'
 import type { AuthorizationRequest, Client, DomainEvent } from '../../src/spec-bindings/schemas'
+import { requestTenantId } from './middleware/tenant-middleware'
 import { acrSatisfies, ACR_VALUES } from '../../src/authentication/usecases/acr-vocabulary'
 import {
   clearTransactionCookie,
@@ -198,7 +199,7 @@ export function createAuthorizeRoutes(deps: AuthorizeRoutesDeps) {
       }
 
       const { request, client } = await authorizeRequestUseCase(deps, {
-        tenant_id: 'default',
+        tenant_id: requestTenantId(c),
         client_id: params.client_id,
         redirect_uri: params.redirect_uri,
         response_type: 'code',
@@ -243,6 +244,7 @@ export function createAuthorizeRoutes(deps: AuthorizeRoutesDeps) {
     try {
       return await handleEndSession(
         deps,
+        requestTenantId(c),
         {
           ...Object.fromEntries(new URL(c.req.url).searchParams.entries()),
           acceptLanguage: c.req.header('accept-language'),
@@ -263,6 +265,7 @@ export function createAuthorizeRoutes(deps: AuthorizeRoutesDeps) {
       const body = await c.req.parseBody()
       return await handleEndSession(
         deps,
+        requestTenantId(c),
         {
           client_id: stringBody(body.client_id),
           id_token_hint: stringBody(body.id_token_hint),
@@ -374,6 +377,7 @@ function stringBody(value: unknown): string | undefined {
 
 async function handleEndSession(
   deps: AuthorizeRoutesDeps,
+  tenantId: string,
   params: {
     client_id?: string
     id_token_hint?: string
@@ -402,7 +406,7 @@ async function handleEndSession(
     )
   }
 
-  const client = await deps.clientRepo.findById("default", params.client_id)
+  const client = await deps.clientRepo.findById(tenantId, params.client_id)
   if (!client) {
     throw new OAuthError('invalid_request', '未知の client_id です')
   }

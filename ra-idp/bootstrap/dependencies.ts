@@ -58,10 +58,14 @@ import type { KeyStore } from '../src/oauth2/ports/key-store'
 import type { SessionStore } from '../src/authentication/ports/session-store'
 import type { EventSink } from '../src/shared/ports/event-sink'
 import { DEVICE_CODE_TTL_SECONDS } from '../src/oauth2/domain/device-authorization'
+import type { TenantRepository } from '../src/tenancy/ports/tenant-repository'
+import { InMemoryTenantRepository } from '../adapters/persistence/memory/tenant-repository'
+import { ensureDefaultTenant } from '../src/tenancy/usecases/manage-tenants'
 
 import type { RuntimeConfig } from './config'
 
 export interface AssembledDeps {
+  tenantRepo: TenantRepository
   clientRepo: ClientRepository
   userRepo: UserRepository
   passwordHistoryRepo: PasswordHistoryRepository
@@ -104,7 +108,10 @@ export async function assemble(config: RuntimeConfig): Promise<AssembledDeps> {
   const emailSender = new ConsoleEmailSender()
   if (config.persistenceMode === 'memory') {
     const consoleSink = new ConsoleEventSink({ collect: true })
+    const tenantRepo = new InMemoryTenantRepository()
+    await ensureDefaultTenant(tenantRepo)
     return {
+      tenantRepo,
       clientRepo: new InMemoryClientRepository(),
       userRepo: new InMemoryUserRepository(),
       passwordHistoryRepo: new InMemoryPasswordHistoryRepository(),
@@ -142,6 +149,9 @@ export async function assemble(config: RuntimeConfig): Promise<AssembledDeps> {
   const pool = await getPool({ connectionString: dbUrl })
   const redis = await getRedis({ url: redisUrl })
 
+  const { PostgresTenantRepository } = await import(
+    '../adapters/persistence/postgres/tenant-repository'
+  )
   const { PostgresClientRepository } = await import(
     '../adapters/persistence/postgres/client-repository'
   )
@@ -182,7 +192,11 @@ export async function assemble(config: RuntimeConfig): Promise<AssembledDeps> {
   const eventSink: EventSink =
     config.eventSinkMode === 'outbox' ? new PostgresOutboxEventSink(pool) : new ConsoleEventSink()
 
+  const tenantRepo = new PostgresTenantRepository(pool)
+  await ensureDefaultTenant(tenantRepo)
+
   return {
+    tenantRepo,
     clientRepo: new PostgresClientRepository(pool),
     userRepo: new PostgresUserRepository(pool),
     passwordHistoryRepo: new PostgresPasswordHistoryRepository(pool),

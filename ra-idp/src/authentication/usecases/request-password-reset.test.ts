@@ -40,7 +40,7 @@ describe('requestPasswordReset', () => {
     const h = await setupUser()
     await requestPasswordReset(
       { ...h, issuer: ISSUER },
-      { email: 'alice@example.com', now: new Date('2026-06-13T12:00:00Z') },
+      { tenant_id: 'default', email: 'alice@example.com', now: new Date('2026-06-13T12:00:00Z') },
     )
     expect(h.emailSender.sent).toHaveLength(1)
     expect(h.emailSender.sent[0].to).toBe('alice@example.com')
@@ -50,26 +50,26 @@ describe('requestPasswordReset', () => {
 
   it('未登録 email でも PasswordResetRequested を emit し送信せず正常終了 (anti-enumeration)', async () => {
     const h = await setupUser()
-    await requestPasswordReset({ ...h, issuer: ISSUER }, { email: 'unknown@example.com' })
+    await requestPasswordReset({ ...h, issuer: ISSUER }, { tenant_id: 'default', email: 'unknown@example.com' })
     expect(h.emailSender.sent).toHaveLength(0)
     expect(h.events).toEqual([expect.objectContaining({ type: 'PasswordResetRequested' })])
   })
 
   it('email_verified=false の user には送信しない', async () => {
     const h = await setupUser({ emailVerified: false })
-    await requestPasswordReset({ ...h, issuer: ISSUER }, { email: 'alice@example.com' })
+    await requestPasswordReset({ ...h, issuer: ISSUER }, { tenant_id: 'default', email: 'alice@example.com' })
     expect(h.emailSender.sent).toHaveLength(0)
   })
 
   it('email は大文字小文字を正規化して解決される', async () => {
     const h = await setupUser({ email: 'alice@example.com' })
-    await requestPasswordReset({ ...h, issuer: ISSUER }, { email: 'ALICE@Example.COM' })
+    await requestPasswordReset({ ...h, issuer: ISSUER }, { tenant_id: 'default', email: 'ALICE@Example.COM' })
     expect(h.emailSender.sent).toHaveLength(1)
   })
 
   it('emailHash は SHA-256 (lowercased email) と一致する', async () => {
     const h = await setupUser()
-    await requestPasswordReset({ ...h, issuer: ISSUER }, { email: 'ALICE@example.com' })
+    await requestPasswordReset({ ...h, issuer: ISSUER }, { tenant_id: 'default', email: 'ALICE@example.com' })
     const requested = h.events.find((e) => e.type === 'PasswordResetRequested')
     expect(requested).toBeDefined()
     if (requested?.type === 'PasswordResetRequested') {
@@ -84,7 +84,7 @@ describe('requestPasswordReset', () => {
     const issued = new Date('2026-06-13T12:00:00Z')
     await requestPasswordReset(
       { ...h, issuer: ISSUER },
-      { email: 'alice@example.com', now: issued },
+      { tenant_id: 'default', email: 'alice@example.com', now: issued },
     )
     const sentUrl = h.emailSender.sent[0].text
     const tokenMatch = sentUrl.match(/token=([A-Za-z0-9_-]+)/)

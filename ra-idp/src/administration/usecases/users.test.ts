@@ -59,6 +59,7 @@ describe('createAdminUser', () => {
     const { deps, userRepo, events } = await setup()
     const user = await createAdminUser(deps, {
       actorSub: 'user-admin',
+      tenant_id: 'default',
       preferred_username: 'carol',
       password: 'fresh-password-12345',
       email: 'carol@example.com',
@@ -74,6 +75,7 @@ describe('createAdminUser', () => {
     await expect(
       createAdminUser(deps, {
         actorSub: 'user-admin',
+        tenant_id: 'default',
         preferred_username: 'bob',
         password: 'fresh-password-12345',
       }),

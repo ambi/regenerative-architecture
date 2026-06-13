@@ -25,6 +25,7 @@ import type { Client } from '../../src/spec-bindings/schemas'
 import type { ClientRepository } from '../../src/oauth2/ports/client-repository'
 import type { ClientAssertionReplayStore } from '../../src/oauth2/ports/client-assertion-replay-store'
 import { clientCertSubjectMatches, parseClientCertificateHeader } from '../crypto/mtls-client-cert'
+import { requestTenantId } from './middleware/tenant-middleware'
 
 /** TLS 終端プロキシが検証済みクライアント証明書を載せるヘッダ名 (ADR-005)。 */
 export const CLIENT_CERT_HEADER = 'X-Client-Certificate'
@@ -81,6 +82,7 @@ export async function authenticateClient(
     const requestUrl = `${url.origin}${url.pathname}`
     const audiences = buildAcceptableAudiences(opts.issuer, requestUrl)
     const client = await verifyClientAssertion(body.client_assertion, clientRepo, {
+      tenantId: requestTenantId(c),
       audiences,
       replayStore: opts.clientAssertionReplayStore,
     })
@@ -94,14 +96,14 @@ export async function authenticateClient(
     if (idx < 0) throw new OAuthError('invalid_client', 'Basic 認証のフォーマット不正')
     const id = decodeURIComponent(decoded.slice(0, idx))
     const secret = decodeURIComponent(decoded.slice(idx + 1))
-    const client = await loadClient(clientRepo, id)
+    const client = await loadClient(clientRepo, requestTenantId(c),id)
     verifySecret(client, secret, 'client_secret_basic')
     return { client, method: 'client_secret_basic' }
   }
 
   // 2. ボディの client_id + client_secret
   if (body.client_id && body.client_secret) {
-    const client = await loadClient(clientRepo, body.client_id)
+    const client = await loadClient(clientRepo, requestTenantId(c),body.client_id)
     verifySecret(client, body.client_secret, 'client_secret_post')
     return { client, method: 'client_secret_post' }
   }
@@ -111,7 +113,7 @@ export async function authenticateClient(
   //    本層は subject DN 一致と x5t#S256 計算のみを行う。
   const certHeader = c.req.header(CLIENT_CERT_HEADER)
   if (body.client_id && certHeader) {
-    const client = await loadClient(clientRepo, body.client_id)
+    const client = await loadClient(clientRepo, requestTenantId(c),body.client_id)
     if (client.token_endpoint_auth_method === 'tls_client_auth') {
       const cert = parseClientCertificateHeader(certHeader)
       if (!cert) {
@@ -132,7 +134,7 @@ export async function authenticateClient(
 
   // 4. 公開クライアント (none)
   if (body.client_id) {
-    const client = await loadClient(clientRepo, body.client_id)
+    const client = await loadClient(clientRepo, requestTenantId(c),body.client_id)
     if (client.token_endpoint_auth_method !== 'none') {
       throw new OAuthError('invalid_client', 'クライアント認証が必要です')
     }
@@ -174,7 +176,7 @@ export function buildAcceptableAudiences(issuer: string, requestUrl?: string): s
 export async function verifyClientAssertion(
   assertion: string,
   clientRepo: ClientRepository,
-  opts: { audiences: string[]; replayStore: ClientAssertionReplayStore },
+  opts: { tenantId: string; audiences: string[]; replayStore: ClientAssertionReplayStore },
   now: Date = new Date(),
 ): Promise<Client> {
   // 署名前ヘッダ: alg 制約 (alg confusion 対策)
@@ -199,7 +201,7 @@ export async function verifyClientAssertion(
     throw new OAuthError('invalid_client', 'client_assertion に sub がありません')
   }
 
-  const client = await loadClient(clientRepo, claimedSub)
+  const client = await loadClient(clientRepo, opts.tenantId, claimedSub)
   if (client.token_endpoint_auth_method !== 'private_key_jwt') {
     throw new OAuthError('invalid_client', 'クライアントは private_key_jwt を宣言していません')
   }
@@ -265,8 +267,12 @@ function resolveClientKeys(client: Client): ReturnType<typeof createLocalJWKSet>
   throw new OAuthError('invalid_client', 'private_key_jwt 用の鍵が登録されていません')
 }
 
-async function loadClient(repo: ClientRepository, id: string): Promise<Client> {
-  const client = await repo.findById('default', id)
+async function loadClient(
+  repo: ClientRepository,
+  tenantId: string,
+  id: string,
+): Promise<Client> {
+  const client = await repo.findById(tenantId, id)
   if (!client) {
     // タイミング差を出さないため、ハッシュ計算を空打ちする
     createHash('sha256').update('decoy').digest()

@@ -44,6 +44,7 @@ import {
   WebSecurityError,
 } from '../../src/shared/web-security'
 import { noStoreJSON } from './browser-transaction'
+import { requestTenantId } from './middleware/tenant-middleware'
 import { renderShell } from './spa-shell'
 
 export interface AdminUserRoutesDeps {
@@ -88,7 +89,7 @@ export function createAdminUserRoutes(deps: AdminUserRoutesDeps) {
   app.get('/api/admin/users', async (c) => {
     const actor = await resolveAdmin(deps, c.req.raw.headers)
     if (actor.kind !== 'admin') return adminAccessError(actor.kind)
-    const users = await deps.userRepo.findAll('default')
+    const users = await deps.userRepo.findAll(requestTenantId(c))
     return noStoreJSON(c, 200, { users: users.map(toAdminUserResponse) })
   })
 
@@ -117,6 +118,7 @@ export function createAdminUserRoutes(deps: AdminUserRoutesDeps) {
       }
       const user = await createAdminUser(usecaseDeps, {
         actorSub: actor.user.sub,
+        tenant_id: requestTenantId(c),
         preferred_username: parsed.data.preferred_username,
         password: parsed.data.password,
         name: parsed.data.name,

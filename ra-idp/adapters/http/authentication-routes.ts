@@ -33,6 +33,7 @@ import { oauthErrorResponse } from './error-response'
 import { extractClientIp } from './extract-client-ip'
 import { renderShell } from './spa-shell'
 import { noStoreJSON, transactionIdFromCookie } from './browser-transaction'
+import { requestTenantId } from './middleware/tenant-middleware'
 
 export interface AuthenticationRoutesDeps {
   userRepo: UserRepository
@@ -76,6 +77,7 @@ export function createAuthenticationRoutes(deps: AuthenticationRoutesDeps) {
       })
       const response = await completePasswordLogin(
         deps,
+        requestTenantId(c),
         requestId,
         username,
         password,
@@ -106,6 +108,7 @@ export function createAuthenticationRoutes(deps: AuthenticationRoutesDeps) {
       })
       const response = await completePasswordLogin(
         deps,
+        requestTenantId(c),
         requestId,
         username,
         password,
@@ -131,6 +134,7 @@ export function createAuthenticationRoutes(deps: AuthenticationRoutesDeps) {
 
 async function completePasswordLogin(
   deps: AuthenticationRoutesDeps,
+  tenantId: string,
   requestId: string,
   username: string,
   password: string,
@@ -158,7 +162,7 @@ async function completePasswordLogin(
 
   // ADR-029: 未存在 user でも sentinel ハッシュで verify を回し、タイミング差で
   // username の存在有無を漏らさない。
-  const user = await deps.userRepo.findByUsername('default', username)
+  const user = await deps.userRepo.findByUsername(tenantId, username)
   const hashToVerify = user?.password_hash ?? deps.sentinelPasswordHash
   const passwordOk = await deps.passwordHasher.verify(password, hashToVerify)
 

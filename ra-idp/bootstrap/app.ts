@@ -10,6 +10,7 @@ import { Hono } from 'hono'
 import { JoseTokenSigner } from '../adapters/crypto/jwt-signer'
 import type { Argon2idPasswordHasher } from '../adapters/crypto/argon2id-password-hasher'
 import { createObservabilityMiddleware } from '../adapters/http/middleware/observability-middleware'
+import { createTenantMiddleware } from '../adapters/http/middleware/tenant-middleware'
 import { createAdminUserRoutes } from '../adapters/http/admin-user-routes'
 import { createAuthenticationRoutes } from '../adapters/http/authentication-routes'
 import { createChangePasswordRoutes } from '../adapters/http/change-password-routes'
@@ -74,12 +75,24 @@ export function composeApp(input: ComposeAppInput): Hono {
 
   const app = new Hono()
   app.use('*', createObservabilityMiddleware(observer))
+  // ADR-033: `/realms/{tenant_id}/...` または bare path のいずれでもテナントを
+  // ctx に解決し、後段の route handler はテナント境界に従って動く。
+  app.use(
+    '*',
+    createTenantMiddleware({
+      tenantRepo: deps.tenantRepo,
+      baseIssuer: config.issuer,
+      legacyBareIssuer: config.legacyBareIssuer,
+    }),
+  )
 
-  app.route('/', createUiAssetsRoutes())
-  app.route('/', createDiscoveryRoutes({ issuer: config.issuer, keyStore: deps.keyStore }))
-  app.route('/', createRegistrationRoutes({ clientRepo: deps.clientRepo, emit }))
-  app.route('/', createAuthorizeRoutes(authorizeRouteDeps))
-  app.route(
+  // プロトコル route 群を一度だけ組み立て、bare と /realms/:tenant_id の両方に
+  // マウントする (ADR-033 §1)。Hono の subapp 再利用は副作用なく行える。
+  const protocol = new Hono()
+  protocol.route('/', createDiscoveryRoutes({ issuer: config.issuer, keyStore: deps.keyStore }))
+  protocol.route('/', createRegistrationRoutes({ clientRepo: deps.clientRepo, emit }))
+  protocol.route('/', createAuthorizeRoutes(authorizeRouteDeps))
+  protocol.route(
     '/',
     createAuthenticationRoutes({
       userRepo: deps.userRepo,
@@ -92,7 +105,7 @@ export function composeApp(input: ComposeAppInput): Hono {
       trustedForwardedHops: deps.trustedForwardedHops,
     }),
   )
-  app.route(
+  protocol.route(
     '/',
     createTotpRoutes({
       sessionManager,
@@ -101,7 +114,7 @@ export function composeApp(input: ComposeAppInput): Hono {
       emit,
     }),
   )
-  app.route(
+  protocol.route(
     '/',
     createChangePasswordRoutes({
       sessionManager,
@@ -112,7 +125,7 @@ export function composeApp(input: ComposeAppInput): Hono {
       emit,
     }),
   )
-  app.route(
+  protocol.route(
     '/',
     createAdminUserRoutes({
       sessionManager,
@@ -122,7 +135,7 @@ export function composeApp(input: ComposeAppInput): Hono {
       emit,
     }),
   )
-  app.route(
+  protocol.route(
     '/',
     createPasswordResetRoutes({
       userRepo: deps.userRepo,
@@ -135,7 +148,7 @@ export function composeApp(input: ComposeAppInput): Hono {
       issuer: config.issuer,
     }),
   )
-  app.route(
+  protocol.route(
     '/',
     createTokenRoutes({
       issuer: config.issuer,
@@ -151,7 +164,7 @@ export function composeApp(input: ComposeAppInput): Hono {
       emit,
     }),
   )
-  app.route(
+  protocol.route(
     '/',
     createDeviceRoutes({
       issuer: config.issuer,
@@ -162,7 +175,7 @@ export function composeApp(input: ComposeAppInput): Hono {
       emit,
     }),
   )
-  app.route(
+  protocol.route(
     '/',
     createPARRoutes({
       issuer: config.issuer,
@@ -172,7 +185,7 @@ export function composeApp(input: ComposeAppInput): Hono {
       emit,
     }),
   )
-  app.route(
+  protocol.route(
     '/',
     createIntrospectionRoutes({
       issuer: config.issuer,
@@ -184,7 +197,7 @@ export function composeApp(input: ComposeAppInput): Hono {
       emit,
     }),
   )
-  app.route(
+  protocol.route(
     '/',
     createUserInfoRoutes({
       issuer: config.issuer,
@@ -195,6 +208,10 @@ export function composeApp(input: ComposeAppInput): Hono {
       accessTokenDenylist: deps.accessTokenDenylist,
     }),
   )
+
+  app.route('/', createUiAssetsRoutes())
+  app.route('/', protocol)
+  app.route('/realms/:tenant_id', protocol)
 
   app.route(
     '/',

@@ -23,6 +23,7 @@ import {
   resetPasswordWithToken,
 } from '../../src/authentication/usecases/reset-password-with-token'
 import { PasswordPolicyError } from '../../src/authentication/usecases/password-policy'
+import { requestTenantId } from './middleware/tenant-middleware'
 import {
   assertCsrf,
   createCsrfToken,
@@ -77,7 +78,7 @@ export function createPasswordResetRoutes(deps: PasswordResetRoutesDeps) {
           emit: deps.emit,
           issuer: deps.issuer,
         },
-        { email },
+        { tenant_id: requestTenantId(c), email },
       )
       // anti-enumeration: 受理を意味する 204 を常に返す。
       return new Response(null, { status: 204, headers: { 'cache-control': 'no-store' } })

@@ -82,6 +82,7 @@ describe('verifyClientAssertion (private_key_jwt)', () => {
     const store = new InMemoryClientAssertionReplayStore()
     const assertion = await makeAssertion()
     const client = await verifyClientAssertion(assertion, repo, {
+      tenantId: 'default',
       audiences: AUDIENCES,
       replayStore: store,
     })
@@ -92,10 +93,12 @@ describe('verifyClientAssertion (private_key_jwt)', () => {
     const { repo, makeAssertion } = await setup()
     const store = new InMemoryClientAssertionReplayStore()
     const assertion = await makeAssertion({ jti: 'fixed-jti' })
-    await verifyClientAssertion(assertion, repo, { audiences: AUDIENCES, replayStore: store })
+    await verifyClientAssertion(assertion, repo, { tenantId: 'default',
+        audiences: AUDIENCES, replayStore: store })
     // 同一トークンの 2 度目
     await expect(
-      verifyClientAssertion(assertion, repo, { audiences: AUDIENCES, replayStore: store }),
+      verifyClientAssertion(assertion, repo, { tenantId: 'default',
+        audiences: AUDIENCES, replayStore: store }),
     ).rejects.toThrow(OAuthError)
   })
 
@@ -105,6 +108,7 @@ describe('verifyClientAssertion (private_key_jwt)', () => {
     const assertion = await makeAssertion()
     await expect(
       verifyClientAssertion(assertion, repo, {
+        tenantId: 'default',
         audiences: ['https://other.example.com'],
         replayStore: store,
       }),
@@ -116,7 +120,8 @@ describe('verifyClientAssertion (private_key_jwt)', () => {
     const store = new InMemoryClientAssertionReplayStore()
     const assertion = await makeAssertion({}, -3600) // exp = now - 1h
     await expect(
-      verifyClientAssertion(assertion, repo, { audiences: AUDIENCES, replayStore: store }),
+      verifyClientAssertion(assertion, repo, { tenantId: 'default',
+        audiences: AUDIENCES, replayStore: store }),
     ).rejects.toThrow(OAuthError)
   })
 
@@ -125,7 +130,8 @@ describe('verifyClientAssertion (private_key_jwt)', () => {
     const store = new InMemoryClientAssertionReplayStore()
     const assertion = await makeAssertion({}, 24 * 3600) // 24h
     await expect(
-      verifyClientAssertion(assertion, repo, { audiences: AUDIENCES, replayStore: store }),
+      verifyClientAssertion(assertion, repo, { tenantId: 'default',
+        audiences: AUDIENCES, replayStore: store }),
     ).rejects.toThrow(OAuthError)
   })
 
@@ -143,7 +149,8 @@ describe('verifyClientAssertion (private_key_jwt)', () => {
       .setExpirationTime(nowSec + 120)
       .sign(privateKey)
     await expect(
-      verifyClientAssertion(assertion, repo, { audiences: AUDIENCES, replayStore: store }),
+      verifyClientAssertion(assertion, repo, { tenantId: 'default',
+        audiences: AUDIENCES, replayStore: store }),
     ).rejects.toThrow(OAuthError)
   })
 
@@ -161,7 +168,8 @@ describe('verifyClientAssertion (private_key_jwt)', () => {
       .setExpirationTime(nowSec + 120)
       .sign(attackerKey)
     await expect(
-      verifyClientAssertion(assertion, repo, { audiences: AUDIENCES, replayStore: store }),
+      verifyClientAssertion(assertion, repo, { tenantId: 'default',
+        audiences: AUDIENCES, replayStore: store }),
     ).rejects.toThrow(OAuthError)
   })
 
@@ -170,7 +178,8 @@ describe('verifyClientAssertion (private_key_jwt)', () => {
     const store = new InMemoryClientAssertionReplayStore()
     const assertion = await makeAssertion({ jti: undefined })
     await expect(
-      verifyClientAssertion(assertion, repo, { audiences: AUDIENCES, replayStore: store }),
+      verifyClientAssertion(assertion, repo, { tenantId: 'default',
+        audiences: AUDIENCES, replayStore: store }),
     ).rejects.toThrow(OAuthError)
   })
 })

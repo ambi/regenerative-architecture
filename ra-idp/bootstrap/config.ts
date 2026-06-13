@@ -11,10 +11,17 @@ export type ObservabilityMode = 'noop' | 'otel'
 
 export interface RuntimeConfig {
   port: number
+  /**
+   * テナント prefix が付かない base issuer (e.g. `https://idp.example.com`)。
+   * 実 issuer は通常 `{issuer}/realms/{tenant_id}` となる (ADR-033 §3)。
+   * `legacyBareIssuer=true` のときは default テナントの bare 経路でこの base が
+   * そのまま `iss` claim になる (1 リリース限定の暫定措置)。
+   */
   issuer: string
   persistenceMode: PersistenceMode
   eventSinkMode: EventSinkMode
   observabilityMode: ObservabilityMode
+  legacyBareIssuer: boolean
 }
 
 export function loadConfig(): RuntimeConfig {
@@ -23,5 +30,6 @@ export function loadConfig(): RuntimeConfig {
   const persistenceMode = (process.env.PERSISTENCE ?? 'memory') as PersistenceMode
   const eventSinkMode = (process.env.EVENT_SINK ?? 'console') as EventSinkMode
   const observabilityMode = (process.env.OBSERVABILITY ?? 'noop') as ObservabilityMode
-  return { port, issuer, persistenceMode, eventSinkMode, observabilityMode }
+  const legacyBareIssuer = process.env.LEGACY_BARE_ISSUER === 'true'
+  return { port, issuer, persistenceMode, eventSinkMode, observabilityMode, legacyBareIssuer }
 }

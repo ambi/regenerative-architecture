@@ -49,6 +49,7 @@ export interface AdminUserDeps {
 
 export interface CreateAdminUserInput {
   actorSub: string
+  tenant_id: string
   preferred_username: string
   password: string
   name?: string
@@ -65,7 +66,7 @@ export async function createAdminUser(
   const username = input.preferred_username.trim()
   if (!username) throw new Error('preferred username is required')
 
-  const existing = await deps.userRepo.findByUsername('default', username)
+  const existing = await deps.userRepo.findByUsername(input.tenant_id, username)
   if (existing) throw new UsernameConflictError(username)
 
   const policy = validatePassword(input.password, {
@@ -79,7 +80,7 @@ export async function createAdminUser(
   const passwordHash = await deps.passwordHasher.hash(input.password)
   const user = UserSchema.parse({
     sub: `user_${randomUUID()}`,
-    tenant_id: 'default',
+    tenant_id: input.tenant_id,
     preferred_username: username,
     password_hash: passwordHash,
     name: input.name,
@@ -126,7 +127,7 @@ export async function updateAdminUser(
     const username = input.preferred_username.trim()
     if (!username) throw new Error('preferred username must not be empty')
     if (username !== user.preferred_username) {
-      const collision = await deps.userRepo.findByUsername('default', username)
+      const collision = await deps.userRepo.findByUsername(user.tenant_id, username)
       if (collision && collision.sub !== user.sub) {
         throw new UsernameConflictError(username)
       }

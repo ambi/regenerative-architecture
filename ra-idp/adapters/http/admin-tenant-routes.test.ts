@@ -69,14 +69,40 @@ async function setup() {
       updated_at: '2024-01-01T00:00:00.000Z',
     }),
   )
+  await tenantRepo.save(
+    TenantSchema.parse({
+      id: 'acme',
+      display_name: 'Acme',
+      status: 'active',
+      created_at: '2024-01-01T00:00:00.000Z',
+    }),
+  )
+  await userRepo.save(
+    UserSchema.parse({
+      sub: 'acme-system-admin',
+      tenant_id: 'acme',
+      preferred_username: 'acmesys',
+      password_hash: 'pw',
+      email: 'acmesys@example.com',
+      email_verified: true,
+      mfa_enrolled: false,
+      roles: ['system_admin'],
+      created_at: '2024-01-01T00:00:00.000Z',
+      updated_at: '2024-01-01T00:00:00.000Z',
+    }),
+  )
 
   const app = new Hono()
   app.route('/', createAdminTenantRoutes({ sessionManager, userRepo, tenantRepo, emit }))
   return { app, sessionManager, tenantRepo, events }
 }
 
-async function sessionFor(sm: LoginSessionManager, sub: string): Promise<string> {
-  const ctx = await sm.create(DEFAULT_TENANT_ID, sub, ['pwd'], new Date())
+async function sessionFor(
+  sm: LoginSessionManager,
+  sub: string,
+  tenant: string = DEFAULT_TENANT_ID,
+): Promise<string> {
+  const ctx = await sm.create(tenant, sub, ['pwd'], new Date())
   return `ra_idp_session=${ctx.session_id}`
 }
 
@@ -95,6 +121,15 @@ describe('GET /admin/tenants', () => {
   it('system_admin でないユーザーは 403', async () => {
     const { app, sessionManager } = await setup()
     const cookie = await sessionFor(sessionManager, 'plain-user')
+    const res = await app.request('http://idp.example.com/admin/tenants', {
+      headers: { cookie },
+    })
+    expect(res.status).toBe(403)
+  })
+
+  it('別テナント発行のセッションを持つ system_admin は 403 (cookie path 漏えい時の defense-in-depth)', async () => {
+    const { app, sessionManager } = await setup()
+    const cookie = await sessionFor(sessionManager, 'acme-system-admin', 'acme')
     const res = await app.request('http://idp.example.com/admin/tenants', {
       headers: { cookie },
     })
@@ -133,11 +168,11 @@ describe('POST /admin/tenants (create)', () => {
     const res = await app.request('http://idp.example.com/admin/tenants', {
       method: 'POST',
       headers: { 'content-type': 'application/json', cookie: cookies, 'X-CSRF-Token': csrf },
-      body: JSON.stringify({ id: 'acme', display_name: 'Acme' }),
+      body: JSON.stringify({ id: 'globex', display_name: 'Globex' }),
     })
     expect(res.status).toBe(201)
-    const persisted = await tenantRepo.findById('acme')
-    expect(persisted?.display_name).toBe('Acme')
+    const persisted = await tenantRepo.findById('globex')
+    expect(persisted?.display_name).toBe('Globex')
     expect(events.some((e) => e.type === 'TenantCreated')).toBe(true)
   })
 

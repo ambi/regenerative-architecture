@@ -22,6 +22,10 @@ import { InMemoryAccessTokenDenylist } from '../adapters/persistence/memory/acce
 import { HmacDpopNonceService } from '../adapters/crypto/hmac-dpop-nonce-service'
 import { NoopBreachedPasswordChecker } from '../adapters/policy/noop-breached-password-checker'
 import { HibpBreachedPasswordChecker } from '../adapters/policy/hibp-breached-password-checker'
+import {
+  InMemoryLoginAttemptThrottle,
+  type LoginThrottleConfigs,
+} from '../adapters/persistence/memory/login-attempt-throttle'
 import { InMemoryClientAssertionReplayStore } from '../adapters/persistence/memory/client-assertion-replay-store'
 import { InMemoryDeviceCodeStore } from '../adapters/persistence/memory/device-code-store'
 import { InMemorySessionStore } from '../adapters/persistence/memory/session-store'
@@ -33,6 +37,7 @@ import type { DpopNonceService } from '../src/oauth2/ports/dpop-nonce-service'
 import type { ClientRepository } from '../src/oauth2/ports/client-repository'
 import type { UserRepository } from '../src/authentication/ports/user-repository'
 import type { BreachedPasswordChecker } from '../src/authentication/ports/breached-password-checker'
+import type { LoginAttemptThrottle } from '../src/authentication/ports/login-attempt-throttle'
 import type { PasswordHistoryRepository } from '../src/authentication/ports/password-history-repository'
 import type { MfaFactorRepository } from '../src/authentication/ports/mfa-factor-repository'
 import type { ConsentRepository } from '../src/oauth2/ports/consent-repository'
@@ -72,12 +77,24 @@ export interface AssembledDeps {
   dpopNonceService: DpopNonceService
   eventSink: EventSink
   collectedConsoleEvents?: ConsoleEventSink
+  loginAttemptThrottle: LoginAttemptThrottle
+  trustedForwardedHops: number
 }
 
 const DPOP_NONCE_TTL_SECONDS = 60
 
+/**
+ * SCL `annotations.login_throttle_policy` の双子値 (ADR-029)。
+ * テナント別ポリシー (Phase 4) で上書き可能になる前提で固定値として置く。
+ */
+const LOGIN_THROTTLE_CONFIGS: LoginThrottleConfigs = {
+  account: { maxFailures: 10, windowSeconds: 900, lockoutSeconds: 900 },
+  ip: { maxFailures: 30, windowSeconds: 900, lockoutSeconds: 900 },
+}
+
 export async function assemble(config: RuntimeConfig): Promise<AssembledDeps> {
   const breachedPasswordChecker = makeBreachedPasswordChecker()
+  const trustedForwardedHops = readTrustedForwardedHops()
   if (config.persistenceMode === 'memory') {
     const consoleSink = new ConsoleEventSink({ collect: true })
     return {
@@ -85,6 +102,8 @@ export async function assemble(config: RuntimeConfig): Promise<AssembledDeps> {
       userRepo: new InMemoryUserRepository(),
       passwordHistoryRepo: new InMemoryPasswordHistoryRepository(),
       breachedPasswordChecker,
+      loginAttemptThrottle: new InMemoryLoginAttemptThrottle(LOGIN_THROTTLE_CONFIGS),
+      trustedForwardedHops,
       mfaFactorRepo: new InMemoryMfaFactorRepository(),
       consentRepo: new InMemoryConsentRepository(),
       requestStore: new InMemoryAuthorizationRequestStore(),
@@ -144,6 +163,9 @@ export async function assemble(config: RuntimeConfig): Promise<AssembledDeps> {
   const { RedisAccessTokenDenylist } = await import(
     '../adapters/persistence/redis/access-token-denylist'
   )
+  const { RedisLoginAttemptThrottle } = await import(
+    '../adapters/persistence/redis/login-attempt-throttle'
+  )
 
   const eventSink: EventSink =
     config.eventSinkMode === 'outbox' ? new PostgresOutboxEventSink(pool) : new ConsoleEventSink()
@@ -153,6 +175,8 @@ export async function assemble(config: RuntimeConfig): Promise<AssembledDeps> {
     userRepo: new PostgresUserRepository(pool),
     passwordHistoryRepo: new PostgresPasswordHistoryRepository(pool),
     breachedPasswordChecker,
+    loginAttemptThrottle: new RedisLoginAttemptThrottle(redis, LOGIN_THROTTLE_CONFIGS),
+    trustedForwardedHops,
     // TOTP factor は Postgres スキーマ未導入のため当面 in-memory。永続化が必要に
     // なった時点で Postgres 実装を追加し、ここで差し替える。
     mfaFactorRepo: new InMemoryMfaFactorRepository(),
@@ -170,6 +194,15 @@ export async function assemble(config: RuntimeConfig): Promise<AssembledDeps> {
     dpopNonceService: makeDpopNonceService(),
     eventSink,
   }
+}
+
+function readTrustedForwardedHops(): number {
+  // ADR-029: デフォルトは 0 (X-Forwarded-For を信頼しない)。
+  // K8s Ingress + Service 1 段なら 1。Cloud LB → Ingress の 2 段なら 2。
+  const raw = process.env.TRUSTED_FORWARDED_HOPS
+  if (!raw) return 0
+  const n = Number.parseInt(raw, 10)
+  return Number.isFinite(n) && n >= 0 ? n : 0
 }
 
 function makeBreachedPasswordChecker(): BreachedPasswordChecker {

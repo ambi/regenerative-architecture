@@ -19,6 +19,10 @@ import { InMemoryClientRepository } from '../persistence/memory/client-repo'
 import { InMemoryConsentRepository } from '../persistence/memory/consent-repo'
 import { InMemorySessionStore } from '../persistence/memory/session-store'
 import { InMemoryUserRepository } from '../persistence/memory/user-repo'
+import {
+  InMemoryLoginAttemptThrottle,
+  type LoginThrottleConfigs,
+} from '../persistence/memory/login-attempt-throttle'
 import { Argon2idPasswordHasher } from '../crypto/argon2id-password-hasher'
 import { LoginSessionManager } from '../../src/authentication/usecases/session-manager'
 import { DemoHeaderResolver } from '../../src/authentication/usecases/demo-header-resolver'
@@ -29,6 +33,14 @@ import {
   type Client,
   type DomainEvent,
 } from '../../src/spec-bindings/schemas'
+
+// テストでは throttle が偶発的に発火しないよう、しきい値を十分大きく取る。
+const TEST_LOGIN_THROTTLE_CONFIGS: LoginThrottleConfigs = {
+  account: { maxFailures: 1000, windowSeconds: 60, lockoutSeconds: 60 },
+  ip: { maxFailures: 1000, windowSeconds: 60, lockoutSeconds: 60 },
+}
+// ADR-029 の sentinel ハッシュ。テスト用に固定の弱いパラメータで 1 度だけ計算する。
+const testSentinelHash = await new Argon2idPasswordHasher(8, 1).hash('sentinel-test-secret')
 
 function makeClient(overrides: Partial<Client> = {}): Client {
   return ClientSchema.parse({
@@ -112,6 +124,9 @@ async function setup() {
       sessionManager,
       continuation: createAuthorizationLoginContinuation(authorizeDeps),
       emit,
+      loginAttemptThrottle: new InMemoryLoginAttemptThrottle(TEST_LOGIN_THROTTLE_CONFIGS),
+      sentinelPasswordHash: testSentinelHash,
+      trustedForwardedHops: 0,
     }),
   )
 

@@ -85,6 +85,7 @@ event_to_topic:
   UserAuthenticated:            oauth2.authentication.v1
   AuthenticationFailed:         oauth2.authentication.v1
   PasswordChanged:              oauth2.authentication.v1
+  LoginThrottled:               oauth2.authentication.v1
   ConsentGranted:               oauth2.consent.v1
   ConsentRevoked:               oauth2.consent.v1
   AuthorizationCodeIssued:      oauth2.authorization-code.v1

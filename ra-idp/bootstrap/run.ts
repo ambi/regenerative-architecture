@@ -7,6 +7,7 @@
 
 import type { Hono } from 'hono'
 
+import { randomBytes } from 'crypto'
 import { Argon2idPasswordHasher } from '../adapters/crypto/argon2id-password-hasher'
 
 import { composeApp } from './app'
@@ -34,7 +35,12 @@ export async function run(): Promise<RunResult> {
     await seedDemoData(deps, passwordHasher)
   }
 
-  const app = composeApp({ config, deps, observer, passwordHasher, emit })
+  // ADR-029: 存在しない username の login 試行でも passwordHasher.verify を回して
+  // タイミング差で存在を漏らさないための sentinel ハッシュ。起動時に 1 度だけ
+  // ランダム種から hash し、以後の verify 呼び出しに使い回す。
+  const sentinelPasswordHash = await passwordHasher.hash(randomBytes(32).toString('hex'))
+
+  const app = composeApp({ config, deps, observer, passwordHasher, emit, sentinelPasswordHash })
   registerShutdownHandlers(config, observer)
   printStartupBanner(config)
 

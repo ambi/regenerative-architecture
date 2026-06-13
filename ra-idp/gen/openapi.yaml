@@ -2084,6 +2084,27 @@ components:
         - type
         - occurredAt
         - sub
+    LoginThrottled:
+      type: object
+      properties:
+        type:
+          const: LoginThrottled
+          type: string
+        occurredAt:
+          type: string
+          format: "date-time"
+        kind:
+          type: string
+        keyHash:
+          type: string
+        retryAfterSeconds:
+          type: integer
+      required:
+        - type
+        - occurredAt
+        - kind
+        - keyHash
+        - retryAfterSeconds
     ConsentGranted:
       type: object
       properties:

@@ -6,9 +6,14 @@
  * a continuation port.
  */
 
+import { createHash } from 'crypto'
 import { Hono } from 'hono'
 import { OAuthError } from '../../src/oauth2/protocol/oauth-error'
 import type { LoginContinuation } from '../../src/authentication/ports/login-continuation'
+import type {
+  LoginAttemptThrottle,
+  LoginThrottleKind,
+} from '../../src/authentication/ports/login-attempt-throttle'
 import {
   SESSION_COOKIE,
   SESSION_TTL_SECONDS,
@@ -25,6 +30,7 @@ import {
   WebSecurityError,
 } from '../../src/shared/web-security'
 import { oauthErrorResponse } from './error-response'
+import { extractClientIp } from './extract-client-ip'
 import { renderShell } from './spa-shell'
 import { noStoreJSON, transactionIdFromCookie } from './browser-transaction'
 
@@ -34,6 +40,10 @@ export interface AuthenticationRoutesDeps {
   sessionManager: SessionManager
   continuation: LoginContinuation
   emit: (e: DomainEvent) => void
+  /** ADR-029。passwordHasher の事前ハッシュ値（constant-time verify 用 sentinel）。 */
+  loginAttemptThrottle: LoginAttemptThrottle
+  sentinelPasswordHash: string
+  trustedForwardedHops: number
 }
 
 export function createAuthenticationRoutes(deps: AuthenticationRoutesDeps) {
@@ -61,11 +71,15 @@ export function createAuthenticationRoutes(deps: AuthenticationRoutesDeps) {
           message: '認可トランザクションがありません',
         })
       }
+      const clientIp = extractClientIp(c.req.raw.headers, {
+        trustedHops: deps.trustedForwardedHops,
+      })
       const response = await completePasswordLogin(
         deps,
         requestId,
         username,
         password,
+        clientIp,
         c.req.header('accept-language'),
         true,
       )
@@ -87,11 +101,15 @@ export function createAuthenticationRoutes(deps: AuthenticationRoutesDeps) {
       const password = String(body.password ?? '')
       assertCsrf(c.req.header('Cookie'), String(body.csrf ?? ''))
 
+      const clientIp = extractClientIp(c.req.raw.headers, {
+        trustedHops: deps.trustedForwardedHops,
+      })
       const response = await completePasswordLogin(
         deps,
         requestId,
         username,
         password,
+        clientIp,
         c.req.header('accept-language'),
         false,
       )
@@ -116,21 +134,48 @@ async function completePasswordLogin(
   requestId: string,
   username: string,
   password: string,
+  clientIp: string | null,
   acceptLanguage?: string,
   browserAPI = false,
 ): Promise<Response> {
+  const normalizedUsername = username.toLowerCase()
+  const now = new Date()
+
+  const accountAcquire = await deps.loginAttemptThrottle.tryAcquire(
+    'account',
+    normalizedUsername,
+    now,
+  )
+  if (!accountAcquire.allowed) {
+    return throttledResponse(accountAcquire.retryAfterSeconds ?? 0, browserAPI)
+  }
+  if (clientIp) {
+    const ipAcquire = await deps.loginAttemptThrottle.tryAcquire('ip', clientIp, now)
+    if (!ipAcquire.allowed) {
+      return throttledResponse(ipAcquire.retryAfterSeconds ?? 0, browserAPI)
+    }
+  }
+
+  // ADR-029: 未存在 user でも sentinel ハッシュで verify を回し、タイミング差で
+  // username の存在有無を漏らさない。
   const user = await deps.userRepo.findByUsername(username)
-  if (!user || !(await deps.passwordHasher.verify(password, user.password_hash))) {
+  const hashToVerify = user?.password_hash ?? deps.sentinelPasswordHash
+  const passwordOk = await deps.passwordHasher.verify(password, hashToVerify)
+
+  if (!user || !passwordOk) {
+    await recordLoginFailure(deps, normalizedUsername, clientIp, now)
     deps.emit({
       type: 'AuthenticationFailed',
-      occurredAt: new Date().toISOString(),
+      occurredAt: now.toISOString(),
       username,
       reason: 'invalid_credentials',
     })
     return loginRequiredResponse(requestId, acceptLanguage)
   }
 
-  const now = new Date()
+  // 成功: per-account のみクリア (ADR-029)。per-IP は時間で自然失効させる。
+  await deps.loginAttemptThrottle.recordSuccess('account', normalizedUsername)
+
   const needsSecondFactor = user.mfa_enrolled
   const context = await deps.sessionManager.create(user.sub, ['pwd'], now, {
     authenticationPending: needsSecondFactor,
@@ -185,6 +230,68 @@ function copySetCookie(from: Response, to: Response): Response {
     to.headers.append('set-cookie', setCookie)
   }
   return to
+}
+
+async function recordLoginFailure(
+  deps: AuthenticationRoutesDeps,
+  normalizedUsername: string,
+  clientIp: string | null,
+  now: Date,
+): Promise<void> {
+  const accountResult = await deps.loginAttemptThrottle.recordFailure(
+    'account',
+    normalizedUsername,
+    now,
+  )
+  if (accountResult.locked) {
+    deps.emit(
+      buildThrottledEvent('account', normalizedUsername, accountResult.retryAfterSeconds, now),
+    )
+  }
+  if (clientIp) {
+    const ipResult = await deps.loginAttemptThrottle.recordFailure('ip', clientIp, now)
+    if (ipResult.locked) {
+      deps.emit(buildThrottledEvent('ip', clientIp, ipResult.retryAfterSeconds, now))
+    }
+  }
+}
+
+function buildThrottledEvent(
+  kind: LoginThrottleKind,
+  key: string,
+  retryAfterSeconds: number | undefined,
+  now: Date,
+): DomainEvent {
+  return {
+    type: 'LoginThrottled',
+    occurredAt: now.toISOString(),
+    kind,
+    keyHash: createHash('sha256').update(key, 'utf8').digest('hex'),
+    retryAfterSeconds: retryAfterSeconds ?? 0,
+  }
+}
+
+function throttledResponse(retryAfterSeconds: number, browserAPI: boolean): Response {
+  const headers: Record<string, string> = {
+    'retry-after': String(retryAfterSeconds),
+    'cache-control': 'no-store',
+  }
+  if (browserAPI) {
+    return new Response(
+      JSON.stringify({
+        error: 'too_many_requests',
+        retry_after_seconds: retryAfterSeconds,
+      }),
+      {
+        status: 429,
+        headers: { ...headers, 'content-type': 'application/json; charset=UTF-8' },
+      },
+    )
+  }
+  return new Response('Too Many Requests\n', {
+    status: 429,
+    headers: { ...headers, 'content-type': 'text/plain; charset=UTF-8' },
+  })
 }
 
 export function loginRequiredResponse(requestId: string, acceptLanguage?: string): Response {

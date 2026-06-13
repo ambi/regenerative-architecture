@@ -14,7 +14,7 @@ components:
   Authentication:
     description: ユーザー認証、パスワード検証、ブラウザログインセッション、AuthenticationContext 復元を所有する。
     owns_models: [User, LoginSession, BrowserLoginRequest, BrowserTotpRequest, BrowserChangePasswordRequest, MfaFactor, MfaFactorType, AuthenticationContext]
-    owns_events: [UserAuthenticated, AuthenticationFailed, PasswordChanged]
+    owns_events: [UserAuthenticated, AuthenticationFailed, PasswordChanged, LoginThrottled]
     owns_interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, ChangePassword]
   OAuth2:
     description: OAuth 2.0 / OIDC の認可判断、同意、コード・トークン発行、RP-Initiated Logout endpoint を所有する。
@@ -1731,6 +1731,16 @@ models:
       occurredAt:   { type: Timestamp }
       sub:          { type: String }
 
+  LoginThrottled:
+    kind: event
+    description: ログイン試行が per-account / per-IP のスロットリング閾値に到達してロックされた (ADR-029)。SIEM の credential stuffing / brute-force 検知の入力イベント。keyHash は username / IP の SHA-256 で、平文を audit log に流さない。
+    annotations: { component: Authentication }
+    payload:
+      occurredAt:        { type: Timestamp }
+      kind:              { type: String, description: "account または ip" }
+      keyHash:           { type: String, description: "username (lowercased) または IP の SHA-256 hex" }
+      retryAfterSeconds: { type: Integer }
+
   ConsentGranted:
     kind: event
     description: ResourceOwner がクライアントに対する scope の同意を与えた (GDPR Art.6 法的根拠の取得記録)。
@@ -3290,6 +3300,25 @@ annotations:
     forbid_user_identifier_similarity: true
     common_password_dictionary: bundled
     history_depth: 5
+
+  login_throttle_policy:
+    description: |
+      ログイン試行のスロットリング閾値 (ADR-029)。per-account と per-IP を独立に
+      カウントし、いずれかが window 内に max_failures に達した時点で lockout_seconds
+      の間 429 を返す。username は lowercased、IP は trusted_forwarded_hops の方針で
+      解決した結果を SHA-256 でハッシュした上で keyHash に載せる。
+      X-Forwarded-For はデフォルトでは信頼せず、TRUSTED_FORWARDED_HOPS 環境変数
+      (= trusted_forwarded_hops_env) で明示 opt-in する。本値は将来テナント別ポリシー
+      (Phase 4) で上書き可能になる前提で構造化している。詳細は ADR-029。
+    per_account:
+      max_failures:    10
+      window_seconds:  900
+      lockout_seconds: 900
+    per_ip:
+      max_failures:    30
+      window_seconds:  900
+      lockout_seconds: 900
+    trusted_forwarded_hops_env: TRUSTED_FORWARDED_HOPS
 
   acr_vocabulary:
     description: |

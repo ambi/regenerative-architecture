@@ -43,10 +43,11 @@ export interface ComposeAppInput {
   observer: Observer
   passwordHasher: Argon2idPasswordHasher
   emit: (event: DomainEvent) => void
+  sentinelPasswordHash: string
 }
 
 export function composeApp(input: ComposeAppInput): Hono {
-  const { config, deps, observer, passwordHasher, emit } = input
+  const { config, deps, observer, passwordHasher, emit, sentinelPasswordHash } = input
 
   const tokenSigner = new JoseTokenSigner(config.issuer, deps.keyStore)
   const sessionManager = new LoginSessionManager(deps.sessionStore)
@@ -84,6 +85,9 @@ export function composeApp(input: ComposeAppInput): Hono {
       sessionManager,
       continuation: createAuthorizationLoginContinuation(authorizeRouteDeps),
       emit,
+      loginAttemptThrottle: deps.loginAttemptThrottle,
+      sentinelPasswordHash,
+      trustedForwardedHops: deps.trustedForwardedHops,
     }),
   )
   app.route(

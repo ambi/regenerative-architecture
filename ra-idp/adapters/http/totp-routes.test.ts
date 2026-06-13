@@ -21,6 +21,10 @@ import { InMemoryConsentRepository } from '../persistence/memory/consent-repo'
 import { InMemoryMfaFactorRepository } from '../persistence/memory/mfa-factor-repo'
 import { InMemorySessionStore } from '../persistence/memory/session-store'
 import { InMemoryUserRepository } from '../persistence/memory/user-repo'
+import {
+  InMemoryLoginAttemptThrottle,
+  type LoginThrottleConfigs,
+} from '../persistence/memory/login-attempt-throttle'
 import { Argon2idPasswordHasher } from '../crypto/argon2id-password-hasher'
 import { LoginSessionManager } from '../../src/authentication/usecases/session-manager'
 import { generateTotp } from '../../src/authentication/usecases/totp'
@@ -34,6 +38,12 @@ import {
 } from '../../src/spec-bindings/schemas'
 
 const TOTP_SECRET = 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ'
+
+const TEST_LOGIN_THROTTLE_CONFIGS: LoginThrottleConfigs = {
+  account: { maxFailures: 1000, windowSeconds: 60, lockoutSeconds: 60 },
+  ip: { maxFailures: 1000, windowSeconds: 60, lockoutSeconds: 60 },
+}
+const testSentinelHash = await new Argon2idPasswordHasher(8, 1).hash('sentinel-test-secret')
 
 function makeClient(overrides: Partial<Client> = {}): Client {
   return ClientSchema.parse({
@@ -129,6 +139,9 @@ async function setup(options: { mfaEnrolled?: boolean; prefillConsent?: boolean 
       sessionManager,
       continuation: createAuthorizationLoginContinuation(authorizeDeps),
       emit,
+      loginAttemptThrottle: new InMemoryLoginAttemptThrottle(TEST_LOGIN_THROTTLE_CONFIGS),
+      sentinelPasswordHash: testSentinelHash,
+      trustedForwardedHops: 0,
     }),
   )
   app.route(

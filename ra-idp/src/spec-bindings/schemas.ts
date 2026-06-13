@@ -321,6 +321,13 @@ export const DomainEventSchema = z.discriminatedUnion('type', [
     sub: z.string(),
   }),
   z.object({
+    type: z.literal('LoginThrottled'),
+    occurredAt: isoDate,
+    kind: z.enum(['account', 'ip']),
+    keyHash: z.string(),
+    retryAfterSeconds: z.number().int().nonnegative(),
+  }),
+  z.object({
     type: z.literal('ConsentGranted'),
     occurredAt: isoDate,
     sub: z.string(),

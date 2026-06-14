@@ -38,6 +38,64 @@ func newServer(t *testing.T) *httptest.Server {
 	return newServerWithTOTP(t, "")
 }
 
+// newServerWithUserAccess は newServerWithTOTP と同等のスタックを組みつつ、
+// テストから user 状態を直接 mutate するため UserRepository を返す。
+// disable / lifecycle 関連のテスト専用。
+func newServerWithUserAccess(t *testing.T) (*httptest.Server, *memory.UserRepository) {
+	t.Helper()
+	clientRepo := memory.NewClientRepository()
+	userRepo := memory.NewUserRepository()
+	mfaFactorRepo := memory.NewMfaFactorRepository()
+	passwordHistoryRepo := memory.NewPasswordHistoryRepository()
+	requestStore := memory.NewAuthorizationRequestStore()
+	codeStore := memory.NewAuthorizationCodeStore()
+	hasher := crypto.NewArgon2idPasswordHasher()
+
+	secretHash := domain.HashClientSecret(demoClientSecret)
+	clientRepo.Seed(&spec.Client{
+		ClientID: demoClientID, ClientSecretHash: &secretHash, ClientType: spec.ClientConfidential,
+		RedirectURIs: []string{demoRedirectURI},
+		GrantTypes: []spec.GrantType{
+			spec.GrantAuthorizationCode, spec.GrantRefreshToken,
+		},
+		ResponseTypes:            []spec.ResponseType{spec.ResponseTypeCode},
+		TokenEndpointAuthMethod:  spec.AuthMethodClientSecretBasic,
+		Scope:                    "openid profile email offline_access",
+		IDTokenSignedResponseAlg: spec.SigAlgPS256,
+		FapiProfile:              spec.FapiNone,
+		CreatedAt:                time.Now().UTC(),
+	})
+	hash, err := hasher.Hash(demoPassword)
+	if err != nil {
+		t.Fatalf("seed password: %v", err)
+	}
+	email := "alice@example.com"
+	now := time.Now().UTC()
+	userRepo.Seed(&spec.User{
+		Sub: "user_alice", PreferredUsername: demoUsername, PasswordHash: hash,
+		Email: &email, EmailVerified: true,
+		CreatedAt: now, UpdatedAt: now,
+	})
+
+	keyStore, err := crypto.NewInMemoryKeyStore()
+	if err != nil {
+		t.Fatalf("key store: %v", err)
+	}
+	tokenIssuer := crypto.NewJWTSigner("http://test", keyStore)
+	sessionManager := authusecases.NewSessionManager(memory.NewSessionStore())
+	e := echo.New()
+	httpadapter.Register(e, httpadapter.Deps{
+		Issuer:     "http://test",
+		ClientRepo: clientRepo, UserRepo: userRepo, ConsentRepo: memory.NewConsentRepository(),
+		MfaFactorRepo: mfaFactorRepo, PasswordHistoryRepo: passwordHistoryRepo,
+		RequestStore: requestStore, CodeStore: codeStore, PARStore: memory.NewPARStore(),
+		RefreshStore: memory.NewRefreshTokenStore(), DeviceCodeStore: memory.NewDeviceCodeStore(),
+		KeyStore: keyStore, TokenIssuer: tokenIssuer, TokenIntrospector: tokenIssuer,
+		PasswordHasher: hasher, SessionManager: sessionManager, AuthnResolver: sessionManager,
+	})
+	return httptest.NewServer(e), userRepo
+}
+
 func newServerWithTOTP(t *testing.T, totpSecret string) *httptest.Server {
 	t.Helper()
 
@@ -169,6 +227,10 @@ func TestBrowserAuthorizationFlowUsesCookiesAndJSONAPI(t *testing.T) {
 	code := redirectTo.Query().Get("code")
 	if code == "" || redirectTo.Query().Get("state") != state {
 		t.Fatalf("invalid authorization redirect: %s", redirectTo)
+	}
+	// RFC 9207 §2: authorization response に iss を必ず含める。
+	if got, want := redirectTo.Query().Get("iss"), "http://test/realms/default"; got != want {
+		t.Fatalf("authorization redirect iss=%q, want %q", got, want)
 	}
 
 	tokenForm := url.Values{
@@ -460,6 +522,65 @@ func TestChangePasswordReturnsViolationsForPolicyError(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("violations=%v, want to include too_short", body.Violations)
+	}
+}
+
+// SCL シナリオ "無効化されたユーザーはログインできない" / "既存セッションは利用できない"。
+// memory user repo に直接 disable を書き戻して、その後のフローを観測する。
+func TestDisabledUserLoginAndExistingSessionAreRejected(t *testing.T) {
+	srv, repo := newServerWithUserAccess(t)
+	defer srv.Close()
+	client := browserClient(t)
+
+	// 通常ログインを成立させてセッション cookie を取得。
+	resp := startAuthorization(t, client, srv.URL, "verifier-for-disable-user-test-12345678901234567", "state")
+	resp.Body.Close()
+	transaction := getJSON[struct {
+		Kind      string `json:"kind"`
+		CSRFToken string `json:"csrf_token"`
+	}](t, client, srv.URL+"/api/auth/transaction")
+	postJSON[map[string]string](t, client, srv.URL+"/api/auth/login", transaction.CSRFToken, map[string]string{
+		"username": demoUsername, "password": demoPassword,
+	})
+
+	// user を disable。
+	user, err := repo.FindBySub(context.Background(), "user_alice")
+	if err != nil || user == nil {
+		t.Fatalf("seed lookup: user=%v err=%v", user, err)
+	}
+	now := time.Now().UTC()
+	user.DisabledAt = &now
+	if err := repo.Save(context.Background(), user); err != nil {
+		t.Fatalf("disable: %v", err)
+	}
+
+	// 既存セッションでの認証必須 API は 401 authentication_required。
+	resp, err = client.Get(srv.URL + "/api/auth/account")
+	if err != nil {
+		t.Fatalf("GET /api/auth/account after disable: %v", err)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized ||
+		!bytes.Contains(body, []byte(`"error":"authentication_required"`)) {
+		t.Fatalf("post-disable /account: status=%d body=%s", resp.StatusCode, body)
+	}
+
+	// 新規ログインも拒否される。
+	payload, _ := json.Marshal(map[string]string{"username": demoUsername, "password": demoPassword})
+	req, _ := http.NewRequest(http.MethodPost, srv.URL+"/api/auth/login", bytes.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Origin", "http://test")
+	req.Header.Set("X-CSRF-Token", transaction.CSRFToken)
+	resp, err = client.Do(req)
+	if err != nil {
+		t.Fatalf("POST /api/auth/login after disable: %v", err)
+	}
+	body, _ = io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized ||
+		!bytes.Contains(body, []byte(`"error":"invalid_credentials"`)) {
+		t.Fatalf("post-disable login: status=%d body=%s", resp.StatusCode, body)
 	}
 }
 

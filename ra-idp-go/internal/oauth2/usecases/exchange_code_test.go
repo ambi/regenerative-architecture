@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
+	"errors"
 	"testing"
 	"time"
 
@@ -14,15 +15,17 @@ import (
 )
 
 type fakeTokenIssuer struct {
-	idTokenCalls int
+	idTokenCalls     int
+	lastIDTokenInput ports.IDTokenInput
 }
 
 func (f *fakeTokenIssuer) SignAccessToken(context.Context, ports.AccessTokenInput) (string, string, error) {
 	return "access-token", "jti-1", nil
 }
 
-func (f *fakeTokenIssuer) SignIDToken(context.Context, ports.IDTokenInput) (string, error) {
+func (f *fakeTokenIssuer) SignIDToken(_ context.Context, in ports.IDTokenInput) (string, error) {
 	f.idTokenCalls++
+	f.lastIDTokenInput = in
 	return "id-token", nil
 }
 
@@ -144,6 +147,53 @@ func TestExchangeCodeReplayRevokesRefreshFamily(t *testing.T) {
 	}
 	if rec == nil || !rec.Revoked {
 		t.Fatal("refresh family was not revoked")
+	}
+}
+
+func TestExchangeCodeRejectsExpiredCode(t *testing.T) {
+	// SCL invariant AuthorizationCodeTtl (60s)。expires_at を過去にしたコードは
+	// invalid_grant で拒否され、family があれば失効する (RFC 9700 §4.10)。
+	f := newExchangeFixture(t, []string{"openid"})
+	f.code.IssuedAt = time.Now().Add(-90 * time.Second).UTC()
+	f.code.ExpiresAt = time.Now().Add(-30 * time.Second).UTC()
+	if err := f.codeStore.Save(context.Background(), f.code); err != nil {
+		t.Fatal(err)
+	}
+	_, err := ExchangeCodeForToken(
+		context.Background(),
+		f.deps,
+		exchangeInput("verifier-of-sufficient-length-ABCDEFGHIJKLMNOPQRSTUVWXYZ"),
+	)
+	if err == nil {
+		t.Fatal("expected invalid_grant for expired code")
+	}
+	var oe *OAuthError
+	if !errors.As(err, &oe) || oe.Code != "invalid_grant" {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestExchangeCodePropagatesNonceToIDToken(t *testing.T) {
+	// OIDC Core §3.1.2.1。認可リクエストの nonce は ID トークンに伝播する。
+	f := newExchangeFixture(t, []string{"openid"})
+	nonce := "n-12345"
+	f.code.Nonce = &nonce
+	if err := f.codeStore.Save(context.Background(), f.code); err != nil {
+		t.Fatal(err)
+	}
+	out, err := ExchangeCodeForToken(
+		context.Background(),
+		f.deps,
+		exchangeInput("verifier-of-sufficient-length-ABCDEFGHIJKLMNOPQRSTUVWXYZ"),
+	)
+	if err != nil {
+		t.Fatalf("unexpected: %v", err)
+	}
+	if out.IDToken == "" {
+		t.Fatal("id_token must be issued for openid scope")
+	}
+	if f.issuer.lastIDTokenInput.Nonce == nil || *f.issuer.lastIDTokenInput.Nonce != nonce {
+		t.Fatalf("nonce not propagated to id_token: got %v", f.issuer.lastIDTokenInput.Nonce)
 	}
 }
 

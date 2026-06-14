@@ -28,5 +28,9 @@ func TestDiscoveryRoutesIncludeRFC8414Alias(t *testing.T) {
 		if !bytes.Contains(rec.Body.Bytes(), []byte(`"acr_values_supported"`)) {
 			t.Fatalf("%s omitted acr_values_supported", path)
 		}
+		// RFC 9207 §3。authorization_response_iss_parameter_supported を必ず広告する。
+		if !bytes.Contains(rec.Body.Bytes(), []byte(`"authorization_response_iss_parameter_supported":true`)) {
+			t.Fatalf("%s omitted authorization_response_iss_parameter_supported", path)
+		}
 	}
 }

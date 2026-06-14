@@ -98,6 +98,11 @@ func Run() error {
 		if err := deps.EventSink.Emit(eventCtx, event); err != nil {
 			log.Printf("event sink: %v", err)
 		}
+		if deps.AuditEventRepo != nil {
+			if rec, err := newAuditEventRecord(event); err == nil {
+				_ = deps.AuditEventRepo.Append(eventCtx, rec)
+			}
+		}
 	}
 	httpadapter.Register(e, httpadapter.Deps{
 		Issuer: issuer, SCL: sclDoc,
@@ -109,7 +114,8 @@ func Run() error {
 		DpopReplayStore: deps.DpopReplay, ClientAssertionReplayStore: deps.ClientAssertionReplay,
 		AccessTokenDenylist: deps.AccessTokenDenylist,
 		KeyStore:            deps.KeyStore, TokenIssuer: tokenSigner, TokenIntrospector: tokenSigner,
-		Authorizer: authorizer, JWKResolver: jwkResolver,
+		AuditEventRepo: deps.AuditEventRepo,
+		Authorizer:     authorizer, JWKResolver: jwkResolver,
 		PasswordHasher: hasher, MfaFactorRepo: deps.MfaFactorRepo, PasswordHistoryRepo: deps.PasswordHistoryRepo,
 		PasswordResetTokenStore: deps.PasswordResetTokenStore,
 		EmailSender:             notification.ConsoleEmailSender{},

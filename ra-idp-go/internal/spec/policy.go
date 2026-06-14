@@ -97,6 +97,7 @@ const (
 	ActionAdminClientsManage          = "admin:clients_manage"
 	ActionAdminConsentsManage         = "admin:consents_manage"
 	ActionAdminTenantsManage          = "admin:tenants_manage"
+	ActionAdminAuditEventsRead        = "admin:audit_events_read"
 )
 
 // PascalCase (SCL permissions のキー) → AuthZ action 名。
@@ -115,6 +116,7 @@ var actionNameMapping = map[string]string{
 	"AdminClientsManage":          ActionAdminClientsManage,
 	"AdminConsentsManage":         ActionAdminConsentsManage,
 	"AdminTenantsManage":          ActionAdminTenantsManage,
+	"AdminAuditEventsRead":        ActionAdminAuditEventsRead,
 }
 
 var actionRules = map[string][]string{
@@ -154,6 +156,9 @@ var actionRules = map[string][]string{
 	},
 	ActionAdminTenantsManage: {
 		"actor_is_system_admin", "actor_is_control_plane_user", "actor_is_active", "actor_is_authenticated",
+	},
+	ActionAdminAuditEventsRead: {
+		"actor_is_admin_or_system_admin", "actor_is_active", "actor_is_authenticated",
 	},
 }
 
@@ -222,6 +227,13 @@ var ruleEvaluators = map[string]ruleEvaluator{
 	"actor_and_resource_share_tenant": func(r AuthZRequest) bool {
 		return r.Subject.Type == "User" && r.Subject.Properties.TenantID != "" &&
 			r.Subject.Properties.TenantID == r.Resource.Properties.TenantID
+	},
+	"actor_is_admin_or_system_admin": func(r AuthZRequest) bool {
+		if r.Subject.Type != "User" {
+			return false
+		}
+		return slices.Contains(r.Subject.Properties.Roles, "admin") ||
+			slices.Contains(r.Subject.Properties.Roles, "system_admin")
 	},
 }
 

@@ -36,6 +36,7 @@ type Deps struct {
 	KeyStore                   oauthports.KeyStore
 	TokenIssuer                oauthports.TokenIssuer
 	TokenIntrospector          oauthports.TokenIntrospector
+	AuditEventRepo             oauthports.AuditEventRepository
 	Authorizer                 oauthports.Authorizer
 	JWKResolver                *crypto.JWKResolver
 	PasswordHasher             authports.PasswordHasher
@@ -122,4 +123,6 @@ func registerTenantRoutes(g *echo.Group, d Deps) {
 	g.GET("/api/admin/consents", d.handleListAdminConsents)
 	g.GET("/api/admin/consents/:sub/:client_id", d.handleGetAdminConsent)
 	g.DELETE("/api/admin/consents/:sub/:client_id", d.handleRevokeAdminConsent)
+	g.GET("/api/admin/audit_events", d.handleListAdminAuditEvents)
+	g.GET("/api/admin/audit_events/:id", d.handleGetAdminAuditEvent)
 }

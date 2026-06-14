@@ -71,13 +71,16 @@ components:
       - { component: Trust, reason: 署名は SigningKey 集合から取得し、proof verification は公開鍵集合に依存する。 }
 
   Trust:
-    description: 署名鍵、JWKS、Discovery、Authorization Server Metadata の公開、健全性報告、監査保管といった信頼基盤を所有する。
-    owns_models: [SigningKey, SigningKeyState, JWK, JWKS, DiscoveryDocument, SignatureAlgorithm, Uri]
+    description: 署名鍵、JWKS、Discovery、Authorization Server Metadata の公開、健全性報告、監査保管といった信頼基盤を所有する。監査保管としては DomainEvent の読み出し管理 API も含む。
+    owns_models: [SigningKey, SigningKeyState, JWK, JWKS, DiscoveryDocument, SignatureAlgorithm, Uri, AuditEventQuery, AdminAuditEventResponse, AdminAuditEventListResponse]
     owns_states: [SigningKeyLifecycle]
     owns_events: [SigningKeyRotated]
-    owns_interfaces: [GetJwks, GetOpenidConfiguration, GetOauthAuthorizationServer, Health]
+    owns_interfaces: [GetJwks, GetOpenidConfiguration, GetOauthAuthorizationServer, Health, ListAdminAuditEvents, GetAdminAuditEvent]
     owns_invariants: [SigningKeyMaxAge]
+    owns_permissions: [AdminAuditEventsRead]
     owns_objectives: [JwksLatency, DiscoveryLatency, JwksErrorRate, DiscoveryErrorRate, OverallAvailability, SigningKeyMaxAge, SigningKeyMinJwksOverlap, SigningKeyArchiveRetention, AuditLogRetention]
+    depends_on:
+      - { component: Tenancy, reason: 監査イベント読み出しはテナント境界内に閉じ、system_admin だけが全テナントを横断する。 }
 
 # =================================================================
 # 0. standards — 適用する外部標準と規範要件
@@ -1744,6 +1747,40 @@ models:
     fields:
       consents: { type: "AdminConsentResponse[]" }
 
+  AuditEventQuery:
+    kind: value_object
+    description: |
+      ListAdminAuditEvents のクエリパラメータ。tenant_id は context から付与されるため
+      フィールドには含めない。type は SCL events セクションの型名。
+    annotations: { component: Trust }
+    fields:
+      type:    { type: String, optional: true, description: "完全一致フィルタ。例: AccessTokenIssued" }
+      sub:     { type: String, optional: true, description: "対象ユーザー sub の完全一致フィルタ。" }
+      after:   { type: Timestamp, optional: true, description: "occurred_at がこの時刻以降。" }
+      before:  { type: Timestamp, optional: true, description: "occurred_at がこの時刻以前。" }
+      limit:   { type: Integer, optional: true, description: "返却件数の上限 (default 100, max 1000)。" }
+
+  AdminAuditEventResponse:
+    kind: value_object
+    description: |
+      管理者向けに公開する DomainEvent。payload は構造化 JSON。
+      返却時に PII フィールド (email / IP 等) は EventSink 側で redact 済み前提。
+    annotations: { component: Trust }
+    fields:
+      id:          { type: String,    description: "ストア側で割り当てたイベント ID (UUIDv4)。" }
+      tenant_id:   { type: String,    description: "イベントが帰属するテナント ID。" }
+      type:        { type: String,    description: "DomainEvent.type ワイヤ名。" }
+      occurred_at: { type: Timestamp }
+      payload:     { type: JSON,      description: "イベント本体 (SCL events セクションの payload 形状)。" }
+
+  AdminAuditEventListResponse:
+    kind: value_object
+    description: 監査イベントの検索結果。
+    annotations: { component: Trust }
+    fields:
+      events:        { type: "AdminAuditEventResponse[]" }
+      next_after:    { type: Timestamp, optional: true, description: "ページング継続用カーソル。" }
+
   TokenRequest:
     kind: value_object
     description: application/x-www-form-urlencoded で送信される token endpoint リクエスト。
@@ -2764,6 +2801,31 @@ interfaces:
     emits: [ConsentRevoked]
     bindings:
       - { kind: http, method: DELETE, path: "/admin/consents/{sub}/{client_id}", successful_status_codes: ["204"] }
+
+  ListAdminAuditEvents:
+    description: |
+      管理者が所属テナントの監査用 DomainEvent を時系列降順で取得する。SOC / コンプライアンス
+      用途を想定し、ページング (after / before / limit) と type / sub による絞り込みを提供する。
+      system_admin であれば default tenant 経路から全テナント横断、admin は所属テナント内に閉じる。
+    input:
+      query: { type: AuditEventQuery }
+    output:
+      response: { type: AdminAuditEventListResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: /api/admin/audit_events }
+
+  GetAdminAuditEvent:
+    description: 管理者が監査イベント 1 件を ID で取得する。別テナントのイベントは未存在として扱う。
+    input:
+      id: { type: String }
+    output:
+      event: { type: AdminAuditEventResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: "/api/admin/audit_events/{id}" }
 
   ResolveTenant:
     description: |
@@ -3809,6 +3871,20 @@ permissions:
       and:
         - "system_admin in actor.roles"
         - 'actor.tenant_id == "default"'
+        - "actor.disabled_at == null"
+        - "context.authenticated == true"
+
+  AdminAuditEventsRead:
+    description: |
+      管理者による所属テナントの監査イベント読み出し。admin は所属テナントに閉じ、
+      system_admin は default tenant 経路から全テナント横断的に参照できる。
+      書き込みエンドポイントは存在しないため Read のみ。
+    actor: User
+    action: AdminAuditEventsRead
+    resource: AdminAuditEventResponse
+    allow_when:
+      and:
+        - "(admin in actor.roles) or (system_admin in actor.roles)"
         - "actor.disabled_at == null"
         - "context.authenticated == true"
 

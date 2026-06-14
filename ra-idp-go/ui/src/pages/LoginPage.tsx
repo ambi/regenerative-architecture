@@ -93,12 +93,7 @@ export function LoginPage({ csrfToken }: LoginPageData) {
             </div>
 
             <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">パスワード</Label>
-                <a className="text-xs font-medium text-blue-700 hover:underline" href="/forgot_password">
-                  パスワードを忘れた場合
-                </a>
-              </div>
+              <Label htmlFor="password">パスワード</Label>
               <div className="relative">
                 <IconLock
                   aria-hidden="true"
@@ -135,6 +130,12 @@ export function LoginPage({ csrfToken }: LoginPageData) {
               {submitting ? '確認しています…' : 'ログインして続行'}
               <IconArrowRight size={18} aria-hidden="true" />
             </Button>
+
+            <div className="flex justify-center">
+              <a className="text-xs font-medium text-blue-700 hover:underline" href="/forgot_password">
+                パスワードを忘れた場合
+              </a>
+            </div>
           </div>
         </form>
 

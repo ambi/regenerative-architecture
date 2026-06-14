@@ -44,7 +44,7 @@ func (d Deps) handleToken(c *echo.Context) error {
 	// DPoP 検証 (任意)
 	var dpopJKT string
 	if proof := c.Request().Header.Get("DPoP"); proof != "" && d.DpopReplayStore != nil {
-		htu := requestIssuer(c, d.Issuer) + "/token"
+		htu := requestHTU(c, d.Issuer)
 		r, err := crypto.VerifyDPoP(c.Request().Context(), proof, "POST", htu, d.DpopReplayStore, time.Now().UTC())
 		if err != nil {
 			return writeOAuthError(c, usecases.NewOAuthError("invalid_dpop_proof", err.Error()))

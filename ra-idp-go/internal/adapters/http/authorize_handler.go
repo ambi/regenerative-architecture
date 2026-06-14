@@ -482,7 +482,7 @@ func (d Deps) handleConsentAPI(c *echo.Context) error {
 	if input.Action != "allow" {
 		_ = d.RequestStore.UpdateState(c.Request().Context(), req.ID, spec.AuthFlowRejected)
 		d.clearTransactionCookie(c)
-		return noStoreJSON(c, http.StatusOK, browserFlowResponse{RedirectTo: authorizationErrorURL(req, "access_denied", "")})
+		return noStoreJSON(c, http.StatusOK, browserFlowResponse{RedirectTo: authorizationErrorURL(req, requestIssuer(c, d.Issuer), "access_denied", "")})
 	}
 
 	scopes := strings.Fields(req.Scope)
@@ -568,6 +568,7 @@ func (d Deps) issueCodeURL(
 	sub string,
 	authTime time.Time,
 ) (string, error) {
+	iss := requestIssuer(c, d.Issuer)
 	out, err := usecases.CompleteLogin(c.Request().Context(), usecases.CompleteLoginDeps{
 		RequestStore: d.RequestStore,
 		CodeStore:    d.CodeStore,
@@ -581,7 +582,7 @@ func (d Deps) issueCodeURL(
 	if err != nil {
 		var oauthErr *usecases.OAuthError
 		if errors.As(err, &oauthErr) {
-			return authorizationErrorURL(req, oauthErr.Code, oauthErr.Description), nil
+			return authorizationErrorURL(req, iss, oauthErr.Code, oauthErr.Description), nil
 		}
 		return "", err
 	}
@@ -597,6 +598,8 @@ func (d Deps) issueCodeURL(
 	if out.Request.StateParam != nil {
 		query.Set("state", *out.Request.StateParam)
 	}
+	// RFC 9207 §2: Authorization Server Issuer Identification (mix-up 攻撃対策)。
+	query.Set("iss", iss)
 	u.RawQuery = query.Encode()
 	return u.String(), nil
 }
@@ -608,7 +611,7 @@ func stringValue(value *string) string {
 	return *value
 }
 
-func authorizationErrorURL(req *spec.AuthorizationRequest, code, description string) string {
+func authorizationErrorURL(req *spec.AuthorizationRequest, iss, code, description string) string {
 	u, _ := url.Parse(req.RedirectURI)
 	query := u.Query()
 	query.Set("error", code)
@@ -617,6 +620,10 @@ func authorizationErrorURL(req *spec.AuthorizationRequest, code, description str
 	}
 	if req.StateParam != nil {
 		query.Set("state", *req.StateParam)
+	}
+	// RFC 9207 §2: error response も含めて iss を必須にする。
+	if iss != "" {
+		query.Set("iss", iss)
 	}
 	u.RawQuery = query.Encode()
 	return u.String()

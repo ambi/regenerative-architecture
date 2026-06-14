@@ -76,6 +76,8 @@ func (s *SCL) BuildDiscoveryDocument(issuer string) (map[string]any, error) {
 	doc["require_pushed_authorization_requests"] = false
 	doc["require_pkce"] = true
 	doc["tls_client_certificate_bound_access_tokens"] = true
+	// RFC 9207 §3。AS は authorize response に iss を必ず付与する。
+	doc["authorization_response_iss_parameter_supported"] = true
 	doc["claims_supported"] = s.discoveryDefault("claims_supported")
 	doc["acr_values_supported"] = s.discoveryDefault("acr_values_supported")
 	doc["service_documentation"] = issuer + "/docs"

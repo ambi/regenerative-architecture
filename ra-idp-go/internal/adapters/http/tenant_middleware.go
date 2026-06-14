@@ -75,6 +75,13 @@ func requestIssuer(c *echo.Context, fallback string) string {
 	return tenancy.Issuer(c.Request().Context(), fallback)
 }
 
+// requestHTU は DPoP proof の htu (RFC 9449 §4.2) として用いる、
+// クエリ・フラグメント無しの絶対 URL を返す。
+// テナント prefix `/realms/{id}` を含むパスでもクライアントが送ったままに復元する。
+func requestHTU(c *echo.Context, base string) string {
+	return strings.TrimRight(base, "/") + c.Request().URL.Path
+}
+
 func tenantRoute(c *echo.Context, path string) string {
 	if prefix := tenancy.URLPrefix(c.Request().Context()); prefix != "" {
 		return prefix + path

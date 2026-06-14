@@ -125,4 +125,7 @@ func registerTenantRoutes(g *echo.Group, d Deps) {
 	g.DELETE("/api/admin/consents/:sub/:client_id", d.handleRevokeAdminConsent)
 	g.GET("/api/admin/audit_events", d.handleListAdminAuditEvents)
 	g.GET("/api/admin/audit_events/:id", d.handleGetAdminAuditEvent)
+	g.GET("/api/admin/keys", d.handleListAdminKeys)
+	g.GET("/api/admin/keys/:kid", d.handleGetAdminKey)
+	g.POST("/api/admin/keys/rotate", d.handleRotateAdminKey)
 }

@@ -98,6 +98,8 @@ const (
 	ActionAdminConsentsManage         = "admin:consents_manage"
 	ActionAdminTenantsManage          = "admin:tenants_manage"
 	ActionAdminAuditEventsRead        = "admin:audit_events_read"
+	ActionAdminKeysRead               = "admin:keys_read"
+	ActionAdminKeysRotate             = "admin:keys_rotate"
 )
 
 // PascalCase (SCL permissions のキー) → AuthZ action 名。
@@ -117,6 +119,8 @@ var actionNameMapping = map[string]string{
 	"AdminConsentsManage":         ActionAdminConsentsManage,
 	"AdminTenantsManage":          ActionAdminTenantsManage,
 	"AdminAuditEventsRead":        ActionAdminAuditEventsRead,
+	"AdminKeysRead":               ActionAdminKeysRead,
+	"AdminKeysRotate":             ActionAdminKeysRotate,
 }
 
 var actionRules = map[string][]string{
@@ -159,6 +163,12 @@ var actionRules = map[string][]string{
 	},
 	ActionAdminAuditEventsRead: {
 		"actor_is_admin_or_system_admin", "actor_is_active", "actor_is_authenticated",
+	},
+	ActionAdminKeysRead: {
+		"actor_is_admin_or_system_admin", "actor_is_active", "actor_is_authenticated",
+	},
+	ActionAdminKeysRotate: {
+		"actor_is_system_admin", "actor_is_control_plane_user", "actor_is_active", "actor_is_authenticated",
 	},
 }
 

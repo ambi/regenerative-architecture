@@ -71,13 +71,13 @@ components:
       - { component: Trust, reason: 署名は SigningKey 集合から取得し、proof verification は公開鍵集合に依存する。 }
 
   Trust:
-    description: 署名鍵、JWKS、Discovery、Authorization Server Metadata の公開、健全性報告、監査保管といった信頼基盤を所有する。監査保管としては DomainEvent の読み出し管理 API も含む。
-    owns_models: [SigningKey, SigningKeyState, JWK, JWKS, DiscoveryDocument, SignatureAlgorithm, Uri, AuditEventQuery, AdminAuditEventResponse, AdminAuditEventListResponse]
+    description: 署名鍵、JWKS、Discovery、Authorization Server Metadata の公開、健全性報告、監査保管といった信頼基盤を所有する。監査保管としては DomainEvent の読み出し管理 API も含む。署名鍵の管理 API (一覧 / 詳細 / ローテーション) もここに帰属する。
+    owns_models: [SigningKey, SigningKeyState, JWK, JWKS, DiscoveryDocument, SignatureAlgorithm, Uri, AuditEventQuery, AdminAuditEventResponse, AdminAuditEventListResponse, AdminKeyResponse, AdminKeyListResponse, AdminRotateKeyResponse]
     owns_states: [SigningKeyLifecycle]
     owns_events: [SigningKeyRotated]
-    owns_interfaces: [GetJwks, GetOpenidConfiguration, GetOauthAuthorizationServer, Health, ListAdminAuditEvents, GetAdminAuditEvent]
+    owns_interfaces: [GetJwks, GetOpenidConfiguration, GetOauthAuthorizationServer, Health, ListAdminAuditEvents, GetAdminAuditEvent, ListAdminKeys, GetAdminKey, RotateAdminKey]
     owns_invariants: [SigningKeyMaxAge]
-    owns_permissions: [AdminAuditEventsRead]
+    owns_permissions: [AdminAuditEventsRead, AdminKeysRead, AdminKeysRotate]
     owns_objectives: [JwksLatency, DiscoveryLatency, JwksErrorRate, DiscoveryErrorRate, OverallAvailability, SigningKeyMaxAge, SigningKeyMinJwksOverlap, SigningKeyArchiveRetention, AuditLogRetention]
     depends_on:
       - { component: Tenancy, reason: 監査イベント読み出しはテナント境界内に閉じ、system_admin だけが全テナントを横断する。 }
@@ -1797,6 +1797,35 @@ models:
       events:        { type: "AdminAuditEventResponse[]" }
       next_after:    { type: Timestamp, optional: true, description: "ページング継続用カーソル。" }
 
+  AdminKeyResponse:
+    kind: value_object
+    description: |
+      管理者向けに公開する署名鍵のメタデータ。秘密鍵は当然返さず、JWKS と
+      同じ公開鍵 JWK のみを含める。鍵の状態 (active / verifying) と作成時刻で
+      ローテーション可否を判断できる粒度を提供する。
+    annotations: { component: Trust }
+    fields:
+      kid:        { type: String,    description: "JWK Key ID。JWKS で配布されるものと同一。" }
+      alg:        { type: SignatureAlgorithm, description: "署名アルゴリズム (現状 PS256 のみ)。" }
+      active:     { type: Boolean,   description: "true のとき新規 ID Token / Access Token の署名鍵。false は verifying 用途で JWKS 残留。" }
+      created_at: { type: Timestamp, description: "鍵生成時刻 (SigningKeyMaxAge / SigningKeyMinJwksOverlap 評価の起点)。" }
+      public_jwk: { type: JSON,      description: "公開鍵 JWK。JWKS と同じ表現。" }
+
+  AdminKeyListResponse:
+    kind: value_object
+    description: 全署名鍵の一覧。active が複数同時に存在することは無い (rotateInternal で旧鍵は非 active 化)。
+    annotations: { component: Trust }
+    fields:
+      keys: { type: "AdminKeyResponse[]" }
+
+  AdminRotateKeyResponse:
+    kind: value_object
+    description: 鍵ローテーションの結果。新しい active 鍵と直前の active 鍵 (verifying へ降りた) の kid を返す。
+    annotations: { component: Trust }
+    fields:
+      next:     { type: AdminKeyResponse, description: "新しい active 署名鍵。" }
+      previous: { type: AdminKeyResponse, optional: true, description: "直前まで active だった鍵 (初回ローテーション時は無し)。" }
+
   TokenRequest:
     kind: value_object
     description: application/x-www-form-urlencoded で送信される token endpoint リクエスト。
@@ -2842,6 +2871,41 @@ interfaces:
     read_only: true
     bindings:
       - { kind: http, method: GET, path: "/api/admin/audit_events/{id}" }
+
+  ListAdminKeys:
+    description: |
+      管理者が JWKS に乗っている全署名鍵 (active + verifying) のメタデータを取得する。
+      テナント横断は意味を持たない (現状 KeyStore は global)。Read 専用。
+    output:
+      response: { type: AdminKeyListResponse }
+    errors: [AccessDeniedError]
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: /api/admin/keys }
+
+  GetAdminKey:
+    description: 管理者が kid を指定して 1 件取得する。存在しない kid は 404。
+    input:
+      kid: { type: String }
+    output:
+      key: { type: AdminKeyResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: "/api/admin/keys/{kid}" }
+
+  RotateAdminKey:
+    description: |
+      新しい署名鍵を生成し active を切り替える。旧 active 鍵は JWKS に
+      verifying として残存し、SigningKeyMinJwksOverlap 期間後に Retire される
+      (Retire 処理は別の運用ジョブ)。system_admin が default tenant 経路から
+      実行できる。emits SigningKeyRotated。
+    output:
+      response: { type: AdminRotateKeyResponse }
+    errors: [AccessDeniedError]
+    emits: [SigningKeyRotated]
+    bindings:
+      - { kind: http, method: POST, path: /api/admin/keys/rotate, successful_status_codes: ["200"] }
 
   ResolveTenant:
     description: |
@@ -3901,6 +3965,35 @@ permissions:
     allow_when:
       and:
         - "(admin in actor.roles) or (system_admin in actor.roles)"
+        - "actor.disabled_at == null"
+        - "context.authenticated == true"
+
+  AdminKeysRead:
+    description: |
+      管理者による JWKS 鍵一覧の読み出し。署名鍵は global なので admin / system_admin
+      どちらでも全件参照を許可する。秘密鍵を返さないため漏洩リスクは低い。
+    actor: User
+    action: AdminKeysRead
+    resource: AdminKeyResponse
+    allow_when:
+      and:
+        - "(admin in actor.roles) or (system_admin in actor.roles)"
+        - "actor.disabled_at == null"
+        - "context.authenticated == true"
+
+  AdminKeysRotate:
+    description: |
+      署名鍵のローテーション。生成された新鍵が active になり、旧鍵は verifying に
+      降りるため、JWKS 配布キャッシュが更新されるまで一時的な検証遅延が起きる。
+      失敗は ra-idp 全体のトークン発行を停止させるため、system_admin が default
+      tenant 経路から実行する場合のみ許可する。
+    actor: User
+    action: AdminKeysRotate
+    resource: SigningKey
+    allow_when:
+      and:
+        - "system_admin in actor.roles"
+        - 'actor.tenant_id == "default"'
         - "actor.disabled_at == null"
         - "context.authenticated == true"
 

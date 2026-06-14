@@ -13,7 +13,6 @@ import {
   IconSearch,
   IconShield,
   IconShieldCheck,
-  IconSwitchHorizontal,
   IconUser,
   IconUserPlus,
   IconUsers,
@@ -26,8 +25,8 @@ import {
   listAdminUsers,
   setAdminUserDisabled,
   tenantURL,
-  updateAdminUserAttributes,
-  updateAdminUserRoles,
+  type UpdateAdminUserInput,
+  updateAdminUser,
 } from '../api'
 import { Brand } from '../components/Brand'
 import { Alert } from '../components/ui/alert'
@@ -48,13 +47,10 @@ export function AdminUsersPage({
 }: AdminUsersPageData) {
   const [users, setUsers] = useState(initialUsers)
   const [selectedSub, setSelectedSub] = useState(initialUsers[0]?.sub ?? '')
-  const [roles, setRoles] = useState(initialUsers[0]?.roles.join(', ') ?? '')
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState<StatusFilter>('all')
   const [showCreate, setShowCreate] = useState(false)
-  const [showRoleEditor, setShowRoleEditor] = useState(false)
-  const [confirmRoleChange, setConfirmRoleChange] = useState(false)
-  const [showAttributeEditor, setShowAttributeEditor] = useState(false)
+  const [showUserEditor, setShowUserEditor] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -84,7 +80,6 @@ export function AdminUsersPage({
     setUsers(next)
     const nextSelected = next.find((user) => user.sub === preferredSub) ?? next[0]
     setSelectedSub(nextSelected?.sub ?? '')
-    setRoles(nextSelected?.roles.join(', ') ?? '')
   }
 
   async function run(action: () => Promise<void>, success: string) {
@@ -124,41 +119,28 @@ export function AdminUsersPage({
     }, 'ユーザーを作成しました。')
   }
 
-  async function handleRoles() {
+  async function handleUpdate(input: UpdateAdminUserInput) {
     if (!selected) return
     await run(async () => {
-      await updateAdminUserRoles(csrfToken, selected.sub, parseRoles(roles))
-      setShowRoleEditor(false)
-      setConfirmRoleChange(false)
+      await updateAdminUser(csrfToken, selected.sub, input)
+      setShowUserEditor(false)
       await refresh(selected.sub)
-    }, 'ロールを更新しました。')
-  }
-
-  async function handleAttributes(input: {
-    preferred_username: string
-    name: string
-    email: string
-    email_verified: boolean
-  }) {
-    if (!selected) return
-    await run(async () => {
-      await updateAdminUserAttributes(csrfToken, selected.sub, input)
-      setShowAttributeEditor(false)
-      await refresh(selected.sub)
-    }, '属性を更新しました。')
+    }, 'ユーザーを更新しました。')
   }
 
   async function handleDisabled(user: AdminUser) {
     const disabled = !user.disabled_at
-    await run(async () => {
-      await setAdminUserDisabled(csrfToken, user.sub, disabled)
-      await refresh(user.sub)
-    }, disabled ? 'ユーザーを無効化しました。' : 'ユーザーを再有効化しました。')
+    await run(
+      async () => {
+        await setAdminUserDisabled(csrfToken, user.sub, disabled)
+        await refresh(user.sub)
+      },
+      disabled ? 'ユーザーを無効化しました。' : 'ユーザーを再有効化しました。',
+    )
   }
 
   function selectUser(user: AdminUser) {
     setSelectedSub(user.sub)
-    setRoles(user.roles.join(', '))
   }
 
   return (
@@ -261,7 +243,12 @@ export function AdminUsersPage({
 
             <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="ユーザー概要">
               <Metric label="総ユーザー" value={users.length} icon={IconUsers} tone="blue" />
-              <Metric label="有効なアカウント" value={activeCount} icon={IconCircleCheck} tone="green" />
+              <Metric
+                label="有効なアカウント"
+                value={activeCount}
+                icon={IconCircleCheck}
+                tone="green"
+              />
               <Metric label="管理者" value={adminCount} icon={IconShield} tone="violet" />
               <Metric label="MFA 登録済み" value={mfaCount} icon={IconKey} tone="amber" />
             </section>
@@ -392,12 +379,7 @@ export function AdminUsersPage({
                     <UserDetails
                       user={selected}
                       busy={busy}
-                      onEditRoles={() => {
-                        setRoles(selected.roles.join(', '))
-                        setConfirmRoleChange(false)
-                        setShowRoleEditor(true)
-                      }}
-                      onEditAttributes={() => setShowAttributeEditor(true)}
+                      onEdit={() => setShowUserEditor(true)}
                       onDisabled={() => void handleDisabled(selected)}
                     />
                   ) : (
@@ -423,30 +405,12 @@ export function AdminUsersPage({
           onSubmit={handleCreate}
         />
       )}
-      {showRoleEditor && selected && (
-        <RoleEditorDialog
-          user={selected}
-          roles={roles}
-          busy={busy}
-          confirming={confirmRoleChange}
-          onRolesChange={(value) => {
-            setRoles(value)
-            setConfirmRoleChange(false)
-          }}
-          onReview={() => setConfirmRoleChange(true)}
-          onConfirm={() => void handleRoles()}
-          onClose={() => {
-            setShowRoleEditor(false)
-            setConfirmRoleChange(false)
-          }}
-        />
-      )}
-      {showAttributeEditor && selected && (
-        <AttributeEditorDialog
+      {showUserEditor && selected && (
+        <UserEditorDialog
           user={selected}
           busy={busy}
-          onSubmit={(input) => void handleAttributes(input)}
-          onClose={() => setShowAttributeEditor(false)}
+          onSubmit={(input) => void handleUpdate(input)}
+          onClose={() => setShowUserEditor(false)}
         />
       )}
     </div>
@@ -456,14 +420,12 @@ export function AdminUsersPage({
 function UserDetails({
   user,
   busy,
-  onEditRoles,
-  onEditAttributes,
+  onEdit,
   onDisabled,
 }: {
   user: AdminUser
   busy: boolean
-  onEditRoles: () => void
-  onEditAttributes: () => void
+  onEdit: () => void
   onDisabled: () => void
 }) {
   return (
@@ -486,18 +448,16 @@ function UserDetails({
       <div className="flex flex-1 flex-col gap-6 p-5">
         <section>
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold uppercase tracking-[0.1em] text-slate-400">
-              Profile
-            </h3>
+            <h3 className="text-xs font-bold uppercase tracking-[0.1em] text-slate-400">Profile</h3>
             <Button
               type="button"
               variant="ghost"
               className="h-7 px-2 text-xs font-semibold text-blue-700 hover:text-blue-800"
               disabled={busy}
-              onClick={onEditAttributes}
+              onClick={onEdit}
             >
               <IconPencil size={14} aria-hidden="true" />
-              属性を編集
+              編集
             </Button>
           </div>
           <dl className="mt-3 grid gap-3 text-sm">
@@ -521,23 +481,15 @@ function UserDetails({
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-semibold text-slate-900">ロール</h3>
-              <p className="mt-0.5 text-xs text-slate-500">現在割り当てられているアクセス権限です。</p>
+              <p className="mt-0.5 text-xs text-slate-500">
+                現在割り当てられているアクセス権限です。
+              </p>
             </div>
             <IconShield size={18} className="text-slate-400" aria-hidden="true" />
           </div>
           <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
             <RoleList roles={user.roles} />
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            className="mt-3 w-full"
-            disabled={busy}
-            onClick={onEditRoles}
-          >
-            <IconSwitchHorizontal size={16} aria-hidden="true" />
-            ロールを変更
-          </Button>
         </section>
 
         <section className="mt-auto border-t border-slate-200 pt-5">
@@ -560,119 +512,6 @@ function UserDetails({
           </Button>
         </section>
       </div>
-    </div>
-  )
-}
-
-function RoleEditorDialog({
-  user,
-  roles,
-  busy,
-  confirming,
-  onRolesChange,
-  onReview,
-  onConfirm,
-  onClose,
-}: {
-  user: AdminUser
-  roles: string
-  busy: boolean
-  confirming: boolean
-  onRolesChange: (roles: string) => void
-  onReview: () => void
-  onConfirm: () => void
-  onClose: () => void
-}) {
-  const nextRoles = parseRoles(roles)
-  const added = nextRoles.filter((role) => !user.roles.includes(role))
-  const removed = user.roles.filter((role) => !nextRoles.includes(role))
-  const changed = added.length > 0 || removed.length > 0
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 p-5 backdrop-blur-[2px]"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="role-editor-title"
-    >
-      <button type="button" className="absolute inset-0 cursor-default" aria-label="閉じる" onClick={onClose} />
-      <Card className="relative w-full max-w-lg overflow-hidden shadow-2xl">
-        <div className="flex items-start justify-between border-b border-slate-200 px-6 py-5">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.12em] text-blue-700">
-              Access control
-            </p>
-            <h2 id="role-editor-title" className="mt-1 text-xl font-semibold">
-              {confirming ? 'ロール変更を確認' : 'ロールを変更'}
-            </h2>
-            <p className="mt-1 text-sm text-slate-500">
-              {user.name || user.preferred_username} (@{user.preferred_username})
-            </p>
-          </div>
-          <Button variant="ghost" className="px-2.5" onClick={onClose} aria-label="閉じる">
-            <IconX size={18} aria-hidden="true" />
-          </Button>
-        </div>
-
-        {confirming ? (
-          <div className="p-6">
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-              <div className="flex gap-3">
-                <IconShield size={19} className="mt-0.5 shrink-0 text-amber-700" aria-hidden="true" />
-                <div>
-                  <p className="text-sm font-semibold text-amber-950">
-                    この変更は次回の認可判断から適用されます
-                  </p>
-                  <p className="mt-1 text-xs leading-5 text-amber-800">
-                    管理者ロールの追加・削除は管理コンソールへのアクセス権に影響します。
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <RoleDiff title="追加されるロール" roles={added} tone="add" />
-              <RoleDiff title="削除されるロール" roles={removed} tone="remove" />
-            </div>
-          </div>
-        ) : (
-          <div className="p-6">
-            <div>
-              <p className="text-sm font-semibold text-slate-900">現在のロール</p>
-              <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <RoleList roles={user.roles} />
-              </div>
-            </div>
-            <div className="mt-5 grid gap-2">
-              <Label htmlFor="role-editor-input">変更後のロール</Label>
-              <Input
-                id="role-editor-input"
-                value={roles}
-                onChange={(event) => onRolesChange(event.target.value)}
-                placeholder="admin, support"
-                autoFocus
-              />
-              <p className="text-xs leading-5 text-slate-500">
-                複数指定する場合はカンマで区切ります。保存前に変更差分を確認できます。
-              </p>
-            </div>
-          </div>
-        )}
-
-        <div className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-6 py-4">
-          <Button type="button" variant="outline" onClick={confirming ? () => onRolesChange(roles) : onClose}>
-            {confirming ? '戻る' : 'キャンセル'}
-          </Button>
-          {confirming ? (
-            <Button type="button" disabled={busy || !changed} onClick={onConfirm}>
-              変更を確定
-            </Button>
-          ) : (
-            <Button type="button" disabled={!changed} onClick={onReview}>
-              変更内容を確認
-            </Button>
-          )}
-        </div>
-      </Card>
     </div>
   )
 }
@@ -710,7 +549,7 @@ function RoleDiff({
   )
 }
 
-function AttributeEditorDialog({
+function UserEditorDialog({
   user,
   busy,
   onSubmit,
@@ -718,12 +557,7 @@ function AttributeEditorDialog({
 }: {
   user: AdminUser
   busy: boolean
-  onSubmit: (input: {
-    preferred_username: string
-    name: string
-    email: string
-    email_verified: boolean
-  }) => void
+  onSubmit: (input: UpdateAdminUserInput) => void
   onClose: () => void
 }) {
   const initialUsername = user.preferred_username
@@ -736,26 +570,40 @@ function AttributeEditorDialog({
   const [email, setEmail] = useState(initialEmail)
   const [emailVerified, setEmailVerified] = useState(initialEmailVerified)
   const [emailVerifiedTouched, setEmailVerifiedTouched] = useState(false)
+  const [roles, setRoles] = useState(user.roles.join(', '))
+  const [confirming, setConfirming] = useState(false)
 
   const emailChanged = email !== initialEmail
   const effectiveEmailVerified = emailChanged && !emailVerifiedTouched ? false : emailVerified
   const trimmedUsername = username.trim()
   const usernameInvalid = trimmedUsername === ''
-  const changed =
+  const profileChanged =
     trimmedUsername !== initialUsername ||
     name !== initialName ||
     email !== initialEmail ||
     effectiveEmailVerified !== initialEmailVerified
+  const nextRoles = parseRoles(roles)
+  const addedRoles = nextRoles.filter((role) => !user.roles.includes(role))
+  const removedRoles = user.roles.filter((role) => !nextRoles.includes(role))
+  const rolesChanged = addedRoles.length > 0 || removedRoles.length > 0
+  const changed = profileChanged || rolesChanged
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (usernameInvalid || !changed) return
-    onSubmit({
-      preferred_username: trimmedUsername,
-      name,
-      email,
-      email_verified: effectiveEmailVerified,
-    })
+    if (rolesChanged && !confirming) {
+      setConfirming(true)
+      return
+    }
+    const input: UpdateAdminUserInput = {}
+    if (trimmedUsername !== initialUsername) input.preferred_username = trimmedUsername
+    if (name !== initialName) input.name = name
+    if (email !== initialEmail) input.email = email
+    if (effectiveEmailVerified !== initialEmailVerified) {
+      input.email_verified = effectiveEmailVerified
+    }
+    if (rolesChanged) input.roles = nextRoles
+    onSubmit(input)
   }
 
   return (
@@ -763,15 +611,22 @@ function AttributeEditorDialog({
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 p-5 backdrop-blur-[2px]"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="attribute-editor-title"
+      aria-labelledby="user-editor-title"
     >
-      <button type="button" className="absolute inset-0 cursor-default" aria-label="閉じる" onClick={onClose} />
+      <button
+        type="button"
+        className="absolute inset-0 cursor-default"
+        aria-label="閉じる"
+        onClick={onClose}
+      />
       <Card className="relative w-full max-w-lg overflow-hidden shadow-2xl">
         <div className="flex items-start justify-between border-b border-slate-200 px-6 py-5">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.12em] text-blue-700">Profile</p>
-            <h2 id="attribute-editor-title" className="mt-1 text-xl font-semibold">
-              属性を編集
+            <p className="text-xs font-bold uppercase tracking-[0.12em] text-blue-700">
+              Profile and access
+            </p>
+            <h2 id="user-editor-title" className="mt-1 text-xl font-semibold">
+              {confirming ? '変更内容を確認' : 'ユーザーを編集'}
             </h2>
             <p className="mt-1 text-sm text-slate-500">
               {user.name || user.preferred_username} (@{user.preferred_username})
@@ -783,70 +638,125 @@ function AttributeEditorDialog({
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 p-6">
-            <div className="grid gap-2">
-              <Label htmlFor="attribute-editor-username">ユーザー名</Label>
-              <Input
-                id="attribute-editor-username"
-                value={username}
-                onChange={(event) => setUsername(event.target.value)}
-                autoFocus
-                required
-                aria-invalid={usernameInvalid}
-              />
-              <p className="text-xs leading-5 text-slate-500">
-                login 時に使われる識別子です。空にはできません。
-              </p>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="attribute-editor-name">表示名</Label>
-              <Input
-                id="attribute-editor-name"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="attribute-editor-email">メールアドレス</Label>
-              <Input
-                id="attribute-editor-email"
-                type="email"
-                value={email}
-                onChange={(event) => {
-                  setEmail(event.target.value)
-                  setEmailVerifiedTouched(false)
-                }}
-              />
-              {emailChanged && (
-                <p className="text-xs leading-5 text-amber-700">
-                  メールを変更したため、確認済みフラグを既定で解除しています。
+          {confirming ? (
+            <div className="p-6">
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <div className="flex gap-3">
+                  <IconShield
+                    size={19}
+                    className="mt-0.5 shrink-0 text-amber-700"
+                    aria-hidden="true"
+                  />
+                  <div>
+                    <p className="text-sm font-semibold text-amber-950">ロール変更を含む更新です</p>
+                    <p className="mt-1 text-xs leading-5 text-amber-800">
+                      管理者ロールの追加・削除は管理コンソールへのアクセス権に影響します。
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                <RoleDiff title="追加されるロール" roles={addedRoles} tone="add" />
+                <RoleDiff title="削除されるロール" roles={removedRoles} tone="remove" />
+              </div>
+              {profileChanged && (
+                <p className="mt-4 text-xs leading-5 text-slate-500">
+                  プロフィールの変更も同じ更新リクエストで保存されます。
                 </p>
               )}
             </div>
-            <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-              <input
-                type="checkbox"
-                className="mt-0.5 size-4 rounded border-slate-300"
-                checked={effectiveEmailVerified}
-                onChange={(event) => {
-                  setEmailVerified(event.target.checked)
-                  setEmailVerifiedTouched(true)
-                }}
-              />
-              <span>
-                <span className="block font-semibold text-slate-900">メール確認済みとして保存</span>
-                <span className="mt-0.5 block text-xs leading-5 text-slate-500">
-                  組織側でメールアドレスの所有確認が完了している場合のみ選択します。
-                </span>
-              </span>
-            </label>
-          </div>
+          ) : (
+            <div className="grid gap-6 p-6">
+              <section className="grid gap-4">
+                <h3 className="text-xs font-bold uppercase tracking-[0.1em] text-slate-400">
+                  Profile
+                </h3>
+                <div className="grid gap-2">
+                  <Label htmlFor="user-editor-username">ユーザー名</Label>
+                  <Input
+                    id="user-editor-username"
+                    value={username}
+                    onChange={(event) => setUsername(event.target.value)}
+                    autoFocus
+                    required
+                    aria-invalid={usernameInvalid}
+                  />
+                  <p className="text-xs leading-5 text-slate-500">
+                    login 時に使われる識別子です。空にはできません。
+                  </p>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="user-editor-name">表示名</Label>
+                  <Input
+                    id="user-editor-name"
+                    value={name}
+                    onChange={(event) => setName(event.target.value)}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="user-editor-email">メールアドレス</Label>
+                  <Input
+                    id="user-editor-email"
+                    type="email"
+                    value={email}
+                    onChange={(event) => {
+                      setEmail(event.target.value)
+                      setEmailVerifiedTouched(false)
+                    }}
+                  />
+                  {emailChanged && (
+                    <p className="text-xs leading-5 text-amber-700">
+                      メールを変更したため、確認済みフラグを既定で解除しています。
+                    </p>
+                  )}
+                </div>
+                <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 size-4 rounded border-slate-300"
+                    checked={effectiveEmailVerified}
+                    onChange={(event) => {
+                      setEmailVerified(event.target.checked)
+                      setEmailVerifiedTouched(true)
+                    }}
+                  />
+                  <span>
+                    <span className="block font-semibold text-slate-900">
+                      メール確認済みとして保存
+                    </span>
+                    <span className="mt-0.5 block text-xs leading-5 text-slate-500">
+                      組織側でメールアドレスの所有確認が完了している場合のみ選択します。
+                    </span>
+                  </span>
+                </label>
+              </section>
+              <section className="grid gap-2 border-t border-slate-200 pt-5">
+                <h3 className="text-xs font-bold uppercase tracking-[0.1em] text-slate-400">
+                  Roles
+                </h3>
+                <Label htmlFor="user-editor-roles">ロール</Label>
+                <Input
+                  id="user-editor-roles"
+                  value={roles}
+                  onChange={(event) => setRoles(event.target.value)}
+                  placeholder="admin, support"
+                />
+                <p className="text-xs leading-5 text-slate-500">
+                  複数指定する場合はカンマで区切ります。変更時は保存前に差分を確認します。
+                </p>
+              </section>
+            </div>
+          )}
           <div className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-6 py-4">
-            <Button type="button" variant="outline" onClick={onClose}>
-              キャンセル
+            <Button
+              type="button"
+              variant="outline"
+              onClick={confirming ? () => setConfirming(false) : onClose}
+            >
+              {confirming ? '戻る' : 'キャンセル'}
             </Button>
             <Button type="submit" disabled={busy || usernameInvalid || !changed}>
-              保存
+              {confirming ? '変更を確定' : rolesChanged ? '変更内容を確認' : '保存'}
             </Button>
           </div>
         </form>
@@ -1063,7 +973,14 @@ function Field({ id, label, type = 'text', description, ...props }: FieldProps) 
 }
 
 function parseRoles(value: string) {
-  return [...new Set(value.split(',').map((role) => role.trim()).filter(Boolean))]
+  return [
+    ...new Set(
+      value
+        .split(',')
+        .map((role) => role.trim())
+        .filter(Boolean),
+    ),
+  ]
 }
 
 function optionalValue(value: FormDataEntryValue | null) {

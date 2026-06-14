@@ -420,28 +420,18 @@ export async function createAdminUser(
   return request('/api/admin/users', adminRequest(csrfToken, 'POST', input))
 }
 
-export async function updateAdminUserRoles(
-  csrfToken: string,
-  sub: string,
-  roles: string[],
-): Promise<AdminUser> {
-  return request(
-    `/api/admin/users/${encodeURIComponent(sub)}`,
-    adminRequest(csrfToken, 'PATCH', { roles }),
-  )
+export type UpdateAdminUserInput = {
+  preferred_username?: string
+  name?: string
+  email?: string
+  email_verified?: boolean
+  roles?: string[]
 }
 
-export type UpdateAdminUserAttributesInput = {
-  preferred_username: string
-  name: string
-  email: string
-  email_verified: boolean
-}
-
-export async function updateAdminUserAttributes(
+export async function updateAdminUser(
   csrfToken: string,
   sub: string,
-  input: UpdateAdminUserAttributesInput,
+  input: UpdateAdminUserInput,
 ): Promise<AdminUser> {
   return request(
     `/api/admin/users/${encodeURIComponent(sub)}`,

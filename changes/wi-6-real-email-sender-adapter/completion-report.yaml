@@ -1,0 +1,126 @@
+id: wi-6-real-email-sender-adapter
+title: 本番運用可能な EmailSender adapter (SMTP) を導入する
+completed_at: 2026-06-15
+work_item: work-item.yaml
+status: completed
+
+summary: |
+  ADR-035 を起こし、SMTP-only / PLAIN over TLS のみ / fail-open /
+  retry なし / display name なしの方針を確定。
+  `notification.SMTPEmailSender` adapter を追加し、bootstrap の
+  hardcode を `EMAIL_SENDER` env による切替に置き換えた。
+  console は引き続き既定で残る。port シグネチャ・SCL は無変更。
+
+decision_changes:
+  - >-
+    新規 ADR-035 (ra-idp/decisions/ADR-035-smtp-email-sender-adapter.md)。
+    SMTP のみ採用、TLS 戦略 (starttls / implicit / none) の env 切替、
+    PLAIN auth は TLS 下のみ許可、From は bare address のみ、fail-open、
+    retry 無し、Message-ID / Date / multipart/alternative の生成方針を定めた。
+    HTTP-only プロバイダ専用 SDK の非採用理由も明記。
+
+go_changes:
+  - >-
+    internal/adapters/notification/smtp_email_sender.go を追加。
+    SMTPEmailSenderConfig (Host/Port/Username/Password/From/Hello/TLSMode/Timeout)
+    を受け取り net/smtp + crypto/tls で送信する。PLAIN auth は TLS 下でのみ実行し、
+    SMTPTLSNone かつ Username 設定時は実行時に拒否する。本文は mime.QEncoding
+    で件名を encoded-word 化し、Text/HTML 両方ある時は multipart/alternative
+    で plain → html の順に並べる。Message-ID は <unix_ns.16byte_hex@from-domain>。
+  - >-
+    internal/adapters/notification/smtp_email_sender_test.go を追加。
+    127.0.0.1:0 で fake SMTP サーバ (TLS 不要の最小プロトコル) を立て、
+    plain 送信 / PLAIN-over-cleartext 拒否 / dial 失敗時 false を検証する。
+    buildRFC5322Message は multipart と HTML-only を直接テストする。
+  - >-
+    internal/bootstrap/email.go を追加。EMAIL_SENDER (console/smtp) と
+    SMTP_HOST / SMTP_PORT / SMTP_USERNAME / SMTP_PASSWORD / SMTP_FROM /
+    SMTP_HELO / SMTP_TLS / SMTP_TIMEOUT_SECONDS を読む。SMTP 選択時に
+    SMTP_HOST / SMTP_FROM が無いと起動失敗、不明な EMAIL_SENDER / SMTP_TLS
+    も起動失敗とする。SMTP_TLS の既定は starttls、Port の既定は
+    starttls→587 / implicit→465 / none→25。
+  - >-
+    internal/bootstrap/email_test.go を追加。既定が console / smtp の必須 env
+    / 不明な kind の reject / SMTP_TLS の既定 / Port の既定値推定を覆う。
+    実 ENV を書き換えない getenv 関数差し替え方式で副作用が無い。
+  - >-
+    internal/bootstrap/server.go の EmailSender 初期化を hardcode
+    (notification.ConsoleEmailSender{}) から resolveEmailSender(os.Getenv)
+    に差し替えた。ConsoleEmailSender へのインポートは削除した。
+
+documentation_changes:
+  - >-
+    ra-idp-go/README.md の Phase 0 「不足している機能」表からメール配送行を
+    削除し、見出し直前の説明文に「ADR-035 で実装済」を追記した。
+  - >-
+    ra-idp-go/README.md の「### 設定」表に EMAIL_SENDER / SMTP_HOST /
+    SMTP_PORT / SMTP_USERNAME / SMTP_PASSWORD / SMTP_FROM / SMTP_HELO /
+    SMTP_TLS / SMTP_TIMEOUT_SECONDS の 9 項目を追加した。
+
+scl_changes:
+  - SCL は無変更。EmailSender port シグネチャ / events.EmailSent wire 形式 /
+    components.Authentication の owns_* / interfaces / permissions / objectives
+    すべて据え置き。
+
+semantic_diff:
+  before:
+    bootstrap_email_sender: hardcoded notification.ConsoleEmailSender{}
+    production_email_path: 無し (forgot-password のリセットリンクは stdout のみ)
+    smtp_adapter: 無し
+  after:
+    bootstrap_email_sender: resolveEmailSender(os.Getenv) で console/smtp 切替
+    production_email_path: EMAIL_SENDER=smtp + SMTP_* で本番 SMTP relay 配送
+    smtp_adapter: notification.SMTPEmailSender (net/smtp + crypto/tls)
+
+affected_guarantees_state:
+  - >-
+    fail-open: SMTP エラーは sender 内でログに出し、SendEmail は false を返す。
+    use case は ADR-030 §7 の通り戻り値で event の delivered を切り替えるだけ
+    なので、外向き応答は常に 204 のまま (列挙対策維持)。
+  - >-
+    秘密情報: SMTP_PASSWORD は notification.SMTPEmailSenderConfig 内で値型で
+    保持し、log.Printf / fmt のテンプレートには渡さない。送信失敗ログは
+    to / subject / err のみ出す。OTel 属性にも乗せていない。
+  - >-
+    SCL coherence: components / interfaces / permissions / objectives すべて
+    据え置きのため SCLPermissionsCoverage 等の coherence test 影響なし。
+  - >-
+    HTTP 経路: 変更なし。/api/auth/forgot_password / /api/auth/reset_password
+    の挙動は同じ (use case 経由のため adapter 差し替えで影響しない)。
+
+verification:
+  - cmd: 'go build ./...'
+    in: ra-idp-go
+    result: ok
+  - cmd: 'go vet ./...'
+    in: ra-idp-go
+    result: ok
+  - cmd: 'go test -race ./...'
+    in: ra-idp-go
+    result: 'ok (notification / bootstrap / spec / adapters/http / authentication/usecases ほか全パッケージ pass)'
+  - >-
+    手動確認 (residual): dev compose に mailpit / MailHog を追加して
+    EMAIL_SENDER=smtp で起動し、forgot-password 画面 → mailpit UI で reset
+    リンクを取り出して reset_password ページが完了する経路は未実施。
+    本 WI のスコープから docker-compose 変更を切り出したため別 WI 候補。
+
+residual_risk:
+  - >-
+    PLAIN auth + TLS の happy-path は ユニットテストで自動化していない
+    (fake SMTP サーバを TLS 化するコストを避けるため)。実 SMTP 系
+    (SendGrid SMTP / mailpit + STARTTLS など) と統合する手動 smoke を
+    別 WI で行う。
+  - >-
+    Message-ID の局所性: 同一プロセスで再現性のあるテストには
+    時計注入のためのフックを提供していない。テストは Date / Message-ID
+    の構造のみを assert し、固定値比較していない。
+  - >-
+    SMTP_PASSWORD の OTel span 属性除外は config 構造体側でフィルタを
+    強制していない (現状は log を出す箇所が無いことに依存)。今後の
+    span 追加時にレビューで担保する必要がある。
+
+approver_note: |
+  ADR-030 の port 抽象は維持したまま adapter 1 本だけを追加し、既定の
+  console 経路は破壊しないという最小スコープで完了。本 WI 完了で
+  forgot-password のリセットリンクが本番環境でも実ユーザに到達する
+  ようになった。次の自然な WI は email verification 本体 (Phase 0)。

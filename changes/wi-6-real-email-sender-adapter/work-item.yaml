@@ -1,0 +1,120 @@
+id: wi-6-real-email-sender-adapter
+title: 本番運用可能な EmailSender adapter (SMTP) を導入する
+created_at: 2026-06-15
+status: completed
+authors: [tn]
+
+motivation: |
+  ADR-030 で `EmailSender` port と `ConsoleEmailSender` (stdout + dev デモ用) を
+  実装し、forgot-password / reset-password の use case / HTTP endpoint / SPA
+  page を一通り通した。一方で本番系の adapter は存在せず、bootstrap でも
+  ConsoleEmailSender が直接 hardcode されている (`server.go:121`)。結果として:
+    - 本番デプロイした ra-idp-go では「パスワードを忘れた」画面まで到達できる
+      が、リセットリンクはサーバ stdout に出るだけで実ユーザの inbox に届かない。
+    - 後続の email verification / breach 通知 / step-up via email も同じ port
+      に乗せる前提なので、production adapter が無いまま積み増しすると複数機能
+      が同時に死ぬ。
+  実 SMTP relay (SendGrid SMTP / Resend / AWS SES SMTP interface / 任意の社内
+  SMTP) に送れる adapter を 1 本入れることで、すでに実装済の forgot-password
+  が初めて end-to-end でユーザに到達する。次フェーズの email verification の
+  実装前提条件にもなる。
+
+  HTTP プロバイダ専用 SDK (SendGrid REST 等) は採用しない。SMTP は前述の主要
+  メール基盤すべてが提供しており、port 1 つ追加で広く到達できる。adapter
+  数を最小に保つ判断は ADR-035 (本 WI で書く) に明記する。
+
+scope:
+  decision:
+    - >-
+      新規 ADR-035 を ra-idp/decisions/ADR-035-smtp-email-sender-adapter.md
+      として追加。ADR-030 の "SMTP / HTTP プロバイダ adapter は別 ADR" を
+      埋める。決定事項は、SMTP のみ採用、TLS 戦略 (implicit / STARTTLS / none)、
+      auth (PLAIN over TLS のみ許可)、From / Reply-To の決め方、送信失敗時の
+      fail-open ポリシー (ADR-030 と整合)、timeout / retry 方針、HTTP-only
+      プロバイダ (Mailgun JSON API など) を本 ADR で却下する理由。
+
+  go:
+    adapter:
+      - internal/adapters/notification/smtp_email_sender.go を新設。
+        net/smtp + crypto/tls を使う。設定は struct で受け取り、Send 中の
+        ダイヤル・hello・auth・mail/rcpt/data を 1 メソッドにまとめる。
+      - 既存 ConsoleEmailSender / NoopEmailSender はそのまま保持
+        (dev / test で利用)。port は変更しない。
+      - From / Reply-To / 送信元 hostname / TLS mode / username / password /
+        host:port / timeout を受け取る config struct を切る。
+        password は文字列で受け、ログに出さない (構造化ログでも値を含めない)。
+    bootstrap:
+      - bootstrap/server.go の `EmailSender` 初期化を runtime 切替に
+        差し替える。env `EMAIL_SENDER` (`console` / `smtp`、default `console`)
+        を導入し、smtp 選択時は SMTP_* env を読んで構築する。
+      - smtp 選択時に必須 env (`SMTP_HOST`, `SMTP_FROM`) が無い場合は
+        起動を拒否してエラーログを出す。
+    testing:
+      - >-
+        smtp_email_sender_test.go を追加。smtptest / net.Listen で SMTP
+        風サーバを立て、ENVELOPE / DATA が期待どおり生成されることを検証する。
+        TLS / auth は別ユニットで覆い、e2e は SendEmail 戻り値だけ確認する。
+      - bootstrap の env→adapter 切替ロジックに簡易テストを追加する。
+    documentation:
+      - ra-idp-go/README.md の Phase 0 のメール配送行を「実装済」側に移動し、
+        環境変数表 (Phase 0 の「### 設定」テーブル) に EMAIL_SENDER /
+        SMTP_HOST / SMTP_PORT / SMTP_USERNAME / SMTP_PASSWORD / SMTP_FROM /
+        SMTP_TLS / SMTP_TIMEOUT_SECONDS を追加する。
+      - infra/docker/docker-compose.dev.yaml に MailHog または mailpit を
+        追加 (dev でメール内容を browser で確認できるようにする) ことを
+        検討。スコープが膨らむなら別 WI に切り出し、本 WI では adapter
+        本体 + 環境変数のみとする。
+
+  scl:
+    - SCL は port が増えないため `components.Authentication` の
+      `owns_interfaces` / `owns_models` を変更しない。
+    - 既存 `events.EmailSent` (ADR-030 で導入済) の wire 形式は維持する。
+      smtp adapter からも同イベントを emit する責務は use case が持つため
+      adapter 側で追加すべきイベントは無い。
+
+out_of_scope:
+  - HTTP-only プロバイダ専用 adapter (SendGrid REST / Mailgun API / Postmark API
+    / Resend API 等)。SMTP relay 経由で同じ仕事ができるため。
+  - DKIM / SPF / DMARC レコード設定 (運用者責務)。
+  - メールテンプレートエンジンの導入。現状の text/HTML 直書きを維持する。
+  - bounce / DSN 処理、suppression list、開封率計測。
+  - キュー化 / outbox による retry。fail-open + use case 側の再送導線で十分。
+  - per-email rate limit (ADR-030 §8 の方針に従い別 WI とする)。
+  - email verification 本体 (Phase 0 別項目。本 WI 完了後の次 WI 候補)。
+
+affected_guarantees:
+  - >-
+    fail-open ポリシーを維持する。ADR-030 §7 に従い、SMTP エラーは use case
+    に伝えず audit / metric で見せる。port シグネチャ (`SendEmail(...) bool`)
+    を維持し、false 戻り時にも 200 系応答を返す現在の動作を変えない。
+  - >-
+    列挙対策を維持する。ADR-030 §4 の anti-enumeration はそのまま
+    (POST 応答は常に 204、token 妥当性のみで判断)。adapter の挙動は外から
+    観測不可。
+  - >-
+    秘密情報を漏らさない。SMTP_PASSWORD は環境変数だけで受け取り、ログには
+    出さない (DEBUG ログでも redact)。OTel 属性にも乗せない。
+  - >-
+    SCL coherence は不変。components / interfaces / permissions / objectives
+    は無変更。
+
+verification:
+  - cmd: 'go test ./...'
+    in: ra-idp-go
+    reason: SMTP adapter unit + bootstrap 切替 + ADR-030 既存テストの回帰確認。
+  - cmd: 'go vet ./...'
+    in: ra-idp-go
+  - cmd: 'go build ./...'
+    in: ra-idp-go
+  - >-
+    手動確認。dev compose に mailpit/MailHog を立てた状態で EMAIL_SENDER=smtp
+    で起動し、forgot-password 画面 → mailpit UI で reset リンクを取り出して
+    reset_password ページが完了できる。(compose 変更を別 WI に切り出した場合は
+    ホスト SMTP + telnet 受信で代替確認する。)
+
+risk: low
+risk_notes: |
+  port は変えず、デフォルト adapter は console のまま据え置くため、既存
+  動作は無変更。新規ファイル + bootstrap 内 1 行差し替え + ADR 1 本の
+  追加で完結する。SMTP_PASSWORD のロギング事故を防ぐため、初版から
+  Go の構造化ロガー出力にも password を渡さない設計を徹底する。

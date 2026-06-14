@@ -13,7 +13,6 @@ import (
 
 	"ra-idp-go/internal/adapters/crypto"
 	httpadapter "ra-idp-go/internal/adapters/http"
-	"ra-idp-go/internal/adapters/notification"
 	"ra-idp-go/internal/adapters/observability"
 	"ra-idp-go/internal/adapters/persistence/memory"
 	"ra-idp-go/internal/adapters/policy"
@@ -55,6 +54,10 @@ func Run() error {
 	sentinelPasswordHash, err := hasher.Hash("ra-idp-invalid-user-password")
 	if err != nil {
 		return fmt.Errorf("create sentinel password hash: %w", err)
+	}
+	emailSender, err := resolveEmailSender(os.Getenv)
+	if err != nil {
+		return fmt.Errorf("resolve email sender: %w", err)
 	}
 	objectiveInt := func(group, key string) int {
 		value, ok := sclDoc.ObjectiveNestedInt("LoginThrottlePolicy", group, key)
@@ -118,7 +121,7 @@ func Run() error {
 		Authorizer:     authorizer, JWKResolver: jwkResolver,
 		PasswordHasher: hasher, MfaFactorRepo: deps.MfaFactorRepo, PasswordHistoryRepo: deps.PasswordHistoryRepo,
 		PasswordResetTokenStore: deps.PasswordResetTokenStore,
-		EmailSender:             notification.ConsoleEmailSender{},
+		EmailSender:             emailSender,
 		BreachedPasswordChecker: policy.NoopBreachedPasswordChecker{},
 		LoginAttemptThrottle:    loginThrottle,
 		TrustedForwardedHops:    envInt("TRUSTED_FORWARDED_HOPS", 0),

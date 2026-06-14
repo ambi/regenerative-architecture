@@ -238,7 +238,7 @@ describe('Discovery — SCL からの派生整合', () => {
     expect(doc.authorization_response_iss_parameter_supported).toBe(true)
   })
 
-  it('acr_values_supported は SCL annotations.acr_vocabulary と一致する', () => {
+  it('acr_values_supported は DiscoveryDocument の既定値と一致する', () => {
     expect(doc.acr_values_supported).toEqual(['urn:ra-idp:acr:pwd', 'urn:ra-idp:acr:mfa'])
   })
 })
@@ -444,7 +444,7 @@ import { COMMON_PASSWORDS } from '../authentication/usecases/common-passwords'
 import { PASSWORD_POLICY } from '../authentication/usecases/password-policy'
 
 describe('Password Policy — SCL ↔ TypeScript 整合', () => {
-  const sclPolicy = (scl.annotations?.password_policy ?? {}) as {
+  const sclPolicy = scl.objectives.PasswordPolicy.value as {
     min_length?: number
     max_length?: number
     forbid_user_identifier_similarity?: boolean
@@ -452,27 +452,27 @@ describe('Password Policy — SCL ↔ TypeScript 整合', () => {
     history_depth?: number
   }
 
-  it('SCL annotations.password_policy.min_length は TypeScript の PASSWORD_POLICY.minLength と一致する', () => {
+  it('SCL PasswordPolicy.value.min_length は TypeScript の PASSWORD_POLICY.minLength と一致する', () => {
     expect(sclPolicy.min_length).toBe(PASSWORD_POLICY.minLength)
   })
 
-  it('SCL annotations.password_policy.max_length は TypeScript の PASSWORD_POLICY.maxLength と一致する', () => {
+  it('SCL PasswordPolicy.value.max_length は TypeScript の PASSWORD_POLICY.maxLength と一致する', () => {
     expect(sclPolicy.max_length).toBe(PASSWORD_POLICY.maxLength)
   })
 
-  it('SCL annotations.password_policy.forbid_user_identifier_similarity は TypeScript と一致する', () => {
+  it('SCL PasswordPolicy.value.forbid_user_identifier_similarity は TypeScript と一致する', () => {
     expect(sclPolicy.forbid_user_identifier_similarity).toBe(
       PASSWORD_POLICY.forbidUserIdentifierSimilarity,
     )
   })
 
-  it('SCL annotations.password_policy.common_password_dictionary は TypeScript と一致し bundle が存在する', () => {
+  it('SCL PasswordPolicy.value.common_password_dictionary は TypeScript と一致し bundle が存在する', () => {
     expect(sclPolicy.common_password_dictionary).toBe(PASSWORD_POLICY.commonPasswordDictionary)
     expect(sclPolicy.common_password_dictionary).toBe('bundled')
     expect(COMMON_PASSWORDS.size).toBeGreaterThan(0)
   })
 
-  it('SCL annotations.password_policy.history_depth は TypeScript の PASSWORD_POLICY.historyDepth と一致する', () => {
+  it('SCL PasswordPolicy.value.history_depth は TypeScript の PASSWORD_POLICY.historyDepth と一致する', () => {
     expect(sclPolicy.history_depth).toBe(PASSWORD_POLICY.historyDepth)
     expect(PASSWORD_POLICY.historyDepth).toBeGreaterThanOrEqual(1)
   })
@@ -485,7 +485,7 @@ describe('Password Policy — SCL ↔ TypeScript 整合', () => {
 import { TOTP_POLICY } from '../authentication/usecases/totp'
 
 describe('TOTP Policy — SCL ↔ TypeScript 整合', () => {
-  const sclPolicy = (scl.annotations?.totp_policy ?? {}) as {
+  const sclPolicy = scl.objectives.TotpPolicy.value as {
     algorithm?: string
     step_seconds?: number
     digits?: number

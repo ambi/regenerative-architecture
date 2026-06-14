@@ -167,7 +167,6 @@ type DeviceCodeFlowState string
 const (
 	DeviceFlowIssued          DeviceCodeFlowState = "issued"
 	DeviceFlowUserCodeEntered DeviceCodeFlowState = "user_code_entered"
-	DeviceFlowAuthzPending    DeviceCodeFlowState = "authorization_pending"
 	DeviceFlowApproved        DeviceCodeFlowState = "approved"
 	DeviceFlowDenied          DeviceCodeFlowState = "denied"
 	DeviceFlowExchanged       DeviceCodeFlowState = "exchanged"
@@ -176,7 +175,7 @@ const (
 
 func (s DeviceCodeFlowState) Valid() bool {
 	switch s {
-	case DeviceFlowIssued, DeviceFlowUserCodeEntered, DeviceFlowAuthzPending,
+	case DeviceFlowIssued, DeviceFlowUserCodeEntered,
 		DeviceFlowApproved, DeviceFlowDenied, DeviceFlowExchanged, DeviceFlowExpired:
 		return true
 	}

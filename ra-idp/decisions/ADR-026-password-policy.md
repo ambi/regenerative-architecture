@@ -2,7 +2,7 @@
 
 ## ステータス
 
-採用（Phase 0 — 認証の土台。`spec/scl.yaml` `annotations.password_policy` と
+採用（Phase 0 — 認証の土台。`spec/scl.yaml` `objectives.PasswordPolicy` と
 `src/authentication/usecases/password-policy.ts` の双子に反映）。
 
 ## コンテキスト

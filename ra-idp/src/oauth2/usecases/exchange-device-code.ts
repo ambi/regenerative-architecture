@@ -4,7 +4,7 @@
  * /token の device_code グラント (RFC 8628 §3.4 / §3.5)。
  *
  * クライアントはこのエンドポイントをポーリングする。状態に応じて:
- *   issued / user_code_entered / authorization_pending → authorization_pending
+ *   issued / user_code_entered → authorization_pending
  *   (interval より速いポーリング)                        → slow_down
  *   denied                                              → access_denied
  *   expired / 期限切れ                                   → expired_token
@@ -111,7 +111,6 @@ export async function exchangeDeviceCodeUseCase(
       throw new OAuthError('expired_token', 'device_code の有効期限が切れています')
     case 'issued':
     case 'user_code_entered':
-    case 'authorization_pending':
       throw new OAuthError('authorization_pending', 'ユーザーの承認待ちです')
     case 'approved':
       break

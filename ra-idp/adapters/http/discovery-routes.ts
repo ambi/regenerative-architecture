@@ -2,7 +2,7 @@
  * Layer 4 — Adapter Layer（HTTP: Discovery + JWKS）
  *
  * ADR-011 に従い、Discovery 文書は仕様核（spec/scl.yaml）の interfaces / models /
- * annotations.discovery_template から `buildDiscoveryDocument` が組み立てる。
+ * models.DiscoveryDocument の既定値から `buildDiscoveryDocument` が組み立てる。
  */
 
 import { Hono } from 'hono'

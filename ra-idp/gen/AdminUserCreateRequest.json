@@ -2,7 +2,7 @@
   "$id": "urn:idp:AdminUserCreateRequest",
   "type": "object",
   "additionalProperties": false,
-  "description": "管理者がユーザーを作成する JSON リクエスト。初期パスワードには password_policy を適用する。",
+  "description": "管理者がユーザーを作成する JSON リクエスト。初期パスワードには PasswordPolicy objective を適用する。",
   "properties": {
     "preferred_username": {
       "type": "string",

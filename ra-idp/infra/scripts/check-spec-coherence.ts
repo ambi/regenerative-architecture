@@ -695,60 +695,6 @@ function checkObservabilityVsSlo() {
 }
 
 // ---------------------------------------------------------------
-// 5. SCL scenarios ↔ executable/manual coverage
-// ---------------------------------------------------------------
-async function checkScenarioCoverage() {
-  const coverage = scl.annotations?.scenario_coverage ?? {}
-  const scenarioNames = Object.keys(scl.scenarios)
-  const knownScenarios = new Set(scenarioNames)
-
-  for (const name of scenarioNames) {
-    const entry = coverage[name]
-    if (!entry) {
-      bad(`annotations.scenario_coverage に SCL scenario "${name}" がない`)
-      continue
-    }
-    if (!['covered', 'partial', 'manual', 'missing'].includes(entry.status)) {
-      bad(`scenario_coverage.${name}.status が不正: ${entry.status}`)
-      continue
-    }
-    if (entry.status === 'missing') {
-      ok(`scenario_coverage.${name} は missing として明示`)
-      continue
-    }
-    if (!entry.evidence?.length) {
-      bad(`scenario_coverage.${name} に evidence がない`)
-      continue
-    }
-    for (const evidence of entry.evidence) {
-      const path = join(import.meta.dir, '../..', evidence.file)
-      let content: string
-      try {
-        content = await readFile(path, 'utf-8')
-      } catch {
-        bad(`scenario_coverage.${name}.evidence.file が存在しない: ${evidence.file}`)
-        continue
-      }
-      if (evidence.test && !content.includes(evidence.test)) {
-        bad(
-          `scenario_coverage.${name}.evidence.test が ${evidence.file} に見つからない: ${evidence.test}`,
-        )
-      } else {
-        ok(
-          `scenario_coverage.${name} ↔ ${evidence.file}${evidence.test ? `#${evidence.test}` : ''}`,
-        )
-      }
-    }
-  }
-
-  for (const name of Object.keys(coverage)) {
-    if (!knownScenarios.has(name)) {
-      bad(`annotations.scenario_coverage に SCL scenarios に存在しない "${name}" がある`)
-    }
-  }
-}
-
-// ---------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------
 async function main() {
@@ -759,8 +705,6 @@ async function main() {
   checkEventRoutingVsScl()
   await checkMigrationsVsScl()
   checkObservabilityVsSlo()
-  await checkScenarioCoverage()
-
   const failed = results.filter((r) => !r.ok)
   const passed = results.length - failed.length
 

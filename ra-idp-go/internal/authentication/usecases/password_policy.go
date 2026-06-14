@@ -1,6 +1,6 @@
 // Package usecases: Layer 3 - Application Logic（パスワードポリシー）
 //
-// 仕様核は spec/scl.yaml `annotations.password_policy`。本ファイルはその
+// 仕様核は spec/scl.yaml `objectives.PasswordPolicy`。本ファイルはその
 // 双子定義。SCL と本ファイルの値が乖離すると spec↔impl drift になるため、
 // coherence test (spec_bindings) で突き合わせる。
 package usecases

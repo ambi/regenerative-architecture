@@ -3,7 +3,7 @@ package spec
 import "fmt"
 
 // DeviceCodeFlow 状態機械 (RFC 8628)。
-// SCL state_machines.DeviceCodeFlow と一致する遷移表。
+// SCL states.DeviceCodeFlow と一致する遷移表。
 
 type DeviceCodeFlowEvent string
 

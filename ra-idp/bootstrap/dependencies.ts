@@ -94,7 +94,7 @@ export interface AssembledDeps {
 const DPOP_NONCE_TTL_SECONDS = 60
 
 /**
- * SCL `annotations.login_throttle_policy` の双子値 (ADR-029)。
+ * SCL `objectives.LoginThrottlePolicy.value` の双子値 (ADR-029)。
  * テナント別ポリシー (Phase 4) で上書き可能になる前提で固定値として置く。
  */
 const LOGIN_THROTTLE_CONFIGS: LoginThrottleConfigs = {

@@ -2,7 +2,7 @@
 
 ## ステータス
 
-採用。`spec/scl.yaml` `annotations.login_throttle_policy` と
+採用。`spec/scl.yaml` `objectives.LoginThrottlePolicy` と
 `src/authentication/ports/login-attempt-throttle.ts` の双子に反映。
 
 ## コンテキスト
@@ -93,8 +93,8 @@ SCL には `rate_limit_per_minute` policy kind と `ClientAuthFailureRateLimit`
 - `authentication-routes.ts` に IP 抽出 + throttle 配線 + sentinel verify。
 - `LoginThrottled` event を `DomainEvent` 判別ユニオン / SCL `events` /
   `infra/event-routing.yaml` に追加。
-- SCL `annotations.login_throttle_policy` を新設し、しきい値と TRUSTED_FORWARDED_HOPS
-  方針を明記。
+- SCL `objectives.LoginThrottlePolicy` にしきい値を記録する。
+- `TRUSTED_FORWARDED_HOPS` は実行環境固有の設定として実装側で管理する。
 - セッションマネージャやパスワード検証ロジックは触らない（純粋にレイヤを増やす）。
 
 ## 却下した代替案

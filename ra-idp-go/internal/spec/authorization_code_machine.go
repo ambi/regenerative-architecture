@@ -5,7 +5,7 @@ import "fmt"
 // ===============================================================
 // AuthorizationCodeFlow 状態機械
 //
-// SCL `state_machines.AuthorizationCodeFlow` を Go の値で表現する。
+// SCL `states.AuthorizationCodeFlow` を Go の値で表現する。
 // 不変条件: TransitionAuthorizationCodeFlow は SCL に宣言されていない
 // 遷移を返さないこと（AuthCodeStateSafety プロパティに対応）。
 // ===============================================================
@@ -30,7 +30,7 @@ type authCodeFlowTransition struct {
 	To    AuthorizationCodeFlowState
 }
 
-// 遷移表。SCL の state_machines.AuthorizationCodeFlow.transitions と一致させる。
+// 遷移表。SCL の states.AuthorizationCodeFlow.transitions と一致させる。
 var authCodeFlowTransitions = []authCodeFlowTransition{
 	{AuthFlowReceived, EventStartAuthentication, AuthFlowAuthenticationPending},
 	{AuthFlowAuthenticationPending, EventAuthenticateUser, AuthFlowAuthenticated},

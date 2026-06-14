@@ -2,7 +2,7 @@
 
 ## ステータス
 
-採用（Phase 0 — 認証の土台。`spec/scl.yaml` `annotations.password_policy.description` と
+採用（Phase 0 — 認証の土台。`spec/scl.yaml` `objectives.PasswordPolicy` と
 `src/authentication/ports/breached-password-checker.ts` の双子に反映）。
 
 ## コンテキスト

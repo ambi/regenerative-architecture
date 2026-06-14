@@ -4,8 +4,12 @@ package spec_test
 // 仕様核 (spec/scl.yaml) と Go 実装の双子定義が乖離していないことを検証する。
 
 import (
+	"os"
+	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
+	"time"
 
 	"ra-idp-go/internal/authentication/usecases"
 	"ra-idp-go/internal/spec"
@@ -16,8 +20,8 @@ func TestPasswordPolicyMinLengthMatchesSCL(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load scl: %v", err)
 	}
-	if got, want := s.Annotations.PasswordPolicy.MinLength, usecases.PasswordPolicyMinLength; got != want {
-		t.Fatalf("scl.annotations.password_policy.min_length=%d, Go PasswordPolicyMinLength=%d", got, want)
+	if got, want := objectiveInt(t, s, "PasswordPolicy", "min_length"), usecases.PasswordPolicyMinLength; got != want {
+		t.Fatalf("objectives.PasswordPolicy.value.min_length=%d, Go PasswordPolicyMinLength=%d", got, want)
 	}
 }
 
@@ -26,8 +30,8 @@ func TestPasswordPolicyMaxLengthMatchesSCL(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load scl: %v", err)
 	}
-	if got, want := s.Annotations.PasswordPolicy.MaxLength, usecases.PasswordPolicyMaxLength; got != want {
-		t.Fatalf("scl.annotations.password_policy.max_length=%d, Go PasswordPolicyMaxLength=%d", got, want)
+	if got, want := objectiveInt(t, s, "PasswordPolicy", "max_length"), usecases.PasswordPolicyMaxLength; got != want {
+		t.Fatalf("objectives.PasswordPolicy.value.max_length=%d, Go PasswordPolicyMaxLength=%d", got, want)
 	}
 }
 
@@ -36,8 +40,8 @@ func TestPasswordPolicyHistoryDepthMatchesSCL(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load scl: %v", err)
 	}
-	if got, want := s.Annotations.PasswordPolicy.HistoryDepth, usecases.PasswordPolicyHistoryDepth; got != want {
-		t.Fatalf("scl.annotations.password_policy.history_depth=%d, Go PasswordPolicyHistoryDepth=%d", got, want)
+	if got, want := objectiveInt(t, s, "PasswordPolicy", "history_depth"), usecases.PasswordPolicyHistoryDepth; got != want {
+		t.Fatalf("objectives.PasswordPolicy.value.history_depth=%d, Go PasswordPolicyHistoryDepth=%d", got, want)
 	}
 }
 
@@ -46,8 +50,12 @@ func TestPasswordResetTokenTTLMatchesSCL(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, want := s.Annotations.PasswordResetPolicy.TokenTTLSeconds, usecases.PasswordResetTokenTTLSeconds; got != want {
-		t.Fatalf("scl.annotations.password_reset_policy.token_ttl_seconds=%d, Go PasswordResetTokenTTLSeconds=%d", got, want)
+	ttl, err := time.ParseDuration(s.Objectives["PasswordResetTokenLifetime"].TTL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := int(ttl.Seconds()), usecases.PasswordResetTokenTTLSeconds; got != want {
+		t.Fatalf("objectives.PasswordResetTokenLifetime.ttl=%d, Go PasswordResetTokenTTLSeconds=%d", got, want)
 	}
 }
 
@@ -76,21 +84,41 @@ func TestTOTPPolicyMatchesSCL(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load scl: %v", err)
 	}
-	policy := s.Annotations.TOTPPolicy
-	if got, want := policy.Algorithm, "SHA1"; got != want {
+	policy := objectiveValue(t, s, "TotpPolicy")
+	if got, want := policy["algorithm"], "SHA1"; got != want {
 		t.Fatalf("totp algorithm=%q, want %q", got, want)
 	}
-	if got, want := policy.StepSeconds, usecases.TOTPStepSeconds; got != want {
+	if got, want := objectiveInt(t, s, "TotpPolicy", "step_seconds"), int(usecases.TOTPStepSeconds); got != want {
 		t.Fatalf("totp step_seconds=%d, want %d", got, want)
 	}
-	if got, want := policy.Digits, usecases.TOTPDigits; got != want {
+	if got, want := objectiveInt(t, s, "TotpPolicy", "digits"), usecases.TOTPDigits; got != want {
 		t.Fatalf("totp digits=%d, want %d", got, want)
 	}
-	if got, want := policy.Window, usecases.TOTPWindow; got != want {
+	if got, want := objectiveInt(t, s, "TotpPolicy", "window"), usecases.TOTPWindow; got != want {
 		t.Fatalf("totp window=%d, want %d", got, want)
 	}
-	if got, want := policy.SecretBytes, usecases.TOTPSecretBytes; got != want {
+	if got, want := objectiveInt(t, s, "TotpPolicy", "secret_bytes"), usecases.TOTPSecretBytes; got != want {
 		t.Fatalf("totp secret_bytes=%d, want %d", got, want)
+	}
+}
+
+func TestLoginThrottlePolicyLoadsFromSCL(t *testing.T) {
+	s, err := spec.LoadSCL()
+	if err != nil {
+		t.Fatalf("load scl: %v", err)
+	}
+	policy := objectiveValue(t, s, "LoginThrottlePolicy")
+	account := nestedMap(t, policy, "per_account")
+	ip := nestedMap(t, policy, "per_ip")
+	if intValue(t, account, "max_failures") != 10 ||
+		intValue(t, account, "window_seconds") != 900 ||
+		intValue(t, account, "lockout_seconds") != 900 {
+		t.Fatalf("unexpected per-account policy: %+v", account)
+	}
+	if intValue(t, ip, "max_failures") != 30 ||
+		intValue(t, ip, "window_seconds") != 900 ||
+		intValue(t, ip, "lockout_seconds") != 900 {
+		t.Fatalf("unexpected per-IP policy: %+v", ip)
 	}
 }
 
@@ -111,5 +139,135 @@ func TestStandardsAndUserExperienceLoadFromSCL(t *testing.T) {
 	}
 	if _, ok := s.UserExperience.Screens["Login"]; !ok {
 		t.Fatal("user_experience.screens.Login is missing")
+	}
+}
+
+func TestCurrentSCLLoadsAllNormativeSections(t *testing.T) {
+	s, err := spec.LoadSCL()
+	if err != nil {
+		t.Fatalf("load scl: %v", err)
+	}
+	sections := []struct {
+		name string
+		size int
+	}{
+		{"components", len(s.Components)},
+		{"standards", len(s.Standards)},
+		{"vocabulary", len(s.Vocabulary)},
+		{"models", len(s.Models)},
+		{"interfaces", len(s.Interfaces)},
+		{"states", len(s.States)},
+		{"invariants", len(s.Invariants)},
+		{"scenarios", len(s.Scenarios)},
+		{"permissions", len(s.Permissions)},
+		{"objectives", len(s.Objectives)},
+		{"assurance", len(s.Assurance)},
+		{"user_experience.screens", len(s.UserExperience.Screens)},
+	}
+	for _, section := range sections {
+		if section.size == 0 {
+			t.Errorf("%s was not loaded", section.name)
+		}
+	}
+	if len(s.Annotations) != 0 {
+		t.Errorf("top-level annotations must remain non-normative and are currently unexpected: %v", s.Annotations)
+	}
+}
+
+func TestCurrentSCLIsInternallyCoherent(t *testing.T) {
+	s, err := spec.LoadSCL()
+	if err != nil {
+		t.Fatalf("load scl: %v", err)
+	}
+	if err := s.ValidateCoherence(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDecodeSCLRejectsUnknownFields(t *testing.T) {
+	_, err := spec.DecodeSCL([]byte(`
+system: example
+spec_version: "1.0"
+unknown_section: {}
+`))
+	if err == nil {
+		t.Fatal("expected unknown field to be rejected")
+	}
+}
+
+func TestAssuranceEvidenceHasExecutableBindings(t *testing.T) {
+	s, err := spec.LoadSCL()
+	if err != nil {
+		t.Fatalf("load scl: %v", err)
+	}
+	if err := s.ValidateAssuranceManifest(); err != nil {
+		t.Fatal(err)
+	}
+	root := repositoryRoot(t)
+	for evidenceID, verifications := range spec.AssuranceManifest {
+		for _, verification := range verifications {
+			content, err := os.ReadFile(filepath.Join(root, verification.File))
+			if err != nil {
+				t.Errorf("%s: read %s: %v", evidenceID, verification.File, err)
+				continue
+			}
+			if !strings.Contains(string(content), verification.Check) {
+				t.Errorf("%s: %s does not contain check %q", evidenceID, verification.File, verification.Check)
+			}
+		}
+	}
+}
+
+func objectiveValue(t *testing.T, s *spec.SCL, name string) map[string]any {
+	t.Helper()
+	value, ok := s.Objectives[name].Value.(map[string]any)
+	if !ok {
+		t.Fatalf("objectives.%s.value is not a map: %T", name, s.Objectives[name].Value)
+	}
+	return value
+}
+
+func objectiveInt(t *testing.T, s *spec.SCL, objective, key string) int {
+	t.Helper()
+	return intValue(t, objectiveValue(t, s, objective), key)
+}
+
+func nestedMap(t *testing.T, values map[string]any, key string) map[string]any {
+	t.Helper()
+	value, ok := values[key].(map[string]any)
+	if !ok {
+		t.Fatalf("%s is not a map: %T", key, values[key])
+	}
+	return value
+}
+
+func intValue(t *testing.T, values map[string]any, key string) int {
+	t.Helper()
+	switch value := values[key].(type) {
+	case int:
+		return value
+	case uint64:
+		return int(value)
+	default:
+		t.Fatalf("%s is not an integer: %T", key, values[key])
+		return 0
+	}
+}
+
+func repositoryRoot(t *testing.T) string {
+	t.Helper()
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for {
+		if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			t.Fatal("repository root not found")
+		}
+		dir = parent
 	}
 }

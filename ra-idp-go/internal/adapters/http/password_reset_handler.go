@@ -37,8 +37,10 @@ func (d Deps) handleForgotPasswordAPI(c *echo.Context) error {
 		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	ttl := time.Duration(authusecases.PasswordResetTokenTTLSeconds) * time.Second
-	if d.SCL != nil && d.SCL.Annotations.PasswordResetPolicy.TokenTTLSeconds > 0 {
-		ttl = time.Duration(d.SCL.Annotations.PasswordResetPolicy.TokenTTLSeconds) * time.Second
+	if d.SCL != nil {
+		if configured, ok := d.SCL.ObjectiveLifetime("PasswordResetTokenLifetime"); ok && configured > 0 {
+			ttl = configured
+		}
 	}
 	if err := authusecases.RequestPasswordReset(
 		c.Request().Context(),
@@ -67,8 +69,10 @@ func (d Deps) handleResetPasswordAPI(c *echo.Context) error {
 		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "tokenと新しいパスワードが必要です")
 	}
 	historyDepth := authusecases.PasswordPolicyHistoryDepth
-	if d.SCL != nil && d.SCL.Annotations.PasswordPolicy.HistoryDepth > 0 {
-		historyDepth = d.SCL.Annotations.PasswordPolicy.HistoryDepth
+	if d.SCL != nil {
+		if configured, ok := d.SCL.ObjectiveInt("PasswordPolicy", "history_depth"); ok && configured > 0 {
+			historyDepth = configured
+		}
 	}
 	_, err := authusecases.ResetPasswordWithToken(
 		c.Request().Context(),

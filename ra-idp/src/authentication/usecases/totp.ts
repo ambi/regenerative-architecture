@@ -9,7 +9,7 @@
 import { createHmac, randomBytes } from 'node:crypto'
 
 /**
- * spec/scl.yaml annotations.totp_policy と双子定義。乖離すると spec↔impl drift と
+ * spec/scl.yaml objectives.TotpPolicy.value と双子定義。乖離すると spec↔impl drift と
  * なるため invariants.test.ts で突き合わせる。
  */
 export const TOTP_POLICY = {

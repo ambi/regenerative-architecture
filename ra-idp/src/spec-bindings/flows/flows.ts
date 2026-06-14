@@ -67,7 +67,6 @@ export function isAuthCodeTerminal(state: AuthCodeState): boolean {
 export const DEVICE_CODE_STATES = [
   'issued',
   'user_code_entered',
-  'authorization_pending',
   'approved',
   'denied',
   'exchanged',

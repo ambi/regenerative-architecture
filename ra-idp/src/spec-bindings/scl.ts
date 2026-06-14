@@ -143,7 +143,6 @@ export type StateMachine = {
   initial: string
   terminal?: string[]
   transitions: Transition[]
-  polling?: Record<string, unknown>
   annotations?: Record<string, unknown>
 }
 
@@ -186,16 +185,6 @@ export type RetentionPolicy =
   | 'archive_after'
   | 'archive'
 
-export type SecurityPolicy =
-  | 'max_age'
-  | 'min_jwks_overlap'
-  | 'rate_limit_per_minute'
-  | 'clock_skew_seconds'
-  | 'replay_window_minutes'
-  | 'alert_window_seconds'
-
-export type ObjectivePolicy = RetentionPolicy | SecurityPolicy
-
 export type SloMetric =
   | 'latency_p50'
   | 'latency_p95'
@@ -235,8 +224,8 @@ export type LifetimeObjective = ObjectiveBase & {
 
 export type SecurityObjective = ObjectiveBase & {
   kind: 'security'
-  policy: SecurityPolicy
-  value: number | string
+  policy: string
+  value: unknown
   target?: string
 }
 
@@ -361,9 +350,23 @@ export type UserExperience = {
   requirements?: UserExperienceRequirement[]
 }
 
+export type Component = {
+  description?: string
+  owns_models?: string[]
+  owns_states?: string[]
+  owns_events?: string[]
+  owns_interfaces?: string[]
+  owns_invariants?: string[]
+  owns_permissions?: string[]
+  owns_objectives?: string[]
+  depends_on?: Array<{ component: string; reason: string }>
+  annotations?: Record<string, unknown>
+}
+
 export type SclDocument = {
   system: string
   spec_version: string
+  components?: Record<string, Component>
   standards?: Record<string, Standard>
   vocabulary: Record<string, VocabularyEntry>
   models: Record<string, Model>
@@ -519,12 +522,11 @@ export function modelToJsonSchema(modelName: string): Record<string, unknown> {
 }
 
 function typeToJsonSchema(t: string): Record<string, unknown> {
-  // パラメトリック: List<X>, Set<X>, Map<K, V>
-  const listM = t.match(/^List<(.+)>$/) ?? t.match(/^Set<(.+)>$/)
+  // パラメトリック: T[], Set<T>, Map<K, V>
+  const listM = t.match(/^(.+)\[\]$/) ?? t.match(/^Set<(.+)>$/)
   if (listM) return { type: 'array', items: typeToJsonSchema(listM[1]) }
   const mapM = t.match(/^Map<\s*([^,]+)\s*,\s*(.+)\s*>$/)
   if (mapM) return { type: 'object', additionalProperties: typeToJsonSchema(mapM[2]) }
-  if (t.startsWith('OneOf<')) return { description: t }
   switch (t) {
     case 'String':
       return { type: 'string' }

@@ -1,7 +1,7 @@
 /**
  * Layer 3 — Application Logic (Authentication Context Class Reference)
  *
- * 仕様核: spec/scl.yaml annotations.acr_vocabulary。本ファイルは SCL と双子定義であり、
+ * 仕様核: spec/scl.yaml objectives.AuthenticationContextPolicy。本ファイルは SCL と双子定義であり、
  * 値が乖離すると spec↔impl drift になるため check:coherence で突き合わせる。
  *
  * OIDC Core §2 で acr の値域は AS が自由に定められるため、本 IdP が発行する URN を
@@ -18,7 +18,7 @@ export const ACR_VALUES = {
 
 export type AcrValue = (typeof ACR_VALUES)[keyof typeof ACR_VALUES]
 
-/** SCL annotations.acr_vocabulary.mfa_amr_values と一致させる。 */
+/** SCL objectives.AuthenticationContextPolicy.value.mfa_amr_values と一致させる。 */
 const MFA_AMR_VALUES: readonly string[] = ['otp', 'webauthn', 'hwk', 'swk']
 
 export function deriveAcr(amr: readonly string[]): AcrValue {

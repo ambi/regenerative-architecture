@@ -1156,7 +1156,7 @@ models:
   DeviceCodeState:
     kind: enum
     description: DeviceCodeFlow (RFC 8628) 状態機械の取りうる状態列挙。状態機械セクションも参照。
-    values: [Issued, UserCodeEntered, AuthorizationPending, Approved, Denied, Exchanged, Expired]
+    values: [Issued, UserCodeEntered, Approved, Denied, Exchanged, Expired]
 
   RefreshTokenState:
     kind: enum
@@ -1212,7 +1212,7 @@ models:
     kind: entity
     description: ADR-032 で導入したテナント (realm) 集約。Client / User / Consent / ポリシー / ブランディングはこの境界に閉じる。`default` テナントは起動時に自動作成され、削除・無効化とも不可。
     identity: id
-    annotations: { component: Tenancy, audit_required: true, retention_days: 2555 }
+    annotations: { component: Tenancy }
     fields:
       id:            { type: String, constraints: [non_empty, { max_length: 63 }, { pattern: "^[a-z0-9][a-z0-9-]{0,62}$" }], description: "URL-safe slug。予約語 admin は禁止。" }
       display_name:  { type: String, constraints: [non_empty, { max_length: 200 }], annotations: { pii: true } }
@@ -1225,16 +1225,15 @@ models:
     kind: entity
     description: RFC 7591 + FAPI 2.0 拡張のクライアント。
     identity: [tenant_id, client_id]
-    annotations: { audit_required: true, retention_days: 2555 }
     fields:
       tenant_id:                              { type: String, default: "default", description: "所属テナント ID (ADR-032 / ADR-034)。客は (tenant_id, client_id) で一意。" }
       client_id:                              { type: String, constraints: [non_empty, { max_length: 128 }] }
       client_secret_hash:                     { type: String, optional: true, annotations: { sensitive: true } }
       client_name:                            { type: String, optional: true, constraints: [{ max_length: 200 }] }
       client_type:                            { type: ClientType }
-      redirect_uris:                          { type: "List<Uri>", constraints: [non_empty] }
-      grant_types:                            { type: "List<GrantType>", constraints: [non_empty] }
-      response_types:                         { type: "List<ResponseType>" }
+      redirect_uris:                          { type: "Uri[]", constraints: [non_empty] }
+      grant_types:                            { type: "GrantType[]", constraints: [non_empty] }
+      response_types:                         { type: "ResponseType[]" }
       token_endpoint_auth_method:             { type: TokenEndpointAuthMethod }
       scope:                                  { type: String }
       jwks_uri:                               { type: Uri, optional: true }
@@ -1251,19 +1250,18 @@ models:
     kind: entity
     description: OIDC Core §5.1 標準クレーム + PII 注釈付きユーザー。
     identity: sub
-    annotations: { audit_required: true, retention_days: 2555 }
     fields:
       sub:                  { type: String, constraints: [non_empty], description: "global 一意の subject (ADR-034)。tenant 跨ぎでも衝突しない。" }
       tenant_id:            { type: String, default: "default", description: "所属テナント ID (ADR-032)。preferred_username の一意性スコープを決める。" }
       preferred_username:   { type: String, constraints: [non_empty, { max_length: 100 }], annotations: { pii: true } }
-      password_hash:        { type: String, annotations: { sensitive: true, purge_on_deletion: true } }
-      name:                 { type: String, optional: true, annotations: { pii: true, purge_on_deletion: true, purge_deadline_days: 30 } }
-      given_name:           { type: String, optional: true, annotations: { pii: true, purge_on_deletion: true, purge_deadline_days: 30 } }
-      family_name:          { type: String, optional: true, annotations: { pii: true, purge_on_deletion: true, purge_deadline_days: 30 } }
-      email:                { type: String, optional: true, constraints: [{ format: email }], annotations: { pii: true, purge_on_deletion: true, purge_deadline_days: 30 } }
+      password_hash:        { type: String, annotations: { sensitive: true } }
+      name:                 { type: String, optional: true, annotations: { pii: true } }
+      given_name:           { type: String, optional: true, annotations: { pii: true } }
+      family_name:          { type: String, optional: true, annotations: { pii: true } }
+      email:                { type: String, optional: true, constraints: [{ format: email }], annotations: { pii: true } }
       email_verified:       { type: Boolean, default: false }
       mfa_enrolled:         { type: Boolean, default: false }
-      roles:                { type: "List<String>", default: [], description: "RBAC ロール名の集合 (重複なし)。ADR-031。値 admin を持つ user だけが /admin/* を呼べる。空配列は通常ユーザ。" }
+      roles:                { type: "String[]", default: [], description: "RBAC ロール名の集合 (重複なし)。ADR-031。値 admin を持つ user だけが /admin/* を呼べる。空配列は通常ユーザ。" }
       disabled_at:          { type: Timestamp, optional: true, description: "管理操作で無効化された時刻 (ADR-031)。non-null なら login / token 経路は active=false 相当。deleted_at と独立で、復活可能。" }
       created_at:           { type: Timestamp }
       updated_at:           { type: Timestamp, optional: true }
@@ -1273,7 +1271,6 @@ models:
     kind: entity
     description: ユーザーが登録した第二要素 (MFA) 1 件。Totp の場合 secret は base32 で保存し、認証時に RFC 6238 (T0=0, STEP=30s, 6-digit) で評価する。User.mfa_enrolled の真値はこの集合の非空性と同義。
     identity: [sub, type]
-    annotations: { audit_required: true, retention_days: 2555 }
     fields:
       sub:        { type: String, description: 所有者ユーザの sub。 }
       type:       { type: MfaFactorType }
@@ -1286,13 +1283,13 @@ models:
     kind: entity
     description: ブラウザログインセッション。Cookie には不透明な session id のみを置き、sub と auth_time はサーバー側ストアに保持する。amr / acr もここに残し、後続の /authorize で step-up 判定に使う。authentication_pending=true は追加 factor 検証を待っている中間状態で、/authorize 完了経路はそのセッションを未認証扱いとし対応する factor challenge に誘導する。
     identity: id
-    annotations: { component: Authentication, ttl_seconds: 3600, cookie_http_only: true, same_site: Lax }
+    annotations: { component: Authentication }
     fields:
       id:                      { type: UUID }
       sub:                     { type: String }
       auth_time:               { type: Integer }
-      amr:                     { type: "List<String>", description: 認証成立時の RFC 8176 メソッド列。 }
-      acr:                     { type: String, description: annotations.acr_vocabulary から導出した URN。 }
+      amr:                     { type: "String[]", description: 認証成立時の RFC 8176 メソッド列。 }
+      acr:                     { type: String, description: AuthenticationContextPolicy から導出した URN。 }
       authentication_pending:  { type: Boolean, default: false, description: 追加 factor 検証を待っている中間状態か。完了で false。 }
       expires_at:              { type: Timestamp }
 
@@ -1302,7 +1299,7 @@ models:
     fields:
       sub:         { type: String }
       auth_time:   { type: Integer }
-      amr:         { type: "List<String>" }
+      amr:         { type: "String[]" }
       acr:         { type: String, optional: true }
       session_id:  { type: String, optional: true }
 
@@ -1310,12 +1307,11 @@ models:
     kind: entity
     description: GDPR 同意取得記録。状態は ConsentLifecycle 状態機械に従う。
     identity: [tenant_id, sub, client_id]
-    annotations: { audit_required: true }
     fields:
       tenant_id:    { type: String, default: "default", description: "所属テナント ID (ADR-034)。" }
       sub:          { type: String }
       client_id:    { type: String }
-      scopes:       { type: "List<String>", constraints: [non_empty, unique] }
+      scopes:       { type: "String[]", constraints: [non_empty, unique] }
       state:        { type: ConsentState }
       granted_at:   { type: Timestamp }
       expires_at:   { type: Timestamp, description: 通常 granted_at + 365 日 }
@@ -1325,7 +1321,6 @@ models:
     kind: entity
     description: リフレッシュトークンのストアレコード。プレーン値は保存しない。状態は RefreshTokenLifecycle 状態機械に従う。
     identity: id
-    annotations: { token_ttl_seconds: 1209600, absolute_ttl_seconds: 2592000, rotation_required: true }
     fields:
       id:                   { type: UUID }
       tenant_id:            { type: String, default: "default", description: "所属テナント ID (ADR-034)。/token のリプレイ検出を join なしで効かせるため明示する。" }
@@ -1334,7 +1329,7 @@ models:
       parent_id:            { type: UUID, optional: true }
       client_id:            { type: String }
       sub:                  { type: String }
-      scopes:               { type: "List<String>" }
+      scopes:               { type: "String[]" }
       state:                { type: RefreshTokenState }
       issued_at:            { type: Timestamp }
       expires_at:           { type: Timestamp }
@@ -1363,8 +1358,8 @@ models:
       par_request_uri:          { type: String, optional: true }
       sub:                      { type: String, optional: true }
       auth_time:                { type: Integer, optional: true }
-      amr:                      { type: "List<String>", optional: true, description: 認証成功時のメソッド列。advance(authenticate_user) で AuthenticationContext から伝搬。 }
-      acr:                      { type: String, optional: true, description: amr から annotations.acr_vocabulary に従って導出した URN。 }
+      amr:                      { type: "String[]", optional: true, description: 認証成功時のメソッド列。advance(authenticate_user) で AuthenticationContext から伝搬。 }
+      acr:                      { type: String, optional: true, description: amr から AuthenticationContextPolicy に従って導出した URN。 }
       acr_values:               { type: String, optional: true, description: クライアントが /authorize に与えた acr_values パラメータ (RFC 8176)。step-up 判定に使う。 }
       created_at:               { type: Timestamp }
       expires_at:               { type: Timestamp }
@@ -1379,13 +1374,13 @@ models:
       authorization_request_id:   { type: UUID }
       client_id:                  { type: String }
       sub:                        { type: String }
-      scopes:                     { type: "List<String>" }
+      scopes:                     { type: "String[]" }
       redirect_uri:               { type: Uri }
       code_challenge:             { type: String }
       code_challenge_method:      { type: CodeChallengeMethod }
       nonce:                      { type: String, optional: true }
       auth_time:                  { type: Integer }
-      amr:                        { type: "List<String>", optional: true, description: 認可リクエストから引き継いだ認証メソッド列。id_token / access_token に emit する。 }
+      amr:                        { type: "String[]", optional: true, description: 認可リクエストから引き継いだ認証メソッド列。id_token / access_token に emit する。 }
       acr:                        { type: String, optional: true, description: 認可リクエストから引き継いだ ACR URN。id_token / access_token に emit する。 }
       state:                      { type: AuthorizationCodeRecordState }
       issued_at:                  { type: Timestamp }
@@ -1415,7 +1410,7 @@ models:
       tenant_id:            { type: String, default: "default", description: "所属テナント ID (ADR-034)。" }
       user_code:            { type: String, description: 紛らわしい文字を避けた短いコード。 }
       client_id:            { type: String }
-      scopes:               { type: "List<String>" }
+      scopes:               { type: "String[]" }
       state:                { type: DeviceCodeState }
       sub:                  { type: String, optional: true }
       auth_time:            { type: Integer, optional: true }
@@ -1429,7 +1424,6 @@ models:
     kind: entity
     description: トークン署名用の非対称鍵。Active 1本＋Verifying 過去鍵 0本以上を JWKS に並べる（ADR-009 / SigningKeyMinJwksOverlap）。
     identity: kid
-    annotations: { audit_required: true, retention_days: 2555 }
     fields:
       kid:            { type: String, constraints: [non_empty] }
       alg:            { type: SignatureAlgorithm }
@@ -1459,7 +1453,6 @@ models:
   AccessTokenClaims:
     kind: value_object
     description: JWT Access Token クレーム (RFC 9068)。TTL 600 秒。
-    annotations: { token_ttl_seconds: 600, signature_algorithms: [PS256, ES256] }
     fields:
       iss:        { type: Uri }
       sub:        { type: String, description: client_credentials 時は client_id と一致。 }
@@ -1472,13 +1465,12 @@ models:
       jti:        { type: String }
       auth_time:  { type: Integer, optional: true }
       acr:        { type: String, optional: true }
-      amr:        { type: "List<String>", optional: true }
+      amr:        { type: "String[]", optional: true }
       cnf:        { type: SenderConstraintCnf, optional: true }
 
   IdTokenClaims:
     kind: value_object
     description: OIDC ID Token クレーム。TTL 3600 秒。
-    annotations: { token_ttl_seconds: 3600, signature_algorithms: [PS256, ES256] }
     fields:
       iss:                  { type: Uri }
       sub:                  { type: String }
@@ -1488,7 +1480,7 @@ models:
       auth_time:            { type: Integer }
       nonce:                { type: String, optional: true }
       acr:                  { type: String, optional: true }
-      amr:                  { type: "List<String>", optional: true }
+      amr:                  { type: "String[]", optional: true }
       azp:                  { type: String, optional: true }
       at_hash:              { type: String, optional: true }
       c_hash:               { type: String, optional: true }
@@ -1501,7 +1493,7 @@ models:
     kind: value_object
     description: 文字列または1つ以上の文字列の配列（JWT RFC 7519 §4.1.3）。
     fields:
-      one_or_many: { type: "OneOf<String, List<String>>" }
+      one_or_many: { type: JSON, description: JSON string または1つ以上の JSON string の配列。 }
 
   Uri:
     kind: value_object
@@ -1523,7 +1515,7 @@ models:
     kind: value_object
     description: JWK Set (RFC 7517 §5)。/jwks エンドポイントが返す公開鍵集合。クライアントがトークン署名を検証する際に取得する。
     fields:
-      keys: { type: "List<JWK>" }
+      keys: { type: "JWK[]" }
 
   DiscoveryDocument:
     kind: value_object
@@ -1540,31 +1532,35 @@ models:
       device_authorization_endpoint:                 { type: Uri }
       registration_endpoint:                         { type: Uri }
       end_session_endpoint:                          { type: Uri, optional: true }
-      scopes_supported:                              { type: "List<String>" }
-      response_types_supported:                      { type: "List<ResponseType>" }
-      response_modes_supported:                      { type: "List<ResponseMode>", optional: true }
-      grant_types_supported:                         { type: "List<GrantType>" }
-      token_endpoint_auth_methods_supported:         { type: "List<TokenEndpointAuthMethod>" }
-      id_token_signing_alg_values_supported:         { type: "List<SignatureAlgorithm>" }
-      code_challenge_methods_supported:              { type: "List<CodeChallengeMethod>" }
+      scopes_supported:                              { type: "String[]", default: [openid, profile, email, offline_access] }
+      response_types_supported:                      { type: "ResponseType[]" }
+      response_modes_supported:                      { type: "ResponseMode[]", optional: true }
+      grant_types_supported:                         { type: "GrantType[]" }
+      token_endpoint_auth_methods_supported:         { type: "TokenEndpointAuthMethod[]" }
+      introspection_endpoint_auth_methods_supported: { type: "TokenEndpointAuthMethod[]", default: [ClientSecretBasic, PrivateKeyJwt, TlsClientAuth] }
+      revocation_endpoint_auth_methods_supported:    { type: "TokenEndpointAuthMethod[]", default: [ClientSecretBasic, PrivateKeyJwt, TlsClientAuth] }
+      id_token_signing_alg_values_supported:         { type: "SignatureAlgorithm[]" }
+      code_challenge_methods_supported:              { type: "CodeChallengeMethod[]" }
       require_pushed_authorization_requests:         { type: Boolean }
       require_pkce:                                  { type: Boolean }
       authorization_response_iss_parameter_supported: { type: Boolean, optional: true }
-      dpop_signing_alg_values_supported:             { type: "List<SignatureAlgorithm>", optional: true }
+      dpop_signing_alg_values_supported:             { type: "SignatureAlgorithm[]", optional: true }
       tls_client_certificate_bound_access_tokens:    { type: Boolean, optional: true }
-      claims_supported:                              { type: "List<String>", optional: true }
-      acr_values_supported:                          { type: "List<String>", optional: true }
+      subject_types_supported:                       { type: "String[]", default: [public] }
+      claims_supported:                              { type: "String[]", optional: true, default: [sub, iss, aud, exp, iat, auth_time, nonce, acr, amr, azp, name, given_name, family_name, preferred_username, email, email_verified, updated_at] }
+      acr_values_supported:                          { type: "String[]", optional: true, default: ["urn:ra-idp:acr:pwd", "urn:ra-idp:acr:mfa"] }
+      ui_locales_supported:                          { type: "String[]", optional: true, default: [en, ja] }
 
   # ---------- リクエスト/レスポンス値オブジェクト ----------
   ClientRegistrationRequest:
     kind: value_object
     description: /register への動的クライアント登録リクエスト本体 (RFC 7591)。登録後の OAuth2Client は本リクエストの内容から派生する。
     fields:
-      redirect_uris:                  { type: "List<Uri>", constraints: [non_empty] }
+      redirect_uris:                  { type: "Uri[]", constraints: [non_empty] }
       client_name:                    { type: String, optional: true }
       client_type:                    { type: ClientType, optional: true }
-      grant_types:                    { type: "List<GrantType>", constraints: [non_empty] }
-      response_types:                 { type: "List<ResponseType>", optional: true }
+      grant_types:                    { type: "GrantType[]", constraints: [non_empty] }
+      response_types:                 { type: "ResponseType[]", optional: true }
       token_endpoint_auth_method:     { type: TokenEndpointAuthMethod, optional: true }
       scope:                          { type: String, optional: true }
       jwks_uri:                       { type: Uri, optional: true }
@@ -1608,11 +1604,11 @@ models:
     description: 管理 API のテナント一覧 (ADR-032)。
     annotations: { component: Tenancy }
     fields:
-      tenants: { type: "List<TenantSummaryResponse>" }
+      tenants: { type: "TenantSummaryResponse[]" }
 
   AdminUserCreateRequest:
     kind: value_object
-    description: 管理者がユーザーを作成する JSON リクエスト。初期パスワードには password_policy を適用する。
+    description: 管理者がユーザーを作成する JSON リクエスト。初期パスワードには PasswordPolicy objective を適用する。
     annotations: { component: Administration }
     fields:
       preferred_username: { type: String, constraints: [non_empty, { max_length: 100 }], annotations: { pii: true } }
@@ -1620,7 +1616,7 @@ models:
       name:               { type: String, optional: true, annotations: { pii: true } }
       email:              { type: String, optional: true, constraints: [{ format: email }], annotations: { pii: true } }
       email_verified:     { type: Boolean, default: false }
-      roles:              { type: "List<String>", default: [] }
+      roles:              { type: "String[]", default: [] }
 
   AdminUserUpdateRequest:
     kind: value_object
@@ -1631,14 +1627,14 @@ models:
       name:               { type: String, optional: true, annotations: { pii: true } }
       email:              { type: String, optional: true, constraints: [{ format: email }], annotations: { pii: true } }
       email_verified:     { type: Boolean, optional: true }
-      roles:              { type: "List<String>", optional: true }
+      roles:              { type: "String[]", optional: true }
 
   AdminUserListResponse:
     kind: value_object
     description: 管理 API のユーザー一覧。
     annotations: { component: Administration }
     fields:
-      users: { type: "List<AdminUserResponse>" }
+      users: { type: "AdminUserResponse[]" }
 
   AdminUserResponse:
     kind: value_object
@@ -1652,7 +1648,7 @@ models:
       email:              { type: String, optional: true, constraints: [{ format: email }], annotations: { pii: true } }
       email_verified:     { type: Boolean }
       mfa_enrolled:       { type: Boolean }
-      roles:              { type: "List<String>" }
+      roles:              { type: "String[]" }
       disabled_at:        { type: Timestamp, optional: true }
       created_at:         { type: Timestamp }
       updated_at:         { type: Timestamp, optional: true }
@@ -1662,11 +1658,11 @@ models:
     description: 管理者が所属テナントに OAuth client を作成する。生成された client_secret は作成応答で一度だけ返す。
     annotations: { component: Administration }
     fields:
-      redirect_uris:                  { type: "List<Uri>", constraints: [non_empty] }
+      redirect_uris:                  { type: "Uri[]", constraints: [non_empty] }
       client_name:                    { type: String, optional: true, constraints: [{ max_length: 200 }] }
       client_type:                    { type: ClientType, optional: true }
-      grant_types:                    { type: "List<GrantType>", constraints: [non_empty] }
-      response_types:                 { type: "List<ResponseType>", optional: true }
+      grant_types:                    { type: "GrantType[]", constraints: [non_empty] }
+      response_types:                 { type: "ResponseType[]", optional: true }
       token_endpoint_auth_method:     { type: TokenEndpointAuthMethod, optional: true }
       scope:                          { type: String, optional: true }
       jwks_uri:                       { type: Uri, optional: true }
@@ -1682,9 +1678,9 @@ models:
     annotations: { component: Administration }
     fields:
       client_name:                    { type: String, optional: true, constraints: [{ max_length: 200 }] }
-      redirect_uris:                  { type: "List<Uri>", optional: true, constraints: [non_empty] }
-      grant_types:                    { type: "List<GrantType>", optional: true, constraints: [non_empty] }
-      response_types:                 { type: "List<ResponseType>", optional: true }
+      redirect_uris:                  { type: "Uri[]", optional: true, constraints: [non_empty] }
+      grant_types:                    { type: "GrantType[]", optional: true, constraints: [non_empty] }
+      response_types:                 { type: "ResponseType[]", optional: true }
       scope:                          { type: String, optional: true }
       require_pushed_authorization_requests: { type: Boolean, optional: true }
       dpop_bound_access_tokens:       { type: Boolean, optional: true }
@@ -1698,9 +1694,9 @@ models:
       client_id:                              { type: String }
       client_name:                            { type: String, optional: true }
       client_type:                            { type: ClientType }
-      redirect_uris:                          { type: "List<Uri>" }
-      grant_types:                            { type: "List<GrantType>" }
-      response_types:                         { type: "List<ResponseType>" }
+      redirect_uris:                          { type: "Uri[]" }
+      grant_types:                            { type: "GrantType[]" }
+      response_types:                         { type: "ResponseType[]" }
       token_endpoint_auth_method:             { type: TokenEndpointAuthMethod }
       scope:                                  { type: String }
       jwks_uri:                               { type: Uri, optional: true }
@@ -1725,7 +1721,7 @@ models:
     description: 所属テナント内の client 一覧。
     annotations: { component: Administration }
     fields:
-      clients: { type: "List<AdminClientResponse>" }
+      clients: { type: "AdminClientResponse[]" }
 
   AdminConsentResponse:
     kind: value_object
@@ -1735,7 +1731,7 @@ models:
       tenant_id:  { type: String }
       sub:        { type: String }
       client_id:  { type: String }
-      scopes:     { type: "List<String>" }
+      scopes:     { type: "String[]" }
       state:      { type: ConsentState }
       granted_at: { type: Timestamp }
       expires_at: { type: Timestamp }
@@ -1746,7 +1742,7 @@ models:
     description: 所属テナント内の Consent 一覧。
     annotations: { component: Administration }
     fields:
-      consents: { type: "List<AdminConsentResponse>" }
+      consents: { type: "AdminConsentResponse[]" }
 
   TokenRequest:
     kind: value_object
@@ -1883,7 +1879,7 @@ models:
     description: Browser client が POST /api/auth/totp に送る TOTP コード。authorization request id は HttpOnly transaction cookie、CSRF は X-CSRF-Token header から解決する。他 factor (WebAuthn 等) はHTTP形が大きく異なるため、別endpointと別value objectとして独立に定義する。
     annotations: { component: Authentication }
     fields:
-      code:          { type: String, description: Authenticator アプリが生成した数字コード (annotations.totp_policy.digits 桁)。, annotations: { sensitive: true } }
+      code:          { type: String, description: Authenticator アプリが生成した数字コード (TotpPolicy の digits 桁)。, annotations: { sensitive: true } }
       return_to:     { type: String, optional: true, description: 管理画面への直接ログインを継続する場合の同一 realm 内遷移先。 }
 
   BrowserChangePasswordRequest:
@@ -1910,13 +1906,14 @@ models:
       new_password: { type: String, annotations: { sensitive: true } }
 
   PasswordResetTokenRecord:
-    kind: aggregate
+    kind: entity
+    identity: token_hash
     description: |
       パスワードリセット用の単発消費トークン (ADR-030)。
       token は base64url の 32 バイト乱数で、保存時は SHA-256 hash のみ。
       期限切れ / consume 済みの行は GC するが、INSERT 時に同 sub の未消費を
       失効させる軽い掃除も行う。
-    annotations: { component: Authentication, purge_on_deletion: true }
+    annotations: { component: Authentication }
     fields:
       sub:          { type: String }
       token_hash:   { type: String, annotations: { sensitive: true } }
@@ -1931,7 +1928,7 @@ models:
       kind:          { type: String, description: 描画すべき画面の識別子。login / totp / consent / device 等、factor 追加に応じて拡張する。 }
       csrf_token:    { type: String, annotations: { sensitive: true } }
       client_name:   { type: String, optional: true }
-      scopes:        { type: "List<String>", optional: true }
+      scopes:        { type: "String[]", optional: true }
 
   BrowserDeviceContextResponse:
     kind: value_object
@@ -2036,7 +2033,7 @@ models:
     payload:
       occurredAt:   { type: Timestamp }
       sub:          { type: String }
-      amr:          { type: "List<String>", optional: true }
+      amr:          { type: "String[]", optional: true }
 
   AuthenticationFailed:
     kind: event
@@ -2107,7 +2104,7 @@ models:
       occurredAt:    { type: Timestamp }
       actorSub:      { type: String }
       targetSub:     { type: String }
-      changedFields: { type: "List<String>" }
+      changedFields: { type: "String[]" }
 
   UserDisabled:
     kind: event
@@ -2144,7 +2141,7 @@ models:
       occurredAt:    { type: Timestamp }
       actorSub:      { type: String }
       clientId:      { type: String }
-      changedFields: { type: "List<String>" }
+      changedFields: { type: "String[]" }
 
   AdminClientDeleted:
     kind: event
@@ -2172,7 +2169,7 @@ models:
       occurredAt:    { type: Timestamp }
       actorSub:      { type: String }
       tenantId:      { type: String }
-      changedFields: { type: "List<String>" }
+      changedFields: { type: "String[]" }
 
   TenantDisabled:
     kind: event
@@ -2199,7 +2196,7 @@ models:
       occurredAt:   { type: Timestamp }
       sub:          { type: String }
       clientId:     { type: String }
-      scopes:       { type: "List<String>" }
+      scopes:       { type: "String[]" }
 
   ConsentRevoked:
     kind: event
@@ -2217,7 +2214,7 @@ models:
       occurredAt:           { type: Timestamp }
       clientId:             { type: String }
       sub:                  { type: String }
-      scopes:               { type: "List<String>" }
+      scopes:               { type: "String[]" }
       codeChallengeMethod:  { type: String, optional: true }
 
   AuthorizationCodeRedeemed:
@@ -2236,7 +2233,7 @@ models:
       jti:                { type: String }
       clientId:           { type: String }
       sub:                { type: String }
-      scopes:             { type: "List<String>" }
+      scopes:             { type: "String[]" }
       senderConstraint:   { type: AccessTokenSenderConstraint, default: None }
 
   RefreshTokenIssued:
@@ -2308,7 +2305,7 @@ models:
     payload:
       occurredAt:   { type: Timestamp }
       clientId:     { type: String }
-      scopes:       { type: "List<String>" }
+      scopes:       { type: "String[]" }
 
   DeviceAuthorizationApproved:
     kind: event
@@ -2416,7 +2413,7 @@ interfaces:
       - { kind: http, method: POST, path: /api/auth/totp, request_body: json }
 
   ChangePassword:
-    description: 認証済みユーザーが自身のパスワードを変更する。current_password を verify、new_password を password_policy で検証、PasswordHistoryNoReuse invariant で直近 history_depth 件と照合する。
+    description: 認証済みユーザーが自身のパスワードを変更する。current_password を verify、new_password を PasswordPolicy objective で検証、PasswordHistoryNoReuse invariant で直近 history_depth 件と照合する。
     steps:
       - "認証済みユーザーが current_password と new_password で change-password を送る"
     input:
@@ -2443,7 +2440,7 @@ interfaces:
   ResetPasswordWithToken:
     description: |
       reset リンクから戻ってきたユーザーが新パスワードを設定する (ADR-030)。
-      token を単発消費し、password_policy / PasswordHistoryNoReuse /
+      token を単発消費し、PasswordPolicy objective / PasswordHistoryNoReuse /
       BreachedPasswordChecker を通過した new_password で User.password_hash を
       更新する。成功時 PasswordChanged を emit。
     steps:
@@ -2645,7 +2642,7 @@ interfaces:
       - { kind: http, method: GET, path: "/api/admin/users/{sub}" }
 
   CreateAdminUser:
-    description: 管理者が password_policy を満たす初期パスワードでユーザーを作成する。
+    description: 管理者が PasswordPolicy objective を満たす初期パスワードでユーザーを作成する。
     input:
       request: { type: AdminUserCreateRequest }
     output:
@@ -2774,7 +2771,6 @@ interfaces:
       `/realms/{tenant_id}/...` の prefix が無い場合は `default` テナントに解決する。
       不在テナントは 404 tenant_not_found、disabled テナントは OAuth/OIDC の
       protocol route では 400 invalid_request とし、いずれも存在や状態の詳細を漏らさない。
-    kind: internal
     input:
       path: { type: String, description: "HTTP リクエスト path" }
     output:
@@ -2882,21 +2878,8 @@ states:
       - { from: UserCodeEntered,         event: Approve,          to: Approved }
       - { from: UserCodeEntered,         event: Deny,             to: Denied }
       - { from: UserCodeEntered,         event: Expire,           to: Expired }
-      - { from: AuthorizationPending,    event: Approve,          to: Approved }
-      - { from: AuthorizationPending,    event: Deny,             to: Denied }
-      - { from: AuthorizationPending,    event: Expire,           to: Expired }
       - { from: Approved,                event: Exchange,         to: Exchanged }
       - { from: Approved,                event: Expire,           to: Expired }
-    polling:
-      description: "RFC 8628 §3.5 のポーリング動作仕様。"
-      default_interval_seconds: 5
-      slow_down_increment_seconds: 5
-      responses:
-        AuthorizationPending: "クライアントは interval 秒待ってから再試行する"
-        SlowDown:             "クライアントは interval + 5 秒待ってから再試行する"
-        AccessDenied:         "クライアントはポーリングを停止する"
-        ExpiredToken:         "クライアントはポーリングを停止する"
-
   RefreshTokenLifecycle:
     description: RefreshToken のライフサイクル。Rotate で子トークンに引き継がれ、Revoke で失効、Expire で期限切れ。Rotated 後も家族失効により Revoked へ遷移しうる（RFC 9700 §4.14）。
     target: RefreshTokenRecord
@@ -3087,8 +3070,8 @@ invariants:
     always: "exists(request.code_challenge) and request.code_challenge_method == S256"
 
   AccessTokenIssuedOnlyAfterConsent:
-    description: AccessToken は、対応する Subject × Client × Scope の Consent が Granted の場合のみ発行される。
-    assuming: "event == AccessTokenIssued"
+    description: Authorization Code Grant の AccessToken は、対応する Subject × Client × Scope の Consent が Granted の場合のみ発行される。
+    assuming: "event == AccessTokenIssued and event.grant_type == AuthorizationCode"
     always:
       exists:
         in: Consents
@@ -3107,12 +3090,12 @@ invariants:
   PasswordHistoryNoReuse:
     description: |
       change-password 受領時、新パスワードは同一 sub の直近 history_depth 件のハッシュと
-      一致してはならない。ADR-027 / annotations.password_policy.history_depth。
+      一致してはならない。ADR-027 / PasswordPolicy.value.history_depth。
       反例: 直前のパスワードを再設定でき、漏洩済みクレデンシャルでログイン可能なまま。
     assuming: "event == ChangePassword"
     never:
       exists:
-        in: "PasswordHistoryEntries(sub=event.sub, depth=password_policy.history_depth)"
+        in: "PasswordHistoryEntries(sub=event.sub, depth=PasswordPolicy.value.history_depth)"
         satisfies: "PasswordHasher.verify(event.new_password, x.encoded) == true"
 
   # ---------- クライアント認証エラー一様化 ----------
@@ -3466,14 +3449,14 @@ scenarios:
   承認前のデバイス交換は authorization_pending を返す:
     description: RFC 8628 §3.5 — ユーザー承認前のポーリングは authorization_pending。
     steps:
-      - AuthorizationPending 状態の device_code "DC1" を用意する
+      - Issued 状態の device_code "DC1" を用意する
       - device_code "DC1" を交換する
       - 'エラー "AuthorizationPendingError"'
 
   ポーリング間隔より短い再試行は slow_down を返す:
     description: RFC 8628 §3.5 — interval 秒未満での再試行は slow_down で interval+5 秒に増やす。
     steps:
-      - interval 5 秒の device_code "DC1" を AuthorizationPending 状態で用意する
+      - interval 5 秒の device_code "DC1" を Issued 状態で用意する
       - device_code "DC1" を交換する
       - '"2s" 経過する'
       - device_code "DC1" を交換する
@@ -4036,6 +4019,49 @@ objectives:
   DpopJtiReplayWindow:                         { kind: security, policy: replay_window_minutes, value: 10 }
   DpopNonceLifetime:                           { kind: security, policy: ttl_seconds, value: 60 }
   RefreshReuseAlertWindow:                     { kind: security, policy: alert_window_seconds, value: 60 }
+  DeviceCodePollingSlowDownIncrement:           { kind: security, policy: polling_slow_down_increment_seconds, target: DeviceAuthorization, value: 5, reference: "RFC 8628 §3.5" }
+  PasswordPolicy:
+    kind: security
+    policy: password_policy
+    target: User
+    value: { min_length: 12, max_length: 128, forbid_user_identifier_similarity: true, common_password_dictionary: bundled, history_depth: 5 }
+    reference: "ADR-026 / ADR-027 / ADR-028"
+  LoginThrottlePolicy:
+    kind: security
+    policy: login_throttle
+    target: SubmitBrowserLogin
+    value:
+      per_account: { max_failures: 10, window_seconds: 900, lockout_seconds: 900 }
+      per_ip:      { max_failures: 30, window_seconds: 900, lockout_seconds: 900 }
+    reference: "ADR-029"
+  AuthenticationContextPolicy:
+    kind: security
+    policy: authentication_context
+    target: LoginSession
+    value:
+      values:
+        - { urn: "urn:ra-idp:acr:pwd", description: "Password 単独認証 (amr ⊇ [pwd])。" }
+        - { urn: "urn:ra-idp:acr:mfa", description: "Password + 第二要素 (amr に otp / webauthn / hwk / swk のいずれかを含む)。" }
+      mfa_amr_values: [otp, webauthn, hwk, swk]
+    reference: "OIDC Core §2 / RFC 8176"
+  TotpPolicy:
+    kind: security
+    policy: totp_parameters
+    target: MfaFactor
+    value: { algorithm: SHA1, step_seconds: 30, digits: 6, window: 1, secret_bytes: 20 }
+    reference: "RFC 6238 §4 / RFC 4226 §4"
+  PasswordResetTokenLifetime:
+    kind: lifetime
+    target: PasswordResetTokenRecord
+    ttl: 1800s
+    single_use: true
+    reference: "ADR-030"
+  LoginSessionSecurity:
+    kind: security
+    policy: browser_session_cookie
+    target: LoginSession
+    value: { http_only: true, same_site: Lax }
+    reference: "ADR-013"
 
   # ---------- データ保持 (GDPR / コンプライアンス) ----------
   AuditLogRetention:
@@ -4420,7 +4446,7 @@ user_experience:
       screens: [AdminClients]
       interfaces: [CreateAdminClient, GetAdminClient, ListAdminClients]
     - id: UX-ADMIN-CLIENT-DELETE-CONFIRMATION
-      category: safety
+      category: usability
       adoption: required
       statement: AdminClientsはclient削除前に対象client_idと影響を示す確認操作を要求する。
       screens: [AdminClients]
@@ -4476,409 +4502,3 @@ user_experience:
       screens: [Home, Login, Totp, Consent, Device, Status, Callback]
       interfaces: [GetOpenidConfiguration]
       standards: [OpenIDConnectDiscovery]
-
-# =================================================================
-# 11. annotations — 補助情報（任意・規約外、生成器が利用）
-# =================================================================
-
-annotations:
-
-  conception_baseline:
-    id: ra-idp-conception-baseline-1
-    file: decisions/CONCEPTION_BASELINE.md
-    conception: decisions/CONCEPTION.md
-    reconstructed_on: "2026-06-14"
-    note: 開発開始時の原資料ではなく、SCL・ADR・README・実装・テストから遡及復元した基準。
-
-  password_policy:
-    description: |
-      プレーンパスワードがシステムに導入されるすべての経路（registration / change-password /
-      admin による作成 / demo seed）に適用される。NIST SP 800-63B-4 §3.1.1.2 に沿って、
-      文字種混在 (composition rule) と periodic rotation は採用しない。代わりに、長さ・
-      ユーザー識別子 (preferred_username / email local-part / email) との類似禁止・
-      共通パスワード辞書 (bundled) による拒否を行う。最小12文字は本システム固有ポリシーであり、
-      単一要素認証に15文字以上を要求する NIST 推奨への完全準拠は表明しない。HIBP 等の外部
-      漏洩データベース検査は password_policy とは別に BreachedPasswordChecker port を
-      経由して行い、ヒットした場合は違反語彙 breached を返す (ADR-028)。既定 adapter は
-      Noop、HIBP Range API adapter は BREACHED_PASSWORD_CHECKER=hibp で opt-in、外部
-      API 失敗時は fail-open する。change-password 経路では直近 history_depth 件の
-      ハッシュと一致する新パスワードを拒否する (invariant PasswordHistoryNoReuse /
-      ADR-027)。本値は将来テナント別ポリシー (Phase 4) で上書き可能になる前提で構造化
-      している。詳細は ADR-026 / ADR-027 / ADR-028。
-    min_length: 12
-    max_length: 128
-    forbid_user_identifier_similarity: true
-    common_password_dictionary: bundled
-    history_depth: 5
-
-  password_reset_policy:
-    description: |
-      メール経由のパスワードリセット (ADR-030)。token は 32 バイト乱数 →
-      base64url、保存時は SHA-256。TTL は OWASP "Forgot Password Cheat Sheet"
-      推奨と整合する 30 分。単発消費 (consume で原子的に失効)。verified email
-      を持つ user のみリンクを送る (self-registration 導入時にも有効)。
-      anti-enumeration のため /api/auth/forgot_password は常に 204 を返す。
-    token_ttl_seconds:        1800
-    single_use:               true
-    email_verified_required:  true
-
-  login_throttle_policy:
-    description: |
-      ログイン試行のスロットリング閾値 (ADR-029)。per-account と per-IP を独立に
-      カウントし、いずれかが window 内に max_failures に達した時点で lockout_seconds
-      の間 429 を返す。username は lowercased、IP は trusted_forwarded_hops の方針で
-      解決した結果を SHA-256 でハッシュした上で keyHash に載せる。
-      X-Forwarded-For はデフォルトでは信頼せず、TRUSTED_FORWARDED_HOPS 環境変数
-      (= trusted_forwarded_hops_env) で明示 opt-in する。本値は将来テナント別ポリシー
-      (Phase 4) で上書き可能になる前提で構造化している。詳細は ADR-029。
-    per_account:
-      max_failures:    10
-      window_seconds:  900
-      lockout_seconds: 900
-    per_ip:
-      max_failures:    30
-      window_seconds:  900
-      lockout_seconds: 900
-    trusted_forwarded_hops_env: TRUSTED_FORWARDED_HOPS
-
-  acr_vocabulary:
-    description: |
-      Authentication Context Class Reference の URN 列挙。OIDC Core §2 では acr の値域は
-      AS が自由に定められるため、本 IdP が発行する acr の語彙をここに固定する。
-      amr (Authentication Methods References, RFC 8176) から下記マッピングで導出する。
-      step-up reauth は /authorize の acr_values パラメータでこの URN を指定する。
-    values:
-      - { urn: "urn:ra-idp:acr:pwd", description: "Password 単独認証 (amr ⊇ [pwd])。" }
-      - { urn: "urn:ra-idp:acr:mfa", description: "Password + 第二要素 (amr に otp / webauthn / hwk のいずれかを含む)。" }
-    mfa_amr_values: [otp, webauthn, hwk, swk]
-
-  totp_policy:
-    description: |
-      MfaFactor (type=Totp) の生成・検証パラメータ。RFC 6238 §4 の式に従い、
-      Google Authenticator / 1Password 等の主要 Authenticator アプリと互換になるよう
-      algorithm=SHA1 / step_seconds=30 / digits=6 を固定する。window は時刻ズレ吸収のため
-      ±1 ステップを許容する。secret_bytes は RFC 4226 §4 推奨の 160-bit。
-    algorithm: SHA1
-    step_seconds: 30
-    digits: 6
-    window: 1
-    secret_bytes: 20
-
-  discovery_template:
-    scopes_supported: [openid, profile, email, offline_access]
-    subject_types_supported: [public]
-    claims_supported:
-      [sub, iss, aud, exp, iat, auth_time, nonce, acr, amr, azp,
-       name, given_name, family_name, preferred_username, email, email_verified, updated_at]
-    acr_values_supported: ["urn:ra-idp:acr:pwd", "urn:ra-idp:acr:mfa"]
-    ui_locales_supported: [en, ja]
-    introspection_endpoint_auth_methods: [ClientSecretBasic, PrivateKeyJwt, TlsClientAuth]
-    revocation_endpoint_auth_methods:    [ClientSecretBasic, PrivateKeyJwt, TlsClientAuth]
-
-  scenario_coverage:
-    "認可コードフローでアクセストークンと ID トークンを取得できる":
-      status: covered
-      evidence:
-        - { file: src/oauth2/usecases/exchange-code-for-token.test.ts, test: "access_token / refresh_token / id_token を返す + 監査情報を含む" }
-        - { file: src/spec-bindings/golden.test.ts, test: "full happy path: received → ... → exchanged" }
-    "PKCE verifier が不一致なら拒否される":
-      status: covered
-      evidence:
-        - { file: src/oauth2/usecases/exchange-code-for-token.test.ts, test: "PKCE verifier が不一致なら invalid_grant" }
-    "認可コードを 2 回交換するとトークンファミリーが全失効する":
-      status: covered
-      evidence:
-        - { file: src/oauth2/usecases/exchange-code-for-token.test.ts, test: "再利用検出時に最初のリフレッシュトークンファミリーが失効する" }
-    "リフレッシュトークンを使うと新トークンが返り旧トークンは無効化される":
-      status: covered
-      evidence:
-        - { file: src/spec-bindings/persistence-contract.test.ts, test: "rotate は parent を rotated にし、新トークンを保存する" }
-    "旧リフレッシュトークンの再使用はファミリー全体を失効させる":
-      status: covered
-      evidence:
-        - { file: src/spec-bindings/property/refresh-rotation.property.test.ts, test: "任意のチェーン長で revokeFamily が全トークンを revoked にする" }
-    "不正な client_secret は invalid_client で拒否される":
-      status: partial
-      evidence:
-        - { file: demo.sh, test: "不正な client_secret → 401 invalid_client" }
-      note: client_secret_basic の自動シナリオテストは未分離。
-    "未知の client_id も一律 invalid_client で拒否される":
-      status: partial
-      evidence:
-        - { file: src/spec-bindings/persistence-contract.test.ts, test: "未登録 client_id は null を返す" }
-      note: HTTP エラー一様化の自動シナリオテストは未分離。
-    "未登録の redirect_uri へはリダイレクトしない":
-      status: covered
-      evidence:
-        - { file: src/spec-bindings/golden.test.ts, test: "未登録 URI → Deny" }
-        - { file: src/spec-bindings/policy/authorization.test.ts, test: "redirect_uri が登録外なら Deny" }
-    "既存の同意があれば同意画面はスキップされる":
-      status: covered
-      evidence:
-        - { file: src/oauth2/usecases/authorize-request.test.ts, test: "既存の同意があれば consented まで進み、同意 UI をスキップできる" }
-        - { file: src/spec-bindings/golden.test.ts, test: "既存コンセントがあるときは authenticated → 直接 issue_code" }
-    "prompt=consent は既存同意があっても再同意を求める":
-      status: covered
-      evidence:
-        - { file: src/oauth2/usecases/authorize-request.test.ts, test: "prompt=consent は既存同意があっても再同意を要求する" }
-    "PAR 経由の request_uri は一度だけ参照できる":
-      status: covered
-      evidence:
-        - { file: src/spec-bindings/persistence-contract.test.ts, test: "save → consume (1st OK, 2nd null)" }
-    "FAPI クライアントは PAR なしの直接認可リクエストを拒否される":
-      status: covered
-      evidence:
-        - { file: src/oauth2/usecases/authorize-request.test.ts, test: "PAR 必須の FAPI クライアントは PAR なしの直接認可リクエストを拒否される" }
-        - { file: src/spec-bindings/policy/authorization.test.ts, test: "FAPI クライアントが PAR を経由しないと Deny" }
-    "DPoP 証明付き要求はセンダー制約付きトークンを発行する":
-      status: covered
-      evidence:
-        - { file: src/oauth2/usecases/exchange-code-for-token.test.ts, test: "DPoP jkt が指定されると token_type は DPoP かつ cnf にバインドされる" }
-    "iat が 60 秒以上古い DPoP 証明は拒否される":
-      status: partial
-      evidence:
-        - { file: adapters/crypto/dpop-verifier.ts, test: "クロックスキュー" }
-      note: DPoP verifier の時刻境界テストは未分離。
-    "同一 DPoP jti の再使用はリプレイとして拒否される":
-      status: covered
-      evidence:
-        - { file: src/spec-bindings/property/dpop-replay.property.test.ts, test: "同じ jti は recordIfNew で 2 度 true を返さない" }
-        - { file: adapters/http/client-authentication.test.ts, test: "同じ jti の再使用はリプレイとして拒否する" }
-    "有効なトークンの introspection は active=true を返す":
-      status: partial
-      evidence:
-        - { file: demo.sh, test: "/introspect（リソースサーバー視点）" }
-    "失効済みトークンの introspection は active=false のみ返す":
-      status: partial
-      evidence:
-        - { file: demo.sh, test: "失効後の introspect は active=false を返すはず" }
-    "openid スコープ付きトークンでユーザー情報は sub を返す":
-      status: partial
-      evidence:
-        - { file: demo.sh, test: "/userinfo（OIDC Core §5.3）" }
-    "openid スコープのないトークンのユーザー情報取得は拒否される":
-      status: covered
-      evidence:
-        - { file: src/spec-bindings/policy/authorization.test.ts, test: "openid スコープなしのトークンは Deny" }
-    "Discovery 文書は宣言された全エンドポイントを広告する":
-      status: covered
-      evidence:
-        - { file: src/spec-bindings/invariants.test.ts, test: "authorization_endpoint が SCL Authorize の HTTP binding path と一致する" }
-        - { file: src/spec-bindings/invariants.test.ts, test: "token_endpoint が SCL Token の HTTP binding path と一致する" }
-    "鍵回転後も旧 kid の JWKS エントリは保持される":
-      status: covered
-      evidence:
-        - { file: src/oauth2/usecases/rotate-signing-key.test.ts, test: "回転で新 active 鍵を作り、旧鍵を検証用に残す" }
-    "認可コードの並行交換はちょうど一方だけ成功する":
-      status: partial
-      evidence:
-        - { file: src/spec-bindings/persistence-contract.test.ts, test: "save → find → redeem (1st OK, 2nd null)" }
-      note: 並行実行のレース再現テストは未分離。
-    "動的クライアント登録は client_id を採番して返す":
-      status: partial
-      evidence:
-        - { file: src/oauth2/usecases/register-client.ts, test: "client_secret は secret ベース認証方式のときだけ発行する" }
-      note: register usecase の自動シナリオテストは未分離。
-    "redirect_uri が無いクライアント登録は拒否される":
-      status: partial
-      evidence:
-        - { file: src/oauth2/usecases/register-client.ts, test: "redirect_uris" }
-      note: register validation の自動シナリオテストは未分離。
-    "60 秒経過した認可コードの交換は拒否される":
-      status: covered
-      evidence:
-        - { file: src/oauth2/domain/authorization-code.test.ts, test: "TTL を超えた時刻では isExpired が true" }
-        - { file: src/spec-bindings/policy/authorization.test.ts, test: "期限切れコードは Deny" }
-    "absolute_expires_at を超えた refresh token はローテーション不可":
-      status: covered
-      evidence:
-        - { file: src/oauth2/domain/refresh-token.test.ts, test: "absolute_expires_at を過ぎたら期限切れ" }
-    "/revoke でリフレッシュトークンを失効できる":
-      status: partial
-      evidence:
-        - { file: demo.sh, test: "/revoke で新 refresh_token を失効" }
-    "他クライアントの所有トークンの失効要求は静かに無視される":
-      status: covered
-      evidence:
-        - { file: src/spec-bindings/policy/client-authorization.ts, test: "caller_owns_token" }
-    "失効した access_token でユーザー情報取得は invalid_token で拒否される":
-      status: partial
-      evidence:
-        - { file: src/spec-bindings/policy/authorization.test.ts, test: "openid スコープと active トークンなら Permit" }
-      note: access_token 失効後の /userinfo 自動シナリオテストは未分離。
-    "offline_access スコープがあれば refresh_token も発行される":
-      status: partial
-      evidence:
-        - { file: src/oauth2/usecases/exchange-code-for-token.test.ts, test: "access_token / refresh_token / id_token を返す + 監査情報を含む" }
-      note: offline_access 条件分岐の自動シナリオテストは未分離。
-    "offline_access が無いと refresh_token は発行されない":
-      status: covered
-      evidence:
-        - { file: src/oauth2/usecases/exchange-code-for-token.test.ts, test: "offline_access を含まないスコープでは refresh_token を返さない" }
-    "認可リクエストの nonce は ID トークンに伝播する":
-      status: partial
-      evidence:
-        - { file: src/oauth2/usecases/exchange-code-for-token.ts, test: "nonce" }
-      note: nonce 伝播の自動シナリオテストは未分離。
-    "max_age を超えた前回認証では再認証を要求する":
-      status: covered
-      evidence:
-        - { file: src/oauth2/usecases/authorize-request.test.ts, test: "max_age を超えた認証時刻では再認証を要求する" }
-    "prompt=none でセッションが無い場合は拒否される":
-      status: covered
-      evidence:
-        - { file: adapters/http/authorize-routes.test.ts, test: "prompt=none は未認証時に access_denied を返す" }
-    "パスワードログイン後はセッション Cookie で認可を継続できる":
-      status: covered
-      evidence:
-        - { file: adapters/http/authorize-routes.test.ts, test: "ログインフォームの成功後はセッション Cookie を発行し認可コードへリダイレクトする" }
-    "browser login API の CSRF 不一致は拒否される":
-      status: covered
-      evidence:
-        - { file: adapters/http/authorize-routes.test.ts, test: "ログインフォームは CSRF 不一致を拒否する" }
-    "prompt=login は既存セッションがあっても再認証を要求する":
-      status: covered
-      evidence:
-        - { file: src/oauth2/usecases/authorize-request.test.ts, test: "prompt=login は既存セッションがあっても再認証を要求する" }
-    "RP-Initiated Logout は登録済み post_logout_redirect_uri にだけリダイレクトする":
-      status: covered
-      evidence:
-        - { file: adapters/http/authorize-routes.test.ts, test: "end_session は登録済み post_logout_redirect_uri に state 付きでリダイレクトする" }
-    "未登録 post_logout_redirect_uri は拒否される":
-      status: covered
-      evidence:
-        - { file: adapters/http/authorize-routes.test.ts, test: "end_session は未登録 post_logout_redirect_uri を拒否する" }
-    "client_credentials グラントで M2M トークンが発行される":
-      status: partial
-      evidence:
-        - { file: demo.sh, test: "/token (grant_type=client_credentials)" }
-    "public クライアントは client_credentials を登録できない":
-      status: covered
-      evidence:
-        - { file: src/spec-bindings/policy/authorization.test.ts, test: "public クライアントは Deny" }
-    "デバイス認可フローでアクセストークンを取得できる":
-      status: covered
-      evidence:
-        - { file: src/oauth2/usecases/device-flow.test.ts, test: "request → pending → approve → tokens → replay は invalid_grant" }
-    "承認前のデバイス交換は authorization_pending を返す":
-      status: covered
-      evidence:
-        - { file: src/oauth2/usecases/device-flow.test.ts, test: "poll before approval → authorization_pending" }
-    "ポーリング間隔より短い再試行は slow_down を返す":
-      status: covered
-      evidence:
-        - { file: src/oauth2/usecases/device-flow.test.ts, test: "interval より速いポーリング → slow_down" }
-    "期限切れの device_code は expired_token を返す":
-      status: covered
-      evidence:
-        - { file: src/oauth2/usecases/device-flow.test.ts, test: "期限切れ device_code → expired_token" }
-    "private_key_jwt によるクライアント認証が成功する":
-      status: covered
-      evidence:
-        - { file: adapters/http/client-authentication.test.ts, test: "正当な assertion を受理しクライアントを返す" }
-    "改ざんされた client_assertion は invalid_client で拒否される":
-      status: covered
-      evidence:
-        - { file: adapters/http/client-authentication.test.ts, test: "別の鍵で署名された assertion を拒否する" }
-    "tls_client_auth で mTLS の Subject DN が一致すれば認証成立":
-      status: covered
-      evidence:
-        - { file: adapters/http/client-authentication.test.ts, test: "登録 DN と一致する証明書で認証成功し thumbprint を返す" }
-        - { file: adapters/http/client-authentication.test.ts, test: "別 DN の証明書は invalid_client" }
-    "mTLS バインド AT は同じ証明書のリクエストでのみ受理される":
-      status: covered
-      evidence:
-        - { file: adapters/http/userinfo-routes.test.ts, test: "成功: cnf.x5t#S256 と一致する X-Client-Certificate で 200" }
-        - { file: adapters/http/userinfo-routes.test.ts, test: "別証明書で提示すると thumbprint 不一致で拒否" }
-    "RFC 8414 メタデータ文書は OIDC Discovery と同等の内容を返す":
-      status: partial
-      evidence:
-        - { file: adapters/http/discovery-routes.ts, test: "oauth-authorization-server" }
-      note: OIDC Discovery との同等性テストは未分離。
-    "admin ロールを持つユーザーはユーザー管理 API を利用できる":
-      status: covered
-      evidence:
-        - { file: ../ra-idp-go/internal/adapters/http/admin_user_handler_test.go, test: "TestAdminUserAPICreatesAndDisablesUser" }
-        - { file: adapters/http/admin-user-routes.test.ts, test: "正常系: ユーザーを作成し UserCreated を emit" }
-    "admin ロールを持たないユーザーは管理 API を利用できない":
-      status: covered
-      evidence:
-        - { file: ../ra-idp-go/internal/adapters/http/admin_user_handler_test.go, test: "TestAdminUserAPIRequiresAdminRole" }
-        - { file: adapters/http/admin-user-routes.test.ts, test: "admin でないユーザーは 403" }
-    "無効化されたユーザーはログインできない":
-      status: covered
-      evidence:
-        - { file: ../ra-idp-go/internal/adapters/http/admin_user_handler_test.go, test: "TestDisabledUserCannotLogIn" }
-        - { file: adapters/http/authentication-routes.test.ts, test: "正しい password でも disabled なら 401 を返し account_disabled を emit する" }
-    "無効化されたユーザーの既存セッションは利用できない":
-      status: covered
-      evidence:
-        - { file: ../ra-idp-go/internal/adapters/http/admin_user_handler_test.go, test: "disabled session status" }
-        - { file: src/authentication/usecases/session-manager.test.ts, test: "userRepo 注入時、disabled user の session は失効させ null を返す" }
-    "管理者は無効化したユーザーを再有効化できる":
-      status: covered
-      evidence:
-        - { file: ../ra-idp-go/internal/administration/usecases/users_test.go, test: "TestCreateUpdateAndDisableUser" }
-        - { file: src/administration/usecases/users.test.ts, test: "disable→enable で UserDisabled / UserEnabled を順に emit" }
-    "管理者は所属テナントの client を作成・更新・削除できる":
-      status: covered
-      evidence:
-        - { file: ../ra-idp-go/internal/adapters/http/admin_client_handler_test.go, test: TestAdminClientCRUD }
-    "管理 client API は別テナントの client を公開しない":
-      status: covered
-      evidence:
-        - { file: ../ra-idp-go/internal/adapters/http/admin_client_handler_test.go, test: TestAdminClientCannotCrossTenantBoundary }
-    "管理者は所属テナントの同意を参照・撤回できるが付与は代行できない":
-      status: covered
-      evidence:
-        - { file: ../ra-idp-go/internal/adapters/http/admin_consent_handler_test.go, test: TestAdminConsentListsGetsAndRevokesWithinTenant }
-    "管理 consent API は別テナントの同意を公開しない":
-      status: covered
-      evidence:
-        - { file: ../ra-idp-go/internal/adapters/http/admin_consent_handler_test.go, test: TestAdminConsentRequiresAdminAndHidesOtherTenant }
-    "管理者は管理画面で client を作成・編集・削除できる":
-      status: covered
-      evidence:
-        - { file: ../ra-idp-go/ui/src/pages/AdminClientsPage.tsx, test: handleSubmit }
-        - { file: ../ra-idp-go/ui/src/pages/AdminClientsPage.tsx, test: handleDelete }
-        - { file: ui/src/pages/AdminClientsPage.tsx, test: AdminClientsPage }
-    "default テナントは起動時に自動作成され削除不可":
-      status: covered
-      evidence:
-        - { file: ../ra-idp-go/internal/tenancy/usecases/manage_tenants_test.go, test: TestEnsureDefaultAndRejectDefaultDisable }
-    "未 prefix のリクエストは default テナントに解決される":
-      status: covered
-      evidence:
-        - { file: ../ra-idp-go/internal/adapters/http/tenant_routes_test.go, test: TestBareRouteUsesDefaultAndDisabledTenantIsRejected }
-    "/realms/{id}/.well-known/openid-configuration は同 prefix の issuer を返す":
-      status: covered
-      evidence:
-        - { file: ../ra-idp-go/internal/adapters/http/tenant_routes_test.go, test: TestRealmDiscoveryUsesTenantIssuer }
-    "他テナントの client_id を使うと invalid_client で拒否される":
-      status: covered
-      evidence:
-        - { file: ../ra-idp-go/internal/oauth2/usecases/tenant_isolation_test.go, test: TestAuthorizeCannotResolveAnotherTenantClient }
-        - { file: src/oauth2/usecases/tenant-isolation.test.ts, test: "authorize cannot resolve another tenant client" }
-    "他テナントの認可コードを別テナントの token endpoint で交換できない":
-      status: covered
-      evidence:
-        - { file: ../ra-idp-go/internal/oauth2/usecases/tenant_isolation_test.go, test: TestAuthorizationCodeCannotCrossTenantBoundary }
-        - { file: src/oauth2/usecases/tenant-isolation.test.ts, test: "authorization_code cannot cross tenant boundary" }
-    "他テナントのリフレッシュトークンを別テナントの token endpoint で再発行できない":
-      status: covered
-      evidence:
-        - { file: ../ra-idp-go/internal/oauth2/usecases/tenant_isolation_test.go, test: TestRefreshTokenCannotCrossTenantBoundary }
-        - { file: src/oauth2/usecases/tenant-isolation.test.ts, test: "refresh_token cannot cross tenant boundary" }
-    "他テナントの device_code を別テナントの token endpoint で交換できない":
-      status: covered
-      evidence:
-        - { file: ../ra-idp-go/internal/oauth2/usecases/tenant_isolation_test.go, test: TestDeviceCodeCannotCrossTenantBoundary }
-        - { file: src/oauth2/usecases/tenant-isolation.test.ts, test: "device_code cannot cross tenant boundary" }
-    "無効化されたテナントへの /authorize は invalid_request で拒否される":
-      status: covered
-      evidence:
-        - { file: ../ra-idp-go/internal/adapters/http/tenant_routes_test.go, test: TestBareRouteUsesDefaultAndDisabledTenantIsRejected }
-    "system_admin だけが /realms/default/admin/tenants を呼べ admin は 403":
-      status: covered
-      evidence:
-        - { file: ../ra-idp-go/internal/adapters/http/tenant_routes_test.go, test: TestTenantAdminRequiresSystemAdmin }

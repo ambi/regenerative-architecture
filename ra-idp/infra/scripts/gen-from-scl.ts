@@ -90,11 +90,10 @@ function applyConstraints(schema: any, fdef: Field): any {
 }
 
 function typeToSchema(t: string): any {
-  const listM = t.match(/^List<(.+)>$/) ?? t.match(/^Set<(.+)>$/)
+  const listM = t.match(/^(.+)\[\]$/) ?? t.match(/^Set<(.+)>$/)
   if (listM) return { type: 'array', items: typeToSchema(listM[1].trim()) }
   const mapM = t.match(/^Map<\s*([^,]+)\s*,\s*(.+)\s*>$/)
   if (mapM) return { type: 'object', additionalProperties: typeToSchema(mapM[2].trim()) }
-  if (t.startsWith('OneOf<')) return {}
   switch (t) {
     case 'String':
       return { type: 'string' }
@@ -398,7 +397,8 @@ async function emitOpenApi(outPath: string) {
 // ===============================================================
 
 async function emitDiscoveryTemplate(outPath: string) {
-  const tpl = (scl as any).annotations?.discovery_template ?? {}
+  const discoveryFields = (scl.models.DiscoveryDocument as any).fields
+  const defaults = (field: string): string[] => discoveryFields[field]?.default ?? []
   const doc: Record<string, unknown> = {
     issuer: '{{ISSUER}}',
   }
@@ -419,24 +419,31 @@ async function emitDiscoveryTemplate(outPath: string) {
     const p = iface ? httpBinding(iface)?.path : undefined
     if (p) doc[field] = `{{ISSUER}}${p}`
   }
-  doc.scopes_supported = tpl.scopes_supported ?? []
+  doc.scopes_supported = defaults('scopes_supported')
   doc.response_types_supported = (scl.models.ResponseType as any).values.map(toWire)
   doc.response_modes_supported = (scl.models.ResponseMode as any).values.map(toWire)
   doc.grant_types_supported = (scl.models.GrantType as any).values.map(toWire)
-  doc.subject_types_supported = tpl.subject_types_supported ?? ['public']
+  doc.subject_types_supported = defaults('subject_types_supported')
   doc.id_token_signing_alg_values_supported = (scl.models.SignatureAlgorithm as any).values.map(
     toWire,
   )
   doc.token_endpoint_auth_methods_supported = (scl.models.TokenEndpointAuthMethod as any).values
     .map(toWire)
     .filter((m: string) => m !== 'none')
+  doc.introspection_endpoint_auth_methods_supported = defaults(
+    'introspection_endpoint_auth_methods_supported',
+  ).map(toWire)
+  doc.revocation_endpoint_auth_methods_supported = defaults(
+    'revocation_endpoint_auth_methods_supported',
+  ).map(toWire)
   doc.code_challenge_methods_supported = (scl.models.CodeChallengeMethod as any).values.map(toWire)
   doc.require_pushed_authorization_requests = false
   doc.require_pkce = true
   doc.dpop_signing_alg_values_supported = (scl.models.SignatureAlgorithm as any).values.map(toWire)
   doc.tls_client_certificate_bound_access_tokens = true
-  doc.claims_supported = tpl.claims_supported ?? []
-  doc.ui_locales_supported = tpl.ui_locales_supported ?? ['en', 'ja']
+  doc.claims_supported = defaults('claims_supported')
+  doc.acr_values_supported = defaults('acr_values_supported')
+  doc.ui_locales_supported = defaults('ui_locales_supported')
 
   await writeFile(outPath, JSON.stringify(doc, null, 2) + '\n')
 }

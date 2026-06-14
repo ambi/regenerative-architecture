@@ -309,7 +309,6 @@ export const DeviceAuthorizationSchema = z.object({
   state: z.enum([
     'issued',
     'user_code_entered',
-    'authorization_pending',
     'approved',
     'denied',
     'exchanged',

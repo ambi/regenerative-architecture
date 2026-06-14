@@ -1,7 +1,7 @@
 /**
  * Layer 3 — Application Logic（パスワードポリシー）
  *
- * 仕様核は spec/scl.yaml `annotations.password_policy`。ここでは TypeScript
+ * 仕様核は spec/scl.yaml `objectives.PasswordPolicy`。ここでは TypeScript
  * 実装からポリシーを参照可能にするための双子定義を置く。SCL と本ファイルの値が
  * 乖離すると spec↔impl drift になるため、check:coherence で突き合わせる。
  *
@@ -20,7 +20,7 @@ export type PasswordPolicyViolation =
   | 'breached'
 
 /**
- * 値は SCL `annotations.password_policy` と双子。将来テナント別ポリシー (Phase 4) で
+ * 値は SCL `objectives.PasswordPolicy.value` と双子。将来テナント別ポリシー (Phase 4) で
  * 上書き可能になる前提で構造化している。詳細は ADR-026 / ADR-027。
  */
 export const PASSWORD_POLICY = {

@@ -386,8 +386,10 @@ func (d Deps) handleChangePasswordAPI(c *echo.Context) error {
 	}
 
 	historyDepth := authusecases.PasswordPolicyHistoryDepth
-	if d.SCL != nil && d.SCL.Annotations.PasswordPolicy.HistoryDepth > 0 {
-		historyDepth = d.SCL.Annotations.PasswordPolicy.HistoryDepth
+	if d.SCL != nil {
+		if configured, ok := d.SCL.ObjectiveInt("PasswordPolicy", "history_depth"); ok && configured > 0 {
+			historyDepth = configured
+		}
 	}
 
 	_, err = authusecases.ChangePassword(c.Request().Context(), authusecases.ChangePasswordDeps{

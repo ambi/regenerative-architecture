@@ -3,7 +3,7 @@
  *
  * Discovery 文書（OIDC Discovery 1.0 / RFC 8414 Authorization Server Metadata）は
  * 仕様核から派生する成果物（ADR-011）。spec/scl.yaml の `interfaces` のパス、
- * `models` の列挙、`annotations.discovery_template` から組み立てる。
+ * `models.DiscoveryDocument` の既定値と列挙から組み立てる。
  */
 
 import { scl, enumWireValues, httpBinding, toWire } from './scl'
@@ -29,17 +29,12 @@ function endpointPath(interfaceName: string): string {
 }
 
 export function buildDiscoveryDocument(issuer: string): Record<string, unknown> {
-  const tpl = (scl.annotations?.discovery_template ?? {}) as {
-    scopes_supported?: string[]
-    subject_types_supported?: string[]
-    claims_supported?: string[]
-    acr_values_supported?: string[]
-    ui_locales_supported?: string[]
-    introspection_endpoint_auth_methods?: string[]
-    revocation_endpoint_auth_methods?: string[]
-  }
-
   const toWireList = (names: string[]) => names.map(toWire)
+  const defaults = (field: string): string[] => {
+    const model = scl.models.DiscoveryDocument
+    if (model.kind !== 'value_object') throw new Error('DiscoveryDocument is not a value object')
+    return (model.fields[field]?.default ?? []) as string[]
+  }
 
   const doc: Record<string, unknown> = {
     issuer,
@@ -47,21 +42,21 @@ export function buildDiscoveryDocument(issuer: string): Record<string, unknown> 
   for (const [field, iface] of Object.entries(ENDPOINTS)) {
     doc[field] = `${issuer}${endpointPath(iface)}`
   }
-  doc.scopes_supported = tpl.scopes_supported ?? []
+  doc.scopes_supported = defaults('scopes_supported')
   doc.response_types_supported = enumWireValues('ResponseType')
   doc.response_modes_supported = enumWireValues('ResponseMode')
   doc.grant_types_supported = enumWireValues('GrantType')
-  doc.subject_types_supported = tpl.subject_types_supported ?? ['public']
+  doc.subject_types_supported = defaults('subject_types_supported')
   doc.id_token_signing_alg_values_supported = enumWireValues('SignatureAlgorithm')
   doc.token_endpoint_auth_methods_supported = enumWireValues('TokenEndpointAuthMethod').filter(
     (m) => m !== 'none',
   )
   doc.token_endpoint_auth_signing_alg_values_supported = enumWireValues('SignatureAlgorithm')
   doc.introspection_endpoint_auth_methods_supported = toWireList(
-    tpl.introspection_endpoint_auth_methods ?? [],
+    defaults('introspection_endpoint_auth_methods_supported'),
   )
   doc.revocation_endpoint_auth_methods_supported = toWireList(
-    tpl.revocation_endpoint_auth_methods ?? [],
+    defaults('revocation_endpoint_auth_methods_supported'),
   )
   doc.code_challenge_methods_supported = enumWireValues('CodeChallengeMethod')
   doc.require_pushed_authorization_requests = false
@@ -69,11 +64,12 @@ export function buildDiscoveryDocument(issuer: string): Record<string, unknown> 
   doc.authorization_response_iss_parameter_supported = true // RFC 9207
   doc.dpop_signing_alg_values_supported = enumWireValues('SignatureAlgorithm')
   doc.tls_client_certificate_bound_access_tokens = true
-  doc.claims_supported = tpl.claims_supported ?? []
-  if (tpl.acr_values_supported && tpl.acr_values_supported.length > 0) {
-    doc.acr_values_supported = tpl.acr_values_supported
+  doc.claims_supported = defaults('claims_supported')
+  const acrValues = defaults('acr_values_supported')
+  if (acrValues.length > 0) {
+    doc.acr_values_supported = acrValues
   }
   doc.service_documentation = `${issuer}/docs`
-  doc.ui_locales_supported = tpl.ui_locales_supported ?? ['en', 'ja']
+  doc.ui_locales_supported = defaults('ui_locales_supported')
   return doc
 }

@@ -2,7 +2,7 @@
 
 ## ステータス
 
-採用（Phase 0 — 認証の土台。`spec/scl.yaml` `annotations.password_policy.history_depth` /
+採用（Phase 0 — 認証の土台。`spec/scl.yaml` `objectives.PasswordPolicy.value.history_depth` /
 invariant `PasswordHistoryNoReuse` / interface `ChangePassword` / event `PasswordChanged` と
 `src/authentication/usecases/change-password.ts` の双子に反映）。
 
@@ -20,7 +20,7 @@ spec↔impl drift を防ぐためここで明文化する。
 ## 決定
 
 1. **履歴深さ**: 直近 **5 件** のハッシュと一致する新パスワードを拒否する。
-   - SCL `annotations.password_policy.history_depth: 5` を権威源とし、
+   - SCL `objectives.PasswordPolicy.value.history_depth: 5` を権威源とし、
      `PASSWORD_POLICY.historyDepth` を双子として持つ。
    - 5 は NIST SP 800-63B-4 の禁止項目に該当しない範囲で、現場慣行
      （OWASP ASVS v4.0.3 §2.1.10 が "previously-used password" の検知を要求）と

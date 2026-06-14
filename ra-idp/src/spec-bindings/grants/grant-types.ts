@@ -102,20 +102,16 @@ export function sclEnumWire(modelName: string): string[] {
   return enumWireValues(modelName)
 }
 
-/** Discovery を組み立てるときに使う、SCL annotations.discovery_template 由来の値 */
-export const DISCOVERY_TEMPLATE = (scl.annotations?.discovery_template ?? {}) as {
-  scopes_supported: string[]
-  subject_types_supported: string[]
-  claims_supported: string[]
-  ui_locales_supported: string[]
-  introspection_endpoint_auth_methods: string[]
-  revocation_endpoint_auth_methods: string[]
+function discoveryDefault(field: string): string[] {
+  const model = scl.models.DiscoveryDocument
+  if (model.kind !== 'value_object') throw new Error('DiscoveryDocument is not a value object')
+  return (model.fields[field]?.default ?? []) as string[]
 }
 
 export function discoveryIntrospectionAuthMethods(): string[] {
-  return (DISCOVERY_TEMPLATE.introspection_endpoint_auth_methods ?? []).map(toWire)
+  return discoveryDefault('introspection_endpoint_auth_methods_supported').map(toWire)
 }
 
 export function discoveryRevocationAuthMethods(): string[] {
-  return (DISCOVERY_TEMPLATE.revocation_endpoint_auth_methods ?? []).map(toWire)
+  return discoveryDefault('revocation_endpoint_auth_methods_supported').map(toWire)
 }

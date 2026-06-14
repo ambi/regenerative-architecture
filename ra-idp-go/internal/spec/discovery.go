@@ -44,7 +44,6 @@ func (s *SCL) BuildDiscoveryDocument(issuer string) (map[string]any, error) {
 		doc[e.Field] = issuer + path
 	}
 
-	tpl := s.Annotations.DiscoveryTemplate
 	for _, e := range []struct {
 		field string
 		model string
@@ -70,23 +69,31 @@ func (s *SCL) BuildDiscoveryDocument(issuer string) (map[string]any, error) {
 	}
 	doc["token_endpoint_auth_methods_supported"] = slices.DeleteFunc(slices.Clone(authMethods), func(m string) bool { return m == "none" })
 
-	doc["scopes_supported"] = tpl.ScopesSupported
-	doc["subject_types_supported"] = defaultStrings(tpl.SubjectTypesSupported, []string{"public"})
-	doc["introspection_endpoint_auth_methods_supported"] = s.ToWireAll(tpl.IntrospectionEndpointAuthMethods)
-	doc["revocation_endpoint_auth_methods_supported"] = s.ToWireAll(tpl.RevocationEndpointAuthMethods)
+	doc["scopes_supported"] = s.discoveryDefault("scopes_supported")
+	doc["subject_types_supported"] = s.discoveryDefault("subject_types_supported")
+	doc["introspection_endpoint_auth_methods_supported"] = s.ToWireAll(s.discoveryDefault("introspection_endpoint_auth_methods_supported"))
+	doc["revocation_endpoint_auth_methods_supported"] = s.ToWireAll(s.discoveryDefault("revocation_endpoint_auth_methods_supported"))
 	doc["require_pushed_authorization_requests"] = false
 	doc["require_pkce"] = true
 	doc["tls_client_certificate_bound_access_tokens"] = true
-	doc["claims_supported"] = tpl.ClaimsSupported
-	doc["acr_values_supported"] = tpl.ACRValuesSupported
+	doc["claims_supported"] = s.discoveryDefault("claims_supported")
+	doc["acr_values_supported"] = s.discoveryDefault("acr_values_supported")
 	doc["service_documentation"] = issuer + "/docs"
-	doc["ui_locales_supported"] = defaultStrings(tpl.UILocalesSupported, []string{"en", "ja"})
+	doc["ui_locales_supported"] = s.discoveryDefault("ui_locales_supported")
 	return doc, nil
 }
 
-func defaultStrings(v, fallback []string) []string {
-	if len(v) == 0 {
-		return fallback
+func (s *SCL) discoveryDefault(field string) []string {
+	model := s.Models["DiscoveryDocument"]
+	values, ok := model.Fields[field].Default.([]any)
+	if !ok {
+		return nil
 	}
-	return v
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		if text, ok := value.(string); ok {
+			result = append(result, text)
+		}
+	}
+	return result
 }

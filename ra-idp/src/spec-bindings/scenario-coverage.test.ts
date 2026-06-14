@@ -1,45 +1,22 @@
 /**
- * Layer 3 — Scenario coverage binding
+ * Layer 3 — SCL boundary checks
  *
- * SCL scenarios は保存対象で、実行テスト・手動 smoke・部分検証は派生物。
- * このテストは「SCL にシナリオを追加したのに coverage matrix を更新し忘れる」
- * というドリフトを検出する。
+ * 実装ファイルやテスト名との対応は SCL ではなく、実装側の assurance manifest で管理する。
  */
 
 import { describe, expect, it } from 'bun:test'
 import { scl } from './scl'
 
-type CoverageStatus = 'covered' | 'partial' | 'manual' | 'missing'
-
-type ScenarioCoverage = {
-  status: CoverageStatus
-  evidence?: Array<{ file: string; test?: string }>
-  note?: string
-}
-
-function scenarioCoverage(): Record<string, ScenarioCoverage> {
-  return (scl.annotations?.scenario_coverage ?? {}) as Record<string, ScenarioCoverage>
-}
-
-describe('SCL scenarios — coverage matrix', () => {
-  it('すべての SCL scenario が coverage matrix に分類されている', () => {
-    const scenarios = Object.keys(scl.scenarios).sort()
-    const coverage = Object.keys(scenarioCoverage()).sort()
-    expect(coverage).toEqual(scenarios)
+describe('SCL implementation boundary', () => {
+  it('top-level annotations に実装追跡情報を持たない', () => {
+    expect(scl.annotations?.scenario_coverage).toBeUndefined()
+    expect(JSON.stringify(scl)).not.toContain('"implementation"')
   })
 
-  it('missing のままの scenario がない', () => {
-    const missing = Object.entries(scenarioCoverage())
-      .filter(([, entry]) => entry.status === 'missing')
-      .map(([name]) => name)
-    expect(missing).toEqual([])
-  })
-
-  it('covered / partial / manual は evidence を持つ', () => {
-    for (const [name, entry] of Object.entries(scenarioCoverage())) {
-      if (entry.status === 'missing') continue
-      expect(`${name}: evidence`).toBe(`${name}: evidence`)
-      expect(entry.evidence?.length ?? 0).toBeGreaterThan(0)
+  it('scenario は規範的な受け入れ条件だけを保持する', () => {
+    expect(Object.keys(scl.scenarios).length).toBeGreaterThan(0)
+    for (const scenario of Object.values(scl.scenarios)) {
+      expect(scenario.steps.length).toBeGreaterThan(0)
     }
   })
 })

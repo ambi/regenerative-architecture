@@ -27,7 +27,6 @@
       "enum": [
         "issued",
         "user_code_entered",
-        "authorization_pending",
         "approved",
         "denied",
         "exchanged",

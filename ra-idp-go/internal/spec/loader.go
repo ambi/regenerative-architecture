@@ -3,6 +3,7 @@ package spec
 // SCL ドキュメント全体のローダー。TS の src/spec-bindings/scl.ts に対応する。
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -15,17 +16,37 @@ import (
 type SCL struct {
 	System         string                  `yaml:"system"`
 	SpecVersion    string                  `yaml:"spec_version"`
+	Components     map[string]Component    `yaml:"components"`
 	Standards      map[string]Standard     `yaml:"standards"`
 	Vocabulary     map[string]Vocabulary   `yaml:"vocabulary"`
 	Models         map[string]Model        `yaml:"models"`
 	Interfaces     map[string]Interface    `yaml:"interfaces"`
-	StateMachines  map[string]StateMachine `yaml:"state_machines"`
-	Properties     map[string]Property     `yaml:"properties"`
+	States         map[string]StateMachine `yaml:"states"`
+	Invariants     map[string]Invariant    `yaml:"invariants"`
 	Scenarios      map[string]Scenario     `yaml:"scenarios"`
 	Permissions    map[string]Permission   `yaml:"permissions"`
 	Objectives     map[string]Objective    `yaml:"objectives"`
+	Assurance      map[string]Assurance    `yaml:"assurance"`
 	UserExperience UserExperience          `yaml:"user_experience"`
-	Annotations    SCLAnnotations          `yaml:"annotations"`
+	Annotations    map[string]any          `yaml:"annotations"`
+}
+
+type Component struct {
+	Description     string                `yaml:"description"`
+	OwnsModels      []string              `yaml:"owns_models"`
+	OwnsStates      []string              `yaml:"owns_states"`
+	OwnsEvents      []string              `yaml:"owns_events"`
+	OwnsInterfaces  []string              `yaml:"owns_interfaces"`
+	OwnsInvariants  []string              `yaml:"owns_invariants"`
+	OwnsPermissions []string              `yaml:"owns_permissions"`
+	OwnsObjectives  []string              `yaml:"owns_objectives"`
+	DependsOn       []ComponentDependency `yaml:"depends_on"`
+	Annotations     map[string]any        `yaml:"annotations"`
+}
+
+type ComponentDependency struct {
+	Component string `yaml:"component"`
+	Reason    string `yaml:"reason"`
 }
 
 type Standard struct {
@@ -80,10 +101,11 @@ type UserExperienceRequirement struct {
 	Interfaces []string `yaml:"interfaces"`
 	Standards  []string `yaml:"standards"`
 	Scenarios  []string `yaml:"scenarios"`
-	Properties []string `yaml:"properties"`
+	Invariants []string `yaml:"invariants"`
 }
 
 type Vocabulary struct {
+	Description      string             `yaml:"description"`
 	Definition       string             `yaml:"definition"`
 	Aliases          []string           `yaml:"aliases"`
 	Context          string             `yaml:"context"`
@@ -107,11 +129,12 @@ type Model struct {
 }
 
 type FieldDef struct {
-	Type        string `yaml:"type"`
-	Optional    bool   `yaml:"optional"`
-	Default     any    `yaml:"default"`
-	Constraints []any  `yaml:"constraints"`
-	Description string `yaml:"description"`
+	Type        string         `yaml:"type"`
+	Optional    bool           `yaml:"optional"`
+	Default     any            `yaml:"default"`
+	Constraints []any          `yaml:"constraints"`
+	Description string         `yaml:"description"`
+	Annotations map[string]any `yaml:"annotations"`
 }
 
 type Interface struct {
@@ -124,6 +147,7 @@ type Interface struct {
 	Idempotent  bool                `yaml:"idempotent"`
 	ReadOnly    bool                `yaml:"read_only"`
 	Bindings    []Binding           `yaml:"bindings"`
+	Annotations map[string]any      `yaml:"annotations"`
 }
 
 // Binding は generic な map で受け、kind に応じて型変換するスタイル。
@@ -150,20 +174,27 @@ type StateMachine struct {
 	Initial     string         `yaml:"initial"`
 	Terminal    []string       `yaml:"terminal"`
 	Transitions []Transition   `yaml:"transitions"`
-	Polling     map[string]any `yaml:"polling"`
+	Annotations map[string]any `yaml:"annotations"`
 }
 
 type Transition struct {
 	From   string   `yaml:"from"`
 	Event  string   `yaml:"event"`
 	To     string   `yaml:"to"`
+	Guard  any      `yaml:"guard"`
 	Effect []string `yaml:"effect"`
 }
 
-type Property struct {
-	Description string `yaml:"description"`
-	Target      string `yaml:"target"`
-	Severity    string `yaml:"severity"`
+type Invariant struct {
+	Description string         `yaml:"description"`
+	Target      string         `yaml:"target"`
+	Assuming    any            `yaml:"assuming"`
+	Always      any            `yaml:"always"`
+	Eventually  any            `yaml:"eventually"`
+	Never       any            `yaml:"never"`
+	Within      string         `yaml:"within"`
+	Severity    string         `yaml:"severity"`
+	Annotations map[string]any `yaml:"annotations"`
 }
 
 type Scenario struct {
@@ -171,84 +202,70 @@ type Scenario struct {
 	Steps       []string         `yaml:"steps"`
 	Where       []map[string]any `yaml:"where"`
 	Tags        []string         `yaml:"tags"`
+	Annotations map[string]any   `yaml:"annotations"`
 }
 
 type Permission struct {
-	Description string `yaml:"description"`
-	Actor       string `yaml:"actor"`
-	Action      string `yaml:"action"`
-	Resource    string `yaml:"resource"`
-	AllowWhen   any    `yaml:"allow_when"`
-	DenyWhen    any    `yaml:"deny_when"`
+	Description string         `yaml:"description"`
+	Actor       string         `yaml:"actor"`
+	Action      string         `yaml:"action"`
+	Resource    string         `yaml:"resource"`
+	AllowWhen   any            `yaml:"allow_when"`
+	DenyWhen    any            `yaml:"deny_when"`
+	Annotations map[string]any `yaml:"annotations"`
 }
 
 type Objective struct {
-	Kind        string `yaml:"kind"`
-	Description string `yaml:"description"`
-	Reference   string `yaml:"reference"`
-	Metric      string `yaml:"metric"`
-	Target      string `yaml:"target"`
-	Window      string `yaml:"window"`
-	Policy      string `yaml:"policy"`
-	Retention   string `yaml:"retention"`
-	TTL         string `yaml:"ttl"`
-	SingleUse   bool   `yaml:"single_use"`
-	Value       any    `yaml:"value"`
-	Interface   string `yaml:"interface"`
-	Note        string `yaml:"note"`
+	Kind        string         `yaml:"kind"`
+	Description string         `yaml:"description"`
+	Reference   string         `yaml:"reference"`
+	Metric      string         `yaml:"metric"`
+	Target      string         `yaml:"target"`
+	Window      string         `yaml:"window"`
+	Policy      string         `yaml:"policy"`
+	Retention   string         `yaml:"retention"`
+	TTL         string         `yaml:"ttl"`
+	SingleUse   bool           `yaml:"single_use"`
+	Value       any            `yaml:"value"`
+	Interface   string         `yaml:"interface"`
+	Note        string         `yaml:"note"`
+	Annotations map[string]any `yaml:"annotations"`
 }
 
-type SCLAnnotations struct {
-	PasswordPolicy      SCLPasswordPolicy      `yaml:"password_policy"`
-	PasswordResetPolicy SCLPasswordResetPolicy `yaml:"password_reset_policy"`
-	DiscoveryTemplate   SCLDiscoveryTemplate   `yaml:"discovery_template"`
-	ACRVocabulary       SCLACRVocabulary       `yaml:"acr_vocabulary"`
-	TOTPPolicy          SCLTOTPPolicy          `yaml:"totp_policy"`
+type Assurance struct {
+	Claim       string                       `yaml:"claim"`
+	Risk        string                       `yaml:"risk"`
+	RiskLevel   string                       `yaml:"risk_level"`
+	DerivedFrom map[string][]string          `yaml:"derived_from"`
+	Acceptance  AssuranceAcceptance          `yaml:"acceptance"`
+	Evidence    map[string]AssuranceEvidence `yaml:"evidence"`
+	Approval    AssuranceApproval            `yaml:"approval"`
+	Annotations map[string]any               `yaml:"annotations"`
 }
 
-type SCLPasswordPolicy struct {
-	Description                    string `yaml:"description"`
-	MinLength                      int    `yaml:"min_length"`
-	MaxLength                      int    `yaml:"max_length"`
-	ForbidUserIdentifierSimilarity bool   `yaml:"forbid_user_identifier_similarity"`
-	CommonPasswordDictionary       string `yaml:"common_password_dictionary"`
-	HistoryDepth                   int    `yaml:"history_depth"`
+type AssuranceAcceptance struct {
+	Evidence  string                `yaml:"evidence"`
+	Criterion string                `yaml:"criterion"`
+	All       []AssuranceAcceptance `yaml:"all"`
+	Any       []AssuranceAcceptance `yaml:"any"`
+	Not       *AssuranceAcceptance  `yaml:"not"`
 }
 
-type SCLPasswordResetPolicy struct {
-	Description           string `yaml:"description"`
-	TokenTTLSeconds       int    `yaml:"token_ttl_seconds"`
-	SingleUse             bool   `yaml:"single_use"`
-	EmailVerifiedRequired bool   `yaml:"email_verified_required"`
+type AssuranceEvidence struct {
+	Kind         string              `yaml:"kind"`
+	Producer     string              `yaml:"producer"`
+	Evaluation   string              `yaml:"evaluation"`
+	Environments []string            `yaml:"environments"`
+	Recheck      string              `yaml:"recheck"`
+	Covers       map[string][]string `yaml:"covers"`
+	Procedure    string              `yaml:"procedure"`
+	Oracle       string              `yaml:"oracle"`
 }
 
-type SCLDiscoveryTemplate struct {
-	ScopesSupported                  []string `yaml:"scopes_supported"`
-	SubjectTypesSupported            []string `yaml:"subject_types_supported"`
-	ClaimsSupported                  []string `yaml:"claims_supported"`
-	UILocalesSupported               []string `yaml:"ui_locales_supported"`
-	IntrospectionEndpointAuthMethods []string `yaml:"introspection_endpoint_auth_methods"`
-	RevocationEndpointAuthMethods    []string `yaml:"revocation_endpoint_auth_methods"`
-	ACRValuesSupported               []string `yaml:"acr_values_supported"`
-}
-
-type SCLACRVocabulary struct {
-	Values       []SCLACRValue `yaml:"values"`
-	MFAAMRValues []string      `yaml:"mfa_amr_values"`
-}
-
-type SCLACRValue struct {
-	URN         string `yaml:"urn"`
-	Description string `yaml:"description"`
-}
-
-type SCLTOTPPolicy struct {
-	Description string `yaml:"description"`
-	Algorithm   string `yaml:"algorithm"`
-	StepSeconds int64  `yaml:"step_seconds"`
-	Digits      int    `yaml:"digits"`
-	Window      int    `yaml:"window"`
-	SecretBytes int    `yaml:"secret_bytes"`
+type AssuranceApproval struct {
+	When           []string `yaml:"when"`
+	Role           string   `yaml:"role"`
+	DecisionRecord bool     `yaml:"decision_record"`
 }
 
 // =====================================================================
@@ -274,12 +291,20 @@ func LoadSCL() (*SCL, error) {
 	if err != nil {
 		return nil, fmt.Errorf("loader: read %s: %w", path, err)
 	}
-	var s SCL
-	if err := yaml.Unmarshal(raw, &s); err != nil {
+	s, err := DecodeSCL(raw)
+	if err != nil {
 		return nil, fmt.Errorf("loader: unmarshal scl.yaml: %w", err)
 	}
-	loaded = &s
+	loaded = s
 	return loaded, nil
+}
+
+func DecodeSCL(raw []byte) (*SCL, error) {
+	var s SCL
+	if err := yaml.NewDecoder(bytes.NewReader(raw), yaml.Strict()).Decode(&s); err != nil {
+		return nil, err
+	}
+	return &s, nil
 }
 
 // MustLoadSCL は LoadSCL の panic 版（main 配線で使う）。
@@ -340,7 +365,7 @@ func (s *SCL) EnumWireValues(modelName string) ([]string, error) {
 }
 
 func (s *SCL) StatesOf(machineName string) ([]string, error) {
-	sm, ok := s.StateMachines[machineName]
+	sm, ok := s.States[machineName]
 	if !ok {
 		return nil, fmt.Errorf("state machine %s not found", machineName)
 	}
@@ -364,7 +389,7 @@ func (s *SCL) StatesOf(machineName string) ([]string, error) {
 }
 
 func (s *SCL) EventsOf(machineName string) ([]string, error) {
-	sm, ok := s.StateMachines[machineName]
+	sm, ok := s.States[machineName]
 	if !ok {
 		return nil, fmt.Errorf("state machine %s not found", machineName)
 	}

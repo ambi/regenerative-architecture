@@ -42,6 +42,16 @@
     "private_key_jwt",
     "tls_client_auth"
   ],
+  "introspection_endpoint_auth_methods_supported": [
+    "client_secret_basic",
+    "private_key_jwt",
+    "tls_client_auth"
+  ],
+  "revocation_endpoint_auth_methods_supported": [
+    "client_secret_basic",
+    "private_key_jwt",
+    "tls_client_auth"
+  ],
   "code_challenge_methods_supported": [
     "S256"
   ],
@@ -70,6 +80,10 @@
     "email",
     "email_verified",
     "updated_at"
+  ],
+  "acr_values_supported": [
+    "urn:ra-idp:acr:pwd",
+    "urn:ra-idp:acr:mfa"
   ],
   "ui_locales_supported": [
     "en",

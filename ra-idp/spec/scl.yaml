@@ -20,7 +20,7 @@ components:
     owns_interfaces: [ResolveTenant, ListTenants, GetTenant, CreateTenant, UpdateTenant, DisableTenant, EnableTenant]
     owns_permissions: [AdminTenantsManage]
 
-  Identity:
+  Authentication:
     description: エンドユーザ (Subject) の identity、credentials、MFA、ログインセッション、パスワードリセット、および管理 API からの User ライフサイクル操作を所有する。
     owns_models: [User, MfaFactor, MfaFactorType, LoginSession, AuthenticationContext, PasswordResetTokenRecord, BrowserLoginRequest, BrowserTotpRequest, BrowserChangePasswordRequest, BrowserForgotPasswordRequest, BrowserResetPasswordRequest, AdminUserCreateRequest, AdminUserUpdateRequest, AdminUserListResponse, AdminUserResponse]
     owns_events: [UserAuthenticated, AuthenticationFailed, PasswordChanged, LoginThrottled, PasswordResetRequested, EmailSent, UserCreated, UserUpdated, UserDisabled, UserEnabled]
@@ -31,56 +31,25 @@ components:
     depends_on:
       - { component: Tenancy, reason: User と LoginSession はテナント境界内に閉じ、User 管理 API もテナント単位で動く。 }
 
-  ClientRegistry:
-    description: OAuth Client の metadata、Dynamic Registration、テナント内の Client 管理 API、Client 認証要件を所有する。
-    owns_models: [OAuth2Client, ClientType, TokenEndpointAuthMethod, FapiProfile, ClientRegistrationRequest, AdminClientCreateRequest, AdminClientUpdateRequest, AdminClientResponse, AdminClientCreateResponse, AdminClientListResponse, InvalidClientError, UnauthorizedClientError]
-    owns_events: [ClientRegistered, AdminClientCreated, AdminClientUpdated, AdminClientDeleted]
-    owns_interfaces: [RegisterClient, ListAdminClients, GetAdminClient, CreateAdminClient, UpdateAdminClient, DeleteAdminClient]
-    owns_invariants: [ClientAuthFailureUniformity]
-    owns_permissions: [AdminClientsManage]
-    owns_objectives: [RegisterLatency, RegisterErrorRate, ClientAuthFailureRateLimit]
+  OAuth2:
+    description: |
+      OAuth 2.0 / OIDC プロトコルファミリーの全責務を所有する。Client metadata
+      とその Dynamic Registration、認可判断 (Authorize / Consent /
+      Authorization Code / PAR / Device Authorization / RP-Initiated Logout)、
+      トークン発行とライフサイクル (AccessToken / RefreshToken / ID Token /
+      Introspect / Revoke / UserInfo / proof-of-possession)、信頼基盤 (署名鍵 /
+      JWKS / Discovery / Authorization Server Metadata / 健全性報告 / 監査保管)
+      を本コンポーネントに集約する。
+    owns_models: [OAuth2Client, ClientType, TokenEndpointAuthMethod, FapiProfile, ClientRegistrationRequest, AdminClientCreateRequest, AdminClientUpdateRequest, AdminClientResponse, AdminClientCreateResponse, AdminClientListResponse, InvalidClientError, UnauthorizedClientError, AuthorizationRequest, AuthorizeParameters, Consent, ConsentState, AdminConsentResponse, AdminConsentListResponse, AuthorizationCodeRecord, AuthorizationCodeState, AuthorizationCodeRecordState, ResponseType, ResponseMode, CodeChallengeMethod, GrantType, PARRecord, PARRecordState, ParRequest, ParResponse, BrowserConsentRequest, BrowserTransactionResponse, BrowserFlowResponse, EndSessionParameters, DeviceCodeState, DeviceAuthorization, DeviceAuthorizationRequest, DeviceAuthorizationResponse, BrowserDeviceRequest, BrowserDeviceContextResponse, OAuthError, OAuthErrorCode, InvalidRequestError, InvalidScopeError, AccessDeniedError, ExpiredTokenError, SlowDownError, AuthorizationPendingError, ServerError, TokenRequest, TokenResponse, IntrospectionRequest, IntrospectionResponse, RevokeRequest, UserInfoResponse, RefreshTokenRecord, RefreshTokenState, AccessTokenClaims, IdTokenClaims, TokenType, AccessTokenSenderConstraint, SenderConstraintKind, SenderConstraintCnf, RefreshTokenSenderConstraint, Audience, InvalidGrantError, UnsupportedGrantTypeError, InvalidTokenError, InvalidDpopProofError, InsufficientScopeError, SigningKey, SigningKeyState, JWK, JWKS, DiscoveryDocument, SignatureAlgorithm, Uri, AuditEventQuery, AdminAuditEventResponse, AdminAuditEventListResponse, AdminKeyResponse, AdminKeyListResponse, AdminRotateKeyResponse]
+    owns_states: [AuthorizationCodeFlow, AuthorizationCodeRecordLifecycle, ConsentLifecycle, PARRecordLifecycle, DeviceCodeFlow, RefreshTokenLifecycle, SigningKeyLifecycle]
+    owns_events: [ClientRegistered, AdminClientCreated, AdminClientUpdated, AdminClientDeleted, AuthorizationCodeIssued, AuthorizationCodeRedeemed, ConsentGranted, ConsentRevoked, PARStored, DeviceAuthorizationRequested, DeviceAuthorizationApproved, DeviceAuthorizationDenied, AccessTokenIssued, RefreshTokenIssued, RefreshTokenRotated, TokenRevoked, TokenIntrospected, RefreshTokenReuseDetected, SigningKeyRotated]
+    owns_interfaces: [RegisterClient, ListAdminClients, GetAdminClient, CreateAdminClient, UpdateAdminClient, DeleteAdminClient, Authorize, GetBrowserTransaction, SubmitBrowserConsent, PushAuthorizationRequest, DeviceAuthorization, GetBrowserDeviceContext, SubmitBrowserDevice, EndSession, ListAdminConsents, GetAdminConsent, RevokeAdminConsent, Token, Introspect, Revoke, UserInfo, PostUserInfo, GetJwks, GetOpenidConfiguration, GetOauthAuthorizationServer, Health, ListAdminAuditEvents, GetAdminAuditEvent, ListAdminKeys, GetAdminKey, RotateAdminKey]
+    owns_invariants: [ClientAuthFailureUniformity, PkceRoundTrip, AuthCodeStateSafety, DeviceCodeStateSafety, AuthorizationCodeSingleUse, ParRequestUriSingleUse, AuthorizationCodeTtl, AuthorizationCodeEventuallyResolves, DeviceCodeEventuallyResolves, RedirectUriExactMatch, PkceMandatory, AccessTokenIssuedOnlyAfterConsent, RefreshFamilyTransitiveRevoke, RefreshRotationParentInvariants, DpopJtiUniquenessWithinWindow, TokenHashOneWay, RefreshTokenAbsoluteTtl, AllAccessTokensCarryAudience, SigningKeyMaxAge]
+    owns_permissions: [AdminClientsManage, AuthorizeInitiate, AdminConsentsManage, TokenGrantAuthorizationCode, TokenGrantRefresh, TokenGrantClientCredentials, TokenGrantDeviceCode, TokenIntrospect, TokenRevoke, UserInfoRead, AdminAuditEventsRead, AdminKeysRead, AdminKeysRotate]
+    owns_objectives: [RegisterLatency, RegisterErrorRate, ClientAuthFailureRateLimit, AuthorizeLatency, ParLatency, DeviceAuthorizationLatency, AuthorizeErrorRate, ParErrorRate, DeviceAuthorizationErrorRate, AuthorizeThroughput, AuthorizationCodeLifetime, ParRequestUriLifetime, DeviceCodeLifetime, UserCodeLifetime, DeviceCodePollingDefaultInterval, ConsentRecordsRetention, AuthorizationCodeRedemptionFailureRateLimit, TokenLatency, IntrospectLatency, RevokeLatency, UserInfoLatency, TokenErrorRate, IntrospectErrorRate, RevokeErrorRate, UserInfoErrorRate, TokenEndpointAvailability, TokenThroughput, IntrospectThroughput, AccessTokenLifetime, IdTokenLifetime, RefreshTokenLifetime, RefreshTokenAbsoluteLifetime, DpopProofClockSkewPast, DpopProofClockSkewFuture, DpopJtiReplayWindow, DpopNonceLifetime, RefreshReuseAlertWindow, JwksLatency, DiscoveryLatency, JwksErrorRate, DiscoveryErrorRate, OverallAvailability, SigningKeyMinJwksOverlap, SigningKeyArchiveRetention, AuditLogRetention]
     depends_on:
-      - { component: Tenancy, reason: Client metadata はテナント境界内に閉じ、Client 管理 API もテナント単位で動く。 }
-
-  Authorization:
-    description: OAuth 2.0 / OIDC の認可判断、Consent、Authorization Code、PAR、Device Authorization、RP-Initiated Logout の責務を所有する。
-    owns_models: [AuthorizationRequest, AuthorizeParameters, Consent, ConsentState, AdminConsentResponse, AdminConsentListResponse, AuthorizationCodeRecord, AuthorizationCodeState, AuthorizationCodeRecordState, ResponseType, ResponseMode, CodeChallengeMethod, GrantType, PARRecord, PARRecordState, ParRequest, ParResponse, BrowserConsentRequest, BrowserTransactionResponse, BrowserFlowResponse, EndSessionParameters, DeviceCodeState, DeviceAuthorization, DeviceAuthorizationRequest, DeviceAuthorizationResponse, BrowserDeviceRequest, BrowserDeviceContextResponse, OAuthError, OAuthErrorCode, InvalidRequestError, InvalidScopeError, AccessDeniedError, ExpiredTokenError, SlowDownError, AuthorizationPendingError, ServerError]
-    owns_states: [AuthorizationCodeFlow, AuthorizationCodeRecordLifecycle, ConsentLifecycle, PARRecordLifecycle, DeviceCodeFlow]
-    owns_events: [AuthorizationCodeIssued, AuthorizationCodeRedeemed, ConsentGranted, ConsentRevoked, PARStored, DeviceAuthorizationRequested, DeviceAuthorizationApproved, DeviceAuthorizationDenied]
-    owns_interfaces: [Authorize, GetBrowserTransaction, SubmitBrowserConsent, PushAuthorizationRequest, DeviceAuthorization, GetBrowserDeviceContext, SubmitBrowserDevice, EndSession, ListAdminConsents, GetAdminConsent, RevokeAdminConsent]
-    owns_invariants: [PkceRoundTrip, AuthCodeStateSafety, DeviceCodeStateSafety, AuthorizationCodeSingleUse, ParRequestUriSingleUse, AuthorizationCodeTtl, AuthorizationCodeEventuallyResolves, DeviceCodeEventuallyResolves, RedirectUriExactMatch, PkceMandatory, AccessTokenIssuedOnlyAfterConsent]
-    owns_permissions: [AuthorizeInitiate, AdminConsentsManage]
-    owns_objectives: [AuthorizeLatency, ParLatency, DeviceAuthorizationLatency, AuthorizeErrorRate, ParErrorRate, DeviceAuthorizationErrorRate, AuthorizeThroughput, AuthorizationCodeLifetime, ParRequestUriLifetime, DeviceCodeLifetime, UserCodeLifetime, DeviceCodePollingDefaultInterval, ConsentRecordsRetention, AuthorizationCodeRedemptionFailureRateLimit]
-    depends_on:
-      - { component: Identity, reason: Authorize は AuthenticationContext を Identity から解決する。 }
-      - { component: ClientRegistry, reason: redirect_uri / scope 照合と Client 認証は Client metadata に依存する。 }
-      - { component: Tenancy, reason: 認可リクエストはテナント境界内に閉じる。 }
-
-  Token:
-    description: AccessToken、RefreshToken、ID Token の発行、Introspect、Revoke、UserInfo、proof-of-possession のライフサイクルを所有する。
-    owns_models: [TokenRequest, TokenResponse, IntrospectionRequest, IntrospectionResponse, RevokeRequest, UserInfoResponse, RefreshTokenRecord, RefreshTokenState, AccessTokenClaims, IdTokenClaims, TokenType, AccessTokenSenderConstraint, SenderConstraintKind, SenderConstraintCnf, RefreshTokenSenderConstraint, Audience, InvalidGrantError, UnsupportedGrantTypeError, InvalidTokenError, InvalidDpopProofError, InsufficientScopeError]
-    owns_states: [RefreshTokenLifecycle]
-    owns_events: [AccessTokenIssued, RefreshTokenIssued, RefreshTokenRotated, TokenRevoked, TokenIntrospected, RefreshTokenReuseDetected]
-    owns_interfaces: [Token, Introspect, Revoke, UserInfo, PostUserInfo]
-    owns_invariants: [RefreshFamilyTransitiveRevoke, RefreshRotationParentInvariants, DpopJtiUniquenessWithinWindow, TokenHashOneWay, RefreshTokenAbsoluteTtl, AllAccessTokensCarryAudience]
-    owns_permissions: [TokenGrantAuthorizationCode, TokenGrantRefresh, TokenGrantClientCredentials, TokenGrantDeviceCode, TokenIntrospect, TokenRevoke, UserInfoRead]
-    owns_objectives: [TokenLatency, IntrospectLatency, RevokeLatency, UserInfoLatency, TokenErrorRate, IntrospectErrorRate, RevokeErrorRate, UserInfoErrorRate, TokenEndpointAvailability, TokenThroughput, IntrospectThroughput, AccessTokenLifetime, IdTokenLifetime, RefreshTokenLifetime, RefreshTokenAbsoluteLifetime, DpopProofClockSkewPast, DpopProofClockSkewFuture, DpopJtiReplayWindow, DpopNonceLifetime, RefreshReuseAlertWindow]
-    depends_on:
-      - { component: Authorization, reason: AccessToken と RefreshToken は AuthorizationCode と Consent から派生する。 }
-      - { component: ClientRegistry, reason: Client 認証 (client_secret / private_key_jwt / mTLS) は Client metadata に依存する。 }
-      - { component: Trust, reason: 署名は SigningKey 集合から取得し、proof verification は公開鍵集合に依存する。 }
-
-  Trust:
-    description: 署名鍵、JWKS、Discovery、Authorization Server Metadata の公開、健全性報告、監査保管といった信頼基盤を所有する。監査保管としては DomainEvent の読み出し管理 API も含む。署名鍵の管理 API (一覧 / 詳細 / ローテーション) もここに帰属する。
-    owns_models: [SigningKey, SigningKeyState, JWK, JWKS, DiscoveryDocument, SignatureAlgorithm, Uri, AuditEventQuery, AdminAuditEventResponse, AdminAuditEventListResponse, AdminKeyResponse, AdminKeyListResponse, AdminRotateKeyResponse]
-    owns_states: [SigningKeyLifecycle]
-    owns_events: [SigningKeyRotated]
-    owns_interfaces: [GetJwks, GetOpenidConfiguration, GetOauthAuthorizationServer, Health, ListAdminAuditEvents, GetAdminAuditEvent, ListAdminKeys, GetAdminKey, RotateAdminKey]
-    owns_invariants: [SigningKeyMaxAge]
-    owns_permissions: [AdminAuditEventsRead, AdminKeysRead, AdminKeysRotate]
-    owns_objectives: [JwksLatency, DiscoveryLatency, JwksErrorRate, DiscoveryErrorRate, OverallAvailability, SigningKeyMaxAge, SigningKeyMinJwksOverlap, SigningKeyArchiveRetention, AuditLogRetention]
-    depends_on:
-      - { component: Tenancy, reason: 監査イベント読み出しはテナント境界内に閉じ、system_admin だけが全テナントを横断する。 }
+      - { component: Tenancy,        reason: クライアント・コード・トークン・鍵・監査はテナント境界内に閉じる。 }
+      - { component: Authentication, reason: Authorize は AuthenticationContext を Authentication から解決する。 }
 
 # =================================================================
 # 0. standards — 適用する外部標準と規範要件
@@ -1768,7 +1737,7 @@ models:
     description: |
       ListAdminAuditEvents のクエリパラメータ。tenant_id は context から付与されるため
       フィールドには含めない。type は SCL events セクションの型名。
-    annotations: { component: Trust }
+    annotations: { component: OAuth2 }
     fields:
       type:    { type: String, optional: true, description: "完全一致フィルタ。例: AccessTokenIssued" }
       sub:     { type: String, optional: true, description: "対象ユーザー sub の完全一致フィルタ。" }
@@ -1781,7 +1750,7 @@ models:
     description: |
       管理者向けに公開する DomainEvent。payload は構造化 JSON。
       返却時に PII フィールド (email / IP 等) は EventSink 側で redact 済み前提。
-    annotations: { component: Trust }
+    annotations: { component: OAuth2 }
     fields:
       id:          { type: String,    description: "ストア側で割り当てたイベント ID (UUIDv4)。" }
       tenant_id:   { type: String,    description: "イベントが帰属するテナント ID。" }
@@ -1792,7 +1761,7 @@ models:
   AdminAuditEventListResponse:
     kind: value_object
     description: 監査イベントの検索結果。
-    annotations: { component: Trust }
+    annotations: { component: OAuth2 }
     fields:
       events:        { type: "AdminAuditEventResponse[]" }
       next_after:    { type: Timestamp, optional: true, description: "ページング継続用カーソル。" }
@@ -1803,7 +1772,7 @@ models:
       管理者向けに公開する署名鍵のメタデータ。秘密鍵は当然返さず、JWKS と
       同じ公開鍵 JWK のみを含める。鍵の状態 (active / verifying) と作成時刻で
       ローテーション可否を判断できる粒度を提供する。
-    annotations: { component: Trust }
+    annotations: { component: OAuth2 }
     fields:
       kid:        { type: String,    description: "JWK Key ID。JWKS で配布されるものと同一。" }
       alg:        { type: SignatureAlgorithm, description: "署名アルゴリズム (現状 PS256 のみ)。" }
@@ -1814,14 +1783,14 @@ models:
   AdminKeyListResponse:
     kind: value_object
     description: 全署名鍵の一覧。active が複数同時に存在することは無い (rotateInternal で旧鍵は非 active 化)。
-    annotations: { component: Trust }
+    annotations: { component: OAuth2 }
     fields:
       keys: { type: "AdminKeyResponse[]" }
 
   AdminRotateKeyResponse:
     kind: value_object
     description: 鍵ローテーションの結果。新しい active 鍵と直前の active 鍵 (verifying へ降りた) の kid を返す。
-    annotations: { component: Trust }
+    annotations: { component: OAuth2 }
     fields:
       next:     { type: AdminKeyResponse, description: "新しい active 署名鍵。" }
       previous: { type: AdminKeyResponse, optional: true, description: "直前まで active だった鍵 (初回ローテーション時は無し)。" }

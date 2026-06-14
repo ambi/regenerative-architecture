@@ -1,5 +1,9 @@
 package usecases
 
+// 管理者向け User ライフサイクル操作 (Create / Update / Disable / Enable)。
+// SCL の Authentication component が所有する admin インターフェース群:
+// CreateAdminUser / UpdateAdminUser / DisableAdminUser / EnableAdminUser。
+
 import (
 	"context"
 	"errors"
@@ -8,19 +12,17 @@ import (
 	"time"
 
 	authports "ra-idp-go/internal/authentication/ports"
-	authusecases "ra-idp-go/internal/authentication/usecases"
 	oauthports "ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/spec"
 	"ra-idp-go/internal/tenancy"
 )
 
 var (
-	ErrUserNotFound     = errors.New("user not found")
 	ErrUsernameConflict = errors.New("preferred username already exists")
 	ErrInvalidRole      = errors.New("role must not be empty")
 )
 
-type Deps struct {
+type AdminUserDeps struct {
 	UserRepo            oauthports.UserRepository
 	PasswordHasher      authports.PasswordHasher
 	PasswordHistoryRepo authports.PasswordHistoryRepository
@@ -38,7 +40,7 @@ type CreateUserInput struct {
 	Now               time.Time
 }
 
-func CreateUser(ctx context.Context, deps Deps, in CreateUserInput) (*spec.User, error) {
+func CreateUser(ctx context.Context, deps AdminUserDeps, in CreateUserInput) (*spec.User, error) {
 	username := strings.TrimSpace(in.PreferredUsername)
 	if username == "" {
 		return nil, errors.New("preferred username is required")
@@ -51,9 +53,9 @@ func CreateUser(ctx context.Context, deps Deps, in CreateUserInput) (*spec.User,
 	if existing != nil {
 		return nil, ErrUsernameConflict
 	}
-	result := authusecases.ValidatePassword(in.Password)
+	result := ValidatePassword(in.Password)
 	if !result.OK {
-		return nil, &authusecases.PasswordPolicyError{Violations: result.Violations}
+		return nil, &PasswordPolicyError{Violations: result.Violations}
 	}
 	roles, err := normalizeRoles(in.Roles)
 	if err != nil {
@@ -82,7 +84,7 @@ func CreateUser(ctx context.Context, deps Deps, in CreateUserInput) (*spec.User,
 	if err := deps.PasswordHistoryRepo.Add(ctx, user.Sub, passwordHash, now); err != nil {
 		return nil, err
 	}
-	emit(deps.Emit, &spec.UserCreated{At: now, ActorSub: in.ActorSub, TargetSub: user.Sub})
+	adminEmit(deps.Emit, &spec.UserCreated{At: now, ActorSub: in.ActorSub, TargetSub: user.Sub})
 	return user, nil
 }
 
@@ -97,7 +99,7 @@ type UpdateUserInput struct {
 	Now               time.Time
 }
 
-func UpdateUser(ctx context.Context, deps Deps, in UpdateUserInput) (*spec.User, error) {
+func UpdateUser(ctx context.Context, deps AdminUserDeps, in UpdateUserInput) (*spec.User, error) {
 	user, err := deps.UserRepo.FindBySub(ctx, in.Sub)
 	if err != nil {
 		return nil, err
@@ -160,7 +162,7 @@ func UpdateUser(ctx context.Context, deps Deps, in UpdateUserInput) (*spec.User,
 	if err := deps.UserRepo.Save(ctx, &updated); err != nil {
 		return nil, err
 	}
-	emit(deps.Emit, &spec.UserUpdated{
+	adminEmit(deps.Emit, &spec.UserUpdated{
 		At: now, ActorSub: in.ActorSub, TargetSub: user.Sub, ChangedFields: changed,
 	})
 	return &updated, nil
@@ -168,7 +170,7 @@ func UpdateUser(ctx context.Context, deps Deps, in UpdateUserInput) (*spec.User,
 
 func SetUserDisabled(
 	ctx context.Context,
-	deps Deps,
+	deps AdminUserDeps,
 	actorSub, targetSub string,
 	disabled bool,
 	now time.Time,
@@ -201,9 +203,9 @@ func SetUserDisabled(
 		return nil, err
 	}
 	if disabled {
-		emit(deps.Emit, &spec.UserDisabled{At: now, ActorSub: actorSub, TargetSub: targetSub})
+		adminEmit(deps.Emit, &spec.UserDisabled{At: now, ActorSub: actorSub, TargetSub: targetSub})
 	} else {
-		emit(deps.Emit, &spec.UserEnabled{At: now, ActorSub: actorSub, TargetSub: targetSub})
+		adminEmit(deps.Emit, &spec.UserEnabled{At: now, ActorSub: actorSub, TargetSub: targetSub})
 	}
 	return &updated, nil
 }
@@ -235,7 +237,7 @@ func equalOptionalString(left, right *string) bool {
 		left != nil && right != nil && *left == *right
 }
 
-func emit(sink func(spec.DomainEvent), event spec.DomainEvent) {
+func adminEmit(sink func(spec.DomainEvent), event spec.DomainEvent) {
 	if sink != nil {
 		sink(event)
 	}

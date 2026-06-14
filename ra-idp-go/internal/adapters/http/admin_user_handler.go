@@ -6,7 +6,6 @@ import (
 	"slices"
 	"time"
 
-	adminusecases "ra-idp-go/internal/administration/usecases"
 	authusecases "ra-idp-go/internal/authentication/usecases"
 	"ra-idp-go/internal/spec"
 
@@ -92,10 +91,10 @@ func (d Deps) handleCreateAdminUser(c *echo.Context) error {
 	if err := decodeJSON(c.Request(), &input); err != nil {
 		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
-	user, err := adminusecases.CreateUser(
+	user, err := authusecases.CreateUser(
 		c.Request().Context(),
 		d.adminUserDeps(),
-		adminusecases.CreateUserInput{
+		authusecases.CreateUserInput{
 			ActorSub: actor.Sub, PreferredUsername: input.PreferredUsername,
 			Password: input.Password, Name: input.Name, Email: input.Email,
 			EmailVerified: input.EmailVerified, Roles: input.Roles, Now: time.Now().UTC(),
@@ -119,10 +118,10 @@ func (d Deps) handleUpdateAdminUser(c *echo.Context) error {
 	if err := decodeJSON(c.Request(), &input); err != nil {
 		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
-	user, err := adminusecases.UpdateUser(
+	user, err := authusecases.UpdateUser(
 		c.Request().Context(),
 		d.adminUserDeps(),
-		adminusecases.UpdateUserInput{
+		authusecases.UpdateUserInput{
 			ActorSub: actor.Sub, Sub: c.Param("sub"),
 			PreferredUsername: input.PreferredUsername, Name: input.Name, Email: input.Email,
 			EmailVerified: input.EmailVerified, Roles: input.Roles, Now: time.Now().UTC(),
@@ -150,7 +149,7 @@ func (d Deps) handleSetAdminUserDisabled(c *echo.Context, disabled bool) error {
 	if err != nil {
 		return d.writeAdminAccessError(c, err)
 	}
-	_, err = adminusecases.SetUserDisabled(
+	_, err = authusecases.SetUserDisabled(
 		c.Request().Context(), d.adminUserDeps(), actor.Sub, c.Param("sub"), disabled, time.Now().UTC(),
 	)
 	if err != nil {
@@ -189,8 +188,8 @@ func (d Deps) writeAdminAccessError(c *echo.Context, err error) error {
 	return err
 }
 
-func (d Deps) adminUserDeps() adminusecases.Deps {
-	return adminusecases.Deps{
+func (d Deps) adminUserDeps() authusecases.AdminUserDeps {
+	return authusecases.AdminUserDeps{
 		UserRepo: d.UserRepo, PasswordHasher: d.PasswordHasher,
 		PasswordHistoryRepo: d.PasswordHistoryRepo, Emit: d.Emit,
 	}
@@ -198,11 +197,11 @@ func (d Deps) adminUserDeps() adminusecases.Deps {
 
 func (d Deps) writeAdminUserError(c *echo.Context, err error) error {
 	switch {
-	case errors.Is(err, adminusecases.ErrUserNotFound):
+	case errors.Is(err, authusecases.ErrUserNotFound):
 		return writeBrowserError(c, http.StatusNotFound, "user_not_found", "ユーザーが存在しません")
-	case errors.Is(err, adminusecases.ErrUsernameConflict):
+	case errors.Is(err, authusecases.ErrUsernameConflict):
 		return writeBrowserError(c, http.StatusConflict, "username_conflict", "ユーザー名は既に使用されています")
-	case errors.Is(err, adminusecases.ErrInvalidRole):
+	case errors.Is(err, authusecases.ErrInvalidRole):
 		return writeBrowserError(c, http.StatusBadRequest, "invalid_role", "roleが不正です")
 	default:
 		var policyErr *authusecases.PasswordPolicyError

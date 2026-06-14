@@ -1,5 +1,9 @@
 package usecases
 
+// 管理者向け Consent 操作 (List / Get / Revoke)。
+// SCL OAuth2 component の admin インターフェース群:
+// ListAdminConsents / GetAdminConsent / RevokeAdminConsent。
+
 import (
 	"context"
 	"errors"
@@ -49,7 +53,7 @@ func RevokeConsent(
 		return err
 	}
 	emit(deps.Emit, &spec.ConsentRevokedEvent{
-		At: normalizedNow(now), ActorSub: actorSub, Sub: sub, ClientID: clientID,
+		At: adminNow(now), ActorSub: actorSub, Sub: sub, ClientID: clientID,
 	})
 	return nil
 }

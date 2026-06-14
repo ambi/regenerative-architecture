@@ -6,7 +6,7 @@ import (
 	"slices"
 	"time"
 
-	adminusecases "ra-idp-go/internal/administration/usecases"
+	oauthusecases "ra-idp-go/internal/oauth2/usecases"
 	"ra-idp-go/internal/spec"
 
 	"github.com/labstack/echo/v5"
@@ -27,7 +27,7 @@ func (d Deps) handleListAdminConsents(c *echo.Context) error {
 	if _, err := d.requireAdmin(c); err != nil {
 		return d.writeAdminAccessError(c, err)
 	}
-	consents, err := adminusecases.ListConsents(c.Request().Context(), d.adminConsentDeps())
+	consents, err := oauthusecases.ListConsents(c.Request().Context(), d.adminConsentDeps())
 	if err != nil {
 		return err
 	}
@@ -42,7 +42,7 @@ func (d Deps) handleGetAdminConsent(c *echo.Context) error {
 	if _, err := d.requireAdmin(c); err != nil {
 		return d.writeAdminAccessError(c, err)
 	}
-	consent, err := adminusecases.GetConsent(
+	consent, err := oauthusecases.GetConsent(
 		c.Request().Context(), d.adminConsentDeps(), c.Param("sub"), c.Param("client_id"),
 	)
 	if err != nil {
@@ -59,7 +59,7 @@ func (d Deps) handleRevokeAdminConsent(c *echo.Context) error {
 	if err != nil {
 		return d.writeAdminAccessError(c, err)
 	}
-	if err := adminusecases.RevokeConsent(
+	if err := oauthusecases.RevokeConsent(
 		c.Request().Context(), d.adminConsentDeps(), actor.Sub,
 		c.Param("sub"), c.Param("client_id"), time.Now().UTC(),
 	); err != nil {
@@ -69,12 +69,12 @@ func (d Deps) handleRevokeAdminConsent(c *echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
-func (d Deps) adminConsentDeps() adminusecases.ConsentDeps {
-	return adminusecases.ConsentDeps{ConsentRepo: d.ConsentRepo, Emit: d.Emit}
+func (d Deps) adminConsentDeps() oauthusecases.ConsentDeps {
+	return oauthusecases.ConsentDeps{ConsentRepo: d.ConsentRepo, Emit: d.Emit}
 }
 
 func (d Deps) writeAdminConsentError(c *echo.Context, err error) error {
-	if errors.Is(err, adminusecases.ErrConsentNotFound) {
+	if errors.Is(err, oauthusecases.ErrConsentNotFound) {
 		return writeBrowserError(c, http.StatusNotFound, "consent_not_found", "同意記録が存在しません")
 	}
 	return err

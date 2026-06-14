@@ -8,7 +8,7 @@ import (
 
 	"ra-idp-go/internal/adapters/crypto"
 	"ra-idp-go/internal/adapters/persistence/memory"
-	adminusecases "ra-idp-go/internal/administration/usecases"
+	authusecases "ra-idp-go/internal/authentication/usecases"
 	"ra-idp-go/internal/spec"
 )
 
@@ -18,13 +18,13 @@ func TestCreateUpdateAndDisableUser(t *testing.T) {
 	historyRepo := memory.NewPasswordHistoryRepository()
 	hasher := crypto.NewArgon2idPasswordHasher()
 	var events []spec.DomainEvent
-	deps := adminusecases.Deps{
+	deps := authusecases.AdminUserDeps{
 		UserRepo: userRepo, PasswordHasher: hasher, PasswordHistoryRepo: historyRepo,
 		Emit: func(event spec.DomainEvent) { events = append(events, event) },
 	}
 	now := time.Date(2026, 6, 13, 12, 0, 0, 0, time.UTC)
 	email := "bob@example.com"
-	user, err := adminusecases.CreateUser(ctx, deps, adminusecases.CreateUserInput{
+	user, err := authusecases.CreateUser(ctx, deps, authusecases.CreateUserInput{
 		ActorSub: "admin", PreferredUsername: "bob", Password: "initial-password-9182",
 		Email: &email, Roles: []string{"support", "support"}, Now: now,
 	})
@@ -39,7 +39,7 @@ func TestCreateUpdateAndDisableUser(t *testing.T) {
 	}
 	updatedName := "Bob"
 	roles := []string{"admin", "support"}
-	user, err = adminusecases.UpdateUser(ctx, deps, adminusecases.UpdateUserInput{
+	user, err = authusecases.UpdateUser(ctx, deps, authusecases.UpdateUserInput{
 		ActorSub: "admin", Sub: user.Sub, Name: &updatedName, Roles: &roles, Now: now.Add(time.Minute),
 	})
 	if err != nil {
@@ -48,7 +48,7 @@ func TestCreateUpdateAndDisableUser(t *testing.T) {
 	if user.Name == nil || *user.Name != "Bob" || len(user.Roles) != 2 {
 		t.Fatalf("updated user=%+v", user)
 	}
-	user, err = adminusecases.SetUserDisabled(
+	user, err = authusecases.SetUserDisabled(
 		ctx, deps, "admin", user.Sub, true, now.Add(2*time.Minute),
 	)
 	if err != nil {
@@ -60,7 +60,7 @@ func TestCreateUpdateAndDisableUser(t *testing.T) {
 	if got := events[len(events)-1].EventType(); got != "UserDisabled" {
 		t.Fatalf("last event=%s", got)
 	}
-	user, err = adminusecases.SetUserDisabled(
+	user, err = authusecases.SetUserDisabled(
 		ctx, deps, "admin", user.Sub, false, now.Add(3*time.Minute),
 	)
 	if err != nil {
@@ -81,13 +81,13 @@ func TestCreateUserRejectsDuplicateUsername(t *testing.T) {
 		Sub: "existing", PreferredUsername: "bob", PasswordHash: "hash",
 		CreatedAt: now, UpdatedAt: now,
 	})
-	_, err := adminusecases.CreateUser(context.Background(), adminusecases.Deps{
+	_, err := authusecases.CreateUser(context.Background(), authusecases.AdminUserDeps{
 		UserRepo: repo, PasswordHasher: crypto.NewArgon2idPasswordHasher(),
 		PasswordHistoryRepo: memory.NewPasswordHistoryRepository(),
-	}, adminusecases.CreateUserInput{
+	}, authusecases.CreateUserInput{
 		PreferredUsername: "bob", Password: "initial-password-9182",
 	})
-	if !errors.Is(err, adminusecases.ErrUsernameConflict) {
+	if !errors.Is(err, authusecases.ErrUsernameConflict) {
 		t.Fatalf("error=%v, want ErrUsernameConflict", err)
 	}
 }

@@ -1,5 +1,9 @@
 package usecases
 
+// 管理者向け Client メタデータ操作 (Create / Update / Delete)。
+// SCL OAuth2 component の admin インターフェース群:
+// CreateAdminClient / UpdateAdminClient / DeleteAdminClient。
+
 import (
 	"context"
 	"errors"
@@ -7,7 +11,6 @@ import (
 	"time"
 
 	oauthports "ra-idp-go/internal/oauth2/ports"
-	oauthusecases "ra-idp-go/internal/oauth2/usecases"
 	"ra-idp-go/internal/spec"
 	"ra-idp-go/internal/tenancy"
 )
@@ -21,7 +24,7 @@ type ClientDeps struct {
 
 type CreateClientInput struct {
 	ActorSub     string
-	Registration oauthusecases.RegisterClientInput
+	Registration RegisterClientInput
 	Now          time.Time
 }
 
@@ -29,15 +32,15 @@ func CreateClient(
 	ctx context.Context,
 	deps ClientDeps,
 	in CreateClientInput,
-) (*oauthusecases.RegisterClientResult, error) {
-	result, err := oauthusecases.RegisterClient(ctx, oauthusecases.RegisterClientDeps{
+) (*RegisterClientResult, error) {
+	result, err := RegisterClient(ctx, RegisterClientDeps{
 		ClientRepo: deps.ClientRepo,
 	}, in.Registration, in.Now)
 	if err != nil {
 		return nil, err
 	}
 	emit(deps.Emit, &spec.AdminClientCreated{
-		At: normalizedNow(in.Now), ActorSub: in.ActorSub, ClientID: result.Client.ClientID,
+		At: adminNow(in.Now), ActorSub: in.ActorSub, ClientID: result.Client.ClientID,
 	})
 	return result, nil
 }
@@ -66,7 +69,7 @@ func UpdateClient(ctx context.Context, deps ClientDeps, in UpdateClientInput) (*
 	}
 	updated := *client
 	changed := []string{}
-	if in.ClientName != nil && !equalOptionalString(client.ClientName, in.ClientName) {
+	if in.ClientName != nil && !adminEqualOptionalString(client.ClientName, in.ClientName) {
 		updated.ClientName = in.ClientName
 		changed = append(changed, "client_name")
 	}
@@ -104,7 +107,7 @@ func UpdateClient(ctx context.Context, deps ClientDeps, in UpdateClientInput) (*
 		return nil, err
 	}
 	emit(deps.Emit, &spec.AdminClientUpdated{
-		At: normalizedNow(in.Now), ActorSub: in.ActorSub, ClientID: client.ClientID,
+		At: adminNow(in.Now), ActorSub: in.ActorSub, ClientID: client.ClientID,
 		ChangedFields: changed,
 	})
 	return &updated, nil
@@ -128,7 +131,19 @@ func DeleteClient(
 		return err
 	}
 	emit(deps.Emit, &spec.AdminClientDeleted{
-		At: normalizedNow(now), ActorSub: actorSub, ClientID: clientID,
+		At: adminNow(now), ActorSub: actorSub, ClientID: clientID,
 	})
 	return nil
+}
+
+func adminNow(now time.Time) time.Time {
+	if now.IsZero() {
+		return time.Now().UTC()
+	}
+	return now.UTC()
+}
+
+func adminEqualOptionalString(left, right *string) bool {
+	return left == nil && right == nil ||
+		left != nil && right != nil && *left == *right
 }

@@ -27,7 +27,7 @@ type Dependencies struct {
 	DpopReplay              oauthports.DpopReplayStore
 	ClientAssertionReplay   oauthports.ClientAssertionReplayStore
 	AccessTokenDenylist     oauthports.AccessTokenDenylist
-	SessionStore            oauthports.SessionStore
+	SessionStore            authports.SessionStore
 	KeyStore                oauthports.KeyStore
 	EventSink               oauthports.EventSink
 	AuditEventRepo          oauthports.AuditEventRepository

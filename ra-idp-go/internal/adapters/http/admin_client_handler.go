@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"ra-idp-go/internal/adapters/crypto"
-	adminusecases "ra-idp-go/internal/administration/usecases"
 	oauthusecases "ra-idp-go/internal/oauth2/usecases"
 	"ra-idp-go/internal/spec"
 
@@ -79,7 +78,7 @@ func (d Deps) handleGetAdminClient(c *echo.Context) error {
 		return err
 	}
 	if client == nil {
-		return d.writeAdminClientError(c, adminusecases.ErrClientNotFound)
+		return d.writeAdminClientError(c, oauthusecases.ErrClientNotFound)
 	}
 	return noStoreJSON(c, http.StatusOK, toAdminClientResponse(client))
 }
@@ -117,7 +116,7 @@ func (d Deps) handleCreateAdminClient(c *echo.Context) error {
 	for _, responseType := range req.ResponseTypes {
 		registration.ResponseTypes = append(registration.ResponseTypes, spec.ResponseType(responseType))
 	}
-	result, err := adminusecases.CreateClient(c.Request().Context(), d.adminClientDeps(), adminusecases.CreateClientInput{
+	result, err := oauthusecases.CreateClient(c.Request().Context(), d.adminClientDeps(), oauthusecases.CreateClientInput{
 		ActorSub: actor.Sub, Registration: registration, Now: time.Now().UTC(),
 	})
 	if err != nil {
@@ -142,7 +141,7 @@ func (d Deps) handleUpdateAdminClient(c *echo.Context) error {
 	if err := decodeJSON(c.Request(), &req); err != nil {
 		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
-	client, err := adminusecases.UpdateClient(c.Request().Context(), d.adminClientDeps(), adminusecases.UpdateClientInput{
+	client, err := oauthusecases.UpdateClient(c.Request().Context(), d.adminClientDeps(), oauthusecases.UpdateClientInput{
 		ActorSub: actor.Sub, ClientID: c.Param("client_id"), ClientName: req.ClientName,
 		RedirectURIs: req.RedirectURIs, GrantTypes: req.GrantTypes, ResponseTypes: req.ResponseTypes,
 		Scope: req.Scope, RequirePAR: req.RequirePAR, DpopBoundTokens: req.DpopBoundTokens,
@@ -162,7 +161,7 @@ func (d Deps) handleDeleteAdminClient(c *echo.Context) error {
 	if err != nil {
 		return d.writeAdminAccessError(c, err)
 	}
-	if err := adminusecases.DeleteClient(
+	if err := oauthusecases.DeleteClient(
 		c.Request().Context(), d.adminClientDeps(), actor.Sub, c.Param("client_id"), time.Now().UTC(),
 	); err != nil {
 		return d.writeAdminClientError(c, err)
@@ -171,12 +170,12 @@ func (d Deps) handleDeleteAdminClient(c *echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
-func (d Deps) adminClientDeps() adminusecases.ClientDeps {
-	return adminusecases.ClientDeps{ClientRepo: d.ClientRepo, Emit: d.Emit}
+func (d Deps) adminClientDeps() oauthusecases.ClientDeps {
+	return oauthusecases.ClientDeps{ClientRepo: d.ClientRepo, Emit: d.Emit}
 }
 
 func (d Deps) writeAdminClientError(c *echo.Context, err error) error {
-	if errors.Is(err, adminusecases.ErrClientNotFound) {
+	if errors.Is(err, oauthusecases.ErrClientNotFound) {
 		return writeBrowserError(c, http.StatusNotFound, "client_not_found", "クライアントが存在しません")
 	}
 	var oauthErr *oauthusecases.OAuthError

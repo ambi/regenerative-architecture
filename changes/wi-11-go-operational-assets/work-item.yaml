@@ -1,0 +1,74 @@
+id: wi-11-go-operational-assets
+title: ra-idp-go の Kubernetes・監視・負荷試験資産を整備する
+created_at: 2026-06-15
+status: pending
+authors: [tn]
+
+motivation: |
+  TypeScript 実装の廃止に伴い、旧実装向けの Kubernetes manifests、
+  Prometheus / Grafana 設定、k6 負荷試験も削除した。これらは実装固有の
+  endpoint、メトリクス名、コンテナ構成を参照していたため、そのまま
+  ra-idp-go に移すと実態と乖離する。
+
+  一方、本番運用と SCL の objectives を検証するには、Go 実装を基準にした
+  配備・観測・性能検証の資産が必要である。本 WI で現行の Docker image、
+  OpenTelemetry 出力、HTTP 契約から再構築する。
+
+scope:
+  kubernetes:
+    - ra-idp-go/infra/k8s/base に Deployment / Service / ConfigMap /
+      NetworkPolicy / PodDisruptionBudget を追加する。
+    - ra-idp-go API、UI gateway、event relay を責務ごとに分離する。
+    - readiness / liveness probe は Go 実装の `/health` を使う。
+    - signing key rotation の定期実行方法は、既存 use case と実行可能な
+      CLI の有無を確認してから CronJob または別 WI に切り分ける。
+    - dev / prod overlay を用意し、image tag、replica、resource request /
+      limit、外部 secret 参照だけを環境差分にする。
+
+  monitoring:
+    - OpenTelemetry Collector から取得できる Go 実装の metric 名を確認し、
+      Prometheus recording rule と alert rule を作る。
+    - SCL objectives の availability / latency / error-rate と alert を
+      対応付ける。
+    - Grafana dashboard に request rate、error rate、latency、認証失敗、
+      token 発行、PostgreSQL / Redis / relay の主要状態を表示する。
+    - ServiceMonitor は Prometheus Operator 利用時だけ適用できる構成にする。
+
+  load_testing:
+    - k6 で authorization_code + PKCE、token refresh、client_credentials の
+      最小シナリオを作る。
+    - SCL objectives から閾値を読み取るか、同期確認できる単一設定に集約する。
+    - tenant 境界を越えるデータ再利用をせず、実行ごとに独立した client /
+      user または安全な seed を使う。
+    - ローカル Docker Compose と CI の両方で短時間 smoke を実行できるようにする。
+
+  documentation:
+    - ra-idp-go/README.md に配備、監視、負荷試験の実行方法を追加する。
+    - 各資産が SCL objectives のどの保証義務を検証するかを記録する。
+
+out_of_scope:
+  - 特定クラウド専用の Terraform / Pulumi。
+  - 本番 secret のリポジトリ保存。
+  - マルチリージョン構成、DR、バックアップ・リストア自動化。
+  - アプリケーションロジックや HTTP API の変更。
+
+affected_guarantees:
+  - SCL objectives と Prometheus / k6 の閾値を追跡可能にする。
+  - tenant、cookie、issuer の境界を ingress / gateway 構成でも維持する。
+  - liveness probe は依存サービス障害で再起動ループを起こさず、
+    readiness probe だけがトラフィック受入可否を表す。
+  - dashboard と alert は実在する metric 名だけを参照し、CI または
+    smoke test で欠落を検出する。
+
+verification:
+  - Kubernetes manifests を kustomize build し、kubeconform で検証する。
+  - Prometheus rules を promtool check rules で検証する。
+  - Grafana dashboard JSON を構文検証する。
+  - Docker Compose 上で k6 smoke を実行し、閾値を満たす。
+  - go test -race ./... を ra-idp-go で実行し、既存挙動に回帰がない。
+
+risk: medium
+risk_notes: |
+  旧 TypeScript 実装の設定を名前だけ変えて移植すると、存在しない metric や
+  endpoint を監視する構成になる。最初に Go 実装から観測可能な信号を列挙し、
+  各 manifest / rule / scenario が現行コードへ辿れる状態で追加する。

@@ -26,7 +26,7 @@ motivation: |
 scope:
   decision:
     - >-
-      新規 ADR-035 を ra-idp/decisions/ADR-035-smtp-email-sender-adapter.md
+      新規 ADR-035 を ra-idp-go/decisions/ADR-035-smtp-email-sender-adapter.md
       として追加。ADR-030 の "SMTP / HTTP プロバイダ adapter は別 ADR" を
       埋める。決定事項は、SMTP のみ採用、TLS 戦略 (implicit / STARTTLS / none)、
       auth (PLAIN over TLS のみ許可)、From / Reply-To の決め方、送信失敗時の

@@ -10,7 +10,7 @@ type AssuranceVerification struct {
 var AssuranceManifest = map[string][]AssuranceVerification{
 	"PkcePropertyTests": {
 		{File: "ra-idp-go/internal/oauth2/domain/pkce_test.go", Check: "TestPKCES256Verifies"},
-		{File: "ra-idp/src/spec-bindings/property/pkce.property.test.ts", Check: "PKCE round-trip property"},
+		{File: "ra-idp-go/internal/oauth2/domain/pkce_test.go", Check: "TestPKCES256RejectsMismatch"},
 	},
 	"AuthorizationCodeStoreContract": {
 		{File: "ra-idp-go/internal/adapters/persistence/memory/memory_test.go", Check: "TestAuthorizationCodeRedeemIsAtomic"},
@@ -18,14 +18,14 @@ var AssuranceManifest = map[string][]AssuranceVerification{
 	},
 	"AuthorizationPolicyTests": {
 		{File: "ra-idp-go/internal/oauth2/usecases/exchange_code_test.go", Check: "TestExchangeCodePKCEFailureDoesNotConsumeCode"},
-		{File: "ra-idp/src/spec-bindings/policy/authorization.test.ts", Check: "token:grant_authorization_code"},
+		{File: "ra-idp-go/internal/adapters/http/authorize_handler_test.go", Check: "TestAuthorize"},
 	},
 	"RefreshRotationPropertyTests": {
-		{File: "ra-idp/src/spec-bindings/property/refresh-rotation.property.test.ts", Check: "Refresh family transitive revoke"},
+		{File: "ra-idp-go/internal/oauth2/usecases/exchange_code_test.go", Check: "TestExchangeCodeReplayRevokesRefreshFamily"},
+		{File: "ra-idp-go/internal/oauth2/usecases/refresh_tokens_test.go", Check: "TestRefreshTokensRejectsAbsoluteTTLExpired"},
 	},
 	"RefreshStoreContract": {
 		{File: "ra-idp-go/internal/oauth2/usecases/exchange_code_test.go", Check: "TestExchangeCodeReplayRevokesRefreshFamily"},
-		{File: "ra-idp/src/spec-bindings/persistence-contract.test.ts", Check: "RefreshTokenStore"},
 	},
 	"TenantUseCaseTests": {
 		{File: "ra-idp-go/internal/tenancy/usecases/manage_tenants_test.go", Check: "TestTenantLifecycle"},
@@ -46,18 +46,15 @@ var AssuranceManifest = map[string][]AssuranceVerification{
 	},
 	"PersistenceSecretContracts": {
 		{File: "ra-idp-go/internal/oauth2/usecases/register_client_test.go", Check: "TestRegisterClientHashesSecret"},
-		{File: "ra-idp/src/spec-bindings/persistence-contract.test.ts", Check: "RefreshTokenStore"},
+		{File: "ra-idp-go/internal/oauth2/usecases/exchange_code_test.go", Check: "TestExchangeCodeReplayRevokesRefreshFamily"},
 	},
 	"SpecificationBindingTests": {
 		{File: "ra-idp-go/internal/spec/coherence_test.go", Check: "TestCurrentSCLLoadsAllNormativeSections"},
-		{File: "ra-idp/src/spec-bindings/invariants.test.ts", Check: "SCL ↔ TypeScript"},
+		{File: "ra-idp-go/internal/spec/admin_policy_test.go", Check: "TestSCLPermissionsHaveGoActionMappings"},
 	},
 	"CoherenceCheck": {
 		{File: "ra-idp-go/internal/spec/coherence_test.go", Check: "TestCurrentSCLIsInternallyCoherent"},
-		{File: ".github/workflows/ra-idp-ci.yaml", Check: "Spec cross-reference coherence"},
-	},
-	"GeneratedArtifactDriftCheck": {
-		{File: ".github/workflows/ra-idp-ci.yaml", Check: "Drift detection"},
+		{File: ".github/workflows/ra-idp-go-ci.yaml", Check: "Go tests and SCL coherence"},
 	},
 }
 

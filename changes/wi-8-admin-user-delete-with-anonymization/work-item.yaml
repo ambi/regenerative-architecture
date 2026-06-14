@@ -27,7 +27,7 @@ motivation: |
 scope:
   decision:
     - >-
-      新規 ADR (`ra-idp/decisions/ADR-036-user-deletion-and-anonymization.md`):
+      新規 ADR (`ra-idp-go/decisions/ADR-036-user-deletion-and-anonymization.md`):
       hard delete ではなく anonymize を既定とする方針、tombstone のフィールド
       置換規約 (`preferred_username = "deleted:<sub>"`、`name = ""`、
       `email = nil`、`password_hash = nil`、`mfa_*` をクリア)、cascade 対象

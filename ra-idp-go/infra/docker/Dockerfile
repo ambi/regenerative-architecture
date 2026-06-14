@@ -10,7 +10,7 @@ FROM gcr.io/distroless/static-debian12:nonroot
 WORKDIR /app
 COPY --from=build /out/ra-idp-go /app/ra-idp-go
 COPY --from=build /out/ra-idp-relay /app/ra-idp-relay
-COPY ra-idp/spec /app/spec
+COPY ra-idp-go/spec /app/spec
 COPY ra-idp-go/infra/migrations /app/infra/migrations
 EXPOSE 8080
 ENTRYPOINT ["/app/ra-idp-go"]

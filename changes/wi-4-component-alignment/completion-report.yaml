@@ -73,7 +73,7 @@ verification:
     result: ok
   - cmd: go test ./...
     result: ok
-  - cmd: 'grep -rE "component: (Identity|Authorization|ClientRegistry|Token|Trust)\b" ra-idp/spec/scl.yaml'
+  - cmd: 'grep -rE "component: (Identity|Authorization|ClientRegistry|Token|Trust)\b" ra-idp-go/spec/scl.yaml'
     result: empty (旧名は残らない)
   - cmd: 'ls ra-idp-go/internal/administration'
     result: not found

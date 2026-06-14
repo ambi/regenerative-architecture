@@ -196,8 +196,8 @@ golangci-lint run
 
 ```text
 ra-idp-go/
-├── spec/        → ../ra-idp/spec       (symlink — SCL を TS と共有)
-├── decisions/   → ../ra-idp/decisions  (symlink — ADR を共有)
+├── spec/                                    Layer 1: 仕様核 (SCL)
+├── decisions/                               Layer 2: コンセプション / ADR
 ├── ui/                                      React SPA + Caddy reference configuration
 ├── cmd/ra-idp-go/main.go               起動
 ├── internal/spec/                      Layer 3: SCL バインディング + 状態機械
@@ -324,7 +324,7 @@ inbound 連携を両方サポートする。SAML 2.0 IdP は現代の B2B SaaS /
 | ---------------- | -------------------------------------------------------------------------------------------------------- |
 | 鍵               | HSM / KMS 実鍵管理（Phase 1 の抽象 port を本物に差し替え）                                               |
 | 攻撃面           | SSRF 防御、WAF、bot 対策、異常検知（impossible travel 等）、侵害時 token revocation playbook             |
-| 可用性           | マルチリージョン、zero-downtime migration、バックアップ・リストア演習、DR、容量計画、SLO burn-rate alert |
+| 可用性           | Kubernetes 配備、監視・アラート、負荷試験、マルチリージョン、zero-downtime migration、バックアップ・リストア演習、DR、容量計画 |
 | セキュリティ運用 | ペネトレーションテスト、bug bounty / responsible disclosure、chaos engineering、改竄防止監査ログ         |
 | コンプライアンス | OIDC / FAPI certification、SOC2 / ISO27001 証跡、監査レポート、データ処理契約用エクスポート              |
 
@@ -338,7 +338,7 @@ inbound 連携を両方サポートする。SAML 2.0 IdP は現代の B2B SaaS /
 
 **SPA E2E スモークテストの最小要件**:
 
-- `@playwright/test` を `ra-idp/ui/` の devDependency に追加し、`ui/tests/e2e/` 配下に置く。
+- `@playwright/test` を `ra-idp-go/ui/` の devDependency に追加し、`ui/tests/e2e/` 配下に置く。
 - フィクスチャでバックエンドを `memory` モードで起動し、`localhost:8080/callback` 相当のミニマムなコールバック収集サーバを Playwright `globalSetup` で別ポートに立てる。
 - シナリオ 1 本:
   1. `http://localhost:3000/authorize?client_id=demo-web-app&...` を開く。

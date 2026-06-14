@@ -28,7 +28,7 @@ motivation: |
 scope:
   decision:
     - >-
-      新規 ADR (`ra-idp/decisions/ADR-037-group-aggregate-and-effective-roles.md`):
+      新規 ADR (`ra-idp-go/decisions/ADR-037-group-aggregate-and-effective-roles.md`):
       Group を tenant-scoped aggregate とする、union semantics、階層なし、
       deny ルールなし、自動所属なし、Group は `permissions` の `admin.groups.*`
       で保護、effective_roles の解決順序、id_token / userinfo に groups
@@ -150,9 +150,9 @@ verification:
   - cmd: 'bun --cwd ra-idp-go/ui typecheck'
   - cmd: 'bun --cwd ra-idp-go/ui lint'
   - cmd: 'bun --cwd ra-idp-go/ui build'
-  - cmd: 'bun --cwd ra-idp typecheck'
-    reason: ra-idp 側 SCL コード生成が新 aggregate に追随できることを
-      確認する。
+  - cmd: 'go test ./internal/spec/...'
+    in: ra-idp-go
+    reason: SCL の読み込み、内部参照、Go バインディングとの整合を確認する。
   - 手動: dev サーバを起動し、admin で `/admin/groups` から
     `engineering` (`catalog:read`) を作成 → alice を追加 →
     `/admin/users` の詳細で「グループ由来ロール」に `catalog:read` が

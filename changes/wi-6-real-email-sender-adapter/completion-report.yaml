@@ -13,7 +13,7 @@ summary: |
 
 decision_changes:
   - >-
-    新規 ADR-035 (ra-idp/decisions/ADR-035-smtp-email-sender-adapter.md)。
+    新規 ADR-035 (ra-idp-go/decisions/ADR-035-smtp-email-sender-adapter.md)。
     SMTP のみ採用、TLS 戦略 (starttls / implicit / none) の env 切替、
     PLAIN auth は TLS 下のみ許可、From は bare address のみ、fail-open、
     retry 無し、Message-ID / Date / multipart/alternative の生成方針を定めた。

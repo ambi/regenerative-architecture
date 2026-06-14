@@ -1,6 +1,6 @@
 // Package spec: SCL → Go バインディング。
 //
-// 仕様本体（language-agnostic）は spec/scl.yaml（symlink で TS 実装と共有）。
+// 仕様本体（language-agnostic）は spec/scl.yaml。
 // 本ファイルはランタイム検証のための Go バインディング。SCL を変更したら本ファイル
 // も合わせて更新する。乖離は coherence test で検出する。
 package spec

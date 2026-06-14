@@ -157,6 +157,38 @@ func TestClientAuthenticationMethods(t *testing.T) {
 	})
 }
 
+func TestClientAuthenticationFailuresAreUniform(t *testing.T) {
+	e := clientAuthServer(spec.AuthMethodClientSecretBasic)
+	request := func(clientID, secret string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/test", nil)
+		req.SetBasicAuth(clientID, secret)
+		rec := httptest.NewRecorder()
+		e.ServeHTTP(rec, req)
+		return rec
+	}
+	responses := []*httptest.ResponseRecorder{
+		request("unknown", "secret"),
+		request("client", "wrong-secret"),
+	}
+	for _, response := range responses {
+		if response.Code != http.StatusUnauthorized {
+			t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+		}
+		if body := response.Body.String(); body != `{"error":"invalid_client","error_description":"クライアント認証に失敗しました"}`+"\n" {
+			t.Fatalf("unexpected body: %s", body)
+		}
+	}
+
+	postServer := clientAuthServer(spec.AuthMethodClientSecretPost)
+	req := httptest.NewRequest(http.MethodPost, "/test", nil)
+	req.SetBasicAuth("client", "secret")
+	rec := httptest.NewRecorder()
+	postServer.ServeHTTP(rec, req)
+	if rec.Body.String() != responses[0].Body.String() {
+		t.Fatalf("auth method mismatch body=%s, want %s", rec.Body.String(), responses[0].Body.String())
+	}
+}
+
 func TestPrivateKeyJWTAuthentication(t *testing.T) {
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {

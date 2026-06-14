@@ -40,6 +40,16 @@ type AuthenticationFailed struct {
 func (e *AuthenticationFailed) EventType() string     { return "AuthenticationFailed" }
 func (e *AuthenticationFailed) OccurredAt() time.Time { return e.At }
 
+type LoginThrottled struct {
+	At                time.Time `json:"-"`
+	Kind              string    `json:"kind"`
+	KeyHash           string    `json:"keyHash"`
+	RetryAfterSeconds int       `json:"retryAfterSeconds"`
+}
+
+func (e *LoginThrottled) EventType() string     { return "LoginThrottled" }
+func (e *LoginThrottled) OccurredAt() time.Time { return e.At }
+
 type PasswordChanged struct {
 	At  time.Time `json:"-"`
 	Sub string    `json:"sub"`

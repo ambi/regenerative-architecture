@@ -5,10 +5,12 @@ on:
     branches: [main]
     paths:
       - ra-idp/**
+      - ra-idp-go/**
       - .github/workflows/ra-idp-ci.yaml
   pull_request:
     paths:
       - ra-idp/**
+      - ra-idp-go/**
       - .github/workflows/ra-idp-ci.yaml
 
 permissions:
@@ -52,6 +54,10 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.14
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: ra-idp-go/go.mod
+          cache-dependency-path: ra-idp-go/go.sum
 
       - name: Install deps
         run: bun install --frozen-lockfile
@@ -67,6 +73,10 @@ jobs:
 
       - name: Tests (in-memory + Postgres + Redis 契約テスト含む)
         run: bun test
+
+      - name: Go tests and assurance evidence
+        working-directory: ra-idp-go
+        run: go test -race ./...
 
       - name: Generate derived artifacts
         run: bun run gen:all

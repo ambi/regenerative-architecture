@@ -3,17 +3,21 @@ package http
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
 	authdomain "ra-idp-go/internal/authentication/domain"
+	authports "ra-idp-go/internal/authentication/ports"
 	authusecases "ra-idp-go/internal/authentication/usecases"
 	oauthdomain "ra-idp-go/internal/oauth2/domain"
 	"ra-idp-go/internal/oauth2/usecases"
@@ -240,16 +244,37 @@ func (d Deps) handleLoginAPI(c *echo.Context) error {
 		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "ユーザー名とパスワードが必要です")
 	}
 
+	normalizedUsername := strings.ToLower(input.Username)
+	clientIP := extractClientIP(c.Request(), d.TrustedForwardedHops)
+	if result, err := d.acquireLoginThrottle(c, authports.LoginThrottleAccount, normalizedUsername); err != nil {
+		return err
+	} else if !result.Allowed {
+		return writeLoginThrottled(c, result.RetryAfterSeconds)
+	}
+	if clientIP != "" {
+		if result, err := d.acquireLoginThrottle(c, authports.LoginThrottleIP, clientIP); err != nil {
+			return err
+		} else if !result.Allowed {
+			return writeLoginThrottled(c, result.RetryAfterSeconds)
+		}
+	}
+
 	user, err := d.UserRepo.FindByUsername(c.Request().Context(), requestTenantID(c), input.Username)
 	if err != nil {
 		return err
 	}
-	if user == nil {
-		d.emitAuthenticationFailure(input.Username, "user_not_found")
-		return writeBrowserError(c, http.StatusUnauthorized, "invalid_credentials", "ユーザー名またはパスワードを確認してください。")
+	hashToVerify := d.SentinelPasswordHash
+	if user != nil {
+		hashToVerify = user.PasswordHash
 	}
-	ok, err := d.PasswordHasher.Verify(input.Password, user.PasswordHash)
-	if err != nil || !ok {
+	ok := false
+	if hashToVerify != "" {
+		ok, err = d.PasswordHasher.Verify(input.Password, hashToVerify)
+	}
+	if user == nil || err != nil || !ok {
+		if err := d.recordLoginFailure(c, normalizedUsername, clientIP); err != nil {
+			return err
+		}
 		d.emitAuthenticationFailure(input.Username, "invalid_credentials")
 		return writeBrowserError(c, http.StatusUnauthorized, "invalid_credentials", "ユーザー名またはパスワードを確認してください。")
 	}
@@ -259,6 +284,13 @@ func (d Deps) handleLoginAPI(c *echo.Context) error {
 	}
 	if result := authusecases.ValidatePassword(input.Password); !result.OK {
 		return writeBrowserError(c, http.StatusUnauthorized, "password_policy", "パスワードがセキュリティ要件を満たしていません。")
+	}
+	if d.LoginAttemptThrottle != nil {
+		if err := d.LoginAttemptThrottle.RecordSuccess(
+			c.Request().Context(), authports.LoginThrottleAccount, normalizedUsername,
+		); err != nil {
+			return err
+		}
 	}
 
 	authTime := time.Now().UTC()
@@ -756,6 +788,74 @@ func (d Deps) emitAuthenticationFailure(username, reason string) {
 	if d.Emit != nil {
 		d.Emit(&spec.AuthenticationFailed{At: time.Now().UTC(), Username: username, Reason: reason})
 	}
+}
+
+func (d Deps) acquireLoginThrottle(
+	c *echo.Context,
+	kind authports.LoginThrottleKind,
+	key string,
+) (authports.LoginThrottleResult, error) {
+	if d.LoginAttemptThrottle == nil {
+		return authports.LoginThrottleResult{Allowed: true}, nil
+	}
+	return d.LoginAttemptThrottle.TryAcquire(c.Request().Context(), kind, key, time.Now().UTC())
+}
+
+func (d Deps) recordLoginFailure(c *echo.Context, username, clientIP string) error {
+	if d.LoginAttemptThrottle == nil {
+		return nil
+	}
+	now := time.Now().UTC()
+	for _, attempt := range []struct {
+		kind authports.LoginThrottleKind
+		key  string
+	}{
+		{authports.LoginThrottleAccount, username},
+		{authports.LoginThrottleIP, clientIP},
+	} {
+		if attempt.key == "" {
+			continue
+		}
+		result, err := d.LoginAttemptThrottle.RecordFailure(
+			c.Request().Context(), attempt.kind, attempt.key, now,
+		)
+		if err != nil {
+			return err
+		}
+		if result.Locked && d.Emit != nil {
+			sum := sha256.Sum256([]byte(attempt.key))
+			d.Emit(&spec.LoginThrottled{
+				At: now, Kind: string(attempt.kind), KeyHash: hex.EncodeToString(sum[:]),
+				RetryAfterSeconds: result.RetryAfterSeconds,
+			})
+		}
+	}
+	return nil
+}
+
+func extractClientIP(request *http.Request, trustedHops int) string {
+	if request == nil || trustedHops <= 0 {
+		return ""
+	}
+	parts := strings.Split(request.Header.Get("X-Forwarded-For"), ",")
+	ips := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if ip := strings.TrimSpace(part); ip != "" {
+			ips = append(ips, ip)
+		}
+	}
+	index := len(ips) - 1 - trustedHops
+	if index < 0 || index >= len(ips) {
+		return ""
+	}
+	return ips[index]
+}
+
+func writeLoginThrottled(c *echo.Context, retryAfterSeconds int) error {
+	c.Response().Header().Set("Retry-After", strconv.Itoa(retryAfterSeconds))
+	return noStoreJSON(c, http.StatusTooManyRequests, map[string]any{
+		"error": "too_many_requests", "retry_after_seconds": retryAfterSeconds,
+	})
 }
 
 func decodeJSON(request *http.Request, destination any) error {

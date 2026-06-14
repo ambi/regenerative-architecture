@@ -19,6 +19,10 @@ import (
 
 const clientCertHeader = "X-Client-Certificate"
 
+const invalidClientDescription = "クライアント認証に失敗しました"
+
+var dummyClientSecretHash = oauthdomain.HashClientSecret("ra-idp-invalid-client")
+
 type authedClient struct {
 	ID                 string
 	MTLSThumbprintS256 string
@@ -54,7 +58,7 @@ func (d Deps) authenticateTokenClient(c *echo.Context) (authedClient, error) {
 		clientID := c.Request().PostFormValue("client_id")
 		client, err := d.ClientRepo.FindByID(c.Request().Context(), requestTenantID(c), clientID)
 		if err != nil || client == nil || client.TokenEndpointAuthMethod != spec.AuthMethodPrivateKeyJwt {
-			return authedClient{}, usecases.NewOAuthError("invalid_client", "クライアント認証に失敗しました")
+			return authedClient{}, invalidClientError()
 		}
 		resolver := d.JWKResolver
 		if resolver == nil {
@@ -69,14 +73,14 @@ func (d Deps) authenticateTokenClient(c *echo.Context) (authedClient, error) {
 					return nil, err
 				}
 				if cl == nil {
-					return nil, usecases.NewOAuthError("invalid_client", "client not found")
+					return nil, invalidClientError()
 				}
 				return resolver.Resolve(ctx, cl)
 			},
 			d.ClientAssertionReplayStore, time.Now().UTC(), nil,
 		)
 		if err != nil {
-			return authedClient{}, usecases.NewOAuthError("invalid_client", err.Error())
+			return authedClient{}, invalidClientError()
 		}
 		return authedClient{ID: clientID}, nil
 	}
@@ -88,11 +92,11 @@ func (d Deps) authenticateTokenClient(c *echo.Context) (authedClient, error) {
 		if err != nil || client == nil ||
 			client.TokenEndpointAuthMethod != spec.AuthMethodTlsClientAuth ||
 			client.TlsClientAuthSubjectDN == nil {
-			return authedClient{}, usecases.NewOAuthError("invalid_client", "クライアント認証に失敗しました")
+			return authedClient{}, invalidClientError()
 		}
 		cert, err := crypto.ParseClientCertificateHeader(c.Request().Header.Get(clientCertHeader))
 		if err != nil || !crypto.ClientCertSubjectMatches(*client.TlsClientAuthSubjectDN, cert.SubjectDN) {
-			return authedClient{}, usecases.NewOAuthError("invalid_client", "クライアント証明書が一致しません")
+			return authedClient{}, invalidClientError()
 		}
 		return authedClient{ID: clientID, MTLSThumbprintS256: cert.ThumbprintS256}, nil
 	}
@@ -128,18 +132,32 @@ func (d Deps) authenticateTokenClient(c *echo.Context) (authedClient, error) {
 	}
 	client, err := d.ClientRepo.FindByID(c.Request().Context(), requestTenantID(c), clientID)
 	if err != nil || client == nil {
-		return authedClient{}, usecases.NewOAuthError("invalid_client", "未知の client_id")
+		if method != spec.AuthMethodNone {
+			oauthdomain.VerifyClientSecret(secret, dummyClientSecretHash)
+		}
+		return authedClient{}, invalidClientError()
 	}
 	if client.TokenEndpointAuthMethod != method {
-		return authedClient{}, usecases.NewOAuthError("invalid_client", "宣言されたクライアント認証方式と一致しません")
+		if method != spec.AuthMethodNone {
+			hash := dummyClientSecretHash
+			if client.ClientSecretHash != nil {
+				hash = *client.ClientSecretHash
+			}
+			oauthdomain.VerifyClientSecret(secret, hash)
+		}
+		return authedClient{}, invalidClientError()
 	}
 	if method == spec.AuthMethodNone {
 		return authedClient{ID: clientID}, nil
 	}
 	if client.ClientSecretHash == nil || !oauthdomain.VerifyClientSecret(secret, *client.ClientSecretHash) {
-		return authedClient{}, usecases.NewOAuthError("invalid_client", "client_secret 不一致")
+		return authedClient{}, invalidClientError()
 	}
 	return authedClient{ID: clientID}, nil
+}
+
+func invalidClientError() error {
+	return usecases.NewOAuthError("invalid_client", invalidClientDescription)
 }
 
 func acceptableClientAssertionAudiences(issuer string, req *http.Request) []string {

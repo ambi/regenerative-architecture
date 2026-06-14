@@ -44,6 +44,9 @@ type Deps struct {
 	PasswordResetTokenStore    authports.PasswordResetTokenStore
 	EmailSender                authports.EmailSender
 	BreachedPasswordChecker    authports.BreachedPasswordChecker
+	LoginAttemptThrottle       authports.LoginAttemptThrottle
+	TrustedForwardedHops       int
+	SentinelPasswordHash       string
 	SessionManager             *authusecases.SessionManager
 	AuthnResolver              authdomain.AuthenticationContextResolver
 	Emit                       func(spec.DomainEvent)

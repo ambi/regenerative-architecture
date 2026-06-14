@@ -15,6 +15,7 @@ import (
 	httpadapter "ra-idp-go/internal/adapters/http"
 	"ra-idp-go/internal/adapters/notification"
 	"ra-idp-go/internal/adapters/observability"
+	"ra-idp-go/internal/adapters/persistence/memory"
 	"ra-idp-go/internal/adapters/policy"
 	authusecases "ra-idp-go/internal/authentication/usecases"
 	"ra-idp-go/internal/spec"
@@ -51,6 +52,29 @@ func Run() error {
 	if err != nil {
 		return fmt.Errorf("load SCL: %w", err)
 	}
+	sentinelPasswordHash, err := hasher.Hash("ra-idp-invalid-user-password")
+	if err != nil {
+		return fmt.Errorf("create sentinel password hash: %w", err)
+	}
+	objectiveInt := func(group, key string) int {
+		value, ok := sclDoc.ObjectiveNestedInt("LoginThrottlePolicy", group, key)
+		if !ok {
+			return 0
+		}
+		return value
+	}
+	loginThrottle := memory.NewLoginAttemptThrottle(memory.LoginThrottleConfigs{
+		Account: memory.LoginThrottleConfig{
+			MaxFailures:    objectiveInt("per_account", "max_failures"),
+			WindowSeconds:  objectiveInt("per_account", "window_seconds"),
+			LockoutSeconds: objectiveInt("per_account", "lockout_seconds"),
+		},
+		IP: memory.LoginThrottleConfig{
+			MaxFailures:    objectiveInt("per_ip", "max_failures"),
+			WindowSeconds:  objectiveInt("per_ip", "window_seconds"),
+			LockoutSeconds: objectiveInt("per_ip", "lockout_seconds"),
+		},
+	})
 	authorizer, err := assembleAuthorizer()
 	if err != nil {
 		return err
@@ -90,6 +114,9 @@ func Run() error {
 		PasswordResetTokenStore: deps.PasswordResetTokenStore,
 		EmailSender:             notification.ConsoleEmailSender{},
 		BreachedPasswordChecker: policy.NoopBreachedPasswordChecker{},
+		LoginAttemptThrottle:    loginThrottle,
+		TrustedForwardedHops:    envInt("TRUSTED_FORWARDED_HOPS", 0),
+		SentinelPasswordHash:    sentinelPasswordHash,
 		SessionManager:          sessionManager, AuthnResolver: sessionManager,
 		Emit: emit,
 		HealthInfo: httpadapter.HealthInfo{

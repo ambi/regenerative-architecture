@@ -1,9 +1,17 @@
 import type {
   BrowserFlowResponse,
-  AdminUser,
-  AdminUsersPage,
+  AdminAuditEvent,
+  AdminAuditEventsPage,
   AdminClient,
   AdminClientsPage,
+  AdminConsent,
+  AdminConsentsPage,
+  AdminKey,
+  AdminKeysPage,
+  AdminTenant,
+  AdminTenantsPage,
+  AdminUser,
+  AdminUsersPage,
   ChangePasswordPage,
   ConsentPage,
   CallbackPage,
@@ -34,6 +42,8 @@ type AccountContextResponse = {
   csrf_token: string
   sub: string
   preferred_username?: string
+  tenant_id?: string
+  roles?: string[]
 }
 
 type PasswordResetContextResponse = {
@@ -52,6 +62,27 @@ type AdminUserListResponse = {
 
 type AdminClientListResponse = {
   clients: AdminClient[]
+}
+
+type AdminConsentListResponse = {
+  consents: AdminConsent[]
+}
+
+type AdminAuditEventListResponse = {
+  events: AdminAuditEvent[]
+}
+
+type AdminKeyListResponse = {
+  keys: AdminKey[]
+}
+
+type AdminRotateKeyResponse = {
+  next: AdminKey
+  previous?: AdminKey
+}
+
+type AdminTenantListResponse = {
+  tenants: AdminTenant[]
 }
 
 export class AuthenticationAPIError extends Error {
@@ -143,6 +174,58 @@ export async function loadPageData(): Promise<PageData> {
       actorUsername: account.preferred_username,
       clients: clients.clients,
     } satisfies AdminClientsPage
+  }
+  if (path === '/admin/consents') {
+    const [account, consents] = await Promise.all([
+      request<AccountContextResponse>('/api/auth/account'),
+      request<AdminConsentListResponse>('/api/admin/consents'),
+    ])
+    return {
+      kind: 'admin-consents',
+      csrfToken: account.csrf_token,
+      actorUsername: account.preferred_username,
+      consents: consents.consents,
+    } satisfies AdminConsentsPage
+  }
+  if (path === '/admin/audit_events') {
+    const [account, events] = await Promise.all([
+      request<AccountContextResponse>('/api/auth/account'),
+      request<AdminAuditEventListResponse>('/api/admin/audit_events'),
+    ])
+    return {
+      kind: 'admin-audit-events',
+      csrfToken: account.csrf_token,
+      actorUsername: account.preferred_username,
+      actorRoles: account.roles ?? [],
+      actorTenantID: account.tenant_id ?? '',
+      events: events.events,
+    } satisfies AdminAuditEventsPage
+  }
+  if (path === '/admin/keys') {
+    const [account, keys] = await Promise.all([
+      request<AccountContextResponse>('/api/auth/account'),
+      request<AdminKeyListResponse>('/api/admin/keys'),
+    ])
+    return {
+      kind: 'admin-keys',
+      csrfToken: account.csrf_token,
+      actorUsername: account.preferred_username,
+      actorRoles: account.roles ?? [],
+      actorTenantID: account.tenant_id ?? '',
+      keys: keys.keys,
+    } satisfies AdminKeysPage
+  }
+  if (path === '/admin/tenants') {
+    const [account, tenants] = await Promise.all([
+      request<AccountContextResponse>('/api/auth/account'),
+      request<AdminTenantListResponse>('/admin/tenants'),
+    ])
+    return {
+      kind: 'admin-tenants',
+      csrfToken: account.csrf_token,
+      actorUsername: account.preferred_username,
+      tenants: tenants.tenants,
+    } satisfies AdminTenantsPage
   }
   if (path === '/forgot_password' || path === '/reset_password') {
     const data = await request<PasswordResetContextResponse>('/api/auth/password_reset_context')
@@ -409,6 +492,98 @@ export async function deleteAdminClient(csrfToken: string, clientID: string): Pr
   await request(
     `/api/admin/clients/${encodeURIComponent(clientID)}`,
     adminRequest(csrfToken, 'DELETE'),
+  )
+}
+
+export async function listAdminConsents(): Promise<AdminConsent[]> {
+  return (await request<AdminConsentListResponse>('/api/admin/consents')).consents
+}
+
+export async function revokeAdminConsent(
+  csrfToken: string,
+  sub: string,
+  clientID: string,
+): Promise<void> {
+  await request(
+    `/api/admin/consents/${encodeURIComponent(sub)}/${encodeURIComponent(clientID)}`,
+    adminRequest(csrfToken, 'DELETE'),
+  )
+}
+
+export type AdminAuditEventQuery = {
+  type?: string
+  sub?: string
+  after?: string
+  before?: string
+  limit?: number
+  allTenants?: boolean
+}
+
+export async function listAdminAuditEvents(query: AdminAuditEventQuery): Promise<AdminAuditEvent[]> {
+  const params = new URLSearchParams()
+  if (query.type) params.set('type', query.type)
+  if (query.sub) params.set('sub', query.sub)
+  if (query.after) params.set('after', query.after)
+  if (query.before) params.set('before', query.before)
+  if (query.limit !== undefined) params.set('limit', String(query.limit))
+  if (query.allTenants) params.set('all_tenants', 'true')
+  const url = params.size > 0
+    ? `/api/admin/audit_events?${params.toString()}`
+    : '/api/admin/audit_events'
+  return (await request<AdminAuditEventListResponse>(url)).events
+}
+
+export async function listAdminKeys(): Promise<AdminKey[]> {
+  return (await request<AdminKeyListResponse>('/api/admin/keys')).keys
+}
+
+export async function rotateAdminKey(csrfToken: string): Promise<AdminRotateKeyResponse> {
+  return request<AdminRotateKeyResponse>(
+    '/api/admin/keys/rotate',
+    adminRequest(csrfToken, 'POST'),
+  )
+}
+
+export async function listAdminTenants(): Promise<AdminTenant[]> {
+  return (await request<AdminTenantListResponse>('/admin/tenants')).tenants
+}
+
+export type CreateAdminTenantInput = {
+  id: string
+  display_name: string
+}
+
+export type UpdateAdminTenantInput = {
+  display_name?: string
+  password_policy_override?: AdminTenant['password_policy_override']
+}
+
+export async function createAdminTenant(
+  csrfToken: string,
+  input: CreateAdminTenantInput,
+): Promise<AdminTenant> {
+  return request('/admin/tenants', adminRequest(csrfToken, 'POST', input))
+}
+
+export async function updateAdminTenant(
+  csrfToken: string,
+  tenantID: string,
+  input: UpdateAdminTenantInput,
+): Promise<AdminTenant> {
+  return request(
+    `/admin/tenants/${encodeURIComponent(tenantID)}`,
+    adminRequest(csrfToken, 'PATCH', input),
+  )
+}
+
+export async function setAdminTenantDisabled(
+  csrfToken: string,
+  tenantID: string,
+  disabled: boolean,
+): Promise<void> {
+  await request(
+    `/admin/tenants/${encodeURIComponent(tenantID)}/${disabled ? 'disable' : 'enable'}`,
+    adminRequest(csrfToken, 'POST'),
   )
 }
 

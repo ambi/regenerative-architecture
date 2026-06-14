@@ -1,20 +1,16 @@
 import {
-  IconActivity,
   IconAlertTriangle,
   IconCheck,
   IconChevronRight,
   IconCopy,
   IconEdit,
   IconKey,
-  IconLayoutDashboard,
   IconLogout,
   IconPlus,
   IconRefresh,
   IconSearch,
-  IconShield,
   IconShieldCheck,
   IconTrash,
-  IconUsers,
   IconX,
 } from '@tabler/icons-react'
 import { type FormEvent, useMemo, useState } from 'react'
@@ -32,6 +28,7 @@ import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
+import { adminNavItems } from '../lib/adminNav'
 import { cn } from '../lib/utils'
 import type { AdminClient, AdminClientsPage as AdminClientsPageData } from '../types'
 
@@ -322,22 +319,26 @@ function AdminHeader({ actorUsername }: { actorUsername?: string }) {
 }
 
 function AdminNavigation() {
-  const items = [
-    { label: '概要', icon: IconLayoutDashboard },
-    { label: 'ユーザー', icon: IconUsers, href: tenantURL('/admin/users') },
-    { label: 'ロールと権限', icon: IconShield },
-    { label: 'アプリケーション', icon: IconKey, href: tenantURL('/admin/clients'), active: true },
-    { label: '監査ログ', icon: IconActivity },
-  ]
+  const items = adminNavItems('clients')
   return (
     <aside className="hidden border-r border-slate-200 bg-white lg:flex lg:flex-col">
       <nav className="flex flex-1 flex-col gap-1 p-4" aria-label="管理メニュー">
         <p className="mb-2 px-3 text-[0.67rem] font-bold uppercase tracking-[0.14em] text-slate-400">Identity management</p>
-        {items.map((item) => {
-          const content = <><item.icon size={18} stroke={1.8} aria-hidden="true" />{item.label}{!item.href && <span className="ml-auto text-[0.6rem] font-bold uppercase tracking-wide text-slate-400">Soon</span>}</>
-          const classes = cn('flex h-10 w-full items-center gap-3 rounded-lg px-3 text-left text-sm font-medium', item.active ? 'bg-blue-50 text-blue-800' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900', !item.href && 'cursor-default opacity-55')
-          return item.href ? <a key={item.label} href={item.href} className={classes}>{content}</a> : <span key={item.label} className={classes}>{content}</span>
-        })}
+        {items.map((item) => (
+          <a
+            key={item.key}
+            href={item.href}
+            className={cn(
+              'flex h-10 w-full items-center gap-3 rounded-lg px-3 text-left text-sm font-medium',
+              item.active
+                ? 'bg-blue-50 text-blue-800'
+                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
+            )}
+          >
+            <item.icon size={18} stroke={1.8} aria-hidden="true" />
+            {item.label}
+          </a>
+        ))}
       </nav>
       <div className="border-t border-slate-200 p-4">
         <div className="rounded-xl bg-slate-50 p-3.5 text-xs leading-5 text-slate-500">

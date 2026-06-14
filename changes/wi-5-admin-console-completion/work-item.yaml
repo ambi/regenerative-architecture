@@ -1,0 +1,76 @@
+id: wi-5-admin-console-completion
+title: 管理画面 (admin console) の機能を完成させる
+created_at: 2026-06-14
+status: completed
+authors: [tn]
+
+motivation: |
+  ra-idp-go の HTTP 層には admin API がほぼ全領域揃ったが、ra-idp-go/ui の
+  React 管理画面は users と clients の 2 ページのみで、残り 4 領域 (consents
+  / audit_events / keys / tenants) は API しかなく操作 UI が無い。完成形と
+  して 6 ページを揃え、サイドバーから相互遷移できる状態にする。
+
+scope:
+  ui:
+    pages:
+      - AdminConsentsPage: ListConsents / GetConsent / RevokeConsent を操作する。
+        テーブルでテナント内の Consent を一覧し、行選択で詳細パネル、Revoke
+        ボタンを提供する。Consent の Create / Update は SCL 上意図的に存在
+        しないので UI でも提供しない。
+      - AdminAuditEventsPage: ListAdminAuditEvents / GetAdminAuditEvent を操作
+        する。type / sub / after / before / limit のフィルタフォームと結果
+        テーブルを提供する。system_admin の場合のみ all_tenants トグルを
+        出す。行選択で payload JSON を展開表示する。
+      - AdminKeysPage: ListAdminKeys / GetAdminKey / RotateAdminKey を操作
+        する。鍵一覧 (kid / alg / active / created_at)、行選択で公開鍵 JWK
+        の展開、Rotate ボタン (確認ダイアログ付き) を提供する。Rotate は
+        system_admin かつ default tenant でのみ表示。
+      - AdminTenantsPage: ListTenants / GetTenant / CreateTenant /
+        UpdateTenant / DisableTenant / EnableTenant を操作する。
+        /realms/default 経由でのみアクセスする画面とし、default tenant でない
+        場合はナビゲーション自体を隠す。PasswordPolicyOverride の編集も含む。
+    types:
+      - AdminConsent / AdminAuditEvent / AdminKey / AdminTenant と
+        対応する Page 型を types.ts に追加する。
+    api:
+      - api.ts に list / get / revoke / rotate / create / update / disable /
+        enable の関数を追加し、loadPageData の URL ディスパッチを追加する。
+    routing:
+      - router.tsx に /admin/consents, /admin/audit_events, /admin/keys,
+        /admin/tenants の 4 ルートを追加する。
+    navigation:
+      - 既存 AdminUsersPage / AdminClientsPage と新ページの sidebar navigation
+        を統一する。disabled 項目だった「監査ログ」「概要」を解消し、新項目
+        「Consents」「鍵」「テナント」を追加する。テナントは control plane
+        (default tenant 経路) でのみ表示する。
+
+out_of_scope:
+  - admin 以外の画面の改修。
+  - 既存 AdminUsersPage / AdminClientsPage のロジック変更 (navigation 配列の
+    更新のみ)。
+  - 多言語化や a11y の大規模見直し。
+  - audit event payload の field レベルでの構造化表示 (生 JSON 表示で十分)。
+
+affected_guarantees:
+  - admin RBAC: 画面側で role 判定をしてボタン表示を切り替えるが、最終的な
+    認可は backend の verifyBrowserRequest + requireXxx に委譲する。
+  - CSRF: 既存と同じく /api/auth/account から csrf_token を取り、destructive
+    POST/PATCH/DELETE は X-CSRF-Token と cookie のペアで保護する。
+
+verification:
+  - cmd: 'bun --cwd ra-idp-go/ui typecheck'
+  - cmd: 'bun --cwd ra-idp-go/ui lint'
+  - cmd: 'bun --cwd ra-idp-go/ui build'
+  - cmd: 'go test ./internal/adapters/http/... ./internal/spec/...'
+    in: ra-idp-go
+    reason: バックエンドハンドラに変更は無いが回帰を確認する。
+  - 手動: dev サーバを起動し、admin user でログイン → /admin/users から
+    nav 経由で 6 画面が遷移できる。/admin/consents で revoke 確認、
+    /admin/audit_events でフィルタ動作、/admin/keys で rotate 確認、
+    /realms/default/admin/tenants で create/update/disable 確認。
+
+risk: medium
+risk_notes: |
+  純粋なフロントエンド追加だが、CSRF とテナント境界を踏み外すと既存の
+  admin 画面まで壊れる。pages 配下に新ファイルを追加するのを基本とし、
+  既存ページの編集は navigation 配列のみに留める。

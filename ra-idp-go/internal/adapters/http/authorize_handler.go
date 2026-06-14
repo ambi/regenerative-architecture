@@ -45,9 +45,11 @@ type transactionResponse struct {
 }
 
 type accountContextResponse struct {
-	CSRFToken         string `json:"csrf_token"`
-	Sub               string `json:"sub"`
-	PreferredUsername string `json:"preferred_username,omitempty"`
+	CSRFToken         string   `json:"csrf_token"`
+	Sub               string   `json:"sub"`
+	PreferredUsername string   `json:"preferred_username,omitempty"`
+	TenantID          string   `json:"tenant_id,omitempty"`
+	Roles             []string `json:"roles,omitempty"`
 }
 
 type loginAPIRequest struct {
@@ -223,6 +225,8 @@ func (d Deps) handleAccountContext(c *echo.Context) error {
 	if d.UserRepo != nil {
 		if user, _ := d.UserRepo.FindBySub(c.Request().Context(), authn.Sub); user != nil {
 			resp.PreferredUsername = user.PreferredUsername
+			resp.TenantID = user.TenantID
+			resp.Roles = user.Roles
 		}
 	}
 	return noStoreJSON(c, http.StatusOK, resp)

@@ -1,5 +1,4 @@
 import {
-  IconActivity,
   IconAdjustments,
   IconBan,
   IconCheck,
@@ -7,7 +6,6 @@ import {
   IconCircleCheck,
   IconClock,
   IconKey,
-  IconLayoutDashboard,
   IconLogout,
   IconMail,
   IconRefresh,
@@ -35,18 +33,11 @@ import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
+import { adminNavItems } from '../lib/adminNav'
 import { cn } from '../lib/utils'
 import type { AdminUser, AdminUsersPage as AdminUsersPageData } from '../types'
 
 type StatusFilter = 'all' | 'active' | 'disabled'
-
-const navigation = [
-  { label: '概要', icon: IconLayoutDashboard, disabled: true },
-  { label: 'ユーザー', icon: IconUsers, active: true, href: tenantURL('/admin/users') },
-  { label: 'ロールと権限', icon: IconShield, disabled: true },
-  { label: 'アプリケーション', icon: IconKey, href: tenantURL('/admin/clients') },
-  { label: '監査ログ', icon: IconActivity, disabled: true },
-]
 
 export function AdminUsersPage({
   csrfToken,
@@ -192,35 +183,21 @@ export function AdminUsersPage({
             <p className="mb-2 px-3 text-[0.67rem] font-bold uppercase tracking-[0.14em] text-slate-400">
               Identity management
             </p>
-            {navigation.map((item) => {
-              const content = (
-                <>
+            {adminNavItems('users').map((item) => (
+              <a
+                key={item.key}
+                href={item.href}
+                className={cn(
+                  'flex h-10 w-full items-center gap-3 rounded-lg px-3 text-left text-sm font-medium',
+                  item.active
+                    ? 'bg-blue-50 text-blue-800'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
+                )}
+              >
                 <item.icon size={18} stroke={1.8} aria-hidden="true" />
                 {item.label}
-                {item.disabled && (
-                  <span className="ml-auto text-[0.6rem] font-bold uppercase tracking-wide text-slate-400">
-                    Soon
-                  </span>
-                )}
-                </>
-              )
-              const className = cn(
-                'flex h-10 w-full items-center gap-3 rounded-lg px-3 text-left text-sm font-medium',
-                item.active
-                  ? 'bg-blue-50 text-blue-800'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
-                item.disabled && 'cursor-default opacity-55',
-              )
-              return item.href ? (
-                <a key={item.label} href={item.href} className={className}>
-                  {content}
-                </a>
-              ) : (
-                <span key={item.label} className={className}>
-                  {content}
-                </span>
-              )
-            })}
+              </a>
+            ))}
           </nav>
           <div className="border-t border-slate-200 p-4">
             <div className="rounded-xl bg-slate-50 p-3.5">

@@ -6,8 +6,12 @@ import {
   createRouter,
 } from '@tanstack/react-router'
 import { CallbackPage } from './pages/CallbackPage'
-import { AdminUsersPage } from './pages/AdminUsersPage'
+import { AdminAuditEventsPage } from './pages/AdminAuditEventsPage'
 import { AdminClientsPage } from './pages/AdminClientsPage'
+import { AdminConsentsPage } from './pages/AdminConsentsPage'
+import { AdminKeysPage } from './pages/AdminKeysPage'
+import { AdminTenantsPage } from './pages/AdminTenantsPage'
+import { AdminUsersPage } from './pages/AdminUsersPage'
 import { ChangePasswordPage } from './pages/ChangePasswordPage'
 import { ConsentPage } from './pages/ConsentPage'
 import { DevicePage } from './pages/DevicePage'
@@ -85,6 +89,27 @@ export function createAppRouter(data: PageData) {
     path: '/admin/clients',
     component: () => (data.kind === 'admin-clients' ? <AdminClientsPage {...data} /> : null),
   })
+  const adminConsentsRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/admin/consents',
+    component: () => (data.kind === 'admin-consents' ? <AdminConsentsPage {...data} /> : null),
+  })
+  const adminAuditEventsRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/admin/audit_events',
+    component: () =>
+      data.kind === 'admin-audit-events' ? <AdminAuditEventsPage {...data} /> : null,
+  })
+  const adminKeysRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/admin/keys',
+    component: () => (data.kind === 'admin-keys' ? <AdminKeysPage {...data} /> : null),
+  })
+  const adminTenantsRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/admin/tenants',
+    component: () => (data.kind === 'admin-tenants' ? <AdminTenantsPage {...data} /> : null),
+  })
 
   return createRouter({
     routeTree: rootRoute.addChildren([
@@ -100,6 +125,10 @@ export function createAppRouter(data: PageData) {
       resetPasswordRoute,
       adminUsersRoute,
       adminClientsRoute,
+      adminConsentsRoute,
+      adminAuditEventsRoute,
+      adminKeysRoute,
+      adminTenantsRoute,
     ]),
     history: createBrowserHistory(),
     basepath: tenantBasePath() || '/',

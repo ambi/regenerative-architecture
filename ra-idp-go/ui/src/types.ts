@@ -108,6 +108,79 @@ export type AdminClientsPage = {
   clients: AdminClient[]
 }
 
+export type AdminConsent = {
+  tenant_id: string
+  sub: string
+  client_id: string
+  scopes: string[]
+  state: 'granted' | 'revoked' | 'expired'
+  granted_at: string
+  expires_at: string
+  revoked_at?: string
+}
+
+export type AdminConsentsPage = {
+  kind: 'admin-consents'
+  csrfToken: string
+  actorUsername?: string
+  consents: AdminConsent[]
+}
+
+export type AdminAuditEvent = {
+  id: string
+  tenant_id: string
+  type: string
+  occurred_at: string
+  payload: Record<string, unknown>
+}
+
+export type AdminAuditEventsPage = {
+  kind: 'admin-audit-events'
+  csrfToken: string
+  actorUsername?: string
+  actorRoles: string[]
+  actorTenantID: string
+  events: AdminAuditEvent[]
+}
+
+export type AdminKey = {
+  kid: string
+  alg: string
+  active: boolean
+  created_at: string
+  public_jwk: Record<string, unknown>
+}
+
+export type AdminKeysPage = {
+  kind: 'admin-keys'
+  csrfToken: string
+  actorUsername?: string
+  actorRoles: string[]
+  actorTenantID: string
+  keys: AdminKey[]
+}
+
+export type AdminTenant = {
+  id: string
+  display_name: string
+  status: 'active' | 'disabled'
+  password_policy_override?: {
+    min_length?: number
+    max_length?: number
+    history_depth?: number
+  }
+  created_at: string
+  updated_at?: string
+  disabled_at?: string
+}
+
+export type AdminTenantsPage = {
+  kind: 'admin-tenants'
+  csrfToken: string
+  actorUsername?: string
+  tenants: AdminTenant[]
+}
+
 export type PageData =
   | HomePage
   | LoginPage
@@ -121,6 +194,10 @@ export type PageData =
   | ResetPasswordPage
   | AdminUsersPage
   | AdminClientsPage
+  | AdminConsentsPage
+  | AdminAuditEventsPage
+  | AdminKeysPage
+  | AdminTenantsPage
 
 export type BrowserFlowResponse = {
   next?: string

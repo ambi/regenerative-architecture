@@ -27,13 +27,13 @@ type AuditEventRecord struct {
 // AllTenants は system_admin が default tenant 経路で全テナント横断する時にのみ true。
 // 通常呼び出し側 (admin) は TenantID で絞り、AllTenants=false。
 type AuditEventQuery struct {
-	TenantID    string
-	AllTenants  bool
-	Type        string
-	Sub         string
-	After       time.Time
-	Before      time.Time
-	Limit       int
+	TenantID   string
+	AllTenants bool
+	Type       string
+	Sub        string
+	After      time.Time
+	Before     time.Time
+	Limit      int
 }
 
 type AuditEventRepository interface {

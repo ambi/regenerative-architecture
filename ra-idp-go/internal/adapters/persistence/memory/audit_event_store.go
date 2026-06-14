@@ -17,10 +17,10 @@ const (
 )
 
 type AuditEventStore struct {
-	mu         sync.RWMutex
-	events     []*ports.AuditEventRecord
-	byID       map[string]*ports.AuditEventRecord
-	maxEvents  int
+	mu        sync.RWMutex
+	events    []*ports.AuditEventRecord
+	byID      map[string]*ports.AuditEventRecord
+	maxEvents int
 }
 
 // NewAuditEventStore は maxEvents を上限とするリングバッファ。0 を渡すと 10000 件を使う。
@@ -108,4 +108,3 @@ func auditEventMatches(rec *ports.AuditEventRecord, q ports.AuditEventQuery) boo
 	}
 	return true
 }
-

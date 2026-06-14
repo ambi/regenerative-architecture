@@ -15,11 +15,11 @@ type PasswordPolicySnapshot struct {
 // tenant が nil または override が空なら global そのまま。
 func (s *SCL) ResolvePasswordPolicy(tenant *Tenant, defaults PasswordPolicySnapshot) PasswordPolicySnapshot {
 	snapshot := defaults
-	if min, ok := s.ObjectiveInt("PasswordPolicy", "min_length"); ok {
-		snapshot.MinLength = min
+	if minLength, ok := s.ObjectiveInt("PasswordPolicy", "min_length"); ok {
+		snapshot.MinLength = minLength
 	}
-	if max, ok := s.ObjectiveInt("PasswordPolicy", "max_length"); ok {
-		snapshot.MaxLength = max
+	if maxLength, ok := s.ObjectiveInt("PasswordPolicy", "max_length"); ok {
+		snapshot.MaxLength = maxLength
 	}
 	if depth, ok := s.ObjectiveInt("PasswordPolicy", "history_depth"); ok {
 		snapshot.HistoryDepth = depth

@@ -25,7 +25,7 @@ func TestPasswordResetHTTPFlow(t *testing.T) {
 	e, userRepo, sender, hasher := newPasswordResetHandler(t)
 	csrf, cookie := passwordResetCSRF(t, e)
 
-	forgot := serveJSON(t, e, http.MethodPost, "/api/auth/forgot_password", csrf, cookie, map[string]string{
+	forgot := serveJSON(t, e, "/api/auth/forgot_password", csrf, cookie, map[string]string{
 		"email": "alice@example.com",
 	})
 	if forgot.Code != http.StatusNoContent {
@@ -36,7 +36,7 @@ func TestPasswordResetHTTPFlow(t *testing.T) {
 	}
 	token := resetTokenFromEmail(t, sender.Sent[0].Text)
 
-	reset := serveJSON(t, e, http.MethodPost, "/api/auth/reset_password", csrf, cookie, map[string]string{
+	reset := serveJSON(t, e, "/api/auth/reset_password", csrf, cookie, map[string]string{
 		"token": token, "new_password": "fresh-password-9182",
 	})
 	if reset.Code != http.StatusOK {
@@ -51,7 +51,7 @@ func TestPasswordResetHTTPFlow(t *testing.T) {
 		t.Fatalf("new password matched=%v err=%v", matched, err)
 	}
 
-	replay := serveJSON(t, e, http.MethodPost, "/api/auth/reset_password", csrf, cookie, map[string]string{
+	replay := serveJSON(t, e, "/api/auth/reset_password", csrf, cookie, map[string]string{
 		"token": token, "new_password": "another-password-9182",
 	})
 	if replay.Code != http.StatusGone {
@@ -62,7 +62,7 @@ func TestPasswordResetHTTPFlow(t *testing.T) {
 func TestForgotPasswordHTTPDoesNotRevealUnknownEmail(t *testing.T) {
 	e, _, sender, _ := newPasswordResetHandler(t)
 	csrf, cookie := passwordResetCSRF(t, e)
-	response := serveJSON(t, e, http.MethodPost, "/api/auth/forgot_password", csrf, cookie, map[string]string{
+	response := serveJSON(t, e, "/api/auth/forgot_password", csrf, cookie, map[string]string{
 		"email": "unknown@example.com",
 	})
 	if response.Code != http.StatusNoContent {
@@ -130,7 +130,7 @@ func passwordResetCSRF(t *testing.T, e *echo.Echo) (string, *http.Cookie) {
 func serveJSON(
 	t *testing.T,
 	e *echo.Echo,
-	method, path, csrf string,
+	path, csrf string,
 	cookie *http.Cookie,
 	body any,
 ) *httptest.ResponseRecorder {
@@ -139,7 +139,7 @@ func serveJSON(
 	if err != nil {
 		t.Fatal(err)
 	}
-	request := httptest.NewRequest(method, path, bytes.NewReader(data))
+	request := httptest.NewRequest(http.MethodPost, path, bytes.NewReader(data))
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Origin", "http://idp.test")
 	request.Header.Set("X-CSRF-Token", csrf)

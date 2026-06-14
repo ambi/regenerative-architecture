@@ -17,9 +17,9 @@ func TestResolvePasswordPolicy(t *testing.T) {
 	})
 
 	t.Run("override only specified fields", func(t *testing.T) {
-		min := 16
+		minLength := 16
 		tenant := &Tenant{
-			PasswordPolicyOverride: &PasswordPolicyOverride{MinLength: &min},
+			PasswordPolicyOverride: &PasswordPolicyOverride{MinLength: &minLength},
 		}
 		base := scl.ResolvePasswordPolicy(nil, defaults)
 		snap := scl.ResolvePasswordPolicy(tenant, defaults)

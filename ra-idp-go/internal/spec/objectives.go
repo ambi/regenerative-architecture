@@ -1,6 +1,9 @@
 package spec
 
-import "time"
+import (
+	"math"
+	"time"
+)
 
 func (s *SCL) ObjectiveInt(name, key string) (int, bool) {
 	objective, ok := s.Objectives[name]
@@ -15,6 +18,9 @@ func (s *SCL) ObjectiveInt(name, key string) (int, bool) {
 	case int:
 		return value, true
 	case uint64:
+		if value > math.MaxInt {
+			return 0, false
+		}
 		return int(value), true
 	default:
 		return 0, false
@@ -38,6 +44,9 @@ func (s *SCL) ObjectiveNestedInt(name, group, key string) (int, bool) {
 	case int:
 		return value, true
 	case uint64:
+		if value > math.MaxInt {
+			return 0, false
+		}
 		return int(value), true
 	default:
 		return 0, false

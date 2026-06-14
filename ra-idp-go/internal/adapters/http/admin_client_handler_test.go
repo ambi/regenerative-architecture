@@ -21,7 +21,7 @@ func TestAdminClientCRUD(t *testing.T) {
 	e, clients, events := newAdminClientHandler(t)
 	csrf, cookie := adminCSRF(t, e, "admin")
 
-	create := adminJSONRequest(t, e, http.MethodPost, "/admin/clients", "admin", csrf, cookie, map[string]any{
+	create := adminJSONRequest(t, e, http.MethodPost, "/admin/clients", csrf, cookie, map[string]any{
 		"client_name":                "Portal",
 		"client_type":                "confidential",
 		"redirect_uris":              []string{"https://portal.example/callback"},
@@ -67,7 +67,7 @@ func TestAdminClientCRUD(t *testing.T) {
 	}
 
 	update := adminJSONRequest(
-		t, e, http.MethodPatch, "/admin/clients/"+created.Client.ClientID, "admin", csrf, cookie,
+		t, e, http.MethodPatch, "/admin/clients/"+created.Client.ClientID, csrf, cookie,
 		map[string]any{"redirect_uris": []string{"https://portal.example/new-callback"}},
 	)
 	if update.Code != http.StatusOK {
@@ -83,7 +83,7 @@ func TestAdminClientCRUD(t *testing.T) {
 	}
 
 	deleted := adminJSONRequest(
-		t, e, http.MethodDelete, "/admin/clients/"+created.Client.ClientID, "admin", csrf, cookie, nil,
+		t, e, http.MethodDelete, "/admin/clients/"+created.Client.ClientID, csrf, cookie, nil,
 	)
 	if deleted.Code != http.StatusNoContent {
 		t.Fatalf("delete status=%d body=%s", deleted.Code, deleted.Body.String())

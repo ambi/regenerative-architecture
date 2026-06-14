@@ -57,8 +57,8 @@ func auditUser(sub, tenantID string, roles []string) *spec.User {
 
 func auditEvent(tenantID, typ, sub string, occurredAt time.Time) *oauthports.AuditEventRecord {
 	return &oauthports.AuditEventRecord{
-		ID:         tenantID + ":" + typ + ":" + sub + ":" + occurredAt.Format(time.RFC3339Nano),
-		TenantID:   tenantID, Type: typ, OccurredAt: occurredAt,
+		ID:       tenantID + ":" + typ + ":" + sub + ":" + occurredAt.Format(time.RFC3339Nano),
+		TenantID: tenantID, Type: typ, OccurredAt: occurredAt,
 		Payload: map[string]any{"sub": sub, "tenantId": tenantID, "type": typ},
 	}
 }

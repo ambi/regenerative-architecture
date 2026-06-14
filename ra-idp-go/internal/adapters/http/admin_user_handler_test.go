@@ -45,7 +45,7 @@ func TestAdminUserAPICreatesAndDisablesUser(t *testing.T) {
 	e, repo := newAdminUserHandler(t)
 	csrf, cookie := adminCSRF(t, e, "admin")
 
-	create := adminJSONRequest(t, e, http.MethodPost, "/admin/users", "admin", csrf, cookie, map[string]any{
+	create := adminJSONRequest(t, e, http.MethodPost, "/admin/users", csrf, cookie, map[string]any{
 		"preferred_username": "bob",
 		"password":           "initial-password-9182",
 		"email":              "bob@example.com",
@@ -68,7 +68,7 @@ func TestAdminUserAPICreatesAndDisablesUser(t *testing.T) {
 	}
 
 	disable := adminJSONRequest(
-		t, e, http.MethodPost, "/admin/users/"+created.Sub+"/disable", "admin", csrf, cookie, nil,
+		t, e, http.MethodPost, "/admin/users/"+created.Sub+"/disable", csrf, cookie, nil,
 	)
 	if disable.Code != http.StatusNoContent {
 		t.Fatalf("disable status=%d body=%s", disable.Code, disable.Body.String())
@@ -189,7 +189,7 @@ func adminCSRF(t *testing.T, e *echo.Echo, sub string) (string, *http.Cookie) {
 func adminJSONRequest(
 	t *testing.T,
 	e *echo.Echo,
-	method, path, sub, csrf string,
+	method, path, csrf string,
 	cookie *http.Cookie,
 	body any,
 ) *httptest.ResponseRecorder {
@@ -206,7 +206,7 @@ func adminJSONRequest(
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Origin", "http://idp.test")
 	request.Header.Set("X-CSRF-Token", csrf)
-	request.Header.Set("X-Demo-Sub", sub)
+	request.Header.Set("X-Demo-Sub", "admin")
 	request.AddCookie(cookie)
 	response := httptest.NewRecorder()
 	e.ServeHTTP(response, request)

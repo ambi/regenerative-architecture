@@ -160,7 +160,7 @@ func TestClientAuthenticationMethods(t *testing.T) {
 func TestClientAuthenticationFailuresAreUniform(t *testing.T) {
 	e := clientAuthServer(spec.AuthMethodClientSecretBasic)
 	request := func(clientID, secret string) *httptest.ResponseRecorder {
-		req := httptest.NewRequest(http.MethodPost, "/test", nil)
+		req := httptest.NewRequest(http.MethodPost, "/test", http.NoBody)
 		req.SetBasicAuth(clientID, secret)
 		rec := httptest.NewRecorder()
 		e.ServeHTTP(rec, req)
@@ -180,7 +180,7 @@ func TestClientAuthenticationFailuresAreUniform(t *testing.T) {
 	}
 
 	postServer := clientAuthServer(spec.AuthMethodClientSecretPost)
-	req := httptest.NewRequest(http.MethodPost, "/test", nil)
+	req := httptest.NewRequest(http.MethodPost, "/test", http.NoBody)
 	req.SetBasicAuth("client", "secret")
 	rec := httptest.NewRecorder()
 	postServer.ServeHTTP(rec, req)

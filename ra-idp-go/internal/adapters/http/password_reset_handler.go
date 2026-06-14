@@ -110,7 +110,7 @@ func (d Deps) handleResetPasswordAPI(c *echo.Context) error {
 			UserRepo: d.UserRepo, TokenStore: d.PasswordResetTokenStore,
 			PasswordHasher: d.PasswordHasher, PasswordHistoryRepo: d.PasswordHistoryRepo,
 			BreachedPasswordChecker: d.BreachedPasswordChecker,
-			Emit: d.Emit, Policy: snap,
+			Emit:                    d.Emit, Policy: snap,
 		},
 		authusecases.ResetPasswordWithTokenInput{
 			Token: input.Token, NewPassword: input.NewPassword, Now: time.Now().UTC(),

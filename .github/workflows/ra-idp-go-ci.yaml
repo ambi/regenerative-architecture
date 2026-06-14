@@ -29,9 +29,12 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.14
-      - name: Go vet
-        working-directory: ra-idp-go
-        run: go vet ./...
+      - name: Go lint
+        uses: golangci/golangci-lint-action@v9.2.1
+        with:
+          version: v2.12.2
+          working-directory: ra-idp-go
+          args: ./...
       - name: Go tests and SCL coherence
         working-directory: ra-idp-go
         run: go test -race ./...

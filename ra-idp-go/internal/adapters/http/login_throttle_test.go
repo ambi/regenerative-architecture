@@ -9,7 +9,7 @@ import (
 )
 
 func TestExtractClientIPUsesOnlyTrustedForwardedHops(t *testing.T) {
-	req := httptest.NewRequest(http.MethodPost, "/login", nil)
+	req := httptest.NewRequest(http.MethodPost, "/login", http.NoBody)
 	req.Header.Set("X-Forwarded-For", "203.0.113.10, 198.51.100.20")
 	if got := extractClientIP(req, 0); got != "" {
 		t.Fatalf("trustedHops=0 returned %q", got)
@@ -27,7 +27,7 @@ func TestWriteLoginThrottledReturnsRetryAfter(t *testing.T) {
 	e.POST("/login", func(c *echo.Context) error {
 		return writeLoginThrottled(c, 900)
 	})
-	req := httptest.NewRequest(http.MethodPost, "/login", nil)
+	req := httptest.NewRequest(http.MethodPost, "/login", http.NoBody)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	if rec.Code != http.StatusTooManyRequests {

@@ -70,7 +70,8 @@ func (s *SMTPEmailSender) send(ctx context.Context, message authports.EmailMessa
 	var err error
 	if s.config.TLSMode == SMTPTLSImplicit {
 		tlsConfig := &tls.Config{ServerName: s.config.Host, MinVersion: tls.VersionTLS12}
-		conn, err = tls.DialWithDialer(dialer, "tcp", addr, tlsConfig)
+		tlsDialer := &tls.Dialer{NetDialer: dialer, Config: tlsConfig}
+		conn, err = tlsDialer.DialContext(ctx, "tcp", addr)
 	} else {
 		conn, err = dialer.DialContext(ctx, "tcp", addr)
 	}
@@ -88,7 +89,9 @@ func (s *SMTPEmailSender) send(ctx context.Context, message authports.EmailMessa
 		_ = conn.Close()
 		return fmt.Errorf("smtp client: %w", err)
 	}
-	defer client.Close()
+	defer func() {
+		_ = client.Close()
+	}()
 
 	if err := client.Hello(s.config.Hello); err != nil {
 		return fmt.Errorf("smtp hello: %w", err)

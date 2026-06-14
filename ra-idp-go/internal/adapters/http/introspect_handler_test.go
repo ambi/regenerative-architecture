@@ -31,7 +31,7 @@ func newIntrospectServer(intro *fakeIntrospector, denylist *fakeDenylist) *echo.
 	clientRepo.Seed(&spec.Client{
 		TenantID: spec.DefaultTenantID,
 		ClientID: introClientID, ClientSecretHash: &secretHash,
-		ClientType: spec.ClientConfidential,
+		ClientType:   spec.ClientConfidential,
 		RedirectURIs: []string{"https://rs.example/cb"}, GrantTypes: []spec.GrantType{spec.GrantClientCredentials},
 		ResponseTypes:           []spec.ResponseType{spec.ResponseTypeCode},
 		TokenEndpointAuthMethod: spec.AuthMethodClientSecretBasic, Scope: "api",

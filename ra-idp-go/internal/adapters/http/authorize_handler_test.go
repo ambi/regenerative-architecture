@@ -149,8 +149,8 @@ func TestAuthorizePromptConsentBypassesExistingConsent(t *testing.T) {
 	}
 	// 既存 Consent。prompt=consent が無ければ即 issueCode に進む。
 	consent := &spec.Consent{
-		TenantID:  spec.DefaultTenantID,
-		Sub:       "user_alice", ClientID: authClientID,
+		TenantID: spec.DefaultTenantID,
+		Sub:      "user_alice", ClientID: authClientID,
 		Scopes:    []string{"openid", "profile"},
 		State:     spec.ConsentGranted,
 		GrantedAt: now, ExpiresAt: now.Add(time.Hour),

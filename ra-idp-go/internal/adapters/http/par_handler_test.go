@@ -28,7 +28,7 @@ const (
 	parRedirectURI  = "https://app.example.com/cb"
 )
 
-func newPARTestServer(t *testing.T) (*echo.Echo, *memory.ClientRepository) {
+func newPARTestServer(t *testing.T) *echo.Echo {
 	t.Helper()
 	clientRepo := memory.NewClientRepository()
 	secretHash := domain.HashClientSecret(parClientSecret)
@@ -52,7 +52,7 @@ func newPARTestServer(t *testing.T) (*echo.Echo, *memory.ClientRepository) {
 		RequestStore: memory.NewAuthorizationRequestStore(),
 		CodeStore:    memory.NewAuthorizationCodeStore(),
 	})
-	return e, clientRepo
+	return e
 }
 
 func postPAR(t *testing.T, e *echo.Echo, form url.Values) (status int, requestURI string) {
@@ -83,7 +83,7 @@ func getAuthorize(e *echo.Echo, query url.Values) *httptest.ResponseRecorder {
 }
 
 func TestPushAuthorizationRequestRoundTripsToAuthorize(t *testing.T) {
-	e, _ := newPARTestServer(t)
+	e := newPARTestServer(t)
 	// 仕様: code_challenge は S256 必須、redirect_uri は登録済みと完全一致。
 	parForm := url.Values{
 		"client_id":             {parClientID},
@@ -118,7 +118,6 @@ func TestPushAuthorizationRequestRoundTripsToAuthorize(t *testing.T) {
 func TestPushAuthorizationRequestRejectsCrossTenantConsumption(t *testing.T) {
 	// PAR record を tenant=acme で保存して、/authorize は default tenant (bare 経路) に
 	// 投げる。handleAuthorize は consumed.TenantID != requestTenantID(c) を理由に拒否する。
-	e, _ := newPARTestServer(t)
 	store := memory.NewPARStore()
 	// 別テナントの PAR レコードを直接 store に保存。
 	rec := &spec.PARRecord{
@@ -140,14 +139,14 @@ func TestPushAuthorizationRequestRejectsCrossTenantConsumption(t *testing.T) {
 		t.Fatalf("seed PAR: %v", err)
 	}
 	// PARStore を差し替えた Deps で再 Register。
-	e = echo.New()
+	e := echo.New()
 	clientRepo := memory.NewClientRepository()
 	secretHash := domain.HashClientSecret(parClientSecret)
 	clientRepo.Seed(&spec.Client{
 		TenantID: spec.DefaultTenantID,
 		ClientID: parClientID, ClientSecretHash: &secretHash,
 		ClientType: spec.ClientConfidential, RedirectURIs: []string{parRedirectURI},
-		GrantTypes: []spec.GrantType{spec.GrantAuthorizationCode},
+		GrantTypes:    []spec.GrantType{spec.GrantAuthorizationCode},
 		ResponseTypes: []spec.ResponseType{spec.ResponseTypeCode}, FapiProfile: spec.FapiNone,
 		TokenEndpointAuthMethod: spec.AuthMethodClientSecretBasic, Scope: "openid",
 		CreatedAt: time.Now().UTC(),

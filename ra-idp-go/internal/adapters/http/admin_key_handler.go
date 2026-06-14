@@ -30,7 +30,7 @@ type adminRotateKeyResponse struct {
 }
 
 func (d Deps) handleListAdminKeys(c *echo.Context) error {
-	if _, err := d.requireKeyReader(c); err != nil {
+	if err := d.requireKeyReader(c); err != nil {
 		return d.writeAdminAccessError(c, err)
 	}
 	if d.KeyStore == nil {
@@ -48,7 +48,7 @@ func (d Deps) handleListAdminKeys(c *echo.Context) error {
 }
 
 func (d Deps) handleGetAdminKey(c *echo.Context) error {
-	if _, err := d.requireKeyReader(c); err != nil {
+	if err := d.requireKeyReader(c); err != nil {
 		return d.writeAdminAccessError(c, err)
 	}
 	if d.KeyStore == nil {
@@ -91,17 +91,17 @@ func (d Deps) handleRotateAdminKey(c *echo.Context) error {
 	return noStoreJSON(c, http.StatusOK, resp)
 }
 
-// requireKeyReader は AdminKeysRead を満たす actor を返す。
+// requireKeyReader は AdminKeysRead を満たす actor か検証する。
 // admin / system_admin のどちらでも通る。テナント制約は無し (鍵は global)。
-func (d Deps) requireKeyReader(c *echo.Context) (*spec.User, error) {
+func (d Deps) requireKeyReader(c *echo.Context) error {
 	actor, err := d.resolveAdminActor(c)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if !slices.Contains(actor.Roles, "admin") && !slices.Contains(actor.Roles, "system_admin") {
-		return nil, errAdminAccessDenied
+		return errAdminAccessDenied
 	}
-	return actor, nil
+	return nil
 }
 
 // requireKeyRotator は AdminKeysRotate を満たす actor を返す。

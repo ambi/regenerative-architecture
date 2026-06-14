@@ -110,6 +110,45 @@ func TestChangePasswordRejectsCurrentPasswordMismatch(t *testing.T) {
 	}
 }
 
+func TestChangePasswordHonorsTenantOverridePolicy(t *testing.T) {
+	t.Parallel()
+
+	userRepo := memory.NewUserRepository()
+	historyRepo := memory.NewPasswordHistoryRepository()
+	hasher := crypto.NewArgon2idPasswordHasher()
+	hash, err := hasher.Hash("demo-password-1234")
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2025, 6, 10, 0, 0, 0, 0, time.UTC)
+	if err := userRepo.Save(context.Background(), &spec.User{
+		Sub: "user-1", PreferredUsername: "alice", PasswordHash: hash,
+		CreatedAt: now.Add(-time.Hour), UpdatedAt: now.Add(-time.Hour),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	strict := PasswordPolicySnapshot{MinLength: 24, MaxLength: 128, HistoryDepth: 5}
+	_, err = ChangePassword(context.Background(), ChangePasswordDeps{
+		UserRepo:            userRepo,
+		PasswordHasher:      hasher,
+		PasswordHistoryRepo: historyRepo,
+		Policy:              strict,
+	}, ChangePasswordInput{
+		Sub:             "user-1",
+		CurrentPassword: "demo-password-1234",
+		NewPassword:     "fresh-pass-9182",
+		Now:             now,
+	})
+	var policyErr *PasswordPolicyError
+	if !errors.As(err, &policyErr) {
+		t.Fatalf("err=%v, want PasswordPolicyError under tenant strict policy", err)
+	}
+	if len(policyErr.Violations) == 0 || policyErr.Violations[0] != ViolationTooShort {
+		t.Fatalf("violations=%v, want first too_short", policyErr.Violations)
+	}
+}
+
 func TestChangePasswordRejectsPasswordReuse(t *testing.T) {
 	t.Parallel()
 

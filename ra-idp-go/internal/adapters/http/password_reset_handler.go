@@ -1,15 +1,50 @@
 package http
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strings"
 	"time"
 
 	authusecases "ra-idp-go/internal/authentication/usecases"
+	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/tenancy"
 
 	"github.com/labstack/echo/v5"
 )
+
+// resolvePasswordPolicy は global SCL + tenant override を合成した snapshot を返す。
+// テナント解決失敗時はサイレントに global default にフォールバックする
+// (パスワードポリシーで認証経路を落とすのは過剰)。
+func (d Deps) resolvePasswordPolicy(ctx context.Context) authusecases.PasswordPolicySnapshot {
+	defaults := spec.PasswordPolicySnapshot{
+		MinLength:    authusecases.PasswordPolicyMinLength,
+		MaxLength:    authusecases.PasswordPolicyMaxLength,
+		HistoryDepth: authusecases.PasswordPolicyHistoryDepth,
+	}
+	var tenant *spec.Tenant
+	if d.TenantRepo != nil {
+		if id := tenancy.TenantID(ctx); id != "" {
+			if found, err := d.TenantRepo.FindByID(ctx, id); err == nil {
+				tenant = found
+			}
+		}
+	}
+	if d.SCL == nil {
+		return authusecases.PasswordPolicySnapshot{
+			MinLength:    defaults.MinLength,
+			MaxLength:    defaults.MaxLength,
+			HistoryDepth: defaults.HistoryDepth,
+		}
+	}
+	resolved := d.SCL.ResolvePasswordPolicy(tenant, defaults)
+	return authusecases.PasswordPolicySnapshot{
+		MinLength:    resolved.MinLength,
+		MaxLength:    resolved.MaxLength,
+		HistoryDepth: resolved.HistoryDepth,
+	}
+}
 
 type forgotPasswordAPIRequest struct {
 	Email string `json:"email"`
@@ -68,19 +103,14 @@ func (d Deps) handleResetPasswordAPI(c *echo.Context) error {
 	if strings.TrimSpace(input.Token) == "" || input.NewPassword == "" {
 		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "tokenと新しいパスワードが必要です")
 	}
-	historyDepth := authusecases.PasswordPolicyHistoryDepth
-	if d.SCL != nil {
-		if configured, ok := d.SCL.ObjectiveInt("PasswordPolicy", "history_depth"); ok && configured > 0 {
-			historyDepth = configured
-		}
-	}
+	snap := d.resolvePasswordPolicy(c.Request().Context())
 	_, err := authusecases.ResetPasswordWithToken(
 		c.Request().Context(),
 		authusecases.ResetPasswordWithTokenDeps{
 			UserRepo: d.UserRepo, TokenStore: d.PasswordResetTokenStore,
 			PasswordHasher: d.PasswordHasher, PasswordHistoryRepo: d.PasswordHistoryRepo,
 			BreachedPasswordChecker: d.BreachedPasswordChecker,
-			Emit:                    d.Emit, HistoryDepth: historyDepth,
+			Emit: d.Emit, Policy: snap,
 		},
 		authusecases.ResetPasswordWithTokenInput{
 			Token: input.Token, NewPassword: input.NewPassword, Now: time.Now().UTC(),

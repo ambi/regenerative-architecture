@@ -417,19 +417,13 @@ func (d Deps) handleChangePasswordAPI(c *echo.Context) error {
 		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "現在と新しいパスワードが必要です")
 	}
 
-	historyDepth := authusecases.PasswordPolicyHistoryDepth
-	if d.SCL != nil {
-		if configured, ok := d.SCL.ObjectiveInt("PasswordPolicy", "history_depth"); ok && configured > 0 {
-			historyDepth = configured
-		}
-	}
-
+	snap := d.resolvePasswordPolicy(c.Request().Context())
 	_, err = authusecases.ChangePassword(c.Request().Context(), authusecases.ChangePasswordDeps{
 		UserRepo:            d.UserRepo,
 		PasswordHasher:      d.PasswordHasher,
 		PasswordHistoryRepo: d.PasswordHistoryRepo,
 		Emit:                d.Emit,
-		HistoryDepth:        historyDepth,
+		Policy:              snap,
 	}, authusecases.ChangePasswordInput{
 		Sub:             authn.Sub,
 		CurrentPassword: input.CurrentPassword,

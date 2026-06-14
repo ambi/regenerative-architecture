@@ -28,7 +28,8 @@ type ChangePasswordDeps struct {
 	PasswordHasher      authports.PasswordHasher
 	PasswordHistoryRepo authports.PasswordHistoryRepository
 	Emit                func(spec.DomainEvent)
-	HistoryDepth        int
+	HistoryDepth        int                    // Deprecated: use Policy 指定。後方互換のためのフォールバック。
+	Policy              PasswordPolicySnapshot // テナント解決済みのしきい値。ゼロ値は global default。
 }
 
 func ChangePassword(ctx context.Context, deps ChangePasswordDeps, in ChangePasswordInput) (*spec.User, error) {
@@ -48,15 +49,13 @@ func ChangePassword(ctx context.Context, deps ChangePasswordDeps, in ChangePassw
 		return nil, ErrCurrentPasswordMismatch
 	}
 
-	result := ValidatePassword(in.NewPassword)
+	snap := resolveSnapshot(deps.Policy, deps.HistoryDepth)
+	result := ValidatePasswordWith(in.NewPassword, snap)
 	if !result.OK {
 		return nil, &PasswordPolicyError{Violations: result.Violations}
 	}
 
-	depth := deps.HistoryDepth
-	if depth == 0 {
-		depth = PasswordPolicyHistoryDepth
-	}
+	depth := snap.HistoryDepth
 	recent, err := deps.PasswordHistoryRepo.Recent(ctx, user.Sub, depth)
 	if err != nil {
 		return nil, err

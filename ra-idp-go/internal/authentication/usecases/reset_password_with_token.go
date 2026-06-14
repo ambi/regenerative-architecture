@@ -20,7 +20,8 @@ type ResetPasswordWithTokenDeps struct {
 	PasswordHistoryRepo     authports.PasswordHistoryRepository
 	BreachedPasswordChecker authports.BreachedPasswordChecker
 	Emit                    func(spec.DomainEvent)
-	HistoryDepth            int
+	HistoryDepth            int                    // Deprecated: use Policy 指定。後方互換のためのフォールバック。
+	Policy                  PasswordPolicySnapshot // テナント解決済みのしきい値。ゼロ値は global default。
 }
 
 type ResetPasswordWithTokenInput struct {
@@ -53,7 +54,8 @@ func ResetPasswordWithToken(
 		return nil, ErrInvalidResetToken
 	}
 
-	result := ValidatePassword(in.NewPassword)
+	snap := resolveSnapshot(deps.Policy, deps.HistoryDepth)
+	result := ValidatePasswordWith(in.NewPassword, snap)
 	if !result.OK {
 		return nil, &PasswordPolicyError{Violations: result.Violations}
 	}
@@ -62,10 +64,7 @@ func ResetPasswordWithToken(
 		return nil, &PasswordPolicyError{Violations: []PasswordPolicyViolation{ViolationBreached}}
 	}
 
-	depth := deps.HistoryDepth
-	if depth == 0 {
-		depth = PasswordPolicyHistoryDepth
-	}
+	depth := snap.HistoryDepth
 	recent, err := deps.PasswordHistoryRepo.Recent(ctx, user.Sub, depth)
 	if err != nil {
 		return nil, err

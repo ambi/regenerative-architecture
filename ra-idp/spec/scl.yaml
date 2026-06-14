@@ -14,7 +14,7 @@ components:
 
   Tenancy:
     description: テナント (Realm) 集約、ライフサイクル、HTTP リクエストからのテナント解決、テナント管理 API を所有する。テナントは ra-idp のあらゆる集約に共通する境界文脈。
-    owns_models: [Tenant, TenantStatus, TenantCreateRequest, TenantUpdateRequest, TenantSummaryResponse, TenantListResponse]
+    owns_models: [Tenant, TenantStatus, TenantCreateRequest, TenantUpdateRequest, TenantSummaryResponse, TenantListResponse, PasswordPolicyOverride]
     owns_states: [TenantLifecycle]
     owns_events: [TenantCreated, TenantUpdated, TenantDisabled, TenantEnabled]
     owns_interfaces: [ResolveTenant, ListTenants, GetTenant, CreateTenant, UpdateTenant, DisableTenant, EnableTenant]
@@ -1217,12 +1217,26 @@ models:
     identity: id
     annotations: { component: Tenancy }
     fields:
-      id:            { type: String, constraints: [non_empty, { max_length: 63 }, { pattern: "^[a-z0-9][a-z0-9-]{0,62}$" }], description: "URL-safe slug。予約語 admin は禁止。" }
-      display_name:  { type: String, constraints: [non_empty, { max_length: 200 }], annotations: { pii: true } }
-      status:        { type: TenantStatus, default: Active }
-      created_at:    { type: Timestamp }
-      updated_at:    { type: Timestamp, optional: true }
-      disabled_at:   { type: Timestamp, optional: true, description: "テナント無効化時刻 (ADR-032)。non-null なら /authorize / /token / /login 等を一律拒否。" }
+      id:                       { type: String, constraints: [non_empty, { max_length: 63 }, { pattern: "^[a-z0-9][a-z0-9-]{0,62}$" }], description: "URL-safe slug。予約語 admin は禁止。" }
+      display_name:             { type: String, constraints: [non_empty, { max_length: 200 }], annotations: { pii: true } }
+      status:                   { type: TenantStatus, default: Active }
+      password_policy_override: { type: PasswordPolicyOverride, optional: true, description: "objectives.PasswordPolicy をこのテナントだけ上書きする値。指定された値のみ上書きされ、それ以外は global default を継承。" }
+      created_at:               { type: Timestamp }
+      updated_at:               { type: Timestamp, optional: true }
+      disabled_at:              { type: Timestamp, optional: true, description: "テナント無効化時刻 (ADR-032)。non-null なら /authorize / /token / /login 等を一律拒否。" }
+
+  PasswordPolicyOverride:
+    kind: value_object
+    description: |
+      テナント固有のパスワードポリシー上書き値 (Phase 4)。Phase 0 で固定値とした
+      objectives.PasswordPolicy をテナント解決ポートで差し替えるためのスキーマ。
+      省略フィールドは global default を継承し、change_password / reset_password の
+      評価経路ではテナント値が global より厳しい方向にのみ働く想定。
+    annotations: { component: Tenancy }
+    fields:
+      min_length:    { type: Integer, optional: true, description: "下限長 (≥ global default を推奨)" }
+      max_length:    { type: Integer, optional: true, description: "上限長" }
+      history_depth: { type: Integer, optional: true, description: "履歴照合件数 (PasswordHistoryNoReuse)" }
 
   OAuth2Client:
     kind: entity
@@ -1585,22 +1599,24 @@ models:
 
   TenantUpdateRequest:
     kind: value_object
-    description: 管理者がテナントの表示名を更新する JSON リクエスト (ADR-032)。`id` と status は変更しない。status 変更は disable/enable 専用 endpoint を経由。
+    description: 管理者がテナントの表示名 / パスワードポリシー上書きを更新する JSON リクエスト (ADR-032)。`id` と status は変更しない。status 変更は disable/enable 専用 endpoint を経由。
     annotations: { component: Tenancy }
     fields:
-      display_name: { type: String, optional: true, constraints: [non_empty, { max_length: 200 }], annotations: { pii: true } }
+      display_name:             { type: String, optional: true, constraints: [non_empty, { max_length: 200 }], annotations: { pii: true } }
+      password_policy_override: { type: PasswordPolicyOverride, optional: true, description: "省略時は既存値を維持。null を渡したい場合は明示する。" }
 
   TenantSummaryResponse:
     kind: value_object
     description: テナント表現。管理 UI の一覧と詳細で同じ表現を返す (ADR-032)。
     annotations: { component: Tenancy }
     fields:
-      id:           { type: String }
-      display_name: { type: String, annotations: { pii: true } }
-      status:       { type: TenantStatus }
-      created_at:   { type: Timestamp }
-      updated_at:   { type: Timestamp, optional: true }
-      disabled_at:  { type: Timestamp, optional: true }
+      id:                       { type: String }
+      display_name:             { type: String, annotations: { pii: true } }
+      status:                   { type: TenantStatus }
+      password_policy_override: { type: PasswordPolicyOverride, optional: true }
+      created_at:               { type: Timestamp }
+      updated_at:               { type: Timestamp, optional: true }
+      disabled_at:              { type: Timestamp, optional: true }
 
   TenantListResponse:
     kind: value_object

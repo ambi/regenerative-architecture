@@ -36,7 +36,7 @@ func TestAdminConsentListsGetsAndRevokesWithinTenant(t *testing.T) {
 		}
 	}
 
-	listRequest := httptest.NewRequest(http.MethodGet, "/admin/consents", http.NoBody)
+	listRequest := httptest.NewRequest(http.MethodGet, "/api/admin/consents", http.NoBody)
 	listRequest.Header.Set("X-Demo-Sub", "admin")
 	listResponse := httptest.NewRecorder()
 	e.ServeHTTP(listResponse, listRequest)
@@ -54,7 +54,7 @@ func TestAdminConsentListsGetsAndRevokesWithinTenant(t *testing.T) {
 	}
 
 	getRequest := httptest.NewRequest(
-		http.MethodGet, "/admin/consents/alice/portal", http.NoBody,
+		http.MethodGet, "/api/admin/consents/alice/portal", http.NoBody,
 	)
 	getRequest.Header.Set("X-Demo-Sub", "admin")
 	getResponse := httptest.NewRecorder()
@@ -65,7 +65,7 @@ func TestAdminConsentListsGetsAndRevokesWithinTenant(t *testing.T) {
 
 	csrf, cookie := adminCSRF(t, e, "admin")
 	revokeResponse := adminJSONRequest(
-		t, e, http.MethodDelete, "/admin/consents/alice/portal", csrf, cookie, nil,
+		t, e, http.MethodDelete, "/api/admin/consents/alice/portal", csrf, cookie, nil,
 	)
 	if revokeResponse.Code != http.StatusNoContent {
 		t.Fatalf("revoke status=%d body=%s", revokeResponse.Code, revokeResponse.Body.String())
@@ -96,7 +96,7 @@ func TestAdminConsentRequiresAdminAndHidesOtherTenant(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	request := httptest.NewRequest(http.MethodGet, "/admin/consents/alice/portal", http.NoBody)
+	request := httptest.NewRequest(http.MethodGet, "/api/admin/consents/alice/portal", http.NoBody)
 	request.Header.Set("X-Demo-Sub", "admin")
 	response := httptest.NewRecorder()
 	e.ServeHTTP(response, request)
@@ -104,7 +104,7 @@ func TestAdminConsentRequiresAdminAndHidesOtherTenant(t *testing.T) {
 		t.Fatalf("cross-tenant status=%d body=%s", response.Code, response.Body.String())
 	}
 
-	request = httptest.NewRequest(http.MethodGet, "/admin/consents", http.NoBody)
+	request = httptest.NewRequest(http.MethodGet, "/api/admin/consents", http.NoBody)
 	request.Header.Set("X-Demo-Sub", "regular")
 	response = httptest.NewRecorder()
 	e.ServeHTTP(response, request)

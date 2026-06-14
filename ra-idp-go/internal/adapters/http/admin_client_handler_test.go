@@ -21,7 +21,7 @@ func TestAdminClientCRUD(t *testing.T) {
 	e, clients, events := newAdminClientHandler(t)
 	csrf, cookie := adminCSRF(t, e, "admin")
 
-	create := adminJSONRequest(t, e, http.MethodPost, "/admin/clients", csrf, cookie, map[string]any{
+	create := adminJSONRequest(t, e, http.MethodPost, "/api/admin/clients", csrf, cookie, map[string]any{
 		"client_name":                "Portal",
 		"client_type":                "confidential",
 		"redirect_uris":              []string{"https://portal.example/callback"},
@@ -48,7 +48,7 @@ func TestAdminClientCRUD(t *testing.T) {
 		t.Fatalf("secret hash leaked: %s", create.Body.String())
 	}
 
-	get := httptest.NewRequest(http.MethodGet, "/admin/clients/"+created.Client.ClientID, http.NoBody)
+	get := httptest.NewRequest(http.MethodGet, "/api/admin/clients/"+created.Client.ClientID, http.NoBody)
 	get.Header.Set("X-Demo-Sub", "admin")
 	getResponse := httptest.NewRecorder()
 	e.ServeHTTP(getResponse, get)
@@ -67,7 +67,7 @@ func TestAdminClientCRUD(t *testing.T) {
 	}
 
 	update := adminJSONRequest(
-		t, e, http.MethodPatch, "/admin/clients/"+created.Client.ClientID, csrf, cookie,
+		t, e, http.MethodPatch, "/api/admin/clients/"+created.Client.ClientID, csrf, cookie,
 		map[string]any{"redirect_uris": []string{"https://portal.example/new-callback"}},
 	)
 	if update.Code != http.StatusOK {
@@ -83,7 +83,7 @@ func TestAdminClientCRUD(t *testing.T) {
 	}
 
 	deleted := adminJSONRequest(
-		t, e, http.MethodDelete, "/admin/clients/"+created.Client.ClientID, csrf, cookie, nil,
+		t, e, http.MethodDelete, "/api/admin/clients/"+created.Client.ClientID, csrf, cookie, nil,
 	)
 	if deleted.Code != http.StatusNoContent {
 		t.Fatalf("delete status=%d body=%s", deleted.Code, deleted.Body.String())
@@ -116,7 +116,7 @@ func TestAdminClientCannotCrossTenantBoundary(t *testing.T) {
 		TokenEndpointAuthMethod: spec.AuthMethodNone, IDTokenSignedResponseAlg: spec.SigAlgPS256,
 		FapiProfile: spec.FapiNone, CreatedAt: now,
 	})
-	request := httptest.NewRequest(http.MethodGet, "/admin/clients/portal", http.NoBody)
+	request := httptest.NewRequest(http.MethodGet, "/api/admin/clients/portal", http.NoBody)
 	request.Header.Set("X-Demo-Sub", "admin")
 	response := httptest.NewRecorder()
 	e.ServeHTTP(response, request)
@@ -124,7 +124,7 @@ func TestAdminClientCannotCrossTenantBoundary(t *testing.T) {
 		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
 	}
 
-	request = httptest.NewRequest(http.MethodGet, "/admin/clients", http.NoBody)
+	request = httptest.NewRequest(http.MethodGet, "/api/admin/clients", http.NoBody)
 	request.Header.Set("X-Demo-Sub", "regular")
 	response = httptest.NewRecorder()
 	e.ServeHTTP(response, request)

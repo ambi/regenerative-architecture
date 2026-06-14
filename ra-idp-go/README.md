@@ -8,7 +8,7 @@
 - 認可エンドポイント `/authorize` + React Login / Consent UI + End Session (`/end_session`)
 - ブラウザ認証API `/api/auth/*` + Session Cookie + CSRF
 - メールによるパスワードリセット + 単発・30分TTLトークン (ADR-030)
-- RBACで保護された管理ユーザーAPI (`/admin/users`) + ユーザー無効化 (ADR-031)
+- RBACで保護された管理ユーザーAPI (`/api/admin/users`) + ユーザー無効化 (ADR-031)
 - テナント内に閉じた管理クライアント CRUD (`/admin/clients`)
 - テナント内に閉じた管理 consent 参照・撤回 API (`/admin/consents`)
 - `/realms/{tenant_id}` による tenant 分離、tenant 管理 API、tenant-scoped persistence (ADR-032〜034)
@@ -158,7 +158,7 @@ issuer は通常 `{ISSUER}/realms/{tenant_id}` となる。
 tenant lifecycle API (`/realms/default/admin/tenants/...`) は cross-tenant 操作だが、
 ADR-032 で `system_admin` を default control-plane tenant に所属させているため
 default realm prefix 配下に置く (default tenant の session cookie path で覆えるため、
-root への cookie 広げが不要になる)。`admin` role の `/admin/users` 操作は request
+root への cookie 広げが不要になる)。`admin` role の `/api/admin/users` 操作は request
 tenant 内に限定される。
 
 Redis の一時状態 key は `tenant:{id}:` namespace に分離される。旧形式 key
@@ -281,7 +281,7 @@ client / consent / key / audit-event の admin CRUD と RBAC (`admin` / `system_
 
 | 領域                             | 不足している機能                                                                                                                                                            |
 | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| ユーザ削除                       | DELETE `/admin/users/:sub` と anonymize cascade (consent / refresh-family / session / password history)、削除確認 UI、`user.deleted` event                                  |
+| ユーザ削除                       | DELETE `/api/admin/users/:sub` と anonymize cascade (consent / refresh-family / session / password history)、削除確認 UI、`user.deleted` event                              |
 | グループ                         | 新規 aggregate `Group` (tenant-scoped、roles 保持)、user-group membership、admin CRUD API + UI、effective roles = `user.roles ∪ ⋃ group.roles` の解決                       |
 | Dynamic Client Registration 拡張 | registration_access_token、software_statement、client metadata 更新・削除（client_secret rotation 本体は Phase 1）                                                          |
 | 委譲・代行                       | impersonation、delegation、guest access                                                                                                                                     |

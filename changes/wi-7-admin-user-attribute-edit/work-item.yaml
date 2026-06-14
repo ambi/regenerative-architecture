@@ -1,0 +1,100 @@
+id: wi-7-admin-user-attribute-edit
+title: 管理画面でユーザ属性 (preferred_username / name / email / email_verified) を編集できるようにする
+created_at: 2026-06-15
+status: completed
+authors: [tn]
+
+motivation: |
+  ra-idp-go の `UpdateUser` use case と HTTP endpoint
+  (`PATCH /admin/users/:sub`) は `PreferredUsername` / `Name` / `Email` /
+  `EmailVerified` / `Roles` を受け取れる。ところが UI 側 (AdminUsersPage)
+  は `RoleEditorDialog` (ロールのみ) と Disable / Enable しか叩いておらず、
+  実運用で発生する次のオペレーションが UI からできない:
+    - メールアドレス変更 (人事異動・タイポ訂正)
+    - 表示名 (`name`) / 表示用ユーザ名 (`preferred_username`) の修正
+    - メールドメイン移管後の `email_verified` 再フラグ
+  結果として、admin は API を直叩きするか DB に SQL を当てるしかなく、
+  操作の追跡 (CSRF + audit event) も外れる。backend は完成済なので、
+  UI に属性編集ダイアログを 1 つ足すだけで、本番運用に必要な
+  user maintenance 作業が監査経路つきで解禁される。
+
+  本 WI のスコープは UI のみ。新規 backend endpoint・新規 SCL field・
+  新規 event は導入しない (既存 `user.updated` event を流用)。
+
+scope:
+  ui:
+    pages:
+      - AdminUsersPage の詳細パネル (`UserDetails`) に "属性を編集" ボタンを
+        足し、`AttributeEditorDialog` を開く。
+      - AttributeEditorDialog は次のフィールドを編集可能とする:
+        `preferred_username` (required、unique 違反は server error として表示)、
+        `name`、`email`、`email_verified` (checkbox)。
+      - 既存 `RoleEditorDialog` と並ぶ独立ダイアログとし、保存ボタン押下で
+        PATCH `/admin/users/:sub` を呼ぶ。
+      - メールアドレスを変更した場合、`email_verified` を勝手に true にしない
+        (チェックを外す既定動作)。ADR-030 の email 検証規約を破らない。
+    api:
+      - api.ts に `updateAdminUserAttributes(csrf, sub, attrs)` を追加し、
+        既存 `updateAdminUserRoles` と同じく PATCH `/admin/users/:sub` を呼ぶ。
+        ロール更新と属性更新の同時送信は許可しない (ダイアログを分けるため)。
+      - 既存 `updateAdminUserRoles` は変更しない (call site が増えるだけ)。
+    types:
+      - 既存 `AdminUser` 型を流用し、新規型は追加しない。
+    navigation:
+      - 既存 sidebar navigation は変更しない (新規ページ無し)。
+    a11y:
+      - ダイアログは `role="dialog" aria-modal="true"`、`aria-labelledby` を
+        付け、既存 `RoleEditorDialog` のパターンを揃える。
+
+  scl:
+    - 変更なし。`UpdateUser` interface / `user.updated` event の wire 形式は維持。
+
+  documentation:
+    - ra-idp-go/README.md の Phase 4 「ユーザ属性編集 UI」行は、本 WI 完了後
+      `完了済` として除去する (完了レポートで反映する)。
+
+out_of_scope:
+  - 新規 backend endpoint / use case の追加。
+  - SCL の `User` モデル拡張 (新規 attribute はこの WI では追加しない)。
+  - パスワードリセットを admin が代行する経路 (別 WI 候補)。
+  - email 変更時に確認メール (verification) を自動で送る連携 (Phase 0 の
+    Email verification WI と統合する)。
+  - 監査イベントの schema 拡張。既存 `user.updated` の changed-fields 表示を
+    AdminAuditEventsPage で構造化する話は別 WI とする。
+
+affected_guarantees:
+  - >-
+    admin RBAC は既存 `verifyBrowserRequest` + `requireAdmin` を維持する。
+    UI 側でボタンを出すかは `actor.roles.includes('admin')` で gating する
+    が、最終判定は backend が行う。
+  - >-
+    CSRF は既存通り `X-CSRF-Token` + cookie ペアで保護する。新規 endpoint は
+    無いため CSRF 仕様は不変。
+  - >-
+    email 変更時に `email_verified` を勝手に維持しない。UI 側で email を
+    編集した瞬間 checkbox を強制 false にし、admin が明示的に true へ戻した
+    時のみ true を送る (ADR-030 §4 anti-enumeration の前提を維持する)。
+  - >-
+    tenant 境界: 既存 `requireAdmin` が user.TenantID と request tenant の
+    一致を確認しているため、本 WI で追加の境界チェックは不要。
+  - >-
+    SCL coherence は不変 (interface / permissions / owned_models / objectives
+    すべて変更なし)。SCLPermissionsCoverage 等の coherence test は無影響。
+
+verification:
+  - cmd: 'bun --cwd ra-idp-go/ui typecheck'
+  - cmd: 'bun --cwd ra-idp-go/ui lint'
+  - cmd: 'bun --cwd ra-idp-go/ui build'
+  - cmd: 'go test ./internal/adapters/http/... ./internal/authentication/usecases/...'
+    in: ra-idp-go
+    reason: backend に変更は無いが、既存の admin user handler テストの
+      回帰を確認する。
+  - 手動: dev サーバで admin としてログイン → `/admin/users` で alice を選択 →
+    属性編集ダイアログを開いて `name` と `email` を変更 → 保存 → 一覧で反映、
+    `/admin/audit_events` に `user.updated` が表示される。
+
+risk: low
+risk_notes: |
+  純粋な UI 追加。新規ファイル + 既存ページ内の 1 セクション追加で完結
+  する。誤動作が起きても backend 側の validation で弾かれる (Zog + use case
+  の email 形式チェックがある)。回帰範囲は AdminUsersPage に閉じる。

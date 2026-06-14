@@ -8,6 +8,7 @@ import {
   IconKey,
   IconLogout,
   IconMail,
+  IconPencil,
   IconRefresh,
   IconSearch,
   IconShield,
@@ -25,6 +26,7 @@ import {
   listAdminUsers,
   setAdminUserDisabled,
   tenantURL,
+  updateAdminUserAttributes,
   updateAdminUserRoles,
 } from '../api'
 import { Brand } from '../components/Brand'
@@ -52,6 +54,7 @@ export function AdminUsersPage({
   const [showCreate, setShowCreate] = useState(false)
   const [showRoleEditor, setShowRoleEditor] = useState(false)
   const [confirmRoleChange, setConfirmRoleChange] = useState(false)
+  const [showAttributeEditor, setShowAttributeEditor] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -129,6 +132,20 @@ export function AdminUsersPage({
       setConfirmRoleChange(false)
       await refresh(selected.sub)
     }, 'ロールを更新しました。')
+  }
+
+  async function handleAttributes(input: {
+    preferred_username: string
+    name: string
+    email: string
+    email_verified: boolean
+  }) {
+    if (!selected) return
+    await run(async () => {
+      await updateAdminUserAttributes(csrfToken, selected.sub, input)
+      setShowAttributeEditor(false)
+      await refresh(selected.sub)
+    }, '属性を更新しました。')
   }
 
   async function handleDisabled(user: AdminUser) {
@@ -380,6 +397,7 @@ export function AdminUsersPage({
                         setConfirmRoleChange(false)
                         setShowRoleEditor(true)
                       }}
+                      onEditAttributes={() => setShowAttributeEditor(true)}
                       onDisabled={() => void handleDisabled(selected)}
                     />
                   ) : (
@@ -423,6 +441,14 @@ export function AdminUsersPage({
           }}
         />
       )}
+      {showAttributeEditor && selected && (
+        <AttributeEditorDialog
+          user={selected}
+          busy={busy}
+          onSubmit={(input) => void handleAttributes(input)}
+          onClose={() => setShowAttributeEditor(false)}
+        />
+      )}
     </div>
   )
 }
@@ -431,11 +457,13 @@ function UserDetails({
   user,
   busy,
   onEditRoles,
+  onEditAttributes,
   onDisabled,
 }: {
   user: AdminUser
   busy: boolean
   onEditRoles: () => void
+  onEditAttributes: () => void
   onDisabled: () => void
 }) {
   return (
@@ -457,9 +485,21 @@ function UserDetails({
 
       <div className="flex flex-1 flex-col gap-6 p-5">
         <section>
-          <h3 className="text-xs font-bold uppercase tracking-[0.1em] text-slate-400">
-            Profile
-          </h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-bold uppercase tracking-[0.1em] text-slate-400">
+              Profile
+            </h3>
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-7 px-2 text-xs font-semibold text-blue-700 hover:text-blue-800"
+              disabled={busy}
+              onClick={onEditAttributes}
+            >
+              <IconPencil size={14} aria-hidden="true" />
+              属性を編集
+            </Button>
+          </div>
           <dl className="mt-3 grid gap-3 text-sm">
             <DetailRow icon={IconMail} label="メール" value={user.email || '未設定'} />
             <DetailRow
@@ -666,6 +706,151 @@ function RoleDiff({
           ))
         )}
       </div>
+    </div>
+  )
+}
+
+function AttributeEditorDialog({
+  user,
+  busy,
+  onSubmit,
+  onClose,
+}: {
+  user: AdminUser
+  busy: boolean
+  onSubmit: (input: {
+    preferred_username: string
+    name: string
+    email: string
+    email_verified: boolean
+  }) => void
+  onClose: () => void
+}) {
+  const initialUsername = user.preferred_username
+  const initialName = user.name ?? ''
+  const initialEmail = user.email ?? ''
+  const initialEmailVerified = user.email_verified
+
+  const [username, setUsername] = useState(initialUsername)
+  const [name, setName] = useState(initialName)
+  const [email, setEmail] = useState(initialEmail)
+  const [emailVerified, setEmailVerified] = useState(initialEmailVerified)
+  const [emailVerifiedTouched, setEmailVerifiedTouched] = useState(false)
+
+  const emailChanged = email !== initialEmail
+  const effectiveEmailVerified = emailChanged && !emailVerifiedTouched ? false : emailVerified
+  const trimmedUsername = username.trim()
+  const usernameInvalid = trimmedUsername === ''
+  const changed =
+    trimmedUsername !== initialUsername ||
+    name !== initialName ||
+    email !== initialEmail ||
+    effectiveEmailVerified !== initialEmailVerified
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (usernameInvalid || !changed) return
+    onSubmit({
+      preferred_username: trimmedUsername,
+      name,
+      email,
+      email_verified: effectiveEmailVerified,
+    })
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 p-5 backdrop-blur-[2px]"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="attribute-editor-title"
+    >
+      <button type="button" className="absolute inset-0 cursor-default" aria-label="閉じる" onClick={onClose} />
+      <Card className="relative w-full max-w-lg overflow-hidden shadow-2xl">
+        <div className="flex items-start justify-between border-b border-slate-200 px-6 py-5">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.12em] text-blue-700">Profile</p>
+            <h2 id="attribute-editor-title" className="mt-1 text-xl font-semibold">
+              属性を編集
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              {user.name || user.preferred_username} (@{user.preferred_username})
+            </p>
+          </div>
+          <Button variant="ghost" className="px-2.5" onClick={onClose} aria-label="閉じる">
+            <IconX size={18} aria-hidden="true" />
+          </Button>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <div className="grid gap-4 p-6">
+            <div className="grid gap-2">
+              <Label htmlFor="attribute-editor-username">ユーザー名</Label>
+              <Input
+                id="attribute-editor-username"
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+                autoFocus
+                required
+                aria-invalid={usernameInvalid}
+              />
+              <p className="text-xs leading-5 text-slate-500">
+                login 時に使われる識別子です。空にはできません。
+              </p>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="attribute-editor-name">表示名</Label>
+              <Input
+                id="attribute-editor-name"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="attribute-editor-email">メールアドレス</Label>
+              <Input
+                id="attribute-editor-email"
+                type="email"
+                value={email}
+                onChange={(event) => {
+                  setEmail(event.target.value)
+                  setEmailVerifiedTouched(false)
+                }}
+              />
+              {emailChanged && (
+                <p className="text-xs leading-5 text-amber-700">
+                  メールを変更したため、確認済みフラグを既定で解除しています。
+                </p>
+              )}
+            </div>
+            <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                className="mt-0.5 size-4 rounded border-slate-300"
+                checked={effectiveEmailVerified}
+                onChange={(event) => {
+                  setEmailVerified(event.target.checked)
+                  setEmailVerifiedTouched(true)
+                }}
+              />
+              <span>
+                <span className="block font-semibold text-slate-900">メール確認済みとして保存</span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-500">
+                  組織側でメールアドレスの所有確認が完了している場合のみ選択します。
+                </span>
+              </span>
+            </label>
+          </div>
+          <div className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-6 py-4">
+            <Button type="button" variant="outline" onClick={onClose}>
+              キャンセル
+            </Button>
+            <Button type="submit" disabled={busy || usernameInvalid || !changed}>
+              保存
+            </Button>
+          </div>
+        </form>
+      </Card>
     </div>
   )
 }

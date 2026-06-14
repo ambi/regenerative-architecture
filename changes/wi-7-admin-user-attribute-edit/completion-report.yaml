@@ -1,0 +1,114 @@
+id: wi-7-admin-user-attribute-edit
+title: 管理画面でユーザ属性 (preferred_username / name / email / email_verified) を編集できるようにする
+completed_at: 2026-06-15
+work_item: work-item.yaml
+status: completed
+
+summary: |
+  AdminUsersPage の詳細パネルに「属性を編集」ボタンと AttributeEditorDialog
+  を追加し、既に backend に存在する `PATCH /admin/users/:sub` から
+  `preferred_username` / `name` / `email` / `email_verified` を編集できる
+  経路を解禁した。新規 backend endpoint / 新規 SCL field / 新規 event は
+  追加していない (既存 `UpdateUser` use case + `user.updated` event を流用)。
+
+decision_changes:
+  - 新規 ADR なし。本 WI は UI のみで完結し、既存 ADR-031 の admin user API
+    範囲の中で UI ギャップを埋めた。
+
+go_changes:
+  - 変更なし。backend (use case / HTTP handler / SCL) は wi-7 のスコープから
+    意図的に除外。既存の `UpdateUser` を呼び出すだけで属性編集が成立する
+    ことを確認した。
+
+ui_changes:
+  - >-
+    src/api.ts に `updateAdminUserAttributes(csrfToken, sub, input)` と
+    `UpdateAdminUserAttributesInput` 型を追加。既存 `updateAdminUserRoles`
+    と同じ PATCH `/api/admin/users/:sub` を別の payload で叩く形に揃えた。
+  - >-
+    src/pages/AdminUsersPage.tsx に `AttributeEditorDialog` コンポーネントを
+    追加。フィールドは preferred_username (required、trim 後の空チェック)、
+    name、email、email_verified (checkbox)。
+  - >-
+    `UserDetails` の Profile 見出し横に "属性を編集" ボタン (IconPencil) を
+    配置。既存の "ロールを変更" ボタンとは別ダイアログに分離 (wi-7 scope
+    のとおりロール編集との同時送信は許可しない)。
+  - >-
+    email を変更したタイミングで `email_verified` を既定で false にリセット
+    し、admin が明示的にチェックを戻した場合のみ true として送信する。
+    UI 側に "メールを変更したため、確認済みフラグを既定で解除しています"
+    のヒントを表示する (ADR-030 の anti-enumeration / 検証規約を破らない)。
+  - >-
+    AdminUsersPage の状態に `showAttributeEditor` と `handleAttributes`
+    アクションを追加。busy / error / notice の流れは既存 `run()` ヘルパに
+    乗せたため、エラー文言・通知文言の表示パターンはロール編集と同一。
+
+documentation_changes:
+  - ra-idp-go/README.md の Phase 4 表から「ユーザ属性編集 UI」の行を削除し、
+    リード文に「属性編集 (`preferred_username` / `name` / `email` /
+    `email_verified`) の管理 UI も実装済」を追記。残タスクは「ユーザ削除」
+    と「グループ」のみになった。
+
+scl_changes:
+  - 変更なし。`User` model / `UpdateUser` interface / `user.updated` event の
+    wire 形式は維持。SCL coherence test は無影響。
+
+semantic_diff:
+  before:
+    admin_ui_user_attributes: 編集不可 (ロール / disable / enable のみ)
+    backend_update_user: 4 attributes + roles を PATCH で受け取れるが UI が叩かない
+  after:
+    admin_ui_user_attributes: AttributeEditorDialog で 4 attributes すべて編集可能
+    backend_update_user: UI から実利用される (admin の DB 直叩き運用が不要)
+
+affected_guarantees_state:
+  - >-
+    admin RBAC: 既存 `verifyBrowserRequest` + `requireAdmin` を流用するだけ
+    なので回帰は無し。HTTP handler に変更が無いことを backend test の
+    pass で再確認した (admin_user_handler.go テスト群)。
+  - >-
+    CSRF: 既存の `X-CSRF-Token` + cookie ペアで保護される PATCH を流用。
+    新規 endpoint は無いため CSRF 仕様は不変。
+  - >-
+    email verification 規約: email を編集すると UI が email_verified を
+    既定で false にリセットする。admin が改めて true にする場合は明示
+    操作が必要で、無意識のうちに未確認のメールを「確認済み」にできない。
+  - >-
+    tenant 境界: 既存 `requireAdmin` が user.TenantID と request tenant の
+    一致を確認しているため、本 WI で追加の境界チェックは不要だった。
+  - SCL coherence は不変。
+
+verification:
+  - cmd: 'bun --cwd ra-idp-go/ui typecheck'
+    result: ok (tsc --noEmit pass)
+  - cmd: 'bun --cwd ra-idp-go/ui lint'
+    result: ok (biome lint pass, 39 files)
+  - cmd: 'bun --cwd ra-idp-go/ui build'
+    result: ok (vite build pass, 6283 modules)
+  - cmd: 'go test ./internal/adapters/http/... ./internal/authentication/usecases/...'
+    in: ra-idp-go
+    result: ok (admin_user_handler / admin_users 既存テストの回帰なし)
+  - >-
+    手動確認 (residual): dev サーバを起動した実ブラウザ操作は本セッションで
+    は実施していない。AdminUsersPage の他ダイアログ (RoleEditor /
+    CreateUser) と同パターンで実装したため typecheck / lint / build 緑で
+    動作する見込み。実環境での操作確認は次回 dev 起動時に行う。
+
+residual_risk:
+  - >-
+    backend が JSON null と "値なし" を区別しないため、UI から空文字列で
+    "クリア" を表現すると `*string("")` が DB に残る (元 ADR-031 / backend の
+    既存仕様)。本 WI のスコープ外で、必要なら別 WI で backend に
+    `*string` → `*null` の正規化を追加する。
+  - >-
+    email_verified の自動 false リセットは UI 側だけで強制する。
+    backend は引き続き任意の値を受け付けるため、admin が curl で直接
+    PATCH を叩けば email を変更しつつ email_verified=true を送れる。
+    本格的な強制は use case 側の制約が必要だが、wi-7 のスコープ外。
+  - >-
+    手動の e2e ブラウザ確認を本セッションで実施していない。dev サーバを
+    上げ直したタイミングで実画面操作を行う。
+
+approver_note: |
+  backend に変更を入れず、UI dialog 1 つ追加するだけで wi-7 のスコープは
+  完了。次の WI は wi-8 (ユーザ削除 + anonymize cascade) を予定。

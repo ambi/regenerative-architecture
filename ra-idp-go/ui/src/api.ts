@@ -431,6 +431,24 @@ export async function updateAdminUserRoles(
   )
 }
 
+export type UpdateAdminUserAttributesInput = {
+  preferred_username: string
+  name: string
+  email: string
+  email_verified: boolean
+}
+
+export async function updateAdminUserAttributes(
+  csrfToken: string,
+  sub: string,
+  input: UpdateAdminUserAttributesInput,
+): Promise<AdminUser> {
+  return request(
+    `/api/admin/users/${encodeURIComponent(sub)}`,
+    adminRequest(csrfToken, 'PATCH', input),
+  )
+}
+
 export async function setAdminUserDisabled(
   csrfToken: string,
   sub: string,

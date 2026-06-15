@@ -476,6 +476,18 @@ export async function setAdminUserDisabled(
   )
 }
 
+export async function deleteAdminUser(
+  csrfToken: string,
+  sub: string,
+  reason?: string,
+): Promise<void> {
+  const body = reason?.trim() ? { reason: reason.trim() } : undefined
+  await request(
+    `/api/admin/users/${encodeURIComponent(sub)}`,
+    adminRequest(csrfToken, 'DELETE', body),
+  )
+}
+
 export type CreateAdminClientInput = {
   client_name?: string
   client_type: 'public' | 'confidential'

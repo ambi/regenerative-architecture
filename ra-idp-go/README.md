@@ -8,7 +8,7 @@
 - 認可エンドポイント `/authorize` + React Login / Consent UI + End Session (`/end_session`)
 - ブラウザ認証API `/api/auth/*` + Session Cookie + CSRF
 - メールによるパスワードリセット + 単発・30分TTLトークン (ADR-030)
-- RBACで保護された管理ユーザーAPI (`/api/admin/users`) + ユーザー無効化 (ADR-031)
+- RBACで保護された管理ユーザーAPI (`/api/admin/users`) + ユーザー無効化 (ADR-031) と削除 (ADR-036, anonymize cascade)
 - テナント内に閉じた管理クライアント CRUD (`/admin/clients`)
 - テナント内に閉じた管理 consent 参照・撤回 API (`/admin/consents`)
 - `/realms/{tenant_id}` による tenant 分離、tenant 管理 API、tenant-scoped persistence (ADR-032〜034)
@@ -277,11 +277,11 @@ client / consent / key / audit-event の admin CRUD と RBAC (`admin` / `system_
 管理 API + tenant-scoped persistence)、tenant 別のパスワードポリシー上書き、上記 API の
 上に乗る管理 UI (6 領域) は実装済。user は backend の create / read / update / disable と
 一覧・ロール編集 UI に加え、属性編集 (`preferred_username` / `name` / `email` /
-`email_verified`) の管理 UI も実装済。残るのは削除と group 集約。
+`email_verified`) の管理 UI も実装済。削除 (anonymize cascade) も DELETE
+`/api/admin/users/:sub` と削除確認 UI で実装済。残るのは group 集約。
 
 | 領域                             | 不足している機能                                                                                                                                                            |
 | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| ユーザ削除                       | DELETE `/api/admin/users/:sub` と anonymize cascade (consent / refresh-family / session / password history)、削除確認 UI、`user.deleted` event                              |
 | グループ                         | 新規 aggregate `Group` (tenant-scoped、roles 保持)、user-group membership、admin CRUD API + UI、effective roles = `user.roles ∪ ⋃ group.roles` の解決                       |
 | Dynamic Client Registration 拡張 | registration_access_token、software_statement、client metadata 更新・削除（client_secret rotation 本体は Phase 1）                                                          |
 | 委譲・代行                       | impersonation、delegation、guest access                                                                                                                                     |

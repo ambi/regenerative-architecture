@@ -94,6 +94,11 @@ func (u User) Validate() error {
 	return validate(userSchema, &u)
 }
 
+// IsDeleted は User が ADR-036 の tombstone 状態に到達済みかを返す。
+func (u User) IsDeleted() bool {
+	return u.DeletedAt != nil
+}
+
 type MfaFactor struct {
 	Sub        string        `json:"sub"`
 	Type       MfaFactorType `json:"type"`

@@ -20,10 +20,23 @@ import (
 var (
 	ErrUsernameConflict = errors.New("preferred username already exists")
 	ErrInvalidRole      = errors.New("role must not be empty")
+	// ErrSelfDeleteForbidden は admin / system_admin が自身を削除しようとした場合に
+	// 返る (ADR-036 の自爆防止)。
+	ErrSelfDeleteForbidden = errors.New("admins cannot delete themselves")
 )
+
+// deletedPasswordHashSentinel は ADR-036 の tombstone 用に PasswordHash へ設定する
+// 非ハッシュ形式の値。Argon2id のフォーマットと一致しないため、どんなパスワードでも
+// 認証に通らないが、`z.String().Required()` の schema 制約は満たす。
+const deletedPasswordHashSentinel = "$deleted$"
 
 type AdminUserDeps struct {
 	UserRepo            oauthports.UserRepository
+	ConsentRepo         oauthports.ConsentRepository
+	RefreshStore        oauthports.RefreshTokenStore
+	DeviceCodeStore     oauthports.DeviceCodeStore
+	SessionStore        authports.SessionStore
+	MfaFactorRepo       authports.MfaFactorRepository
 	PasswordHasher      authports.PasswordHasher
 	PasswordHistoryRepo authports.PasswordHistoryRepository
 	Emit                func(spec.DomainEvent)
@@ -241,4 +254,109 @@ func adminEmit(sink func(spec.DomainEvent), event spec.DomainEvent) {
 	if sink != nil {
 		sink(event)
 	}
+}
+
+// DeleteUserInput は ADR-036 の DeleteUser use case 入力。
+type DeleteUserInput struct {
+	ActorSub string
+	Sub      string
+	Reason   string
+	Now      time.Time
+}
+
+// DeleteUser は ADR-036 の anonymize cascade を実行する。
+//   - 対象 user の PII フィールドを tombstone 値で置換する (`deleted_at` 設定)。
+//   - 関連 aggregate (Consent / RefreshToken / Session / PasswordHistory /
+//     MfaFactor / DeviceAuthorization) を物理削除する。
+//   - `user.deleted` を 1 度だけ emit する (冪等)。
+//
+// 既に削除済の user に対しては no-op で nil を返す (audit event も emit しない)。
+// actor.Sub == target.Sub かつ target が admin / system_admin role を持つ場合は
+// ErrSelfDeleteForbidden を返し、cascade は実施しない。
+func DeleteUser(ctx context.Context, deps AdminUserDeps, in DeleteUserInput) error {
+	user, err := deps.UserRepo.FindBySubIncludingDeleted(ctx, in.Sub)
+	if err != nil {
+		return err
+	}
+	if user == nil {
+		return ErrUserNotFound
+	}
+	if user.TenantID != tenancy.TenantID(ctx) {
+		return ErrUserNotFound
+	}
+	if user.IsDeleted() {
+		return nil
+	}
+	if in.ActorSub == user.Sub && hasPrivilegedRole(user.Roles) {
+		return ErrSelfDeleteForbidden
+	}
+	now := normalizedNow(in.Now)
+	tombstone := anonymizeUser(user, now)
+	if err := tombstone.Validate(); err != nil {
+		return err
+	}
+	if err := deps.UserRepo.Save(ctx, tombstone); err != nil {
+		return err
+	}
+	if err := cascadeDeleteForSub(ctx, deps, user.Sub); err != nil {
+		return err
+	}
+	adminEmit(deps.Emit, &spec.UserDeleted{
+		At: now, ActorSub: in.ActorSub, TargetSub: user.Sub, Reason: in.Reason,
+	})
+	return nil
+}
+
+func hasPrivilegedRole(roles []string) bool {
+	return slices.Contains(roles, "admin") || slices.Contains(roles, "system_admin")
+}
+
+func anonymizeUser(user *spec.User, now time.Time) *spec.User {
+	tombstone := *user
+	tombstone.PreferredUsername = "deleted:" + user.Sub
+	tombstone.PasswordHash = deletedPasswordHashSentinel
+	tombstone.Name = nil
+	tombstone.GivenName = nil
+	tombstone.FamilyName = nil
+	tombstone.Email = nil
+	tombstone.EmailVerified = false
+	tombstone.MfaEnrolled = false
+	tombstone.Roles = []string{}
+	tombstone.UpdatedAt = now
+	tombstone.DeletedAt = &now
+	return &tombstone
+}
+
+func cascadeDeleteForSub(ctx context.Context, deps AdminUserDeps, sub string) error {
+	if deps.ConsentRepo != nil {
+		if err := deps.ConsentRepo.DeleteAllForSub(ctx, sub); err != nil {
+			return err
+		}
+	}
+	if deps.RefreshStore != nil {
+		if err := deps.RefreshStore.DeleteAllForSub(ctx, sub); err != nil {
+			return err
+		}
+	}
+	if deps.SessionStore != nil {
+		if err := deps.SessionStore.DeleteAllForSub(ctx, sub); err != nil {
+			return err
+		}
+	}
+	if deps.PasswordHistoryRepo != nil {
+		if err := deps.PasswordHistoryRepo.DeleteAllForSub(ctx, sub); err != nil {
+			return err
+		}
+	}
+	if deps.MfaFactorRepo != nil {
+		if err := deps.MfaFactorRepo.DeleteAllForSub(ctx, sub); err != nil {
+			return err
+		}
+	}
+	if deps.DeviceCodeStore != nil {
+		if err := deps.DeviceCodeStore.DeleteAllForSub(ctx, sub); err != nil {
+			return err
+		}
+	}
+	return nil
 }

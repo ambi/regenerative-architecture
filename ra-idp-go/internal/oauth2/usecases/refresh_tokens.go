@@ -77,7 +77,8 @@ func RefreshTokens(ctx context.Context, deps RefreshDeps, in RefreshInput, now t
 		return nil, err
 	}
 	if user == nil {
-		return nil, NewOAuthError("server_error", "ユーザーが存在しません")
+		_ = deps.RefreshStore.RevokeFamily(ctx, record.FamilyID)
+		return nil, NewOAuthError("invalid_grant", "ユーザーは利用できません")
 	}
 	if user.TenantID != tenantID {
 		return nil, NewOAuthError("invalid_grant", "リフレッシュトークンが無効")

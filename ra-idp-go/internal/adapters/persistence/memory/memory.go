@@ -142,19 +142,36 @@ func (r *UserRepository) Save(_ context.Context, u *spec.User) error {
 func (r *UserRepository) FindBySub(_ context.Context, sub string) (*spec.User, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
+	user := r.bySub[sub]
+	if user == nil || user.DeletedAt != nil {
+		return nil, nil
+	}
+	return user, nil
+}
+
+func (r *UserRepository) FindBySubIncludingDeleted(_ context.Context, sub string) (*spec.User, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	return r.bySub[sub], nil
 }
 
 func (r *UserRepository) FindByUsername(_ context.Context, tenantID, username string) (*spec.User, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	return r.byUser[tenantKey(tenantID, username)], nil
+	user := r.byUser[tenantKey(tenantID, username)]
+	if user == nil || user.DeletedAt != nil {
+		return nil, nil
+	}
+	return user, nil
 }
 
 func (r *UserRepository) FindByEmail(_ context.Context, tenantID, email string) (*spec.User, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	for _, user := range r.bySub {
+		if user.DeletedAt != nil {
+			continue
+		}
 		if user.TenantID == tenantID && user.Email != nil && strings.EqualFold(*user.Email, email) {
 			return user, nil
 		}
@@ -223,6 +240,13 @@ func (r *PasswordHistoryRepository) Add(
 		Encoded:   encoded,
 		CreatedAt: now,
 	}}, r.entries[sub]...)
+	return nil
+}
+
+func (r *PasswordHistoryRepository) DeleteAllForSub(_ context.Context, sub string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.entries, sub)
 	return nil
 }
 
@@ -341,6 +365,17 @@ func (r *ConsentRepository) Revoke(_ context.Context, tenantID, sub, clientID st
 	return nil
 }
 
+func (r *ConsentRepository) DeleteAllForSub(_ context.Context, sub string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for key, consent := range r.consents {
+		if consent.Sub == sub {
+			delete(r.consents, key)
+		}
+	}
+	return nil
+}
+
 func consentKey(tenantID, sub, clientID string) string {
 	return tenantKey(tenantID, sub+"|"+clientID)
 }
@@ -391,6 +426,18 @@ func (r *MfaFactorRepository) Delete(_ context.Context, sub string, factorType s
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	delete(r.factors, mfaFactorKey(sub, factorType))
+	return nil
+}
+
+func (r *MfaFactorRepository) DeleteAllForSub(_ context.Context, sub string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	prefix := sub + "|"
+	for key := range r.factors {
+		if strings.HasPrefix(key, prefix) {
+			delete(r.factors, key)
+		}
+	}
 	return nil
 }
 
@@ -661,6 +708,18 @@ func (s *RefreshTokenStore) RevokeFamily(_ context.Context, familyID string) err
 	return nil
 }
 
+func (s *RefreshTokenStore) DeleteAllForSub(_ context.Context, sub string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for id, rec := range s.byID {
+		if rec.Sub == sub {
+			delete(s.byID, id)
+			delete(s.byHash, rec.Hash)
+		}
+	}
+	return nil
+}
+
 // =====================================================================
 // DeviceCodeStore
 // =====================================================================
@@ -723,6 +782,18 @@ func (s *DeviceCodeStore) Exchange(_ context.Context, deviceCodeHash string) (*s
 	}
 	rec.State = next
 	return cloneDeviceAuthorization(rec), nil
+}
+
+func (s *DeviceCodeStore) DeleteAllForSub(_ context.Context, sub string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for hash, rec := range s.byHash {
+		if rec.Sub != nil && *rec.Sub == sub {
+			delete(s.byHash, hash)
+			delete(s.byUserCode, rec.UserCode)
+		}
+	}
+	return nil
 }
 
 func cloneAuthorizationCode(in *spec.AuthorizationCodeRecord) *spec.AuthorizationCodeRecord {
@@ -886,5 +957,16 @@ func (s *SessionStore) Delete(_ context.Context, id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.sessions, id)
+	return nil
+}
+
+func (s *SessionStore) DeleteAllForSub(_ context.Context, sub string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for id, sess := range s.sessions {
+		if sess.Sub == sub {
+			delete(s.sessions, id)
+		}
+	}
 	return nil
 }

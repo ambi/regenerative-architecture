@@ -90,6 +90,75 @@ func TestAdminUserAPICreatesAndDisablesUser(t *testing.T) {
 	}
 }
 
+func TestAdminUserAPIDeletesUserWithCascade(t *testing.T) {
+	e, repo := newAdminUserHandler(t)
+	csrf, cookie := adminCSRF(t, e, "admin")
+
+	create := adminJSONRequest(t, e, http.MethodPost, "/api/admin/users", csrf, cookie, map[string]any{
+		"preferred_username": "alice",
+		"password":           "initial-password-9182",
+		"email":              "alice@example.com",
+		"roles":              []string{"support"},
+	})
+	if create.Code != http.StatusCreated {
+		t.Fatalf("create status=%d body=%s", create.Code, create.Body.String())
+	}
+	var created struct {
+		Sub string `json:"sub"`
+	}
+	if err := json.Unmarshal(create.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+
+	del := adminJSONRequest(t, e, http.MethodDelete, "/api/admin/users/"+created.Sub, csrf, cookie,
+		map[string]any{"reason": "leaving company"})
+	if del.Code != http.StatusNoContent {
+		t.Fatalf("delete status=%d body=%s", del.Code, del.Body.String())
+	}
+
+	// Tombstone is invisible to FindBySub.
+	if user, _ := repo.FindBySub(context.Background(), created.Sub); user != nil {
+		t.Fatalf("FindBySub returned deleted user: %+v", user)
+	}
+	tombstone, err := repo.FindBySubIncludingDeleted(context.Background(), created.Sub)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tombstone == nil || tombstone.DeletedAt == nil {
+		t.Fatalf("tombstone not persisted: %+v", tombstone)
+	}
+	if tombstone.PreferredUsername != "deleted:"+created.Sub || tombstone.Email != nil {
+		t.Fatalf("PII not anonymized: %+v", tombstone)
+	}
+
+	// Listing no longer shows the user.
+	list := httptest.NewRequest(http.MethodGet, "/api/admin/users", http.NoBody)
+	list.Header.Set("X-Demo-Sub", "admin")
+	listResp := httptest.NewRecorder()
+	e.ServeHTTP(listResp, list)
+	if strings.Contains(listResp.Body.String(), created.Sub) {
+		t.Fatalf("deleted user still listed: %s", listResp.Body.String())
+	}
+
+	// Idempotent.
+	again := adminJSONRequest(t, e, http.MethodDelete, "/api/admin/users/"+created.Sub, csrf, cookie, nil)
+	if again.Code != http.StatusNoContent {
+		t.Fatalf("idempotent delete status=%d body=%s", again.Code, again.Body.String())
+	}
+}
+
+func TestAdminUserAPIRejectsSelfDelete(t *testing.T) {
+	e, _ := newAdminUserHandler(t)
+	csrf, cookie := adminCSRF(t, e, "admin")
+	resp := adminJSONRequest(t, e, http.MethodDelete, "/api/admin/users/admin", csrf, cookie, nil)
+	if resp.Code != http.StatusBadRequest {
+		t.Fatalf("status=%d body=%s", resp.Code, resp.Body.String())
+	}
+	if !strings.Contains(resp.Body.String(), "self_delete_forbidden") {
+		t.Fatalf("unexpected body=%s", resp.Body.String())
+	}
+}
+
 func TestDisabledUserCannotLogIn(t *testing.T) {
 	repo := memory.NewUserRepository()
 	requestStore := memory.NewAuthorizationRequestStore()

@@ -53,12 +53,15 @@ func UserInfo(
 		}
 		return nil, NewOAuthError("invalid_request", "userinfo 拒否: "+strings.Join(d.Reasons, ", "))
 	}
-	u, err := repo.FindBySub(ctx, in.Sub)
+	u, err := repo.FindBySubIncludingDeleted(ctx, in.Sub)
 	if err != nil {
 		return nil, err
 	}
 	if u == nil {
 		return nil, NewOAuthError("invalid_request", "ユーザーが存在しません")
+	}
+	if u.IsDeleted() {
+		return nil, NewOAuthError("invalid_token", "ユーザーは利用できません")
 	}
 	if u.DisabledAt != nil {
 		return nil, NewOAuthError("invalid_token", "ユーザーは無効化されています")

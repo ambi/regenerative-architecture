@@ -101,6 +101,7 @@ func registerTenantRoutes(g *echo.Group, d Deps) {
 	g.PATCH("/api/admin/users/:sub", d.handleUpdateAdminUser)
 	g.POST("/api/admin/users/:sub/disable", d.handleDisableAdminUser)
 	g.POST("/api/admin/users/:sub/enable", d.handleEnableAdminUser)
+	g.DELETE("/api/admin/users/:sub", d.handleDeleteAdminUser)
 	g.GET("/api/admin/clients", d.handleListAdminClients)
 	g.GET("/api/admin/clients/:client_id", d.handleGetAdminClient)
 	g.POST("/api/admin/clients", d.handleCreateAdminClient)

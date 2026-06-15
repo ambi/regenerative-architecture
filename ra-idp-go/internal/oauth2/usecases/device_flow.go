@@ -280,7 +280,7 @@ func ExchangeDeviceCode(ctx context.Context, deps ExchangeDeviceCodeDeps, in Exc
 		return nil, err
 	}
 	if user == nil {
-		return nil, NewOAuthError("server_error", "user missing")
+		return nil, NewOAuthError("invalid_grant", "ユーザーは利用できません")
 	}
 	if user.TenantID != tenantID {
 		return nil, NewOAuthError("invalid_grant", "未知の device_code")

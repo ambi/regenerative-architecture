@@ -2,7 +2,6 @@ package usecases
 
 import (
 	"context"
-	"errors"
 	"slices"
 	"strings"
 	"time"
@@ -96,7 +95,7 @@ func ExchangeCodeForToken(ctx context.Context, deps ExchangeCodeDeps, in Exchang
 		return nil, err
 	}
 	if user == nil {
-		return nil, errors.New("user attached to code no longer exists")
+		return nil, NewOAuthError("invalid_grant", "ユーザーは利用できません")
 	}
 	if user.TenantID != tenantID {
 		return nil, NewOAuthError("invalid_grant", "code が無効です")

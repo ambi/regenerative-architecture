@@ -188,6 +188,10 @@ func (r *UserRepository) FindBySub(ctx context.Context, sub string) (*spec.User,
 	return scanUser(r.Pool.QueryRow(ctx, userSelect+" WHERE sub=$1 AND deleted_at IS NULL", sub))
 }
 
+func (r *UserRepository) FindBySubIncludingDeleted(ctx context.Context, sub string) (*spec.User, error) {
+	return scanUser(r.Pool.QueryRow(ctx, userSelect+" WHERE sub=$1", sub))
+}
+
 func (r *UserRepository) FindByUsername(ctx context.Context, tenantID, username string) (*spec.User, error) {
 	return scanUser(r.Pool.QueryRow(ctx, userSelect+" WHERE tenant_id=$1 AND preferred_username=$2 AND deleted_at IS NULL", tenantID, username))
 }
@@ -285,6 +289,11 @@ func (r *PasswordHistoryRepository) Add(ctx context.Context, sub, encoded string
 	return err
 }
 
+func (r *PasswordHistoryRepository) DeleteAllForSub(ctx context.Context, sub string) error {
+	_, err := r.Pool.Exec(ctx, "DELETE FROM password_history WHERE sub=$1", sub)
+	return err
+}
+
 type PasswordResetTokenStore struct{ Pool *pgxpool.Pool }
 
 func (s *PasswordResetTokenStore) Save(
@@ -367,6 +376,11 @@ ON CONFLICT (sub,type) DO UPDATE SET secret=EXCLUDED.secret,label=EXCLUDED.label
 
 func (r *MfaFactorRepository) Delete(ctx context.Context, sub string, factorType spec.MfaFactorType) error {
 	_, err := r.Pool.Exec(ctx, "DELETE FROM mfa_factors WHERE sub=$1 AND type=$2", sub, factorType)
+	return err
+}
+
+func (r *MfaFactorRepository) DeleteAllForSub(ctx context.Context, sub string) error {
+	_, err := r.Pool.Exec(ctx, "DELETE FROM mfa_factors WHERE sub=$1", sub)
 	return err
 }
 
@@ -462,6 +476,11 @@ WHERE tenant_id=$1 AND sub=$2 AND client_id=$3 AND revoked_at IS NULL`, tenantID
 	return err
 }
 
+func (r *ConsentRepository) DeleteAllForSub(ctx context.Context, sub string) error {
+	_, err := r.Pool.Exec(ctx, "DELETE FROM consents WHERE sub=$1", sub)
+	return err
+}
+
 type RefreshTokenStore struct{ Pool *pgxpool.Pool }
 
 func (s *RefreshTokenStore) FindByHash(ctx context.Context, hash string) (*spec.RefreshTokenRecord, error) {
@@ -501,6 +520,11 @@ func (s *RefreshTokenStore) Rotate(ctx context.Context, parentID string, next *s
 
 func (s *RefreshTokenStore) RevokeFamily(ctx context.Context, familyID string) error {
 	_, err := s.Pool.Exec(ctx, "UPDATE refresh_tokens SET revoked=TRUE WHERE family_id=$1", familyID)
+	return err
+}
+
+func (s *RefreshTokenStore) DeleteAllForSub(ctx context.Context, sub string) error {
+	_, err := s.Pool.Exec(ctx, "DELETE FROM refresh_tokens WHERE sub=$1", sub)
 	return err
 }
 

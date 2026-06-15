@@ -1,5 +1,6 @@
 import {
   IconAdjustments,
+  IconAlertTriangle,
   IconBan,
   IconCheck,
   IconChevronRight,
@@ -13,6 +14,7 @@ import {
   IconSearch,
   IconShield,
   IconShieldCheck,
+  IconTrash,
   IconUser,
   IconUserPlus,
   IconUsers,
@@ -22,6 +24,7 @@ import { type FormEvent, useMemo, useState } from 'react'
 import {
   AuthenticationAPIError,
   createAdminUser,
+  deleteAdminUser,
   listAdminUsers,
   setAdminUserDisabled,
   tenantURL,
@@ -51,6 +54,7 @@ export function AdminUsersPage({
   const [status, setStatus] = useState<StatusFilter>('all')
   const [showCreate, setShowCreate] = useState(false)
   const [showUserEditor, setShowUserEditor] = useState(false)
+  const [showDelete, setShowDelete] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -137,6 +141,14 @@ export function AdminUsersPage({
       },
       disabled ? 'ユーザーを無効化しました。' : 'ユーザーを再有効化しました。',
     )
+  }
+
+  async function handleDelete(user: AdminUser, reason: string) {
+    await run(async () => {
+      await deleteAdminUser(csrfToken, user.sub, reason)
+      setShowDelete(false)
+      await refresh()
+    }, 'ユーザーを削除しました。')
   }
 
   function selectUser(user: AdminUser) {
@@ -382,6 +394,7 @@ export function AdminUsersPage({
                       busy={busy}
                       onEdit={() => setShowUserEditor(true)}
                       onDisabled={() => void handleDisabled(selected)}
+                      onDelete={() => setShowDelete(true)}
                     />
                   ) : (
                     <div className="flex h-full min-h-80 items-center justify-center p-8 text-center text-sm text-slate-500">
@@ -414,6 +427,14 @@ export function AdminUsersPage({
           onClose={() => setShowUserEditor(false)}
         />
       )}
+      {showDelete && selected && (
+        <DeleteUserDialog
+          user={selected}
+          busy={busy}
+          onClose={() => setShowDelete(false)}
+          onConfirm={(reason) => void handleDelete(selected, reason)}
+        />
+      )}
     </div>
   )
 }
@@ -423,11 +444,13 @@ function UserDetails({
   busy,
   onEdit,
   onDisabled,
+  onDelete,
 }: {
   user: AdminUser
   busy: boolean
   onEdit: () => void
   onDisabled: () => void
+  onDelete: () => void
 }) {
   return (
     <div className="flex h-full flex-col">
@@ -510,6 +533,22 @@ function UserDetails({
               <IconBan size={16} aria-hidden="true" />
             )}
             {user.disabled_at ? 'アカウントを再有効化' : 'アカウントを無効化'}
+          </Button>
+        </section>
+
+        <section className="border-t border-slate-200 pt-5">
+          <h3 className="text-sm font-semibold text-red-900">アカウントを削除</h3>
+          <p className="mt-1 text-xs leading-5 text-slate-500">
+            ユーザー本体を匿名化し、同意・リフレッシュトークン・セッション・MFA・パスワード履歴を同時に消去します。元に戻せません。
+          </p>
+          <Button
+            variant="destructive"
+            className="mt-3 w-full"
+            disabled={busy}
+            onClick={onDelete}
+          >
+            <IconTrash size={16} aria-hidden="true" />
+            アカウントを削除
           </Button>
         </section>
       </div>
@@ -758,6 +797,123 @@ function UserEditorDialog({
             </Button>
             <Button type="submit" disabled={busy || usernameInvalid || !changed}>
               {confirming ? '変更を確定' : rolesChanged ? '変更内容を確認' : '保存'}
+            </Button>
+          </div>
+        </form>
+      </Card>
+    </div>
+  )
+}
+
+function DeleteUserDialog({
+  user,
+  busy,
+  onClose,
+  onConfirm,
+}: {
+  user: AdminUser
+  busy: boolean
+  onClose: () => void
+  onConfirm: (reason: string) => void
+}) {
+  const [confirmName, setConfirmName] = useState('')
+  const [reason, setReason] = useState('')
+  const canConfirm = confirmName === user.preferred_username
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!canConfirm) return
+    onConfirm(reason)
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 p-5 backdrop-blur-[2px]"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="delete-user-title"
+    >
+      <button
+        type="button"
+        className="absolute inset-0 cursor-default"
+        aria-label="閉じる"
+        onClick={onClose}
+      />
+      <Card className="relative w-full max-w-lg overflow-hidden shadow-2xl">
+        <div className="flex items-start justify-between border-b border-slate-200 px-6 py-5">
+          <div className="flex gap-3">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-700">
+              <IconAlertTriangle size={18} aria-hidden="true" />
+            </span>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.12em] text-red-700">
+                Irreversible action
+              </p>
+              <h2 id="delete-user-title" className="mt-1 text-xl font-semibold">
+                ユーザーを削除
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                {user.name || user.preferred_username} (@{user.preferred_username})
+              </p>
+            </div>
+          </div>
+          <Button variant="ghost" className="px-2.5" onClick={onClose} aria-label="閉じる">
+            <IconX size={18} aria-hidden="true" />
+          </Button>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <div className="grid gap-5 p-6">
+            <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-xs leading-5 text-red-900">
+              <p className="font-semibold">同時に消えるもの</p>
+              <ul className="mt-1.5 list-disc pl-5">
+                <li>付与済みの同意 (Consent)</li>
+                <li>リフレッシュトークンとアクティブなセッション</li>
+                <li>MFA factor とパスワード履歴</li>
+                <li>進行中の device authorization</li>
+              </ul>
+              <p className="mt-2">
+                ユーザーの <code>sub</code> は監査ログのために残りますが、
+                プロフィール情報は匿名化されます。
+              </p>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="delete-user-confirm">
+                確認のためユーザー名{' '}
+                <span className="font-mono text-slate-700">{user.preferred_username}</span>{' '}
+                を入力してください
+              </Label>
+              <Input
+                id="delete-user-confirm"
+                value={confirmName}
+                onChange={(event) => setConfirmName(event.target.value)}
+                autoFocus
+                autoComplete="off"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="delete-user-reason">削除理由 (任意)</Label>
+              <Input
+                id="delete-user-reason"
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+                placeholder="例: 退職処理 / 本人申請 (GDPR Art.17)"
+              />
+              <p className="text-xs leading-5 text-slate-500">
+                監査イベントに同梱されます。空欄でも削除は実行できます。
+              </p>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-6 py-4">
+            <Button type="button" variant="outline" onClick={onClose} disabled={busy}>
+              キャンセル
+            </Button>
+            <Button type="submit" variant="destructive" disabled={busy || !canConfirm}>
+              <IconTrash size={16} aria-hidden="true" />
+              削除を確定
             </Button>
           </div>
         </form>

@@ -23,10 +23,11 @@ components:
   Authentication:
     description: エンドユーザ (Subject) の identity、credentials、MFA、ログインセッション、パスワードリセット、および管理 API からの User ライフサイクル操作を所有する。
     owns_models: [User, MfaFactor, MfaFactorType, LoginSession, AuthenticationContext, PasswordResetTokenRecord, BrowserLoginRequest, BrowserTotpRequest, BrowserChangePasswordRequest, BrowserForgotPasswordRequest, BrowserResetPasswordRequest, AdminUserCreateRequest, AdminUserUpdateRequest, AdminUserListResponse, AdminUserResponse]
-    owns_events: [UserAuthenticated, AuthenticationFailed, PasswordChanged, LoginThrottled, PasswordResetRequested, EmailSent, UserCreated, UserUpdated, UserDisabled, UserEnabled]
-    owns_interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, ChangePassword, RequestPasswordReset, ResetPasswordWithToken, ListAdminUsers, GetAdminUser, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser]
+    owns_states: [UserLifecycle]
+    owns_events: [UserAuthenticated, AuthenticationFailed, PasswordChanged, LoginThrottled, PasswordResetRequested, EmailSent, UserCreated, UserUpdated, UserDisabled, UserEnabled, UserDeleted]
+    owns_interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, ChangePassword, RequestPasswordReset, ResetPasswordWithToken, ListAdminUsers, GetAdminUser, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser, DeleteAdminUser]
     owns_invariants: [PasswordHistoryNoReuse]
-    owns_permissions: [AdminUserRead, AdminUserCreate, AdminUserUpdate]
+    owns_permissions: [AdminUserRead, AdminUserCreate, AdminUserUpdate, AdminUserDelete]
     owns_objectives: [PiiPurgeAfterDeletion]
     depends_on:
       - { component: Tenancy, reason: User と LoginSession はテナント境界内に閉じ、User 管理 API もテナント単位で動く。 }
@@ -775,6 +776,17 @@ vocabulary:
   UserDisablement:
     definition: User.disabled_at を設定して認証とセッション利用を停止する復活可能な管理操作。削除や PII purge とは異なる。
     aliases: [disable user, アカウント無効化]
+  UserDeletion:
+    definition: User の tombstone 化と関連 aggregate の cascade 削除 (ADR-036)。`deleted_at` を設定し PII フィールドを匿名化、`sub` のみを audit のため保持する。`Deleted` は終端で復元できない。
+    aliases: [delete user, anonymize user, アカウント削除]
+    not_to_confuse_with:
+      - { term: UserDisablement, reason: Disable は復活可能で PII を残す。Delete は終端で PII を即時 anonymize する。 }
+  Deleted:
+    definition: User の終端状態 (ADR-036)。`deleted_at != null` で PII が anonymize 済み。login / token / userinfo は active=false 相当。
+    aliases: [deleted]
+  Delete:
+    definition: User を Deleted に遷移させる管理操作 (ADR-036)。tombstone 化と cascade を 1 オペレーションで実施する。
+    aliases: [delete]
   Tenant:
     definition: ADR-032 で導入した独立した認可境界。Client / User / Consent / 鍵 / ポリシーがこの境界に閉じる。URL 上は Realm という別名で表現される (ADR-033)。
     aliases: [tenant, テナント, Realm, realm]
@@ -1251,7 +1263,7 @@ models:
       disabled_at:          { type: Timestamp, optional: true, description: "管理操作で無効化された時刻 (ADR-031)。non-null なら login / token 経路は active=false 相当。deleted_at と独立で、復活可能。" }
       created_at:           { type: Timestamp }
       updated_at:           { type: Timestamp, optional: true }
-      deleted_at:           { type: Timestamp, optional: true, description: ソフトデリート時刻。+30日でPII物理消去。 }
+      deleted_at:           { type: Timestamp, optional: true, description: "Tombstone 設定時刻 (ADR-036)。non-null なら PII は匿名化済みで login / token 経路は active=false。終端で復元不可。`sub` は audit のためだけ保持し、`preferred_username` は `\"deleted:<sub>\"` に置換される。" }
 
   MfaFactor:
     kind: entity
@@ -2175,6 +2187,16 @@ models:
       actorSub:   { type: String }
       targetSub:  { type: String }
 
+  UserDeleted:
+    kind: event
+    description: 管理者がユーザーを Delete (ADR-036) した。PII は anonymize 済みで、関連 aggregate は cascade 削除されている。reason は admin が任意に残せる自由記述。
+    annotations: { component: Administration }
+    payload:
+      occurredAt: { type: Timestamp }
+      actorSub:   { type: String }
+      targetSub:  { type: String }
+      reason:     { type: String, optional: true }
+
   AdminClientCreated:
     kind: event
     description: 管理者が所属テナントに OAuth client を作成した。秘密情報は含めない。
@@ -2733,6 +2755,20 @@ interfaces:
     bindings:
       - { kind: http, method: POST, path: "/api/admin/users/{sub}/enable", successful_status_codes: ["204"] }
 
+  DeleteAdminUser:
+    description: |
+      管理者がユーザーを Delete する (ADR-036)。tombstone 化と cascade 削除を
+      atomic に実施し、`sub` のみを audit 用に保持する。冪等で、既に削除済の
+      user に対する再呼び出しは no-op として 204 を返す。自分自身を削除する
+      ことはできない (admin / system_admin の自爆防止)。
+    input:
+      sub:    { type: String }
+      reason: { type: String, optional: true, description: 監査用の任意自由記述。 }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [UserDeleted]
+    bindings:
+      - { kind: http, method: DELETE, path: "/api/admin/users/{sub}", request_form: body, successful_status_codes: ["204"] }
+
   ListAdminClients:
     description: 管理者が所属テナントの client を一覧する。
     output:
@@ -3048,6 +3084,20 @@ states:
     transitions:
       - { from: Active,   event: Disable, to: Disabled }
       - { from: Disabled, event: Enable,  to: Active }
+
+  UserLifecycle:
+    description: |
+      User aggregate のライフサイクル (ADR-031 / ADR-036)。Active が通常稼働、
+      Disable で復活可能な無効化、Delete で tombstone 化 (anonymize cascade) と
+      なる。Deleted は終端で復元できない。
+    target: User
+    initial: Active
+    terminal: [Deleted]
+    transitions:
+      - { from: Active,   event: Disable, to: Disabled }
+      - { from: Active,   event: Delete,  to: Deleted }
+      - { from: Disabled, event: Enable,  to: Active }
+      - { from: Disabled, event: Delete,  to: Deleted }
 
 
 # =================================================================
@@ -3887,6 +3937,21 @@ permissions:
         - "actor.disabled_at == null"
         - "context.authenticated == true"
 
+  AdminUserDelete:
+    description: |
+      管理者によるユーザー削除 (ADR-036)。tombstone 化と cascade を伴う。
+      actor.sub == resource.sub かつ admin / system_admin role を持つ場合は
+      use case 側で reject する (自爆防止)。
+    actor: User
+    action: AdminUserDelete
+    resource: User
+    allow_when:
+      and:
+        - "admin in actor.roles"
+        - "actor.disabled_at == null"
+        - "context.authenticated == true"
+        - "actor.tenant_id == resource.tenant_id"
+
   AdminClientsManage:
     description: 所属テナント内の client 一覧・作成・更新・削除。
     actor: User
@@ -4228,9 +4293,9 @@ objectives:
     kind: retention
     target: User
     policy: purge_pii_after
-    retention: "30d"
+    retention: "0s"
     reference: "GDPR Art. 17"
-    note: 監査ログには仮名化された sub のみ残る。
+    note: ADR-036 により Delete は即時 anonymize cascade で実施し、preferred_username / name / email / password_hash / mfa_* / roles を削除と同時に消去する。`sub` のみを audit のため保持する。
   ConsentRecordsRetention:
     kind: retention
     target: Consent

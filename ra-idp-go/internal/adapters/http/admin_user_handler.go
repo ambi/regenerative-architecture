@@ -34,6 +34,10 @@ type adminUserUpdateRequest struct {
 	Roles             *[]string `json:"roles"`
 }
 
+type adminUserDeleteRequest struct {
+	Reason string `json:"reason"`
+}
+
 type adminUserResponse struct {
 	Sub               string     `json:"sub"`
 	PreferredUsername string     `json:"preferred_username"`
@@ -141,6 +145,30 @@ func (d Deps) handleEnableAdminUser(c *echo.Context) error {
 	return d.handleSetAdminUserDisabled(c, false)
 }
 
+func (d Deps) handleDeleteAdminUser(c *echo.Context) error {
+	if err := d.verifyBrowserRequest(c); err != nil {
+		return err
+	}
+	actor, err := d.requireAdmin(c)
+	if err != nil {
+		return d.writeAdminAccessError(c, err)
+	}
+	var input adminUserDeleteRequest
+	if c.Request().ContentLength > 0 {
+		if err := decodeJSON(c.Request(), &input); err != nil {
+			return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+		}
+	}
+	err = authusecases.DeleteUser(c.Request().Context(), d.adminUserDeps(), authusecases.DeleteUserInput{
+		ActorSub: actor.Sub, Sub: c.Param("sub"), Reason: input.Reason, Now: time.Now().UTC(),
+	})
+	if err != nil {
+		return d.writeAdminUserError(c, err)
+	}
+	c.Response().Header().Set("Cache-Control", "no-store")
+	return c.NoContent(http.StatusNoContent)
+}
+
 func (d Deps) handleSetAdminUserDisabled(c *echo.Context, disabled bool) error {
 	if err := d.verifyBrowserRequest(c); err != nil {
 		return err
@@ -189,10 +217,16 @@ func (d Deps) writeAdminAccessError(c *echo.Context, err error) error {
 }
 
 func (d Deps) adminUserDeps() authusecases.AdminUserDeps {
-	return authusecases.AdminUserDeps{
-		UserRepo: d.UserRepo, PasswordHasher: d.PasswordHasher,
-		PasswordHistoryRepo: d.PasswordHistoryRepo, Emit: d.Emit,
+	deps := authusecases.AdminUserDeps{
+		UserRepo: d.UserRepo, ConsentRepo: d.ConsentRepo, RefreshStore: d.RefreshStore,
+		DeviceCodeStore: d.DeviceCodeStore, MfaFactorRepo: d.MfaFactorRepo,
+		PasswordHasher: d.PasswordHasher, PasswordHistoryRepo: d.PasswordHistoryRepo,
+		Emit: d.Emit,
 	}
+	if d.SessionManager != nil {
+		deps.SessionStore = d.SessionManager.Store
+	}
+	return deps
 }
 
 func (d Deps) writeAdminUserError(c *echo.Context, err error) error {
@@ -203,6 +237,8 @@ func (d Deps) writeAdminUserError(c *echo.Context, err error) error {
 		return writeBrowserError(c, http.StatusConflict, "username_conflict", "ユーザー名は既に使用されています")
 	case errors.Is(err, authusecases.ErrInvalidRole):
 		return writeBrowserError(c, http.StatusBadRequest, "invalid_role", "roleが不正です")
+	case errors.Is(err, authusecases.ErrSelfDeleteForbidden):
+		return writeBrowserError(c, http.StatusBadRequest, "self_delete_forbidden", "管理者は自身を削除できません")
 	default:
 		var policyErr *authusecases.PasswordPolicyError
 		if errors.As(err, &policyErr) {

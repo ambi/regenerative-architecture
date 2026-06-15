@@ -113,6 +113,16 @@ type UserEnabled struct {
 func (e *UserEnabled) EventType() string     { return "UserEnabled" }
 func (e *UserEnabled) OccurredAt() time.Time { return e.At }
 
+type UserDeleted struct {
+	At        time.Time `json:"-"`
+	ActorSub  string    `json:"actorSub"`
+	TargetSub string    `json:"targetSub"`
+	Reason    string    `json:"reason,omitempty"`
+}
+
+func (e *UserDeleted) EventType() string     { return "UserDeleted" }
+func (e *UserDeleted) OccurredAt() time.Time { return e.At }
+
 type AdminClientCreated struct {
 	At       time.Time `json:"-"`
 	ActorSub string    `json:"actorSub"`

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"ra-idp-go/internal/spec"
@@ -324,6 +325,32 @@ redis.call('SET', KEYS[1], cjson.encode(rec), 'KEEPTTL')
 return cjson.encode(rec)
 `)
 
+func (s *DeviceCodeStore) DeleteAllForSub(ctx context.Context, sub string) error {
+	pattern := tenantKey(ctx, "device:*")
+	userCodePrefix := tenantKey(ctx, "device:user_code:")
+	iter := s.Client.Scan(ctx, 0, pattern, 100).Iterator()
+	for iter.Next(ctx) {
+		key := iter.Val()
+		if strings.HasPrefix(key, userCodePrefix) {
+			continue
+		}
+		var rec spec.DeviceAuthorization
+		if err := getJSON(ctx, s.Client, key, &rec); err != nil {
+			return err
+		}
+		if rec.Sub == nil || *rec.Sub != sub {
+			continue
+		}
+		pipe := s.Client.TxPipeline()
+		pipe.Del(ctx, key)
+		pipe.Del(ctx, tenantKey(ctx, "device:user_code:"+rec.UserCode))
+		if _, err := pipe.Exec(ctx); err != nil {
+			return err
+		}
+	}
+	return iter.Err()
+}
+
 func (s *DeviceCodeStore) Exchange(ctx context.Context, hash string) (*spec.DeviceAuthorization, error) {
 	result, err := exchangeDevice.Run(ctx, s.Client, []string{tenantKey(ctx, "device:"+hash)}).Text()
 	if errors.Is(err, goredis.Nil) {
@@ -379,4 +406,22 @@ func (s *SessionStore) Find(ctx context.Context, id string) (*spec.LoginSession,
 
 func (s *SessionStore) Delete(ctx context.Context, id string) error {
 	return s.Client.Del(ctx, tenantKey(ctx, "session:"+id)).Err()
+}
+
+func (s *SessionStore) DeleteAllForSub(ctx context.Context, sub string) error {
+	pattern := tenantKey(ctx, "session:*")
+	iter := s.Client.Scan(ctx, 0, pattern, 100).Iterator()
+	for iter.Next(ctx) {
+		key := iter.Val()
+		var session spec.LoginSession
+		if err := getJSON(ctx, s.Client, key, &session); err != nil {
+			return err
+		}
+		if session.Sub == sub {
+			if err := s.Client.Del(ctx, key).Err(); err != nil {
+				return err
+			}
+		}
+	}
+	return iter.Err()
 }

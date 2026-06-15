@@ -1,15 +1,12 @@
 import {
   IconAlertTriangle,
   IconCheck,
-  IconChevronRight,
   IconCopy,
   IconEdit,
   IconKey,
-  IconLogout,
   IconPlus,
   IconRefresh,
   IconSearch,
-  IconShieldCheck,
   IconTrash,
   IconX,
 } from '@tabler/icons-react'
@@ -19,16 +16,14 @@ import {
   createAdminClient,
   deleteAdminClient,
   listAdminClients,
-  tenantURL,
   updateAdminClient,
 } from '../api'
-import { Brand } from '../components/Brand'
+import { AdminShell } from '../components/AdminShell'
 import { Alert } from '../components/ui/alert'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
-import { adminNavItems } from '../lib/adminNav'
 import { cn } from '../lib/utils'
 import type { AdminClient, AdminClientsPage as AdminClientsPageData } from '../types'
 
@@ -189,32 +184,19 @@ export function AdminClientsPage({
   }
 
   return (
-    <div className="min-h-screen bg-[#f5f7fa] text-slate-950">
-      <AdminHeader actorUsername={actorUsername} />
-      <div className="grid min-h-[calc(100vh-4rem)] lg:grid-cols-[248px_minmax(0,1fr)]">
-        <AdminNavigation />
-        <main className="min-w-0">
-          <div className="mx-auto flex max-w-[1500px] flex-col gap-6 p-5 lg:p-8">
-            <div className="flex flex-wrap items-end justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-                  Identity management
-                  <IconChevronRight size={14} aria-hidden="true" />
-                  Applications
-                </div>
-                <h1 className="mt-2 text-3xl font-semibold tracking-[-0.03em]">アプリケーション</h1>
-                <p className="mt-2 text-sm text-slate-600">
-                  OAuth client の接続先、認証方式、許可する grant と scope を管理します。
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Button onClick={openCreate}>
-                  <IconPlus size={17} aria-hidden="true" />
-                  クライアントを追加
-                </Button>
-              </div>
-            </div>
-
+    <>
+      <AdminShell
+        active="clients"
+        actorUsername={actorUsername}
+        title="アプリケーション"
+        description="OAuth client の接続先、認証方式、許可する grant と scope を管理します。"
+        actions={
+          <Button onClick={openCreate}>
+            <IconPlus size={17} aria-hidden="true" />
+            クライアントを追加
+          </Button>
+        }
+      >
             <section className="grid gap-3 sm:grid-cols-3" aria-label="クライアント概要">
               <Metric label="総クライアント" value={clients.length} />
               <Metric label="Confidential" value={clients.filter((client) => client.client_type === 'confidential').length} />
@@ -288,9 +270,7 @@ export function AdminClientsPage({
               </div>
               <div className="border-t border-slate-200 bg-slate-50/70 px-5 py-3 text-xs text-slate-500">{filtered.length} 件を表示</div>
             </Card>
-          </div>
-        </main>
-      </div>
+      </AdminShell>
 
       {(dialog === 'create' || dialog === 'edit') && (
         <ClientFormDialog mode={dialog} form={form} busy={busy} onChange={setForm} onClose={() => setDialog(null)} onSubmit={handleSubmit} />
@@ -299,59 +279,7 @@ export function AdminClientsPage({
         <DeleteDialog client={selected} busy={busy} onClose={() => setDialog(null)} onConfirm={() => void handleDelete()} />
       )}
       {issuedSecret && <SecretDialog value={issuedSecret} onClose={() => setIssuedSecret(null)} />}
-    </div>
-  )
-}
-
-function AdminHeader({ actorUsername }: { actorUsername?: string }) {
-  return (
-    <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
-      <div className="flex h-16 items-center justify-between px-5 lg:px-7">
-        <Brand compact />
-        <div className="flex items-center gap-3">
-          <div className="hidden text-right sm:block">
-            <p className="text-sm font-semibold text-slate-800">{actorUsername ?? 'administrator'}</p>
-            <p className="text-xs text-slate-500">Organization administrator</p>
-          </div>
-          <span className="flex size-9 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white">{(actorUsername ?? 'A').slice(0, 1).toUpperCase()}</span>
-          <Button asChild variant="ghost" className="px-2.5" aria-label="ログアウト">
-            <a href={tenantURL('/end_session')}><IconLogout size={18} aria-hidden="true" /></a>
-          </Button>
-        </div>
-      </div>
-    </header>
-  )
-}
-
-function AdminNavigation() {
-  const items = adminNavItems('clients')
-  return (
-    <aside className="hidden border-r border-slate-200 bg-white lg:flex lg:flex-col">
-      <nav className="flex flex-1 flex-col gap-1 p-4" aria-label="管理メニュー">
-        <p className="mb-2 px-3 text-[0.67rem] font-bold uppercase tracking-[0.14em] text-slate-400">Identity management</p>
-        {items.map((item) => (
-          <a
-            key={item.key}
-            href={item.href}
-            className={cn(
-              'flex h-10 w-full items-center gap-3 rounded-lg px-3 text-left text-sm font-medium',
-              item.active
-                ? 'bg-blue-50 text-blue-800'
-                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
-            )}
-          >
-            <item.icon size={18} stroke={1.8} aria-hidden="true" />
-            {item.label}
-          </a>
-        ))}
-      </nav>
-      <div className="border-t border-slate-200 p-4">
-        <div className="rounded-xl bg-slate-50 p-3.5 text-xs leading-5 text-slate-500">
-          <p className="flex items-center gap-2 font-semibold text-slate-700"><IconShieldCheck size={16} className="text-emerald-600" />Security posture</p>
-          <p className="mt-2">秘密情報は作成直後にだけ表示され、管理 API から再取得できません。</p>
-        </div>
-      </div>
-    </aside>
+    </>
   )
 }
 

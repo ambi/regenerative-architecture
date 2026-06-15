@@ -12,6 +12,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -55,6 +56,7 @@ type accountContextResponse struct {
 type loginAPIRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
+	ReturnTo string `json:"return_to,omitempty"`
 }
 
 type consentAPIRequest struct {
@@ -62,7 +64,8 @@ type consentAPIRequest struct {
 }
 
 type totpAPIRequest struct {
-	Code string `json:"code"`
+	Code     string `json:"code"`
+	ReturnTo string `json:"return_to,omitempty"`
 }
 
 type changePasswordAPIRequest struct {
@@ -170,6 +173,20 @@ func (d Deps) handleAuthorize(c *echo.Context) error {
 func (d Deps) handleTransaction(c *echo.Context) error {
 	req, err := d.transactionRequest(c)
 	if err != nil {
+		if returnTo := c.QueryParam("return_to"); returnTo != "" {
+			if !validAdminReturnTo(c, returnTo) {
+				return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "return_to が不正です")
+			}
+			csrf, csrfErr := d.ensureCSRFCookie(c)
+			if csrfErr != nil {
+				return csrfErr
+			}
+			authn, _ := d.resolveAuthentication(c)
+			if authn != nil && authn.AuthenticationPending {
+				return noStoreJSON(c, http.StatusOK, transactionResponse{Kind: "totp", CSRFToken: csrf})
+			}
+			return noStoreJSON(c, http.StatusOK, transactionResponse{Kind: "login", CSRFToken: csrf})
+		}
 		return writeBrowserError(c, http.StatusUnauthorized, "transaction_unavailable", err.Error())
 	}
 	csrf, err := d.ensureCSRFCookie(c)
@@ -236,16 +253,21 @@ func (d Deps) handleLoginAPI(c *echo.Context) error {
 	if err := d.verifyBrowserRequest(c); err != nil {
 		return err
 	}
-	req, err := d.transactionRequest(c)
-	if err != nil {
-		return writeBrowserError(c, http.StatusUnauthorized, "transaction_unavailable", err.Error())
-	}
 	var input loginAPIRequest
 	if err := decodeJSON(c.Request(), &input); err != nil {
 		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	if strings.TrimSpace(input.Username) == "" || input.Password == "" {
 		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "ユーザー名とパスワードが必要です")
+	}
+	req, transactionErr := d.transactionRequest(c)
+	directAdminLogin := transactionErr != nil && input.ReturnTo != ""
+	if directAdminLogin {
+		if !validAdminReturnTo(c, input.ReturnTo) {
+			return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "return_to が不正です")
+		}
+	} else if transactionErr != nil {
+		return writeBrowserError(c, http.StatusUnauthorized, "transaction_unavailable", transactionErr.Error())
 	}
 
 	normalizedUsername := strings.ToLower(input.Username)
@@ -313,7 +335,14 @@ func (d Deps) handleLoginAPI(c *echo.Context) error {
 		d.Emit(&spec.UserAuthenticated{At: authTime, Sub: user.Sub, AMR: []string{"pwd"}})
 	}
 	if user.MfaEnrolled {
-		return noStoreJSON(c, http.StatusOK, browserFlowResponse{Next: tenantRoute(c, "/totp")})
+		next := tenantRoute(c, "/totp")
+		if directAdminLogin {
+			next += "?return_to=" + url.QueryEscape(input.ReturnTo)
+		}
+		return noStoreJSON(c, http.StatusOK, browserFlowResponse{Next: next})
+	}
+	if directAdminLogin {
+		return noStoreJSON(c, http.StatusOK, browserFlowResponse{RedirectTo: input.ReturnTo})
 	}
 	if err := d.RequestStore.AttachAuthentication(
 		c.Request().Context(), req.ID, user.Sub, authn.AuthTime, authn.AMR, authn.ACR,
@@ -342,10 +371,6 @@ func (d Deps) handleTOTPAPI(c *echo.Context) error {
 	if err := d.verifyBrowserRequest(c); err != nil {
 		return err
 	}
-	req, err := d.transactionRequest(c)
-	if err != nil {
-		return writeBrowserError(c, http.StatusUnauthorized, "transaction_unavailable", err.Error())
-	}
 	authn, _ := d.resolveAuthentication(c)
 	if authn == nil || authn.SessionID == "" {
 		return writeBrowserError(c, http.StatusUnauthorized, "authentication_required", "TOTP検証セッションがありません")
@@ -356,6 +381,15 @@ func (d Deps) handleTOTPAPI(c *echo.Context) error {
 	var input totpAPIRequest
 	if err := decodeJSON(c.Request(), &input); err != nil {
 		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	}
+	req, transactionErr := d.transactionRequest(c)
+	directAdminLogin := transactionErr != nil && input.ReturnTo != ""
+	if directAdminLogin {
+		if !validAdminReturnTo(c, input.ReturnTo) {
+			return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "return_to が不正です")
+		}
+	} else if transactionErr != nil {
+		return writeBrowserError(c, http.StatusUnauthorized, "transaction_unavailable", transactionErr.Error())
 	}
 	result, err := authusecases.VerifyTOTPFactor(
 		c.Request().Context(),
@@ -381,6 +415,9 @@ func (d Deps) handleTOTPAPI(c *echo.Context) error {
 	d.setSessionCookie(c, completed.SessionID)
 	if d.Emit != nil {
 		d.Emit(&spec.UserAuthenticated{At: time.Now().UTC(), Sub: completed.Sub, AMR: completed.AMR})
+	}
+	if directAdminLogin {
+		return noStoreJSON(c, http.StatusOK, browserFlowResponse{RedirectTo: input.ReturnTo})
 	}
 	if err := d.RequestStore.AttachAuthentication(
 		c.Request().Context(), req.ID, completed.Sub, completed.AuthTime, completed.AMR, completed.ACR,
@@ -690,6 +727,21 @@ func (d Deps) transactionRequest(c *echo.Context) (*spec.AuthorizationRequest, e
 		return nil, errors.New("認可トランザクションが無効または期限切れです")
 	}
 	return req, nil
+}
+
+func validAdminReturnTo(c *echo.Context, returnTo string) bool {
+	if strings.Contains(returnTo, "\\") {
+		return false
+	}
+	parsed, err := url.Parse(returnTo)
+	if err != nil || parsed.IsAbs() || parsed.Host != "" || parsed.Fragment != "" {
+		return false
+	}
+	if path.Clean(parsed.Path) != parsed.Path {
+		return false
+	}
+	adminRoot := tenantRoute(c, "/admin")
+	return parsed.Path == adminRoot || strings.HasPrefix(parsed.Path, adminRoot+"/")
 }
 
 func (d Deps) resolveAuthentication(c *echo.Context) (*authdomain.AuthenticationContext, error) {

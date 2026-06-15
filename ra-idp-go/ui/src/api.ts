@@ -96,6 +96,13 @@ export class AuthenticationAPIError extends Error {
   }
 }
 
+export class UnauthenticatedError extends AuthenticationAPIError {
+  constructor(message: string, code?: string) {
+    super(message, code)
+    this.name = 'UnauthenticatedError'
+  }
+}
+
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(tenantURL(url), {
     credentials: 'same-origin',
@@ -104,16 +111,28 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   })
   const body = (await response.json().catch(() => ({}))) as T & APIError
   if (!response.ok) {
-    throw new AuthenticationAPIError(
-      body.message ?? body.error_description ?? '認証サービスに接続できませんでした。',
-      body.error,
-    )
+    const message = body.message ?? body.error_description ?? '認証サービスに接続できませんでした。'
+    if (response.status === 401) {
+      throw new UnauthenticatedError(message, body.error)
+    }
+    throw new AuthenticationAPIError(message, body.error)
   }
   return body
 }
 
 export async function loadPageData(): Promise<PageData> {
   const path = tenantLocalPath()
+  let adminAccount: AccountContextResponse | undefined
+  if (path === '/admin' || path.startsWith('/admin/')) {
+    try {
+      adminAccount = await request<AccountContextResponse>('/api/auth/account')
+    } catch (error) {
+      if (!(error instanceof UnauthenticatedError)) throw error
+      const returnTo = `${window.location.pathname}${window.location.search}`
+      window.location.assign(`${tenantURL('/login')}?return_to=${encodeURIComponent(returnTo)}`)
+      return new Promise<PageData>(() => {})
+    }
+  }
   if (path === '/') {
     return { kind: 'home', demoEnabled: import.meta.env.DEV } satisfies HomePage
   }
@@ -154,13 +173,13 @@ export async function loadPageData(): Promise<PageData> {
   }
   if (path === '/admin') {
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-    const [account, users, clients, consents, recentEvents] = await Promise.all([
-      request<AccountContextResponse>('/api/auth/account'),
+    const [users, clients, consents, recentEvents] = await Promise.all([
       request<AdminUserListResponse>('/api/admin/users'),
       request<AdminClientListResponse>('/api/admin/clients'),
       request<AdminConsentListResponse>('/api/admin/consents'),
       listAdminAuditEvents({ after: since, limit: 100 }),
     ])
+    const account = adminAccount!
     const activeUserCount = users.users.filter((u) => !u.disabled_at).length
     return {
       kind: 'admin-dashboard',
@@ -178,78 +197,60 @@ export async function loadPageData(): Promise<PageData> {
     } satisfies AdminDashboardPage
   }
   if (path === '/admin/users') {
-    const [account, users] = await Promise.all([
-      request<AccountContextResponse>('/api/auth/account'),
-      request<AdminUserListResponse>('/api/admin/users'),
-    ])
+    const users = await request<AdminUserListResponse>('/api/admin/users')
     return {
       kind: 'admin-users',
-      csrfToken: account.csrf_token,
-      actorUsername: account.preferred_username,
+      csrfToken: adminAccount!.csrf_token,
+      actorUsername: adminAccount!.preferred_username,
       users: users.users,
     } satisfies AdminUsersPage
   }
   if (path === '/admin/clients') {
-    const [account, clients] = await Promise.all([
-      request<AccountContextResponse>('/api/auth/account'),
-      request<AdminClientListResponse>('/api/admin/clients'),
-    ])
+    const clients = await request<AdminClientListResponse>('/api/admin/clients')
     return {
       kind: 'admin-clients',
-      csrfToken: account.csrf_token,
-      actorUsername: account.preferred_username,
+      csrfToken: adminAccount!.csrf_token,
+      actorUsername: adminAccount!.preferred_username,
       clients: clients.clients,
     } satisfies AdminClientsPage
   }
   if (path === '/admin/consents') {
-    const [account, consents] = await Promise.all([
-      request<AccountContextResponse>('/api/auth/account'),
-      request<AdminConsentListResponse>('/api/admin/consents'),
-    ])
+    const consents = await request<AdminConsentListResponse>('/api/admin/consents')
     return {
       kind: 'admin-consents',
-      csrfToken: account.csrf_token,
-      actorUsername: account.preferred_username,
+      csrfToken: adminAccount!.csrf_token,
+      actorUsername: adminAccount!.preferred_username,
       consents: consents.consents,
     } satisfies AdminConsentsPage
   }
   if (path === '/admin/audit_events') {
-    const [account, events] = await Promise.all([
-      request<AccountContextResponse>('/api/auth/account'),
-      request<AdminAuditEventListResponse>('/api/admin/audit_events'),
-    ])
+    const events = await request<AdminAuditEventListResponse>('/api/admin/audit_events')
     return {
       kind: 'admin-audit-events',
-      csrfToken: account.csrf_token,
-      actorUsername: account.preferred_username,
-      actorRoles: account.roles ?? [],
-      actorTenantID: account.tenant_id ?? '',
+      csrfToken: adminAccount!.csrf_token,
+      actorUsername: adminAccount!.preferred_username,
+      actorRoles: adminAccount!.roles ?? [],
+      actorTenantID: adminAccount!.tenant_id ?? '',
       events: events.events,
     } satisfies AdminAuditEventsPage
   }
   if (path === '/admin/keys') {
-    const [account, keys] = await Promise.all([
-      request<AccountContextResponse>('/api/auth/account'),
-      request<AdminKeyListResponse>('/api/admin/keys'),
-    ])
+    const keys = await request<AdminKeyListResponse>('/api/admin/keys')
     return {
       kind: 'admin-keys',
-      csrfToken: account.csrf_token,
-      actorUsername: account.preferred_username,
-      actorRoles: account.roles ?? [],
-      actorTenantID: account.tenant_id ?? '',
+      csrfToken: adminAccount!.csrf_token,
+      actorUsername: adminAccount!.preferred_username,
+      actorRoles: adminAccount!.roles ?? [],
+      actorTenantID: adminAccount!.tenant_id ?? '',
       keys: keys.keys,
     } satisfies AdminKeysPage
   }
   if (path === '/admin/tenants') {
-    const [account, tenants] = await Promise.all([
-      request<AccountContextResponse>('/api/auth/account'),
-      request<AdminTenantListResponse>('/admin/tenants'),
-    ])
+    const tenants = await request<AdminTenantListResponse>('/admin/tenants')
     return {
       kind: 'admin-tenants',
-      csrfToken: account.csrf_token,
-      actorUsername: account.preferred_username,
+      csrfToken: adminAccount!.csrf_token,
+      actorUsername: adminAccount!.preferred_username,
       tenants: tenants.tenants,
     } satisfies AdminTenantsPage
   }
@@ -265,7 +266,16 @@ export async function loadPageData(): Promise<PageData> {
     } satisfies ResetPasswordPage
   }
 
-  const data = await request<TransactionResponse>('/api/auth/transaction')
+  const requestedReturnTo = new URLSearchParams(window.location.search).get('return_to') ?? ''
+  const returnTo = requestedReturnTo
+    ? validAdminReturnTo(requestedReturnTo)
+      ? requestedReturnTo
+      : tenantURL('/admin')
+    : undefined
+  const transactionURL = returnTo
+    ? `/api/auth/transaction?return_to=${encodeURIComponent(returnTo)}`
+    : '/api/auth/transaction'
+  const data = await request<TransactionResponse>(transactionURL)
   if (data.kind === 'consent') {
     if (path !== '/consent') {
       window.history.replaceState(null, '', tenantURL('/consent'))
@@ -281,18 +291,19 @@ export async function loadPageData(): Promise<PageData> {
     if (path !== '/totp') {
       window.history.replaceState(null, '', tenantURL('/totp'))
     }
-    return { kind: 'totp', csrfToken: data.csrf_token } satisfies TotpPage
+    return { kind: 'totp', csrfToken: data.csrf_token, returnTo } satisfies TotpPage
   }
   if (path !== '/login') {
     window.history.replaceState(null, '', tenantURL('/login'))
   }
-  return { kind: 'login', csrfToken: data.csrf_token } satisfies LoginPage
+  return { kind: 'login', csrfToken: data.csrf_token, returnTo } satisfies LoginPage
 }
 
 export async function login(
   csrfToken: string,
   username: string,
   password: string,
+  returnTo?: string,
 ): Promise<BrowserFlowResponse> {
   return request('/api/auth/login', {
     method: 'POST',
@@ -300,7 +311,7 @@ export async function login(
       'Content-Type': 'application/json',
       'X-CSRF-Token': csrfToken,
     },
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ username, password, return_to: returnTo }),
   })
 }
 
@@ -318,14 +329,18 @@ export async function submitConsent(
   })
 }
 
-export async function submitTOTP(csrfToken: string, code: string): Promise<BrowserFlowResponse> {
+export async function submitTOTP(
+  csrfToken: string,
+  code: string,
+  returnTo?: string,
+): Promise<BrowserFlowResponse> {
   return request('/api/auth/totp', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'X-CSRF-Token': csrfToken,
     },
-    body: JSON.stringify({ code }),
+    body: JSON.stringify({ code, return_to: returnTo }),
   })
 }
 
@@ -382,7 +397,10 @@ export async function requestPasswordReset(csrfToken: string, email: string): Pr
   })
   if (response.status === 204) return
   const body = (await response.json().catch(() => ({}))) as APIError
-  throw new AuthenticationAPIError(body.message ?? 'リセット要求を送信できませんでした。', body.error)
+  throw new AuthenticationAPIError(
+    body.message ?? 'リセット要求を送信できませんでした。',
+    body.error,
+  )
 }
 
 export async function resetPassword(
@@ -565,7 +583,9 @@ export type AdminAuditEventQuery = {
   allTenants?: boolean
 }
 
-export async function listAdminAuditEvents(query: AdminAuditEventQuery): Promise<AdminAuditEvent[]> {
+export async function listAdminAuditEvents(
+  query: AdminAuditEventQuery,
+): Promise<AdminAuditEvent[]> {
   const params = new URLSearchParams()
   if (query.type) params.set('type', query.type)
   if (query.sub) params.set('sub', query.sub)
@@ -573,9 +593,8 @@ export async function listAdminAuditEvents(query: AdminAuditEventQuery): Promise
   if (query.before) params.set('before', query.before)
   if (query.limit !== undefined) params.set('limit', String(query.limit))
   if (query.allTenants) params.set('all_tenants', 'true')
-  const url = params.size > 0
-    ? `/api/admin/audit_events?${params.toString()}`
-    : '/api/admin/audit_events'
+  const url =
+    params.size > 0 ? `/api/admin/audit_events?${params.toString()}` : '/api/admin/audit_events'
   return (await request<AdminAuditEventListResponse>(url)).events
 }
 
@@ -584,10 +603,7 @@ export async function listAdminKeys(): Promise<AdminKey[]> {
 }
 
 export async function rotateAdminKey(csrfToken: string): Promise<AdminRotateKeyResponse> {
-  return request<AdminRotateKeyResponse>(
-    '/api/admin/keys/rotate',
-    adminRequest(csrfToken, 'POST'),
-  )
+  return request<AdminRotateKeyResponse>('/api/admin/keys/rotate', adminRequest(csrfToken, 'POST'))
 }
 
 export async function listAdminTenants(): Promise<AdminTenant[]> {
@@ -686,6 +702,16 @@ function tenantLocalPath(): string {
 
 export function tenantURL(path: string): string {
   return `${tenantBasePath()}${path}`
+}
+
+export function validAdminReturnTo(returnTo: string): boolean {
+  if (!returnTo.startsWith('/') || returnTo.includes('\\')) return false
+  const parsed = new URL(returnTo, window.location.origin)
+  const adminRoot = tenantURL('/admin')
+  return (
+    parsed.origin === window.location.origin &&
+    (parsed.pathname === adminRoot || parsed.pathname.startsWith(`${adminRoot}/`))
+  )
 }
 
 function base64URL(value: Uint8Array) {

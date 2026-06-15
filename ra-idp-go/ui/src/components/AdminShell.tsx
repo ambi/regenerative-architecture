@@ -24,6 +24,7 @@ export function AdminShell({
   children,
 }: AdminShellProps) {
   const items = adminNavItems(active)
+  const currentItem = items.find((item) => item.active)
   return (
     <div className="min-h-screen bg-[#f5f7fa] text-slate-950">
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
@@ -73,6 +74,7 @@ export function AdminShell({
                     ? 'bg-blue-50 text-blue-800'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
                 )}
+                aria-current={item.active ? 'page' : undefined}
               >
                 <item.icon size={18} stroke={1.8} aria-hidden="true" />
                 {item.label}
@@ -82,12 +84,21 @@ export function AdminShell({
         </aside>
 
         <main className="min-w-0 p-6 lg:p-10">
-          <div className="mx-auto flex max-w-[1200px] flex-col gap-6">
+          <div className="mx-auto flex max-w-[1500px] flex-col gap-6">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{title}</h1>
+                <nav aria-label="breadcrumb">
+                  <ol className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                    <li>Identity management</li>
+                    <li aria-hidden="true">/</li>
+                    <li aria-current="page">{currentItem?.label ?? title}</li>
+                  </ol>
+                </nav>
+                <h1 className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-slate-900">
+                  {title}
+                </h1>
                 {description ? (
-                  <p className="mt-1 max-w-[60ch] text-sm text-slate-600">{description}</p>
+                  <p className="mt-2 max-w-[70ch] text-sm text-slate-600">{description}</p>
                 ) : null}
               </div>
               {actions ? <div className="flex items-center gap-2">{actions}</div> : null}

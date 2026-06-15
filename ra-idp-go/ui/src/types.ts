@@ -6,11 +6,13 @@ export type HomePage = {
 export type LoginPage = {
   kind: 'login'
   csrfToken: string
+  returnTo?: string
 }
 
 export type TotpPage = {
   kind: 'totp'
   csrfToken: string
+  returnTo?: string
 }
 
 export type ConsentPage = {

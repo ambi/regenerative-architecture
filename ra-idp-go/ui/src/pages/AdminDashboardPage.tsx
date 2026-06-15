@@ -36,7 +36,7 @@ export function AdminDashboardPage({
     <AdminShell
       active="dashboard"
       actorUsername={actorUsername}
-      title="概要"
+      title="ダッシュボード"
       description="テナント内のユーザー、アプリケーション、同意、監査ログの状況を一目で確認できます。"
     >
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="サマリー">

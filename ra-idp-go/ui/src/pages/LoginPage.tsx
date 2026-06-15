@@ -16,7 +16,7 @@ import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import type { LoginPage as LoginPageData } from '../types'
 
-export function LoginPage({ csrfToken }: LoginPageData) {
+export function LoginPage({ csrfToken, returnTo }: LoginPageData) {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -31,6 +31,7 @@ export function LoginPage({ csrfToken }: LoginPageData) {
         csrfToken,
         String(form.get('username') ?? ''),
         String(form.get('password') ?? ''),
+        returnTo,
       )
       continueBrowserFlow(result)
     } catch (cause) {
@@ -132,7 +133,10 @@ export function LoginPage({ csrfToken }: LoginPageData) {
             </Button>
 
             <div className="flex justify-center">
-              <a className="text-xs font-medium text-blue-700 hover:underline" href="/forgot_password">
+              <a
+                className="text-xs font-medium text-blue-700 hover:underline"
+                href="/forgot_password"
+              >
                 パスワードを忘れた場合
               </a>
             </div>

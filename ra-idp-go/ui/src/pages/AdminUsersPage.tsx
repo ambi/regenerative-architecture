@@ -3,11 +3,9 @@ import {
   IconAlertTriangle,
   IconBan,
   IconCheck,
-  IconChevronRight,
   IconCircleCheck,
   IconClock,
   IconKey,
-  IconLogout,
   IconMail,
   IconPencil,
   IconRefresh,
@@ -27,17 +25,15 @@ import {
   deleteAdminUser,
   listAdminUsers,
   setAdminUserDisabled,
-  tenantURL,
   type UpdateAdminUserInput,
   updateAdminUser,
 } from '../api'
-import { Brand } from '../components/Brand'
+import { AdminShell } from '../components/AdminShell'
 import { Alert } from '../components/ui/alert'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
-import { adminNavItems } from '../lib/adminNav'
 import { cn } from '../lib/utils'
 import type { AdminUser, AdminUsersPage as AdminUsersPageData } from '../types'
 
@@ -156,95 +152,19 @@ export function AdminUsersPage({
   }
 
   return (
-    <div className="min-h-screen bg-[#f5f7fa] text-slate-950">
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
-        <div className="flex h-16 items-center justify-between px-5 lg:px-7">
-          <div className="flex items-center gap-5">
-            <Brand compact />
-            <div className="hidden h-6 w-px bg-slate-200 sm:block" />
-            <div className="hidden items-center gap-2 px-2 py-1.5 text-sm font-medium text-slate-700 sm:flex">
-              <span className="flex size-7 items-center justify-center rounded-md bg-blue-50 text-xs font-bold text-blue-700">
-                RA
-              </span>
-              Default organization
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="hidden text-right sm:block">
-              <p className="text-sm font-semibold text-slate-800">
-                {actorUsername ?? 'administrator'}
-              </p>
-              <p className="text-xs text-slate-500">Organization administrator</p>
-            </div>
-            <span className="flex size-9 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white">
-              {(actorUsername ?? 'A').slice(0, 1).toUpperCase()}
-            </span>
-            <Button asChild variant="ghost" className="px-2.5" aria-label="ログアウト">
-              <a href={tenantURL('/end_session')}>
-                <IconLogout size={18} aria-hidden="true" />
-              </a>
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      <div className="grid min-h-[calc(100vh-4rem)] lg:grid-cols-[248px_minmax(0,1fr)]">
-        <aside className="hidden border-r border-slate-200 bg-white lg:flex lg:flex-col">
-          <nav className="flex flex-1 flex-col gap-1 p-4" aria-label="管理メニュー">
-            <p className="mb-2 px-3 text-[0.67rem] font-bold uppercase tracking-[0.14em] text-slate-400">
-              Identity management
-            </p>
-            {adminNavItems('users').map((item) => (
-              <a
-                key={item.key}
-                href={item.href}
-                className={cn(
-                  'flex h-10 w-full items-center gap-3 rounded-lg px-3 text-left text-sm font-medium',
-                  item.active
-                    ? 'bg-blue-50 text-blue-800'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
-                )}
-              >
-                <item.icon size={18} stroke={1.8} aria-hidden="true" />
-                {item.label}
-              </a>
-            ))}
-          </nav>
-          <div className="border-t border-slate-200 p-4">
-            <div className="rounded-xl bg-slate-50 p-3.5">
-              <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
-                <IconShieldCheck size={16} className="text-emerald-600" aria-hidden="true" />
-                Security posture
-              </div>
-              <p className="mt-2 text-xs leading-5 text-slate-500">
-                管理操作はセッション、RBAC、CSRF検証で保護されています。
-              </p>
-            </div>
-          </div>
-        </aside>
-
-        <main className="min-w-0">
-          <div className="mx-auto flex max-w-[1500px] flex-col gap-6 p-5 lg:p-8">
-            <div className="flex flex-wrap items-end justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-                  Directory
-                  <IconChevronRight size={14} aria-hidden="true" />
-                  Users
-                </div>
-                <h1 className="mt-2 text-3xl font-semibold tracking-[-0.03em]">ユーザー</h1>
-                <p className="mt-2 text-sm text-slate-600">
-                  組織のID、アクセスロール、アカウント状態を一元管理します。
-                </p>
-              </div>
-              <div className="flex gap-2">
+    <>
+      <AdminShell
+        active="users"
+        actorUsername={actorUsername}
+        title="ユーザー"
+        description="組織のID、アクセスロール、アカウント状態を一元管理します。"
+        actions={
                 <Button onClick={() => setShowCreate(true)}>
                   <IconUserPlus size={17} aria-hidden="true" />
                   ユーザーを追加
                 </Button>
-              </div>
-            </div>
-
+        }
+      >
             <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="ユーザー概要">
               <Metric label="総ユーザー" value={users.length} icon={IconUsers} tone="blue" />
               <Metric
@@ -408,9 +328,7 @@ export function AdminUsersPage({
                 <span>最終更新: {formatDateTime(new Date().toISOString())}</span>
               </div>
             </Card>
-          </div>
-        </main>
-      </div>
+      </AdminShell>
 
       {showCreate && (
         <CreateUserDialog
@@ -435,7 +353,7 @@ export function AdminUsersPage({
           onConfirm={(reason) => void handleDelete(selected, reason)}
         />
       )}
-    </div>
+    </>
   )
 }
 
@@ -541,12 +459,7 @@ function UserDetails({
           <p className="mt-1 text-xs leading-5 text-slate-500">
             ユーザー本体を匿名化し、同意・リフレッシュトークン・セッション・MFA・パスワード履歴を同時に消去します。元に戻せません。
           </p>
-          <Button
-            variant="destructive"
-            className="mt-3 w-full"
-            disabled={busy}
-            onClick={onDelete}
-          >
+          <Button variant="destructive" className="mt-3 w-full" disabled={busy} onClick={onDelete}>
             <IconTrash size={16} aria-hidden="true" />
             アカウントを削除
           </Button>

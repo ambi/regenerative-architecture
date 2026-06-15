@@ -1,0 +1,58 @@
+id: wi-18-unauthenticated-admin-redirect
+title: 未認証の管理画面アクセスを login へ redirect し戻り先を保持する
+completed_at: 2026-06-16
+work_item: work-item.yaml
+status: completed
+
+summary: |
+  `/admin/*` の初期ロードで account API が 401 を返した場合、現在の path と
+  query を `return_to` として `/login` へ移動する。ログイン API と TOTP API
+  は SCL に既定済みの任意 `return_to` を受け取り、認証完了後に元の管理画面
+  へ戻す。戻り先は現在の realm の `/admin` 配下だけを許可する。
+
+semantic_diff:
+  before: "未認証の /admin/* は AuthenticationAPIError の画面で停止する"
+  after: "login へ自動遷移し、password または TOTP 成功後に元の /admin/* へ戻る"
+
+traceability:
+  specification:
+    - "ra-idp-go/spec/scl.yaml BrowserLoginRequest.return_to"
+    - "ra-idp-go/spec/scl.yaml BrowserTotpRequest.return_to"
+    - "ra-idp-go/spec/scl.yaml UX-TRANSACTION-BOUND"
+  implementation:
+    - ra-idp-go/internal/adapters/http/authorize_handler.go
+    - ra-idp-go/ui/src/api.ts
+    - ra-idp-go/ui/src/pages/LoginPage.tsx
+    - ra-idp-go/ui/src/pages/TotpPage.tsx
+  tests:
+    - ra-idp-go/internal/adapters/http/routes_e2e_test.go
+
+affected_guarantees_state:
+  - "API の既存 401 / 403 と admin RBAC 境界は不変"
+  - "CSRF double-submit 検証は直接 login / TOTP でも維持"
+  - >-
+    return_to は scheme / host / fragment / backslash / 別 realm /
+    path traversal を拒否し、現在 realm の /admin 配下だけを許可
+
+verification:
+  - cmd: "bun --cwd ra-idp-go/ui typecheck"
+    result: ok
+  - cmd: "bun --cwd ra-idp-go/ui lint"
+    result: "ok (40 files)"
+  - cmd: "bun --cwd ra-idp-go/ui build"
+    result: "ok (6284 modules)"
+  - cmd: "GOCACHE=/tmp/ra-idp-go-cache go test -race ./..."
+    in: ra-idp-go
+    result: ok
+  - >-
+    E2E: password login 復帰、TOTP login 復帰、//host、backslash、
+    encoded slash、absolute URL、別 realm、dot segment を検証
+  - "実ブラウザのシークレットウィンドウによる手動確認は未実施。"
+
+residual_risk:
+  - "認証後に session が失効して後続 admin API が 401 になった場合の再 redirect は初期 account load に限定される。"
+
+human_decisions:
+  - >-
+    `/authorize` は管理 SPA 用 client の存在を保証できないため採用せず、
+    SCL に既定済みの直接 `/login?return_to=...` を実装した。

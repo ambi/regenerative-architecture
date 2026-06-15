@@ -31,7 +31,7 @@ const DEFAULT_TENANT_ID = 'default'
 
 export function adminNavItems(active: AdminNavKey): AdminNavItem[] {
   const items: AdminNavItem[] = [
-    { key: 'dashboard', label: '概要', icon: IconLayoutDashboard, href: tenantURL('/admin'), active: active === 'dashboard' },
+    { key: 'dashboard', label: 'ダッシュボード', icon: IconLayoutDashboard, href: tenantURL('/admin'), active: active === 'dashboard' },
     { key: 'users', label: 'ユーザー', icon: IconUsers, href: tenantURL('/admin/users'), active: active === 'users' },
     { key: 'clients', label: 'アプリケーション', icon: IconKey, href: tenantURL('/admin/clients'), active: active === 'clients' },
     { key: 'consents', label: '同意', icon: IconCheckupList, href: tenantURL('/admin/consents'), active: active === 'consents' },

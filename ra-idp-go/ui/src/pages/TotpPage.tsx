@@ -8,7 +8,7 @@ import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import type { TotpPage as TotpPageData } from '../types'
 
-export function TotpPage({ csrfToken }: TotpPageData) {
+export function TotpPage({ csrfToken, returnTo }: TotpPageData) {
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -18,7 +18,7 @@ export function TotpPage({ csrfToken }: TotpPageData) {
     setSubmitting(true)
     setError('')
     try {
-      const result = await submitTOTP(csrfToken, String(form.get('code') ?? ''))
+      const result = await submitTOTP(csrfToken, String(form.get('code') ?? ''), returnTo)
       continueBrowserFlow(result)
     } catch (cause) {
       setError(

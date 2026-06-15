@@ -1,0 +1,48 @@
+id: wi-16-admin-shell-visual-consistency
+title: 管理画面のシェル外観を 6 ページで揃える
+completed_at: 2026-06-16
+work_item: work-item.yaml
+status: completed
+
+summary: |
+  AdminUsersPage と AdminClientsPage の独自 header / sidebar / breadcrumb を
+  削除し、全管理ページを AdminShell に統一した。AdminShell は active nav
+  から breadcrumb を生成し、aria-current、actions、1500px の本文幅を
+  一括管理する。sidebar の Security posture ブロックは廃止した。
+  `/admin` の表示名は「概要」から「ダッシュボード」に変更した。
+
+semantic_diff:
+  before: "Users / Clients だけ独自 shell と breadcrumb を持ち、本文幅も異なる"
+  after: "全管理ページが同じ AdminShell、breadcrumb、本文幅、actions 位置を使う"
+
+traceability:
+  implementation:
+    - ra-idp-go/ui/src/components/AdminShell.tsx
+    - ra-idp-go/ui/src/lib/adminNav.ts
+    - ra-idp-go/ui/src/pages/AdminDashboardPage.tsx
+    - ra-idp-go/ui/src/pages/AdminUsersPage.tsx
+    - ra-idp-go/ui/src/pages/AdminClientsPage.tsx
+  specification: "UI 表現のみ。SCL 変更なし"
+
+affected_guarantees_state:
+  - "admin RBAC / API endpoint / CSRF 境界は変更なし"
+  - "breadcrumb は nav + ol 構造、active sidebar は aria-current=page"
+  - "Security posture のページ固有表示は残っていない"
+
+verification:
+  - cmd: "bun --cwd ra-idp-go/ui typecheck"
+    result: ok
+  - cmd: "bun --cwd ra-idp-go/ui lint"
+    result: "ok (40 files)"
+  - cmd: "bun --cwd ra-idp-go/ui build"
+    result: "ok (6284 modules)"
+  - cmd: "GOCACHE=/tmp/ra-idp-go-cache go test -race ./..."
+    in: ra-idp-go
+    result: ok
+  - "手動目視確認は未実施。実ブラウザでのページ切替時の視覚的ジャンプは残リスク。"
+
+residual_risk:
+  - "1500px へ統一したため、従来 1200px だったページは広い画面で行長が変わる。"
+
+human_decisions:
+  - "情報量の多い Users / Clients を狭めず、全ページを 1500px に統一した。"

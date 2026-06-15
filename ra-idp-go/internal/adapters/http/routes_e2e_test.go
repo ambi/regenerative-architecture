@@ -319,6 +319,114 @@ func TestBrowserAPIPostRejectsMissingCSRF(t *testing.T) {
 	}
 }
 
+func TestDirectAdminLoginReturnsToRequestedPage(t *testing.T) {
+	srv := newServer(t)
+	defer srv.Close()
+	client := browserClient(t)
+	returnTo := "/admin/users?status=active"
+
+	transaction := getJSON[struct {
+		Kind      string `json:"kind"`
+		CSRFToken string `json:"csrf_token"`
+	}](t, client, srv.URL+"/api/auth/transaction?return_to="+url.QueryEscape(returnTo))
+	if transaction.Kind != "login" || transaction.CSRFToken == "" {
+		t.Fatalf("unexpected direct login transaction: %+v", transaction)
+	}
+
+	result := postJSON[map[string]string](
+		t,
+		client,
+		srv.URL+"/api/auth/login",
+		transaction.CSRFToken,
+		map[string]string{
+			"username":  demoUsername,
+			"password":  demoPassword,
+			"return_to": returnTo,
+		},
+	)
+	if result["redirect_to"] != returnTo {
+		t.Fatalf("redirect_to=%q, want %q", result["redirect_to"], returnTo)
+	}
+}
+
+func TestDirectAdminLoginRejectsUnsafeReturnTo(t *testing.T) {
+	srv := newServer(t)
+	defer srv.Close()
+	client := browserClient(t)
+	attacks := []string{
+		"//attacker.example/x",
+		"/\\attacker.example/x",
+		"%2F%2Fattacker.example/x",
+		"https://attacker.example/x",
+		"/realms/other/admin/users",
+		"/admin/../status",
+		"/admin/%2e%2e/status",
+	}
+
+	for _, attack := range attacks {
+		t.Run(attack, func(t *testing.T) {
+			resp, err := client.Get(
+				srv.URL + "/api/auth/transaction?return_to=" + url.QueryEscape(attack),
+			)
+			if err != nil {
+				t.Fatalf("GET direct login transaction: %v", err)
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusBadRequest {
+				body, _ := io.ReadAll(resp.Body)
+				t.Fatalf("status=%d, want 400; body=%s", resp.StatusCode, body)
+			}
+		})
+	}
+}
+
+func TestDirectAdminLoginWithTOTPReturnsToRequestedPage(t *testing.T) {
+	srv := newServerWithTOTP(t, totpTestSecret)
+	defer srv.Close()
+	client := browserClient(t)
+	returnTo := "/admin/keys"
+
+	transaction := getJSON[struct {
+		CSRFToken string `json:"csrf_token"`
+	}](t, client, srv.URL+"/api/auth/transaction?return_to="+url.QueryEscape(returnTo))
+	loginResult := postJSON[map[string]string](
+		t,
+		client,
+		srv.URL+"/api/auth/login",
+		transaction.CSRFToken,
+		map[string]string{
+			"username":  demoUsername,
+			"password":  demoPassword,
+			"return_to": returnTo,
+		},
+	)
+	if loginResult["next"] != "/totp?return_to=%2Fadmin%2Fkeys" {
+		t.Fatalf("next=%q", loginResult["next"])
+	}
+
+	totpTransaction := getJSON[struct {
+		Kind      string `json:"kind"`
+		CSRFToken string `json:"csrf_token"`
+	}](t, client, srv.URL+"/api/auth/transaction?return_to="+url.QueryEscape(returnTo))
+	if totpTransaction.Kind != "totp" {
+		t.Fatalf("kind=%q, want totp", totpTransaction.Kind)
+	}
+	code, err := authusecases.GenerateTOTP(totpTestSecret, time.Now().UTC().Unix())
+	if err != nil {
+		t.Fatalf("generate totp: %v", err)
+	}
+	totpResult := postJSON[map[string]string](
+		t,
+		client,
+		srv.URL+"/api/auth/totp",
+		totpTransaction.CSRFToken,
+		map[string]string{"code": code, "return_to": returnTo},
+	)
+	if totpResult["redirect_to"] != returnTo {
+		t.Fatalf("redirect_to=%q, want %q", totpResult["redirect_to"], returnTo)
+	}
+}
+
 func TestBrowserAPIPostRejectsForeignOrigin(t *testing.T) {
 	srv := newServer(t)
 	defer srv.Close()

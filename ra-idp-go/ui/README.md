@@ -36,6 +36,9 @@
   確定すること。
 - 将来のグループ、アプリケーション、監査ログ追加を想定した一貫したナビゲーションを
   提供するが、未実装機能を操作可能に見せないこと。
+- 管理画面は `AdminShell` でヘッダ、sidebar、breadcrumb、本文幅、操作位置を統一する。
+- 未認証で `/admin/*` を直リンクした場合は `/login` へ移動し、認証後に同じ管理画面へ
+  復帰する。戻り先は現在の realm の `/admin` 配下だけを許可する。
 
 参考:
 [Keycloak Server Administration Guide](https://www.keycloak.org/docs/latest/server_admin/),

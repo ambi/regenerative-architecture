@@ -1,0 +1,173 @@
+id: wi-10-admin-ui-polish
+title: 管理画面・ログイン画面の使い勝手を直す (forgot link 位置 / 編集ダイアログ統合 / dashboard / refresh ボタン)
+completed_at: 2026-06-16
+work_item: work-item.yaml
+status: completed
+
+summary: |
+  4 件の UX ノイズを 1 本の WI として 4 commit に分けて直した。
+  どれも単独では小さいが、放置すると管理者と end user の体験を地味に
+  削り続ける箇所だったため、まとめて整理した。
+  backend (Go) には触らず、すべて UI のみで完結している。
+
+  part 1 (LoginPage): "パスワードを忘れた場合" リンクを password 入力欄の
+  下、submit ボタンの直後に移した。tab 順が
+  `username → password → submit → forgot link` で安定した。
+
+  part 2 (UserEditorDialog): 属性編集とロール編集の 2 ダイアログを統合し、
+  Profile セクションと Roles セクションを 1 画面に並べた。ロールに変更が
+  ある場合だけ "review changes" 二段階確認を出すという原則は維持した。
+
+  part 3 (AdminDashboardPage): `/admin` を独立した landing page にした。
+  カード 4 枚 (users / clients / granted consents / 24h audit events) +
+  直近 5 件の監査イベント + クイックリンクで、何が起きているかを 1 画面で
+  把握できるようにした。集計用の新規 endpoint は作らず、既存 list endpoint
+  を Promise.all で叩いて UI 側で count する形に留めた。
+
+  part 4 (refresh icon): admin 5 ページの "更新" / "再読込" テキストボタンを
+  IconRefresh のみのアイコンボタンに置き換えた。"...を追加" ボタンの隣で
+  primary 操作と並んで見えていた refresh が、副次的な affordance として
+  正しく扱われる位置に収まった。
+
+decision_changes:
+  - 新規 ADR なし。本 WI は UI のみで完結し、既存 ADR の範囲内で UX を
+    調整した。
+
+go_changes:
+  - 変更なし。backend (use case / HTTP handler / SCL) は wi-10 のスコープ
+    から意図的に除外。集計 dashboard も既存 list endpoint を流用する。
+
+ui_changes:
+  - >-
+    src/pages/LoginPage.tsx: "パスワードを忘れた場合" リンクを password
+    入力上のヘッダ行から submit ボタン直下の中央寄せ div に移動。
+    視覚階層 (font-size / color) は維持。
+  - >-
+    src/api.ts: `updateAdminUserAttributes` と `updateAdminUserRoles` を
+    削除し、`updateAdminUser(csrfToken, sub, input)` + `UpdateAdminUserInput`
+    型に統合。pointer optional 相当の partial PATCH 形式 (変更フィールド
+    のみを送る) に揃えた。
+  - >-
+    src/pages/AdminUsersPage.tsx: `AttributeEditorDialog` と
+    `RoleEditorDialog` を `UserEditorDialog` 1 つに統合。Profile セクション
+    (preferred_username / name / email / email_verified) と Roles セクション
+    を 1 画面に並べ、保存ボタンも 1 つにした。ロールに変更がある場合だけ
+    `RoleDiff` を使った "変更内容を確認" 画面を挟む。UserDetails の Profile
+    見出し横のボタンは "属性を編集" → "編集" に改名し、"ロールを変更"
+    ボタンは削除。
+  - >-
+    src/types.ts: `AdminDashboardPage` 型を追加。userCount /
+    activeUserCount / disabledUserCount / clientCount /
+    grantedConsentCount / auditEventCount24h / recentEvents +
+    actorRoles / actorTenantID を含む。
+  - >-
+    src/api.ts: `loadPageData()` に `/admin` 分岐を追加。account /
+    listAdminUsers / listAdminClients / listAdminConsents /
+    listAdminAuditEvents({after: 24h前}) を Promise.all で並列フェッチ
+    して UI 側で count する。新規 backend endpoint は無し。
+  - >-
+    src/lib/adminNav.ts: `dashboard` を `AdminNavKey` に追加し、
+    sidebar 先頭に "概要" 項目 (IconLayoutDashboard, href=/admin) を
+    挿入。他項目との active 排他は既存ロジック (active === key) で動く。
+  - >-
+    src/pages/AdminDashboardPage.tsx (新規): AdminShell で表示。
+    4 つの MetricCard、直近 5 件の監査イベントリスト (クリックで
+    `/admin/audit_events?type=...` に遷移)、クイックリンク 4-5 個
+    (ユーザを追加 / クライアントを追加 / 鍵を確認 / 監査ログを開く +
+    system_admin かつ default tenant 時のみ "テナントを管理")。
+  - >-
+    src/router.tsx: `/admin` ルートを追加し、PageData が
+    'admin-dashboard' kind のときに AdminDashboardPage を描画。
+  - >-
+    src/pages/AdminUsersPage.tsx / AdminClientsPage.tsx /
+    AdminConsentsPage.tsx / AdminKeysPage.tsx / AdminTenantsPage.tsx:
+    "更新" / "再読込" テキストボタンを `IconRefresh` のみのアイコン
+    ボタンに置換 (aria-label="一覧を再読み込み"、サイズ size-9 px-0)。
+    AdminUsersPage と AdminClientsPage はテーブル直上のフィルタ行に
+    配置し直し、AdminConsentsPage はフィルタ Card に同居させ、
+    AdminKeysPage と AdminTenantsPage は AdminShell の actions slot に
+    残した上で icon-only 化した。
+  - >-
+    AdminAuditEventsPage はあえて変更していない。既存の "絞り込み"
+    submit ボタンが現在のフィルタ条件で再 query を発火しており、
+    refresh と重複した affordance を増やすとノイズになるため。
+
+documentation_changes:
+  - 変更なし。README の admin UI 説明には軽微な調整も入れていない
+    (wi-10 のスコープ通り、新規記述を増やさない)。
+
+scl_changes:
+  - 変更なし。新規 endpoint / 新規モデル / 新規 event は無し。
+
+semantic_diff:
+  before:
+    login_tab_order: "username → forgot link → password → submit"
+    admin_user_edit: "属性とロールを 2 ダイアログで別々に保存"
+    admin_landing: "/admin への直リンクで `/admin/users` 等の個別ページに着地"
+    admin_refresh_button: "更新 / 再読込 のテキストボタンが primary action の隣"
+  after:
+    login_tab_order: "username → password → submit → forgot link"
+    admin_user_edit: "1 ダイアログで profile + roles を保存。roles 変更時のみ 2 段階確認"
+    admin_landing: "/admin に集計ダッシュボード。4 metric + 直近 5 audit + quick links"
+    admin_refresh_button: "IconRefresh のみのアイコンボタンに統一 (5 ページ)"
+
+affected_guarantees_state:
+  - >-
+    admin RBAC: AdminDashboardPage は既存 `verifyBrowserRequest` +
+    `requireAdmin` を通る (新規経路を追加していないため)。
+  - >-
+    CSRF: dashboard は read-only のため CSRF token 不要。GET endpoint
+    のみ。UserEditorDialog の保存は既存 PATCH の CSRF protection をそのまま
+    使う。
+  - >-
+    UserEditorDialog: ロール変更時の "review changes" 二段階確認は維持。
+    admin / system_admin role の付け外しが他の編集に紛れて起きない。
+  - >-
+    SCL coherence: scl.yaml を変更していないため SCLPermissionsCoverage
+    系テストは無影響。
+  - >-
+    backend 既存挙動: PATCH `/admin/users/:sub` の pointer-optional
+    semantics に乗り、変更フィールドのみを送る。`equalOptionalString`
+    で no-change を判定する既存 use case 挙動は不変。
+
+verification:
+  - cmd: 'bun --cwd ra-idp-go/ui typecheck'
+    result: ok (tsc --noEmit pass)
+  - cmd: 'bun --cwd ra-idp-go/ui lint'
+    result: ok (biome lint pass, 40 files)
+  - cmd: 'bun --cwd ra-idp-go/ui build'
+    result: ok (vite build pass, 6284 modules)
+  - cmd: 'go test ./internal/adapters/http/...'
+    in: ra-idp-go
+    result: ok (admin handler 既存テストの回帰なし)
+  - >-
+    手動確認 (residual): 各 commit ごとの実ブラウザ操作は本セッションでは
+    未実施。typecheck / lint / build / go test がすべて緑であることから
+    回帰の主リスクは低いが、wi-10 の verification にある手動 1〜4 は
+    dev サーバ起動時に行う必要がある。
+
+residual_risk:
+  - >-
+    AdminDashboardPage は集計に listAdminAuditEvents(after=24h前, limit=100)
+    を使う。24 時間以内に 100 件を超える環境では `auditEventCount24h` が
+    100 で頭打ちになる。SaaS 想定では十分だが、運用環境で件数が増えたら
+    別 WI で paginated count or 専用 metrics endpoint を検討する。
+  - >-
+    UserEditorDialog の 1 リクエスト統合により、profile と roles 両方に
+    変更があるケースで失敗時のロールバック粒度が "全部 or 何もせず"
+    になる。backend `UpdateUser` use case が atomically 失敗するため
+    実害は小さいが、片方だけ成功させたいケースはサポートしない。
+  - >-
+    AdminAuditEventsPage を意図的に未改修にした。本 WI のスコープに
+    含まれるが、追加 affordance が重複になるため見送った。将来 audit
+    page を別ペース (ライブテーリング等) に置き換えるときに refresh
+    icon を導入する想定。
+
+approver_note: |
+  wi-10 は 4 commit に分けて main にマージ済:
+  - 22d598c part 1 (LoginPage forgot link)
+  - 44d594c part 2 (UserEditorDialog 統合)
+  - 13485c7 part 3 (AdminDashboardPage)
+  - 635dce8 part 4 (refresh icon)
+  続けて wi-8 (ユーザ削除 + anonymize cascade) / wi-9 (group) に着手する
+  予定。

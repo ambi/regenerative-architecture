@@ -208,10 +208,6 @@ export function AdminClientsPage({
                 </p>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" disabled={busy} onClick={() => void run(() => refresh(), '一覧を更新しました。')}>
-                  <IconRefresh size={17} aria-hidden="true" />
-                  更新
-                </Button>
                 <Button onClick={openCreate}>
                   <IconPlus size={17} aria-hidden="true" />
                   クライアントを追加
@@ -234,11 +230,20 @@ export function AdminClientsPage({
             )}
 
             <Card className="overflow-hidden shadow-[0_1px_2px_rgb(15_23_42/4%)]">
-              <div className="border-b border-slate-200 p-4">
-                <div className="relative max-w-xl">
+              <div className="flex flex-col gap-3 border-b border-slate-200 p-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="relative w-full max-w-xl">
                   <IconSearch size={18} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true" />
                   <Input value={query} onChange={(event) => setQuery(event.target.value)} className="h-10 pl-10" placeholder="名前、client ID、redirect URI、scope で検索" aria-label="クライアントを検索" />
                 </div>
+                <Button
+                  variant="outline"
+                  className="size-9 px-0"
+                  disabled={busy}
+                  aria-label="一覧を再読み込み"
+                  onClick={() => void run(() => refresh(), '一覧を更新しました。')}
+                >
+                  <IconRefresh size={16} aria-hidden="true" />
+                </Button>
               </div>
               <div className="grid min-h-[520px] xl:grid-cols-[minmax(0,1.55fr)_420px]">
                 <div className="min-w-0 overflow-x-auto">

@@ -72,23 +72,26 @@ export function AdminConsentsPage({
       actorUsername={actorUsername}
       title="同意 (Consents)"
       description="ユーザーがクライアントに与えた scope の付与状況。取り消しは即時に反映されます。"
-      actions={
-        <Button variant="outline" onClick={() => run(() => refresh(selected ?? undefined), '一覧を更新しました。')} disabled={busy}>
-          <IconRefresh size={16} aria-hidden="true" />
-          再読込
-        </Button>
-      }
     >
       {error ? <Alert variant="destructive">{error}</Alert> : null}
       {notice ? <Alert variant="success">{notice}</Alert> : null}
 
-      <Card className="p-4">
+      <Card className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
         <Input
           placeholder="sub / client_id / scope で絞り込み"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="max-w-md"
         />
+        <Button
+          variant="outline"
+          className="size-9 shrink-0 px-0"
+          aria-label="一覧を再読み込み"
+          disabled={busy}
+          onClick={() => run(() => refresh(selected ?? undefined), '一覧を更新しました。')}
+        >
+          <IconRefresh size={16} aria-hidden="true" />
+        </Button>
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">

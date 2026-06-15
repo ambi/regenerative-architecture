@@ -71,11 +71,12 @@ export function AdminKeysPage({
         <>
           <Button
             variant="outline"
+            className="size-9 px-0"
+            aria-label="一覧を再読み込み"
             onClick={() => run(() => refresh(selected?.kid), '一覧を更新しました。')}
             disabled={busy}
           >
             <IconRefresh size={16} aria-hidden="true" />
-            再読込
           </Button>
           {canRotate ? (
             <Button onClick={() => setConfirm(true)} disabled={busy}>

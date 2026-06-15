@@ -226,14 +226,6 @@ export function AdminUsersPage({
                 </p>
               </div>
               <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  disabled={busy}
-                  onClick={() => void run(() => refresh(), '一覧を更新しました。')}
-                >
-                  <IconRefresh size={17} aria-hidden="true" />
-                  更新
-                </Button>
                 <Button onClick={() => setShowCreate(true)}>
                   <IconUserPlus size={17} aria-hidden="true" />
                   ユーザーを追加
@@ -299,6 +291,15 @@ export function AdminUsersPage({
                       </button>
                     ))}
                   </div>
+                  <Button
+                    variant="outline"
+                    className="size-9 px-0"
+                    disabled={busy}
+                    aria-label="一覧を再読み込み"
+                    onClick={() => void run(() => refresh(), '一覧を更新しました。')}
+                  >
+                    <IconRefresh size={16} aria-hidden="true" />
+                  </Button>
                 </div>
               </div>
 

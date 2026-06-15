@@ -6,6 +6,7 @@ import type {
   AdminClientsPage,
   AdminConsent,
   AdminConsentsPage,
+  AdminDashboardPage,
   AdminKey,
   AdminKeysPage,
   AdminTenant,
@@ -150,6 +151,31 @@ export async function loadPageData(): Promise<PageData> {
       sub: data.sub,
       preferredUsername: data.preferred_username,
     } satisfies ChangePasswordPage
+  }
+  if (path === '/admin') {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+    const [account, users, clients, consents, recentEvents] = await Promise.all([
+      request<AccountContextResponse>('/api/auth/account'),
+      request<AdminUserListResponse>('/api/admin/users'),
+      request<AdminClientListResponse>('/api/admin/clients'),
+      request<AdminConsentListResponse>('/api/admin/consents'),
+      listAdminAuditEvents({ after: since, limit: 100 }),
+    ])
+    const activeUserCount = users.users.filter((u) => !u.disabled_at).length
+    return {
+      kind: 'admin-dashboard',
+      csrfToken: account.csrf_token,
+      actorUsername: account.preferred_username,
+      actorRoles: account.roles ?? [],
+      actorTenantID: account.tenant_id ?? '',
+      userCount: users.users.length,
+      activeUserCount,
+      disabledUserCount: users.users.length - activeUserCount,
+      clientCount: clients.clients.length,
+      grantedConsentCount: consents.consents.filter((c) => c.state === 'granted').length,
+      auditEventCount24h: recentEvents.length,
+      recentEvents: recentEvents.slice(0, 5),
+    } satisfies AdminDashboardPage
   }
   if (path === '/admin/users') {
     const [account, users] = await Promise.all([

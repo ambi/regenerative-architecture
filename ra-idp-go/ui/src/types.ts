@@ -76,6 +76,21 @@ export type AdminUsersPage = {
   users: AdminUser[]
 }
 
+export type AdminDashboardPage = {
+  kind: 'admin-dashboard'
+  csrfToken: string
+  actorUsername?: string
+  actorRoles: string[]
+  actorTenantID: string
+  userCount: number
+  activeUserCount: number
+  disabledUserCount: number
+  clientCount: number
+  grantedConsentCount: number
+  auditEventCount24h: number
+  recentEvents: AdminAuditEvent[]
+}
+
 export type AdminClient = {
   tenant_id: string
   client_id: string
@@ -192,6 +207,7 @@ export type PageData =
   | ChangePasswordPage
   | ForgotPasswordPage
   | ResetPasswordPage
+  | AdminDashboardPage
   | AdminUsersPage
   | AdminClientsPage
   | AdminConsentsPage

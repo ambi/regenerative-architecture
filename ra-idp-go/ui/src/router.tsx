@@ -9,6 +9,7 @@ import { CallbackPage } from './pages/CallbackPage'
 import { AdminAuditEventsPage } from './pages/AdminAuditEventsPage'
 import { AdminClientsPage } from './pages/AdminClientsPage'
 import { AdminConsentsPage } from './pages/AdminConsentsPage'
+import { AdminDashboardPage } from './pages/AdminDashboardPage'
 import { AdminKeysPage } from './pages/AdminKeysPage'
 import { AdminTenantsPage } from './pages/AdminTenantsPage'
 import { AdminUsersPage } from './pages/AdminUsersPage'
@@ -79,6 +80,12 @@ export function createAppRouter(data: PageData) {
     path: '/reset_password',
     component: () => (data.kind === 'reset-password' ? <ResetPasswordPage {...data} /> : null),
   })
+  const adminDashboardRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/admin',
+    component: () =>
+      data.kind === 'admin-dashboard' ? <AdminDashboardPage {...data} /> : null,
+  })
   const adminUsersRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/admin/users',
@@ -123,6 +130,7 @@ export function createAppRouter(data: PageData) {
       changePasswordRoute,
       forgotPasswordRoute,
       resetPasswordRoute,
+      adminDashboardRoute,
       adminUsersRoute,
       adminClientsRoute,
       adminConsentsRoute,

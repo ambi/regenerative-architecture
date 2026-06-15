@@ -1,0 +1,264 @@
+id: wi-8-admin-user-delete-with-anonymization
+title: 管理画面からのユーザ削除 (anonymize cascade) を導入する
+completed_at: 2026-06-16
+work_item: work-item.yaml
+status: completed
+
+summary: |
+  `/admin/users` に DELETE 経路を追加し、削除を「即時 anonymize cascade」
+  として実装した。ADR-036 を新規に採用し、SCL では User 状態機械
+  `UserLifecycle` の追加・終端状態 `Deleted`・`DeleteUser` interface・
+  `UserDeleted` event・`AdminUserDelete` permission を入れた。
+  バックエンドは新規 use case `authusecases.DeleteUser` で tombstone 化と
+  関連 aggregate (Consent / RefreshToken / Session / PasswordHistory /
+  MfaFactor / DeviceAuthorization) の cascade 削除を一括で行う。HTTP は
+  `DELETE /api/admin/users/:sub` を既存 `verifyBrowserRequest` +
+  `requireAdmin` の上に乗せ、UI は AdminUsersPage に "アカウントを削除"
+  危険ボタンと preferred_username typing 確認ダイアログを追加した。
+
+decision_changes:
+  - >-
+    新規 ADR-036 (decisions/ADR-036-user-deletion-and-anonymization.md):
+    hard delete は採用せず anonymize を既定とする方針、tombstone のフィールド
+    置換規約 (`preferred_username = "deleted:<sub>"` / `password_hash =
+    "$deleted$"` / その他 PII を nil)、cascade 対象 aggregate の列挙、削除済
+    user の認証・introspect・userinfo の挙動 (login 不可 / introspect は
+    active=false / userinfo は 401 invalid_token)、自爆防止 (actor.Sub ==
+    target.Sub かつ admin / system_admin role を含む場合 reject)、`sub` の
+    再利用禁止、deletion 自体の audit event 規約を確定。
+
+scl_changes:
+  - >-
+    spec/scl.yaml: vocabulary に `UserDeletion` / `Deleted` / `Delete` を
+    追加し、UserDisablement の not_to_confuse_with に `UserDeletion` を
+    明記。User.deleted_at の description を ADR-036 準拠に書き換え。
+  - >-
+    states に `UserLifecycle` (target=User, initial=Active, terminal=
+    [Deleted], transitions: Active→Disable→Disabled, Active→Delete→Deleted,
+    Disabled→Enable→Active, Disabled→Delete→Deleted) を追加。
+  - >-
+    interfaces に `DeleteAdminUser` (DELETE `/api/admin/users/{sub}`、
+    request_form: body、successful_status_codes: ["204"]、emits:
+    [UserDeleted]) を追加。
+  - >-
+    models に event `UserDeleted` (payload: occurredAt / actorSub /
+    targetSub / reason optional) を追加。
+  - >-
+    permissions に `AdminUserDelete` (admin role + actor.disabled_at == null
+    + authenticated + tenant 一致) を追加。
+  - >-
+    Authentication component の owns_states / owns_events /
+    owns_interfaces / owns_permissions を更新し、新しい関連を所有させる。
+  - >-
+    objective `PiiPurgeAfterDeletion` を `retention: 30d` から `0s` に
+    変更し、note を「ADR-036 により Delete は即時 anonymize cascade で
+    実施」に書き換え。
+
+go_changes:
+  domain:
+    - >-
+      internal/spec/schemas.go: User struct に `IsDeleted()` helper を追加
+      (deleted_at != nil を判定)。フィールド `DeletedAt *time.Time` は
+      既存。
+    - >-
+      internal/spec/events.go: `UserDeleted` event (ActorSub / TargetSub /
+      Reason / OccurredAt) を追加。
+    - >-
+      internal/spec/policy.go: `ActionAdminUserDelete` 定数と permission
+      mapping、action rules ([actor_is_admin, actor_is_active,
+      actor_is_authenticated, actor_and_resource_share_tenant]) を追加。
+  ports:
+    - >-
+      internal/oauth2/ports/client_repository.go: UserRepository に
+      `FindBySubIncludingDeleted` を追加 (tombstone を含めて引く)。
+      ConsentRepository に `DeleteAllForSub` を追加。
+    - >-
+      internal/oauth2/ports/refresh_token_store.go: `DeleteAllForSub` 追加。
+    - >-
+      internal/oauth2/ports/device_code_store.go: `DeleteAllForSub` 追加。
+    - >-
+      internal/authentication/ports/session_store.go: `DeleteAllForSub` 追加。
+    - >-
+      internal/authentication/ports/password_history_repository.go:
+      `DeleteAllForSub` 追加。
+    - >-
+      internal/authentication/ports/mfa_factor_repository.go:
+      `DeleteAllForSub` 追加。
+  usecases:
+    - >-
+      internal/authentication/usecases/admin_users.go: `DeleteUser`
+      use case を追加。actor RBAC 確認 → FindBySubIncludingDeleted →
+      自爆防止 pre-check → tombstone 置換 → 関連 aggregate cascade →
+      `user.deleted` event emit。冪等 (既に deleted の場合は no-op、event
+      も emit しない)。`ErrSelfDeleteForbidden` 新規 sentinel。
+      `AdminUserDeps` に `ConsentRepo` / `RefreshStore` / `DeviceCodeStore`
+      / `SessionStore` / `MfaFactorRepo` を追加。
+  persistence:
+    - >-
+      memory: UserRepository.FindBySub / FindByUsername / FindByEmail に
+      `deleted_at != nil` フィルタを追加 (これまで一覧 FindAll だけが
+      filter していたのを揃える)。FindBySubIncludingDeleted 新設。
+      その他 ConsentRepository / RefreshTokenStore / DeviceCodeStore /
+      SessionStore / PasswordHistoryRepository / MfaFactorRepository に
+      `DeleteAllForSub` を実装。
+    - >-
+      postgres: FindBySubIncludingDeleted 追加 (フィルタ無し)。
+      Consent / RefreshToken / PasswordHistory / MfaFactor の
+      `DeleteAllForSub` を追加。User 本体は既存 Save がそのまま
+      tombstone 値を upsert する (DDL は 0001 init に既に deleted_at と
+      `users_preferred_username_active_idx` の部分一意 index が存在)。
+    - >-
+      redis: SessionStore / DeviceCodeStore の `DeleteAllForSub` を
+      SCAN ベースで実装。Tenant prefix 内のキーを enumerate し、sub
+      一致のものを Pipeline で削除。device は device:user_code:* を
+      ペアで削除。
+  http:
+    - >-
+      internal/adapters/http/admin_user_handler.go: `handleDeleteAdminUser`
+      を追加。`verifyBrowserRequest` + `requireAdmin` の上で動き、JSON
+      body の `reason` (任意) を読み、`authusecases.DeleteUser` を呼ぶ。
+      204 No Content を返す。`writeAdminUserError` に
+      `ErrSelfDeleteForbidden` ハンドリングを追加 (400
+      self_delete_forbidden)。`adminUserDeps()` に新規依存をワイヤ。
+    - >-
+      internal/adapters/http/routes.go: `DELETE /api/admin/users/:sub` を
+      tenant スコープのルートに追加。
+    - >-
+      内部 auth/token 経路の deleted user ガードを統一: `userinfo` は
+      FindBySubIncludingDeleted 経由で 401 invalid_token を返す
+      ように更新 (既存の disabled 経路に並ぶ)。`refresh_tokens` と
+      `device_flow` と `exchange_code` は `user == nil` を `invalid_grant`
+      ("ユーザーは利用できません") として扱うよう変更し、refresh では
+      family 失効も同時に走らせる。
+  ui:
+    - >-
+      ui/src/api.ts: `deleteAdminUser(csrfToken, sub, reason?)` を追加。
+      reason は trim 後に空でない場合だけ body に乗せる。
+    - >-
+      ui/src/pages/AdminUsersPage.tsx: UserDetails に "アカウントを削除"
+      destructive ボタンを追加。`DeleteUserDialog` 新設 (preferred_username
+      の typing 一致を確定条件、reason は任意フィールド)。削除成功時に
+      `setShowDelete(false)` と `refresh()` を呼び、選択は自動的に先頭の
+      残存 user に遷移。
+
+tests:
+  go:
+    - >-
+      internal/authentication/usecases/admin_users_test.go:
+      `TestDeleteUserAnonymizesAndCascades` で seed (Consent /
+      RefreshToken / Session / MfaFactor) を入れて Delete → tombstone と
+      cascade の有無、再 delete が no-op (event 発行も無し) を検証。
+      `TestDeleteUserRejectsSelfDelete` で admin role 持ち自分自身の
+      削除が `ErrSelfDeleteForbidden` で reject されることを検証。
+    - >-
+      internal/adapters/http/admin_user_handler_test.go:
+      `TestAdminUserAPIDeletesUserWithCascade` で DELETE 後の tombstone・
+      list 非表示・冪等を検証。`TestAdminUserAPIRejectsSelfDelete` で
+      400 self_delete_forbidden を検証。
+
+documentation_changes:
+  - >-
+    ra-idp-go/README.md: "範囲" 節の admin user API 行に削除 (ADR-036,
+    anonymize cascade) を追記。Phase 4 ロードマップから "ユーザ削除" 行を
+    削除し、リード文を「削除は実装済、残るは group 集約」に書き換え。
+
+semantic_diff:
+  before:
+    admin_user_lifecycle: "Active / Disabled だけ。Delete 経路なし"
+    cascade_aggregates: "consent / refresh / session が user を超えて生存可"
+    tombstone: "deleted_at は schema にあるが書き込み経路なし"
+    userinfo_when_deleted: "(発生しない)"
+  after:
+    admin_user_lifecycle: "Active / Disabled / Deleted (終端)"
+    cascade_aggregates: "Consent / RefreshToken / Session / PasswordHistory / MfaFactor / DeviceAuthorization が DeleteUser でまとめて消える"
+    tombstone: "preferred_username = deleted:<sub>、PII は nil、password_hash = $deleted$ (sentinel)、deleted_at = now"
+    userinfo_when_deleted: "401 invalid_token (ユーザーは利用できません)"
+    refresh_when_deleted: "invalid_grant + family 失効"
+
+affected_guarantees_state:
+  - >-
+    tenant isolation: cross-tenant delete は禁止のまま。`requireAdmin` が
+    actor.TenantID == request.TenantID を要求し、DeleteUser use case でも
+    target.TenantID != tenancy.TenantID(ctx) のとき ErrUserNotFound を
+    返す。
+  - >-
+    自爆防止: actor.Sub == target.Sub かつ target.Roles に admin / system_admin
+    が含まれる場合は ErrSelfDeleteForbidden で reject。HTTP は 400
+    self_delete_forbidden として返す。
+  - >-
+    既発行 access token: short-lived JWT は expiry まで RS で検証は通る
+    (本 WI スコープ外)。本 WI では `/introspect` (refresh token 経由) と
+    `/userinfo` (deleted user に対して 401 invalid_token) を整合させ、
+    refresh token は cascade で消去されるため `/token` (refresh) でも
+    invalid_grant が返るようにした。
+  - >-
+    SCL coherence: UserLifecycle と Delete vocabulary、UserDeleted event、
+    AdminUserDelete permission を追加。SCLPermissionsCoverage 系の
+    coherence test と admin policy test、state machine validation を pass。
+  - >-
+    監査保全: UserDeleted event は actor_sub / target_sub / reason を持ち、
+    AdminAuditEvent として永続化される (既存 audit emit 経路に乗る)。
+  - >-
+    backend 既存挙動: FindBySub のセマンティクスを memory / postgres
+    両 adapter で揃え (deleted を除外)、FindBySubIncludingDeleted を
+    別途追加。これにより既存の oauth2/refresh/exchange/device/userinfo
+    callers は意図せず deleted user を見ない。
+
+verification:
+  - cmd: 'go test ./...'
+    in: ra-idp-go
+    result: ok (全パッケージ pass)
+  - cmd: 'go vet ./...'
+    in: ra-idp-go
+    result: ok
+  - cmd: 'go build ./...'
+    in: ra-idp-go
+    result: ok
+  - cmd: 'bun --cwd ra-idp-go/ui typecheck'
+    result: ok
+  - cmd: 'bun --cwd ra-idp-go/ui lint'
+    result: ok (40 files、警告無し)
+  - cmd: 'bun --cwd ra-idp-go/ui build'
+    result: ok (vite build pass、6284 modules)
+  - >-
+    手動確認 (residual): dev サーバ上での "AdminUsersPage で削除 →
+    introspect が active=false / userinfo が 401 / refresh が invalid_grant /
+    再 login 不可" の e2e は本セッションでは未実施。memory adapter で
+    cascade と tombstone は単体テストで検証済。
+
+residual_risk:
+  - >-
+    PostgreSQL adapter は単体テストの対象外 (`postgres` パッケージは
+    `[no test files]`)。DeleteAllForSub の SQL は memory adapter と同じ
+    意味論を想定して書いたが、実 DB での挙動 (FK 制約 / トランザクション
+    境界) の確認は本 WI では未実施。0001_init.sql の consents には
+    `ON DELETE RESTRICT` があるが、user 本体を anonymize するだけで
+    hard delete はしないため、FK 違反は起きない設計。
+  - >-
+    Redis SessionStore / DeviceCodeStore の `DeleteAllForSub` は SCAN
+    ベース。tenant 内のキー数が極端に多い環境では遅延が増えうる。
+    現状の運用想定では admin 操作なので問題にならないが、将来 SCIM
+    deprovisioning 等で頻度が増えたら secondary index 化を検討する。
+  - >-
+    DeleteUser use case の cascade は use case 側で順次呼ぶ純粋な
+    composition で、PostgreSQL の `pgx.BeginTx` で 1 トランザクションに
+    束ねていない。部分失敗時には user 本体は tombstone 化 + 一部
+    aggregate が残存する可能性がある。再 DeleteUser を呼べば cascade だけ
+    再実行されるため修復可能だが、運用上の note として ADR-036 に書く
+    余地がある (本 WI では risk_notes 通り cascade は memory / postgres
+    両 adapter で同じテーブルテストを回す形を取らず、memory のみ単体
+    テストで cascade を検証している)。
+  - >-
+    既発行 short-lived JWT は expiry まで RS で検証は通る。Back-Channel
+    Logout / CAEP の RP 通知は Phase 3 スコープで、本 WI では `/introspect`
+    と `/userinfo` の active=false / 401 のみを保証する。
+  - >-
+    手動 e2e (dev server + 実ブラウザでの削除 → introspect / userinfo /
+    refresh / 再 login の挙動確認) は本セッションでは未実施。次回 dev
+    起動時に行う。
+
+approver_note: |
+  次の WI は wi-9 (Group aggregate + admin CRUD)。group が入ると User の
+  effective_roles = `user.roles ∪ ⋃ group.roles` の解決が必要になり、
+  admin / system_admin の判定経路 (requireAdmin) と AuthZEN ルールに
+  影響する。Delete cascade も group メンバーシップ削除を追加する。

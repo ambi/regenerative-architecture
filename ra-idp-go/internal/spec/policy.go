@@ -125,6 +125,11 @@ var actionNameMapping = map[string]string{
 	"AdminKeysRotate":             ActionAdminKeysRotate,
 }
 
+func ActionNameForPermission(permissionName string) (string, bool) {
+	action, ok := actionNameMapping[permissionName]
+	return action, ok
+}
+
 var actionRules = map[string][]string{
 	ActionTokenGrantAuthorizationCode: {
 		"client_must_declare_grant",

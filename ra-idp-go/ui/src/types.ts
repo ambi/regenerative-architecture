@@ -198,6 +198,34 @@ export type AdminTenantsPage = {
   tenants: AdminTenant[]
 }
 
+export type AdminRoleInterface = {
+  name: string
+  method: string
+  path: string
+}
+
+export type AdminRolePermission = {
+  name: string
+  action: string
+  description: string
+  requirements: string[]
+  interfaces: AdminRoleInterface[]
+}
+
+export type AdminRole = {
+  name: string
+  description: string
+  aliases: string[]
+  permissions: AdminRolePermission[]
+}
+
+export type AdminRolesPage = {
+  kind: 'admin-roles'
+  actorUsername?: string
+  roles: AdminRole[]
+  users: AdminUser[]
+}
+
 export type PageData =
   | HomePage
   | LoginPage
@@ -216,6 +244,7 @@ export type PageData =
   | AdminAuditEventsPage
   | AdminKeysPage
   | AdminTenantsPage
+  | AdminRolesPage
 
 export type BrowserFlowResponse = {
   next?: string

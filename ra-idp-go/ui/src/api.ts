@@ -9,6 +9,8 @@ import type {
   AdminDashboardPage,
   AdminKey,
   AdminKeysPage,
+  AdminRole,
+  AdminRolesPage,
   AdminTenant,
   AdminTenantsPage,
   AdminUser,
@@ -84,6 +86,10 @@ type AdminRotateKeyResponse = {
 
 type AdminTenantListResponse = {
   tenants: AdminTenant[]
+}
+
+type AdminRoleListResponse = {
+  roles: AdminRole[]
 }
 
 export class AuthenticationAPIError extends Error {
@@ -204,6 +210,18 @@ export async function loadPageData(): Promise<PageData> {
       actorUsername: adminAccount!.preferred_username,
       users: users.users,
     } satisfies AdminUsersPage
+  }
+  if (path === '/admin/roles') {
+    const [roles, users] = await Promise.all([
+      request<AdminRoleListResponse>('/api/admin/policy/roles'),
+      request<AdminUserListResponse>('/api/admin/users'),
+    ])
+    return {
+      kind: 'admin-roles',
+      actorUsername: adminAccount!.preferred_username,
+      roles: roles.roles,
+      users: users.users,
+    } satisfies AdminRolesPage
   }
   if (path === '/admin/clients') {
     const clients = await request<AdminClientListResponse>('/api/admin/clients')

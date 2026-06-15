@@ -11,6 +11,7 @@ import { AdminClientsPage } from './pages/AdminClientsPage'
 import { AdminConsentsPage } from './pages/AdminConsentsPage'
 import { AdminDashboardPage } from './pages/AdminDashboardPage'
 import { AdminKeysPage } from './pages/AdminKeysPage'
+import { AdminRolesPage } from './pages/AdminRolesPage'
 import { AdminTenantsPage } from './pages/AdminTenantsPage'
 import { AdminUsersPage } from './pages/AdminUsersPage'
 import { ChangePasswordPage } from './pages/ChangePasswordPage'
@@ -91,6 +92,11 @@ export function createAppRouter(data: PageData) {
     path: '/admin/users',
     component: () => (data.kind === 'admin-users' ? <AdminUsersPage {...data} /> : null),
   })
+  const adminRolesRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/admin/roles',
+    component: () => (data.kind === 'admin-roles' ? <AdminRolesPage {...data} /> : null),
+  })
   const adminClientsRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/admin/clients',
@@ -132,6 +138,7 @@ export function createAppRouter(data: PageData) {
       resetPasswordRoute,
       adminDashboardRoute,
       adminUsersRoute,
+      adminRolesRoute,
       adminClientsRoute,
       adminConsentsRoute,
       adminAuditEventsRoute,

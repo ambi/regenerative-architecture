@@ -5,6 +5,7 @@ import {
   IconCheck,
   IconCircleCheck,
   IconClock,
+  IconDotsVertical,
   IconKey,
   IconMail,
   IconPencil,
@@ -34,6 +35,13 @@ import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '../components/ui/dropdown-menu'
 import { cn } from '../lib/utils'
 import type { AdminUser, AdminUsersPage as AdminUsersPageData } from '../types'
 
@@ -46,7 +54,9 @@ export function AdminUsersPage({
 }: AdminUsersPageData) {
   const [users, setUsers] = useState(initialUsers)
   const [selectedSub, setSelectedSub] = useState(initialUsers[0]?.sub ?? '')
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState(
+    () => new URLSearchParams(window.location.search).get('role') ?? '',
+  )
   const [status, setStatus] = useState<StatusFilter>('all')
   const [showCreate, setShowCreate] = useState(false)
   const [showUserEditor, setShowUserEditor] = useState(false)
@@ -384,6 +394,37 @@ function UserDetails({
             </div>
             <p className="mt-0.5 text-sm text-slate-500">@{user.preferred_username}</p>
           </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                className="size-9 px-0"
+                aria-label="ユーザー操作"
+                disabled={busy}
+              >
+                <IconDotsVertical size={18} aria-hidden="true" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                className={user.disabled_at ? undefined : 'text-red-700'}
+                onSelect={onDisabled}
+              >
+                {user.disabled_at ? (
+                  <IconCheck size={17} aria-hidden="true" />
+                ) : (
+                  <IconBan size={17} aria-hidden="true" />
+                )}
+                {user.disabled_at ? 'アカウントを再有効化' : 'アカウントを無効化'}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="my-1 h-px bg-slate-200" />
+              <DropdownMenuItem className="text-red-700" onSelect={onDelete}>
+                <IconTrash size={17} aria-hidden="true" />
+                アカウントを削除
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -393,12 +434,10 @@ function UserDetails({
             <h3 className="text-xs font-bold uppercase tracking-[0.1em] text-slate-400">Profile</h3>
             <Button
               type="button"
-              variant="ghost"
-              className="h-7 px-2 text-xs font-semibold text-blue-700 hover:text-blue-800"
               disabled={busy}
               onClick={onEdit}
             >
-              <IconPencil size={14} aria-hidden="true" />
+              <IconPencil size={16} aria-hidden="true" />
               編集
             </Button>
           </div>
@@ -434,36 +473,6 @@ function UserDetails({
           </div>
         </section>
 
-        <section className="mt-auto border-t border-slate-200 pt-5">
-          <h3 className="text-sm font-semibold text-slate-900">アカウント状態</h3>
-          <p className="mt-1 text-xs leading-5 text-slate-500">
-            無効化すると新規ログイン、既存セッション、トークン更新が拒否されます。
-          </p>
-          <Button
-            variant={user.disabled_at ? 'outline' : 'destructive'}
-            className="mt-3 w-full"
-            disabled={busy}
-            onClick={onDisabled}
-          >
-            {user.disabled_at ? (
-              <IconCheck size={16} aria-hidden="true" />
-            ) : (
-              <IconBan size={16} aria-hidden="true" />
-            )}
-            {user.disabled_at ? 'アカウントを再有効化' : 'アカウントを無効化'}
-          </Button>
-        </section>
-
-        <section className="border-t border-slate-200 pt-5">
-          <h3 className="text-sm font-semibold text-red-900">アカウントを削除</h3>
-          <p className="mt-1 text-xs leading-5 text-slate-500">
-            ユーザー本体を匿名化し、同意・リフレッシュトークン・セッション・MFA・パスワード履歴を同時に消去します。元に戻せません。
-          </p>
-          <Button variant="destructive" className="mt-3 w-full" disabled={busy} onClick={onDelete}>
-            <IconTrash size={16} aria-hidden="true" />
-            アカウントを削除
-          </Button>
-        </section>
       </div>
     </div>
   )

@@ -1,10 +1,17 @@
-import { IconLogout } from '@tabler/icons-react'
+import { IconChevronDown, IconKey, IconLogout, IconUserCircle } from '@tabler/icons-react'
 import type { ReactNode } from 'react'
 import { tenantURL } from '../api'
 import { adminNavItems, type AdminNavKey } from '../lib/adminNav'
 import { cn } from '../lib/utils'
 import { Brand } from './Brand'
-import { Button } from './ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu'
 
 type AdminShellProps = {
   active: AdminNavKey
@@ -30,7 +37,14 @@ export function AdminShell({
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="flex h-16 items-center justify-between px-5 lg:px-7">
           <div className="flex items-center gap-5">
-            <Brand compact />
+            <a
+              href={tenantURL('/admin')}
+              aria-current={active === 'dashboard' ? 'page' : undefined}
+              aria-label="管理コンソール"
+              className="rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600/30"
+            >
+              <Brand compact />
+            </a>
             <div className="hidden h-6 w-px bg-slate-200 sm:block" />
             <div className="hidden items-center gap-2 px-2 py-1.5 text-sm font-medium text-slate-700 sm:flex">
               <span className="flex size-7 items-center justify-center rounded-md bg-blue-50 text-xs font-bold text-blue-700">
@@ -39,31 +53,60 @@ export function AdminShell({
               Default organization
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="hidden text-right sm:block">
-              <p className="text-sm font-semibold text-slate-800">
-                {actorUsername ?? 'administrator'}
-              </p>
-              <p className="text-xs text-slate-500">Organization administrator</p>
-            </div>
-            <span className="flex size-9 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white">
-              {(actorUsername ?? 'A').slice(0, 1).toUpperCase()}
-            </span>
-            <Button asChild variant="ghost" className="px-2.5" aria-label="ログアウト">
-              <a href={tenantURL('/end_session')}>
-                <IconLogout size={18} aria-hidden="true" />
-              </a>
-            </Button>
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="flex items-center gap-3 rounded-lg px-2 py-1.5 text-left hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600/30"
+                aria-label="アカウントメニュー"
+              >
+                <div className="hidden text-right sm:block">
+                  <p className="text-sm font-semibold text-slate-800">
+                    {actorUsername ?? 'administrator'}
+                  </p>
+                  <p className="text-xs text-slate-500">Organization administrator</p>
+                </div>
+                <span className="flex size-9 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white">
+                  {(actorUsername ?? 'A').slice(0, 1).toUpperCase()}
+                </span>
+                <IconChevronDown size={15} className="text-slate-400" aria-hidden="true" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>
+                <p className="text-xs font-medium text-slate-500">ログイン中</p>
+                <p className="mt-0.5 text-sm font-semibold text-slate-900">
+                  {actorUsername ?? 'administrator'}
+                </p>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator className="my-1 h-px bg-slate-200" />
+              <DropdownMenuItem asChild>
+                <a href={tenantURL('/account/password')}>
+                  <IconUserCircle size={17} aria-hidden="true" />
+                  アカウント概要
+                </a>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <a href={tenantURL('/account/password')}>
+                  <IconKey size={17} aria-hidden="true" />
+                  パスワードを変更
+                </a>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="my-1 h-px bg-slate-200" />
+              <DropdownMenuItem asChild>
+                <a href={tenantURL('/end_session')} className="text-red-700">
+                  <IconLogout size={17} aria-hidden="true" />
+                  ログアウト
+                </a>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
 
       <div className="grid min-h-[calc(100vh-4rem)] lg:grid-cols-[248px_minmax(0,1fr)]">
         <aside className="hidden border-r border-slate-200 bg-white lg:flex lg:flex-col">
           <nav className="flex flex-1 flex-col gap-1 p-4" aria-label="管理メニュー">
-            <p className="mb-2 px-3 text-[0.67rem] font-bold uppercase tracking-[0.14em] text-slate-400">
-              Identity management
-            </p>
             {items.map((item) => (
               <a
                 key={item.key}
@@ -89,9 +132,19 @@ export function AdminShell({
               <div>
                 <nav aria-label="breadcrumb">
                   <ol className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-                    <li>Identity management</li>
-                    <li aria-hidden="true">/</li>
-                    <li aria-current="page">{currentItem?.label ?? title}</li>
+                    {active === 'dashboard' ? (
+                      <li aria-current="page">管理コンソール</li>
+                    ) : (
+                      <>
+                        <li>
+                          <a href={tenantURL('/admin')} className="hover:text-blue-700 hover:underline">
+                            管理コンソール
+                          </a>
+                        </li>
+                        <li aria-hidden="true">/</li>
+                        <li aria-current="page">{currentItem?.label ?? title}</li>
+                      </>
+                    )}
                   </ol>
                 </nav>
                 <h1 className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-slate-900">

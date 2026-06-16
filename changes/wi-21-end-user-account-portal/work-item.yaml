@@ -1,0 +1,413 @@
+id: wi-21-end-user-account-portal
+title: エンドユーザー向け「マイページ」(Account Portal) を実運用相当で用意する
+created_at: 2026-06-17
+status: pending
+authors: [tn]
+
+motivation: |
+  現状 end-user が自分自身に対して触れる UI は `/account/password`
+  (パスワード変更) しか存在しない。OAuth クライアント側で profile を
+  編集する場合は admin に頼むか直接 DB を触るしかなく、IdP として
+  最低限欠かせる self-service が無い。
+
+  比較対象として、業界の "マイページ" は概ね以下を揃える:
+
+  - **Keycloak Account Console (`/realms/{realm}/account/`)**:
+    Personal info / Account security (password / authenticator /
+    devices / sign-in attempts) / Applications (granted clients) /
+    Linked accounts / Resources (UMA)。
+  - **Okta End-User Dashboard**: Profile / Security Methods /
+    Recent Activity / My Apps / Settings (display / language)。
+  - **Google "myaccount.google.com"**: 個人情報 / セキュリティ
+    (パスワード・2 段階認証・パスキー・バックアップコード・最近の
+    アクティビティ・接続済みデバイス・サードパーティアプリ) /
+    プライバシーとデータ / 共有・連絡先 / 支払い (本 IdP では対象外)。
+
+  本 WI はこの "Self-Service" の中核を ra-idp に持ち込み、admin に頼ら
+  ずに end-user が完結できる範囲を明確化する。`spec.User` の拡張は
+  [[wi-19-rich-user-attributes]] が、ログイン履歴・セッション一覧は
+  [[wi-20-authentication-event-history]] が、それぞれ前提となるバック
+  エンドを用意する。本 WI は **これらを統合した end-user 向け portal
+  UI と self-service API** を担当する。
+
+scope:
+  decision:
+    - >-
+      新規 ADR-042 **end-user-account-portal-scope**: end-user が
+      self-service で変更可能な範囲と、admin にしか変更できない範囲を
+      列挙する。以下を self に許可する初期スコープとする:
+        - personal info: name 系 / nickname / picture URL / locale /
+          zoneinfo / phone / address / recovery_email / recovery_phone
+        - secondary email の add/remove/verify (primary email の変更は
+          再検証フローを通す)
+        - password 変更 (既存)
+        - MFA factor の enroll / remove (TOTP は実装済み、WebAuthn /
+          SMS は別 WI)
+        - personal access のセッション一覧と revoke
+        - 接続済みクライアントの consent revoke
+        - 個人データのエクスポート (GDPR 第 15 条 right of access)
+        - アカウント削除リクエスト (ADR-036 に従い admin が承認 /
+          自動承認は tenant policy 次第)
+      admin にしか触れないのは:
+        - roles / status (active|disabled|locked|staged|suspended)
+        - organization 属性 (department / manager / employee_number)
+        - custom attribute のうち editable_by_user=false なもの
+        - impersonation 状態の編集
+    - >-
+      ADR-043 **account-portal-csrf-and-step-up**: self-service の
+      mutation は (a) 通常 mutation は CSRF + same-origin、(b) 高
+      sensitivity (password / MFA / email primary / delete account /
+      revoke all sessions) は **step-up auth** を要求する。step-up は
+      "直近 N 分以内に再認証 (password or MFA) を完了している" を
+      条件とする。N は ADR で 5 分とする。
+    - >-
+      ADR-044 **account-portal-data-export**: 個人データ JSON エクスポート
+      の形式を定める (OIDC UserInfo + custom attribute + sign-in
+      activity 直近 90 日 + sessions 直近 90 日 + consents)。生成は
+      非同期ジョブにし、完成までに数十秒〜分単位かかってよい。完成
+      時はメール送信 (ADR-035 経由) と、portal の "Downloads" タブで
+      再ダウンロード可能。
+
+  scl:
+    - >-
+      新規 interface (Authentication / Tenancy component に分散):
+        GetAccountSummary               (self)
+        UpdateAccountProfile            (self)         # wi-19 の self 経路の薄い再公開
+        AddSecondaryEmail / VerifySecondaryEmail / RemoveSecondaryEmail
+        UpdateRecoveryEmail / UpdateRecoveryPhone
+        StartStepUpAuthentication / CompleteStepUpAuthentication
+        ListMySessions / RevokeMySession / RevokeMyOtherSessions
+        ListMySignInActivity            (self)         # wi-20 の薄い再公開
+        ListMyConsents / RevokeMyConsent
+        ListMyConnectedClients
+        RequestAccountDataExport / DownloadAccountDataExport
+        RequestAccountDeletion / CancelAccountDeletionRequest
+        ListMyRequiredActions            (self)
+      対応 permission を追加: `SelfAccountRead` / `SelfAccountWrite` /
+      `SelfConsentManage` / `SelfDataExport` / `SelfAccountDelete`。
+    - >-
+      新規 model:
+        AccountSummary  (User の self 用射影 + organization 公開部分 +
+                         lifecycle.requiredActions + lastLoginAt +
+                         passwordChangedAt + mfaEnrolledFactors[])
+        DataExportJob   (id / sub / tenantId / requestedAt / completedAt? /
+                         expiresAt / downloadUrl? / status: requested|
+                         processing|ready|expired|failed)
+        AccountDeletionRequest (sub / tenantId / requestedAt /
+                                approvedAt? / status: pending|approved|
+                                rejected|cancelled)
+    - >-
+      新規イベント:
+        AccountProfileUpdated   (self による更新を [[wi-19]] と区別)
+        StepUpRequested / StepUpCompleted
+        DataExportRequested / DataExportReady / DataExportDownloaded
+        AccountDeletionRequested / AccountDeletionCancelled /
+        AccountDeletionApproved / AccountDeletionRejected
+        ConsentRevokedBySelf
+
+  go:
+    domain:
+      - >-
+        `internal/authentication/usecases` に self 経路用の薄い
+        use case 群を追加する。wi-19 が用意した `UpdateUserProfile` を
+        portal 用に export し、`actor.sub == target.sub` の制約を
+        二重に強制する (handler 側 + use case 側)。
+      - >-
+        `DataExportJob` aggregate は `internal/account/` に新ディレクトリ
+        を切る。ports / usecases / adapter を独立させる (Authentication
+        component の所有とする)。
+      - >-
+        `AccountDeletionRequest` aggregate も `internal/account/` に
+        置く。ADR-036 の anonymization は admin 経路で発火するが、
+        request の起票は self 経路で行う。tenant policy
+        (`auto_approve_deletion: bool`) を tenant aggregate に追加し、
+        true なら request 起票時に即 anonymization へ移行する。
+    http:
+      - >-
+        ハンドラ追加 (全て `/api/account/` プレフィックス、CSRF 必須、
+        Same-origin、認証必須):
+          GET   /api/account/summary
+          PATCH /api/account/profile
+          POST  /api/account/emails  / DELETE /api/account/emails/{value}
+          POST  /api/account/emails/{value}/verify_start
+          POST  /api/account/emails/{value}/verify_finish
+          PUT   /api/account/recovery_email
+          PUT   /api/account/recovery_phone
+          POST  /api/account/step_up/start
+          POST  /api/account/step_up/complete
+          GET   /api/account/sessions
+          POST  /api/account/sessions/{id}/revoke
+          POST  /api/account/sessions/revoke_others
+          GET   /api/account/signin_activity?limit=
+          GET   /api/account/consents
+          POST  /api/account/consents/{id}/revoke
+          GET   /api/account/connected_clients
+          POST  /api/account/data_exports
+          GET   /api/account/data_exports/{id}
+          GET   /api/account/data_exports/{id}/download   (signed URL or stream)
+          POST  /api/account/deletion_request
+          DELETE /api/account/deletion_request
+          GET   /api/account/required_actions
+      - >-
+        既存 `/api/auth/account` は admin shell 用 metadata。本 WI で
+        新設する `/api/account/summary` は end-user 向けに roles を
+        省き、組織属性の公開可否を tenant 設定で制御できる形に切る
+        (admin shell とは別 contract)。
+    persistence:
+      - >-
+        `data_export_jobs` テーブル: id / tenant_id / sub /
+        requested_at / completed_at? / expires_at / status /
+        artifact_object_key? (実体は別ストレージへの参照、本 WI では
+        local filesystem 配下を mock として用意し、S3 / GCS は別 WI)。
+      - >-
+        `account_deletion_requests` テーブル: id / tenant_id / sub /
+        requested_at / status / approver_sub? / approved_at? /
+        scheduled_anonymize_at? / cancel_reason?。tenant の
+        `auto_approve_deletion` フラグに応じて即実行 or admin 承認。
+      - >-
+        `account_emails` (wi-19 の `user_emails` を再利用) に
+        `verification_token_hash` / `verification_expires_at` を持つ
+        small companion table を追加。verification は ADR-030 と
+        同方針で one-time link をメール送信。
+    audit:
+      - >-
+        新イベントを `audit_event_record.go` に登録。`Account*` 系は
+        admin 監査と end-user 自身のセキュリティ通知の両方で必要。
+        end-user 自身への通知 (例: パスワード変更時にメール) は本 WI
+        では out-of-scope だが、event 自体は通知用 hook を埋めて
+        おくのにふさわしい粒度で発火させる。
+
+  ui:
+    layout:
+      - >-
+        admin shell とは別の **end-user shell** を新設する。`/account`
+        トップを portal home として、左 sidebar に以下のタブ:
+          - 個人情報 (Personal info)
+          - セキュリティ (Security)
+          - サインインアクティビティ (Activity)
+          - 接続済みアプリ (Applications)
+          - データとプライバシー (Data & privacy)
+        ヘッダは admin shell と区別し、現在 tenant 名 + 自分の名前を
+        最小限に出す。OAuth クライアントから戻る経路 (戻り URL) を
+        breadcrumb に表示する。
+    pages:
+      - >-
+        AccountHomePage (`/account`): summary card。最後のログイン /
+        パスワード変更日時 / MFA 状態 / 未対応 required actions / 接続
+        アプリ数 を一覧表示。required actions に未消化があれば最上部に
+        prominent banner で促す。
+      - >-
+        AccountProfilePage (`/account/profile`): 編集可能フィールド
+        の form (wi-19 の self 経路を呼ぶ)。primary email の変更は
+        再検証フローへ誘導 (`/account/emails`)。
+      - >-
+        AccountEmailsPage (`/account/emails`): primary / secondary /
+        recovery を分けて表示。Add / Verify / Remove / Make primary
+        の各操作。Verify は確認メール送信のみ、リンク踏みは別ルート。
+      - >-
+        AccountSecurityPage (`/account/security`):
+          - パスワード変更 (既存 `/account/password` を本ページに移植
+            し、URL は redirect で互換)。
+          - MFA factors: TOTP enroll / remove (既存 totp.go 流用)、
+            backup codes 表示 (1 度だけ表示・再生成可)。
+          - Step-up: 直近 N 分以内の再認証要求 UI。
+      - >-
+        AccountActivityPage (`/account/activity`):
+          - サインイン履歴 (wi-20 の `signin_activity`) と active
+            セッション (wi-20 `sessions`) の 2 リスト。
+          - 各セッションに "このセッションを終了" / "他のセッションを
+            全部終了" ボタン。
+          - bucket (集約) 行は "**X 月 X 日 12:00〜12:05 に同一 IP
+            から N 回失敗**" のような自然文サマリで表示。
+      - >-
+        AccountApplicationsPage (`/account/applications`):
+          - granted consents の一覧 (client name / granted scopes /
+            granted at / last used at)。
+          - "アクセスを取り消す" で consent 取り下げ。次回ログイン時に
+            consent 画面が再表示されることを文言で明示。
+      - >-
+        AccountDataPage (`/account/data`):
+          - Personal data export (`Request export` / 完了済み一覧 /
+            ダウンロード)。
+          - Account deletion request (Submit / Cancel)。Submit 時は
+            tenant policy に応じて即実行 or 承認待ちかを文言で表示。
+    routing:
+      - 既存 `/account/password` は redirect で
+        `/account/security#password` に張り替える。
+      - 認証必須。未認証で `/account/*` を開いた場合は
+        [[wi-18-unauthenticated-admin-redirect]] と同じ pattern で
+        `/authorize` 経由のログインに飛ばし、戻り先を保持する。
+    accessibility:
+      - 既存 admin pages と同等 (focus order / aria-label / コントラスト
+        AA / keyboard navigation) を最低基準とする。Apple Human Interface
+        Guidelines に従ったフォントウェイトの強弱は明示的に避け、admin
+        shell と視覚的に区別はするがブランド冗長は持ち込まない。
+    i18n:
+      - 本 WI では日本語 + 英語 fallback のみ用意 (既存と同じ)。
+        end-user が `locale` を変更しても表示文言は切り替わらない
+        (出力する `Accept-Language` の往復だけ確立)。
+
+  documentation:
+    - ra-idp-go/README.md に "End-user account portal" の節を追加し、
+      self が触れる範囲・触れない範囲・step-up auth の対象を箇条書きで
+      明記する。
+
+out_of_scope:
+  - >-
+    パスキー / WebAuthn / SMS OTP の MFA 追加。TOTP enroll / remove は
+    既存実装の薄い再公開のみ。WebAuthn は別 WI。
+  - >-
+    Push 通知メール ("パスワードが変更されました"、"新しいデバイスから
+    ログイン") の送信。`EmailSender` の口は持つが本 WI ではテンプレ
+    実装しない。
+  - >-
+    UMA 2.0 / Resource server registration (Keycloak の "Resources"
+    タブ相当)。
+  - >-
+    "Connected social accounts" UI (Google / GitHub / SAML)。federation
+    自体が別 WI のため、portal も対応 UI を出さない。
+  - >-
+    課金 / プラン管理 / 支払い情報。ra-idp は IdP のみ。
+  - >-
+    GDPR の "Right to rectification" / "Right to restriction of
+    processing" の専用 UI。`PATCH /account/profile` で実質達成できる
+    範囲に留め、明示的な workflow UI は持たない。
+  - >-
+    Self-Service による role / status / organization 変更。これは
+    admin 限定のままとする。
+  - >-
+    端末ごとの "trust this device" / device naming (Apple の Trusted
+    Devices 相当)。session 一覧の端末名は UA から推定する程度。
+  - >-
+    Data export の非同期 worker / object storage 連携 (S3 / GCS)。
+    本 WI では local filesystem mock + 同期生成で開始し、生成中の
+    job state を持つ点だけ整える。
+  - >-
+    Deletion request の workflow UI (admin 側の承認画面)。承認 API
+    までは持つが、承認 UI の admin 側は別 WI (admin user detail に
+    "Pending deletion requests" バッジを出す程度) で扱う。
+
+affected_guarantees:
+  - >-
+    tenant isolation: 全 self エンドポイントは認証された session の
+    `tenant_id` を必ず参照し、URL / body の `tenant_id` 指定は
+    認められない。data export / deletion request は actor の
+    tenant 内のみ。
+  - >-
+    self RBAC: SCL の `Self*` permission を全 mutation に適用。
+    `actor.sub == target.sub` を最低要件にする。admin による
+    impersonation 中に self 経路を踏むと、impersonator sub が actor
+    として記録される (wi-20 の `SessionImpersonationStarted` 系と
+    整合)。
+  - >-
+    CSRF & step-up: 高 sensitivity な mutation は ADR-043 の step-up
+    を必須化する。step-up 未通過の場合は 401 ではなく **403 +
+    `step_up_required`** で返し、UI が再認証 modal を出す。
+  - >-
+    Audit: 全 self mutation を `Account*` イベントとして残す。`self`
+    actor タイプを `AuditEventRecord` に追加し、admin と区別できる
+    ようにする (ADR-031 の actor type に enum 追加)。
+  - >-
+    OAuth consent integrity: consent revoke は client 側のリフレッシュ
+    トークン無効化と access token revoke を同時に行う (ADR-004 の
+    rotation と整合)。
+  - >-
+    Data export PII: 生成 artifact は本 WI では local filesystem mock。
+    保管期間は 7 日とし、それ以降は自動失効する。署名 URL は本 WI で
+    は session 認証下のストリーミングで代用 (一時 URL は別 WI)。
+  - >-
+    Account deletion: ADR-036 の anonymization に準拠。auto_approve
+    が false の tenant では admin 承認なしには user データが消えない。
+  - >-
+    SCL coherence: 新 interface / event / permission / model を SCL に
+    追加。`Self*` permission group は既存 `Admin*` と並列の trust
+    boundary として明示する。
+
+verification:
+  - cmd: 'go test ./...'
+    in: ra-idp-go
+    reason: |
+      self handler の RBAC 強制 (他人 sub を URL に入れても自分の
+      sub に補正される) / step-up gate (5 分超過で 403) /
+      data export job のステータス遷移 / deletion request の auto-
+      approve / manual-approve 分岐 / consent revoke の rotation
+      連動 / second email verify の token 期限と単発消費。
+  - cmd: 'go vet ./...'
+    in: ra-idp-go
+  - cmd: 'go build ./...'
+    in: ra-idp-go
+  - cmd: 'bun --cwd ra-idp-go/ui typecheck'
+  - cmd: 'bun --cwd ra-idp-go/ui lint'
+  - cmd: 'bun --cwd ra-idp-go/ui build'
+  - >-
+    手動 1: end-user として `/account` を開き、summary が表示される
+    (最終ログイン・パスワード変更日・MFA 状態・required actions)。
+  - >-
+    手動 2: `/account/profile` で name / phone / locale を変更し保存。
+    再ロードで反映され、`AccountProfileUpdated` が audit に記録され、
+    admin の `/admin/users/{sub}` でも値が見える。
+  - >-
+    手動 3: `/account/security` でパスワード変更 → step-up は
+    パスワード入力自身でクリアされ、`PasswordChanged` が発火。
+  - >-
+    手動 4: `/account/security` で TOTP enroll → enroll 確定で
+    `MfaFactorEnrolled`、ログアウトして再ログインすると TOTP が
+    要求される。
+  - >-
+    手動 5: `/account/activity` で active sessions に複数行が並び、
+    別ブラウザで開いた session を "終了" → 対象 session が次回
+    refresh で reject、`SessionEnded` (reason: self_revoke) が記録。
+  - >-
+    手動 6: `/account/applications` で demo-client への consent を
+    revoke → 次回 OAuth 認可で consent が再要求される。
+  - >-
+    手動 7: `/account/data` で export を request → 数秒で ready、
+    download で JSON を取得、中身に UserInfo + sign-in activity +
+    sessions + consents が入っている。
+  - >-
+    手動 8: `/account/data` から deletion request を submit →
+    tenant の auto_approve=false の場合は pending、true なら ADR-036
+    の anonymization が即発火し session が即終了する。
+  - >-
+    手動 9: step-up 未経由の状態で `/account/emails` から primary
+    変更を試みると 403 + `step_up_required` のレスポンス、UI が
+    再認証 modal を表示する。再認証成功後に変更が完了する。
+  - >-
+    手動 10: 他テナントの sub を `/api/account/profile` の PATCH に
+    手書きで入れても、actor 側の sub に強制的に補正されることを
+    確認 (リクエスト改竄耐性)。
+
+risk: medium
+risk_notes: |
+  end-user に露出する API / UI が一気に増えるため、リスクは主に
+  以下:
+
+  (1) Self の権限境界: URL / body / query を信用せず、actor.sub /
+      actor.tenant_id のみを内部値として使う。テストで他人 sub の
+      渡し方を 3 パターン以上書く。
+
+  (2) Step-up auth の抜け道: step-up を必要としない mutation を
+      持つハンドラから sensitive 操作にチェーンできてしまわないか、
+      ADR-043 の対象表を SCL の interface annotation で機械的に
+      照合する仕組みを入れる。
+
+  (3) Data export の情報漏洩: 認証済 session 配下でしか落とせない
+      ように request → poll → download の経路を厳格化する。署名
+      URL を本 WI で発行しない判断は、公開化リスクを避けるため
+      意図的にしている。
+
+  (4) Deletion request の取り違え: ADR-036 の anonymization と本 WI
+      の request 起票が混在する。auto_approve の挙動を tenant policy
+      で必ず明示し、未設定 tenant は false 扱いとする。
+
+  (5) UI / admin shell の混乱: end-user shell と admin shell は明確
+      に区別する。同一画面に同時に admin と end-user が居ない前提を
+      `AuthenticationContext` で固定し、admin role を持つ user が
+      `/account` を開いても admin 機能には触れない (sidebar の
+      admin リンクは出さない)。
+
+  リリースは段階的に: (i) `/api/account/summary` + portal shell /
+  (ii) profile + emails (recovery 含む) / (iii) security
+  (password / MFA) / (iv) activity (sessions + signin_activity) /
+  (v) applications (consents) / (vi) data export / (vii) deletion
+  request。各 PR で SCL の追加 → 実装 → UI の順を守る。

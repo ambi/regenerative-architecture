@@ -1,0 +1,399 @@
+id: wi-20-authentication-event-history
+title: ログイン履歴を実運用相当に拡張する (成功・連携・失敗・セッション、攻撃時の爆発を抑える)
+created_at: 2026-06-17
+status: pending
+authors: [tn]
+
+motivation: |
+  現状のログイン関連の観測ポイントは以下に限られている:
+
+  - `UserAuthenticated` (occurredAt / sub / amr)
+  - `AuthenticationFailed` (occurredAt / username / reason)
+  - `LoginThrottled` (occurredAt / kind / keyHash / retryAfterSeconds)
+  - `PasswordChanged` / `PasswordResetRequested` / `EmailSent`
+  - admin 監査経路の `AuditEventRepository`
+
+  本番 IdP として Keycloak (login events / admin events 90 日デフォルト・
+  Postgres 保管) / Okta (System Log 90 日 + Log Streaming) / Google
+  Workspace (Login Audit + Token Audit + 6 ヶ月以上のリテンション) と
+  比較すると、以下の機能・属性が欠落している:
+
+  - **成功ログインの詳細**: IP / User-Agent / device fingerprint /
+    location (GeoIP) / session_id / client_id / amr 詳細 / acr /
+    risk_score / "認証手段 1 段目: password, 2 段目: TOTP" の段階別
+    記録。
+  - **認証連携 (federation) の履歴**: 外部 IdP からの login、
+    `idp_alias` / `external_subject` / `linking_action`
+    (created / matched / disabled)。SAML / Google / OIDC IdP 接続を
+    将来追加する前提の語彙。
+  - **失敗の詳細**: 失敗理由を enum 化 (`unknown_user` /
+    `bad_password` / `disabled` / `locked` / `policy_violation` /
+    `mfa_failed` / `mfa_required` / `mfa_timeout` / `device_blocked` /
+    `geo_blocked` / `rate_limited` / `expired_session` etc.) し、IP /
+    UA / endpoint / client_id を併記する。現状 `reason` が任意の
+    文字列なので集計に使えない。
+  - **MFA の試行履歴**: TOTP / WebAuthn / SMS の各成功・失敗、再発行、
+    バックアップコード使用。`MfaChallengeIssued` / `MfaChallengeSucceeded`
+    / `MfaChallengeFailed` / `MfaFactorEnrolled` / `MfaFactorRemoved`
+    / `BackupCodeConsumed` などの粒度。
+  - **セッションのライフサイクル**: `SessionStarted` /
+    `SessionRefreshed` / `SessionEnded` (reason: logout / idle /
+    absolute / admin_revoke / password_change / mfa_change) /
+    `SessionImpersonationStarted` / `SessionImpersonationEnded`。
+  - **エンドユーザが見る "自分のサインイン履歴"**: Google
+    `Security Activity`, Okta `Recent Activity`, Keycloak account
+    console の "Device Activity" 相当。
+  - **検索・集計 UI**: admin が "失敗ログインの spike を時間軸で
+    眺める", "ある user の全ログインを時系列で見る", "ある IP からの
+    試行を全 user で見る" を回せる。
+  - **クレデンシャル試行洪水時の挙動**: 攻撃者が 1 user に 1 万回 /秒
+    試行した場合、すべてを 1 行ずつ audit event にすると秒間 1 万行が
+    溜まり (a) ストレージが爆発、(b) Postgres の append が hot
+    partition で苦しくなる、(c) admin の検索が壊れる、(d) 本物の
+    成功イベントが埋もれて見つからない。実運用 IdP はすべて何らかの
+    aggregation / sampling / drop を入れている (Keycloak は
+    `failedLoginAttempts` cap + cooldown、Okta は per-source dedup、
+    Google は backoff 後の sampling)。
+
+  本 WI は SCL の語彙 / ストレージ / admin UI / end-user 表示の各層を
+  まとめて (1) 産業標準相当の属性まで広げ、(2) 攻撃時にも壊れないように
+  aggregation / retention / hot-key 緩和を設計する。
+
+scope:
+  decision:
+    - >-
+      新規 ADR-039 **authentication-event-model**: ログイン関連イベントを
+      従来の "1 イベント = 1 行" 純血モデルから、(a) 通常イベントと
+      (b) 集約イベント (bucket) の 2 系統に分けることを決める。
+      attacker 洪水時は bucket に集計され、bucket の `count` /
+      `first_seen` / `last_seen` / `top_keys` で観測する。bucket は
+      通常イベントが per-key で N 回 / 分の閾値を超えたときに自動で
+      切り替わる。閾値・閾値の単位 (per-account / per-ip / per-tenant /
+      global) を ADR で明記する。
+    - >-
+      ADR-040 **authentication-event-retention**: ストレージレイヤ別の
+      保管期間と削除手段を決める。デフォルト: 成功 365 日 / 失敗詳細
+      30 日 / 失敗集約 (bucket) 90 日 / セッション 90 日 / MFA 90 日。
+      tenant ごとに上書きでき、cap は global で別 ADR で抑える
+      (`max_retention_days`)。削除は cron (時間単位の job) で
+      tenant_id + occurred_at の partition / index 上を sweep する。
+    - >-
+      ADR-041 **authentication-event-pii-policy**: IP / UA / location /
+      username の各属性の格納形式を整理する。username は SHA-256 hash
+      を first-class、平文は失敗イベントに限り 7 日だけ保持する
+      `raw_value` カラムにとどめる (LoginThrottled の既存方針と整合)。
+      IP は /24 / /48 (v6) の truncated 形式と SHA-256 の 2 系統で
+      保持する。location は city level までで国コードのみ first-class、
+      precision は必ず "city or null" にする。device fingerprint は
+      hash で保管。
+
+  scl:
+    - >-
+      既存 `UserAuthenticated` / `AuthenticationFailed` を残しつつ、
+      属性を拡張する: occurredAt / sub / tenantId / clientId / amr /
+      acr / sessionId / ipHash / ipTruncated / uaHash / countryCode /
+      deviceFingerprintHash / riskScore (optional)。
+    - >-
+      新規イベント:
+        AuthenticationStepCompleted   (sub / factor: password|totp|webauthn|sms|backup / succeeded / sessionId)
+        AuthenticationStepFailed      (factor / reason: bad_password|expired_code|wrong_code|locked / occurredAt)
+        FederatedAuthenticated        (sub / idpAlias / externalSub / linkingAction: created|matched|reused)
+        FederationLinked              (sub / idpAlias / externalSub / actorSub)
+        FederationUnlinked            (sub / idpAlias / actorSub)
+        MfaChallengeIssued / MfaChallengeSucceeded / MfaChallengeFailed
+                                      (sub / factor / sessionId / reason)
+        MfaFactorEnrolled / MfaFactorRemoved / BackupCodeConsumed
+                                      (sub / factor / actorSub)
+        SessionStarted / SessionRefreshed / SessionEnded
+                                      (sessionId / sub / clientId? /
+                                       endReason: logout|idle|absolute|
+                                                   admin_revoke|password_change|mfa_change|other)
+        SessionImpersonationStarted   (sessionId / actorSub / targetSub)
+        SessionImpersonationEnded     (sessionId / endReason)
+        AuthenticationEventAggregated (kind: failed_login|throttled|mfa_failed / bucketKey /
+                                       count / firstSeen / lastSeen / topKeys[])
+    - >-
+      新規 model:
+        AuthenticationEvent (poly: success | fail | aggregated)
+        SessionRecord       (sessionId / sub / startedAt / refreshedAt /
+                             expiresAt / endedAt? / endReason? /
+                             clientId? / ip / ua / location? / amr / acr /
+                             impersonator?)
+        UserSignInActivity  (per-user 直近 N 件のサマリ; end-user 表示用)
+      `AuthenticationEventAggregated.bucketKey` は `(tenantId,
+      username_hash | ip_truncated, factor, reason, time_bucket_5m)`。
+      ハッシュは衝突しないように salt を tenant 単位で持つ。
+    - >-
+      新規 interface:
+        ListAuthenticationEvents       (admin)
+        GetAuthenticationEvent         (admin)
+        ListSessions                   (admin / self)
+        RevokeSession / RevokeAllSessions (admin / self)
+        ListUserSignInActivity         (self / admin)
+        ExportAuthenticationEvents     (admin)   # 監査エクスポート
+      permission: `AdminAuthenticationEventsRead` / `AdminSessionsWrite`
+      / `SelfSignInActivityRead` / `SelfSessionsRevoke` を追加。
+    - >-
+      既存 `LoginThrottled` は維持しつつ、`AuthenticationEventAggregated`
+      の bucket を参照するよう ADR-029 を改定する (throttle 判定の
+      入力源が bucket と同じ keyHash になる)。
+
+  go:
+    domain:
+      - >-
+        `internal/spec` に新 model / event / interface を追加する。
+        `AuthenticationEvent` は sum 型として表現 (Go では tagged
+        struct + Kind enum)。`SessionRecord` は既存
+        `authentication/ports/SessionStore` の内部表現を整理しなおし、
+        repository port を新設する。
+      - >-
+        既存 password verifier / TOTP verifier / forthcoming federated
+        IdP adapter から共通の `AuthenticationOutcomeBus` に成功・失敗を
+        通知する薄いインターフェースを作る。bus 実装は (a) 通常時は
+        個別イベントを emit、(b) bucket 閾値超過時は集約イベントを
+        emit に切り替える。
+    aggregation:
+      - >-
+        bucket 化のアルゴリズム: token bucket / leaky bucket / count-min
+        sketch のいずれかから 1 つを採用。本 WI は **token bucket +
+        per-key counter (5 分 sliding window)** を選ぶ。reason: ADR-029
+        の throttle と同じ leakey-bucket 系の語彙を使うため。実装は
+        in-memory adapter で最初に動作し、Postgres adapter では
+        `auth_event_bucket(tenant_id, key_hash, time_bucket_minute,
+        kind, count, top_keys[])` テーブルを使う。
+      - >-
+        閾値: 失敗が同一 username (hash) で 5 分間に 10 回 / 同一 IP
+        (truncated) で 5 分間に 50 回 / 同一 tenant で 5 分間に 1000 回
+        のいずれかを超えたら bucket 化を発動。閾値は SCL の interface
+        パラメタとし、tenant override 可能。defaults は ADR-039 に
+        書く。
+      - >-
+        bucket 中は **個別行を一切書かない** (これが攻撃時の爆発を
+        防ぐ最重要点)。`topKeys` には bucket 期間中に最も多く現れた
+        keyHash を最大 5 件だけ残し、5 分経過で flush して新 bucket に
+        切り替える。flush 時にユーザー or admin 通知を出すかは別 WI。
+    persistence:
+      - >-
+        Postgres: 新テーブル
+          authentication_events  (id / tenant_id / occurred_at / kind /
+                                  sub? / username_hash? / ip_truncated /
+                                  ua_hash / country_code? /
+                                  client_id? / session_id? / factor? /
+                                  reason? / amr? / acr? / risk_score? /
+                                  raw json)
+          authentication_event_buckets (tenant_id / time_bucket_minute /
+                                        kind / key_hash / count /
+                                        first_seen / last_seen /
+                                        top_keys[])
+          sessions (session_id / tenant_id / sub / started_at /
+                    refreshed_at / expires_at / ended_at? /
+                    end_reason? / client_id? / ip_truncated / ua_hash /
+                    country_code? / impersonator_sub?)
+        index 設計:
+          authentication_events(tenant_id, occurred_at desc)
+          authentication_events(tenant_id, sub, occurred_at desc)
+          authentication_events(tenant_id, username_hash, occurred_at desc)
+          authentication_events(tenant_id, ip_truncated, occurred_at desc)
+          partition は tenant_id + occurred_at (monthly) を推奨だが、
+          実装は単一テーブルで開始し、partition 化は別 WI でやる
+          (Postgres declarative partitioning を後付け予定)。
+      - >-
+        in-memory adapter: ring buffer + tenant 別 map[sub][]Event を
+        持つ。ring buffer は 10000 件で頭打ち、aging により古い行から
+        ドロップ。テスト用途。
+      - >-
+        retention sweep: 既存 `internal/bootstrap` の周期 job に
+        `AuthenticationEventRetention` を追加。tenant ごとの
+        `retention_overrides` を tenant aggregate に保持する
+        (ADR-040 に従う上限を gating)。
+    http:
+      - >-
+        admin 用:
+          GET   /api/admin/authentication_events
+                 ?sub=&username_hash=&ip_truncated=&kind=&from=&to=&limit=
+          GET   /api/admin/authentication_events/{id}
+          GET   /api/admin/sessions
+          POST  /api/admin/sessions/{id}/revoke
+          POST  /api/admin/users/{sub}/sessions/revoke_all
+          GET   /api/admin/users/{sub}/signin_activity?limit=
+        self 用:
+          GET   /api/account/signin_activity?limit=
+          GET   /api/account/sessions
+          POST  /api/account/sessions/{id}/revoke
+          POST  /api/account/sessions/revoke_others   (現セッション以外を切る)
+      - >-
+        rate limit: admin 検索エンドポイントは ADR-029 と同じ
+        leaky-bucket で per-actor の qps を制限する (重い検索が
+        admin 自身を引き金にして DoS にならないように)。
+    audit:
+      - >-
+        新イベントを `audit_event_record.go` でレコード化する。
+        `AuthenticationEventAggregated` は 1 bucket = 1 admin audit
+        event として残す。bucket 内訳の個別行は admin audit には
+        流さず、`authentication_events` テーブル側のみ。
+      - >-
+        impersonation 系イベントは ADR-018 の `audit` priority を
+        最高にし、retention を tenant override で短縮できないよう
+        ガードする。
+  ui:
+    api:
+      - >-
+        `ui/src/api.ts` に検索パラメタ付きクライアントを追加。型は
+        SCL から手書きで同期 (既存方針通り)。
+    pages:
+      - >-
+        `/admin/authentication_events`: 新規ページ。フィルタ
+        (sub / username / IP / kind / 期間 / factor / reason) + 表
+        + 詳細ペイン + bucket 行のドリルダウン (bucket をクリック
+        すると同 key の "10 件サンプリング" 表示)。`AdminAuditEventsPage`
+        と並ぶ位置に sidebar nav に追加。
+      - >-
+        `/admin/sessions`: 全 tenant 内の active セッション一覧、
+        revoke ボタン。`/admin/users/{sub}` 詳細にも "Sessions" タブを
+        追加 (wi-19 と共通)。
+      - >-
+        end-user 向け sign-in activity と sessions の UI は
+        [[wi-21-end-user-account-portal]] に統合する。
+    routing:
+      - >-
+        `/admin/authentication_events` / `/admin/sessions` を router に
+        追加。AdminNavKey に `authentication_events` / `sessions` を追加。
+  documentation:
+    - ra-idp-go/README.md に "Authentication event history" の節を
+      作り、(a) 通常イベントと bucket の 2 系統, (b) retention の
+      tenant override, (c) PII の格納形式 (hash vs truncated) を
+      5〜8 行で記す。
+
+out_of_scope:
+  - >-
+    SIEM 連携の export pipeline (Splunk / Datadog / Elasticsearch への
+    streaming)。`ExportAuthenticationEvents` を 1 つだけ用意し、外部
+    storage への push は別 WI。
+  - >-
+    機械学習に基づく `risk_score` 算出。本 WI では `risk_score` の
+    フィールドは確保するが、値は常に null。
+  - >-
+    Geo IP の有償 vendor 連携。`country_code` を埋める手段は
+    `X-Forwarded-For` から逆引きする MaxMind GeoLite2 等の OSS DB を
+    後続 WI で導入する。本 WI では country_code = "" を許容する。
+  - >-
+    push 通知 (新規 IP からの login で本人にメールを送る)。検出と
+    フィールドだけ用意し、通知は別 WI。
+  - >-
+    impersonation 機能本体 (admin が user として代理ログインする)。
+    イベント / model のみ用意し、use case / UI は別 WI。
+  - >-
+    SAML / Google IdP / GitHub IdP の adapter 実装。federation
+    イベントの型のみ用意し、実 IdP 連携は別 WI。
+  - >-
+    Postgres の partition 化 / archive bucket (cold storage)。
+    monthly partition は ADR-040 で方針記載のみで実装は別 WI。
+  - >-
+    end-user 用の "Suspicious activity" メール通知。
+
+affected_guarantees:
+  - >-
+    tenant isolation: 全ての新テーブル・新エンドポイントが
+    `tenant_id` 境界を持つ。bucket の key_hash は tenant 単位の salt
+    で hash 化し、tenant 間で同一 username であっても集約されない。
+  - >-
+    admin RBAC: 新 permission を SCL に追加 (`AdminAuthenticationEventsRead`
+    / `AdminSessionsWrite` / `SelfSignInActivityRead` /
+    `SelfSessionsRevoke`)。self 経路は `actor.sub == target.sub` を
+    最低要件にする。
+  - >-
+    PII: ADR-018 / ADR-041 を遵守。平文 username / 平文 IP は失敗
+    イベントに限定し 7 日で粒度を落とす。device fingerprint は raw を
+    保存しない。
+  - >-
+    可用性: 攻撃時に Postgres の `INSERT` が詰まらないこと。bucket
+    モードは in-memory counter + batch flush (5 分単位) で実現し、
+    個別 INSERT を出さない。
+  - >-
+    SCL coherence: 新 model / event / interface / permission を全て
+    SCL に追加し、既存 `LoginThrottled` を bucket と整合させる
+    (ADR-029 の改定)。
+  - >-
+    backwards compatibility: 既存 `UserAuthenticated` /
+    `AuthenticationFailed` の payload は拡張のみで破壊しない。SIEM
+    パイプラインを後付けする他社用 connector のため、フィールド名は
+    新規 only でリネームしない。
+
+verification:
+  - cmd: 'go test ./...'
+    in: ra-idp-go
+    reason: |
+      bucket 切替の閾値テスト (10 / 50 / 1000 を超えた瞬間に
+      個別 INSERT が止まる) / retention sweep の境界テスト
+      (29 日, 31 日, 91 日) / セッション revoke の冪等性 /
+      hash salt の tenant 分離 / impersonation event の retention
+      override 不可。
+  - cmd: 'go vet ./...'
+    in: ra-idp-go
+  - cmd: 'go build ./...'
+    in: ra-idp-go
+  - cmd: 'bun --cwd ra-idp-go/ui typecheck'
+  - cmd: 'bun --cwd ra-idp-go/ui lint'
+  - cmd: 'bun --cwd ra-idp-go/ui build'
+  - >-
+    手動 1: admin で `/admin/authentication_events` を開き、自分の
+    ログインを成功イベントとして確認できる (sub / IP truncated /
+    UA hash / amr / client_id 表示)。
+  - >-
+    手動 2: 同 user に対し誤パスワードを 12 回連続で投げる →
+    最初の 10 件は個別行、11 件目以降は bucket に切り替わり
+    `AuthenticationEventAggregated` が 1 行だけ書かれ、その bucket の
+    `count` が伸び続けることを確認。`authentication_events` の
+    `INSERT` レート (DB の `pg_stat_statements`) が一定で頭打ちに
+    なることを確認。
+  - >-
+    手動 3: end-user として `/account/signin_activity` (仮 UI) を
+    開き、自分の直近 10 件のログインを見られる。
+  - >-
+    手動 4: admin が `/admin/sessions` から ある session を revoke
+    → 対象 session でリフレッシュトークンが reject、`SessionEnded`
+    (reason: admin_revoke) が記録される。
+  - >-
+    手動 5: retention 31 日に短縮した tenant の認証成功イベント
+    (occurred_at 32 日前) が次回 sweep 後に消える / `impersonation`
+    イベントは tenant override で短縮できない。
+  - >-
+    手動 6: cross-tenant 越境: tenant A の admin が tenant B の
+    `username_hash` を投入しても何も hit しない (salt 違い)。
+
+risk: high
+risk_notes: |
+  本 WI のリスクは主に以下:
+
+  (1) ストレージ爆発: 攻撃時に行が無制限に増えるシナリオが従来
+      最大の落とし穴。本 WI の bucket モードはこの直接対策。
+      bucket への切替閾値が低すぎると正規ユーザの失敗が観察できず
+      MTTR が悪化、高すぎると爆発が止まらない。閾値は ADR-039 で
+      根拠付きで決め、tenant override で運用調整する。
+
+  (2) 検索性能: `authentication_events` のサイズが本 WI で急増する。
+      partition 化を本 WI ではやらない判断のため、monthly retention
+      sweep が確実に動くこと、index が想定どおり当たること、admin
+      UI の検索が必ず期間絞り込みを要求すること、をテストで確認。
+
+  (3) PII の漏洩: hash 化 / truncation を間違えると個人情報が
+      audit log にそのまま流れる。code review でレビュー観点を
+      ADR-041 の表に照らして必ず確認する。レビュアー 2 名以上で
+      明示的にチェックする運用を ADR に付記する。
+
+  (4) impersonation のセキュリティ: 「admin が user として
+      アクセスした事実」は user 側に確実に通知される必要がある。
+      本 WI ではフィールドのみ用意し、通知は別 WI に分けるが、
+      impersonation 機能本体の有効化は通知 WI 後にすべきと
+      ADR-039 に明示する。
+
+  (5) 後方互換: `UserAuthenticated` のフィールドを増やしても既存
+      SIEM パイプライン (もし顧客が外部に流していれば) が落ちない
+      ことを `audit_event_record.go` のスナップショットテストで
+      確認する。
+
+  リリースは段階的に: (i) bucket + 新テーブル + 既存イベントの
+  拡張 / (ii) admin 検索 UI / (iii) sessions API + admin UI /
+  (iv) end-user signin_activity API (UI は wi-21) / (v) retention
+  job / (vi) federation event 型のみ。impersonation と通知は別
+  WI で扱う。

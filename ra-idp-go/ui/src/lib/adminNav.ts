@@ -4,6 +4,7 @@ import {
   IconCheckupList,
   IconKey,
   IconLayoutDashboard,
+  IconSettings,
   IconShieldLock,
   IconUserShield,
   IconUsers,
@@ -19,6 +20,7 @@ export type AdminNavKey =
   | 'audit-events'
   | 'keys'
   | 'tenants'
+  | 'settings'
 
 export type AdminNavItem = {
   key: AdminNavKey
@@ -51,6 +53,13 @@ export function adminNavItems(active: AdminNavKey): AdminNavItem[] {
       controlPlaneOnly: true,
     })
   }
+  items.push({
+    key: 'settings',
+    label: '設定',
+    icon: IconSettings,
+    href: tenantURL('/admin/settings'),
+    active: active === 'settings',
+  })
   return items
 }
 

@@ -10,6 +10,7 @@
 - メールによるパスワードリセット + 単発・30分TTLトークン (ADR-030)
 - RBACで保護された管理ユーザーAPI (`/api/admin/users`) + ユーザー無効化 (ADR-031) と削除 (ADR-036, anonymize cascade)
 - SCL の管理ロール・権限・関連 HTTP interface を閲覧する管理 API / UI (`/api/admin/policy/roles`, `/admin/roles`)
+- 所属テナント内 admin 向け設定 UI (`/api/admin/settings`, `/admin/settings`): 表示名 / password_policy_override の閲覧と更新
 - テナント内に閉じた管理クライアント CRUD (`/admin/clients`)
 - テナント内に閉じた管理 consent 参照・撤回 API (`/admin/consents`)
 - `/realms/{tenant_id}` による tenant 分離、tenant 管理 API、tenant-scoped persistence (ADR-032〜034)

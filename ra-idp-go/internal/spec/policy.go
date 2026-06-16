@@ -98,6 +98,8 @@ const (
 	ActionAdminClientsManage          = "admin:clients_manage"
 	ActionAdminConsentsManage         = "admin:consents_manage"
 	ActionAdminTenantsManage          = "admin:tenants_manage"
+	ActionAdminSettingsRead           = "admin:settings_read"
+	ActionAdminSettingsUpdate         = "admin:settings_update"
 	ActionAdminAuditEventsRead        = "admin:audit_events_read"
 	ActionAdminKeysRead               = "admin:keys_read"
 	ActionAdminKeysRotate             = "admin:keys_rotate"
@@ -120,6 +122,8 @@ var actionNameMapping = map[string]string{
 	"AdminClientsManage":          ActionAdminClientsManage,
 	"AdminConsentsManage":         ActionAdminConsentsManage,
 	"AdminTenantsManage":          ActionAdminTenantsManage,
+	"AdminSettingsRead":           ActionAdminSettingsRead,
+	"AdminSettingsUpdate":         ActionAdminSettingsUpdate,
 	"AdminAuditEventsRead":        ActionAdminAuditEventsRead,
 	"AdminKeysRead":               ActionAdminKeysRead,
 	"AdminKeysRotate":             ActionAdminKeysRotate,
@@ -170,6 +174,12 @@ var actionRules = map[string][]string{
 	},
 	ActionAdminTenantsManage: {
 		"actor_is_system_admin", "actor_is_control_plane_user", "actor_is_active", "actor_is_authenticated",
+	},
+	ActionAdminSettingsRead: {
+		"actor_is_admin_or_system_admin", "actor_is_active", "actor_is_authenticated", "actor_and_resource_share_tenant",
+	},
+	ActionAdminSettingsUpdate: {
+		"actor_is_admin_or_system_admin", "actor_is_active", "actor_is_authenticated", "actor_and_resource_share_tenant",
 	},
 	ActionAdminAuditEventsRead: {
 		"actor_is_admin_or_system_admin", "actor_is_active", "actor_is_authenticated",

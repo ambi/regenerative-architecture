@@ -18,7 +18,8 @@ type tenantCreateRequest struct {
 }
 
 type tenantUpdateRequest struct {
-	DisplayName string `json:"display_name"`
+	DisplayName            *string                      `json:"display_name,omitempty"`
+	PasswordPolicyOverride *spec.PasswordPolicyOverride `json:"password_policy_override,omitempty"`
 }
 
 func (d Deps) handleListTenants(c *echo.Context) error {
@@ -85,17 +86,52 @@ func (d Deps) handleUpdateTenant(c *echo.Context) error {
 	}
 	now := time.Now().UTC()
 	tenant, err := tenantusecases.Update(
-		c.Request().Context(), d.TenantRepo, c.Param("tenant_id"), input.DisplayName, now,
+		c.Request().Context(), d.TenantRepo, c.Param("tenant_id"),
+		tenantusecases.UpdateInput{
+			DisplayName:            input.DisplayName,
+			PasswordPolicyOverride: input.PasswordPolicyOverride,
+		},
+		d.tenantPolicyFloor(),
+		now,
 	)
 	if err != nil {
 		return d.writeTenantError(c, err)
 	}
 	if d.Emit != nil {
 		d.Emit(&spec.TenantUpdated{
-			At: now, ActorSub: actor.Sub, TenantID: tenant.ID, ChangedFields: []string{"display_name"},
+			At: now, ActorSub: actor.Sub, TenantID: tenant.ID,
+			ChangedFields: tenantChangedFields(input),
 		})
 	}
 	return noStoreJSON(c, http.StatusOK, tenant)
+}
+
+func tenantChangedFields(input tenantUpdateRequest) []string {
+	fields := []string{}
+	if input.DisplayName != nil {
+		fields = append(fields, "display_name")
+	}
+	if input.PasswordPolicyOverride != nil {
+		fields = append(fields, "password_policy_override")
+	}
+	return fields
+}
+
+func (d Deps) tenantPolicyFloor() tenantusecases.PolicyFloor {
+	floor := tenantusecases.PolicyFloor{}
+	if d.SCL == nil {
+		return floor
+	}
+	if v, ok := d.SCL.ObjectiveInt("PasswordPolicy", "min_length"); ok {
+		floor.MinLength = v
+	}
+	if v, ok := d.SCL.ObjectiveInt("PasswordPolicy", "max_length"); ok {
+		floor.MaxLength = v
+	}
+	if v, ok := d.SCL.ObjectiveInt("PasswordPolicy", "history_depth"); ok {
+		floor.HistoryDepth = v
+	}
+	return floor
 }
 
 func (d Deps) handleDisableTenant(c *echo.Context) error {
@@ -160,6 +196,8 @@ func (d Deps) writeTenantError(c *echo.Context, err error) error {
 		errors.Is(err, tenantusecases.ErrDisplayNameEmpty),
 		errors.Is(err, tenantusecases.ErrDefaultTenant):
 		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", err.Error())
+	case errors.Is(err, tenantusecases.ErrPolicyOverrideWeaker):
+		return writeBrowserError(c, http.StatusBadRequest, "policy_override_weaker", "パスワードポリシーは global default より弱くできません")
 	default:
 		return err
 	}

@@ -226,6 +226,25 @@ export type AdminRolesPage = {
   users: AdminUser[]
 }
 
+export type AdminSettings = {
+  tenant_id: string
+  display_name: string
+  password_policy_override?: {
+    min_length?: number
+    max_length?: number
+    history_depth?: number
+  }
+}
+
+export type AdminSettingsPage = {
+  kind: 'admin-settings'
+  csrfToken: string
+  actorUsername?: string
+  actorRoles: string[]
+  actorTenantID: string
+  settings: AdminSettings
+}
+
 export type PageData =
   | HomePage
   | LoginPage
@@ -245,6 +264,7 @@ export type PageData =
   | AdminKeysPage
   | AdminTenantsPage
   | AdminRolesPage
+  | AdminSettingsPage
 
 export type BrowserFlowResponse = {
   next?: string

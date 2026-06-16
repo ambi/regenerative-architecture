@@ -11,6 +11,8 @@ import type {
   AdminKeysPage,
   AdminRole,
   AdminRolesPage,
+  AdminSettings,
+  AdminSettingsPage,
   AdminTenant,
   AdminTenantsPage,
   AdminUser,
@@ -262,6 +264,17 @@ export async function loadPageData(): Promise<PageData> {
       actorTenantID: adminAccount!.tenant_id ?? '',
       keys: keys.keys,
     } satisfies AdminKeysPage
+  }
+  if (path === '/admin/settings') {
+    const settings = await request<AdminSettings>('/api/admin/settings')
+    return {
+      kind: 'admin-settings',
+      csrfToken: adminAccount!.csrf_token,
+      actorUsername: adminAccount!.preferred_username,
+      actorRoles: adminAccount!.roles ?? [],
+      actorTenantID: adminAccount!.tenant_id ?? '',
+      settings,
+    } satisfies AdminSettingsPage
   }
   if (path === '/admin/tenants') {
     const tenants = await request<AdminTenantListResponse>('/admin/tenants')
@@ -622,6 +635,22 @@ export async function listAdminKeys(): Promise<AdminKey[]> {
 
 export async function rotateAdminKey(csrfToken: string): Promise<AdminRotateKeyResponse> {
   return request<AdminRotateKeyResponse>('/api/admin/keys/rotate', adminRequest(csrfToken, 'POST'))
+}
+
+export type UpdateAdminSettingsInput = {
+  display_name?: string
+  password_policy_override?: AdminSettings['password_policy_override']
+}
+
+export async function getAdminSettings(): Promise<AdminSettings> {
+  return request<AdminSettings>('/api/admin/settings')
+}
+
+export async function updateAdminSettings(
+  csrfToken: string,
+  input: UpdateAdminSettingsInput,
+): Promise<AdminSettings> {
+  return request('/api/admin/settings', adminRequest(csrfToken, 'PATCH', input))
 }
 
 export async function listAdminTenants(): Promise<AdminTenant[]> {

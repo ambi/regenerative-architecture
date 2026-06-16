@@ -17,8 +17,8 @@ components:
     owns_models: [Tenant, TenantStatus, TenantCreateRequest, TenantUpdateRequest, TenantSummaryResponse, TenantListResponse, PasswordPolicyOverride]
     owns_states: [TenantLifecycle]
     owns_events: [TenantCreated, TenantUpdated, TenantDisabled, TenantEnabled]
-    owns_interfaces: [ResolveTenant, ListTenants, GetTenant, CreateTenant, UpdateTenant, DisableTenant, EnableTenant]
-    owns_permissions: [AdminTenantsManage]
+    owns_interfaces: [ResolveTenant, ListTenants, GetTenant, CreateTenant, UpdateTenant, DisableTenant, EnableTenant, GetAdminSettings, UpdateAdminSettings]
+    owns_permissions: [AdminTenantsManage, AdminSettingsRead, AdminSettingsUpdate]
 
   Authentication:
     description: エンドユーザ (Subject) の identity、credentials、MFA、ログインセッション、パスワードリセット、および管理 API からの User ライフサイクル操作を所有する。
@@ -2985,6 +2985,33 @@ interfaces:
     bindings:
       - { kind: http, method: POST, path: "/realms/default/admin/tenants/{tenant_id}/enable", successful_status_codes: ["204"] }
 
+  GetAdminSettings:
+    description: |
+      テナント内 admin が自身のテナントの設定 (表示名 / パスワードポリシー上書き) を取得する。
+      対象テナントは actor.tenant_id に固定するため cross-tenant 読み出しは構造的に発生しない。
+      `/admin/tenants` (system_admin 専用) とは別経路で、admin にも開放される (ADR-032)。
+    output:
+      settings: { type: TenantSummaryResponse }
+    errors: [AccessDeniedError]
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: /api/admin/settings }
+
+  UpdateAdminSettings:
+    description: |
+      テナント内 admin が自身のテナントの設定を更新する。display_name と
+      password_policy_override のいずれかまたは両方を任意フィールドとして受け取り、
+      actor.tenant_id に固定した上で UpdateTenant のロジックを実行する (ADR-032)。
+      password_policy_override は global PasswordPolicy より弱い値を use case 側で拒否する。
+    input:
+      request: { type: TenantUpdateRequest }
+    output:
+      settings: { type: TenantSummaryResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [TenantUpdated]
+    bindings:
+      - { kind: http, method: PATCH, path: /api/admin/settings, request_form: body }
+
 
 # =================================================================
 # 4. states — 状態遷移
@@ -3987,6 +4014,36 @@ permissions:
         - 'actor.tenant_id == "default"'
         - "actor.disabled_at == null"
         - "context.authenticated == true"
+
+  AdminSettingsRead:
+    description: |
+      所属テナントの管理設定 (表示名 / パスワードポリシー上書き) を閲覧する。
+      tenant 内 admin と system_admin のどちらでも許可する。
+      対象は actor.tenant_id に固定するため cross-tenant 読み出しは構造的に発生しない (ADR-032)。
+    actor: User
+    action: AdminSettingsRead
+    resource: Tenant
+    allow_when:
+      and:
+        - "(admin in actor.roles) or (system_admin in actor.roles)"
+        - "actor.disabled_at == null"
+        - "context.authenticated == true"
+        - "actor.tenant_id == resource.tenant_id"
+
+  AdminSettingsUpdate:
+    description: |
+      所属テナントの管理設定を更新する。tenant 内 admin に解放し、設定対象は
+      actor.tenant_id に固定する (ADR-032)。password_policy_override は global
+      PasswordPolicy より弱い場合 use case 側で reject する。
+    actor: User
+    action: AdminSettingsUpdate
+    resource: Tenant
+    allow_when:
+      and:
+        - "(admin in actor.roles) or (system_admin in actor.roles)"
+        - "actor.disabled_at == null"
+        - "context.authenticated == true"
+        - "actor.tenant_id == resource.tenant_id"
 
   AdminAuditEventsRead:
     description: |

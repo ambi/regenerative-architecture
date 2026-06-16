@@ -1,0 +1,83 @@
+id: wi-17-tenant-settings-page
+title: 管理画面に設定ページを追加してテナント単位の設定を集約する
+completed_at: 2026-06-17
+work_item: work-item.yaml
+status: completed
+
+summary: |
+  テナント内 admin と system_admin が自テナントの表示名・パスワードポリシー上書きを
+  閲覧・更新できる `/api/admin/settings` (GET / PATCH) と `/admin/settings` ページを
+  追加した。対象は actor.tenant_id に固定し cross-tenant 操作は構造的に発生しない。
+  password_policy_override が global PasswordPolicy より弱い値を含む場合は use case
+  側で reject する。既存 `/admin/tenants` (system_admin) の挙動は不変だが、
+  password_policy_override が UpdateTenant に到達しなかった既存バグも併せて修正した。
+
+semantic_diff:
+  before: |
+    admin は所属テナントの表示名と password_policy_override を UI から触れない。
+    UpdateTenant は display_name しか反映せず、AdminTenantsPage が送る
+    password_policy_override は silently に無視されていた。
+  after: |
+    admin が `/admin/settings` から自テナントの表示名と password_policy_override を
+    変更できる。global より弱い override は HTTP 400 policy_override_weaker で
+    拒否される。system_admin の `/admin/tenants` 経由でも override が反映される。
+
+traceability:
+  specification:
+    - ra-idp-go/spec/scl.yaml interfaces.GetAdminSettings
+    - ra-idp-go/spec/scl.yaml interfaces.UpdateAdminSettings
+    - ra-idp-go/spec/scl.yaml permissions.AdminSettingsRead
+    - ra-idp-go/spec/scl.yaml permissions.AdminSettingsUpdate
+    - ra-idp-go/spec/scl.yaml components.Tenancy.owns_interfaces
+    - ra-idp-go/spec/scl.yaml components.Tenancy.owns_permissions
+  implementation:
+    - ra-idp-go/internal/tenancy/usecases/manage_tenants.go
+    - ra-idp-go/internal/adapters/http/admin_settings_handler.go
+    - ra-idp-go/internal/adapters/http/admin_tenant_handler.go
+    - ra-idp-go/internal/adapters/http/routes.go
+    - ra-idp-go/internal/spec/policy.go
+    - ra-idp-go/internal/oauth2/usecases/role_policies.go
+    - ra-idp-go/ui/src/pages/AdminSettingsPage.tsx
+    - ra-idp-go/ui/src/lib/adminNav.ts
+    - ra-idp-go/ui/src/router.tsx
+    - ra-idp-go/ui/src/api.ts
+    - ra-idp-go/ui/src/types.ts
+    - ra-idp-go/README.md
+  tests:
+    - ra-idp-go/internal/tenancy/usecases/manage_tenants_test.go
+    - ra-idp-go/internal/adapters/http/admin_settings_handler_test.go
+
+affected_guarantees_state:
+  - "tenant isolation: GET / PATCH /api/admin/settings は actor.tenant_id に固定。cross-tenant 書き込みは存在しない。"
+  - "admin RBAC: AdminSettingsRead / AdminSettingsUpdate は admin / system_admin に限定。requireTenantAdmin が actor.tenant_id == request tenant を強制する。"
+  - "CSRF: PATCH は verifyBrowserRequest を継承し double-submit を要求する。"
+  - "SCL coherence: 新規 interface 2 件と permission 2 件を追加し、TenantUpdated event / TenantUpdateRequest model を流用。Tenancy component の owns_* に追加済み。SCLPermissionsCoverage テストで Go action マッピングを検証。"
+  - "policy floor: password_policy_override は global PasswordPolicy より弱い場合 ErrPolicyOverrideWeaker / HTTP 400 policy_override_weaker で reject。"
+
+verification:
+  - cmd: "GOCACHE=/tmp/ra-idp-go-cache go test -race ./..."
+    in: ra-idp-go
+    result: ok
+  - cmd: "GOCACHE=/tmp/ra-idp-go-cache go vet ./..."
+    in: ra-idp-go
+    result: ok
+  - cmd: "GOCACHE=/tmp/ra-idp-go-cache go build ./..."
+    in: ra-idp-go
+    result: ok
+  - cmd: "bun --cwd ra-idp-go/ui typecheck"
+    result: ok
+  - cmd: "bun --cwd ra-idp-go/ui lint"
+    result: "ok (43 files)"
+  - cmd: "bun --cwd ra-idp-go/ui build"
+    result: "ok (6350 modules)"
+  - "実ブラウザでの 4 手動テストケース (admin 編集 / min_length 反映確認 / cross-tenant ガード / system_admin alert) は未実施。"
+
+residual_risk:
+  - "policy floor 比較は MinLength≥global / MaxLength≤global / HistoryDepth≥global の 3 軸のみで、global PasswordPolicy が将来増えても自動追従しない。新フィールド追加時に enforcePolicyFloor の更新が必要。"
+  - "メール送信タブは disabled 状態で枠だけ提供。実装は別 WI で行う。"
+  - "UI の数値入力に max 値を設定したが、HTML form の制約のみで強制力は弱い。サーバ側 use case が最終 gate。"
+
+human_decisions:
+  - "WI-17 が言及する \"既存 UpdateTenant を流用\" の解釈として、Update のシグネチャを UpdateInput / PolicyFloor を受け取る形に拡張した。これにより `/admin/tenants` 経由でも password_policy_override が反映されるようになった (既存の silent ignore バグの解消)。"
+  - "AdminSettings* permission の allow_when は admin OR system_admin にしている。system_admin が default tenant で /api/admin/settings を呼ぶときは自テナント (default) を対象とする。`/admin/tenants` (system_admin 専用 / 他テナント編集可) との棲み分けは UI 上の補助リンクで明示。"
+  - "policy override の解除手段として、空の object `{}` を送ると override が nil に戻る挙動を採用した。null 明示削除は SCL の TenantUpdateRequest 説明にあるが、本 WI ではフィールドの個別解除よりまとめて global default に戻す経路だけを公開している。"

@@ -116,4 +116,6 @@ func registerTenantRoutes(g *echo.Group, d Deps) {
 	g.GET("/api/admin/keys/:kid", d.handleGetAdminKey)
 	g.POST("/api/admin/keys/rotate", d.handleRotateAdminKey)
 	g.GET("/api/admin/policy/roles", d.handleListAdminRolePolicies)
+	g.GET("/api/admin/settings", d.handleGetAdminSettings)
+	g.PATCH("/api/admin/settings", d.handleUpdateAdminSettings)
 }

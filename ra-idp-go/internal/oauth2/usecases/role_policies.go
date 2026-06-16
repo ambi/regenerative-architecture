@@ -37,6 +37,8 @@ var rolePermissionInterfaces = map[string][]string{
 	"AdminClientsManage":   {"ListAdminClients", "GetAdminClient", "CreateAdminClient", "UpdateAdminClient", "DeleteAdminClient"},
 	"AdminConsentsManage":  {"ListAdminConsents", "GetAdminConsent", "RevokeAdminConsent"},
 	"AdminTenantsManage":   {"ListTenants", "GetTenant", "CreateTenant", "UpdateTenant", "DisableTenant", "EnableTenant"},
+	"AdminSettingsRead":    {"GetAdminSettings"},
+	"AdminSettingsUpdate":  {"UpdateAdminSettings"},
 	"AdminAuditEventsRead": {"ListAdminAuditEvents", "GetAdminAuditEvent"},
 	"AdminKeysRead":        {"ListAdminKeys", "GetAdminKey"},
 	"AdminKeysRotate":      {"RotateAdminKey"},

@@ -234,6 +234,11 @@ export type AdminSettings = {
     max_length?: number
     history_depth?: number
   }
+  password_policy_defaults: {
+    min_length: number
+    max_length: number
+    history_depth: number
+  }
 }
 
 export type AdminSettingsPage = {

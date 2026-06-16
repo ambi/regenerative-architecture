@@ -32,6 +32,13 @@ type adminSettingsResponse struct {
 	TenantID               string                       `json:"tenant_id"`
 	DisplayName            string                       `json:"display_name"`
 	PasswordPolicyOverride *spec.PasswordPolicyOverride `json:"password_policy_override,omitempty"`
+	PasswordPolicyDefaults passwordPolicyDefaults       `json:"password_policy_defaults"`
+}
+
+type passwordPolicyDefaults struct {
+	MinLength    int `json:"min_length"`
+	MaxLength    int `json:"max_length"`
+	HistoryDepth int `json:"history_depth"`
 }
 
 type adminSettingsUpdateRequest struct {
@@ -51,7 +58,7 @@ func (d Deps) handleGetAdminSettings(c *echo.Context) error {
 	if tenant == nil {
 		return writeBrowserError(c, http.StatusNotFound, "tenant_not_found", "テナントが存在しません")
 	}
-	return noStoreJSON(c, http.StatusOK, toAdminSettingsResponse(tenant))
+	return noStoreJSON(c, http.StatusOK, d.toAdminSettingsResponse(tenant))
 }
 
 func (d Deps) handleUpdateAdminSettings(c *echo.Context) error {
@@ -85,14 +92,20 @@ func (d Deps) handleUpdateAdminSettings(c *echo.Context) error {
 			ChangedFields: adminSettingsChangedFields(input),
 		})
 	}
-	return noStoreJSON(c, http.StatusOK, toAdminSettingsResponse(tenant))
+	return noStoreJSON(c, http.StatusOK, d.toAdminSettingsResponse(tenant))
 }
 
-func toAdminSettingsResponse(t *spec.Tenant) adminSettingsResponse {
+func (d Deps) toAdminSettingsResponse(t *spec.Tenant) adminSettingsResponse {
+	floor := d.tenantPolicyFloor()
 	return adminSettingsResponse{
 		TenantID:               t.ID,
 		DisplayName:            t.DisplayName,
 		PasswordPolicyOverride: t.PasswordPolicyOverride,
+		PasswordPolicyDefaults: passwordPolicyDefaults{
+			MinLength:    floor.MinLength,
+			MaxLength:    floor.MaxLength,
+			HistoryDepth: floor.HistoryDepth,
+		},
 	}
 }
 

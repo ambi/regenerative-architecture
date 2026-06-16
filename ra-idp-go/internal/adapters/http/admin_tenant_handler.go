@@ -2,6 +2,7 @@ package http
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"slices"
 	"time"
@@ -197,7 +198,12 @@ func (d Deps) writeTenantError(c *echo.Context, err error) error {
 		errors.Is(err, tenantusecases.ErrDefaultTenant):
 		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", err.Error())
 	case errors.Is(err, tenantusecases.ErrPolicyOverrideWeaker):
-		return writeBrowserError(c, http.StatusBadRequest, "policy_override_weaker", "パスワードポリシーは global default より弱くできません")
+		floor := d.tenantPolicyFloor()
+		message := fmt.Sprintf(
+			"パスワードポリシーは標準値より弱くできません (min_length≥%d / max_length≤%d / history_depth≥%d)",
+			floor.MinLength, floor.MaxLength, floor.HistoryDepth,
+		)
+		return writeBrowserError(c, http.StatusBadRequest, "policy_override_weaker", message)
 	default:
 		return err
 	}

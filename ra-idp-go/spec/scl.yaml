@@ -14,7 +14,7 @@ components:
 
   Tenancy:
     description: テナント (Realm) 集約、ライフサイクル、HTTP リクエストからのテナント解決、テナント管理 API を所有する。テナントは ra-idp のあらゆる集約に共通する境界文脈。
-    owns_models: [Tenant, TenantStatus, TenantCreateRequest, TenantUpdateRequest, TenantSummaryResponse, TenantListResponse, PasswordPolicyOverride]
+    owns_models: [Tenant, TenantStatus, TenantCreateRequest, TenantUpdateRequest, TenantSummaryResponse, TenantListResponse, PasswordPolicyOverride, PasswordPolicyDefaults, AdminSettingsResponse]
     owns_states: [TenantLifecycle]
     owns_events: [TenantCreated, TenantUpdated, TenantDisabled, TenantEnabled]
     owns_interfaces: [ResolveTenant, ListTenants, GetTenant, CreateTenant, UpdateTenant, DisableTenant, EnableTenant, GetAdminSettings, UpdateAdminSettings]
@@ -1570,6 +1570,31 @@ models:
       require_pushed_authorization_requests: { type: Boolean, optional: true }
       dpop_bound_access_tokens:       { type: Boolean, optional: true }
 
+  PasswordPolicyDefaults:
+    kind: value_object
+    description: |
+      objectives.PasswordPolicy の現行値。テナント設定 UI が「テナント上書きが
+      無いときに実際に適用される値」をユーザに具体数字で示せるよう、API レスポンスに
+      埋め込む。同時に override がこの値より弱い場合の reject 閾値でもある。
+    annotations: { component: Tenancy }
+    fields:
+      min_length:    { type: Integer, description: "objectives.PasswordPolicy.min_length。" }
+      max_length:    { type: Integer, description: "objectives.PasswordPolicy.max_length。" }
+      history_depth: { type: Integer, description: "objectives.PasswordPolicy.history_depth。" }
+
+  AdminSettingsResponse:
+    kind: value_object
+    description: |
+      `/api/admin/settings` の返り値。テナント本体ではなく管理 UI 向けの projection で、
+      tenant_id / display_name / password_policy_override に加え、UI 表示と weaker
+      policy gating に使う objectives 標準値を併せて返す。
+    annotations: { component: Tenancy }
+    fields:
+      tenant_id:                { type: String }
+      display_name:             { type: String, annotations: { pii: true } }
+      password_policy_override: { type: PasswordPolicyOverride, optional: true }
+      password_policy_defaults: { type: PasswordPolicyDefaults }
+
   TenantCreateRequest:
     kind: value_object
     description: 管理者が新規テナントを登録する JSON リクエスト (ADR-032)。`id` は URL-safe slug。
@@ -2990,8 +3015,10 @@ interfaces:
       テナント内 admin が自身のテナントの設定 (表示名 / パスワードポリシー上書き) を取得する。
       対象テナントは actor.tenant_id に固定するため cross-tenant 読み出しは構造的に発生しない。
       `/admin/tenants` (system_admin 専用) とは別経路で、admin にも開放される (ADR-032)。
+      レスポンスには objectives.PasswordPolicy の現行値 (password_policy_defaults) を
+      含め、UI が「上書きしないときに実際に適用される値」を具体数字で示せるようにする。
     output:
-      settings: { type: TenantSummaryResponse }
+      settings: { type: AdminSettingsResponse }
     errors: [AccessDeniedError]
     read_only: true
     bindings:
@@ -3002,11 +3029,13 @@ interfaces:
       テナント内 admin が自身のテナントの設定を更新する。display_name と
       password_policy_override のいずれかまたは両方を任意フィールドとして受け取り、
       actor.tenant_id に固定した上で UpdateTenant のロジックを実行する (ADR-032)。
-      password_policy_override は global PasswordPolicy より弱い値を use case 側で拒否する。
+      password_policy_override が objectives.PasswordPolicy の標準値より弱い場合
+      (min_length 下回り / max_length 上回り / history_depth 下回り) は use case
+      側で拒否する。
     input:
       request: { type: TenantUpdateRequest }
     output:
-      settings: { type: TenantSummaryResponse }
+      settings: { type: AdminSettingsResponse }
     errors: [InvalidRequestError, AccessDeniedError]
     emits: [TenantUpdated]
     bindings:

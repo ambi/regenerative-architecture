@@ -32,7 +32,8 @@ const tabs: Tab[] = [
   {
     key: 'password-policy',
     label: 'パスワードポリシー',
-    description: 'テナント単位の上書き値。global default を継承するフィールドは空欄のままにします。',
+    description:
+      'テナント単位の上書き値。空欄のフィールドは ra-idp の標準値が適用されます。',
     icon: IconShieldLock,
   },
   {
@@ -236,6 +237,7 @@ function PasswordPolicyTab({
   onSaved: (next: AdminSettings) => void
 }) {
   const override = settings.password_policy_override
+  const defaults = settings.password_policy_defaults
   const [minLength, setMinLength] = useState(override?.min_length?.toString() ?? '')
   const [maxLength, setMaxLength] = useState(override?.max_length?.toString() ?? '')
   const [historyDepth, setHistoryDepth] = useState(override?.history_depth?.toString() ?? '')
@@ -257,6 +259,9 @@ function PasswordPolicyTab({
         password_policy_override: policy,
       })
       onSaved(next)
+      setMinLength(next.password_policy_override?.min_length?.toString() ?? '')
+      setMaxLength(next.password_policy_override?.max_length?.toString() ?? '')
+      setHistoryDepth(next.password_policy_override?.history_depth?.toString() ?? '')
       setNotice('パスワードポリシーを更新しました。')
     } catch (cause) {
       setError(
@@ -274,8 +279,32 @@ function PasswordPolicyTab({
       <header>
         <h2 className="text-base font-semibold text-slate-900">パスワードポリシー</h2>
         <p className="mt-1 text-sm text-slate-600">
-          指定したフィールドのみ global default を上書きします。空欄は global default を継承します。
-          global より弱い値はサーバ側で拒否されます。
+          指定したフィールドのみテナント固有の値で上書きします。空欄のフィールドは
+          ra-idp の標準値が適用されます。
+        </p>
+        <dl className="mt-3 grid grid-cols-3 gap-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-xs">
+          <div>
+            <dt className="text-slate-500">標準 最小長</dt>
+            <dd className="mt-0.5 text-sm font-semibold text-slate-900">
+              {defaults.min_length} 文字
+            </dd>
+          </div>
+          <div>
+            <dt className="text-slate-500">標準 最大長</dt>
+            <dd className="mt-0.5 text-sm font-semibold text-slate-900">
+              {defaults.max_length} 文字
+            </dd>
+          </div>
+          <div>
+            <dt className="text-slate-500">標準 履歴件数</dt>
+            <dd className="mt-0.5 text-sm font-semibold text-slate-900">
+              {defaults.history_depth} 件
+            </dd>
+          </div>
+        </dl>
+        <p className="mt-2 text-xs text-slate-500">
+          標準値より弱い設定 (最小長を下げる / 最大長を上げる / 履歴件数を減らす) は
+          サーバ側で拒否されます。
         </p>
       </header>
       <form onSubmit={handleSave} className="mt-5 grid gap-4">
@@ -287,27 +316,30 @@ function PasswordPolicyTab({
             label="最小長 (min_length)"
             value={minLength}
             onChange={setMinLength}
-            min={1}
-            max={128}
-            hint="global default 以上"
+            min={defaults.min_length}
+            max={defaults.max_length}
+            placeholder={defaults.min_length.toString()}
+            hint={`${defaults.min_length} 以上`}
           />
           <PolicyField
             id="max-length"
             label="最大長 (max_length)"
             value={maxLength}
             onChange={setMaxLength}
-            min={1}
-            max={1024}
-            hint="global default 以下"
+            min={defaults.min_length}
+            max={defaults.max_length}
+            placeholder={defaults.max_length.toString()}
+            hint={`${defaults.max_length} 以下`}
           />
           <PolicyField
             id="history-depth"
             label="履歴件数 (history_depth)"
             value={historyDepth}
             onChange={setHistoryDepth}
-            min={0}
+            min={defaults.history_depth}
             max={50}
-            hint="global default 以上"
+            placeholder={defaults.history_depth.toString()}
+            hint={`${defaults.history_depth} 以上`}
           />
         </div>
         <div>
@@ -327,6 +359,7 @@ function PolicyField({
   onChange,
   min,
   max,
+  placeholder,
   hint,
 }: {
   id: string
@@ -335,6 +368,7 @@ function PolicyField({
   onChange: (next: string) => void
   min: number
   max: number
+  placeholder: string
   hint: string
 }) {
   return (
@@ -346,6 +380,7 @@ function PolicyField({
         min={min}
         max={max}
         value={value}
+        placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
       />
       <p className="text-xs text-slate-500">{hint}</p>

@@ -95,6 +95,11 @@ func TestAdminSettingsGetReturnsCurrentTenant(t *testing.T) {
 		*body.PasswordPolicyOverride.MinLength != min {
 		t.Fatalf("override=%+v", body.PasswordPolicyOverride)
 	}
+	if body.PasswordPolicyDefaults.MinLength <= 0 ||
+		body.PasswordPolicyDefaults.MaxLength <= 0 ||
+		body.PasswordPolicyDefaults.HistoryDepth <= 0 {
+		t.Fatalf("defaults must be populated: %+v", body.PasswordPolicyDefaults)
+	}
 }
 
 func TestAdminSettingsGetAllowsSystemAdmin(t *testing.T) {

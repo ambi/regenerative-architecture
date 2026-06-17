@@ -28,8 +28,7 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 *.tsbuildinfo
 
 # IDEs or AI
-.antigravitycli
-.claude
+.claude/settings.local.json
 .idea
 
 # Finder (MacOS) folder config

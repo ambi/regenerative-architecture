@@ -2,16 +2,18 @@
 /**
  * YAML check for the repository.
  *
- *   bun run yaml-check                       # default targets
- *   bun run yaml-check changes/foo/x.yaml    # explicit files / globs
+ *   yaml-check <file>...                          # parse + lint only
+ *   yaml-check --schema=<name> <file>...          # parse + lint + schema
+ *   yaml-check --list-schemas                     # list available schema names
  *
  * Three layers:
  *   1. Parse via Bun's built-in YAML loader (dynamic import) — same engine
  *      used by scl-to-html, so anything that parses here will parse there.
  *   2. Lint on the raw text: no tab indent, no trailing whitespace, must
  *      end with a single trailing newline.
- *   3. Format-specific JSON Schema validation (work-item.yaml /
- *      completion-report.yaml / scl.yaml) via Ajv 2020-12.
+ *   3. (opt-in) JSON Schema 2020-12 validation via Ajv. Schemas are
+ *      explicit, never inferred from filename — a chance basename collision
+ *      should not silently activate a schema unrelated to the file.
  *
  * Exits non-zero if any target has a parse error, a lint violation, or a
  * schema violation.
@@ -19,9 +21,9 @@
 
 import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
-import { basename, isAbsolute, relative, resolve } from 'node:path'
+import { isAbsolute, relative, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import Ajv2020, { type ErrorObject } from 'ajv/dist/2020.js'
+import Ajv2020, { type ErrorObject, type ValidateFunction } from 'ajv/dist/2020.js'
 import addFormats from 'ajv-formats'
 import workItemSchema from '../schemas/work-item.schema.json' with { type: 'json' }
 import completionReportSchema from '../schemas/completion-report.schema.json' with { type: 'json' }
@@ -39,37 +41,84 @@ function resolvePath(p: string): string {
   return resolve(REPO_ROOT, p)
 }
 
-const DEFAULT_GLOBS = ['changes/**/*.yaml', 'ra-idp-go/spec/*.yaml', 'tools/**/spec/*.yaml']
-
 type Finding = { line: number; column: number; message: string }
 
 const ajv = new Ajv2020({ allErrors: true, strict: false })
 addFormats.default(ajv)
-const validateWorkItem = ajv.compile(workItemSchema)
-const validateCompletionReport = ajv.compile(completionReportSchema)
-const validateScl = ajv.compile(sclSchema)
-
-function schemaFor(
-  path: string,
-): { name: string; validate: ReturnType<typeof ajv.compile> } | null {
-  const name = basename(path)
-  if (name === 'work-item.yaml') return { name: 'work-item', validate: validateWorkItem }
-  if (name === 'completion-report.yaml')
-    return { name: 'completion-report', validate: validateCompletionReport }
-  if (name === 'scl.yaml') return { name: 'scl', validate: validateScl }
-  return null
+const SCHEMAS: Record<string, ValidateFunction> = {
+  'work-item': ajv.compile(workItemSchema),
+  'completion-report': ajv.compile(completionReportSchema),
+  scl: ajv.compile(sclSchema),
 }
 
-async function expandTargets(args: string[]): Promise<string[]> {
-  const patterns = args.length > 0 ? args : DEFAULT_GLOBS
+type CliOptions = { schema: string | null; files: string[]; listSchemas: boolean }
+
+function parseArgs(argv: string[]): CliOptions {
+  const files: string[] = []
+  let schema: string | null = null
+  let listSchemas = false
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i] ?? ''
+    if (a === '--list-schemas') {
+      listSchemas = true
+    } else if (a === '--schema') {
+      const next = argv[i + 1]
+      if (next === undefined) {
+        console.error('yaml-check: --schema requires a value')
+        process.exit(2)
+      }
+      schema = next
+      i++
+    } else if (a.startsWith('--schema=')) {
+      schema = a.slice('--schema='.length)
+    } else if (a === '--help' || a === '-h') {
+      printUsage()
+      process.exit(0)
+    } else if (a.startsWith('-')) {
+      console.error(`yaml-check: unknown flag: ${a}`)
+      process.exit(2)
+    } else {
+      files.push(a)
+    }
+  }
+  return { schema, files, listSchemas }
+}
+
+function printUsage(): void {
+  process.stdout.write(
+    [
+      'Usage: yaml-check [--schema=<name>] <file-or-glob>...',
+      '       yaml-check --list-schemas',
+      '',
+      'Without --schema, only YAML parse + raw-text lint runs.',
+      'With --schema, the named JSON Schema is applied to every input file.',
+      `Available schemas: ${Object.keys(SCHEMAS).join(', ')}`,
+      '',
+    ].join('\n'),
+  )
+}
+
+async function expandTargets(patterns: string[]): Promise<string[]> {
   const seen = new Set<string>()
   for (const pattern of patterns) {
     const isGlob = /[*?[]/.test(pattern)
     if (isGlob) {
-      const glob = new Bun.Glob(pattern)
-      for await (const match of glob.scan({ cwd: REPO_ROOT, absolute: true })) {
-        if (!match.includes('/node_modules/')) seen.add(match)
+      // Resolve the glob against the shell cwd first (matches what the user
+      // typed), then fall back to the repo root if nothing matched. Glob
+      // patterns can contain `..` so we cannot pass them to Bun.Glob with a
+      // mismatched cwd.
+      let matched = 0
+      const tryScan = async (cwd: string): Promise<void> => {
+        const glob = new Bun.Glob(pattern)
+        for await (const match of glob.scan({ cwd, absolute: true })) {
+          if (!match.includes('/node_modules/')) {
+            seen.add(match)
+            matched++
+          }
+        }
       }
+      await tryScan(process.cwd())
+      if (matched === 0 && process.cwd() !== REPO_ROOT) await tryScan(REPO_ROOT)
     } else {
       seen.add(resolvePath(pattern))
     }
@@ -191,17 +240,40 @@ function formatSchemaError(err: ErrorObject): string {
   return `schema: ${path} ${err.message ?? ''}${detail}`.trimEnd()
 }
 
-function format(path: string, findings: Finding[]): string {
+function formatFindings(path: string, findings: Finding[]): string {
   const rel = relative(process.cwd(), path) || path
   return findings.map((f) => `${rel}:${f.line}:${f.column}: ${f.message}`).join('\n')
 }
 
-const args = process.argv.slice(2)
-const targets = await expandTargets(args)
+const opts = parseArgs(process.argv.slice(2))
+
+if (opts.listSchemas) {
+  for (const name of Object.keys(SCHEMAS)) console.log(name)
+  process.exit(0)
+}
+
+let validate: ValidateFunction | null = null
+if (opts.schema !== null) {
+  validate = SCHEMAS[opts.schema] ?? null
+  if (validate === null) {
+    console.error(
+      `yaml-check: unknown schema '${opts.schema}'. Available: ${Object.keys(SCHEMAS).join(', ')}`,
+    )
+    process.exit(2)
+  }
+}
+
+if (opts.files.length === 0) {
+  console.error('yaml-check: no input files given')
+  printUsage()
+  process.exit(2)
+}
+
+const targets = await expandTargets(opts.files)
 
 if (targets.length === 0) {
   console.error('yaml-check: no files matched')
-  process.exit(args.length > 0 ? 1 : 0)
+  process.exit(1)
 }
 
 let failed = 0
@@ -213,18 +285,15 @@ for (const path of targets) {
   if (!parseResult.ok) findings.push(parseResult.finding)
   findings.push(...lintFindings)
 
-  if (parseResult.ok) {
-    const schema = schemaFor(path)
-    if (schema) {
-      const valid = schema.validate(parseResult.data)
-      if (!valid && schema.validate.errors) {
-        for (const err of schema.validate.errors) {
-          findings.push({
-            line: locatePointer(text, err.instancePath),
-            column: 1,
-            message: formatSchemaError(err),
-          })
-        }
+  if (parseResult.ok && validate !== null) {
+    const valid = validate(parseResult.data)
+    if (!valid && validate.errors) {
+      for (const err of validate.errors) {
+        findings.push({
+          line: locatePointer(text, err.instancePath),
+          column: 1,
+          message: formatSchemaError(err),
+        })
       }
     }
   }
@@ -235,7 +304,7 @@ for (const path of targets) {
   }
   failed++
   console.log(`FAIL ${relative(process.cwd(), path) || path}`)
-  process.stdout.write(`${format(path, findings)}\n`)
+  process.stdout.write(`${formatFindings(path, findings)}\n`)
 }
 
 if (failed > 0) {

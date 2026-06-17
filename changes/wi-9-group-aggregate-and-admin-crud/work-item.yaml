@@ -36,80 +36,102 @@ scope:
       残す理由 (個別 user override の経路として)。
 
   scl:
-    - vocabulary: `aggregate.Group`、`event.GroupCreated` / `GroupUpdated` /
+    - >-
+      vocabulary: `aggregate.Group`、`event.GroupCreated` / `GroupUpdated` /
       `GroupDeleted` / `GroupMemberAdded` / `GroupMemberRemoved` を追加。
-    - models: `Group { id, tenant_id, name, description?, roles[], created_at,
+    - >-
+      models: `Group { id, tenant_id, name, description?, roles[], created_at,
       updated_at }`、`GroupMember { group_id, user_sub, added_at }` を追加。
-    - state_machines: `Group { Active }` の単一状態 (削除は aggregate 自体の
+    - >-
+      state_machines: `Group { Active }` の単一状態 (削除は aggregate 自体の
       lifecycle で表す)。
-    - interfaces: `group.list / group.get / group.create / group.update /
+    - >-
+      interfaces: `group.list / group.get / group.create / group.update /
       group.delete / group.members.add / group.members.remove` を AdminConsole
       コンポーネントに追加。
-    - permissions: `admin.groups.read` / `admin.groups.write` を追加し、
+    - >-
+      permissions: `admin.groups.read` / `admin.groups.write` を追加し、
       `admin` ロールに紐付ける。`system_admin` は default tenant の管理
       面のみ追加権限。
-    - objectives: effective_roles の合成則と「membership 操作は audit
+    - >-
+      objectives: effective_roles の合成則と「membership 操作は audit
       event を必ず emit する」を保証義務として明記。
-    - scenarios: admin が group を作成して user を所属させる → user の
+    - >-
+      scenarios: admin が group を作成して user を所属させる → user の
       effective roles に group.roles が乗る、を 1 シナリオで追加 (自然文
       ステップ、§3.6 形式)。
 
   go:
     domain:
-      - internal/spec/ に Group / GroupMember 型と `EffectiveRoles(user,
+      - >-
+        internal/spec/ に Group / GroupMember 型と `EffectiveRoles(user,
         groups)` ヘルパを追加。`User` 自体は変更しない (memberships は
         別 aggregate)。
     ports:
-      - GroupRepo: ListByTenant / FindByID / Save / Delete /
+      - >-
+        GroupRepo: ListByTenant / FindByID / Save / Delete /
         ListMembersByGroup / ListGroupsByUser / AddMember / RemoveMember。
       - イベント emit は既存 `Emit` port を流用。
     usecases:
-      - admingroups.{ListGroups, GetGroup, CreateGroup, UpdateGroup,
+      - >-
+        admingroups.{ListGroups, GetGroup, CreateGroup, UpdateGroup,
         DeleteGroup, AddMember, RemoveMember}。すべて tenant boundary
         check と admin RBAC を通す。
-      - 既存 `requireAdmin` / `requireSystemAdmin` が role 判定で
+      - >-
+        既存 `requireAdmin` / `requireSystemAdmin` が role 判定で
         EffectiveRoles を参照するように internal で差し替える (外部 API
         の wire 形式は不変)。
       - DeleteGroup は所属 user の membership も一括解除する。
     adapters:
-      - persistence: memory / postgres 両方に GroupRepo を追加。postgres
+      - >-
+        persistence: memory / postgres 両方に GroupRepo を追加。postgres
         は `groups` / `group_members` テーブルと外部キー制約 (tenant_id /
         cascade) を migration で導入。
-      - http: `/admin/groups` (list / create)、`/admin/groups/:id`
+      - >-
+        http: `/admin/groups` (list / create)、`/admin/groups/:id`
         (get / update / delete)、`/admin/groups/:id/members/:sub` (POST
         add / DELETE remove)。CSRF と requireAdmin を共通。
       - eventsink: 既存 outbox 経路に新規 event を載せる (5 種類)。
     bootstrap:
-      - 起動時 EffectiveRoles の解決経路を組み立て、Deps 構造体に
+      - >-
+        起動時 EffectiveRoles の解決経路を組み立て、Deps 構造体に
         GroupRepo を配線する。
 
   ui:
-    - 新規 AdminGroupsPage を追加: 一覧 (name / member count / roles 数)、
+    - >-
+      新規 AdminGroupsPage を追加: 一覧 (name / member count / roles 数)、
       詳細パネル (name 編集 / description / roles 編集 + メンバー編集)、
       作成・削除ダイアログ。確認なしの破壊的操作はしない。
-    - AdminUsersPage の詳細パネルに「所属グループ」セクションを追加し、
+    - >-
+      AdminUsersPage の詳細パネルに「所属グループ」セクションを追加し、
       group 一覧を表示する。group 名の click で AdminGroupsPage の
       該当 group へ遷移する。membership 編集は AdminGroupsPage 側に
       集約する (user 側からは membership 追加だけ可能とする inline
       コントロールを 1 つ用意する)。
-    - 既存 sidebar (lib/adminNav.ts) に「グループ」を追加する。tenant
+    - >-
+      既存 sidebar (lib/adminNav.ts) に「グループ」を追加する。tenant
       共通で表示。AdminTenantsPage 同様に navigation 配列の更新のみ。
-    - effective roles の表示: AdminUsersPage の詳細パネルで「明示ロール
+    - >-
+      effective roles の表示: AdminUsersPage の詳細パネルで「明示ロール
       (user.roles)」と「グループ由来ロール」を分けて表示する。union を
       別段に出すことで admin の理解を助ける。
 
   documentation:
-    - ra-idp-go/README.md の Phase 4 「グループ」行を完了レポートで
+    - >-
+      ra-idp-go/README.md の Phase 4 「グループ」行を完了レポートで
       除去する。
     - decisions/ 配下の README index に ADR-037 を追加する。
-    - dev demo seed に `engineering` / `support` 2 group を入れ、demo.sh
+    - >-
+      dev demo seed に `engineering` / `support` 2 group を入れ、demo.sh
       の認可 flow が group-derived 権限で動くことを確認できるようにする。
 
 out_of_scope:
   - グループ階層 (group of groups / nested membership)。
-  - "属性に基づき自動所属" 等の dynamic group ルール。
+  - >-
+    "属性に基づき自動所属" 等の dynamic group ルール。
   - deny / minus 権限ルール (union のみ)。
-  - groups claim の id_token / userinfo 出力 (admin が opt-in できるかは
+  - >-
+    groups claim の id_token / userinfo 出力 (admin が opt-in できるかは
     別 WI)。
   - SCIM 2.0 経由の group 同期 (Phase 6 のスコープ)。
   - グループ単位の MFA 強制 / セッションポリシー (Phase 2-3 のスコープ)。
@@ -153,7 +175,8 @@ verification:
   - cmd: 'go test ./internal/spec/...'
     in: ra-idp-go
     reason: SCL の読み込み、内部参照、Go バインディングとの整合を確認する。
-  - 手動: dev サーバを起動し、admin で `/admin/groups` から
+  - >-
+    手動: dev サーバを起動し、admin で `/admin/groups` から
     `engineering` (`catalog:read`) を作成 → alice を追加 →
     `/admin/users` の詳細で「グループ由来ロール」に `catalog:read` が
     表示される → demo.sh の authorization_code flow で `catalog:read`

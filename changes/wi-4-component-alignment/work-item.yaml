@@ -22,23 +22,30 @@ target_state:
 
 scope:
   scl:
-    - components.Identity を components.Authentication にリネームする
+    - >-
+      components.Identity を components.Authentication にリネームする
       (owns_models / owns_events / owns_interfaces / owns_permissions /
       owns_invariants / owns_objectives / depends_on をそのまま引き継ぐ)。
-    - components.Authorization / Token / Trust / ClientRegistry の 4 つを
+    - >-
+      components.Authorization / Token / Trust / ClientRegistry の 4 つを
       components.OAuth2 単一に統合する。owns_* を union し、depends_on は
       重複排除して Tenancy / Authentication への参照のみ残す。
-    - 各セクションの annotations.component に書かれた旧名 4 つを OAuth2 に、
+    - >-
+      各セクションの annotations.component に書かれた旧名 4 つを OAuth2 に、
       Identity を Authentication に一括置換する。
   go:
-    - internal/administration/usecases/users.go を
+    - >-
+      internal/administration/usecases/users.go を
       internal/authentication/usecases/admin_users.go に移動 (test 含む)。
-    - internal/administration/usecases/clients.go を
+    - >-
+      internal/administration/usecases/clients.go を
       internal/oauth2/usecases/admin_clients.go に移動。
-    - internal/administration/usecases/consents.go を
+    - >-
+      internal/administration/usecases/consents.go を
       internal/oauth2/usecases/admin_consents.go に移動。
     - internal/administration/ パッケージを削除。
-    - internal/oauth2/ports/session_store.go を
+    - >-
+      internal/oauth2/ports/session_store.go を
       internal/authentication/ports/session_store.go に移動 (LoginSession は
       Authentication が所有するため)。
     - 上記移動に伴う import 文を全箇所更新する。
@@ -49,18 +56,21 @@ out_of_scope:
   - SCL の models / interfaces / permissions の追加・削除。
 
 affected_guarantees:
-  - SCL coherence test (internal/spec): permission / interface 名の一覧は
+  - >-
+    SCL coherence test (internal/spec): permission / interface 名の一覧は
     変えないため、PascalCase mapping は影響を受けない。
-  - admin RBAC: handler 経路と permission action 名は変えない。
-  - HTTP 経路: 変えない (handler は移動しない)。
+  - 'admin RBAC: handler 経路と permission action 名は変えない。'
+  - 'HTTP 経路: 変えない (handler は移動しない)。'
 
 verification:
   - go build ./... が成功する。
   - go vet ./... が無警告。
   - go test ./... が全 pass。
-  - SCL の owns_* に列挙された全要素が models / interfaces 等で見つかる
+  - >-
+    SCL の owns_* に列挙された全要素が models / interfaces 等で見つかる
     (coherence test SCLPermissionsCoverage 等)。
-  - rg -n "component: (Identity|Authorization|Token|Trust|ClientRegistry)"
+  - >-
+    rg -n "component: (Identity|Authorization|Token|Trust|ClientRegistry)"
     で旧 component 名が scl.yaml 内に残らないこと。
   - find internal/administration が空 / 不在であること。
 

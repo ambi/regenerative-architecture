@@ -74,76 +74,97 @@ scope:
 
   go:
     domain:
-      - internal/spec/schemas.go: User struct に `PendingDeletionAt
+      - >-
+        internal/spec/schemas.go: User struct に `PendingDeletionAt
         *time.Time` を追加。`IsSoftDeleted()` / `IsActive()` ヘルパを
         追加する (IsActive == disabled_at == null && pending_deletion_at
         == null && deleted_at == null)。
     usecases:
-      - authusecases.SoftDeleteUser: 新設。`pending_deletion_at = now` を
-        セットし、UserSoftDeleted event を emit。cascade は **しない**
-        (PII / Consent / RefreshToken / Session を残す)。new login と
-        既存 session 利用は拒否するよう、Disabled と同じ判定に合流させる。
-      - authusecases.RestoreUser: 新設。`pending_deletion_at` を null に
-        戻し、UserRestored event を emit。actor の RBAC 確認・tenant 一致
-        確認は既存と同じ。grace 期間を過ぎていれば reject (`invalid_state`)。
-      - authusecases.PurgeUser: 既存 DeleteUser を改名 (or alias) し、
+      - >-
+        authusecases.SoftDeleteUser: 新設。`pending_deletion_at = now`
+        をセットし、UserSoftDeleted event を emit。cascade は
+        **しない** (PII / Consent / RefreshToken / Session を残す)。
+        new login と既存 session 利用は拒否するよう、Disabled と
+        同じ判定に合流させる。
+      - >-
+        authusecases.RestoreUser: 新設。`pending_deletion_at` を null
+        に戻し、UserRestored event を emit。actor の RBAC 確認・tenant
+        一致確認は既存と同じ。grace 期間を過ぎていれば reject
+        (`invalid_state`)。
+      - >-
+        authusecases.PurgeUser: 既存 DeleteUser を改名 (or alias) し、
         anonymize cascade を担当。grace 経過後の background job からも、
         admin の明示的 force purge からも呼べる。冪等・自爆防止は維持。
-      - 既存 DeleteUser をどう扱うかは ADR で決める (推奨: 内部 helper
+      - >-
+        既存 DeleteUser をどう扱うかは ADR で決める (推奨: 内部 helper
         として PurgeUser を呼ぶラッパに退避し、外部 API は新 3 経路に
         統一)。
     persistence:
-      - memory / postgres の UserRepository.Save が
+      - >-
+        memory / postgres の UserRepository.Save が
         `pending_deletion_at` を round-trip するように対応する (DB に
         カラム追加が必要なので migration 0008 を 1 本)。
-      - memory.FindBySub / FindByUsername / FindByEmail / FindAll は
+      - >-
+        memory.FindBySub / FindByUsername / FindByEmail / FindAll は
         `deleted_at IS NULL` の既存フィルタを継続し、新たに
-        "soft-deleted は表示するが login 拒否" の挙動を Save に依存させる
-        (FindBySub は soft-deleted user を返す。auth 経路で IsSoftDeleted
-        を見る)。
-      - postgres も同様。`users_preferred_username_active_idx` の WHERE
+        "soft-deleted は表示するが login 拒否" の挙動を Save に依存
+        させる (FindBySub は soft-deleted user を返す。auth 経路で
+        IsSoftDeleted を見る)。
+      - >-
+        postgres も同様。`users_preferred_username_active_idx` の WHERE
         節を `deleted_at IS NULL AND pending_deletion_at IS NULL` に
         するかは検討事項 (soft-deleted の preferred_username 再利用を
         admin に許すかどうか)。推奨は許さない (誤操作で同名 user が
         2 つできるのを防ぐ)。
     http:
-      - DELETE `/api/admin/users/:sub` の挙動を変える。デフォルトは
+      - >-
+        DELETE `/api/admin/users/:sub` の挙動を変える。デフォルトは
         SoftDeleteUser を呼ぶ。クエリ `?purge=true` (or body 内
-        `force=true`) で PurgeUser に分岐。互換性のため当面 wi-8 callers
-        には影響しない: UI は wi-12 で同時に書き換える。
-      - POST `/api/admin/users/:sub/restore` を追加。verifyBrowserRequest
-        + requireAdmin。restore 後の user オブジェクトを返す (200)。
-      - 既存の deleted-user 経路 (login / authorize / token / userinfo /
-        introspect) を `IsSoftDeleted() || IsDeleted()` で fail-close に
-        拡張する。soft-deleted user の login は invalid_credentials、
+        `force=true`) で PurgeUser に分岐。互換性のため当面 wi-8
+        callers には影響しない: UI は wi-12 で同時に書き換える。
+      - >-
+        POST `/api/admin/users/:sub/restore` を追加。
+        verifyBrowserRequest + requireAdmin。restore 後の user
+        オブジェクトを返す (200)。
+      - >-
+        既存の deleted-user 経路 (login / authorize / token / userinfo
+        / introspect) を `IsSoftDeleted() || IsDeleted()` で fail-close
+        に拡張する。soft-deleted user の login は invalid_credentials、
         既存 session は無効、refresh は invalid_grant、introspect は
         active=false、userinfo は 401 invalid_token。挙動は wi-8 の
-        Deleted と同等にする (見えるかどうかと PII 復元可能性のみが違う)。
+        Deleted と同等にする (見えるかどうかと PII 復元可能性のみが
+        違う)。
     background:
-      - 任意。grace 期間経過後の自動 purge は本 WI ではいったん
-        **lazy-on-access** で済ませる:
-        admin が一覧を読むときに `pending_deletion_at + grace < now` の
-        user を見つけたら、その場で PurgeUser を呼ぶ (audit に
-        "auto_purge" として残す)。専用 cron / scheduler の導入は別 WI に
-        切り出す。これにより本 WI のスコープが膨らまない。
-      - background が走るタイミング: AdminUsersPage の loadPageData で
+      - >-
+        任意。grace 期間経過後の自動 purge は本 WI ではいったん
+        **lazy-on-access** で済ませる: admin が一覧を読むときに
+        `pending_deletion_at + grace < now` の user を見つけたら、
+        その場で PurgeUser を呼ぶ (audit に "auto_purge" として残す)。
+        専用 cron / scheduler の導入は別 WI に切り出す。これにより
+        本 WI のスコープが膨らまない。
+      - >-
+        background が走るタイミング: AdminUsersPage の loadPageData で
         listAdminUsers が呼ばれた瞬間、もしくは soft-delete API 経由で
         ユーザに触れた瞬間。
 
   ui:
-    - AdminUsersPage の "アカウントを削除" ボタンを soft-delete 経路に
+    - >-
+      AdminUsersPage の "アカウントを削除" ボタンを soft-delete 経路に
       切り替える。ダイアログ文言を変更: "30 日以内なら復元できます。
       復元期間中もログイン・トークン更新は拒否されます" を強調する。
       preferred_username typing 確認は残す (誤操作の最終防御)。
-    - 状態フィルタに "削除予約中 (Pending deletion)" を追加。デフォルト
+    - >-
+      状態フィルタに "削除予約中 (Pending deletion)" を追加。デフォルト
       フィルタは "有効" のままにし、admin が明示的に切り替えたときだけ
       pending を表示する。
-    - 詳細パネルに "復元" ボタン (PendingDeletion 状態時のみ表示) と
+    - >-
+      詳細パネルに "復元" ボタン (PendingDeletion 状態時のみ表示) と
       "完全削除する" 危険ボタン (warning ダイアログを挟む) を追加。
       完全削除ダイアログは wi-8 の現行ダイアログを流用する。
-    - PendingDeletion 状態の StatusBadge を追加 (color: amber, 文言:
-      "削除予約")。grace 残日数 (deleted_at - now の補数) を詳細パネルの
-      "アカウント状態" セクションに表示する。
+    - >-
+      PendingDeletion 状態の StatusBadge を追加 (color: amber, 文言:
+      "削除予約")。grace 残日数 (deleted_at - now の補数) を詳細
+      パネルの "アカウント状態" セクションに表示する。
 
   documentation:
     - ra-idp-go/README.md "範囲" 節と Phase 4 ロードマップ表を更新し、
@@ -151,14 +172,18 @@ scope:
       明記する。
 
 out_of_scope:
-  - 専用の cron / scheduler による自動 purge job。本 WI は lazy-on-access
-    で済ませる。
-  - "削除予約中" の user に対するメール通知 (本人 / 監査側双方)。Phase 5
-    側の DSAR / プライバシースコープに送る。
-  - 復元時の credential 再発行 (current_password の force reset 等)。
+  - >-
+    専用の cron / scheduler による自動 purge job。本 WI は
+    lazy-on-access で済ませる。
+  - >-
+    "削除予約中" の user に対するメール通知 (本人 / 監査側双方)。
+    Phase 5 側の DSAR / プライバシースコープに送る。
+  - >-
+    復元時の credential 再発行 (current_password の force reset 等)。
     復元 = 元の状態に戻すだけで、credential は触らない。
   - cross-tenant の bulk purge / 自動退職 batch 処理。
-  - "保留中ユーザ" 用の専用 SCL 状態 (Pending としか呼ばない単純な
+  - >-
+    "保留中ユーザ" 用の専用 SCL 状態 (Pending としか呼ばない単純な
     state machine 追加 1 個に留める)。
 
 affected_guarantees:
@@ -204,21 +229,27 @@ verification:
   - cmd: 'bun --cwd ra-idp-go/ui typecheck'
   - cmd: 'bun --cwd ra-idp-go/ui lint'
   - cmd: 'bun --cwd ra-idp-go/ui build'
-  - 手動 1 (SoftDelete): alice を AdminUsersPage で削除 → 一覧から消える
-    (default filter)・状態フィルタ "削除予約中" で表示される・login
-    invalid_credentials・refresh invalid_grant・userinfo 401・introspect
-    active=false を確認。
-  - 手動 2 (Restore): alice を復元 → 一覧に再表示・login 成功・PII 健全
-    (Email や roles が消えていない) を確認。
-  - 手動 3 (Purge): alice を soft-delete 後、AdminUsersPage の "完全削除"
-    で wi-8 の anonymize cascade が走り、preferred_username が
-    deleted:<sub> に置換、PII 全消去、Consent / RefreshToken / Session /
-    MfaFactor が cascade 削除されることを確認。
-  - 手動 4 (Auto-purge): SCL の grace 期間を 1 分に下書きで短縮した状態で
-    soft-delete → 待機 → listAdminUsers リフレッシュ → 自動的に Purge
-    された anonymize cascade の audit event が記録されることを確認。
-  - 手動 5 (自爆防止): admin 自身を soft-delete / restore / purge いずれも
-    self_delete_forbidden で reject されることを確認。
+  - >-
+    手動 1 (SoftDelete): alice を AdminUsersPage で削除 → 一覧から
+    消える (default filter)・状態フィルタ "削除予約中" で表示される・
+    login invalid_credentials・refresh invalid_grant・userinfo 401・
+    introspect active=false を確認。
+  - >-
+    手動 2 (Restore): alice を復元 → 一覧に再表示・login 成功・
+    PII 健全 (Email や roles が消えていない) を確認。
+  - >-
+    手動 3 (Purge): alice を soft-delete 後、AdminUsersPage の
+    "完全削除" で wi-8 の anonymize cascade が走り、preferred_username
+    が deleted:<sub> に置換、PII 全消去、Consent / RefreshToken /
+    Session / MfaFactor が cascade 削除されることを確認。
+  - >-
+    手動 4 (Auto-purge): SCL の grace 期間を 1 分に下書きで短縮した
+    状態で soft-delete → 待機 → listAdminUsers リフレッシュ →
+    自動的に Purge された anonymize cascade の audit event が
+    記録されることを確認。
+  - >-
+    手動 5 (自爆防止): admin 自身を soft-delete / restore / purge
+    いずれも self_delete_forbidden で reject されることを確認。
 
 risk: medium
 risk_notes: |

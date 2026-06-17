@@ -94,12 +94,15 @@ verification:
   - cmd: 'bun --cwd ra-idp-go/ui typecheck'
   - cmd: 'bun --cwd ra-idp-go/ui lint'
   - cmd: 'bun --cwd ra-idp-go/ui build'
-  - 手動 1: alice を選んで「アカウントを無効化」 → DisableUserDialog が
+  - >-
+    手動 1: alice を選んで「アカウントを無効化」 → DisableUserDialog が
     表示 → キャンセルで何も起きない → 確定で disabled_at が設定される
     ことを確認。
-  - 手動 2: admin 自身を無効化しようとして 400 self_disable_forbidden
+  - >-
+    手動 2: admin 自身を無効化しようとして 400 self_disable_forbidden
     が返ることを確認。
-  - 手動 3: 無効化済 user の「再有効化」はダイアログ無しで即実行される
+  - >-
+    手動 3: 無効化済 user の「再有効化」はダイアログ無しで即実行される
     ことを確認 (Enable は確認しない)。
 
 risk: low

@@ -80,11 +80,13 @@ scope:
         "テナント一覧から他テナントの設定を編集する場合は `/admin/tenants`
         を使ってください" の補足リンクを出す。
     navigation:
-      - `adminNavItems` の末尾 (テナント nav 項目より下、もしくは
+      - >-
+        `adminNavItems` の末尾 (テナント nav 項目より下、もしくは
         sidebar の "Settings" セクションを新設するなら最下段) に
         "設定" を追加する。AdminNavKey に `settings` を追加。
     routing:
-      - `/admin/settings` を router.tsx に追加し、loadPageData で
+      - >-
+        `/admin/settings` を router.tsx に追加し、loadPageData で
         `kind: 'admin-settings'` を返す。
       - loadPageData は `/api/admin/settings` を取得して初期値を埋める。
 
@@ -139,13 +141,17 @@ verification:
   - cmd: 'bun --cwd ra-idp-go/ui typecheck'
   - cmd: 'bun --cwd ra-idp-go/ui lint'
   - cmd: 'bun --cwd ra-idp-go/ui build'
-  - 手動 1: admin (default tenant) で `/admin/settings` を開く →
+  - >-
+    手動 1: admin (default tenant) で `/admin/settings` を開く →
     display_name と password_policy_override が現在値で表示される。
-  - 手動 2: password_policy_override.min_length を変更して保存 →
+  - >-
+    手動 2: password_policy_override.min_length を変更して保存 →
     再ロードで反映されている。
-  - 手動 3: 同 tenant 内の別 user 作成時に新しい min_length が
+  - >-
+    手動 3: 同 tenant 内の別 user 作成時に新しい min_length が
     適用される。
-  - 手動 4: system_admin かつ default tenant 以外のテナントで
+  - >-
+    手動 4: system_admin かつ default tenant 以外のテナントで
     `/admin/settings` を触っても自テナントだけが対象。
 
 risk: low

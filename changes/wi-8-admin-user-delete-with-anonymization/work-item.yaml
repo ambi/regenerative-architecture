@@ -36,67 +36,89 @@ scope:
       `sub` の再利用禁止、deletion 自体の audit event 規約。
 
   scl:
-    - `User` model に `deleted_at: timestamp | null` を追加。
-    - `state_machines.User` に `Deleted` 終端状態を追加 (`Active` / `Disabled`
+    - >-
+      `User` model に `deleted_at: timestamp | null` を追加。
+    - >-
+      `state_machines.User` に `Deleted` 終端状態を追加 (`Active` / `Disabled`
       → `Deleted`、`Deleted` から戻る遷移は持たない)。
-    - `interfaces` に `DeleteUser` (admin) と `user.deleted` event を追加。
-    - `permissions` の `admin.users.write` に DeleteUser を含める。
-    - `objectives` の認証・トークン保証義務に「`deleted_at != nil` の user で
+    - >-
+      `interfaces` に `DeleteUser` (admin) と `user.deleted` event を追加。
+    - >-
+      `permissions` の `admin.users.write` に DeleteUser を含める。
+    - >-
+      `objectives` の認証・トークン保証義務に「`deleted_at != nil` の user で
       認証成立せず」を明記。
 
   go:
     domain:
-      - internal/spec/ の User struct に `DeletedAt *time.Time` を追加し、
+      - >-
+        internal/spec/ の User struct に `DeletedAt *time.Time` を追加し、
         `IsDeleted()` helper を提供。`FindBySub` 系で見つかった場合でも
         login / consent issuance / token issuance は拒否する。
     usecases:
-      - authusecases.DeleteUser を新設。actor RBAC 確認 → user lookup →
+      - >-
+        authusecases.DeleteUser を新設。actor RBAC 確認 → user lookup →
         tombstone 置換 → 関連 aggregate cascade → `user.deleted` event を
         emit する。冪等 (既に deleted の場合は no-op + 200)。
-      - 「最後の admin を自分で削除する」を拒否する pre-check を入れる
+      - >-
+        「最後の admin を自分で削除する」を拒否する pre-check を入れる
         (actor.Sub == target.Sub && admin role の場合 reject)。
     persistence:
-      - UserRepo に `MarkDeleted(ctx, sub, now, tombstone)` を追加 (memory /
+      - >-
+        UserRepo に `MarkDeleted(ctx, sub, now, tombstone)` を追加 (memory /
         postgres)。
-      - 既存 ConsentRepo / RefreshTokenFamilyRepo / SessionRepo /
+      - >-
+        既存 ConsentRepo / RefreshTokenFamilyRepo / SessionRepo /
         PasswordHistoryRepo / DeviceAuthRepo に `DeleteAllForSub(ctx, sub)`
         を追加する。Lua / トランザクションを使い同一バッチで実行する。
-      - PostgreSQL migration を 1 本追加 (`users.deleted_at` カラム、必要な
+      - >-
+        PostgreSQL migration を 1 本追加 (`users.deleted_at` カラム、必要な
         index)。AUTO_MIGRATE で前方互換に流れる。
     http:
-      - DELETE `/admin/users/:sub` を追加。既存 PATCH / POST disable と
+      - >-
+        DELETE `/admin/users/:sub` を追加。既存 PATCH / POST disable と
         同様の verifyBrowserRequest + requireAdmin の上に乗せる。
       - 削除済 user を再度 DELETE しても 200 / no-op (idempotent)。
-    introspection / userinfo:
-      - `/introspect` は `deleted_at != nil` の subject を `active=false`
+    introspection_userinfo:
+      - >-
+        `/introspect` は `deleted_at != nil` の subject を `active=false`
         として返す。
-      - `/userinfo` は deleted user では 401 `invalid_token`。
+      - >-
+        `/userinfo` は deleted user では 401 `invalid_token`。
     audit:
-      - AdminAuditEvent に `user.deleted` を追加し、actor_sub / target_sub /
+      - >-
+        AdminAuditEvent に `user.deleted` を追加し、actor_sub / target_sub /
         reason (任意 free-text) を残す。
 
   ui:
-    - AdminUsersPage の詳細パネル下部 (`onDisabled` セクションの下) に
+    - >-
+      AdminUsersPage の詳細パネル下部 (`onDisabled` セクションの下) に
       「アカウントを削除」危険ボタンを追加する。Disable と別行にする。
-    - 削除ダイアログでは対象 user の `preferred_username` を入力させ、
+    - >-
+      削除ダイアログでは対象 user の `preferred_username` を入力させ、
       一致した場合のみ実行ボタンを有効化する (ミス防止)。任意の `reason`
       フィールドを 1 つ用意し、audit event に同梱する。
-    - 削除済 user は一覧に出さない既定 (status filter `deleted` を持つ
+    - >-
+      削除済 user は一覧に出さない既定 (status filter `deleted` を持つ
       `system_admin` 限定の表示は本 WI では作らない)。
     - StatusBadge は「削除済」を扱わない (詳細パネル側にだけ表示するため)。
 
   documentation:
-    - ra-idp-go/README.md の Phase 4 「ユーザ削除」行を完了レポートで
+    - >-
+      ra-idp-go/README.md の Phase 4 「ユーザ削除」行を完了レポートで
       除去する。
-    - decisions/CONCEPTION.md / CONCEPTION_BASELINE.md は変更しない (model
+    - >-
+      decisions/CONCEPTION.md / CONCEPTION_BASELINE.md は変更しない (model
       の追加のみで base concept は不変)。
 
 out_of_scope:
   - 完全 hard delete (debug 用 CLI も含めて提供しない)。
-  - "削除予約 + 30 日 grace 期間" のような soft 状態。将来別 WI で
+  - >-
+    "削除予約 + 30 日 grace 期間" のような soft 状態。将来別 WI で
     積み増せる設計にしておくに留める。
   - データ主体への export (DSAR の export 側は Phase 5)。
-  - `sub` を生成する際の予測困難化 / opaque 化 (現状は authusecases 側の
+  - >-
+    `sub` を生成する際の予測困難化 / opaque 化 (現状は authusecases 側の
     既存生成器をそのまま使う)。
   - SCIM 経由の deprovisioning (Phase 6)。
   - 監査ログ自身の削除・改竄防止強化 (Phase 8 のスコープ)。
@@ -136,7 +158,8 @@ verification:
   - cmd: 'bun --cwd ra-idp-go/ui typecheck'
   - cmd: 'bun --cwd ra-idp-go/ui lint'
   - cmd: 'bun --cwd ra-idp-go/ui build'
-  - 手動: dev seed の `bob` を作成して active token を発行 →
+  - >-
+    手動: dev seed の `bob` を作成して active token を発行 →
     AdminUsersPage で削除 → introspect が active=false / userinfo が 401 /
     refresh が `invalid_grant` を返す / 再 login 不可。
   - 手動: 自分自身を消そうとして失敗することを確認 (最終 admin 自爆防止)。

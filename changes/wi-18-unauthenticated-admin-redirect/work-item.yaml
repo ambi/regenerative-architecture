@@ -120,15 +120,20 @@ verification:
   - cmd: 'go test ./...'
     in: ra-idp-go
     reason: backend に変更なし。回帰なしを再確認。
-  - 手動 1: シークレットウィンドウで `/admin/users` を開く →
+  - >-
+    手動 1: シークレットウィンドウで `/admin/users` を開く →
     自動的に `/authorize` (or `/login`) に遷移する。
-  - 手動 2: そのままログイン → 入力後に `/admin/users` に戻る。
-  - 手動 3: シークレットウィンドウで `/admin/keys` を開く → ログイン
+  - >-
+    手動 2: そのままログイン → 入力後に `/admin/users` に戻る。
+  - >-
+    手動 3: シークレットウィンドウで `/admin/keys` を開く → ログイン
     後に `/admin/keys` に戻る (returnTo が path に依存して動く)。
-  - 手動 4: `returnTo=http://attacker/x` 等の外部 URL を強引に
+  - >-
+    手動 4: `returnTo=http://attacker/x` 等の外部 URL を強引に
     sessionStorage / query に入れた状態でログインしても、外部 URL
     には飛ばず `/admin` (or default) に戻る。
-  - 手動 5: admin role 無し user で `/admin/users` を開いた場合は
+  - >-
+    手動 5: admin role 無し user で `/admin/users` を開いた場合は
     本 WI の対象外。既存の 403 挙動が変わっていないことを確認。
 
 risk: medium

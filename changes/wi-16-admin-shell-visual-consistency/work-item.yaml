@@ -79,7 +79,8 @@ scope:
     routing:
       - 変更なし。
     navigation:
-      - `adminNav.ts` の "概要" の label を "ダッシュボード" に変更。
+      - >-
+        `adminNav.ts` の "概要" の label を "ダッシュボード" に変更。
 
   api:
     - 変更なし。
@@ -120,12 +121,16 @@ verification:
     in: ra-idp-go
     reason: backend に変更が無いため、handler テスト群が回帰しない
       ことを確認する程度。
-  - 手動 1: 6 admin ページを順番に開き、ヘッダ・sidebar・本文余白が
+  - >-
+    手動 1: 6 admin ページを順番に開き、ヘッダ・sidebar・本文余白が
     同一であることを目視確認。
-  - 手動 2: 各ページのタイトル直上に "Identity management > ユーザー"
+  - >-
+    手動 2: 各ページのタイトル直上に "Identity management > ユーザー"
     形式の breadcrumb が同位置に出る。
-  - 手動 3: sidebar 下の Security posture ブロックが消えている。
-  - 手動 4: sidebar に "ダッシュボード" と表示され、`/admin` で
+  - >-
+    手動 3: sidebar 下の Security posture ブロックが消えている。
+  - >-
+    手動 4: sidebar に "ダッシュボード" と表示され、`/admin` で
     active 状態になる。
 
 risk: low

@@ -24,17 +24,22 @@ motivation: |
 scope:
   ui:
     pages:
-      - AdminUsersPage の詳細パネル (`UserDetails`) に "属性を編集" ボタンを
+      - >-
+        AdminUsersPage の詳細パネル (`UserDetails`) に "属性を編集" ボタンを
         足し、`AttributeEditorDialog` を開く。
-      - AttributeEditorDialog は次のフィールドを編集可能とする:
+      - >-
+        AttributeEditorDialog は次のフィールドを編集可能とする:
         `preferred_username` (required、unique 違反は server error として表示)、
         `name`、`email`、`email_verified` (checkbox)。
-      - 既存 `RoleEditorDialog` と並ぶ独立ダイアログとし、保存ボタン押下で
+      - >-
+        既存 `RoleEditorDialog` と並ぶ独立ダイアログとし、保存ボタン押下で
         PATCH `/admin/users/:sub` を呼ぶ。
-      - メールアドレスを変更した場合、`email_verified` を勝手に true にしない
+      - >-
+        メールアドレスを変更した場合、`email_verified` を勝手に true にしない
         (チェックを外す既定動作)。ADR-030 の email 検証規約を破らない。
     api:
-      - api.ts に `updateAdminUserAttributes(csrf, sub, attrs)` を追加し、
+      - >-
+        api.ts に `updateAdminUserAttributes(csrf, sub, attrs)` を追加し、
         既存 `updateAdminUserRoles` と同じく PATCH `/admin/users/:sub` を呼ぶ。
         ロール更新と属性更新の同時送信は許可しない (ダイアログを分けるため)。
       - 既存 `updateAdminUserRoles` は変更しない (call site が増えるだけ)。
@@ -43,23 +48,28 @@ scope:
     navigation:
       - 既存 sidebar navigation は変更しない (新規ページ無し)。
     a11y:
-      - ダイアログは `role="dialog" aria-modal="true"`、`aria-labelledby` を
+      - >-
+        ダイアログは `role="dialog" aria-modal="true"`、`aria-labelledby` を
         付け、既存 `RoleEditorDialog` のパターンを揃える。
 
   scl:
-    - 変更なし。`UpdateUser` interface / `user.updated` event の wire 形式は維持。
+    - >-
+      変更なし。`UpdateUser` interface / `user.updated` event の wire 形式は維持。
 
   documentation:
-    - ra-idp-go/README.md の Phase 4 「ユーザ属性編集 UI」行は、本 WI 完了後
+    - >-
+      ra-idp-go/README.md の Phase 4 「ユーザ属性編集 UI」行は、本 WI 完了後
       `完了済` として除去する (完了レポートで反映する)。
 
 out_of_scope:
   - 新規 backend endpoint / use case の追加。
   - SCL の `User` モデル拡張 (新規 attribute はこの WI では追加しない)。
   - パスワードリセットを admin が代行する経路 (別 WI 候補)。
-  - email 変更時に確認メール (verification) を自動で送る連携 (Phase 0 の
+  - >-
+    email 変更時に確認メール (verification) を自動で送る連携 (Phase 0 の
     Email verification WI と統合する)。
-  - 監査イベントの schema 拡張。既存 `user.updated` の changed-fields 表示を
+  - >-
+    監査イベントの schema 拡張。既存 `user.updated` の changed-fields 表示を
     AdminAuditEventsPage で構造化する話は別 WI とする。
 
 affected_guarantees:
@@ -89,7 +99,8 @@ verification:
     in: ra-idp-go
     reason: backend に変更は無いが、既存の admin user handler テストの
       回帰を確認する。
-  - 手動: dev サーバで admin としてログイン → `/admin/users` で alice を選択 →
+  - >-
+    手動: dev サーバで admin としてログイン → `/admin/users` で alice を選択 →
     属性編集ダイアログを開いて `name` と `email` を変更 → 保存 → 一覧で反映、
     `/admin/audit_events` に `user.updated` が表示される。
 

@@ -30,77 +30,84 @@ motivation: |
 scope:
   ui:
     pages:
-      - LoginPage:
-          - "パスワードを忘れた場合" リンクを password 入力欄の **下**
-            (送信ボタンの直前 or 直後) に移動する。tab order が
-            `username → password → submit → forgot link` になるよう
-            DOM 順を直す。
-          - 視覚的なヒエラルキー (font-size / color) は現状を踏襲し、
-            主要 CTA (送信ボタン) より目立たないことを維持する。
-      - AdminUsersPage:
-          - 既存の `AttributeEditorDialog` を `UserEditorDialog` にリネーム
-            (or 統合) し、Profile セクションと Roles セクションを内側に
-            並べる。Profile 4 項目 (preferred_username / name / email /
-            email_verified) と Roles 編集を 1 つの保存ボタンで送信する。
-          - Roles に変更があるときだけ、保存前に "review changes" の
-            second-step confirmation を出す (現 RoleEditorDialog の動線を
-            移植する)。Profile だけの変更なら一発で送信。
-          - UserDetails 詳細パネルの "ロールを変更" ボタンを削除し、
-            "属性を編集" ボタンを "編集" (or "編集 (属性とロール)") に
-            改名する。
-          - api.ts は `updateAdminUserAttributes` と `updateAdminUserRoles`
-            を残したまま、ダイアログ側で「変更があった項目だけ送る」or
-            「両方一括 PATCH」のどちらかに統一する (推奨は後者: backend
-            の `UpdateUserInput` が pointer optional なので、変更フィールド
-            だけ非 nil で送れば既存の use case で完結する)。
-      - AdminDashboardPage (新規):
-          - ルート: `/admin` (tenant 内). 既存 sidebar の "概要" 項目に
-            紐付ける (`adminNav.ts` の disabled を解除)。
-          - カード 4 枚:
-            * 総ユーザー数 (active / disabled の比率)
-            * クライアント数 (`active` のみカウント)
-            * tenant 内 consent 数 (`active` のみカウント)
-            * 24h 以内の admin audit event 数
-          - 直近 5 件の audit event リスト (timestamp / type /
-            actor → target)。クリックで AdminAuditEventsPage の filter
-            に飛ばす。
-          - クイックリンク (アイコン付き 4-6 枚): "ユーザを追加" /
-            "クライアントを追加" / "鍵を確認" / "監査ログを開く"。
-          - tenant 管理リンクは `system_admin` かつ default tenant の時のみ
-            出す。
-      - 全 admin ページの `更新` ボタンを削除し、テーブル直上のフィルタ
-        行に IconRefresh のみのアイコンボタンを置く (aria-label="一覧を
-        再読み込み")。AdminUsers / AdminClients / AdminConsents /
-        AdminAuditEvents / AdminKeys / AdminTenants の 6 ページを揃える。
+      - >-
+        LoginPage — "パスワードを忘れた場合" リンクを password 入力欄
+        の **下** (送信ボタンの直前 or 直後) に移動する。tab order が
+        `username → password → submit → forgot link` になるよう
+        DOM 順を直す。視覚的なヒエラルキー (font-size / color) は
+        現状を踏襲し、主要 CTA (送信ボタン) より目立たないことを維持
+        する。
+      - >-
+        AdminUsersPage — 既存の `AttributeEditorDialog` を
+        `UserEditorDialog` にリネーム (or 統合) し、Profile セクション
+        と Roles セクションを内側に並べる。Profile 4 項目
+        (preferred_username / name / email / email_verified) と
+        Roles 編集を 1 つの保存ボタンで送信する。Roles に変更がある
+        ときだけ、保存前に "review changes" の second-step confirmation
+        を出す (現 RoleEditorDialog の動線を移植する)。Profile だけ
+        の変更なら一発で送信。UserDetails 詳細パネルの "ロールを変更"
+        ボタンを削除し、"属性を編集" ボタンを "編集" (or "編集 (属性
+        とロール)") に改名する。api.ts は `updateAdminUserAttributes`
+        と `updateAdminUserRoles` を残したまま、ダイアログ側で
+        「変更があった項目だけ送る」or「両方一括 PATCH」のどちらかに
+        統一する (推奨は後者: backend の `UpdateUserInput` が pointer
+        optional なので、変更フィールドだけ非 nil で送れば既存の
+        use case で完結する)。
+      - >-
+        AdminDashboardPage (新規) — ルート: `/admin` (tenant 内)。
+        既存 sidebar の "概要" 項目に紐付ける (`adminNav.ts` の
+        disabled を解除)。カード 4 枚: 総ユーザー数 (active /
+        disabled の比率) / クライアント数 (`active` のみカウント) /
+        tenant 内 consent 数 (`active` のみカウント) / 24h 以内の
+        admin audit event 数。直近 5 件の audit event リスト
+        (timestamp / type / actor → target)。クリックで
+        AdminAuditEventsPage の filter に飛ばす。クイックリンク
+        (アイコン付き 4-6 枚): "ユーザを追加" / "クライアントを追加"
+        / "鍵を確認" / "監査ログを開く"。tenant 管理リンクは
+        `system_admin` かつ default tenant の時のみ出す。
+      - >-
+        全 admin ページの `更新` ボタンを削除し、テーブル直上の
+        フィルタ行に IconRefresh のみのアイコンボタンを置く
+        (aria-label="一覧を再読み込み")。AdminUsers / AdminClients
+        / AdminConsents / AdminAuditEvents / AdminKeys / AdminTenants
+        の 6 ページを揃える。
     api:
-      - admin dashboard 用の集計は **専用 endpoint を作らず**、既存
-        list endpoint を並列に叩いて UI 側で count する (page load 時に
-        Promise.all)。endpoint 追加は scope が膨らむので避ける。
-      - 既存 `listAdminAuditEvents` の `after` パラメータで 24h 絞り込みを
-        admin dashboard 側で行う。
+      - >-
+        admin dashboard 用の集計は **専用 endpoint を作らず**、既存
+        list endpoint を並列に叩いて UI 側で count する (page load
+        時に Promise.all)。endpoint 追加は scope が膨らむので避ける。
+      - >-
+        既存 `listAdminAuditEvents` の `after` パラメータで 24h
+        絞り込みを admin dashboard 側で行う。
     routing:
-      - `/admin` を AdminDashboardPage に割り当てる。loadPageData の
+      - >-
+        `/admin` を AdminDashboardPage に割り当てる。loadPageData の
         ディスパッチに追加する。
       - 既存 `/admin/users` 等の挙動は変更しない。
     navigation:
-      - `adminNavItems` の "概要" を有効化し、`href='/admin'`、
+      - >-
+        `adminNavItems` の "概要" を有効化し、`href='/admin'`、
         `active = path === '/admin'` で他項目と排他にする。
 
   scl:
-    - 変更なし。新規 endpoint / 新規モデル / 新規 event は導入しない。
+    - >-
+      変更なし。新規 endpoint / 新規モデル / 新規 event は導入しない。
       ダッシュボードは既存データの read-only 集計表示のみ。
 
   documentation:
-    - ra-idp-go/README.md と ra-idp-go/ui/README.md には新規記述を
+    - >-
+      ra-idp-go/README.md と ra-idp-go/ui/README.md には新規記述を
       増やさない (admin 画面の sidebar に "概要" が増えるだけのため、
       README の admin UI 説明の文言は微調整のみ可)。
 
 out_of_scope:
   - 新規 backend endpoint (集計 API / metrics API)。
-  - dashboard カードのリアルタイム更新 (WebSocket / SSE)。1 ロード時の
-    count + 直近 N 件で固定。
-  - tenant 横断ダッシュボード (system_admin 向けでも default tenant 配下に
-    閉じる)。
+  - >-
+    dashboard カードのリアルタイム更新 (WebSocket / SSE)。1 ロード
+    時の count + 直近 N 件で固定。
+  - >-
+    tenant 横断ダッシュボード (system_admin 向けでも default tenant
+    配下に閉じる)。
   - 通知 (バナー / トースト) センター。
   - i18n 追加 (既存 ja/en の slot に乗せるのみ)。
   - グローバル検索 / quick action palette。
@@ -136,18 +143,23 @@ verification:
     in: ra-idp-go
     reason: backend は変更しないが、admin handler テストで wire 形式の
       回帰がないことを確認する。
-  - 手動 1 (LoginPage): username → tab → password → tab → submit ボタン
-    の順で focus が遷移すること、forgot link は submit の直後で focus
-    可能になることを確認。
-  - 手動 2 (UserEditorDialog): alice の name と email を変更 → 保存
+  - >-
+    手動 1 (LoginPage): username → tab → password → tab → submit
+    ボタンの順で focus が遷移すること、forgot link は submit の直後
+    で focus 可能になることを確認。
+  - >-
+    手動 2 (UserEditorDialog): alice の name と email を変更 → 保存
     → 一覧と detail に反映、audit に user.updated が出ることを確認。
-    続けて roles を変更 → review confirmation が出てから保存できることを
-    確認。両方同時に変更しても 1 リクエストで反映されることを確認。
-  - 手動 3 (AdminDashboardPage): `/admin` を開いてカード 4 枚と直近
-    audit event が出ること、クイックリンクの 4-6 ボタンが対応ページに
-    遷移すること、`system_admin` で default realm のときだけ tenant
+    続けて roles を変更 → review confirmation が出てから保存できる
+    ことを確認。両方同時に変更しても 1 リクエストで反映されることを
+    確認。
+  - >-
+    手動 3 (AdminDashboardPage): `/admin` を開いてカード 4 枚と直近
+    audit event が出ること、クイックリンクの 4-6 ボタンが対応ページ
+    に遷移すること、`system_admin` で default realm のときだけ tenant
     クイックリンクが出ること。
-  - 手動 4 (refresh icon): 6 admin ページのフィルタ行で IconRefresh
+  - >-
+    手動 4 (refresh icon): 6 admin ページのフィルタ行で IconRefresh
     のみが表示され、押すと一覧が再読み込みされること、"更新" ラベル
     の文字列が dom から消えていることを確認。
 

@@ -73,29 +73,28 @@ scope:
 
   ui:
     pages:
-      - 新規 `AdminRolesPage` at `/admin/roles`:
-          - 上段: メトリクスカード (該当 role を持つ user 数の集計)。
-            既存 `listAdminUsers` を Promise.all で叩いて UI 側で count
-            する (wi-10 part 3 と同じパターン)。
-          - 中段: ロール一覧テーブル。行: role 名 (admin /
-            system_admin)、列: 説明・付与人数・関連 permissions 数。
-            行クリックで右側パネルに詳細を表示する。
-          - 右パネル: 選択 role の詳細。
-              - 説明 / aliases
-              - 関連 permissions のリスト (action 名 + 説明 +
-                allow_when から派生した要件)
-              - 関連 interfaces (HTTP path) のリスト
-              - 該当 role を持つ user 一覧 (link to AdminUsersPage で
-                filter applied)
-          - tenant-scoped: 現テナント内の user count のみ表示。
-            system_admin かつ default tenant のときは "全テナント横断"
-            の補助 view を出してもよいが、本 WI ではテナント内に閉じる。
+      - >-
+        新規 `AdminRolesPage` at `/admin/roles`。構成: (a) 上段は
+        メトリクスカード (該当 role を持つ user 数の集計)。既存
+        `listAdminUsers` を Promise.all で叩いて UI 側で count する
+        (wi-10 part 3 と同じパターン)。(b) 中段はロール一覧テーブル。
+        行: role 名 (admin / system_admin)、列: 説明・付与人数・関連
+        permissions 数。行クリックで右側パネルに詳細を表示する。
+        (c) 右パネルは選択 role の詳細: 説明 / aliases、関連
+        permissions のリスト (action 名 + 説明 + allow_when から派生
+        した要件)、関連 interfaces (HTTP path) のリスト、該当 role を
+        持つ user 一覧 (link to AdminUsersPage で filter applied)。
+        (d) tenant-scoped: 現テナント内の user count のみ表示。
+        system_admin かつ default tenant のときは "全テナント横断"
+        の補助 view を出してもよいが、本 WI ではテナント内に閉じる。
     navigation:
-      - `adminNav.ts` の `AdminNavKey` に `roles` を追加し、
+      - >-
+        `adminNav.ts` の `AdminNavKey` に `roles` を追加し、
         sidebar 項目 "ロールと権限" (icon: IconKey or IconUserShield
         相当) を Identity management セクション、ユーザの下に挿入する。
     routing:
-      - `/admin/roles` を router.tsx に追加し、loadPageData で
+      - >-
+        `/admin/roles` を router.tsx に追加し、loadPageData で
         `kind: 'admin-roles'` を返す。
 
   documentation:
@@ -149,13 +148,16 @@ verification:
   - cmd: 'bun --cwd ra-idp-go/ui typecheck'
   - cmd: 'bun --cwd ra-idp-go/ui lint'
   - cmd: 'bun --cwd ra-idp-go/ui build'
-  - 手動 1: `/admin/roles` を開く → admin / system_admin の 2 行が
+  - >-
+    手動 1: `/admin/roles` を開く → admin / system_admin の 2 行が
     並ぶ。admin 行をクリック → 右パネルに AdminUser* permissions と
     関連 interfaces (CreateAdminUser など) が出る。
-  - 手動 2: system_admin かつ default tenant でログインすると
+  - >-
+    手動 2: system_admin かつ default tenant でログインすると
     AdminTenantsManage / AdminKeysRotate が system_admin 行の詳細に
     出るが、admin ロール側には出ない。
-  - 手動 3: 該当 role を持つ user の数が、AdminUsersPage の
+  - >-
+    手動 3: 該当 role を持つ user の数が、AdminUsersPage の
     role filter (将来 wi-9 で group も含む形に拡張) と一致する。
 
 risk: low

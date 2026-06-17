@@ -9,7 +9,8 @@
       "!bun.lock",
       "!gen",
       "!infra/observability/grafana/dashboards/*.json",
-      "!infra/load-tests/k6/*.json"
+      "!infra/load-tests/k6/*.json",
+      "!**/*.html"
     ]
   },
   "formatter": {

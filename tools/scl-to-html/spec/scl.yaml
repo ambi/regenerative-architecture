@@ -1,12 +1,13 @@
 # scl-to-html — Specification Core Language (SCL) Document
 #
-# 「SCL を HTML に変換するツール」自身を一つの RA として記述したもの。
-# Layer 1（仕様核）。実装（Layer 3）はこの仕様から派生する。
+# 「RA ドキュメント (SCL / CONCEPTION / ADR / changes) を 1 枚の HTML に
+# 束ねるツール」自身を 1 つの RA として記述したもの。Layer 1 (仕様核)。
+# 実装 (Layer 3) は本ファイルから派生する。
 #
-# 語彙規約: 型/インターフェース = PascalCase、フィールド = snake_case。
+# 語彙規約: 型・インターフェース = PascalCase、フィールド = snake_case。
 
 system: scl-to-html
-spec_version: "1.0"
+spec_version: "2.0"
 
 # =================================================================
 # 1. vocabulary
@@ -18,32 +19,52 @@ vocabulary:
     definition: 入力となる SCL 形式の YAML 文書。
     aliases: [scl]
 
+  DecisionDoc:
+    definition: |
+      CONCEPTION*.md または ADR-NNN-*.md のいずれかに当てはまる
+      markdown 文書。Decisions タブで表示される。
+    aliases: [decision, adr, conception]
+
+  ChangeEntry:
+    definition: |
+      changes/<id>/ ディレクトリ 1 件分のレコード。常に work-item.yaml を
+      持ち、completion-report.yaml は任意。Changes タブの 1 カード。
+
   HtmlDocument:
-    definition: SclDocument から派生する単一の HTML 文書。
-    aliases: [html]
+    definition: |
+      入力一式から派生する単一の HTML 文書。外部リソース (ネットワーク /
+      別ファイル) に一切依存しない。
+
+  Tab:
+    definition: |
+      HtmlDocument 内の論理的ビュー。Overview / SCL / Decisions / Changes
+      の 4 種。URL ハッシュ #tab=<name> でルーティングされる。
 
   Section:
     definition: |
-      SCL 文書の論理単位。
-      standards / components / vocabulary / models / interfaces / states /
-      invariants / scenarios / permissions / objectives / assurance /
-      user_experience の 12 種。
-
-  Render:
-    definition: SclDocument を HtmlDocument に変換する射影。決定的で副作用を持たない。
+      SCL の論理単位。standards / components / vocabulary / models /
+      interfaces / states / invariants / scenarios / permissions /
+      objectives / assurance / user_experience の 12 種。
 
   CrossReference:
     definition: |
-      ある宣言が他の宣言を名前で参照する関係。
-      interfaces.errors / interfaces.emits、および scenarios の自然文ステップ中に
-      引用された既知の名前（interface / model）が該当する。
-    aliases: [xref, cross-ref]
+      ある宣言が他の宣言を名前で参照する関係。interfaces.errors /
+      interfaces.emits、scenarios の自然文ステップに引用された既知の名前、
+      assurance.derived_from、components.depends_on などが該当する。
+    aliases: [xref]
+
+  Render:
+    definition: 入力 (SCL + DecisionDoc[] + ChangeEntry[]) を HtmlDocument に変換する射影。決定的で副作用を持たない。
 
 # =================================================================
 # 2. models
 # =================================================================
 
 models:
+
+  TabKind:
+    kind: enum
+    values: [overview, scl, decisions, changes]
 
   SectionKind:
     kind: enum
@@ -61,29 +82,63 @@ models:
       - assurance
       - user_experience
 
+  DecisionKind:
+    kind: enum
+    values: [conception, adr]
+
   SclDocument:
     kind: value_object
     description: 本ツールが解釈する SCL 文書の最小構造。各 Section の中身は SCL 自身が再帰的に定義する。
     fields:
-      system:         { type: String, constraints: [non_empty] }
-      spec_version:   { type: String, constraints: [non_empty] }
-      annotations:    { type: Map, optional: true }
-      components:     { type: Map, optional: true }
-      vocabulary:          { type: Map, optional: true }
-      models:         { type: Map, optional: true }
-      interfaces:     { type: Map, optional: true }
-      states:         { type: Map, optional: true }
-      invariants:     { type: Map, optional: true }
-      scenarios:      { type: Map, optional: true }
-      permissions:    { type: Map, optional: true }
-      objectives:     { type: Map, optional: true }
-      assurance:      { type: Map, optional: true }
+      system:          { type: String, constraints: [non_empty] }
+      spec_version:    { type: String, constraints: [non_empty] }
+      annotations:     { type: Map, optional: true }
+      standards:       { type: Map, optional: true }
+      components:      { type: Map, optional: true }
+      vocabulary:      { type: Map, optional: true }
+      models:          { type: Map, optional: true }
+      interfaces:      { type: Map, optional: true }
+      states:          { type: Map, optional: true }
+      invariants:      { type: Map, optional: true }
+      scenarios:       { type: Map, optional: true }
+      permissions:     { type: Map, optional: true }
+      objectives:      { type: Map, optional: true }
+      assurance:       { type: Map, optional: true }
       user_experience: { type: Map, optional: true }
+
+  DecisionDoc:
+    kind: value_object
+    description: CONCEPTION / ADR の 1 文書。
+    fields:
+      id:       { type: String, constraints: [non_empty], description: "ページ内アンカー (kebab-case)" }
+      title:    { type: String, constraints: [non_empty], description: "最初の H1 から抽出。無ければファイル名" }
+      kind:     { type: DecisionKind }
+      filename: { type: String, constraints: [non_empty] }
+      body:     { type: String, description: "H1 を除去した markdown 本文" }
+      number:   { type: Integer, optional: true, description: "ADR 番号 (ADR の場合のみ)" }
+
+  ChangeEntry:
+    kind: value_object
+    description: 1 つの changes ディレクトリ分のレコード。
+    fields:
+      id:                { type: String, constraints: [non_empty], description: "ディレクトリ名" }
+      work_item:         { type: Map, description: "work-item.yaml 由来" }
+      completion_report: { type: Map, optional: true, description: "completion-report.yaml 由来" }
 
   HtmlDocument:
     kind: value_object
+    description: Render の出力。
     fields:
       content: { type: String, constraints: [non_empty] }
+
+  SiteInput:
+    kind: value_object
+    description: Render に渡される 1 回分の入力。
+    fields:
+      scl:       { type: SclDocument }
+      decisions: { type: "DecisionDoc[]" }
+      changes:   { type: "ChangeEntry[]" }
+      title:     { type: String, optional: true, description: "省略時は scl.system" }
 
 # =================================================================
 # 3. interfaces
@@ -92,24 +147,47 @@ models:
 interfaces:
 
   Render:
-    description: 入力 SCL YAML を読み込み、単一の HtmlDocument を返す。
+    description: |
+      入力 SiteInput を読み込み、自己完結した HtmlDocument を返す。
+      ファイル読み込みは行わない。
     steps:
-      - "{input_path} を HTML に変換する"
+      - "{input} を HTML に変換する"
     input:
-      input_path:  { type: Path, description: 入力 SCL YAML のパス }
-      output_path: { type: Path, optional: true, description: 未指定なら標準出力へ }
+      input: { type: SiteInput }
     output:
       html: { type: HtmlDocument }
     idempotent: true
     read_only: true
+
+  LoadSite:
+    description: |
+      CLI 引数で指定されたパスから SCL / DecisionDoc[] / ChangeEntry[] を
+      読み込んで SiteInput を返す。
+    input:
+      scl_path:        { type: Path, description: "SCL YAML パス" }
+      decisions_dir:   { type: Path, optional: true, description: "CONCEPTION*.md + ADR-*.md のディレクトリ" }
+      changes_dir:     { type: Path, optional: true, description: "<id>/work-item.yaml のディレクトリ" }
+    output:
+      input: { type: SiteInput }
+    read_only: true
+
+  RenderCli:
+    description: |
+      LoadSite と Render を直列に呼ぶ CLI 起動。--out が指定されたファイルに、
+      無ければ標準出力に HtmlDocument を書き出す。
     bindings:
       - kind: cli
         command: scl-to-html
-        args:
-          - { name: input_path,  position: 1 }
-          - { name: output_path, position: 2 }
-        stdout: HtmlDocument          # output_path 省略時はここに書き出す
-        exit_codes: { success: 0 }
+        flags:
+          - { name: scl,       required: true }
+          - { name: decisions, required: false }
+          - { name: changes,   required: false }
+          - { name: title,     required: false }
+          - { name: out,       required: false }
+        stdout: HtmlDocument          # --out 省略時はここに書き出す
+        exit_codes:
+          success: 0
+          usage_error: 2
 
 # =================================================================
 # 4. invariants
@@ -118,37 +196,65 @@ interfaces:
 invariants:
 
   presence_preserved:
-    description: 入力に存在するセクションは、出力に対応する <section id="..."> を持つ。
+    description: 入力 SCL に存在するセクションは出力に対応する <section id="..."> を持つ。
     target: Render
-    always: "∀ S ∈ keys(scl) ∩ SectionKind : output contains '<section id=\"S\">'"
+    always: "∀ S ∈ keys(scl) ∩ SectionKind : html contains '<section id=\"S\">'"
     severity: must
 
   absence_preserved:
-    description: 入力に存在しないセクションは、出力にも現れない。
+    description: 入力 SCL に存在しないセクションは出力にも現れない。
     target: Render
-    never: "output contains '<section id=\"S\">' where S ∉ keys(scl)"
+    never: "html contains '<section id=\"S\">' where S ∉ keys(scl)"
+    severity: must
+
+  all_decisions_addressable:
+    description: 入力された DecisionDoc 各件は HtmlDocument 内に 1 つの安定アンカーを持つ。
+    target: Render
+    always: "∀ d ∈ decisions : html contains 'id=\"' + d.id + '\"'"
+    severity: must
+
+  all_changes_addressable:
+    description: 入力された ChangeEntry 各件は HtmlDocument 内に 1 つの安定アンカーを持つ。
+    target: Render
+    always: "∀ c ∈ changes : html contains 'id=\"' + slug(c.id) + '\"'"
     severity: must
 
   user_text_escaped:
-    description: 入力 SCL 由来の文字列は HTML として安全にエスケープされる。
+    description: 入力 SCL / DecisionDoc / ChangeEntry 由来の文字列は HTML として安全にエスケープされる。
     target: Render
-    never: "output contains unescaped '<' '>' '&' or '\"' originating from scl values"
+    never: "html contains unescaped '<' '>' '&' or '\"' originating from input string values"
+    severity: must
+
+  markdown_html_disabled:
+    description: |
+      markdown 文書中の生 HTML は描画されない (markdown-it の html: false)。
+      ADR / CONCEPTION から script 等を注入できないことを保証する。
+    target: Render
+    never: "html contains executable scripts originating from DecisionDoc bodies"
     severity: must
 
   deterministic:
-    description: 同一入力からは常に同一の HTML を返す。時刻・乱数・環境変数に依存しない。
+    description: 同一入力からは常に同一の HtmlDocument を返す。時刻・乱数・環境変数に依存しない。
     target: Render
     always: "Render(x) ≡ Render(x)"
     severity: must
 
   self_contained:
-    description: HtmlDocument は単一ファイルで表示でき、外部資産（ネットワーク / 別ファイル）に依存しない。
+    description: HtmlDocument は単一ファイルで表示でき、外部資産 (ネットワーク / 別ファイル / sidecar) に依存しない。
     target: Render
     always: "rendering HtmlDocument requires no external network resource or sidecar file"
     severity: must
 
+  no_js_degraded_mode:
+    description: |
+      JavaScript を無効化しても、4 タブのすべての内容が縦に並んで読める。
+      タブ切り替えは強化機能であり、内容の表示そのものは JS に依存しない。
+    target: Render
+    always: "with JS disabled, every Tab body is visible in the rendered HtmlDocument"
+    severity: must
+
   navigable_to_each_section:
-    description: 閲覧者は HtmlDocument 上の任意の地点から、入力に存在する各 Section に直接遷移できる。
+    description: 閲覧者は HtmlDocument 上の任意の地点から、入力 SCL に存在する各 Section に直接遷移できる。
     target: Render
     always: "from any point in HtmlDocument, the reader can reach each present Section without leaving the document"
     severity: must
@@ -162,7 +268,7 @@ invariants:
   reading_position_is_indicated:
     description: 閲覧者が長い HtmlDocument 上を移動するとき、現在読まれている Section がナビゲーション側で視覚的に区別される。
     target: Render
-    always: "the Section currently in view is visually distinguished within the navigation"
+    always: "the Section currently in view is visually distinguished within the active Tab's TOC"
     severity: must
 
   color_scheme_adapts_to_reader:
@@ -179,15 +285,38 @@ scenarios:
 
   最小の SCL でも HTML になり、無いセクションは出力されない:
     steps:
-      - vocabulary だけを持つ最小の SCL を用意して変換する
+      - vocabulary だけを持つ最小の SCL を用意する
+      - "それを Render に渡す"
       - 出力に vocabulary セクションが含まれる
       - 出力に models セクションは現れない
 
   ユーザ文字列の HTML 特殊文字はエスケープされる:
     steps:
-      - 'definition に特殊文字 "<script>" を含む SCL を用意して変換する'
+      - 'definition に特殊文字 "<script>" を含む SCL を用意する'
+      - "それを Render に渡す"
       - 出力では特殊文字がエスケープされている
       - 出力に生の script タグは現れない
+
+  CONCEPTION + ADR がディレクトリにあれば Decisions タブに並ぶ:
+    steps:
+      - CONCEPTION.md と ADR-001-*.md を含むディレクトリを用意する
+      - "そのディレクトリを LoadSite で読み込み Render に渡す"
+      - 出力に Decisions タブが現れる
+      - 出力に CONCEPTION 由来の見出しと ADR-001 のアンカーが含まれる
+
+  完了レポート付きの WorkItem は Changes タブに 1 つのカードとして並ぶ:
+    steps:
+      - 1 つの work-item.yaml と同ディレクトリの completion-report.yaml を用意する
+      - "そのディレクトリを LoadSite で読み込み Render に渡す"
+      - 出力に Changes タブが現れる
+      - 出力に work item の id をアンカーに持つカードが 1 つ含まれる
+      - 出力に completion-report の summary が含まれる
+
+  --scl だけ与えれば Decisions / Changes タブは空表示で生成できる:
+    steps:
+      - SCL のみ指定して LoadSite を呼ぶ
+      - "decisions と changes は空配列になる"
+      - Render は失敗せず、Decisions / Changes タブには placeholder が出る
 
 # =================================================================
 # 6. objectives
@@ -198,6 +327,13 @@ objectives:
   fast_render:
     kind: slo
     metric: latency_p95
-    target: 100ms
+    target: "<500ms"
     interface: Render
-    description: 数百 KiB 以下の SCL を p95 100ms 以内で変換する。
+    description: 数 MiB クラスの SCL + 数十件の ADR + 数十件の changes を p95 500ms 以内で変換する。
+
+  read_only:
+    kind: security
+    policy: read_only_operation
+    target: Render
+    value: true
+    description: Render と LoadSite は副作用を持たない。プロセス外の状態 (ファイル / ネットワーク / 環境) を変更しない。

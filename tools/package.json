@@ -8,6 +8,8 @@
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "scl-to-html": "bun run scl-to-html/src/main.ts",
+    "scl-to-html:ra-idp-go": "bun run scl-to-html/src/main.ts --scl ../ra-idp-go/spec/scl.yaml --decisions ../ra-idp-go/decisions --changes ../changes --title ra-idp-go --out ../ra-idp-go/spec/ra-idp-go.html",
+    "scl-to-html:self": "bun run scl-to-html/src/main.ts --scl scl-to-html/spec/scl.yaml --title scl-to-html --out scl-to-html/spec/scl-to-html.html",
     "yaml-check": "bun run yaml-check/src/main.ts",
     "yaml-check:work-items": "bun run yaml-check/src/main.ts --schema=work-item '../changes/*/work-item.yaml'",
     "yaml-check:completion-reports": "bun run yaml-check/src/main.ts --schema=completion-report '../changes/*/completion-report.yaml'",
@@ -17,8 +19,10 @@
   "devDependencies": {
     "@biomejs/biome": "^2.4.16",
     "@types/bun": "latest",
+    "@types/markdown-it": "^14.1.2",
     "ajv": "^8.20.0",
-    "ajv-formats": "^3.0.1"
+    "ajv-formats": "^3.0.1",
+    "markdown-it": "^14.2.0"
   },
   "peerDependencies": {
     "typescript": "^5"

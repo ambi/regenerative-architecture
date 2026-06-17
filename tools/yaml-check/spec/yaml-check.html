@@ -1,0 +1,1060 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>yaml-check</title>
+<style>
+:root { color-scheme: light dark;
+  --bg:#fbfbfd; --surface:#ffffff; --surface-2:#f4f4f7;
+  --fg:#1c1c1f; --fg-soft:#54545a; --muted:#8a8a92;
+  --border:#e5e5ea; --accent:#5b5be6; --accent-soft:#eeeefb;
+  --ok:#117a3d; --ok-soft:rgba(17,122,61,.12);
+  --warn:#a25400; --warn-soft:rgba(162,84,0,.14);
+  --danger:#b3261e; --danger-soft:rgba(179,38,30,.1);
+  --code-bg:#f1f1f5; --shadow:0 1px 2px rgba(0,0,0,.04),0 4px 16px rgba(0,0,0,.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:#0f1115; --surface:#16181f; --surface-2:#1c1f27;
+    --fg:#e6e6ea; --fg-soft:#b0b0b8; --muted:#7a7a85;
+    --border:#2a2d36; --accent:#8b8bff; --accent-soft:#1f2030;
+    --ok:#5bcc8d; --ok-soft:rgba(91,204,141,.15);
+    --warn:#e0a04f; --warn-soft:rgba(224,160,79,.15);
+    --danger:#ff7a72; --danger-soft:rgba(255,122,114,.15);
+    --code-bg:#1c1f27; --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 16px rgba(0,0,0,.3);
+  }
+}
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Noto Sans JP', system-ui, sans-serif;
+  font-size: 15px; line-height: 1.6; -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code, pre, .name, .path, .type, .chip, .expr {
+  font-family: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+}
+code { background: var(--code-bg); padding: 1px 6px; border-radius: 4px; font-size: 0.88em; }
+
+/* top header */
+.app-header {
+  position: sticky; top: 0; z-index: 10;
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
+  backdrop-filter: saturate(180%) blur(8px); border-bottom: 1px solid var(--border);
+}
+.app-header-row {
+  display: flex; gap: 24px; align-items: center;
+  max-width: 1320px; margin: 0 auto; padding: 12px 24px;
+}
+.app-title {
+  font-weight: 700; letter-spacing: -0.01em; font-size: 15px; color: var(--fg);
+}
+.tab-bar { display: flex; gap: 4px; }
+.tab-link {
+  padding: 6px 12px; border-radius: 8px; font-size: 14px; color: var(--fg-soft);
+  border: 1px solid transparent;
+}
+.tab-link:hover { background: var(--surface-2); text-decoration: none; }
+.tab-link.active {
+  background: var(--accent-soft); color: var(--accent); font-weight: 600;
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+/* layout */
+.layout {
+  display: grid; grid-template-columns: 240px minmax(0,1fr); gap: 40px;
+  max-width: 1320px; margin: 0 auto; padding: 24px 24px 96px;
+}
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; padding: 16px; gap: 24px; }
+  .toc { position: static; max-height: none; }
+}
+.toc {
+  position: sticky; top: 80px; align-self: start;
+  max-height: calc(100vh - 100px); overflow-y: auto; font-size: 14px;
+  display: none;
+}
+.toc.active { display: block; }
+.toc-title {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 12px;
+}
+.toc ol { list-style: none; padding: 0; margin: 0; }
+.toc li { padding: 4px 0; }
+.toc a {
+  display: block; padding: 4px 8px 4px 10px; border-radius: 6px;
+  color: var(--fg-soft); border-left: 2px solid transparent;
+  transition: background-color .12s, color .12s, border-color .12s;
+}
+.toc a:hover { background: var(--surface-2); color: var(--fg); text-decoration: none; }
+.toc a.active {
+  background: var(--accent-soft); color: var(--accent); font-weight: 600;
+  border-left-color: var(--accent);
+}
+main { min-width: 0; }
+
+/* tab panes — JS hides inactive ones; no-JS shows all */
+.tab { display: block; }
+.js .tab { display: none; }
+.js .tab.active { display: block; }
+
+section { margin-bottom: 56px; scroll-margin-top: 88px; }
+
+/* overview tab */
+.tab-overview { margin-bottom: 32px; }
+.page-header { margin-bottom: 24px; }
+.eyebrow {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--accent); margin-bottom: 4px;
+}
+.page-header h1 { font-size: 38px; letter-spacing: -0.02em; margin: 0 0 8px; }
+.page-meta { display: flex; gap: 8px; flex-wrap: wrap; }
+.stats {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px; margin-top: 8px;
+}
+.stat {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  padding: 14px; color: var(--fg); display: flex; flex-direction: column; gap: 2px;
+  transition: border-color .15s, transform .15s;
+}
+.stat:hover { border-color: var(--accent); text-decoration: none; transform: translateY(-1px); }
+.stat-num { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+.stat-label { font-size: 12px; color: var(--muted); text-transform: capitalize; }
+
+.overview-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px; margin-top: 24px;
+}
+.overview-tile {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+  padding: 22px; color: var(--fg); display: flex; flex-direction: column; gap: 6px;
+  transition: border-color .15s, transform .15s;
+}
+.overview-tile:hover {
+  border-color: var(--accent); text-decoration: none; transform: translateY(-1px);
+}
+.overview-tile-label {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--accent);
+}
+.overview-tile-num { font-size: 36px; font-weight: 700; letter-spacing: -0.02em; }
+.overview-tile-hint { font-size: 13px; color: var(--muted); }
+
+section > h2 {
+  font-size: 26px; margin: 0 0 6px; letter-spacing: -0.01em;
+  border-bottom: 1px solid var(--border); padding-bottom: 10px;
+  display: flex; align-items: baseline; gap: 10px;
+}
+section > h2 .count, .grp-title .count {
+  font-size: 13px; font-weight: 500; color: var(--muted);
+  background: var(--surface-2); padding: 2px 8px; border-radius: 999px;
+  border: 1px solid var(--border);
+}
+.lead { color: var(--fg-soft); margin: 8px 0 20px; }
+
+.group { margin-top: 24px; }
+.grp-title {
+  font-size: 14px; font-weight: 600; color: var(--fg-soft); text-transform: capitalize;
+  margin: 16px 0 12px; display: flex; align-items: baseline; gap: 8px;
+}
+.grp-title .count { font-size: 11px; padding: 1px 7px; }
+
+/* card */
+.cards { display: grid; gap: 14px; }
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  padding: 18px 20px; box-shadow: var(--shadow);
+  transition: border-color .15s, box-shadow .15s;
+}
+.card:target {
+  border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow);
+}
+.card header {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px;
+}
+.card header h3 { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
+.desc { color: var(--fg-soft); margin: 4px 0 12px; white-space: pre-wrap; }
+.label {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); margin: 10px 0 4px;
+}
+.label.ok { color: var(--ok); }
+.label.danger { color: var(--danger); }
+
+/* badges */
+.badge {
+  display: inline-block; font-size: 11px; font-weight: 600;
+  padding: 2px 8px; border-radius: 999px;
+  background: var(--accent-soft); color: var(--accent);
+  letter-spacing: 0.02em; border: 1px solid transparent;
+}
+.badge-required { background: var(--danger-soft); color: var(--danger); }
+.badge-optional { background: var(--surface-2); color: var(--muted); border-color: var(--border); }
+.badge-readonly, .badge-idempotent {
+  background: var(--surface-2); color: var(--fg-soft); border-color: var(--border);
+}
+.badge-version { background: var(--surface-2); color: var(--fg-soft); border-color: var(--border); }
+.badge-context { background: var(--warn-soft); color: var(--warn); }
+.badge-kind-entity { background: rgba(91,91,230,.14); color: var(--accent); }
+.badge-kind-value_object { background: var(--surface-2); color: var(--fg-soft); border: 1px solid var(--border); }
+.badge-kind-enum { background: var(--ok-soft); color: var(--ok); }
+.badge-kind-event { background: var(--warn-soft); color: var(--warn); }
+.badge-kind-error { background: var(--danger-soft); color: var(--danger); }
+.badge-kind-slo, .badge-kind-lifetime, .badge-kind-security, .badge-kind-retention {
+  background: var(--accent-soft); color: var(--accent);
+}
+.badge-method-get { background: var(--ok-soft); color: var(--ok); }
+.badge-method-post { background: rgba(91,91,230,.14); color: var(--accent); }
+.badge-method-put, .badge-method-patch { background: var(--warn-soft); color: var(--warn); }
+.badge-method-delete { background: var(--danger-soft); color: var(--danger); }
+.badge-severity-must, .badge-severity-critical { background: var(--danger-soft); color: var(--danger); }
+.badge-severity-should, .badge-severity-high { background: var(--warn-soft); color: var(--warn); }
+.badge-severity-medium { background: var(--warn-soft); color: var(--warn); }
+.badge-severity-low { background: var(--ok-soft); color: var(--ok); }
+.badge-adoption-required { background: var(--ok-soft); color: var(--ok); }
+.badge-adoption-optional { background: var(--warn-soft); color: var(--warn); }
+.badge-adoption-excluded { background: var(--danger-soft); color: var(--danger); }
+.badge-strength, .badge-category {
+  background: var(--surface-2); color: var(--fg-soft); border-color: var(--border);
+}
+.badge-status-pending { background: var(--surface-2); color: var(--fg-soft); border-color: var(--border); }
+.badge-status-progress { background: var(--accent-soft); color: var(--accent); }
+.badge-status-done { background: var(--ok-soft); color: var(--ok); }
+.badge-status-cancelled { background: var(--surface-2); color: var(--muted); border-color: var(--border); }
+.badge-risk-low { background: var(--ok-soft); color: var(--ok); }
+.badge-risk-medium { background: var(--warn-soft); color: var(--warn); }
+.badge-risk-high { background: var(--danger-soft); color: var(--danger); }
+.badge-risk-critical { background: var(--danger-soft); color: var(--danger); font-weight: 700; }
+.badge-has-cr { background: var(--ok-soft); color: var(--ok); }
+.badge-adr-num { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.badge-conception { background: var(--warn-soft); color: var(--warn); font-weight: 700; }
+
+/* chips */
+.chip {
+  display: inline-block; background: var(--surface-2); color: var(--fg-soft);
+  border: 1px solid var(--border); padding: 1px 8px; border-radius: 6px;
+  margin: 2px 2px 2px 0; font-size: 12px;
+}
+a.chip { transition: border-color .15s, color .15s; }
+a.chip:hover { color: var(--accent); border-color: var(--accent); text-decoration: none; }
+.chip-alias { background: var(--surface-2); }
+.chip-constraint { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+.chip-annotation { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+.chip-default { background: var(--surface-2); color: var(--muted); }
+.chip-enum { background: var(--ok-soft); color: var(--ok); border-color: transparent; }
+.chip-event-ref { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+.chip-error-ref { background: var(--danger-soft); color: var(--danger); border-color: transparent; }
+.chip-iface-ref { background: rgba(91,91,230,.14); color: var(--accent); border-color: transparent; }
+.chip-initial { background: rgba(91,91,230,.14); color: var(--accent); border-color: transparent; font-weight: 600; }
+.chip-terminal { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+.chip-tag { background: var(--surface-2); color: var(--fg-soft); }
+.chip-hint { background: var(--surface-2); color: var(--muted); }
+.chip-has-cr { background: var(--ok-soft); color: var(--ok); border-color: transparent; }
+
+.name { color: var(--fg); font-weight: 600; }
+.type { color: var(--fg-soft); }
+.path { background: var(--surface-2); border: 1px solid var(--border); padding: 2px 8px; border-radius: 6px; font-size: 13px; }
+.muted { color: var(--muted); }
+.text { color: var(--fg); }
+
+/* kv */
+.kv {
+  display: grid; grid-template-columns: minmax(120px, max-content) 1fr;
+  gap: 4px 14px; align-items: baseline; margin: 6px 0;
+}
+.kv dt { color: var(--muted); font-size: 13px; font-weight: 500; padding-top: 2px; }
+.kv dd { margin: 0; min-width: 0; color: var(--fg); }
+.kv dl.kv { margin: 0; }
+.vlist { margin: 4px 0 0; padding-left: 18px; }
+.vlist li { margin: 3px 0; }
+.chip-row { display: flex; flex-wrap: wrap; gap: 4px; }
+
+/* tables */
+table.fields { width: 100%; border-collapse: collapse; font-size: 14px; margin: 8px 0; }
+table.fields th, table.fields td {
+  text-align: left; padding: 8px 10px;
+  border-bottom: 1px solid var(--border); vertical-align: top;
+}
+table.fields thead th {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); border-bottom: 2px solid var(--border);
+}
+table.fields tbody tr:last-child td { border-bottom: none; }
+.enum-vals { display: flex; flex-wrap: wrap; gap: 4px; }
+
+/* vocabulary */
+.vocab-list { display: grid; gap: 12px; margin-top: 12px; }
+.vocab-entry {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  padding: 14px 18px;
+  display: grid; grid-template-columns: minmax(160px, 200px) 1fr; gap: 18px;
+  align-items: start;
+}
+.vocab-entry:target { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+@media (max-width: 720px) { .vocab-entry { grid-template-columns: 1fr; } }
+.vocab-name { padding-top: 2px; display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
+.vocab-name .name { font-size: 15px; }
+.def { margin: 0 0 8px; color: var(--fg); }
+.aliases { font-size: 13px; color: var(--fg-soft); }
+.aliases-label {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); margin-right: 6px;
+}
+.ntcw {
+  margin-top: 10px; padding: 8px 10px;
+  background: var(--warn-soft); border-radius: 8px; font-size: 13px;
+}
+.ntcw-label {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--warn); margin-bottom: 4px;
+}
+.ntcw ul { margin: 0; padding-left: 18px; color: var(--fg-soft); }
+.ntcw li { margin: 2px 0; }
+
+/* state machine */
+.sm-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: baseline; margin: 6px 0 8px; }
+.sm-row .label { min-width: 100px; margin: 0; }
+.sub { margin-top: 10px; }
+.io { margin-top: 10px; }
+
+/* scenarios */
+.iface-step { margin: 6px 0 2px; }
+.step-tpl { color: var(--fg-soft); }
+.scn-steps { margin: 8px 0 0; padding-left: 26px; }
+.scn-step { padding: 3px 0; line-height: 1.7; }
+.scn-step::marker { color: var(--muted); font-size: 0.85em; }
+.step-arg { background: var(--surface-2); color: var(--fg); border: 1px solid var(--border); padding: 0 5px; border-radius: 4px; }
+.chip-ref { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+
+/* standards / requirements */
+.requirements { display: grid; gap: 10px; margin-top: 12px; }
+.requirement { border: 1px solid var(--border); border-radius: 9px; padding: 12px 14px; background: var(--surface-2); }
+.requirement:target { border-color: var(--accent); }
+.requirement header { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+.requirement p { margin: 7px 0 0; }
+.exclusion-reason { color: var(--danger); }
+.reference-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 8px; }
+.reference-label {
+  min-width: 92px; color: var(--muted); font-size: 11px; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase;
+}
+
+/* clauses & expressions */
+.clause { margin: 10px 0; padding: 10px 12px; background: var(--surface-2); border-radius: 8px; }
+.clause-label {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 6px;
+}
+.clause-label.ok { color: var(--ok); }
+.clause-label.danger { color: var(--danger); }
+.clause-label.accent { color: var(--accent); }
+.clause-label.muted { color: var(--muted); }
+.expr { display: inline-block; padding: 2px 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; font-size: 13px; }
+.expr-list { margin: 0; padding-left: 18px; }
+.expr-list li { margin: 4px 0; }
+.expr-op { margin: 6px 0 6px 12px; }
+.expr-op-label { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 4px; }
+.expr-quant {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  margin: 4px 0 4px 12px; padding: 4px 8px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+}
+.expr-quant-sym { color: var(--accent); font-weight: 700; font-size: 14px; }
+.clause-assuming { background: var(--surface); border: 1px solid var(--border); }
+.clause-eventually { background: var(--accent-soft); }
+.within { font-size: 11px; font-weight: 500; color: var(--muted); text-transform: none; letter-spacing: 0; margin-left: 6px; }
+.acceptance { margin: 6px 0; padding: 8px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; }
+.acceptance-label { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 4px; }
+.acceptance-leaf { margin: 4px 0; }
+
+/* bindings */
+.bindings { display: grid; gap: 10px; margin-top: 6px; }
+.binding {
+  display: grid; grid-template-columns: minmax(80px, max-content) 1fr; gap: 12px;
+  align-items: start; padding: 10px 12px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+}
+.binding-kind { padding-top: 2px; }
+.binding-body { min-width: 0; }
+.binding-head { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.binding-body .io { margin-top: 8px; }
+.binding-body .kv { margin: 6px 0; }
+.badge-bkind-http { background: rgba(91,91,230,.14); color: var(--accent); }
+.badge-bkind-grpc { background: var(--ok-soft); color: var(--ok); }
+.badge-bkind-cli { background: var(--warn-soft); color: var(--warn); }
+.badge-bkind-event { background: rgba(91,91,230,.10); color: var(--accent); }
+.badge-bkind-graphql { background: var(--danger-soft); color: var(--danger); }
+.badge-bkind-sdk { background: var(--surface); color: var(--fg-soft); border: 1px solid var(--border); }
+.badge-bkind-schedule { background: var(--warn-soft); color: var(--warn); }
+.badge-direction-produce { background: var(--accent-soft); color: var(--accent); }
+.badge-direction-consume { background: var(--ok-soft); color: var(--ok); }
+.badge-gql-query { background: var(--ok-soft); color: var(--ok); }
+.badge-gql-mutation { background: rgba(91,91,230,.14); color: var(--accent); }
+.badge-gql-subscription { background: var(--warn-soft); color: var(--warn); }
+.step-kind-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+  padding: 2px 6px; border-radius: 4px;
+  background: var(--surface-2); color: var(--muted);
+}
+
+/* decisions: markdown bodies */
+.md { color: var(--fg); }
+.md h1, .md h2, .md h3, .md h4 { letter-spacing: -0.01em; margin: 18px 0 8px; }
+.md h1 { font-size: 22px; }
+.md h2 { font-size: 18px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+.md h3 { font-size: 16px; }
+.md h4 { font-size: 14px; color: var(--fg-soft); }
+.md p { margin: 8px 0; }
+.md ul, .md ol { padding-left: 22px; margin: 8px 0; }
+.md li { margin: 3px 0; }
+.md code { background: var(--code-bg); padding: 1px 6px; border-radius: 4px; }
+.md pre {
+  background: var(--code-bg); padding: 12px 14px; border-radius: 8px;
+  overflow-x: auto; border: 1px solid var(--border);
+}
+.md pre code { background: transparent; padding: 0; }
+.md blockquote {
+  border-left: 3px solid var(--accent); padding: 4px 14px;
+  margin: 10px 0; background: var(--accent-soft); color: var(--fg-soft); border-radius: 4px;
+}
+.md table { border-collapse: collapse; margin: 10px 0; font-size: 14px; width: 100%; }
+.md th, .md td { padding: 6px 10px; border: 1px solid var(--border); text-align: left; }
+.md th { background: var(--surface-2); }
+.md hr { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
+.md a { color: var(--accent); }
+
+/* decisions cards */
+.decision .doc-toc {
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 6px 12px; margin: 6px 0 12px; font-size: 13px;
+}
+.decision .doc-toc summary {
+  cursor: pointer; font-weight: 600; color: var(--fg-soft); padding: 4px 0;
+}
+.decision .doc-toc ol { padding-left: 22px; }
+.decision .doc-toc li.lvl-1 { font-weight: 600; }
+.decision .doc-toc li.lvl-2 { padding-left: 8px; }
+.decision .doc-toc li.lvl-3 { padding-left: 16px; color: var(--muted); }
+.adr-index {
+  display: grid; gap: 6px; margin: 12px 0 24px;
+}
+.adr-index-row {
+  display: grid; grid-template-columns: 100px minmax(150px, 1fr) 2fr; gap: 12px;
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface); color: var(--fg);
+  transition: border-color .15s;
+}
+.adr-index-row:hover { border-color: var(--accent); text-decoration: none; }
+.adr-index-row .adr-num { color: var(--accent); font-weight: 700; }
+.adr-index-row .adr-title { font-weight: 600; }
+.adr-index-row .adr-preview { color: var(--muted); font-size: 13px; line-height: 1.4; overflow: hidden; }
+@media (max-width: 720px) {
+  .adr-index-row { grid-template-columns: 1fr; gap: 4px; }
+}
+
+/* changes */
+.ch-index { display: grid; gap: 6px; margin: 12px 0 24px; }
+.ch-index-row {
+  display: grid; grid-template-columns: 120px minmax(0, 1fr) auto auto auto;
+  gap: 10px; align-items: center;
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface); color: var(--fg);
+  transition: border-color .15s;
+}
+.ch-index-row:hover { border-color: var(--accent); text-decoration: none; }
+.ch-index-row .ch-id { color: var(--muted); font-size: 12px; }
+.ch-index-row .ch-title { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.work-item, .completion-report { margin-top: 8px; }
+.wi-header, .cr-header { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; margin-bottom: 8px; }
+.wi-header h4, .cr-header h4 { margin: 0; font-size: 15px; }
+.wi-meta, .cr-meta { display: flex; flex-wrap: wrap; gap: 4px; }
+.change-block {
+  margin: 6px 0; padding: 8px 12px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+}
+.change-block summary {
+  cursor: pointer; font-weight: 600; color: var(--fg-soft); padding: 2px 0;
+  font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em;
+}
+.change-block[open] summary { color: var(--accent); margin-bottom: 6px; }
+.change-block p { margin: 6px 0; }
+.scope-group { margin: 8px 0; }
+.scope-group h4 {
+  font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted); margin: 4px 0;
+}
+.change-list { padding-left: 22px; margin: 6px 0; }
+.change-list li { margin: 4px 0; }
+.completion-report {
+  margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--border);
+}
+</style>
+</head>
+<body>
+<header class="app-header">
+  <div class="app-header-row">
+    <a href="#tab=overview" class="app-title">yaml-check</a>
+    <nav class="tab-bar" aria-label="Tabs"><a class="tab-link active" data-tab-link="overview" href="#tab=overview">Overview</a><a class="tab-link" data-tab-link="scl" href="#tab=scl">SCL</a><a class="tab-link" data-tab-link="decisions" href="#tab=decisions">Decisions</a><a class="tab-link" data-tab-link="changes" href="#tab=changes">Changes</a></nav>
+  </div>
+</header>
+<div class="layout">
+  <aside class="toc-wrap"><nav class="toc" data-toc-for="overview" aria-label="Overview contents">
+    <div class="toc-title">Overview</div>
+    <ol><li><a data-sec="ov-hero" href="#tab=overview&sec=ov-hero">Overview</a></li></ol>
+  </nav>
+<nav class="toc" data-toc-for="scl" aria-label="SCL contents">
+    <div class="toc-title">SCL</div>
+    <ol><li><a data-sec="scl-overview" href="#tab=scl&sec=scl-overview">Overview</a></li><li><a data-sec="vocabulary" href="#tab=scl&sec=vocabulary">Vocabulary</a></li><li><a data-sec="models" href="#tab=scl&sec=models">Models</a></li><li><a data-sec="interfaces" href="#tab=scl&sec=interfaces">Interfaces</a></li><li><a data-sec="invariants" href="#tab=scl&sec=invariants">Invariants</a></li><li><a data-sec="scenarios" href="#tab=scl&sec=scenarios">Scenarios</a></li><li><a data-sec="objectives" href="#tab=scl&sec=objectives">Objectives</a></li></ol>
+  </nav>
+<nav class="toc" data-toc-for="decisions" aria-label="Decisions contents">
+    <div class="toc-title">Decisions</div>
+    <ol><li><a data-sec="dec-overview" href="#tab=decisions&sec=dec-overview">Overview</a></li></ol>
+  </nav>
+<nav class="toc" data-toc-for="changes" aria-label="Changes contents">
+    <div class="toc-title">Changes</div>
+    <ol><li><a data-sec="ch-empty" href="#tab=changes&sec=ch-empty">Overview</a></li></ol>
+  </nav></aside>
+  <main><div class="tab" data-tab="overview" id="tab-overview"><section id="ov-hero" class="tab-overview">
+    <header class="page-header">
+      <div class="eyebrow">Regenerative Architecture</div>
+      <h1>yaml-check</h1>
+      <p class="lead">SCL spec 1.0 — 仕様核と、それを支える設計判断・変更履歴を一つの文書にまとめたもの。</p>
+    </header>
+    <div class="overview-grid">
+      <a class="overview-tile" href="#tab=scl">
+        <div class="overview-tile-label">SCL</div>
+        <div class="overview-tile-num">6</div>
+        <div class="overview-tile-hint">sections present</div>
+      </a>
+      <a class="overview-tile" href="#tab=decisions">
+        <div class="overview-tile-label">Decisions</div>
+        <div class="overview-tile-num">0</div>
+        <div class="overview-tile-hint">ADRs · 0 conception docs</div>
+      </a>
+      <a class="overview-tile" href="#tab=changes">
+        <div class="overview-tile-label">Changes</div>
+        <div class="overview-tile-num">0</div>
+        <div class="overview-tile-hint">0 in progress · 0 pending · 0 done</div>
+      </a>
+    </div>
+  </section></div>
+<div class="tab" data-tab="scl" id="tab-scl"><section id="scl-overview" class="tab-overview">
+    <header class="page-header">
+      <div class="eyebrow">Specification Core Language · spec 1.0</div>
+      <h1>yaml-check</h1>
+    </header>
+    <div class="stats"><a class="stat" href="#vocabulary"><span class="stat-num">8</span><span class="stat-label">vocabulary</span></a><a class="stat" href="#models"><span class="stat-num">5</span><span class="stat-label">models</span></a><a class="stat" href="#interfaces"><span class="stat-num">2</span><span class="stat-label">interfaces</span></a><a class="stat" href="#invariants"><span class="stat-num">9</span><span class="stat-label">invariants</span></a><a class="stat" href="#scenarios"><span class="stat-num">5</span><span class="stat-label">scenarios</span></a><a class="stat" href="#objectives"><span class="stat-num">2</span><span class="stat-label">objectives</span></a></div>
+  </section>
+  <section id="vocabulary">
+    <h2>Vocabulary <span class="count">8</span></h2>
+    <p class="lead">本仕様で使うドメイン用語の定義。PascalCase が正準名、aliases は実装上の別表記。</p>
+    <div class="vocab-list"><article class="vocab-entry" id="vocab-yamlinput">
+      <div class="vocab-name"><code class="name">YamlInput</code></div>
+      <div class="vocab-body">
+        <p class="def">検査対象となる UTF-8 テキストファイル。拡張子は通常 .yaml だが、ツール側は内容ベースで処理する。</p>
+        <div class="aliases"><span class="aliases-label">aliases</span> <span class="chip chip-alias">input</span> <span class="chip chip-alias">target</span></div>
+
+
+      </div>
+    </article>
+<article class="vocab-entry" id="vocab-finding">
+      <div class="vocab-name"><code class="name">Finding</code></div>
+      <div class="vocab-body">
+        <p class="def">1 つの検査違反を表すレコード。発生したファイル・行・列・メッセージを持つ。
+Parse / Lint / Schema のいずれかの層で生じる。
+</p>
+        <div class="aliases"><span class="aliases-label">aliases</span> <span class="muted">—</span></div>
+
+
+      </div>
+    </article>
+<article class="vocab-entry" id="vocab-parsefinding">
+      <div class="vocab-name"><code class="name">ParseFinding</code></div>
+      <div class="vocab-body">
+        <p class="def">Bun の YAML ローダで構文解析に失敗したことを示す Finding。</p>
+        <div class="aliases"><span class="aliases-label">aliases</span> <span class="muted">—</span></div>
+
+
+      </div>
+    </article>
+<article class="vocab-entry" id="vocab-lintfinding">
+      <div class="vocab-name"><code class="name">LintFinding</code></div>
+      <div class="vocab-body">
+        <p class="def">生テキストへの形式的なチェック (tab indent / 行末空白 / 末尾改行) に
+違反した Finding。意味解釈は行わない。
+</p>
+        <div class="aliases"><span class="aliases-label">aliases</span> <span class="muted">—</span></div>
+
+
+      </div>
+    </article>
+<article class="vocab-entry" id="vocab-schemafinding">
+      <div class="vocab-name"><code class="name">SchemaFinding</code></div>
+      <div class="vocab-body">
+        <p class="def">Parse 成功後のデータが、明示指定された Schema に適合しなかったことを
+示す Finding。原因の JSON pointer と Ajv のメッセージを内包する。
+</p>
+        <div class="aliases"><span class="aliases-label">aliases</span> <span class="muted">—</span></div>
+
+
+      </div>
+    </article>
+<article class="vocab-entry" id="vocab-schema">
+      <div class="vocab-name"><code class="name">Schema</code></div>
+      <div class="vocab-body">
+        <p class="def">JSON Schema 2020-12 形式の検査定義。本ツールに同梱され、`SchemaName` の
+列挙値で呼び出される。
+</p>
+        <div class="aliases"><span class="aliases-label">aliases</span> <span class="chip chip-alias">json-schema</span></div>
+
+
+      </div>
+    </article>
+<article class="vocab-entry" id="vocab-schemaname">
+      <div class="vocab-name"><code class="name">SchemaName</code></div>
+      <div class="vocab-body">
+        <p class="def">同梱 Schema の識別名。`work-item` / `completion-report` / `scl` の 3 種。</p>
+        <div class="aliases"><span class="aliases-label">aliases</span> <span class="muted">—</span></div>
+
+
+      </div>
+    </article>
+<article class="vocab-entry" id="vocab-checkrun">
+      <div class="vocab-name"><code class="name">CheckRun</code></div>
+      <div class="vocab-body">
+        <p class="def">1 回の `yaml-check` 起動。引数で指定されたファイル群に対して順に Parse → Lint → (任意) Schema を回す。</p>
+        <div class="aliases"><span class="aliases-label">aliases</span> <span class="muted">—</span></div>
+
+
+      </div>
+    </article></div>
+  </section>
+<section id="models">
+    <h2>Models <span class="count">5</span></h2>
+
+    <div class="group">
+      <h3 class="grp-title">value object <span class="count">3</span></h3>
+      <div class="cards"><article class="card" id="model-finding">
+    <header><h3>Finding</h3><span class="badge badge-kind-value_object">value object</span></header>
+    <p class="desc">1 つの検査違反。</p>
+
+    <table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">kind</code></td>
+    <td><code class="type">FindingKind</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">file</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="chip chip-constraint">non empty</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">line</code></td>
+    <td><code class="type">Integer</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">column</code></td>
+    <td><code class="type">Integer</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">message</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="chip chip-constraint">non empty</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="model-checkresult">
+    <header><h3>CheckResult</h3><span class="badge badge-kind-value_object">value object</span></header>
+    <p class="desc">1 ファイルの検査結果。</p>
+
+    <table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">file</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="chip chip-constraint">non empty</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">findings</code></td>
+    <td><code class="type">Finding[]</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">ok</code></td>
+    <td><code class="type">Boolean</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td>findings が空のとき true。</td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="model-checkrunsummary">
+    <header><h3>CheckRunSummary</h3><span class="badge badge-kind-value_object">value object</span></header>
+    <p class="desc">CheckRun 全体の結果。</p>
+
+    <table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">total</code></td>
+    <td><code class="type">Integer</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td>検査対象ファイル総数。</td>
+  </tr><tr>
+    <td><code class="name">failed</code></td>
+    <td><code class="type">Integer</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td>1 つ以上の Finding を持つファイル数。</td>
+  </tr><tr>
+    <td><code class="name">results</code></td>
+    <td><code class="type">CheckResult[]</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article></div>
+    </div>
+<div class="group">
+      <h3 class="grp-title">enum <span class="count">2</span></h3>
+      <div class="cards"><article class="card" id="model-schemaname">
+    <header><h3>SchemaName</h3><span class="badge badge-kind-enum">enum</span></header>
+
+
+    <div class="enum-vals"><span class="chip chip-enum">work-item</span> <span class="chip chip-enum">completion-report</span> <span class="chip chip-enum">scl</span></div>
+  </article>
+<article class="card" id="model-findingkind">
+    <header><h3>FindingKind</h3><span class="badge badge-kind-enum">enum</span></header>
+
+
+    <div class="enum-vals"><span class="chip chip-enum">parse</span> <span class="chip chip-enum">lint</span> <span class="chip chip-enum">schema</span></div>
+  </article></div>
+    </div>
+  </section>
+<section id="interfaces">
+    <h2>Interfaces <span class="count">2</span></h2>
+    <p class="lead">外部との契約。入力・出力・エラー・発行イベントと、それを露出する複数のトランスポート (bindings)。</p>
+    <div class="cards"><article class="card" id="iface-checkyaml">
+    <header><h3>CheckYaml</h3><span class="badge badge-readonly">read-only</span><span class="badge badge-idempotent">idempotent</span></header>
+    <p class="desc">入力ファイル群に対し parse + lint + (任意) schema 検査を行い、結果を返す。</p>
+    <div class="iface-step"><span class="step-kind-label">STEP</span> <code class="step-tpl">{files} を yaml-check で検査する</code></div>
+    <div class="io">
+    <div class="label">Input</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">files</code></td>
+    <td><code class="type">Path[]</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td>対象ファイル (glob 展開後)。</td>
+  </tr><tr>
+    <td><code class="name">schema</code></td>
+    <td><code class="type">SchemaName</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td>指定時のみ schema 検証を実行する。</td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io">
+    <div class="label">Output</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">summary</code></td>
+    <td><code class="type">CheckRunSummary</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-cli">
+    <div class="binding-kind"><span class="badge badge-bkind-cli">cli</span></div>
+    <div class="binding-body"><div class="binding-head"><code class="path">yaml-check</code></div><div class="io"><div class="label">Args (positional)</div><table class="fields"><thead><tr><th>Name</th><th>Position</th><th>Presence</th><th>Note</th></tr></thead><tbody><tr>
+              <td><code class="name">files</code></td>
+              <td><span class="chip chip-hint">pos 1</span></td>
+              <td><span class="badge badge-optional">optional</span></td>
+              <td><span class="chip chip-hint">repeatable</span></td>
+            </tr></tbody></table></div><div class="io"><div class="label">Flags</div><table class="fields"><thead><tr><th>Long</th><th>Short</th><th>Presence</th><th>Note</th></tr></thead><tbody><tr>
+              <td><code class="name">--schema</code></td>
+              <td><code>-s</code></td>
+              <td><span class="badge badge-optional">optional</span></td>
+              <td></td>
+            </tr></tbody></table></div><dl class="kv"><dt>exit codes</dt><dd>success: <code>0</code> · findings_present: <code>1</code> · usage_error: <code>2</code></dd></dl></div>
+  </div></div></div>
+  </article>
+<article class="card" id="iface-listschemas">
+    <header><h3>ListSchemas</h3></header>
+    <p class="desc">同梱されている SchemaName の一覧を 1 行 1 名で標準出力に書き出す。</p>
+
+    <div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-cli">
+    <div class="binding-kind"><span class="badge badge-bkind-cli">cli</span></div>
+    <div class="binding-body"><div class="binding-head"><code class="path">yaml-check</code></div><div class="io"><div class="label">Flags</div><table class="fields"><thead><tr><th>Long</th><th>Short</th><th>Presence</th><th>Note</th></tr></thead><tbody><tr>
+              <td><code class="name">--list-schemas</code></td>
+              <td></td>
+              <td><span class="badge badge-required">required</span></td>
+              <td></td>
+            </tr></tbody></table></div><dl class="kv"><dt>stdout</dt><dd><code>SchemaName</code></dd><dt>exit codes</dt><dd>success: <code>0</code></dd></dl></div>
+  </div></div></div>
+  </article></div>
+  </section>
+<section id="invariants">
+    <h2>Invariants <span class="count">9</span></h2>
+    <p class="lead">入力に依らず常に成り立つ不変条件、または決して起きてはならない事象。</p>
+    <div class="cards"><article class="card" id="inv-parse-before-lint-and-schema">
+    <header><h3>parse_before_lint_and_schema</h3><span class="badge badge-severity-must">must</span></header>
+    <p class="desc">各ファイルに対し parse が最初に走る。parse 失敗時は schema 検証を行わない
+(lint は生テキスト依存なので、parse 失敗とは独立に実行する)。</p>
+    <dl class="kv"><dt>target</dt><dd><code>CheckYaml</code></dd></dl>
+    <div class="clause clause-always"><div class="clause-label ok">always (invariant)</div><code class="expr">for every file f: parse(f) is evaluated before schema(f), and schema(f) only runs when parse(f) succeeded</code></div>
+  </article>
+<article class="card" id="inv-schema-is-opt-in">
+    <header><h3>schema_is_opt_in</h3><span class="badge badge-severity-must">must</span></header>
+    <p class="desc">入力ファイル名やパスから schema を推測してはならない。schema は CLI で明示指定された場合にだけ実行される。</p>
+    <dl class="kv"><dt>target</dt><dd><code>CheckYaml</code></dd></dl>
+    <div class="clause clause-never"><div class="clause-label danger">never (forbidden)</div><code class="expr">schema validation runs for a file when --schema was not provided</code></div>
+  </article>
+<article class="card" id="inv-schema-name-validated-upfront">
+    <header><h3>schema_name_validated_upfront</h3><span class="badge badge-severity-must">must</span></header>
+    <p class="desc">--schema に未知の名前が渡されたら、ファイル検査を一切行わず exit code 2 で
+終了する。誤指定で部分結果を返さない。</p>
+    <dl class="kv"><dt>target</dt><dd><code>CheckYaml</code></dd></dl>
+    <div class="clause clause-never"><div class="clause-label danger">never (forbidden)</div><code class="expr">any file is checked when --schema=&lt;name&gt; and name is not in SchemaName</code></div>
+  </article>
+<article class="card" id="inv-schema-application-is-uniform">
+    <header><h3>schema_application_is_uniform</h3><span class="badge badge-severity-must">must</span></header>
+    <p class="desc">--schema=&lt;name&gt; を指定すると、入力ファイル全件に同じ schema を適用する。</p>
+    <dl class="kv"><dt>target</dt><dd><code>CheckYaml</code></dd></dl>
+    <div class="clause clause-always"><div class="clause-label ok">always (invariant)</div><code class="expr">every input file is validated against the same schema in a single CheckRun</code></div>
+  </article>
+<article class="card" id="inv-no-arbitrary-code-execution">
+    <header><h3>no_arbitrary_code_execution</h3><span class="badge badge-severity-must">must</span></header>
+    <p class="desc">入力 YAML の内容によって、ツール側で任意コードが実行されてはならない。
+anchor / tag / merge key 等の高度な YAML 機能による副作用は許可しない。</p>
+    <dl class="kv"><dt>target</dt><dd><code>CheckYaml</code></dd></dl>
+    <div class="clause clause-never"><div class="clause-label danger">never (forbidden)</div><code class="expr">evaluating CheckYaml causes execution of code originating from YamlInput contents</code></div>
+  </article>
+<article class="card" id="inv-no-input-modification">
+    <header><h3>no_input_modification</h3><span class="badge badge-severity-must">must</span></header>
+    <p class="desc">yaml-check は読み取り専用である。入力ファイルへの書き戻し・自動修正は行わない。</p>
+    <dl class="kv"><dt>target</dt><dd><code>CheckYaml</code></dd></dl>
+    <div class="clause clause-never"><div class="clause-label danger">never (forbidden)</div><code class="expr">CheckYaml mutates any file under the file system</code></div>
+  </article>
+<article class="card" id="inv-deterministic-findings">
+    <header><h3>deterministic_findings</h3><span class="badge badge-severity-must">must</span></header>
+    <p class="desc">同じ入力ファイル群と同じ --schema 引数からは、findings 集合とその順序が
+常に同一になる。時刻・乱数・環境変数に依存しない。</p>
+    <dl class="kv"><dt>target</dt><dd><code>CheckYaml</code></dd></dl>
+    <div class="clause clause-always"><div class="clause-label ok">always (invariant)</div><code class="expr">CheckYaml(files, schema) ≡ CheckYaml(files, schema)</code></div>
+  </article>
+<article class="card" id="inv-exit-code-reflects-findings">
+    <header><h3>exit_code_reflects_findings</h3><span class="badge badge-severity-must">must</span></header>
+    <p class="desc">CheckRun が 1 つでも Finding を出した場合 exit code は 1。Finding が 0 件
+なら 0。引数自体の誤りは 2。3 つの状態が混じってはならない。</p>
+    <dl class="kv"><dt>target</dt><dd><code>CheckYaml</code></dd></dl>
+    <div class="clause clause-always"><div class="clause-label ok">always (invariant)</div><code class="expr">exit_code(CheckRun) = 0 iff no Finding, 1 iff any Finding, 2 iff usage_error</code></div>
+  </article>
+<article class="card" id="inv-schema-finding-points-into-source">
+    <header><h3>schema_finding_points_into_source</h3><span class="badge badge-severity-must">must</span></header>
+    <p class="desc">SchemaFinding は、Ajv の instancePath を入力テキスト上の行番号に解決して
+添付する。解決に失敗しても列 1 / 行 1 を返し、エラー化しない。</p>
+    <dl class="kv"><dt>target</dt><dd><code>CheckYaml</code></dd></dl>
+    <div class="clause clause-always"><div class="clause-label ok">always (invariant)</div><code class="expr">every SchemaFinding carries a (line, column) within bounds of the source file</code></div>
+  </article></div>
+  </section>
+<section id="scenarios">
+    <h2>Scenarios <span class="count">5</span></h2>
+    <p class="lead">受け入れ例。自然文ステップで書かれた振る舞いの具体例。引用された既知の名前は定義へリンクする。</p>
+    <div class="cards"><article class="card scenario" id="scn-work-item-schema-work-item-ok">
+    <header><h3>正しい work-item を --schema=work-item で検査すると ok になる</h3></header>
+
+
+    <ol class="scn-steps"><li class="scn-step">規定どおりの work-item.yaml を用意する</li><li class="scn-step"><code class="step-arg">--schema=work-item</code> を指定して yaml-check で検査する</li><li class="scn-step">すべてのファイルが ok と報告される</li><li class="scn-step">exit code は 0</li></ol>
+
+  </article>
+<article class="card scenario" id="scn-exit-code-2">
+    <header><h3>未知のスキーマ名を渡すと、ファイル検査は行わず exit code 2 を返す</h3></header>
+
+
+    <ol class="scn-steps"><li class="scn-step"><code class="step-arg">--schema=bogus</code> と任意のファイルを渡して yaml-check を呼ぶ</li><li class="scn-step">エラーメッセージに利用可能な SchemaName 一覧が含まれる</li><li class="scn-step">検査対象ファイルは 1 件も読み込まれない</li><li class="scn-step">exit code は 2</li></ol>
+
+  </article>
+<article class="card scenario" id="scn-schema-parse-lint">
+    <header><h3>--schema を付けずに呼ぶと parse + lint のみが走る</h3></header>
+
+
+    <ol class="scn-steps"><li class="scn-step">スキーマ違反だが YAML として valid なファイルを用意する</li><li class="scn-step"><code class="step-arg">--schema を付けずに</code> yaml-check で検査する</li><li class="scn-step">parse 由来 / lint 由来の Finding は出るが schema 由来の Finding は出ない</li></ol>
+
+  </article>
+<article class="card scenario" id="scn-parse-schema">
+    <header><h3>parse 失敗ファイルでは schema 検証はスキップされる</h3></header>
+
+
+    <ol class="scn-steps"><li class="scn-step">YAML として破損した内容を持つファイルを用意する</li><li class="scn-step"><code class="step-arg">--schema=scl</code> を指定して yaml-check で検査する</li><li class="scn-step">parse の Finding が報告される</li><li class="scn-step">schema 由来の Finding は同じファイルに対し追加で出ない</li></ol>
+
+  </article>
+<article class="card scenario" id="scn-list-schemas">
+    <header><h3>--list-schemas は同梱スキーマ名のみを出力する</h3></header>
+
+
+    <ol class="scn-steps"><li class="scn-step"><code class="step-arg">--list-schemas</code> を指定して yaml-check を呼ぶ</li><li class="scn-step">標準出力に work-item / completion-report / scl が 1 行ずつ書かれる</li><li class="scn-step">exit code は 0</li></ol>
+
+  </article></div>
+  </section>
+<section id="objectives">
+    <h2>Objectives <span class="count">2</span></h2>
+
+    <div class="group">
+      <h3 class="grp-title">slo <span class="count">1</span></h3>
+      <div class="cards"><article class="card" id="obj-fast-check">
+    <header><h3>fast_check</h3><span class="badge badge-kind-slo">slo</span></header>
+    <p class="desc">数十 KiB クラスのファイル 30 件程度なら p95 500ms 以内で完了する。</p>
+    <dl class="kv"><dt>metric</dt><dd><span class="text">latency_p95</span></dd><dt>target</dt><dd><span class="text">&lt;500ms</span></dd><dt>interface</dt><dd><span class="text">CheckYaml</span></dd></dl>
+  </article></div>
+    </div>
+<div class="group">
+      <h3 class="grp-title">security <span class="count">1</span></h3>
+      <div class="cards"><article class="card" id="obj-no-persistent-state">
+    <header><h3>no_persistent_state</h3><span class="badge badge-kind-security">security</span></header>
+    <p class="desc">yaml-check は副作用を持たない。プロセス外の状態 (ファイル / ネットワーク / 環境) を変更しない。</p>
+    <dl class="kv"><dt>policy</dt><dd><span class="text">read_only_operation</span></dd><dt>target</dt><dd><span class="text">CheckYaml</span></dd><dt>value</dt><dd><code>true</code></dd></dl>
+  </article></div>
+    </div>
+  </section></div>
+<div class="tab" data-tab="decisions" id="tab-decisions"><section id="decisions-empty" class="tab-overview">
+    <header class="page-header">
+      <div class="eyebrow">Decisions</div>
+      <h1>Decisions</h1>
+    </header>
+    <p class="lead">No CONCEPTION or ADR sources were provided.</p>
+  </section></div>
+<div class="tab" data-tab="changes" id="tab-changes"><section id="ch-empty" class="tab-overview">
+      <header class="page-header">
+        <div class="eyebrow">Changes</div>
+        <h1>Changes</h1>
+      </header>
+      <p class="lead">No work items were provided.</p>
+    </section></div></main>
+</div>
+<script>
+(() => {
+  document.documentElement.classList.add('js');
+
+  // Parse "#tab=foo&sec=bar" into { tab, sec }. Defaults to overview tab.
+  const parseHash = () => {
+    const h = location.hash.replace(/^#/, '');
+    const out = { tab: 'overview', sec: '' };
+    if (!h) return out;
+    if (!h.includes('=')) {
+      // Bare anchor like "#models" — resolve the owning tab from the target node.
+      const sec = h;
+      out.sec = sec;
+      const target = document.getElementById(sec);
+      if (target) {
+        const tab = target.closest('[data-tab]');
+        if (tab && tab.getAttribute('data-tab')) out.tab = tab.getAttribute('data-tab');
+      } else {
+        // Fallback: find the tab whose TOC owns this id.
+        const toc = document.querySelector('.toc a[data-sec="' + cssEscape(sec) + '"]');
+        if (toc) {
+          const tocBox = toc.closest('.toc');
+          out.tab = (tocBox && tocBox.getAttribute('data-toc-for')) || 'overview';
+        }
+      }
+      return out;
+    }
+    for (const part of h.split('&')) {
+      const [k, v] = part.split('=');
+      if (k === 'tab' && v) out.tab = v;
+      if (k === 'sec' && v) out.sec = v;
+    }
+    return out;
+  };
+
+  // Minimal CSS.escape polyfill for older runtimes.
+  const cssEscape = (s) => {
+    if (window.CSS && CSS.escape) return CSS.escape(s);
+    return String(s).replace(/[^a-zA-Z0-9_-]/g, (c) => '\\' + c);
+  };
+
+  const tabs = Array.from(document.querySelectorAll('[data-tab]'));
+  const tabLinks = Array.from(document.querySelectorAll('[data-tab-link]'));
+  const tocs = Array.from(document.querySelectorAll('[data-toc-for]'));
+
+  const showTab = (name) => {
+    let found = false;
+    for (const t of tabs) {
+      const match = t.getAttribute('data-tab') === name;
+      t.classList.toggle('active', match);
+      if (match) found = true;
+    }
+    if (!found) name = 'overview';
+    for (const t of tabs) t.classList.toggle('active', t.getAttribute('data-tab') === name);
+    for (const a of tabLinks) a.classList.toggle('active', a.getAttribute('data-tab-link') === name);
+    for (const toc of tocs) toc.classList.toggle('active', toc.getAttribute('data-toc-for') === name);
+    return name;
+  };
+
+  const route = () => {
+    const { tab, sec } = parseHash();
+    const active = showTab(tab);
+    if (sec) {
+      const el = document.getElementById(sec);
+      if (el) {
+        // Scroll without forcing :target focus, so the hash router stays in control.
+        requestAnimationFrame(() => el.scrollIntoView({ block: 'start' }));
+      }
+    } else {
+      window.scrollTo(0, 0);
+    }
+    setActiveLink(active);
+  };
+
+  const setActiveLink = (tab) => {
+    const toc = document.querySelector('.toc[data-toc-for="' + cssEscape(tab) + '"]');
+    if (!toc) return;
+    const links = Array.from(toc.querySelectorAll('a[data-sec]'));
+    if (!links.length) return;
+    const sections = links
+      .map((a) => document.getElementById(a.getAttribute('data-sec')))
+      .filter(Boolean);
+    if (!sections.length) return;
+    const TRIGGER = 120;
+    const update = () => {
+      let current = sections[0];
+      for (const s of sections) {
+        if (s.getBoundingClientRect().top - TRIGGER <= 0) current = s;
+        else break;
+      }
+      for (const a of links) {
+        a.classList.toggle('active', a.getAttribute('data-sec') === current.id);
+      }
+    };
+    update();
+    if (window._scrollSpy) window.removeEventListener('scroll', window._scrollSpy);
+    window._scrollSpy = () => requestAnimationFrame(update);
+    window.addEventListener('scroll', window._scrollSpy, { passive: true });
+  };
+
+  window.addEventListener('hashchange', route);
+  route();
+})();
+</script>
+</body>
+</html>

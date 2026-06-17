@@ -1,32 +1,57 @@
 #!/usr/bin/env bun
 /**
- * CLI driver for Render. Reads YAML via Bun's built-in YAML import.
+ * scl-to-html CLI.
  *
- * Usage: bun run src/main.ts <input.yaml> [output.html]
+ *   scl-to-html --scl <path/to/scl.yaml>
+ *               [--decisions <dir>]
+ *               [--changes <dir>]
+ *               [--title <string>]
+ *               [--out <path>]
+ *
+ * --decisions and --changes are optional. Without them the produced HTML
+ * still has the Overview and SCL tabs; the Decisions / Changes tabs render
+ * an "empty" placeholder.
+ *
+ * Without --out the HTML is written to stdout.
+ *
+ * Pure logic lives in src/render-*.ts and src/page.ts; this file is the
+ * CLI shell (argument parsing, IO).
  */
 
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
-import { pathToFileURL } from 'node:url'
-import { render, type SclDocument } from './render.ts'
+import { parseCliArgs } from './args.ts'
+import { loadChanges, loadDecisions, loadScl } from './load.ts'
+import { renderPage } from './page.ts'
 
-const [, , inputArg, outputArg] = process.argv
-if (!inputArg) {
-  console.error('Usage: scl-to-html <input.yaml> [output.html]')
-  process.exit(1)
+const argv = process.argv.slice(2)
+const parsed = parseCliArgs(argv)
+if (parsed.kind === 'help') {
+  process.stdout.write(parsed.message)
+  process.exit(0)
+}
+if (parsed.kind === 'error') {
+  process.stderr.write(`scl-to-html: ${parsed.message}\n`)
+  process.exit(parsed.code)
 }
 
-const inputPath = resolve(process.cwd(), inputArg)
-const mod = await import(pathToFileURL(inputPath).href)
-const scl = ((mod as { default?: unknown }).default ?? mod) as SclDocument
+const { scl: sclArg, decisions: decisionsArg, changes: changesArg, out, title } = parsed.opts
 
-const html = render(scl)
+const sclPath = resolve(process.cwd(), sclArg)
+const decisionsPath = decisionsArg ? resolve(process.cwd(), decisionsArg) : null
+const changesPath = changesArg ? resolve(process.cwd(), changesArg) : null
 
-if (outputArg) {
-  const outputPath = resolve(process.cwd(), outputArg)
-  await mkdir(dirname(outputPath), { recursive: true })
-  await writeFile(outputPath, html)
-  console.error(`Wrote ${outputArg}`)
+const scl = await loadScl(sclPath)
+const decisions = decisionsPath ? await loadDecisions(decisionsPath) : []
+const changes = changesPath ? await loadChanges(changesPath) : []
+
+const html = renderPage({ scl, decisions, changes, title: title ?? undefined })
+
+if (out) {
+  const outPath = resolve(process.cwd(), out)
+  await mkdir(dirname(outPath), { recursive: true })
+  await writeFile(outPath, html)
+  process.stderr.write(`Wrote ${out}\n`)
 } else {
   process.stdout.write(html)
 }

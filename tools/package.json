@@ -12,7 +12,9 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.16",
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1"
   },
   "peerDependencies": {
     "typescript": "^5"

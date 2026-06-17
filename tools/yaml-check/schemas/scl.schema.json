@@ -1,0 +1,606 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://regenerative-architecture/schemas/scl.json",
+  "title": "Specification Core Language (SCL) Document",
+  "description": "SPECIFICATION_CORE_LANGUAGE.md §2-§3 で規定される SCL 文書。",
+  "type": "object",
+  "required": ["system", "spec_version"],
+  "properties": {
+    "system": { "type": "string", "minLength": 1 },
+    "spec_version": { "type": "string", "minLength": 1 },
+    "annotations": { "type": "object" },
+    "standards": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/Standard" }
+    },
+    "components": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/Component" }
+    },
+    "vocabulary": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/VocabularyEntry" }
+    },
+    "models": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/Model" }
+    },
+    "interfaces": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/Interface" }
+    },
+    "states": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/StateMachine" }
+    },
+    "invariants": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/Invariant" }
+    },
+    "scenarios": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/Scenario" }
+    },
+    "permissions": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/Permission" }
+    },
+    "objectives": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/Objective" }
+    },
+    "assurance": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/Assurance" }
+    },
+    "user_experience": { "$ref": "#/$defs/UserExperience" }
+  },
+  "$defs": {
+    "Annotation": { "type": "object" },
+    "TraceRef": {
+      "type": "object",
+      "description": "SCL セクション名 → 名前の配列。",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "type": "string", "minLength": 1 }
+      }
+    },
+    "Expression": {
+      "description": "CEL 部分集合 (文字列) または構造化形式 (object)。",
+      "anyOf": [{ "type": "string", "minLength": 1 }, { "type": "object" }, { "type": "boolean" }]
+    },
+    "FieldDef": {
+      "description": "models / interfaces.input / interfaces.output などのフィールド定義。",
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {},
+        "optional": { "type": "boolean" },
+        "default": {},
+        "constraints": { "type": "array" },
+        "description": { "type": "string" },
+        "annotations": { "$ref": "#/$defs/Annotation" }
+      }
+    },
+    "FieldMap": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/FieldDef" }
+    },
+
+    "Standard": {
+      "type": "object",
+      "required": ["title", "url"],
+      "properties": {
+        "title": { "type": "string", "minLength": 1 },
+        "version": { "type": "string" },
+        "url": { "type": "string", "format": "uri" },
+        "roles": { "type": "array", "items": { "type": "string" } },
+        "scope": { "type": "string" },
+        "requirements": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "strength", "adoption", "statement"],
+            "properties": {
+              "id": { "type": "string", "minLength": 1 },
+              "section": { "type": "string" },
+              "strength": {
+                "type": "string",
+                "enum": ["MUST", "SHOULD", "MAY", "MUST NOT", "SHOULD NOT"]
+              },
+              "adoption": { "type": "string", "enum": ["required", "optional", "excluded"] },
+              "statement": { "type": "string", "minLength": 1 },
+              "reason": { "type": "string" },
+              "relates_to": { "$ref": "#/$defs/TraceRef" }
+            },
+            "if": {
+              "properties": { "adoption": { "const": "excluded" } },
+              "required": ["adoption"]
+            },
+            "then": { "required": ["reason"] }
+          }
+        }
+      }
+    },
+
+    "Component": {
+      "type": "object",
+      "required": ["description"],
+      "properties": {
+        "description": { "type": "string", "minLength": 1 },
+        "owns_models": { "type": "array", "items": { "type": "string" } },
+        "owns_states": { "type": "array", "items": { "type": "string" } },
+        "owns_events": { "type": "array", "items": { "type": "string" } },
+        "owns_interfaces": { "type": "array", "items": { "type": "string" } },
+        "owns_invariants": { "type": "array", "items": { "type": "string" } },
+        "owns_permissions": { "type": "array", "items": { "type": "string" } },
+        "owns_objectives": { "type": "array", "items": { "type": "string" } },
+        "depends_on": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["component", "reason"],
+            "properties": {
+              "component": { "type": "string", "minLength": 1 },
+              "reason": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "annotations": { "$ref": "#/$defs/Annotation" }
+      }
+    },
+
+    "VocabularyEntry": {
+      "type": "object",
+      "required": ["definition"],
+      "properties": {
+        "definition": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "aliases": { "type": "array", "items": { "type": "string" } },
+        "context": { "type": "string" },
+        "not_to_confuse_with": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["term", "reason"],
+            "properties": {
+              "term": { "type": "string", "minLength": 1 },
+              "reason": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "annotations": { "$ref": "#/$defs/Annotation" }
+      }
+    },
+
+    "Model": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["entity", "value_object", "event", "enum", "error"] },
+        "description": { "type": "string" },
+        "annotations": { "$ref": "#/$defs/Annotation" },
+        "identity": {
+          "description": "同一性キー。単一フィールド名 (string) または複合キーの配列。",
+          "oneOf": [
+            { "type": "string", "minLength": 1 },
+            { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+          ]
+        },
+        "fields": { "$ref": "#/$defs/FieldMap" },
+        "values": { "type": "array", "items": { "type": "string" } },
+        "payload": { "$ref": "#/$defs/FieldMap" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "kind": { "const": "entity" } }, "required": ["kind"] },
+          "then": { "required": ["identity", "fields"] }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "value_object" } }, "required": ["kind"] },
+          "then": { "required": ["fields"] }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "enum" } }, "required": ["kind"] },
+          "then": { "required": ["values"] }
+        }
+      ]
+    },
+
+    "Interface": {
+      "type": "object",
+      "properties": {
+        "description": { "type": "string" },
+        "steps": { "type": "array", "items": { "type": "string" } },
+        "input": { "$ref": "#/$defs/FieldMap" },
+        "output": { "$ref": "#/$defs/FieldMap" },
+        "errors": { "type": "array", "items": { "type": "string" } },
+        "emits": { "type": "array", "items": { "type": "string" } },
+        "idempotent": { "type": "boolean" },
+        "read_only": { "type": "boolean" },
+        "bindings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Binding" }
+        },
+        "annotations": { "$ref": "#/$defs/Annotation" }
+      }
+    },
+
+    "Binding": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["http", "grpc", "cli", "event", "graphql", "sdk", "schedule"]
+        },
+        "description": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "kind": { "const": "http" } }, "required": ["kind"] },
+          "then": {
+            "required": ["method", "path"],
+            "properties": {
+              "method": { "type": "string", "minLength": 1 },
+              "path": { "type": "string", "minLength": 1 },
+              "successful_status_codes": { "type": "array", "items": { "type": "string" } },
+              "request_form": { "type": "string", "enum": ["body", "query", "form"] },
+              "headers": { "$ref": "#/$defs/FieldMap" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "grpc" } }, "required": ["kind"] },
+          "then": {
+            "required": ["service", "method"],
+            "properties": {
+              "service": { "type": "string", "minLength": 1 },
+              "method": { "type": "string", "minLength": 1 },
+              "streaming": { "type": "string", "enum": ["unary", "client", "server", "bidi"] }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "cli" } }, "required": ["kind"] },
+          "then": {
+            "required": ["command"],
+            "properties": {
+              "command": { "type": "string", "minLength": 1 },
+              "args": { "type": "array" },
+              "flags": { "type": "array" },
+              "exit_codes": { "type": "object" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "event" } }, "required": ["kind"] },
+          "then": {
+            "required": ["channel", "direction"],
+            "properties": {
+              "channel": { "type": "string", "minLength": 1 },
+              "direction": { "type": "string", "enum": ["produce", "consume"] },
+              "delivery": {
+                "type": "string",
+                "enum": ["at_most_once", "at_least_once", "exactly_once"]
+              },
+              "ordering": { "type": "string", "enum": ["none", "per_key", "global"] },
+              "partition_key": { "type": "string" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "graphql" } }, "required": ["kind"] },
+          "then": {
+            "required": ["operation", "field"],
+            "properties": {
+              "operation": { "type": "string", "enum": ["query", "mutation", "subscription"] },
+              "field": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "sdk" } }, "required": ["kind"] },
+          "then": {
+            "required": ["function"],
+            "properties": { "function": { "type": "string", "minLength": 1 } }
+          }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "schedule" } }, "required": ["kind"] },
+          "then": {
+            "anyOf": [{ "required": ["cron"] }, { "required": ["every"] }],
+            "properties": {
+              "cron": { "type": "string", "minLength": 1 },
+              "every": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      ]
+    },
+
+    "StateMachine": {
+      "type": "object",
+      "required": ["target", "initial", "transitions"],
+      "properties": {
+        "description": { "type": "string" },
+        "target": { "type": "string", "minLength": 1 },
+        "initial": { "type": "string", "minLength": 1 },
+        "terminal": { "type": "array", "items": { "type": "string" } },
+        "transitions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["from", "event", "to"],
+            "properties": {
+              "from": { "type": "string", "minLength": 1 },
+              "event": { "type": "string", "minLength": 1 },
+              "to": { "type": "string", "minLength": 1 },
+              "guard": { "$ref": "#/$defs/Expression" },
+              "effect": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "annotations": { "$ref": "#/$defs/Annotation" }
+      }
+    },
+
+    "Invariant": {
+      "type": "object",
+      "anyOf": [
+        { "required": ["always"] },
+        { "required": ["never"] },
+        { "required": ["eventually"] }
+      ],
+      "properties": {
+        "description": { "type": "string" },
+        "target": { "type": "string" },
+        "assuming": { "$ref": "#/$defs/Expression" },
+        "always": { "$ref": "#/$defs/Expression" },
+        "never": { "$ref": "#/$defs/Expression" },
+        "eventually": { "$ref": "#/$defs/Expression" },
+        "within": { "type": "string" },
+        "severity": { "type": "string", "enum": ["must", "should"] },
+        "annotations": { "$ref": "#/$defs/Annotation" }
+      }
+    },
+
+    "Scenario": {
+      "type": "object",
+      "required": ["steps"],
+      "properties": {
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "where": { "type": "array", "items": { "type": "object" } },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "description": { "type": "string" },
+        "annotations": { "$ref": "#/$defs/Annotation" }
+      }
+    },
+
+    "Permission": {
+      "type": "object",
+      "required": ["actor", "action", "resource"],
+      "properties": {
+        "actor": { "type": "string", "minLength": 1 },
+        "action": { "type": "string", "minLength": 1 },
+        "resource": { "type": "string", "minLength": 1 },
+        "allow_when": { "$ref": "#/$defs/Expression" },
+        "deny_when": { "$ref": "#/$defs/Expression" },
+        "description": { "type": "string" },
+        "annotations": { "$ref": "#/$defs/Annotation" }
+      }
+    },
+
+    "Objective": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["slo", "retention", "lifetime", "security"] },
+        "description": { "type": "string" },
+        "annotations": { "$ref": "#/$defs/Annotation" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "kind": { "const": "slo" } }, "required": ["kind"] },
+          "then": {
+            "required": ["metric", "target"],
+            "properties": {
+              "metric": {
+                "type": "string",
+                "enum": [
+                  "latency_p50",
+                  "latency_p95",
+                  "latency_p99",
+                  "availability",
+                  "error_rate",
+                  "throughput"
+                ]
+              },
+              "target": { "type": "string", "minLength": 1 },
+              "interface": { "type": "string" },
+              "window": { "type": "string" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "retention" } }, "required": ["kind"] },
+          "then": {
+            "required": ["target", "policy"],
+            "properties": {
+              "target": { "type": "string", "minLength": 1 },
+              "policy": {
+                "type": "string",
+                "enum": [
+                  "keep_indefinitely",
+                  "keep",
+                  "append_only",
+                  "delete_after",
+                  "purge_pii_after",
+                  "archive_after",
+                  "archive"
+                ]
+              },
+              "retention": { "type": "string" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "lifetime" } }, "required": ["kind"] },
+          "then": {
+            "required": ["target", "ttl"],
+            "properties": {
+              "target": { "type": "string", "minLength": 1 },
+              "ttl": { "type": "string", "minLength": 1 },
+              "single_use": { "type": "boolean" },
+              "reference": { "type": "string" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "security" } }, "required": ["kind"] },
+          "then": {
+            "required": ["policy", "value"],
+            "properties": {
+              "policy": { "type": "string", "minLength": 1 },
+              "target": { "type": "string" },
+              "value": {},
+              "reference": { "type": "string" }
+            }
+          }
+        }
+      ]
+    },
+
+    "Assurance": {
+      "type": "object",
+      "required": ["claim", "risk", "risk_level", "derived_from", "acceptance", "evidence"],
+      "properties": {
+        "claim": { "type": "string", "minLength": 1 },
+        "risk": { "type": "string", "minLength": 1 },
+        "risk_level": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
+        "derived_from": { "$ref": "#/$defs/TraceRef" },
+        "acceptance": { "$ref": "#/$defs/AcceptanceExpression" },
+        "evidence": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/EvidenceRequirement" }
+        },
+        "approval": {
+          "type": "object",
+          "required": ["when", "role"],
+          "properties": {
+            "when": { "type": "array", "items": { "type": "string" } },
+            "role": { "type": "string", "minLength": 1 },
+            "decision_record": { "type": "boolean" }
+          }
+        },
+        "annotations": { "$ref": "#/$defs/Annotation" }
+      }
+    },
+
+    "AcceptanceExpression": {
+      "anyOf": [
+        {
+          "type": "object",
+          "required": ["evidence", "criterion"],
+          "properties": {
+            "evidence": { "type": "string", "minLength": 1 },
+            "criterion": { "type": "string", "minLength": 1 }
+          }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "all": { "type": "array", "items": { "$ref": "#/$defs/AcceptanceExpression" } },
+            "any": { "type": "array", "items": { "$ref": "#/$defs/AcceptanceExpression" } },
+            "not": { "$ref": "#/$defs/AcceptanceExpression" }
+          },
+          "anyOf": [{ "required": ["all"] }, { "required": ["any"] }, { "required": ["not"] }]
+        }
+      ]
+    },
+
+    "EvidenceRequirement": {
+      "type": "object",
+      "required": ["kind", "producer", "evaluation", "environments", "recheck", "covers"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "test",
+            "property_test",
+            "model_check",
+            "contract_test",
+            "mutation_test",
+            "static_analysis",
+            "scan",
+            "runtime_observation",
+            "manual_inspection"
+          ]
+        },
+        "producer": { "type": "string", "enum": ["generator", "independent"] },
+        "evaluation": { "type": "string", "enum": ["deterministic", "heuristic", "human"] },
+        "environments": { "type": "array", "items": { "type": "string" } },
+        "recheck": {
+          "type": "string",
+          "enum": ["once", "affected_change", "every_change", "release", "continuous"]
+        },
+        "covers": { "$ref": "#/$defs/TraceRef" },
+        "procedure": { "type": "string" },
+        "oracle": { "type": "string" }
+      }
+    },
+
+    "UserExperience": {
+      "type": "object",
+      "properties": {
+        "accessibility": { "type": "object" },
+        "locales": { "type": "array", "items": { "type": "string" } },
+        "screens": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "route": { "type": "string" },
+              "purpose": { "type": "string" },
+              "interfaces": { "type": "array", "items": { "type": "string" } },
+              "states": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "transitions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["trigger"],
+            "properties": {
+              "from": { "type": "string" },
+              "to": { "type": "string" },
+              "trigger": { "type": "string" },
+              "interface": { "type": "string" },
+              "external": { "type": "boolean" }
+            }
+          }
+        },
+        "requirements": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "adoption", "statement"],
+            "properties": {
+              "id": { "type": "string", "minLength": 1 },
+              "category": { "type": "string" },
+              "adoption": { "type": "string", "enum": ["required", "optional", "excluded"] },
+              "statement": { "type": "string", "minLength": 1 },
+              "screens": { "type": "array", "items": { "type": "string" } },
+              "interfaces": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        }
+      }
+    }
+  }
+}

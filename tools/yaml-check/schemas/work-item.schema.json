@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://regenerative-architecture/schemas/work-item.json",
+  "title": "Work Item",
+  "description": "ra.md §4.2.1 / CLAUDE.md で規定されるワークアイテム。changes/<id>/work-item.yaml に置く。",
+  "type": "object",
+  "required": [
+    "id",
+    "title",
+    "created_at",
+    "authors",
+    "status",
+    "motivation",
+    "scope",
+    "out_of_scope",
+    "affected_guarantees",
+    "verification",
+    "risk",
+    "risk_notes"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "ディレクトリ名と一致する安定識別子。",
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "title": { "type": "string", "minLength": 1 },
+    "created_at": {
+      "description": "起票日。YYYY-MM-DD または RFC3339。",
+      "oneOf": [{ "type": "string", "format": "date" }, { "type": "string", "format": "date-time" }]
+    },
+    "authors": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "status": {
+      "type": "string",
+      "enum": ["pending", "in_progress", "completed", "cancelled"]
+    },
+    "motivation": {
+      "description": "根拠。なぜこの変更が必要か。",
+      "type": "string",
+      "minLength": 1
+    },
+    "scope": {
+      "description": "対象範囲。free-form (object / array / string)。",
+      "anyOf": [{ "type": "object" }, { "type": "array" }, { "type": "string", "minLength": 1 }]
+    },
+    "out_of_scope": {
+      "description": "範囲外。",
+      "type": "array"
+    },
+    "affected_guarantees": {
+      "description": "影響する保証義務 (SCL assurance の文脈)。",
+      "type": "array"
+    },
+    "verification": {
+      "description": "検証コマンド / 手動手順のリスト。",
+      "type": "array",
+      "items": {
+        "oneOf": [
+          { "type": "string", "minLength": 1 },
+          {
+            "type": "object",
+            "required": ["cmd"],
+            "properties": {
+              "cmd": { "type": "string", "minLength": 1 },
+              "in": { "type": "string" },
+              "reason": { "type": "string" }
+            }
+          }
+        ]
+      }
+    },
+    "risk": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "critical"]
+    },
+    "risk_notes": {
+      "type": "string",
+      "minLength": 1
+    },
+    "target_state": {
+      "description": "推奨形式。Refactor 系で「整合後の状態」を宣言する場合に使う。"
+    }
+  }
+}

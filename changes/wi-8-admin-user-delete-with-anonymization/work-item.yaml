@@ -162,7 +162,7 @@ verification:
     手動: dev seed の `bob` を作成して active token を発行 →
     AdminUsersPage で削除 → introspect が active=false / userinfo が 401 /
     refresh が `invalid_grant` を返す / 再 login 不可。
-  - 手動: 自分自身を消そうとして失敗することを確認 (最終 admin 自爆防止)。
+  - '手動: 自分自身を消そうとして失敗することを確認 (最終 admin 自爆防止)。'
 
 risk: medium
 risk_notes: |

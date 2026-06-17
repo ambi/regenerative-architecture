@@ -63,7 +63,7 @@ func TestAdminConsentListsGetsAndRevokesWithinTenant(t *testing.T) {
 		t.Fatalf("get status=%d body=%s", getResponse.Code, getResponse.Body.String())
 	}
 
-	csrf, cookie := adminCSRF(t, e, "admin")
+	csrf, cookie := adminCSRF(t, e)
 	revokeResponse := adminJSONRequest(
 		t, e, http.MethodDelete, "/api/admin/consents/alice/portal", csrf, cookie, nil,
 	)

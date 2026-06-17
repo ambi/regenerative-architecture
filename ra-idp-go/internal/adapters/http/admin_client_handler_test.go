@@ -19,7 +19,7 @@ import (
 
 func TestAdminClientCRUD(t *testing.T) {
 	e, clients, events := newAdminClientHandler(t)
-	csrf, cookie := adminCSRF(t, e, "admin")
+	csrf, cookie := adminCSRF(t, e)
 
 	create := adminJSONRequest(t, e, http.MethodPost, "/api/admin/clients", csrf, cookie, map[string]any{
 		"client_name":                "Portal",

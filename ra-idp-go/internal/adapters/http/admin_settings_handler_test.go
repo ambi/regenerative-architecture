@@ -75,9 +75,9 @@ func TestAdminSettingsGetRejectsNonAdmin(t *testing.T) {
 }
 
 func TestAdminSettingsGetReturnsCurrentTenant(t *testing.T) {
-	min := 16
+	minLength := 16
 	tenant := activeTenant("acme", "Acme")
-	tenant.PasswordPolicyOverride = &spec.PasswordPolicyOverride{MinLength: &min}
+	tenant.PasswordPolicyOverride = &spec.PasswordPolicyOverride{MinLength: &minLength}
 	e, _, _ := newSettingsServer(t, settingsActor("admin", "acme", []string{"admin"}), tenant)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/realms/acme/api/admin/settings", http.NoBody))
@@ -92,7 +92,7 @@ func TestAdminSettingsGetReturnsCurrentTenant(t *testing.T) {
 		t.Fatalf("body=%+v", body)
 	}
 	if body.PasswordPolicyOverride == nil || body.PasswordPolicyOverride.MinLength == nil ||
-		*body.PasswordPolicyOverride.MinLength != min {
+		*body.PasswordPolicyOverride.MinLength != minLength {
 		t.Fatalf("override=%+v", body.PasswordPolicyOverride)
 	}
 	if body.PasswordPolicyDefaults.MinLength <= 0 ||

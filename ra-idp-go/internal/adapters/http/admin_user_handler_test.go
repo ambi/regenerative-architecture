@@ -43,7 +43,7 @@ func TestAdminUserAPIIsAvailableUnderAPIPath(t *testing.T) {
 
 func TestAdminUserAPICreatesAndDisablesUser(t *testing.T) {
 	e, repo := newAdminUserHandler(t)
-	csrf, cookie := adminCSRF(t, e, "admin")
+	csrf, cookie := adminCSRF(t, e)
 
 	create := adminJSONRequest(t, e, http.MethodPost, "/api/admin/users", csrf, cookie, map[string]any{
 		"preferred_username": "bob",
@@ -92,7 +92,7 @@ func TestAdminUserAPICreatesAndDisablesUser(t *testing.T) {
 
 func TestAdminUserAPIDeletesUserWithCascade(t *testing.T) {
 	e, repo := newAdminUserHandler(t)
-	csrf, cookie := adminCSRF(t, e, "admin")
+	csrf, cookie := adminCSRF(t, e)
 
 	create := adminJSONRequest(t, e, http.MethodPost, "/api/admin/users", csrf, cookie, map[string]any{
 		"preferred_username": "alice",
@@ -149,7 +149,7 @@ func TestAdminUserAPIDeletesUserWithCascade(t *testing.T) {
 
 func TestAdminUserAPIRejectsSelfDelete(t *testing.T) {
 	e, _ := newAdminUserHandler(t)
-	csrf, cookie := adminCSRF(t, e, "admin")
+	csrf, cookie := adminCSRF(t, e)
 	resp := adminJSONRequest(t, e, http.MethodDelete, "/api/admin/users/admin", csrf, cookie, nil)
 	if resp.Code != http.StatusBadRequest {
 		t.Fatalf("status=%d body=%s", resp.Code, resp.Body.String())
@@ -230,10 +230,10 @@ func newAdminUserHandler(
 	return e, repo
 }
 
-func adminCSRF(t *testing.T, e *echo.Echo, sub string) (string, *http.Cookie) {
+func adminCSRF(t *testing.T, e *echo.Echo) (string, *http.Cookie) {
 	t.Helper()
 	request := httptest.NewRequest(http.MethodGet, "/api/auth/account", http.NoBody)
-	request.Header.Set("X-Demo-Sub", sub)
+	request.Header.Set("X-Demo-Sub", "admin")
 	response := httptest.NewRecorder()
 	e.ServeHTTP(response, request)
 	if response.Code != http.StatusOK {

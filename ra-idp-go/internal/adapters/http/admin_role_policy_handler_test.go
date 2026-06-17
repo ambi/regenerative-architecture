@@ -51,7 +51,8 @@ func TestAdminRolePoliciesIncludeControlPlanePermissionsForSystemAdmin(t *testin
 
 func getAdminRolePolicies(e interface {
 	ServeHTTP(http.ResponseWriter, *http.Request)
-}, path string) *httptest.ResponseRecorder {
+}, path string,
+) *httptest.ResponseRecorder {
 	req := httptest.NewRequest(http.MethodGet, path, http.NoBody)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)

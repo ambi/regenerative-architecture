@@ -117,23 +117,23 @@ func Update(
 
 func normalizeOverride(o spec.PasswordPolicyOverride) *spec.PasswordPolicyOverride {
 	result := spec.PasswordPolicyOverride{}
-	any := false
+	anyOverride := false
 	if o.MinLength != nil && *o.MinLength > 0 {
 		v := *o.MinLength
 		result.MinLength = &v
-		any = true
+		anyOverride = true
 	}
 	if o.MaxLength != nil && *o.MaxLength > 0 {
 		v := *o.MaxLength
 		result.MaxLength = &v
-		any = true
+		anyOverride = true
 	}
 	if o.HistoryDepth != nil && *o.HistoryDepth > 0 {
 		v := *o.HistoryDepth
 		result.HistoryDepth = &v
-		any = true
+		anyOverride = true
 	}
-	if !any {
+	if !anyOverride {
 		return nil
 	}
 	return &result

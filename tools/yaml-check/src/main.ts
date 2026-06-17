@@ -15,6 +15,8 @@
  *      explicit, never inferred from filename — a chance basename collision
  *      should not silently activate a schema unrelated to the file.
  *
+ * Pure logic lives in `./lib.ts`; this file is the CLI shell only.
+ *
  * Exits non-zero if any target has a parse error, a lint violation, or a
  * schema violation.
  */
@@ -23,11 +25,7 @@ import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { isAbsolute, relative, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import Ajv2020, { type ErrorObject, type ValidateFunction } from 'ajv/dist/2020.js'
-import addFormats from 'ajv-formats'
-import workItemSchema from '../schemas/work-item.schema.json' with { type: 'json' }
-import completionReportSchema from '../schemas/completion-report.schema.json' with { type: 'json' }
-import sclSchema from '../schemas/scl.schema.json' with { type: 'json' }
+import { type Finding, SCHEMAS, lintRawText, parseArgs, validateAgainstSchema } from './lib.ts'
 
 const REPO_ROOT = resolve(import.meta.dir, '../../..')
 
@@ -39,49 +37,6 @@ function resolvePath(p: string): string {
   const fromCwd = resolve(process.cwd(), p)
   if (existsSync(fromCwd)) return fromCwd
   return resolve(REPO_ROOT, p)
-}
-
-type Finding = { line: number; column: number; message: string }
-
-const ajv = new Ajv2020({ allErrors: true, strict: false })
-addFormats.default(ajv)
-const SCHEMAS: Record<string, ValidateFunction> = {
-  'work-item': ajv.compile(workItemSchema),
-  'completion-report': ajv.compile(completionReportSchema),
-  scl: ajv.compile(sclSchema),
-}
-
-type CliOptions = { schema: string | null; files: string[]; listSchemas: boolean }
-
-function parseArgs(argv: string[]): CliOptions {
-  const files: string[] = []
-  let schema: string | null = null
-  let listSchemas = false
-  for (let i = 0; i < argv.length; i++) {
-    const a = argv[i] ?? ''
-    if (a === '--list-schemas') {
-      listSchemas = true
-    } else if (a === '--schema') {
-      const next = argv[i + 1]
-      if (next === undefined) {
-        console.error('yaml-check: --schema requires a value')
-        process.exit(2)
-      }
-      schema = next
-      i++
-    } else if (a.startsWith('--schema=')) {
-      schema = a.slice('--schema='.length)
-    } else if (a === '--help' || a === '-h') {
-      printUsage()
-      process.exit(0)
-    } else if (a.startsWith('-')) {
-      console.error(`yaml-check: unknown flag: ${a}`)
-      process.exit(2)
-    } else {
-      files.push(a)
-    }
-  }
-  return { schema, files, listSchemas }
 }
 
 function printUsage(): void {
@@ -145,122 +100,33 @@ async function parseYaml(path: string): Promise<ParseResult> {
   }
 }
 
-function lintRawText(text: string): Finding[] {
-  const findings: Finding[] = []
-  const lines = text.split('\n')
-  const hasTrailingNewline = text.endsWith('\n')
-  // text.split('\n') on "a\n" yields ["a", ""]; ignore the synthetic empty tail.
-  const limit = hasTrailingNewline ? lines.length - 1 : lines.length
-  for (let i = 0; i < limit; i++) {
-    const raw = lines[i] ?? ''
-    const indentMatch = raw.match(/^[\t ]*/)?.[0] ?? ''
-    if (indentMatch.includes('\t')) {
-      findings.push({
-        line: i + 1,
-        column: indentMatch.indexOf('\t') + 1,
-        message: 'tab character in indentation',
-      })
-    }
-    if (/[ \t]+$/.test(raw)) {
-      findings.push({
-        line: i + 1,
-        column: raw.replace(/[ \t]+$/, '').length + 1,
-        message: 'trailing whitespace',
-      })
-    }
-  }
-  if (!hasTrailingNewline && text.length > 0) {
-    findings.push({ line: limit, column: 1, message: 'file does not end with a newline' })
-  }
-  if (text.endsWith('\n\n')) {
-    findings.push({ line: limit, column: 1, message: 'file ends with multiple trailing newlines' })
-  }
-  return findings
-}
-
-// Map a JSON pointer like "/scope/ui/pages/0" to the (1-based) line in the
-// source text. Pure heuristic: walk keys top-down, find the first indented
-// occurrence of each key after the previous match. Returns 1 when nothing
-// matches.
-function locatePointer(text: string, pointer: string): number {
-  if (!pointer) return 1
-  const segments = pointer
-    .split('/')
-    .filter((s) => s.length > 0)
-    .map(decodeJsonPointerSegment)
-  const lines = text.split('\n')
-  let cursor = 0
-  for (const seg of segments) {
-    if (/^\d+$/.test(seg)) {
-      // Array index: count list items at the current indent below `cursor`.
-      const idx = Number.parseInt(seg, 10)
-      const indent = (lines[cursor] ?? '').match(/^[ ]*/)?.[0].length ?? 0
-      let seen = -1
-      for (let i = cursor + 1; i < lines.length; i++) {
-        const m = (lines[i] ?? '').match(/^([ ]*)-(\s|$)/)
-        if (m && m[1] !== undefined && m[1].length >= indent) {
-          seen += 1
-          if (seen === idx) return i + 1
-        }
-      }
-      return cursor + 1
-    }
-    const re = new RegExp(`^\\s*${escapeRegExp(seg)}\\s*:`)
-    let found = -1
-    for (let i = cursor; i < lines.length; i++) {
-      if (re.test(lines[i] ?? '')) {
-        found = i
-        break
-      }
-    }
-    if (found < 0) return cursor + 1
-    cursor = found
-  }
-  return cursor + 1
-}
-
-function decodeJsonPointerSegment(s: string): string {
-  return s.replace(/~1/g, '/').replace(/~0/g, '~')
-}
-
-function escapeRegExp(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
-
-function formatSchemaError(err: ErrorObject): string {
-  const path = err.instancePath || '/'
-  const detail =
-    err.keyword === 'additionalProperties' && typeof err.params.additionalProperty === 'string'
-      ? ` (${err.params.additionalProperty})`
-      : err.keyword === 'enum' && Array.isArray(err.params.allowedValues)
-        ? ` (allowed: ${err.params.allowedValues.join(', ')})`
-        : err.keyword === 'required' && typeof err.params.missingProperty === 'string'
-          ? ` (missing: ${err.params.missingProperty})`
-          : ''
-  return `schema: ${path} ${err.message ?? ''}${detail}`.trimEnd()
-}
-
 function formatFindings(path: string, findings: Finding[]): string {
   const rel = relative(process.cwd(), path) || path
   return findings.map((f) => `${rel}:${f.line}:${f.column}: ${f.message}`).join('\n')
 }
 
-const opts = parseArgs(process.argv.slice(2))
+const argsResult = parseArgs(process.argv.slice(2))
+if (argsResult.kind === 'error') {
+  console.error(`yaml-check: ${argsResult.message}`)
+  process.exit(argsResult.code)
+}
+const opts = argsResult.opts
+
+if (opts.help) {
+  printUsage()
+  process.exit(0)
+}
 
 if (opts.listSchemas) {
   for (const name of Object.keys(SCHEMAS)) console.log(name)
   process.exit(0)
 }
 
-let validate: ValidateFunction | null = null
-if (opts.schema !== null) {
-  validate = SCHEMAS[opts.schema] ?? null
-  if (validate === null) {
-    console.error(
-      `yaml-check: unknown schema '${opts.schema}'. Available: ${Object.keys(SCHEMAS).join(', ')}`,
-    )
-    process.exit(2)
-  }
+if (opts.schema !== null && !(opts.schema in SCHEMAS)) {
+  console.error(
+    `yaml-check: unknown schema '${opts.schema}'. Available: ${Object.keys(SCHEMAS).join(', ')}`,
+  )
+  process.exit(2)
 }
 
 if (opts.files.length === 0) {
@@ -285,17 +151,8 @@ for (const path of targets) {
   if (!parseResult.ok) findings.push(parseResult.finding)
   findings.push(...lintFindings)
 
-  if (parseResult.ok && validate !== null) {
-    const valid = validate(parseResult.data)
-    if (!valid && validate.errors) {
-      for (const err of validate.errors) {
-        findings.push({
-          line: locatePointer(text, err.instancePath),
-          column: 1,
-          message: formatSchemaError(err),
-        })
-      }
-    }
+  if (parseResult.ok && opts.schema !== null) {
+    findings.push(...validateAgainstSchema(opts.schema, parseResult.data, text))
   }
 
   if (findings.length === 0) {

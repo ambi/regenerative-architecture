@@ -11,7 +11,7 @@
     "yaml-check": "bun run yaml-check/src/main.ts",
     "yaml-check:work-items": "bun run yaml-check/src/main.ts --schema=work-item '../changes/*/work-item.yaml'",
     "yaml-check:completion-reports": "bun run yaml-check/src/main.ts --schema=completion-report '../changes/*/completion-report.yaml'",
-    "yaml-check:scl": "bun run yaml-check/src/main.ts --schema=scl ../ra-idp-go/spec/scl.yaml ../tools/scl-to-html/spec/scl.yaml",
+    "yaml-check:scl": "bun run yaml-check/src/main.ts --schema=scl ../ra-idp-go/spec/scl.yaml ../tools/scl-to-html/spec/scl.yaml ../tools/yaml-check/spec/scl.yaml",
     "yaml-check:all": "bun run yaml-check:work-items && bun run yaml-check:completion-reports && bun run yaml-check:scl"
   },
   "devDependencies": {

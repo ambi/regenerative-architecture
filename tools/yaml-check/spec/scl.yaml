@@ -1,0 +1,262 @@
+# yaml-check — Specification Core Language (SCL) Document
+#
+# 「リポジトリ内の YAML ファイルを、汎用 YAML として valid であること、
+# 軽量な lint ルールに従っていること、明示指定された JSON Schema に
+# 適合していることまで一括で検査するツール」自身を一つの RA として
+# 記述したもの。Layer 1 (仕様核)。実装 (Layer 3) はこの仕様から派生する。
+#
+# 語彙規約: 型/インターフェース/イベント = PascalCase、
+#           フィールド/フラグ = snake_case (CLI フラグは kebab-case)。
+
+system: yaml-check
+spec_version: "1.0"
+
+# =================================================================
+# 1. vocabulary
+# =================================================================
+
+vocabulary:
+
+  YamlInput:
+    definition: 検査対象となる UTF-8 テキストファイル。拡張子は通常 .yaml だが、ツール側は内容ベースで処理する。
+    aliases: [input, target]
+
+  Finding:
+    definition: |
+      1 つの検査違反を表すレコード。発生したファイル・行・列・メッセージを持つ。
+      Parse / Lint / Schema のいずれかの層で生じる。
+
+  ParseFinding:
+    definition: Bun の YAML ローダで構文解析に失敗したことを示す Finding。
+
+  LintFinding:
+    definition: |
+      生テキストへの形式的なチェック (tab indent / 行末空白 / 末尾改行) に
+      違反した Finding。意味解釈は行わない。
+
+  SchemaFinding:
+    definition: |
+      Parse 成功後のデータが、明示指定された Schema に適合しなかったことを
+      示す Finding。原因の JSON pointer と Ajv のメッセージを内包する。
+
+  Schema:
+    definition: |
+      JSON Schema 2020-12 形式の検査定義。本ツールに同梱され、`SchemaName` の
+      列挙値で呼び出される。
+    aliases: [json-schema]
+
+  SchemaName:
+    definition: 同梱 Schema の識別名。`work-item` / `completion-report` / `scl` の 3 種。
+
+  CheckRun:
+    definition: 1 回の `yaml-check` 起動。引数で指定されたファイル群に対して順に Parse → Lint → (任意) Schema を回す。
+
+# =================================================================
+# 2. models
+# =================================================================
+
+models:
+
+  SchemaName:
+    kind: enum
+    values: [work-item, completion-report, scl]
+
+  FindingKind:
+    kind: enum
+    values: [parse, lint, schema]
+
+  Finding:
+    kind: value_object
+    description: 1 つの検査違反。
+    fields:
+      kind:    { type: FindingKind }
+      file:    { type: String, constraints: [non_empty] }
+      line:    { type: Integer }
+      column:  { type: Integer }
+      message: { type: String, constraints: [non_empty] }
+
+  CheckResult:
+    kind: value_object
+    description: 1 ファイルの検査結果。
+    fields:
+      file:     { type: String, constraints: [non_empty] }
+      findings: { type: "Finding[]" }
+      ok:       { type: Boolean, description: findings が空のとき true。 }
+
+  CheckRunSummary:
+    kind: value_object
+    description: CheckRun 全体の結果。
+    fields:
+      total:   { type: Integer, description: 検査対象ファイル総数。 }
+      failed:  { type: Integer, description: 1 つ以上の Finding を持つファイル数。 }
+      results: { type: "CheckResult[]" }
+
+# =================================================================
+# 3. interfaces
+# =================================================================
+
+interfaces:
+
+  CheckYaml:
+    description: 入力ファイル群に対し parse + lint + (任意) schema 検査を行い、結果を返す。
+    steps:
+      - "{files} を yaml-check で検査する"
+    input:
+      files:  { type: "Path[]", constraints: [non_empty], description: 対象ファイル (glob 展開後)。 }
+      schema: { type: SchemaName, optional: true, description: 指定時のみ schema 検証を実行する。 }
+    output:
+      summary: { type: CheckRunSummary }
+    idempotent: true
+    read_only: true
+    bindings:
+      - kind: cli
+        command: yaml-check
+        flags:
+          - { name: schema, short: s, required: false }
+        args:
+          - { name: files, position: 1, repeatable: true }
+        exit_codes:
+          success: 0           # 全 OK
+          findings_present: 1  # 1 件以上の Finding
+          usage_error: 2       # 引数エラー / 未知の schema 名
+
+  ListSchemas:
+    description: 同梱されている SchemaName の一覧を 1 行 1 名で標準出力に書き出す。
+    bindings:
+      - kind: cli
+        command: yaml-check
+        flags:
+          - { name: list-schemas, required: true }
+        stdout: SchemaName
+        exit_codes: { success: 0 }
+
+# =================================================================
+# 4. invariants
+# =================================================================
+
+invariants:
+
+  parse_before_lint_and_schema:
+    description: |
+      各ファイルに対し parse が最初に走る。parse 失敗時は schema 検証を行わない
+      (lint は生テキスト依存なので、parse 失敗とは独立に実行する)。
+    target: CheckYaml
+    always: "for every file f: parse(f) is evaluated before schema(f), and schema(f) only runs when parse(f) succeeded"
+    severity: must
+
+  schema_is_opt_in:
+    description: 入力ファイル名やパスから schema を推測してはならない。schema は CLI で明示指定された場合にだけ実行される。
+    target: CheckYaml
+    never: "schema validation runs for a file when --schema was not provided"
+    severity: must
+
+  schema_name_validated_upfront:
+    description: |
+      --schema に未知の名前が渡されたら、ファイル検査を一切行わず exit code 2 で
+      終了する。誤指定で部分結果を返さない。
+    target: CheckYaml
+    never: "any file is checked when --schema=<name> and name is not in SchemaName"
+    severity: must
+
+  schema_application_is_uniform:
+    description: --schema=<name> を指定すると、入力ファイル全件に同じ schema を適用する。
+    target: CheckYaml
+    always: "every input file is validated against the same schema in a single CheckRun"
+    severity: must
+
+  no_arbitrary_code_execution:
+    description: |
+      入力 YAML の内容によって、ツール側で任意コードが実行されてはならない。
+      anchor / tag / merge key 等の高度な YAML 機能による副作用は許可しない。
+    target: CheckYaml
+    never: "evaluating CheckYaml causes execution of code originating from YamlInput contents"
+    severity: must
+
+  no_input_modification:
+    description: yaml-check は読み取り専用である。入力ファイルへの書き戻し・自動修正は行わない。
+    target: CheckYaml
+    never: "CheckYaml mutates any file under the file system"
+    severity: must
+
+  deterministic_findings:
+    description: |
+      同じ入力ファイル群と同じ --schema 引数からは、findings 集合とその順序が
+      常に同一になる。時刻・乱数・環境変数に依存しない。
+    target: CheckYaml
+    always: "CheckYaml(files, schema) ≡ CheckYaml(files, schema)"
+    severity: must
+
+  exit_code_reflects_findings:
+    description: |
+      CheckRun が 1 つでも Finding を出した場合 exit code は 1。Finding が 0 件
+      なら 0。引数自体の誤りは 2。3 つの状態が混じってはならない。
+    target: CheckYaml
+    always: "exit_code(CheckRun) = 0 iff no Finding, 1 iff any Finding, 2 iff usage_error"
+    severity: must
+
+  schema_finding_points_into_source:
+    description: |
+      SchemaFinding は、Ajv の instancePath を入力テキスト上の行番号に解決して
+      添付する。解決に失敗しても列 1 / 行 1 を返し、エラー化しない。
+    target: CheckYaml
+    always: "every SchemaFinding carries a (line, column) within bounds of the source file"
+    severity: must
+
+# =================================================================
+# 5. scenarios
+# =================================================================
+
+scenarios:
+
+  正しい work-item を --schema=work-item で検査すると ok になる:
+    steps:
+      - 規定どおりの work-item.yaml を用意する
+      - '"--schema=work-item" を指定して yaml-check で検査する'
+      - すべてのファイルが ok と報告される
+      - exit code は 0
+
+  未知のスキーマ名を渡すと、ファイル検査は行わず exit code 2 を返す:
+    steps:
+      - '"--schema=bogus" と任意のファイルを渡して yaml-check を呼ぶ'
+      - エラーメッセージに利用可能な SchemaName 一覧が含まれる
+      - 検査対象ファイルは 1 件も読み込まれない
+      - exit code は 2
+
+  --schema を付けずに呼ぶと parse + lint のみが走る:
+    steps:
+      - スキーマ違反だが YAML として valid なファイルを用意する
+      - '"--schema を付けずに" yaml-check で検査する'
+      - parse 由来 / lint 由来の Finding は出るが schema 由来の Finding は出ない
+
+  parse 失敗ファイルでは schema 検証はスキップされる:
+    steps:
+      - YAML として破損した内容を持つファイルを用意する
+      - '"--schema=scl" を指定して yaml-check で検査する'
+      - parse の Finding が報告される
+      - schema 由来の Finding は同じファイルに対し追加で出ない
+
+  --list-schemas は同梱スキーマ名のみを出力する:
+    steps:
+      - '"--list-schemas" を指定して yaml-check を呼ぶ'
+      - 標準出力に work-item / completion-report / scl が 1 行ずつ書かれる
+      - exit code は 0
+
+# =================================================================
+# 6. objectives
+# =================================================================
+
+objectives:
+
+  fast_check:
+    kind: slo
+    metric: latency_p95
+    target: "<500ms"
+    interface: CheckYaml
+    description: 数十 KiB クラスのファイル 30 件程度なら p95 500ms 以内で完了する。
+
+  no_persistent_state:
+    kind: security
+    policy: read_only_operation
+    target: CheckYaml
+    value: true
+    description: yaml-check は副作用を持たない。プロセス外の状態 (ファイル / ネットワーク / 環境) を変更しない。

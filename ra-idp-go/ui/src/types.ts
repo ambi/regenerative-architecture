@@ -177,6 +177,37 @@ export type AdminKeysPage = {
   keys: AdminKey[]
 }
 
+export type AdminGroup = {
+  id: string
+  tenant_id: string
+  name: string
+  description?: string
+  roles: string[]
+  member_count: number
+  created_at: string
+  updated_at?: string
+}
+
+export type AdminGroupMember = {
+  user_sub: string
+  preferred_username: string
+  added_at: string
+}
+
+export type AdminUserGroups = {
+  groups: AdminGroup[]
+  direct_roles: string[]
+  group_roles: string[]
+  effective_roles: string[]
+}
+
+export type AdminGroupsPage = {
+  kind: 'admin-groups'
+  csrfToken: string
+  actorUsername?: string
+  groups: AdminGroup[]
+}
+
 export type AdminTenant = {
   id: string
   display_name: string
@@ -268,6 +299,7 @@ export type PageData =
   | AdminAuditEventsPage
   | AdminKeysPage
   | AdminTenantsPage
+  | AdminGroupsPage
   | AdminRolesPage
   | AdminSettingsPage
 

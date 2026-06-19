@@ -9,6 +9,7 @@
 - ブラウザ認証API `/api/auth/*` + Session Cookie + CSRF
 - メールによるパスワードリセット + 単発・30分TTLトークン (ADR-030)
 - RBACで保護された管理ユーザーAPI (`/api/admin/users`) + ユーザー無効化 (ADR-031) と削除 (ADR-036, anonymize cascade)
+- tenant-scoped なグループ集約 + user-group membership + admin CRUD (`/admin/groups`)、実効ロール `user.roles ∪ ⋃ group.roles` (ADR-038)
 - SCL の管理ロール・権限・関連 HTTP interface を閲覧する管理 API / UI (`/api/admin/policy/roles`, `/admin/roles`)
 - 所属テナント内 admin 向け設定 UI (`/api/admin/settings`, `/admin/settings`): 表示名 / password_policy_override の閲覧と更新
 - テナント内に閉じた管理クライアント CRUD (`/admin/clients`)
@@ -280,11 +281,12 @@ client / consent / key / audit-event の admin CRUD と RBAC (`admin` / `system_
 上に乗る管理 UI とロール・権限の閲覧 UI は実装済。user は backend の create / read / update / disable と
 一覧・ロール編集 UI に加え、属性編集 (`preferred_username` / `name` / `email` /
 `email_verified`) の管理 UI も実装済。削除 (anonymize cascade) も DELETE
-`/api/admin/users/:sub` と削除確認 UI で実装済。残るのは group 集約。
+`/api/admin/users/:sub` と削除確認 UI で実装済。group 集約 (tenant-scoped、
+roles 保持、user-group membership、admin CRUD API + UI、実効ロール
+`user.roles ∪ ⋃ group.roles`) も ADR-038 で実装済。
 
 | 領域                             | 不足している機能                                                                                                                                                            |
 | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| グループ                         | 新規 aggregate `Group` (tenant-scoped、roles 保持)、user-group membership、admin CRUD API + UI、effective roles = `user.roles ∪ ⋃ group.roles` の解決                       |
 | Dynamic Client Registration 拡張 | registration_access_token、software_statement、client metadata 更新・削除（client_secret rotation 本体は Phase 1）                                                          |
 | 委譲・代行                       | impersonation、delegation、guest access                                                                                                                                     |
 

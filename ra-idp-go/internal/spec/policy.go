@@ -103,6 +103,8 @@ const (
 	ActionAdminAuditEventsRead        = "admin:audit_events_read"
 	ActionAdminKeysRead               = "admin:keys_read"
 	ActionAdminKeysRotate             = "admin:keys_rotate"
+	ActionAdminGroupsRead             = "admin:groups_read"
+	ActionAdminGroupsWrite            = "admin:groups_write"
 )
 
 // PascalCase (SCL permissions のキー) → AuthZ action 名。
@@ -127,6 +129,8 @@ var actionNameMapping = map[string]string{
 	"AdminAuditEventsRead":        ActionAdminAuditEventsRead,
 	"AdminKeysRead":               ActionAdminKeysRead,
 	"AdminKeysRotate":             ActionAdminKeysRotate,
+	"AdminGroupsRead":             ActionAdminGroupsRead,
+	"AdminGroupsWrite":            ActionAdminGroupsWrite,
 }
 
 func ActionNameForPermission(permissionName string) (string, bool) {
@@ -189,6 +193,12 @@ var actionRules = map[string][]string{
 	},
 	ActionAdminKeysRotate: {
 		"actor_is_system_admin", "actor_is_control_plane_user", "actor_is_active", "actor_is_authenticated",
+	},
+	ActionAdminGroupsRead: {
+		"actor_is_admin", "actor_is_active", "actor_is_authenticated", "actor_and_resource_share_tenant",
+	},
+	ActionAdminGroupsWrite: {
+		"actor_is_admin", "actor_is_active", "actor_is_authenticated", "actor_and_resource_share_tenant",
 	},
 }
 

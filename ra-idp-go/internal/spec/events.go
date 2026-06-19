@@ -337,6 +337,54 @@ type TenantEnabled struct {
 func (e *TenantEnabled) EventType() string     { return "TenantEnabled" }
 func (e *TenantEnabled) OccurredAt() time.Time { return e.At }
 
+type GroupCreated struct {
+	At       time.Time `json:"-"`
+	ActorSub string    `json:"actorSub"`
+	GroupID  string    `json:"groupId"`
+}
+
+func (e *GroupCreated) EventType() string     { return "GroupCreated" }
+func (e *GroupCreated) OccurredAt() time.Time { return e.At }
+
+type GroupUpdated struct {
+	At            time.Time `json:"-"`
+	ActorSub      string    `json:"actorSub"`
+	GroupID       string    `json:"groupId"`
+	ChangedFields []string  `json:"changedFields"`
+}
+
+func (e *GroupUpdated) EventType() string     { return "GroupUpdated" }
+func (e *GroupUpdated) OccurredAt() time.Time { return e.At }
+
+type GroupDeleted struct {
+	At       time.Time `json:"-"`
+	ActorSub string    `json:"actorSub"`
+	GroupID  string    `json:"groupId"`
+}
+
+func (e *GroupDeleted) EventType() string     { return "GroupDeleted" }
+func (e *GroupDeleted) OccurredAt() time.Time { return e.At }
+
+type GroupMemberAdded struct {
+	At       time.Time `json:"-"`
+	ActorSub string    `json:"actorSub"`
+	GroupID  string    `json:"groupId"`
+	UserSub  string    `json:"userSub"`
+}
+
+func (e *GroupMemberAdded) EventType() string     { return "GroupMemberAdded" }
+func (e *GroupMemberAdded) OccurredAt() time.Time { return e.At }
+
+type GroupMemberRemoved struct {
+	At       time.Time `json:"-"`
+	ActorSub string    `json:"actorSub"`
+	GroupID  string    `json:"groupId"`
+	UserSub  string    `json:"userSub"`
+}
+
+func (e *GroupMemberRemoved) EventType() string     { return "GroupMemberRemoved" }
+func (e *GroupMemberRemoved) OccurredAt() time.Time { return e.At }
+
 func MarshalDomainEvent(event DomainEvent) ([]byte, error) {
 	payload, err := json.Marshal(event)
 	if err != nil {

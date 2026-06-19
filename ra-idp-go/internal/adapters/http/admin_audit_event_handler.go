@@ -88,10 +88,11 @@ func (d Deps) requireAuditReader(c *echo.Context) (*spec.User, error) {
 	if user == nil || user.DisabledAt != nil {
 		return nil, errAdminAccessDenied
 	}
-	if !slices.Contains(user.Roles, "admin") && !slices.Contains(user.Roles, "system_admin") {
+	actor := d.withEffectiveRoles(c.Request().Context(), user)
+	if !slices.Contains(actor.Roles, "admin") && !slices.Contains(actor.Roles, "system_admin") {
 		return nil, errAdminAccessDenied
 	}
-	return user, nil
+	return actor, nil
 }
 
 func parseAuditEventQuery(c *echo.Context, actor *spec.User) (oauthports.AuditEventQuery, error) {

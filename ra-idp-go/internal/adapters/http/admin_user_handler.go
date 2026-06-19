@@ -200,7 +200,7 @@ func (d Deps) requireAdmin(c *echo.Context) (*spec.User, error) {
 		return nil, err
 	}
 	if user == nil || user.TenantID != requestTenantID(c) || user.DisabledAt != nil ||
-		!slices.Contains(user.Roles, "admin") {
+		!slices.Contains(d.effectiveRoles(c.Request().Context(), user), "admin") {
 		return nil, errAdminAccessDenied
 	}
 	return user, nil

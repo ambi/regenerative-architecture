@@ -16,6 +16,7 @@ func assembleMemory() (*Dependencies, error) {
 		TenantRepo:              memory.NewTenantRepository(),
 		ClientRepo:              memory.NewClientRepository(),
 		UserRepo:                memory.NewUserRepository(),
+		GroupRepo:               memory.NewGroupRepository(),
 		MfaFactorRepo:           memory.NewMfaFactorRepository(),
 		PasswordHistoryRepo:     memory.NewPasswordHistoryRepository(),
 		PasswordResetTokenStore: memory.NewPasswordResetTokenStore(),

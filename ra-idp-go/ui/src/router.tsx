@@ -10,6 +10,7 @@ import { AdminAuditEventsPage } from './pages/AdminAuditEventsPage'
 import { AdminClientsPage } from './pages/AdminClientsPage'
 import { AdminConsentsPage } from './pages/AdminConsentsPage'
 import { AdminDashboardPage } from './pages/AdminDashboardPage'
+import { AdminGroupsPage } from './pages/AdminGroupsPage'
 import { AdminKeysPage } from './pages/AdminKeysPage'
 import { AdminRolesPage } from './pages/AdminRolesPage'
 import { AdminSettingsPage } from './pages/AdminSettingsPage'
@@ -124,6 +125,11 @@ export function createAppRouter(data: PageData) {
     path: '/admin/tenants',
     component: () => (data.kind === 'admin-tenants' ? <AdminTenantsPage {...data} /> : null),
   })
+  const adminGroupsRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/admin/groups',
+    component: () => (data.kind === 'admin-groups' ? <AdminGroupsPage {...data} /> : null),
+  })
   const adminSettingsRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/admin/settings',
@@ -150,6 +156,7 @@ export function createAppRouter(data: PageData) {
       adminAuditEventsRoute,
       adminKeysRoute,
       adminTenantsRoute,
+      adminGroupsRoute,
       adminSettingsRoute,
     ]),
     history: createBrowserHistory(),

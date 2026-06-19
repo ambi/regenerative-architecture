@@ -22,12 +22,12 @@ components:
 
   Authentication:
     description: エンドユーザ (Subject) の identity、credentials、MFA、ログインセッション、パスワードリセット、および管理 API からの User ライフサイクル操作を所有する。
-    owns_models: [User, MfaFactor, MfaFactorType, LoginSession, AuthenticationContext, PasswordResetTokenRecord, BrowserLoginRequest, BrowserTotpRequest, BrowserChangePasswordRequest, BrowserForgotPasswordRequest, BrowserResetPasswordRequest, AdminUserCreateRequest, AdminUserUpdateRequest, AdminUserListResponse, AdminUserResponse]
-    owns_states: [UserLifecycle]
-    owns_events: [UserAuthenticated, AuthenticationFailed, PasswordChanged, LoginThrottled, PasswordResetRequested, EmailSent, UserCreated, UserUpdated, UserDisabled, UserEnabled, UserDeleted]
-    owns_interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, ChangePassword, RequestPasswordReset, ResetPasswordWithToken, ListAdminUsers, GetAdminUser, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser, DeleteAdminUser]
-    owns_invariants: [PasswordHistoryNoReuse]
-    owns_permissions: [AdminUserRead, AdminUserCreate, AdminUserUpdate, AdminUserDelete]
+    owns_models: [User, MfaFactor, MfaFactorType, LoginSession, AuthenticationContext, PasswordResetTokenRecord, BrowserLoginRequest, BrowserTotpRequest, BrowserChangePasswordRequest, BrowserForgotPasswordRequest, BrowserResetPasswordRequest, AdminUserCreateRequest, AdminUserUpdateRequest, AdminUserListResponse, AdminUserResponse, Group, GroupMember, GroupCreateRequest, GroupUpdateRequest, GroupSummaryResponse, GroupListResponse, GroupMemberResponse, GroupAddMemberRequest, UserGroupsResponse]
+    owns_states: [UserLifecycle, GroupLifecycle]
+    owns_events: [UserAuthenticated, AuthenticationFailed, PasswordChanged, LoginThrottled, PasswordResetRequested, EmailSent, UserCreated, UserUpdated, UserDisabled, UserEnabled, UserDeleted, GroupCreated, GroupUpdated, GroupDeleted, GroupMemberAdded, GroupMemberRemoved]
+    owns_interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, ChangePassword, RequestPasswordReset, ResetPasswordWithToken, ListAdminUsers, GetAdminUser, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser, DeleteAdminUser, ListGroups, GetGroup, CreateGroup, UpdateGroup, DeleteGroup, AddGroupMember, RemoveGroupMember, ListUserGroups]
+    owns_invariants: [PasswordHistoryNoReuse, EffectiveRolesComposition, GroupMembershipAuditEmission]
+    owns_permissions: [AdminUserRead, AdminUserCreate, AdminUserUpdate, AdminUserDelete, AdminGroupsRead, AdminGroupsWrite]
     owns_objectives: [PiiPurgeAfterDeletion]
     depends_on:
       - { component: Tenancy, reason: User と LoginSession はテナント境界内に閉じ、User 管理 API もテナント単位で動く。 }
@@ -787,6 +787,17 @@ vocabulary:
   Delete:
     definition: User を Deleted に遷移させる管理操作 (ADR-036)。tombstone 化と cascade を 1 オペレーションで実施する。
     aliases: [delete]
+  Group:
+    definition: ADR-038 で導入した tenant-scoped 集約。再利用可能なロール束 (roles[]) を持ち、所属する User にそのロールを一斉付与する。階層・deny ルール・属性自動所属は持たない (union のみ)。
+    aliases: [group, グループ, role group, ロールグループ]
+    not_to_confuse_with:
+      - { term: Tenant, reason: Tenant は認可境界、Group はその境界内のロール束。Group は単独で認証境界を成さない。 }
+  GroupMembership:
+    definition: User と Group の所属関係 (GroupMember)。membership の追加・削除はそれぞれ監査イベントを伴う。effective_roles(user) = user.roles ∪ ⋃ membership.group.roles。
+    aliases: [group membership, グループ所属, membership]
+  EffectiveRoles:
+    definition: 認可判断で用いる User の有効ロール集合。user.roles と所属 Group の roles の和集合 (ADR-038)。admin RBAC ゲートと /account 自己コンテキストで参照する。
+    aliases: [effective roles, 有効ロール]
   Tenant:
     definition: ADR-032 で導入した独立した認可境界。Client / User / Consent / 鍵 / ポリシーがこの境界に閉じる。URL 上は Realm という別名で表現される (ADR-033)。
     aliases: [tenant, テナント, Realm, realm]
@@ -1678,6 +1689,98 @@ models:
       created_at:         { type: Timestamp }
       updated_at:         { type: Timestamp, optional: true }
 
+  Group:
+    kind: entity
+    description: ADR-038 で導入した tenant-scoped ロール束集約。所属 User に roles を一斉付与する。id は不変の生成識別子、name はテナント内で一意な編集可能ラベル。
+    identity: id
+    annotations: { component: Authentication }
+    fields:
+      id:          { type: String, constraints: [non_empty, { max_length: 64 }], description: "生成識別子 group_<uuid>。不変。" }
+      tenant_id:   { type: String, default: "default", description: "所属テナント ID (ADR-032 / ADR-034)。cross-tenant 参照は禁止。" }
+      name:        { type: String, constraints: [non_empty, { max_length: 100 }], description: "テナント内で一意な表示名。", annotations: { pii: true } }
+      description: { type: String, optional: true, constraints: [{ max_length: 500 }] }
+      roles:       { type: "String[]", description: "このグループが付与するロール束。" }
+      created_at:  { type: Timestamp }
+      updated_at:  { type: Timestamp, optional: true }
+
+  GroupMember:
+    kind: entity
+    description: User と Group の所属関係 (ADR-038)。group_id × user_sub で一意。
+    identity: [group_id, user_sub]
+    annotations: { component: Authentication }
+    fields:
+      group_id: { type: String }
+      user_sub: { type: String }
+      added_at: { type: Timestamp }
+
+  GroupCreateRequest:
+    kind: value_object
+    description: 管理者がグループを作成する JSON リクエスト (ADR-038)。
+    annotations: { component: Authentication }
+    fields:
+      name:        { type: String, constraints: [non_empty, { max_length: 100 }], annotations: { pii: true } }
+      description: { type: String, optional: true, constraints: [{ max_length: 500 }] }
+      roles:       { type: "String[]", optional: true }
+
+  GroupUpdateRequest:
+    kind: value_object
+    description: 管理者がグループの name / description / roles を更新する JSON リクエスト (ADR-038)。省略フィールドは現状維持。
+    annotations: { component: Authentication }
+    fields:
+      name:        { type: String, optional: true, constraints: [non_empty, { max_length: 100 }], annotations: { pii: true } }
+      description: { type: String, optional: true, constraints: [{ max_length: 500 }] }
+      roles:       { type: "String[]", optional: true }
+
+  GroupSummaryResponse:
+    kind: value_object
+    description: グループ表現。管理 UI の一覧と詳細で同じ表現を返す (ADR-038)。
+    annotations: { component: Authentication }
+    fields:
+      id:           { type: String }
+      tenant_id:    { type: String }
+      name:         { type: String, annotations: { pii: true } }
+      description:  { type: String, optional: true }
+      roles:        { type: "String[]" }
+      member_count: { type: Integer }
+      created_at:   { type: Timestamp }
+      updated_at:   { type: Timestamp, optional: true }
+
+  GroupListResponse:
+    kind: value_object
+    description: 管理 API のグループ一覧 (ADR-038)。
+    annotations: { component: Authentication }
+    fields:
+      groups: { type: "GroupSummaryResponse[]" }
+
+  GroupMemberResponse:
+    kind: value_object
+    description: グループ所属メンバー表現 (ADR-038)。
+    annotations: { component: Authentication }
+    fields:
+      user_sub:           { type: String }
+      preferred_username: { type: String, annotations: { pii: true } }
+      added_at:           { type: Timestamp }
+
+  GroupAddMemberRequest:
+    kind: value_object
+    description: User 詳細画面など group_id を body で指定して所属させる際の任意リクエスト (ADR-038)。
+    annotations: { component: Authentication }
+    fields:
+      group_id: { type: String }
+
+  UserGroupsResponse:
+    kind: value_object
+    description: |
+      指定 User の所属グループと有効ロール内訳 (ADR-038)。明示ロール (user.roles) と
+      グループ由来ロール、その union を分けて返し、管理 UI が effective roles を
+      理解しやすくする。
+    annotations: { component: Authentication }
+    fields:
+      groups:          { type: "GroupSummaryResponse[]" }
+      direct_roles:    { type: "String[]", description: "user.roles。" }
+      group_roles:     { type: "String[]", description: "所属グループ由来ロールの union。" }
+      effective_roles: { type: "String[]", description: "direct_roles ∪ group_roles。" }
+
   AdminClientCreateRequest:
     kind: value_object
     description: 管理者が所属テナントに OAuth client を作成する。生成された client_secret は作成応答で一度だけ返す。
@@ -2221,6 +2324,54 @@ models:
       actorSub:   { type: String }
       targetSub:  { type: String }
       reason:     { type: String, optional: true }
+
+  GroupCreated:
+    kind: event
+    description: 管理者がグループを作成した (ADR-038)。
+    annotations: { component: Authentication }
+    payload:
+      occurredAt: { type: Timestamp }
+      actorSub:   { type: String }
+      groupId:    { type: String }
+
+  GroupUpdated:
+    kind: event
+    description: 管理者がグループの name / description / roles を更新した (ADR-038)。
+    annotations: { component: Authentication }
+    payload:
+      occurredAt:    { type: Timestamp }
+      actorSub:      { type: String }
+      groupId:       { type: String }
+      changedFields: { type: "String[]" }
+
+  GroupDeleted:
+    kind: event
+    description: 管理者がグループを削除した (ADR-038)。所属 membership は cascade で解除され、各々 GroupMemberRemoved を伴う。
+    annotations: { component: Authentication }
+    payload:
+      occurredAt: { type: Timestamp }
+      actorSub:   { type: String }
+      groupId:    { type: String }
+
+  GroupMemberAdded:
+    kind: event
+    description: 管理者が User をグループに所属させた (ADR-038)。既に所属済みの場合は emit されない (冪等)。
+    annotations: { component: Authentication }
+    payload:
+      occurredAt: { type: Timestamp }
+      actorSub:   { type: String }
+      groupId:    { type: String }
+      userSub:    { type: String }
+
+  GroupMemberRemoved:
+    kind: event
+    description: 管理者が User をグループから外した、またはグループ削除に伴い解除された (ADR-038)。所属していない場合は emit されない (冪等)。
+    annotations: { component: Authentication }
+    payload:
+      occurredAt: { type: Timestamp }
+      actorSub:   { type: String }
+      groupId:    { type: String }
+      userSub:    { type: String }
 
   AdminClientCreated:
     kind: event
@@ -2794,6 +2945,92 @@ interfaces:
     bindings:
       - { kind: http, method: DELETE, path: "/api/admin/users/{sub}", request_form: body, successful_status_codes: ["204"] }
 
+  ListGroups:
+    description: 管理者が所属テナントのグループを一覧する (ADR-038)。各グループは member_count を含む。
+    output:
+      response: { type: GroupListResponse }
+    errors: [AccessDeniedError]
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: /api/admin/groups }
+
+  GetGroup:
+    description: 管理者が単一グループとそのメンバー一覧を取得する。別テナントのグループは未存在として扱う (ADR-038)。
+    input:
+      group_id: { type: String }
+    output:
+      group:   { type: GroupSummaryResponse }
+      members: { type: "GroupMemberResponse[]" }
+    errors: [InvalidRequestError, AccessDeniedError]
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: "/api/admin/groups/{group_id}" }
+
+  CreateGroup:
+    description: 管理者が所属テナントにグループを作成する。name はテナント内で一意 (ADR-038)。
+    input:
+      request: { type: GroupCreateRequest }
+    output:
+      group: { type: GroupSummaryResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [GroupCreated]
+    bindings:
+      - { kind: http, method: POST, path: /api/admin/groups, request_form: body, successful_status_codes: ["201"] }
+
+  UpdateGroup:
+    description: 管理者がグループの name / description / roles を更新する (ADR-038)。
+    input:
+      group_id: { type: String }
+      request:  { type: GroupUpdateRequest }
+    output:
+      group: { type: GroupSummaryResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [GroupUpdated]
+    bindings:
+      - { kind: http, method: PATCH, path: "/api/admin/groups/{group_id}", request_form: body }
+
+  DeleteGroup:
+    description: 管理者がグループを削除する。所属 membership は cascade で解除する (ADR-038)。
+    input:
+      group_id: { type: String }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [GroupDeleted, GroupMemberRemoved]
+    bindings:
+      - { kind: http, method: DELETE, path: "/api/admin/groups/{group_id}", successful_status_codes: ["204"] }
+
+  AddGroupMember:
+    description: 管理者が User をグループに所属させる。同一テナントの User のみ許可し、既所属なら no-op (冪等) (ADR-038)。
+    input:
+      group_id: { type: String }
+      user_sub: { type: String }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [GroupMemberAdded]
+    idempotent: true
+    bindings:
+      - { kind: http, method: POST, path: "/api/admin/groups/{group_id}/members/{user_sub}", successful_status_codes: ["204"] }
+
+  RemoveGroupMember:
+    description: 管理者が User をグループから外す。非所属なら no-op (冪等) (ADR-038)。
+    input:
+      group_id: { type: String }
+      user_sub: { type: String }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [GroupMemberRemoved]
+    idempotent: true
+    bindings:
+      - { kind: http, method: DELETE, path: "/api/admin/groups/{group_id}/members/{user_sub}", successful_status_codes: ["204"] }
+
+  ListUserGroups:
+    description: 管理者が指定 User の所属グループと有効ロール内訳 (明示 / グループ由来 / union) を取得する (ADR-038)。
+    input:
+      sub: { type: String }
+    output:
+      response: { type: UserGroupsResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: "/api/admin/users/{sub}/groups" }
+
   ListAdminClients:
     description: 管理者が所属テナントの client を一覧する。
     output:
@@ -3155,6 +3392,15 @@ states:
       - { from: Disabled, event: Enable,  to: Active }
       - { from: Disabled, event: Delete,  to: Deleted }
 
+  GroupLifecycle:
+    description: |
+      Group aggregate のライフサイクル (ADR-038)。単一状態 Active のみを持つ。
+      無効化状態は持たず、削除は aggregate 自体の物理削除 (DeleteGroup) で表す。
+    target: Group
+    initial: Active
+    terminal: []
+    transitions: []
+
 
 # =================================================================
 # 5. invariants — 不変条件
@@ -3314,6 +3560,25 @@ invariants:
       exists:
         in: "PasswordHistoryEntries(sub=event.sub, depth=PasswordPolicy.value.history_depth)"
         satisfies: "PasswordHasher.verify(event.new_password, x.encoded) == true"
+
+  # ---------- グループ由来ロールの合成 (ADR-038) ----------
+  EffectiveRolesComposition:
+    description: |
+      認可判断で用いる User の有効ロールは、user.roles と所属 Group の roles の
+      和集合に等しくなければならない。階層・deny・自動所属は存在しない (union のみ)。
+      所属グループが空のとき effective_roles は user.roles に一致する (後方互換)。
+    target: User
+    always: "EffectiveRoles(user) == union(user.roles, flatten(group.roles for group in GroupsOfUser(user)))"
+
+  GroupMembershipAuditEmission:
+    description: |
+      グループのライフサイクル操作 (create / update / delete) とメンバーシップ操作
+      (add / remove) は、状態を変化させた場合に必ず対応する domain event と
+      AdminAuditEvent を emit しなければならない。冪等な no-op (既所属の add /
+      非所属の remove) では emit しない。DeleteGroup の cascade では解除メンバー
+      ごとに GroupMemberRemoved を emit する。
+    target: Group
+    always: "(GroupCreate | GroupUpdate | GroupDelete | GroupMemberAdd | GroupMemberRemove) changes state => corresponding domain event and AdminAuditEvent are emitted"
 
   # ---------- クライアント認証エラー一様化 ----------
   ClientAuthFailureUniformity:
@@ -3738,6 +4003,19 @@ scenarios:
       - ユーザー "alice" がユーザー一覧を取得する
       - 'エラー "AccessDeniedError"'
 
+  管理者はグループを作成しユーザーを所属させると有効ロールにグループ由来ロールが乗る:
+    description: ADR-038。effective_roles(user) = user.roles ∪ group.roles。membership 操作は監査イベントを伴う。
+    steps:
+      - 'roles=["admin"] のユーザー "operator" が認証済みである'
+      - '管理者 "operator" が roles=["catalog:read"] のグループ "engineering" を作成する'
+      - '"GroupCreated" が発行される'
+      - 'roles が空のユーザー "alice" が同一テナントに存在する'
+      - '管理者 "operator" がユーザー "alice" をグループ "engineering" に所属させる'
+      - '"GroupMemberAdded" が発行される'
+      - 'ユーザー "alice" の所属グループを取得すると effective_roles に "catalog:read" が含まれる'
+      - 'group_roles は "catalog:read" を含み direct_roles は空である'
+      - '管理者 "operator" が同じユーザーを同じグループに再度所属させても "GroupMemberAdded" は再発行されない'
+
   無効化されたユーザーはログインできない:
     steps:
       - 管理者がユーザー "alice" を無効化する
@@ -4001,6 +4279,30 @@ permissions:
     actor: User
     action: AdminUserDelete
     resource: User
+    allow_when:
+      and:
+        - "admin in actor.roles"
+        - "actor.disabled_at == null"
+        - "context.authenticated == true"
+        - "actor.tenant_id == resource.tenant_id"
+
+  AdminGroupsRead:
+    description: グループ情報の一覧・取得 (ADR-038)。
+    actor: User
+    action: AdminGroupsRead
+    resource: Group
+    allow_when:
+      and:
+        - "admin in actor.roles"
+        - "actor.disabled_at == null"
+        - "context.authenticated == true"
+        - "actor.tenant_id == resource.tenant_id"
+
+  AdminGroupsWrite:
+    description: グループの作成・更新・削除とメンバーシップ操作 (ADR-038)。
+    actor: User
+    action: AdminGroupsWrite
+    resource: Group
     allow_when:
       and:
         - "admin in actor.roles"

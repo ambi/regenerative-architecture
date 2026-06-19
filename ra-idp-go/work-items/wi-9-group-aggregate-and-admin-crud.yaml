@@ -1,7 +1,7 @@
 id: wi-9-group-aggregate-and-admin-crud
 title: Group aggregate を SCL に追加し、user-group membership と admin CRUD を提供する
 created_at: 2026-06-15
-status: pending
+status: completed
 authors: [tn]
 
 motivation: |
@@ -191,3 +191,206 @@ risk_notes: |
   AUTO_MIGRATE の挙動を確認する。UI 側の sidebar 配列を 1 箇所
   (lib/adminNav.ts) に集約しているため、全 6 ページの遷移回帰が出やすい
   — 全ページの type-check + lint + build を verification に含める。
+
+completion:
+  completed_at: 2026-06-20
+
+  summary: |
+    tenant-scoped な `Group` 集約と user-group membership、admin CRUD を
+    spec-first で実装した。SCL に Group / GroupMember モデル・5 イベント・
+    GroupLifecycle 状態・8 interface・`admin.groups.{read,write}` 権限を追加し、
+    Go ドメイン (`spec.EffectiveRoles`)、`GroupRepository` port、`admin_groups`
+    use case、memory / postgres adapter、HTTP handler、bootstrap 配線、
+    AdminGroupsPage と AdminUsersPage の「所属グループ」セクションまで通した。
+    認可は `effective_roles(user) = user.roles ∪ ⋃ g.roles` の union で、
+    管理 RBAC ゲートと `/account` セルフビューの両面に効く。グループが空なら
+    `user.roles` と一致するため既存 wire 形式・既存テストは無変更で pass する。
+
+  deviations:
+    - >-
+      WI 本文は新 ADR を `ADR-037` と記載していたが、
+      ADR-037-use-case-layer-only-when-it-carries-domain-work.md が既存のため
+      番号を `ADR-038` に繰り下げた。
+    - >-
+      WI の `objectives` 指示 (effective_roles 合成則 + membership audit 保証)
+      は、SCL の objective kind (slo / lifetime / retention / security) に
+      合致しないため `invariants` (EffectiveRolesComposition /
+      GroupMembershipAuditEmission) としてモデル化した。RA 的にはこちらが自然。
+    - >-
+      decisions/ に README index ファイルは存在しなかった (ADR は top-level
+      README.md からインライン参照される運用)。ADR-038 は README.md の機能
+      一覧と Phase 4 節から参照する形にした。
+    - >-
+      本 IdP は role→scope / role→token-claim マッピングを持たないため、WI の
+      手動確認「demo.sh で catalog:read scope が許可される」は token scope
+      gating ではなく、`/account` と admin UI 上の effective-roles 表示で
+      実証する (ADR-038 §10)。
+    - >-
+      副次対応: CodeQL `go/unvalidated-url-redirection` の指摘
+      (authorize_handler.go の post_logout_redirect_uri リダイレクト) を修正。
+      検証済み allowlist (client.RedirectURIs) の格納値を選択して redirect
+      base にすることで user 入力からの taint flow を断った。
+
+  scl_changes:
+    - >-
+      spec/scl.yaml: vocabulary に Group / GroupMembership を追加。models に
+      Group / GroupMember + DTO 7 種 (GroupCreateRequest / GroupUpdateRequest /
+      GroupSummaryResponse / GroupListResponse / GroupMemberResponse /
+      UserGroupsResponse 等) を追加。events 5 種 (GroupCreated / GroupUpdated /
+      GroupDeleted / GroupMemberAdded / GroupMemberRemoved)。state GroupLifecycle
+      (単一 Active)。interface 8 種 (ListGroups / GetGroup / CreateGroup /
+      UpdateGroup / DeleteGroup / AddGroupMember / RemoveGroupMember /
+      ListUserGroups)。permissions AdminGroupsRead / AdminGroupsWrite (admin
+      role)。invariants EffectiveRolesComposition / GroupMembershipAuditEmission。
+      scenario 1 件 (admin が group 作成 → user 追加 → effective roles 反映)。
+      Authentication component の owns_* を更新。
+    - spec/ra-idp-go.html を再生成。
+
+  decision_changes:
+    - >-
+      新規 ADR-038 (decisions/ADR-038-group-aggregate-and-effective-roles.md):
+      Group を tenant-scoped aggregate とする、union semantics、不変 id /
+      編集可能 name + (tenant_id, name) 一意、冪等 membership、cross-tenant
+      reject、effective_roles の適用面 (admin RBAC + /account)、groups claim
+      非出力の既定、`User.roles` 残置理由、および Keycloak / Okta / Google IAM
+      比較による「検討したが見送った代替案」マトリクスを記録。
+
+  go_changes:
+    domain:
+      - >-
+        internal/spec/groups.go: Group / GroupMember struct、NewGroupID
+        (group_<uuid>)、EffectiveRoles (sorted dedup union) を追加。
+        validation.go に groupSchema / groupMemberSchema。events.go に 5 event。
+      - >-
+        internal/spec/policy.go: ActionAdminGroupsRead / ActionAdminGroupsWrite
+        定数 + action rules ([actor_is_admin, actor_is_active,
+        actor_is_authenticated, actor_and_resource_share_tenant])。
+      - >-
+        internal/oauth2/usecases/role_policies.go: AdminGroupsRead /
+        AdminGroupsWrite を対応 interface 群に紐付け。
+    ports:
+      - >-
+        internal/authentication/ports/group_repository.go: GroupRepository
+        (ListByTenant / FindByID / Save / Delete / ListMembersByGroup /
+        ListGroupsByUser / CountMembers / AddMember / RemoveMember)。AddMember /
+        RemoveMember は冪等 (bool で added/removed を返す)。
+    usecases:
+      - >-
+        internal/authentication/usecases/admin_groups.go: ListGroups / GetGroup
+        / CreateGroup / UpdateGroup / DeleteGroup / AddMember / RemoveMember /
+        UserGroups。name 一意性 (ErrGroupNameConflict)、cross-tenant member
+        reject、冪等 membership、DeleteGroup の cascade (member ごと
+        GroupMemberRemoved + GroupDeleted)。AdminAuditEvent + domain event を emit。
+    adapters:
+      - >-
+        persistence/memory/groups.go: tenant-scoped map + mutex の GroupRepository。
+      - >-
+        persistence/postgres/groups.go: GroupRepository。AddMember は
+        ON CONFLICT DO NOTHING + RowsAffected、RemoveMember は tenant-scoped
+        subquery。postgres.go の eventTopics に 5 event (topic iam.groups.v1)。
+      - >-
+        infra/migrations/0008_groups.sql: groups (tenant_id FK→tenants RESTRICT、
+        (tenant_id, name) 一意 index)、group_members (group_id FK→groups CASCADE、
+        user_sub FK→users CASCADE)、roles JSONB。
+      - >-
+        http/admin_group_handler.go: 8 handler + DTO。effectiveRoles(ctx, user)
+        は GroupRepo == nil で raw user.Roles を返し後方互換を保つ。
+        withEffectiveRoles(ctx, user) は実効ロールを載せた user copy を返す。
+        requireAdmin / requireSystemAdmin / resolveAdminActor /
+        requireAuditReader と /account (authorize_handler.go) を実効ロール参照へ
+        切替。routes.go に 8 route を登録。
+    bootstrap:
+      - >-
+        deps.go に GroupRepo、memory.go / postgres.go で構築、server.go で
+        HTTP Deps に配線。seed.go に固定 ID の engineering (catalog:read) /
+        support (invoice:read) を投入し、alice を engineering に所属させる。
+
+  ui_changes:
+    - >-
+      src/pages/AdminGroupsPage.tsx 新規: 一覧 + GroupDetailCard (name /
+      description / roles 編集、member 一覧と remove、inline add-member、
+      確認付き削除)。?group=<id> deep-link 対応。
+    - >-
+      src/pages/AdminUsersPage.tsx: 詳細パネルに「所属グループ」セクションを
+      追加。ロール表示を 明示ロール / グループ由来ロール / 実効ロール に分割。
+      group 名 click で AdminGroupsPage へ遷移、inline で group 追加可能。
+    - >-
+      src/lib/adminNav.ts に groups nav、src/api.ts / src/types.ts に group
+      endpoint と型、src/router.tsx に route を追加。
+
+  documentation_changes:
+    - >-
+      ra-idp-go/README.md: 機能一覧に group の行を追加 (ADR-038)。Phase 4 の
+      「グループ」不足行を除去し、リード文を group 実装済に更新。
+
+  semantic_diff:
+    before:
+      rbac_source: "User.roles[] のみ"
+      role_bundling: "ロール束の再利用は不可。ユーザ単位で個別付与"
+      effective_roles: "(概念なし) = user.roles"
+      post_logout_redirect: "検証後に request param を再 parse して redirect"
+    after:
+      rbac_source: "User.roles ∪ ⋃ group.roles (effective roles)"
+      role_bundling: "tenant-scoped Group に roles を束ね membership で一斉付与"
+      effective_roles: "管理 RBAC ゲート + /account セルフビューに適用"
+      post_logout_redirect: "allowlist (client.RedirectURIs) の格納値を選択して redirect"
+
+  affected_guarantees_state:
+    - >-
+      tenant isolation: Group は tenant-scoped。AddMember は対象 user を
+      ロードし不在・別テナントなら reject。Postgres は tenant_id FK と
+      tenant-scoped subquery で強制。
+    - >-
+      RBAC backward compatibility: 空 group では effective_roles == user.roles
+      となり既存 requireAdmin / requireSystemAdmin テストは無変更で pass。
+      GroupRepo 未注入時は raw user.Roles を返す。
+    - >-
+      audit: group CRUD と membership 操作は AdminAuditEvent + domain event を
+      emit。DeleteGroup の cascade も member ごとに GroupMemberRemoved を出す。
+    - >-
+      SCL coherence: vocabulary / models / events / state / interfaces /
+      permissions / invariants / scenario が新 aggregate と整合し、
+      go test ./internal/spec/... (coherence / bindings) が pass。
+    - >-
+      既存 wire 形式: /admin/users 系の response 型は不変。group 情報は
+      別 endpoint /api/admin/users/:sub/groups で取得する。
+
+  verification:
+    - cmd: 'go build ./...'
+      in: ra-idp-go
+      result: ok
+    - cmd: 'go vet ./...'
+      in: ra-idp-go
+      result: ok
+    - cmd: 'go test ./...'
+      in: ra-idp-go
+      result: ok (全パッケージ pass)
+    - cmd: 'go test ./internal/spec/...'
+      in: ra-idp-go
+      result: ok (SCL load + coherence + bindings)
+    - cmd: 'golangci-lint run ./internal/...'
+      in: ra-idp-go
+      result: ok (0 issues、変更パッケージ対象)
+    - cmd: 'bun --cwd ra-idp-go/ui typecheck'
+      result: ok
+    - cmd: 'bun --cwd ra-idp-go/ui lint'
+      result: ok (44 files、警告無し)
+    - cmd: 'bun --cwd ra-idp-go/ui build'
+      result: ok (vite build pass)
+    - >-
+      手動確認 (residual): dev サーバでの「/admin/groups で engineering 作成
+      → alice 追加 → /admin/users 詳細で『グループ由来ロール』に catalog:read
+      表示」の e2e は本セッションでは未実施。memory / http の単体テストで
+      effective roles の RBAC 通過と membership cascade を検証済。
+
+  residual_risk:
+    - >-
+      PostgreSQL adapter は単体テストの対象外 (postgres パッケージは
+      [no test files])。groups / group_members の SQL と 0008 migration は
+      memory adapter と同じ意味論を想定。実 DB での FK 制約 / トランザクション
+      境界の確認は本 WI では未実施。
+    - >-
+      DeleteGroup の cascade は use case 側の純粋 composition で、単一
+      トランザクションに束ねていない。部分失敗時は再 DeleteGroup で修復可能。
+    - >-
+      手動 e2e (dev server + 実ブラウザ) は未実施。次回 dev 起動時に行う。

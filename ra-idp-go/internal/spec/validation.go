@@ -87,6 +87,21 @@ var userSchema = z.Struct(z.Shape{
 	"UpdatedAt":         z.Time().Required(),
 })
 
+var groupSchema = z.Struct(z.Shape{
+	"ID":          z.String().Min(1).Max(64).Required(),
+	"TenantID":    z.String().Min(1).Required(),
+	"Name":        z.String().Min(1).Max(100).Required(),
+	"Description": z.Ptr(z.String().Max(500)),
+	"Roles":       z.Slice(z.String().Min(1)),
+	"CreatedAt":   z.Time().Required(),
+})
+
+var groupMemberSchema = z.Struct(z.Shape{
+	"GroupID": z.String().Min(1).Required(),
+	"UserSub": z.String().Min(1).Required(),
+	"AddedAt": z.Time().Required(),
+})
+
 var mfaFactorSchema = z.Struct(z.Shape{
 	"Sub": z.String().Required(),
 	"Type": z.StringLike[MfaFactorType]().TestFunc(

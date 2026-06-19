@@ -243,7 +243,8 @@ func (d Deps) handleAccountContext(c *echo.Context) error {
 		if user, _ := d.UserRepo.FindBySub(c.Request().Context(), authn.Sub); user != nil {
 			resp.PreferredUsername = user.PreferredUsername
 			resp.TenantID = user.TenantID
-			resp.Roles = user.Roles
+			// グループ由来ロールを含む有効ロールを返す (ADR-038)。
+			resp.Roles = d.effectiveRoles(c.Request().Context(), user)
 		}
 	}
 	return noStoreJSON(c, http.StatusOK, resp)
@@ -701,10 +702,26 @@ func (d Deps) handleEndSession(c *echo.Context) error {
 	if err != nil {
 		return writeOAuthError(c, err)
 	}
-	if client == nil || !containsString(client.RedirectURIs, post) {
+	if client == nil {
 		return writeOAuthError(c, usecases.NewOAuthError("invalid_request", "post_logout_redirect_uri が未登録"))
 	}
-	u, _ := url.Parse(post)
+	// Redirect only to a URI from the client's registered allowlist. Selecting the
+	// stored value (rather than reusing the request parameter) keeps the redirect
+	// target server-controlled and avoids open-redirect via user input.
+	registered := ""
+	for _, uri := range client.RedirectURIs {
+		if uri == post {
+			registered = uri
+			break
+		}
+	}
+	if registered == "" {
+		return writeOAuthError(c, usecases.NewOAuthError("invalid_request", "post_logout_redirect_uri が未登録"))
+	}
+	u, err := url.Parse(registered)
+	if err != nil {
+		return writeOAuthError(c, usecases.NewOAuthError("invalid_request", "post_logout_redirect_uri が不正"))
+	}
 	query := u.Query()
 	if state := c.QueryParam("state"); state != "" {
 		query.Set("state", state)

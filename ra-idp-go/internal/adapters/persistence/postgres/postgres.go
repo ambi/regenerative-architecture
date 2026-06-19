@@ -685,6 +685,8 @@ var eventTopics = map[string]string{
 	"TenantDisabled": "tenancy.lifecycle.v1", "TenantEnabled": "tenancy.lifecycle.v1",
 	"AdminClientCreated": "oauth2.administration.v1", "AdminClientUpdated": "oauth2.administration.v1",
 	"AdminClientDeleted": "oauth2.administration.v1",
+	"GroupCreated": "iam.groups.v1", "GroupUpdated": "iam.groups.v1", "GroupDeleted": "iam.groups.v1",
+	"GroupMemberAdded": "iam.groups.v1", "GroupMemberRemoved": "iam.groups.v1",
 }
 
 type OutboxEventSink struct{ Pool *pgxpool.Pool }

@@ -139,7 +139,7 @@ func (d Deps) resolveAdminActor(c *echo.Context) (*spec.User, error) {
 	if user == nil || user.DisabledAt != nil {
 		return nil, errAdminAccessDenied
 	}
-	return user, nil
+	return d.withEffectiveRoles(c.Request().Context(), user), nil
 }
 
 func toAdminKeyResponse(k *ports.SigningKey) adminKeyResponse {

@@ -17,15 +17,20 @@ import {
   IconUser,
   IconUserPlus,
   IconUsers,
+  IconUsersGroup,
   IconX,
 } from '@tabler/icons-react'
-import { type FormEvent, useMemo, useState } from 'react'
+import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import {
+  addAdminGroupMember,
   AuthenticationAPIError,
   createAdminUser,
   deleteAdminUser,
+  getAdminUserGroups,
+  listAdminGroups,
   listAdminUsers,
   setAdminUserDisabled,
+  tenantURL,
   type UpdateAdminUserInput,
   updateAdminUser,
 } from '../api'
@@ -43,7 +48,12 @@ import {
   DropdownMenuTrigger,
 } from '../components/ui/dropdown-menu'
 import { cn } from '../lib/utils'
-import type { AdminUser, AdminUsersPage as AdminUsersPageData } from '../types'
+import type {
+  AdminGroup,
+  AdminUser,
+  AdminUserGroups,
+  AdminUsersPage as AdminUsersPageData,
+} from '../types'
 
 type StatusFilter = 'all' | 'active' | 'disabled'
 
@@ -321,6 +331,7 @@ export function AdminUsersPage({
                   {selected ? (
                     <UserDetails
                       user={selected}
+                      csrfToken={csrfToken}
                       busy={busy}
                       onEdit={() => setShowUserEditor(true)}
                       onDisabled={() => void handleDisabled(selected)}
@@ -369,12 +380,14 @@ export function AdminUsersPage({
 
 function UserDetails({
   user,
+  csrfToken,
   busy,
   onEdit,
   onDisabled,
   onDelete,
 }: {
   user: AdminUser
+  csrfToken: string
   busy: boolean
   onEdit: () => void
   onDisabled: () => void
@@ -458,22 +471,156 @@ function UserDetails({
           </dl>
         </section>
 
-        <section className="border-t border-slate-200 pt-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-semibold text-slate-900">ロール</h3>
-              <p className="mt-0.5 text-xs text-slate-500">
-                現在割り当てられているアクセス権限です。
-              </p>
-            </div>
-            <IconShield size={18} className="text-slate-400" aria-hidden="true" />
-          </div>
-          <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
-            <RoleList roles={user.roles} />
-          </div>
-        </section>
+        <UserGroupsSection user={user} csrfToken={csrfToken} />
 
       </div>
+    </div>
+  )
+}
+
+function UserGroupsSection({ user, csrfToken }: { user: AdminUser; csrfToken: string }) {
+  const [data, setData] = useState<AdminUserGroups | null>(null)
+  const [allGroups, setAllGroups] = useState<AdminGroup[]>([])
+  const [error, setError] = useState('')
+  const [adding, setAdding] = useState(false)
+  const [selectedGroup, setSelectedGroup] = useState('')
+  const { sub } = user
+
+  const load = useCallback(async () => {
+    try {
+      const [groups, all] = await Promise.all([getAdminUserGroups(sub), listAdminGroups()])
+      setData(groups)
+      setAllGroups(all)
+      setError('')
+    } catch (err) {
+      setError(err instanceof AuthenticationAPIError ? err.message : 'グループの取得に失敗しました。')
+    }
+  }, [sub])
+
+  useEffect(() => {
+    setData(null)
+    setSelectedGroup('')
+    void load()
+  }, [load])
+
+  async function handleAdd() {
+    if (!selectedGroup) return
+    setAdding(true)
+    try {
+      await addAdminGroupMember(csrfToken, selectedGroup, user.sub)
+      setSelectedGroup('')
+      await load()
+    } catch (err) {
+      setError(err instanceof AuthenticationAPIError ? err.message : 'グループへの追加に失敗しました。')
+    } finally {
+      setAdding(false)
+    }
+  }
+
+  const memberIDs = new Set(data?.groups.map((g) => g.id) ?? [])
+  const addable = allGroups.filter((g) => !memberIDs.has(g.id))
+
+  return (
+    <section className="border-t border-slate-200 pt-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-900">ロールとグループ</h3>
+          <p className="mt-0.5 text-xs text-slate-500">
+            実効ロールは明示ロールとグループ由来ロールの和集合です。
+          </p>
+        </div>
+        <IconShield size={18} className="text-slate-400" aria-hidden="true" />
+      </div>
+
+      {error && (
+        <Alert variant="destructive" className="mt-3">
+          {error}
+        </Alert>
+      )}
+
+      <div className="mt-3 space-y-3">
+        <RoleGroup label="明示ロール" roles={user.roles} />
+        <RoleGroup label="グループ由来ロール" roles={data?.group_roles ?? []} />
+        <RoleGroup label="実効ロール" roles={data?.effective_roles ?? user.roles} emphasis />
+      </div>
+
+      <div className="mt-4">
+        <div className="flex items-center gap-2">
+          <IconUsersGroup size={16} className="text-slate-400" aria-hidden="true" />
+          <h4 className="text-xs font-bold uppercase tracking-[0.1em] text-slate-400">
+            所属グループ
+          </h4>
+        </div>
+        <div className="mt-2 rounded-xl border border-slate-200 bg-white p-3">
+          {data && data.groups.length === 0 ? (
+            <span className="text-xs text-slate-400">グループ未所属</span>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {data?.groups.map((group) => (
+                <li key={group.id} className="flex items-center justify-between gap-2">
+                  <a
+                    href={tenantURL(`/admin/groups?group=${encodeURIComponent(group.id)}`)}
+                    className="text-sm font-medium text-indigo-700 hover:underline"
+                  >
+                    {group.name}
+                  </a>
+                  <RoleList roles={group.roles} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {addable.length > 0 && (
+          <div className="mt-2 flex items-center gap-2">
+            <select
+              value={selectedGroup}
+              onChange={(event) => setSelectedGroup(event.target.value)}
+              disabled={adding}
+              className="h-9 flex-1 rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-700"
+            >
+              <option value="">グループを選択して追加…</option>
+              {addable.map((group) => (
+                <option key={group.id} value={group.id}>
+                  {group.name}
+                </option>
+              ))}
+            </select>
+            <Button
+              type="button"
+              disabled={adding || !selectedGroup}
+              onClick={() => void handleAdd()}
+            >
+              <IconUserPlus size={16} aria-hidden="true" />
+              追加
+            </Button>
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
+
+function RoleGroup({
+  label,
+  roles,
+  emphasis = false,
+}: {
+  label: string
+  roles: string[]
+  emphasis?: boolean
+}) {
+  return (
+    <div
+      className={cn(
+        'rounded-xl border p-3',
+        emphasis ? 'border-indigo-200 bg-indigo-50/50' : 'border-slate-200 bg-white',
+      )}
+    >
+      <p className="mb-2 text-[0.68rem] font-semibold uppercase tracking-wide text-slate-400">
+        {label}
+      </p>
+      <RoleList roles={roles} />
     </div>
   )
 }

@@ -43,7 +43,7 @@ func Run() error {
 		return fmt.Errorf("ensure default tenant: %w", err)
 	}
 	if os.Getenv("SKIP_DEMO_SEED") == "" {
-		if err := seedDemoData(ctx, deps.ClientRepo, deps.UserRepo, deps.MfaFactorRepo, deps.PasswordHistoryRepo, hasher); err != nil {
+		if err := seedDemoData(ctx, deps.ClientRepo, deps.UserRepo, deps.MfaFactorRepo, deps.PasswordHistoryRepo, deps.GroupRepo, hasher); err != nil {
 			return fmt.Errorf("seed demo data: %w", err)
 		}
 	}
@@ -119,7 +119,7 @@ func Run() error {
 		KeyStore:            deps.KeyStore, TokenIssuer: tokenSigner, TokenIntrospector: tokenSigner,
 		AuditEventRepo: deps.AuditEventRepo,
 		Authorizer:     authorizer, JWKResolver: jwkResolver,
-		PasswordHasher: hasher, MfaFactorRepo: deps.MfaFactorRepo, PasswordHistoryRepo: deps.PasswordHistoryRepo,
+		PasswordHasher: hasher, GroupRepo: deps.GroupRepo, MfaFactorRepo: deps.MfaFactorRepo, PasswordHistoryRepo: deps.PasswordHistoryRepo,
 		PasswordResetTokenStore: deps.PasswordResetTokenStore,
 		EmailSender:             emailSender,
 		BreachedPasswordChecker: policy.NoopBreachedPasswordChecker{},

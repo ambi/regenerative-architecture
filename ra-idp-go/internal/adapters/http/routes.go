@@ -40,6 +40,7 @@ type Deps struct {
 	Authorizer                 oauthports.Authorizer
 	JWKResolver                *crypto.JWKResolver
 	PasswordHasher             authports.PasswordHasher
+	GroupRepo                  authports.GroupRepository
 	MfaFactorRepo              authports.MfaFactorRepository
 	PasswordHistoryRepo        authports.PasswordHistoryRepository
 	PasswordResetTokenStore    authports.PasswordResetTokenStore
@@ -102,6 +103,14 @@ func registerTenantRoutes(g *echo.Group, d Deps) {
 	g.POST("/api/admin/users/:sub/disable", d.handleDisableAdminUser)
 	g.POST("/api/admin/users/:sub/enable", d.handleEnableAdminUser)
 	g.DELETE("/api/admin/users/:sub", d.handleDeleteAdminUser)
+	g.GET("/api/admin/users/:sub/groups", d.handleListUserGroups)
+	g.GET("/api/admin/groups", d.handleListGroups)
+	g.GET("/api/admin/groups/:group_id", d.handleGetGroup)
+	g.POST("/api/admin/groups", d.handleCreateGroup)
+	g.PATCH("/api/admin/groups/:group_id", d.handleUpdateGroup)
+	g.DELETE("/api/admin/groups/:group_id", d.handleDeleteGroup)
+	g.POST("/api/admin/groups/:group_id/members/:user_sub", d.handleAddGroupMember)
+	g.DELETE("/api/admin/groups/:group_id/members/:user_sub", d.handleRemoveGroupMember)
 	g.GET("/api/admin/clients", d.handleListAdminClients)
 	g.GET("/api/admin/clients/:client_id", d.handleGetAdminClient)
 	g.POST("/api/admin/clients", d.handleCreateAdminClient)

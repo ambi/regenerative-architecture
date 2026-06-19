@@ -7,6 +7,10 @@ import type {
   AdminConsent,
   AdminConsentsPage,
   AdminDashboardPage,
+  AdminGroup,
+  AdminGroupMember,
+  AdminGroupsPage,
+  AdminUserGroups,
   AdminKey,
   AdminKeysPage,
   AdminRole,
@@ -284,6 +288,15 @@ export async function loadPageData(): Promise<PageData> {
       actorUsername: adminAccount!.preferred_username,
       tenants: tenants.tenants,
     } satisfies AdminTenantsPage
+  }
+  if (path === '/admin/groups') {
+    const groups = await request<{ groups: AdminGroup[] }>('/api/admin/groups')
+    return {
+      kind: 'admin-groups',
+      csrfToken: adminAccount!.csrf_token,
+      actorUsername: adminAccount!.preferred_username,
+      groups: groups.groups,
+    } satisfies AdminGroupsPage
   }
   if (path === '/forgot_password' || path === '/reset_password') {
     const data = await request<PasswordResetContextResponse>('/api/auth/password_reset_context')
@@ -694,6 +707,76 @@ export async function setAdminTenantDisabled(
     `/admin/tenants/${encodeURIComponent(tenantID)}/${disabled ? 'disable' : 'enable'}`,
     adminRequest(csrfToken, 'POST'),
   )
+}
+
+export async function listAdminGroups(): Promise<AdminGroup[]> {
+  return (await request<{ groups: AdminGroup[] }>('/api/admin/groups')).groups
+}
+
+export async function getAdminGroup(
+  id: string,
+): Promise<{ group: AdminGroup; members: AdminGroupMember[] }> {
+  return request(`/api/admin/groups/${encodeURIComponent(id)}`)
+}
+
+export type CreateAdminGroupInput = {
+  name: string
+  description?: string
+  roles?: string[]
+}
+
+export type UpdateAdminGroupInput = {
+  name?: string
+  description?: string
+  roles?: string[]
+}
+
+export async function createAdminGroup(
+  csrfToken: string,
+  input: CreateAdminGroupInput,
+): Promise<AdminGroup> {
+  return request('/api/admin/groups', adminRequest(csrfToken, 'POST', input))
+}
+
+export async function updateAdminGroup(
+  csrfToken: string,
+  id: string,
+  input: UpdateAdminGroupInput,
+): Promise<AdminGroup> {
+  return request(
+    `/api/admin/groups/${encodeURIComponent(id)}`,
+    adminRequest(csrfToken, 'PATCH', input),
+  )
+}
+
+export async function deleteAdminGroup(csrfToken: string, id: string): Promise<void> {
+  await request(`/api/admin/groups/${encodeURIComponent(id)}`, adminRequest(csrfToken, 'DELETE'))
+}
+
+export async function addAdminGroupMember(
+  csrfToken: string,
+  groupID: string,
+  userSub: string,
+): Promise<void> {
+  await request(
+    `/api/admin/groups/${encodeURIComponent(groupID)}/members/${encodeURIComponent(userSub)}`,
+    adminRequest(csrfToken, 'POST'),
+  )
+}
+
+export async function removeAdminGroupMember(
+  csrfToken: string,
+  groupID: string,
+  userSub: string,
+): Promise<void> {
+  await request(
+    `/api/admin/groups/${encodeURIComponent(groupID)}/members/${encodeURIComponent(userSub)}`,
+    adminRequest(csrfToken, 'DELETE'),
+  )
+}
+
+export async function getAdminUserGroups(sub: string): Promise<AdminUserGroups> {
+  return request(`/api/admin/users/${encodeURIComponent(sub)}/groups`)
 }
 
 function adminRequest(csrfToken: string, method: string, body?: unknown): RequestInit {

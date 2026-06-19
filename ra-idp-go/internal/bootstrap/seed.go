@@ -20,6 +20,7 @@ func seedDemoData(
 	users oauthports.UserRepository,
 	mfaFactors authports.MfaFactorRepository,
 	passwordHistory authports.PasswordHistoryRepository,
+	groups authports.GroupRepository,
 	hasher authports.PasswordHasher,
 ) error {
 	secretHash := oauthdomain.HashClientSecret(envDefault("DEMO_CLIENT_SECRET", "demo-client-secret"))
@@ -64,6 +65,9 @@ func seedDemoData(
 	if err := passwordHistory.Add(ctx, "user_alice", hash, now); err != nil {
 		return err
 	}
+	if err := seedDemoGroups(ctx, groups, now); err != nil {
+		return err
+	}
 	if totpSecret == "" {
 		return nil
 	}
@@ -71,4 +75,34 @@ func seedDemoData(
 	return mfaFactors.Save(ctx, &spec.MfaFactor{
 		Sub: "user_alice", Type: spec.MfaFactorTOTP, Secret: &totpSecret, Label: &label, CreatedAt: now,
 	})
+}
+
+// seedDemoGroups は固定 ID のデモ用グループ engineering / support を投入し、alice を
+// engineering に所属させる。再起動時に重複しないよう ID は固定し、Save は id 上の
+// upsert、AddMember は冪等 (no-op on conflict) を利用する。これにより demo.sh で
+// グループ由来ロール (engineering → catalog:read) を確認できる。
+func seedDemoGroups(ctx context.Context, groups authports.GroupRepository, now time.Time) error {
+	engineeringDesc := "プロダクト開発チーム"
+	supportDesc := "カスタマーサポートチーム"
+	demoGroups := []*spec.Group{
+		{
+			ID: "group_engineering", TenantID: spec.DefaultTenantID, Name: "engineering",
+			Description: &engineeringDesc, Roles: []string{"catalog:read"}, CreatedAt: now,
+		},
+		{
+			ID: "group_support", TenantID: spec.DefaultTenantID, Name: "support",
+			Description: &supportDesc, Roles: []string{"invoice:read"}, CreatedAt: now,
+		},
+	}
+	for _, group := range demoGroups {
+		if err := groups.Save(ctx, group); err != nil {
+			return err
+		}
+	}
+	if _, err := groups.AddMember(ctx, &spec.GroupMember{
+		GroupID: "group_engineering", UserSub: "user_alice", AddedAt: now,
+	}); err != nil {
+		return err
+	}
+	return nil
 }

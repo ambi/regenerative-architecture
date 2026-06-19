@@ -7,9 +7,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"html"
 	"log"
 	"mime"
 	"net"
+	"net/mail"
 	"net/smtp"
 	"strings"
 	"time"
@@ -150,17 +152,28 @@ func buildRFC5322Message(from string, message authports.EmailMessage, now time.T
 	if err != nil {
 		return "", err
 	}
+	fromHeader, err := formatAddressHeader(from)
+	if err != nil {
+		return "", fmt.Errorf("smtp from header: %w", err)
+	}
+	toHeader, err := formatAddressHeader(message.To)
+	if err != nil {
+		return "", fmt.Errorf("smtp to header: %w", err)
+	}
+	subject := sanitizeHeaderValue(message.Subject)
+	textBody := sanitizeTextBody(message.Text)
+	htmlBody := sanitizeHTMLBody(message.HTML)
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "From: %s\r\n", from)
-	fmt.Fprintf(&b, "To: %s\r\n", message.To)
-	fmt.Fprintf(&b, "Subject: %s\r\n", mime.QEncoding.Encode("utf-8", message.Subject))
+	fmt.Fprintf(&b, "From: %s\r\n", fromHeader)
+	fmt.Fprintf(&b, "To: %s\r\n", toHeader)
+	fmt.Fprintf(&b, "Subject: %s\r\n", mime.QEncoding.Encode("utf-8", subject))
 	fmt.Fprintf(&b, "Date: %s\r\n", now.Format(time.RFC1123Z))
 	fmt.Fprintf(&b, "Message-ID: %s\r\n", messageID)
 	b.WriteString("MIME-Version: 1.0\r\n")
 
-	hasText := message.Text != ""
-	hasHTML := message.HTML != ""
+	hasText := textBody != ""
+	hasHTML := htmlBody != ""
 	switch {
 	case hasText && hasHTML:
 		boundary, err := randomBoundary()
@@ -168,18 +181,18 @@ func buildRFC5322Message(from string, message authports.EmailMessage, now time.T
 			return "", err
 		}
 		fmt.Fprintf(&b, "Content-Type: multipart/alternative; boundary=%q\r\n\r\n", boundary)
-		writePart(&b, boundary, "text/plain; charset=utf-8", message.Text)
-		writePart(&b, boundary, "text/html; charset=utf-8", message.HTML)
+		writePart(&b, boundary, "text/plain; charset=utf-8", textBody)
+		writePart(&b, boundary, "text/html; charset=utf-8", htmlBody)
 		fmt.Fprintf(&b, "--%s--\r\n", boundary)
 	case hasHTML:
 		b.WriteString("Content-Type: text/html; charset=utf-8\r\n")
 		b.WriteString("Content-Transfer-Encoding: 8bit\r\n\r\n")
-		b.WriteString(message.HTML)
+		b.WriteString(htmlBody)
 		b.WriteString("\r\n")
 	default:
 		b.WriteString("Content-Type: text/plain; charset=utf-8\r\n")
 		b.WriteString("Content-Transfer-Encoding: 8bit\r\n\r\n")
-		b.WriteString(message.Text)
+		b.WriteString(textBody)
 		b.WriteString("\r\n")
 	}
 	return b.String(), nil
@@ -191,6 +204,31 @@ func writePart(b *strings.Builder, boundary, contentType, body string) {
 	b.WriteString("Content-Transfer-Encoding: 8bit\r\n\r\n")
 	b.WriteString(body)
 	b.WriteString("\r\n")
+}
+
+func formatAddressHeader(address string) (string, error) {
+	parsed, err := mail.ParseAddress(strings.TrimSpace(address))
+	if err != nil {
+		return "", err
+	}
+	return parsed.Address, nil
+}
+
+func sanitizeHeaderValue(value string) string {
+	value = strings.NewReplacer("\r", " ", "\n", " ").Replace(value)
+	return strings.Join(strings.Fields(value), " ")
+}
+
+func sanitizeTextBody(body string) string {
+	body = strings.ReplaceAll(body, "\r\n", "\n")
+	body = strings.ReplaceAll(body, "\r", "\n")
+	body = strings.ReplaceAll(body, "\x00", "")
+	return strings.ReplaceAll(body, "\n", "\r\n")
+}
+
+func sanitizeHTMLBody(body string) string {
+	body = sanitizeTextBody(body)
+	return html.EscapeString(body)
 }
 
 func randomBoundary() (string, error) {

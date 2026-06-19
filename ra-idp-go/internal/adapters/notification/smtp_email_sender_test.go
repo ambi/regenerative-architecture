@@ -107,7 +107,7 @@ func TestBuildRFC5322MessageMultipart(t *testing.T) {
 		"Content-Type: text/plain; charset=utf-8",
 		"Content-Type: text/html; charset=utf-8",
 		"plain body",
-		"<p>html body</p>",
+		"&lt;p&gt;html body&lt;/p&gt;",
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("missing %q in body:\n%s", want, body)
@@ -127,8 +127,52 @@ func TestBuildRFC5322MessageHTMLOnly(t *testing.T) {
 	if !strings.Contains(body, "Content-Type: text/html; charset=utf-8") {
 		t.Errorf("expected single-part text/html, got:\n%s", body)
 	}
+	if strings.Contains(body, "<p>only html</p>") || !strings.Contains(body, "&lt;p&gt;only html&lt;/p&gt;") {
+		t.Errorf("expected escaped HTML body, got:\n%s", body)
+	}
 	if strings.Contains(body, "multipart/alternative") {
 		t.Errorf("unexpected multipart for HTML-only message:\n%s", body)
+	}
+}
+
+func TestBuildRFC5322MessageSanitizesUntrustedContent(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2026, 6, 15, 12, 0, 0, 0, time.UTC)
+	body, err := buildRFC5322Message("noreply@ra-idp.test", authports.EmailMessage{
+		To:      "bob@example.com",
+		Subject: "reset\r\nBcc: attacker@example.com",
+		Text:    "line1\rline2\x00",
+		HTML:    `<script>alert(1)</script><a href="javascript:alert(1)">x</a>`,
+	}, now)
+	if err != nil {
+		t.Fatalf("buildRFC5322Message: %v", err)
+	}
+	if strings.Contains(body, "\r\nBcc: attacker@example.com") {
+		t.Fatalf("subject created injected header:\n%s", body)
+	}
+	for _, want := range []string{
+		"Subject: reset Bcc: attacker@example.com",
+		"line1\r\nline2",
+		"&lt;script&gt;alert(1)&lt;/script&gt;",
+		`&lt;a href=&#34;javascript:alert(1)&#34;&gt;x&lt;/a&gt;`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("missing sanitized content %q in body:\n%s", want, body)
+		}
+	}
+	if strings.Contains(body, "\x00") {
+		t.Fatalf("body contains NUL byte:\n%s", body)
+	}
+}
+
+func TestBuildRFC5322MessageRejectsInvalidAddressHeader(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2026, 6, 15, 12, 0, 0, 0, time.UTC)
+	_, err := buildRFC5322Message("noreply@ra-idp.test", authports.EmailMessage{
+		To: "bob@example.com\r\nBcc: attacker@example.com", Subject: "x", Text: "y",
+	}, now)
+	if err == nil {
+		t.Fatal("buildRFC5322Message should reject injected recipient header")
 	}
 }
 

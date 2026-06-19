@@ -88,6 +88,15 @@ hardcode しており、ra-idp-go を本番環境にデプロイしても forgot
       展開しない設計とし、テストで担保する)。
     - OTel 属性にも乗せない。
 
+11. **メール内容の正規化**:
+    - `From` / `To` ヘッダは `net/mail` で parse できる address のみ出力する。
+    - `Subject` は CR / LF を空白へ正規化し、ヘッダ注入を許さない。
+    - `Text` は CRLF へ改行を正規化し、NUL を除去する。
+    - `HTML` は任意 HTML を信頼して配送しない。本文文字列を
+      `html.EscapeString` でエスケープし、HTML メール上の表示テキストとして
+      扱う。将来、装飾済み HTML テンプレートを必要とする場合は、許可タグ /
+      許可属性ベースのサニタイザ導入を別 ADR で判断する。
+
 ## 影響
 
 - 新ファイル: `ra-idp-go/internal/adapters/notification/smtp_email_sender.go`

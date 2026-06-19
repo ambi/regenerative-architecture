@@ -1,0 +1,78 @@
+id: wi-29-trim-architecture-doc-redundancy
+title: RA / SCL 文書の重複記述と旧配置の名残を削る
+created_at: 2026-06-20
+status: completed
+authors: [tn]
+
+motivation: |
+  REGENERATIVE_ARCHITECTURE.md には、各層の本文で既に説明している
+  保存対象・派生物を直後の引用ブロックで再掲している箇所があり、
+  読む側には同じ情報の二重管理に見える。また、work-items 配置規約には
+  旧 `changes` ディレクトリに関する注意が残っており、現行構造だけを
+  知りたい読者にはノイズになっている。
+
+  SPECIFICATION_CORE_LANGUAGE.md も確認し、SCL 本体の仕様説明を変えずに、
+  ワークアイテムや派生関係まわりで削れる重複があれば削る。
+
+scope:
+  documentation:
+    - REGENERATIVE_ARCHITECTURE.md の各層末尾にある保存対象・派生物の引用ブロックを削除する。
+    - REGENERATIVE_ARCHITECTURE.md の work-items 配置規約から旧 changes ディレクトリへの言及を削除する。
+    - SPECIFICATION_CORE_LANGUAGE.md の冒頭と §6 を読み直し、意味を落とさない範囲で重複表現を簡潔にする。
+
+out_of_scope:
+  - Regenerative Architecture の層構造や SCL の仕様意味論の変更。
+  - work item schema / tooling の変更。
+  - ra-idp-go のアプリケーション実装変更。
+
+affected_guarantees:
+  - 文書の正本性: 規約本文に旧配置や重複した保存対象表現を残さない。
+  - 意味保持: SCL が保存対象であり下流が派生物である原則は本文で保持する。
+  - 検証可能性: ドキュメント変更後も SCL / work item YAML が schema 検証を通る。
+
+verification:
+  - cmd: bun run yaml-check:all
+    in: tools
+  - cmd: rg -n 'changes|completion-report|work-items/evidence|manifest.yaml' REGENERATIVE_ARCHITECTURE.md SPECIFICATION_CORE_LANGUAGE.md
+    reason: 旧配置・旧完了記録・旧 evidence manifest の名残が残っていないこと。
+
+risk: low
+risk_notes: |
+  文書整理のみ。主なリスクは説明を削りすぎて RA の保存対象・派生物の原則が
+  読みにくくなることなので、原則自体は §2.2 と各層本文に残し、引用ブロック
+  だけを削る。
+
+completion:
+  completed_at: 2026-06-20
+  summary: |
+    REGENERATIVE_ARCHITECTURE.md の各層末尾にあった保存対象・派生物の
+    引用ブロックを削除した。保存対象・派生物の原則は §2.2 と各層本文に
+    残しているため、意味は変えていない。
+
+    work-items 配置規約から旧 `changes` ディレクトリへの言及を削除した。
+    SPECIFICATION_CORE_LANGUAGE.md は、冒頭の記述と §6 のワークアイテム説明を
+    少しだけ短くし、仕様意味論は変更していない。
+  semantic_diff:
+    before:
+      ra_layers: 各層本文の直後に保存対象・派生物の引用ブロックを再掲
+      work_item_layout: 現行 work-items 配置の説明に旧 changes ディレクトリの注意が混在
+      scl_wording: 冒頭と §6 にワークアイテム説明の重複が残る
+    after:
+      ra_layers: 保存対象・派生物の原則は §2.2 と各層本文に集約
+      work_item_layout: 現行 work-items 配置だけを説明
+      scl_wording: ワークアイテム説明を簡潔化
+  verification:
+    - cmd: bun run yaml-check:all
+      in: tools
+      result: ok, 34 work item file(s) and 3 SCL file(s) OK
+    - cmd: rg -n 'changes|completion-report|work-items/evidence|manifest.yaml' REGENERATIVE_ARCHITECTURE.md SPECIFICATION_CORE_LANGUAGE.md
+      result: empty
+  affected_guarantees_state:
+    - 文書の正本性: pass。旧配置や旧 evidence manifest の記述は対象文書に残っていない。
+    - 意味保持: pass。SCL が保存対象であり下流が派生物である原則は本文に残した。
+    - 検証可能性: pass。yaml-check:all が成功した。
+  residual_risk:
+    - 保存対象・派生物の一覧表がなくなったため、一覧形式で確認したい読者にはやや探しづらくなる。ただし本文の重複を避ける判断を優先した。
+  human_decisions:
+    - 各層末尾の保存対象・派生物引用ブロックは重複として削除する。
+    - 旧 changes ディレクトリへの注意は現行規約から削除する。

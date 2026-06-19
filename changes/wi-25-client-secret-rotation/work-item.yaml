@@ -1,0 +1,238 @@
+id: wi-25-client-secret-rotation
+title: client_secret rotation を use case + endpoint + admin UI として導入する
+created_at: 2026-06-19
+status: pending
+authors: [tn]
+
+motivation: |
+  `client_secret` の発行は `RegisterClient` 経由で実装済 (admin 経由の
+  CreateClient で `client_secret` を 1 度だけ返す) だが、漏洩・退職・
+  通常運用での periodic rotation のいずれの動機でも secret を「回す」
+  経路が無い。現状の admin は client を削除 → 再作成しか取れず、
+  client_id まで変わるためダウンタイム無しの更新ができない。
+
+  業界標準 (Auth0 / Okta / Keycloak) は次の挙動を取る:
+    - 新 secret を即座に発行 (admin に 1 度だけ表示)。
+    - 旧 secret を grace 期間だけ並行受理し、grace 経過後に sunset。
+    - grace 期間は default 7 日、admin が選択可能。
+    - `ClientSecretRotated` を audit に残し、SecOps が検知できる
+      ようにする。
+
+  本 WI はこの挙動を ra-idp に持ち込む。`client_credentials` /
+  `authorization_code` の token endpoint 認証経路で grace 期間中の
+  旧 secret を fail-soft に受理するのが鍵となる。
+
+scope:
+  decision:
+    - >-
+      新規 ADR `ADR-038-client-secret-rotation`:
+        - rotation の semantics (current + previous の 2 値、grace
+          期間中だけ previous を受理する)。
+        - grace 期間 default を 7 日とし、admin が選択可能な範囲を
+          `[1日, 30日]` に制限する。
+        - audit に残すフィールド (actor / clientID / graceUntil。
+          secret 本体は残さない)。
+        - DPoP-bound / mTLS-bound / private_key_jwt client への対応
+          (no-op: rotation 対象外。`token_endpoint_auth_method` が
+          `client_secret_basic` / `client_secret_post` のみ)。
+        - 旧 secret の即時 revoke 経路 (grace を 0 にして rotation
+          する。意図して fail-close へ倒すケース)。
+        - rotation の冪等性 (続けて rotate すると previous が更に
+          上書きされ「2 つ前」は失われる)。
+
+  scl:
+    - >-
+      `Client` model に以下を追加:
+        previous_client_secret_hash: string | null
+        previous_client_secret_expires_at: timestamp | null
+    - >-
+      新規 interface `RotateClientSecret`、event `ClientSecretRotated`、
+      permission `AdminClientSecretRotate`。
+    - >-
+      `components.OAuth2.owns_models` / `owns_interfaces` /
+      `owns_events` / `owns_permissions` を更新。
+
+  go:
+    domain:
+      - >-
+        `oauth2/domain/client.go` の `Client.VerifyClientSecret(plaintext, now)`
+        を「current OR (previous AND now < previous_expires_at)」に
+        拡張する。token endpoint 経路 (`exchange_code` /
+        `client_credentials` / `refresh_tokens`) はすべてこの helper を
+        通すよう揃える。
+      - >-
+        `domain.HashClientSecret` / `domain.VerifyClientSecret` の
+        既存実装は再利用する。
+    usecases:
+      - >-
+        新規 `oauth2/usecases/rotate_client_secret.go`:
+          RotateClientSecret(ctx, ClientDeps, RotateClientSecretInput) result
+          input:  ActorSub / ClientID / GraceDuration / Now
+          result: NewSecretPlaintext / Client (更新後) / GraceUntil
+        actor の RBAC は handler 側 `requireAdmin` に委ねるが、use case 側
+        も `token_endpoint_auth_method` が secret-based でない client は
+        `ErrClientSecretNotRotatable` を返す。
+      - >-
+        rotation 対象 client が「現に grace 期間中の previous を持って
+        いる」場合の挙動は冪等とする (新規に rotate すると previous が
+        現 current で上書きされ、それ以前の previous は失われる)。
+    http:
+      - >-
+        `POST /api/admin/clients/:client_id/rotate_secret` を追加する。
+        `verifyBrowserRequest` + `requireAdmin` + tenant 一致を継承。
+        request body: `{"grace_days": 7}` (省略時 7、範囲外は 400)。
+        response: `{"client_secret": "...", "grace_until": "..."}` を
+        1 度だけ返す。再表示不可。
+      - >-
+        `handleGetAdminClient` / `handleListAdminClients` の response
+        DTO に `secret_rotating: bool` と `previous_secret_expires_at:
+        timestamp?` を加える (`previous_client_secret_hash` は出さない)。
+    persistence:
+      - >-
+        PostgreSQL migration 1 本: `oauth_clients` に
+        `previous_client_secret_hash TEXT NULL`、
+        `previous_client_secret_expires_at TIMESTAMPTZ NULL` を追加。
+        memory adapter も対応する。
+    audit:
+      - >-
+        `ClientSecretRotated` event を `audit_event_record.go` 経由で
+        AdminAuditEvent として残す。payload は actorSub / targetClientID /
+        graceUntil / now。secret 値・hash は含めない。
+
+  ui:
+    pages:
+      - >-
+        `AdminClientsPage` の詳細パネル下部に「Secret を回す」ボタンを
+        追加する。Disable / Delete とは別行で並べる。
+      - >-
+        `RotateClientSecretDialog` を新設する:
+          - 影響説明: 「旧 secret は <grace_days> 日後まで受理されます。
+            それ以降は <client_id> での認証が落ちます」。
+          - grace 期間 (1 日 / 7 日 / 14 日 / 30 日) の選択肢。
+            「即時 revoke (0 日)」は別の destructive ボタンとして並べ、
+            意図的に旧 secret を遮断するケースを分離する。
+          - 確定ボタンは destructive variant、キャンセルは outline。
+      - >-
+        rotation 成功時、新 secret を 1 度だけ表示する modal を出す。
+        「コピーした」のチェックを要求してから閉じる (`CreateClient`
+        modal と同じ pattern を再利用する)。
+      - >-
+        rotation 中 (grace 期間内) の client 行に "rotating" badge と
+        grace 残時間を表示する。`previous_secret_expires_at` 経過で
+        badge が消える。
+
+  documentation:
+    - >-
+      `ra-idp-go/README.md` の範囲リストに「client_secret rotation」行を
+      追加し、Phase 1 の対応行を本 WI で除去する。
+    - >-
+      ADR-038 を新規追加する (上記 decision 節)。
+
+out_of_scope:
+  - >-
+    自動 rotation スケジューラ (定期的に secret を回す)。本 WI は
+    admin-driven のみ。
+  - >-
+    client 側 (RP) への secret 通知。webhook / メール送付は別 WI で
+    扱う。`previous_secret_expires_at` までに RP 側が手動で差し替える
+    前提。
+  - >-
+    DPoP-bound / mTLS-bound / private_key_jwt client への対応。
+    これらは secret を持たないので no-op。Client metadata の確認のみ。
+  - >-
+    Dynamic Client Registration (RFC 7591) 経由の self-service
+    rotation。本 WI は admin 経由のみ。`registration_access_token` を
+    使った client self-rotation は Phase 4 の DCR 拡張で扱う。
+  - >-
+    複数の "previous" を同時に保持する (N 段 grace)。current + 1
+    previous の 2 値固定。
+
+affected_guarantees:
+  - >-
+    backward compatibility: rotation 中は old secret でも auth 成立
+    (grace 期間内のみ)。grace 経過後は `invalid_client`。これは
+    `client_credentials` / `authorization_code` / `refresh_token` の
+    すべての token endpoint 経路で一様に効く。
+  - >-
+    tenant isolation: rotation API は requireAdmin + tenant 一致を
+    強制する (既存 `ClientRepo.FindByID` と同じ tenant scope を継承)。
+  - >-
+    secret confidentiality: 新 secret の平文は HTTP response の 1 回
+    のみ、admin UI の modal で 1 回のみ表示する。log / event / DB に
+    平文を残さない。`previous_client_secret_hash` は API レスポンスに
+    含めない (`secret_rotating` boolean と `previous_secret_expires_at`
+    のみ公開)。
+  - >-
+    audit: `ClientSecretRotated` (actorSub / clientID / graceUntil) を
+    AdminAuditEvent として残す。secret 値そのものは残さない。
+  - >-
+    SCL coherence: 新 interface / event / permission / model を SCL に
+    追加。`SCLPermissionsCoverage` で `AdminClientSecretRotate` が
+    HTTP action と紐付くことを照合する。
+  - >-
+    auth fail-close: `RotateClientSecret` 中の race
+    (client が認証中に rotate される) は、内部で `Client` を再 fetch
+    する pattern で扱う。最悪ケースで 1 リクエストが旧 secret で
+    通った直後に rotate しても、grace 期間内なので意味的に成立する。
+
+verification:
+  - cmd: 'go test ./...'
+    in: ra-idp-go
+    reason: >-
+      RotateClientSecret use case で (a) 通常 rotation で
+      previous_hash / previous_expires_at が埋まる、(b) secret-based
+      でない client が `ErrClientSecretNotRotatable` を返す、
+      (c) grace_days 範囲外を reject、(d) VerifyClientSecret が
+      current と grace 内 previous を両方受理し、grace 後 previous を
+      拒否する、(e) 連続 rotation で previous が新 previous に置換され
+      「2 つ前」は失われる、(f) event 発火。HTTP 側で
+      requireAdmin / tenant 一致 / response の DTO 出力。
+  - cmd: 'go vet ./...'
+    in: ra-idp-go
+  - cmd: 'go build ./...'
+    in: ra-idp-go
+  - cmd: 'bun --cwd ra-idp-go/ui typecheck'
+  - cmd: 'bun --cwd ra-idp-go/ui lint'
+  - cmd: 'bun --cwd ra-idp-go/ui build'
+  - >-
+    手動 1: AdminClientsPage で demo-client を選び「Secret を回す」 →
+    grace 7 日でダイアログ確定 → 新 secret が modal に 1 度だけ表示 →
+    新 secret で `client_credentials` token endpoint が通り、旧 secret も
+    grace 内は通る。
+  - >-
+    手動 2: 「即時 revoke (0 日)」で rotate すると、旧 secret は直後から
+    `invalid_client`、新 secret のみ成立する。
+  - >-
+    手動 3: DPoP / private_key_jwt client (rotation 対象外) で
+    `POST /api/admin/clients/:id/rotate_secret` を呼ぶと
+    `client_secret_not_rotatable` で 400 が返る。
+  - >-
+    手動 4: rotation modal の閉じる挙動 (「コピーした」を要求) と
+    再表示不可を確認する。
+  - >-
+    手動 5: AdminAuditEvent 一覧に `ClientSecretRotated` が actor /
+    target client / grace until で記録される。
+
+risk: medium
+risk_notes: |
+  主リスクは 3 点:
+
+    (1) Verify の race: VerifyClientSecret を current / previous の
+        OR で評価するため、rotation 直後の token endpoint 経路で
+        client を fetch するタイミングが古いと grace 判定が狂う。
+        token handler 側で `now` を引数として明示し、use case と
+        verify helper の双方で同じ `now` を使う。
+
+    (2) Previous の上書き: rotation を短時間に 2 度行うと「最新の 2 つ前」
+        secret は失われる。これは仕様 (ADR-038 の冪等性) として明示し、
+        UI の rotation modal にも警告を出す。
+
+    (3) Secret の出力経路: 平文 secret は HTTP response の `client_secret`
+        フィールドと UI の modal のみ。`writeAdminClientError` 経路で
+        secret を含むレスポンスを誤ってエラーパスに流さないよう、
+        response 構築直前に `result.NewSecretPlaintext` を読み出す。
+        log / event / DB に平文を一切残さない。
+
+  rotation 後の RP 側差し替えのオペレーション (webhook 通知 / 連絡
+  フロー) は本 WI のスコープ外。grace 期間という運用窓を提供するに
+  留め、自動通知は別 WI で扱う。

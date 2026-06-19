@@ -315,7 +315,7 @@ verification:
       attribute schema の custom attribute 検証 / multi-valued contact
       の primary 一意制約 / required actions の自動クリア (パスワード
       変更で UPDATE_PASSWORD が消える) の各単体テスト。
-  - cmd: 'go vet ./...'
+  - cmd: 'golangci-lint run ./...'
     in: ra-idp-go
   - cmd: 'go build ./...'
     in: ra-idp-go

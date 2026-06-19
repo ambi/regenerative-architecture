@@ -111,7 +111,7 @@ verification:
   - cmd: 'go test -race ./...'
     in: ra-idp-go
     reason: detached completion と cancellation 周辺の race を確認する。
-  - cmd: 'go vet ./...'
+  - cmd: 'golangci-lint run ./...'
     in: ra-idp-go
   - cmd: 'go build ./...'
     in: ra-idp-go

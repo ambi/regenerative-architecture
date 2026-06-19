@@ -328,7 +328,7 @@ verification:
       (29 日, 31 日, 91 日) / セッション revoke の冪等性 /
       hash salt の tenant 分離 / impersonation event の retention
       override 不可。
-  - cmd: 'go vet ./...'
+  - cmd: 'golangci-lint run ./...'
     in: ra-idp-go
   - cmd: 'go build ./...'
     in: ra-idp-go

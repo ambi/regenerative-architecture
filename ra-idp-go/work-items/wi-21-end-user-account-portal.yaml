@@ -332,7 +332,7 @@ verification:
       data export job のステータス遷移 / deletion request の auto-
       approve / manual-approve 分岐 / consent revoke の rotation
       連動 / second email verify の token 期限と単発消費。
-  - cmd: 'go vet ./...'
+  - cmd: 'golangci-lint run ./...'
     in: ra-idp-go
   - cmd: 'go build ./...'
     in: ra-idp-go

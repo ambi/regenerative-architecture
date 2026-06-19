@@ -47,7 +47,7 @@ affected_guarantees:
 verification:
   - cmd: 'go test ./...'
     in: ra-idp-go
-  - cmd: 'go vet ./...'
+  - cmd: 'golangci-lint run ./...'
     in: ra-idp-go
   - cmd: 'go build ./...'
     in: ra-idp-go

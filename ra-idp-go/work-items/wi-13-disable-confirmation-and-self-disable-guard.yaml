@@ -87,7 +87,7 @@ verification:
     in: ra-idp-go
     reason: SetUserDisabled の自爆防止テスト追加。HTTP 側で
       self_disable_forbidden が返ることを確認。
-  - cmd: 'go vet ./...'
+  - cmd: 'golangci-lint run ./...'
     in: ra-idp-go
   - cmd: 'go build ./...'
     in: ra-idp-go

@@ -135,7 +135,7 @@ verification:
       が grace 経過鍵だけを消すこと、ListPublicKeys が active+retired
       を返すこと、cmd の tick で rotate / prune が想定通り発火する
       こと。
-  - cmd: 'go vet ./...'
+  - cmd: 'golangci-lint run ./...'
     in: ra-idp-go
   - cmd: 'go build ./...'
     in: ra-idp-go

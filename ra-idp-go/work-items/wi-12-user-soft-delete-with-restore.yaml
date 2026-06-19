@@ -222,7 +222,7 @@ verification:
     reason: SoftDeleteUser / RestoreUser / PurgeUser use case + 既存
       auth / token / userinfo 経路の soft-deleted user 挙動 + 冪等性 +
       grace 経過時の auto-purge をテーブルテストで検証する。
-  - cmd: 'go vet ./...'
+  - cmd: 'golangci-lint run ./...'
     in: ra-idp-go
   - cmd: 'go build ./...'
     in: ra-idp-go

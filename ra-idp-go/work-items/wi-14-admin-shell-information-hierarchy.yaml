@@ -1,7 +1,7 @@
 id: wi-14-admin-shell-information-hierarchy
 title: 管理画面ヘッダと UserDetails の情報階層を直す (ブランドリンク / アバターメニュー / アクションの優先度)
 created_at: 2026-06-16
-status: pending
+status: completed
 authors: [tn]
 
 motivation: |

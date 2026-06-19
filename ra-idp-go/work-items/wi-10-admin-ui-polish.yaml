@@ -1,7 +1,7 @@
 id: wi-10-admin-ui-polish
 title: 管理画面・ログイン画面の使い勝手を直す (forgot link 位置 / 編集ダイアログ統合 / dashboard / refresh ボタン)
 created_at: 2026-06-15
-status: pending
+status: completed
 authors: [tn]
 
 motivation: |

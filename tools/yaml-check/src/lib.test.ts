@@ -120,8 +120,8 @@ describe('locatePointer', () => {
 })
 
 describe('SCHEMAS', () => {
-  it('exposes exactly the three documented schemas', () => {
-    expect(Object.keys(SCHEMAS).sort()).toEqual(['completion-report', 'scl', 'work-item'].sort())
+  it('exposes exactly the documented schemas', () => {
+    expect(Object.keys(SCHEMAS).sort()).toEqual(['scl', 'work-item'].sort())
   })
 })
 
@@ -139,6 +139,12 @@ describe('validateAgainstSchema — work-item', () => {
     verification: [],
     risk: 'low',
     risk_notes: 'none',
+  }
+  const validCompletion = {
+    completed_at: '2026-06-17',
+    summary: 'done',
+    verification: [{ cmd: 'go test ./...', result: 'ok' }],
+    affected_guarantees_state: [],
   }
 
   it('accepts a minimal valid work item', () => {
@@ -182,33 +188,32 @@ describe('validateAgainstSchema — work-item', () => {
     const f = validateAgainstSchema('work-item', data, '')
     expect(f.length).toBeGreaterThan(0)
   })
-})
 
-describe('validateAgainstSchema — completion-report', () => {
-  const validReport = {
-    id: 'wi-1-demo',
-    title: 'Demo',
-    completed_at: '2026-06-17',
-    work_item: 'work-item.yaml',
-    status: 'completed',
-    summary: 'done',
-    verification: [{ cmd: 'go test ./...', result: 'ok' }],
-    affected_guarantees_state: [],
-  }
-
-  it('accepts a minimal valid completion report', () => {
-    expect(validateAgainstSchema('completion-report', validReport, '')).toEqual([])
+  it('accepts completion embedded in a completed work item', () => {
+    const data = { ...validWorkItem, status: 'completed', completion: validCompletion }
+    expect(validateAgainstSchema('work-item', data, '')).toEqual([])
   })
 
-  it('accepts the legacy remaining_guarantees_state field', () => {
-    const { affected_guarantees_state: _omitted, ...rest } = validReport
-    const data = { ...rest, remaining_guarantees_state: [] }
-    expect(validateAgainstSchema('completion-report', data, '')).toEqual([])
+  it('requires completion when status is completed', () => {
+    const data = { ...validWorkItem, status: 'completed' }
+    const f = validateAgainstSchema('work-item', data, '')
+    expect(f.some((x) => x.message.includes('completion'))).toBe(true)
   })
 
-  it('rejects when neither guarantees-state field is present', () => {
-    const { affected_guarantees_state: _omitted, ...data } = validReport
-    const f = validateAgainstSchema('completion-report', data, '')
+  it('accepts the legacy remaining_guarantees_state field in completion', () => {
+    const { affected_guarantees_state: _omitted, ...rest } = validCompletion
+    const data = {
+      ...validWorkItem,
+      status: 'completed',
+      completion: { ...rest, remaining_guarantees_state: [] },
+    }
+    expect(validateAgainstSchema('work-item', data, '')).toEqual([])
+  })
+
+  it('rejects completion when neither guarantees-state field is present', () => {
+    const { affected_guarantees_state: _omitted, ...completion } = validCompletion
+    const data = { ...validWorkItem, status: 'completed', completion }
+    const f = validateAgainstSchema('work-item', data, '')
     expect(f.length).toBeGreaterThan(0)
   })
 })

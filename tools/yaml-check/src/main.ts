@@ -30,7 +30,7 @@ import { type Finding, SCHEMAS, lintRawText, parseArgs, validateAgainstSchema } 
 const REPO_ROOT = resolve(import.meta.dir, '../../..')
 
 // Relative paths resolve against the shell cwd first, then fall back to the
-// repo root. This way `bun --cwd tools yaml-check changes/foo.yaml` works
+// repo root. This way `bun --cwd tools yaml-check work-items/foo.yaml` works
 // whether invoked from the repo root or from tools/.
 function resolvePath(p: string): string {
   if (isAbsolute(p)) return p

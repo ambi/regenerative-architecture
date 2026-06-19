@@ -46,7 +46,7 @@ vocabulary:
     aliases: [json-schema]
 
   SchemaName:
-    definition: 同梱 Schema の識別名。`work-item` / `completion-report` / `scl` の 3 種。
+    definition: 同梱 Schema の識別名。`work-item` / `scl` の 2 種。
 
   CheckRun:
     definition: 1 回の `yaml-check` 起動。引数で指定されたファイル群に対して順に Parse → Lint → (任意) Schema を回す。
@@ -59,7 +59,7 @@ models:
 
   SchemaName:
     kind: enum
-    values: [work-item, completion-report, scl]
+    values: [work-item, scl]
 
   FindingKind:
     kind: enum
@@ -238,7 +238,7 @@ scenarios:
   --list-schemas は同梱スキーマ名のみを出力する:
     steps:
       - '"--list-schemas" を指定して yaml-check を呼ぶ'
-      - 標準出力に work-item / completion-report / scl が 1 行ずつ書かれる
+      - 標準出力に work-item / scl が 1 行ずつ書かれる
       - exit code は 0
 
 # =================================================================

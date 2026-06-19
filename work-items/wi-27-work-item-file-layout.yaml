@@ -1,0 +1,103 @@
+id: wi-27-work-item-file-layout
+title: ワークアイテムをコンポーネント配下の単一 YAML ファイルに配置する
+created_at: 2026-06-20
+status: completed
+authors: [tn]
+
+motivation: |
+  `changes/<id>/work-item.yaml` は、work item と completion を単一ファイルへ
+  統合した後では `<id>/` ディレクトリがほぼ識別子の重複になっていた。
+  また `changes` は pending / in_progress の項目を含む名前として不正確であり、
+  ADR がコンポーネント配下の `decisions/` に置かれる構造とも揃っていなかった。
+
+  ワークアイテムも ADR と同じく対象コンポーネントの近くに置き、
+  ファイル名自体を安定識別子にする。
+
+scope:
+  layout:
+    - ra-idp-go に属する既存ワークアイテムを `ra-idp-go/work-items/<id>.yaml` に移動する。
+    - リポジトリ横断のワークアイテムをルート `work-items/<id>.yaml` に置く。
+    - 空になった `changes/` ディレクトリを廃止する。
+  documentation:
+    - REGENERATIVE_ARCHITECTURE.md の保存規約をコンポーネント配下 `work-items/*.yaml` へ更新する。
+    - yaml-check / scl-to-html の README と SCL を新配置へ更新する。
+  tooling:
+    - scl-to-html の入力フラグを `--work-items` にし、`work-items/*.yaml` を読む。
+    - 既存互換のため `--changes` は `--work-items` の alias として受け付ける。
+    - yaml-check:work-items の対象を `ra-idp-go/work-items/*.yaml` と `work-items/*.yaml` に更新する。
+    - 表示タブ名を `Changes` から `Work Items` に変更する。
+
+out_of_scope:
+  - ワークアイテム ID の採番規則変更。
+  - 複数 work-items ディレクトリを 1 回の scl-to-html 実行でマージする機能。
+  - 外部 Issue / PR との同期。
+
+affected_guarantees:
+  - 正本性: ワークアイテムの識別子はファイル名と `id` で追跡できる。
+  - 局所性: ra-idp-go の作業記録は ra-idp-go コンポーネント配下に置かれる。
+  - 表示生成: scl-to-html は新配置を読み、Work Items タブに表示する。
+
+verification:
+  - cmd: bun run yaml-check:work-items
+    in: tools
+  - cmd: bun run yaml-check:all
+    in: tools
+  - cmd: bun test
+    in: tools
+  - cmd: bun run typecheck
+    in: tools
+  - cmd: bun run lint
+    in: tools
+  - cmd: fd 'work-item[.]yaml|completion[-]report[.]yaml|^changes$' . --hidden
+    reason: 旧配置ファイルと旧ディレクトリが残らないこと。
+
+risk: low
+risk_notes: |
+  主なリスクはツールが旧 `changes/<id>/work-item.yaml` だけを読む状態で
+  ワークアイテムを移動してしまうこと。scl-to-html の loader と package scripts を
+  先に新配置へ更新し、yaml-check と生成 HTML で検証する。
+
+completion:
+  completed_at: 2026-06-20
+  summary: |
+    ワークアイテムを `changes/<id>/work-item.yaml` から
+    `work-items/<id>.yaml` 形式へ移行した。ra-idp-go の項目は
+    `ra-idp-go/work-items/` に置き、リポジトリ横断の項目はルート
+    `work-items/` に置いた。scl-to-html は `--work-items` で新配置を読み、
+    UI のタブ名も Work Items に変更した。
+  semantic_diff:
+    before:
+      storage: changes/<id>/work-item.yaml
+      ownership: リポジトリルートに集約
+      tab_label: Changes
+    after:
+      storage: <component>/work-items/<id>.yaml
+      ownership: 対象コンポーネント配下、横断項目のみルート
+      tab_label: Work Items
+  verification:
+    - cmd: bun run yaml-check:work-items
+      in: tools
+      result: ok
+    - cmd: bun run yaml-check:all
+      in: tools
+      result: ok
+    - cmd: bun test
+      in: tools
+      result: ok
+    - cmd: bun run typecheck
+      in: tools
+      result: ok
+    - cmd: bun run lint
+      in: tools
+      result: ok
+    - cmd: fd 'work-item[.]yaml|completion[-]report[.]yaml|^changes$' . --hidden
+      result: empty
+  affected_guarantees_state:
+    - 正本性: pass。ファイル名と id が同じ安定識別子を持つ。
+    - 局所性: pass。ra-idp-go の項目は ra-idp-go/work-items に移動済み。
+    - 表示生成: pass。scl-to-html は Work Items タブを生成する。
+  residual_risk:
+    - "`--changes` を直接使う外部スクリプトはまだ動くが、表示上の正規フラグは `--work-items` に変わった。"
+  human_decisions:
+    - ディレクトリ名は `changes` ではなく `work-items` とする。
+    - ワークアイテムは ADR と同様にコンポーネント配下へ置く。

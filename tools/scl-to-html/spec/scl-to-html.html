@@ -456,7 +456,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
   .adr-index-row { grid-template-columns: 1fr; gap: 4px; }
 }
 
-/* changes */
+/* work items */
 .ch-index { display: grid; gap: 6px; margin: 12px 0 24px; }
 .ch-index-row {
   display: grid; grid-template-columns: 120px minmax(0, 1fr) auto auto auto;
@@ -468,7 +468,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
 .ch-index-row:hover { border-color: var(--accent); text-decoration: none; }
 .ch-index-row .ch-id { color: var(--muted); font-size: 12px; }
 .ch-index-row .ch-title { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.work-item, .completion-report { margin-top: 8px; }
+.work-item, .completion-record { margin-top: 8px; }
 .wi-header, .cr-header { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; margin-bottom: 8px; }
 .wi-header h4, .cr-header h4 { margin: 0; font-size: 15px; }
 .wi-meta, .cr-meta { display: flex; flex-wrap: wrap; gap: 4px; }
@@ -489,7 +489,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
 }
 .change-list { padding-left: 22px; margin: 6px 0; }
 .change-list li { margin: 4px 0; }
-.completion-report {
+.completion-record {
   margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--border);
 }
 </style>
@@ -498,7 +498,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
 <header class="app-header">
   <div class="app-header-row">
     <a href="#tab=overview" class="app-title">scl-to-html</a>
-    <nav class="tab-bar" aria-label="Tabs"><a class="tab-link active" data-tab-link="overview" href="#tab=overview">Overview</a><a class="tab-link" data-tab-link="scl" href="#tab=scl">SCL</a><a class="tab-link" data-tab-link="decisions" href="#tab=decisions">Decisions</a><a class="tab-link" data-tab-link="changes" href="#tab=changes">Changes</a></nav>
+    <nav class="tab-bar" aria-label="Tabs"><a class="tab-link active" data-tab-link="overview" href="#tab=overview">Overview</a><a class="tab-link" data-tab-link="scl" href="#tab=scl">SCL</a><a class="tab-link" data-tab-link="decisions" href="#tab=decisions">Decisions</a><a class="tab-link" data-tab-link="work-items" href="#tab=work-items">Work Items</a></nav>
   </div>
 </header>
 <div class="layout">
@@ -514,15 +514,15 @@ table.fields tbody tr:last-child td { border-bottom: none; }
     <div class="toc-title">Decisions</div>
     <ol><li><a data-sec="dec-overview" href="#tab=decisions&sec=dec-overview">Overview</a></li></ol>
   </nav>
-<nav class="toc" data-toc-for="changes" aria-label="Changes contents">
-    <div class="toc-title">Changes</div>
-    <ol><li><a data-sec="ch-empty" href="#tab=changes&sec=ch-empty">Overview</a></li></ol>
+<nav class="toc" data-toc-for="work-items" aria-label="Work Items contents">
+    <div class="toc-title">Work Items</div>
+    <ol><li><a data-sec="ch-empty" href="#tab=work-items&sec=ch-empty">Overview</a></li></ol>
   </nav></aside>
   <main><div class="tab" data-tab="overview" id="tab-overview"><section id="ov-hero" class="tab-overview">
     <header class="page-header">
       <div class="eyebrow">Regenerative Architecture</div>
       <h1>scl-to-html</h1>
-      <p class="lead">SCL spec 2.0 — 仕様核と、それを支える設計判断・変更履歴を一つの文書にまとめたもの。</p>
+      <p class="lead">SCL spec 2.0 — 仕様核と、それを支える設計判断・ワークアイテムを一つの文書にまとめたもの。</p>
     </header>
     <div class="overview-grid">
       <a class="overview-tile" href="#tab=scl">
@@ -535,8 +535,8 @@ table.fields tbody tr:last-child td { border-bottom: none; }
         <div class="overview-tile-num">0</div>
         <div class="overview-tile-hint">ADRs · 0 conception docs</div>
       </a>
-      <a class="overview-tile" href="#tab=changes">
-        <div class="overview-tile-label">Changes</div>
+      <a class="overview-tile" href="#tab=work-items">
+        <div class="overview-tile-label">Work Items</div>
         <div class="overview-tile-num">0</div>
         <div class="overview-tile-hint">0 in progress · 0 pending · 0 done</div>
       </a>
@@ -575,8 +575,8 @@ markdown 文書。Decisions タブで表示される。
 <article class="vocab-entry" id="vocab-changeentry">
       <div class="vocab-name"><code class="name">ChangeEntry</code></div>
       <div class="vocab-body">
-        <p class="def">changes/&lt;id&gt;/ ディレクトリ 1 件分のレコード。常に work-item.yaml を
-持ち、completion-report.yaml は任意。Changes タブの 1 カード。
+        <p class="def">work-items/&lt;id&gt;.yaml 1 件分のレコード。完了情報は
+work_item.completion に含める。Work Items タブの 1 カード。
 </p>
         <div class="aliases"><span class="aliases-label">aliases</span> <span class="muted">—</span></div>
 
@@ -597,7 +597,7 @@ markdown 文書。Decisions タブで表示される。
 <article class="vocab-entry" id="vocab-tab">
       <div class="vocab-name"><code class="name">Tab</code></div>
       <div class="vocab-body">
-        <p class="def">HtmlDocument 内の論理的ビュー。Overview / SCL / Decisions / Changes
+        <p class="def">HtmlDocument 内の論理的ビュー。Overview / SCL / Decisions / Work Items
 の 4 種。URL ハッシュ #tab=&lt;name&gt; でルーティングされる。
 </p>
         <div class="aliases"><span class="aliases-label">aliases</span> <span class="muted">—</span></div>
@@ -790,7 +790,7 @@ assurance.derived_from、components.depends_on などが該当する。
   </article>
 <article class="card" id="model-changeentry">
     <header><h3>ChangeEntry</h3><span class="badge badge-kind-value_object">value object</span></header>
-    <p class="desc">1 つの changes ディレクトリ分のレコード。</p>
+    <p class="desc">1 つの work item ファイル分のレコード。</p>
 
     <table class="fields">
     <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
@@ -799,19 +799,13 @@ assurance.derived_from、components.depends_on などが該当する。
     <td><code class="type">String</code></td>
     <td><span class="badge badge-required">required</span></td>
     <td><span class="chip chip-constraint">non empty</span></td>
-    <td>ディレクトリ名</td>
+    <td>ファイル名 (拡張子なし)</td>
   </tr><tr>
     <td><code class="name">work_item</code></td>
     <td><code class="type">Map</code></td>
     <td><span class="badge badge-required">required</span></td>
     <td><span class="muted">—</span></td>
-    <td>work-item.yaml 由来</td>
-  </tr><tr>
-    <td><code class="name">completion_report</code></td>
-    <td><code class="type">Map</code></td>
-    <td><span class="badge badge-optional">optional</span></td>
-    <td><span class="muted">—</span></td>
-    <td>completion-report.yaml 由来</td>
+    <td>work-items/&lt;id&gt;.yaml 由来。completion もここに含む。</td>
   </tr></tbody>
   </table>
   </article>
@@ -849,7 +843,7 @@ assurance.derived_from、components.depends_on などが該当する。
     <td><span class="muted">—</span></td>
     <td></td>
   </tr><tr>
-    <td><code class="name">changes</code></td>
+    <td><code class="name">work_items</code></td>
     <td><code class="type">ChangeEntry[]</code></td>
     <td><span class="badge badge-required">required</span></td>
     <td><span class="muted">—</span></td>
@@ -870,7 +864,7 @@ assurance.derived_from、components.depends_on などが該当する。
     <header><h3>TabKind</h3><span class="badge badge-kind-enum">enum</span></header>
 
 
-    <div class="enum-vals"><span class="chip chip-enum">overview</span> <span class="chip chip-enum">scl</span> <span class="chip chip-enum">decisions</span> <span class="chip chip-enum">changes</span></div>
+    <div class="enum-vals"><span class="chip chip-enum">overview</span> <span class="chip chip-enum">scl</span> <span class="chip chip-enum">decisions</span> <span class="chip chip-enum">work_items</span></div>
   </article>
 <article class="card" id="model-sectionkind">
     <header><h3>SectionKind</h3><span class="badge badge-kind-enum">enum</span></header>
@@ -941,10 +935,10 @@ assurance.derived_from、components.depends_on などが該当する。
     <td><span class="badge badge-optional">optional</span></td>
     <td>CONCEPTION*.md + ADR-*.md のディレクトリ</td>
   </tr><tr>
-    <td><code class="name">changes_dir</code></td>
+    <td><code class="name">work_items_dir</code></td>
     <td><code class="type">Path</code></td>
     <td><span class="badge badge-optional">optional</span></td>
-    <td>&lt;id&gt;/work-item.yaml のディレクトリ</td>
+    <td>work-items/*.yaml のディレクトリ</td>
   </tr></tbody>
     </table>
   </div>
@@ -980,7 +974,7 @@ assurance.derived_from、components.depends_on などが該当する。
               <td><span class="badge badge-optional">optional</span></td>
               <td></td>
             </tr><tr>
-              <td><code class="name">--changes</code></td>
+              <td><code class="name">--work-items</code></td>
               <td></td>
               <td><span class="badge badge-optional">optional</span></td>
               <td></td>
@@ -1019,11 +1013,11 @@ assurance.derived_from、components.depends_on などが該当する。
     <dl class="kv"><dt>target</dt><dd><code>Render</code></dd></dl>
     <div class="clause clause-always"><div class="clause-label ok">always (invariant)</div><code class="expr">∀ d ∈ decisions : html contains 'id=&quot;' + d.id + '&quot;'</code></div>
   </article>
-<article class="card" id="inv-all-changes-addressable">
-    <header><h3>all_changes_addressable</h3><span class="badge badge-severity-must">must</span></header>
+<article class="card" id="inv-all-work-items-addressable">
+    <header><h3>all_work_items_addressable</h3><span class="badge badge-severity-must">must</span></header>
     <p class="desc">入力された ChangeEntry 各件は HtmlDocument 内に 1 つの安定アンカーを持つ。</p>
     <dl class="kv"><dt>target</dt><dd><code>Render</code></dd></dl>
-    <div class="clause clause-always"><div class="clause-label ok">always (invariant)</div><code class="expr">∀ c ∈ changes : html contains 'id=&quot;' + slug(c.id) + '&quot;'</code></div>
+    <div class="clause clause-always"><div class="clause-label ok">always (invariant)</div><code class="expr">∀ w ∈ work_items : html contains 'id=&quot;' + slug(w.id) + '&quot;'</code></div>
   </article>
 <article class="card" id="inv-user-text-escaped">
     <header><h3>user_text_escaped</h3><span class="badge badge-severity-must">must</span></header>
@@ -1106,18 +1100,18 @@ ADR / CONCEPTION から script 等を注入できないことを保証する。<
     <ol class="scn-steps"><li class="scn-step">CONCEPTION.md と ADR-001-*.md を含むディレクトリを用意する</li><li class="scn-step">そのディレクトリを LoadSite で読み込み Render に渡す</li><li class="scn-step">出力に Decisions タブが現れる</li><li class="scn-step">出力に CONCEPTION 由来の見出しと ADR-001 のアンカーが含まれる</li></ol>
 
   </article>
-<article class="card scenario" id="scn-workitem-changes-1">
-    <header><h3>完了レポート付きの WorkItem は Changes タブに 1 つのカードとして並ぶ</h3></header>
+<article class="card scenario" id="scn-completion-workitem-work-items-1">
+    <header><h3>completion 付きの WorkItem は Work Items タブに 1 つのカードとして並ぶ</h3></header>
 
 
-    <ol class="scn-steps"><li class="scn-step">1 つの work-item.yaml と同ディレクトリの completion-report.yaml を用意する</li><li class="scn-step">そのディレクトリを LoadSite で読み込み Render に渡す</li><li class="scn-step">出力に Changes タブが現れる</li><li class="scn-step">出力に work item の id をアンカーに持つカードが 1 つ含まれる</li><li class="scn-step">出力に completion-report の summary が含まれる</li></ol>
+    <ol class="scn-steps"><li class="scn-step">completion を持つ work-items/&lt;id&gt;.yaml を用意する</li><li class="scn-step">そのディレクトリを LoadSite で読み込み Render に渡す</li><li class="scn-step">出力に Work Items タブが現れる</li><li class="scn-step">出力に work item の id をアンカーに持つカードが 1 つ含まれる</li><li class="scn-step">出力に completion の summary が含まれる</li></ol>
 
   </article>
-<article class="card scenario" id="scn-scl-decisions-changes">
-    <header><h3>--scl だけ与えれば Decisions / Changes タブは空表示で生成できる</h3></header>
+<article class="card scenario" id="scn-scl-decisions-work-items">
+    <header><h3>--scl だけ与えれば Decisions / Work Items タブは空表示で生成できる</h3></header>
 
 
-    <ol class="scn-steps"><li class="scn-step">SCL のみ指定して LoadSite を呼ぶ</li><li class="scn-step">decisions と changes は空配列になる</li><li class="scn-step">Render は失敗せず、Decisions / Changes タブには placeholder が出る</li></ol>
+    <ol class="scn-steps"><li class="scn-step">SCL のみ指定して LoadSite を呼ぶ</li><li class="scn-step">decisions と work_items は空配列になる</li><li class="scn-step">Render は失敗せず、Decisions / Work Items タブには placeholder が出る</li></ol>
 
   </article></div>
   </section>
@@ -1128,7 +1122,7 @@ ADR / CONCEPTION から script 等を注入できないことを保証する。<
       <h3 class="grp-title">slo <span class="count">1</span></h3>
       <div class="cards"><article class="card" id="obj-fast-render">
     <header><h3>fast_render</h3><span class="badge badge-kind-slo">slo</span></header>
-    <p class="desc">数 MiB クラスの SCL + 数十件の ADR + 数十件の changes を p95 500ms 以内で変換する。</p>
+    <p class="desc">数 MiB クラスの SCL + 数十件の ADR + 数十件の work items を p95 500ms 以内で変換する。</p>
     <dl class="kv"><dt>metric</dt><dd><span class="text">latency_p95</span></dd><dt>target</dt><dd><span class="text">&lt;500ms</span></dd><dt>interface</dt><dd><span class="text">Render</span></dd></dl>
   </article></div>
     </div>
@@ -1148,10 +1142,10 @@ ADR / CONCEPTION から script 等を注入できないことを保証する。<
     </header>
     <p class="lead">No CONCEPTION or ADR sources were provided.</p>
   </section></div>
-<div class="tab" data-tab="changes" id="tab-changes"><section id="ch-empty" class="tab-overview">
+<div class="tab" data-tab="work-items" id="tab-work-items"><section id="ch-empty" class="tab-overview">
       <header class="page-header">
-        <div class="eyebrow">Changes</div>
-        <h1>Changes</h1>
+        <div class="eyebrow">Work Items</div>
+        <h1>Work Items</h1>
       </header>
       <p class="lead">No work items were provided.</p>
     </section></div></main>

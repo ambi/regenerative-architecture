@@ -17,29 +17,29 @@ import { renderDecisionsTab, decisionsTocItems } from './render-decisions.ts'
 import { renderSclTab, sclTocItems } from './render-scl.ts'
 import type { SiteInput } from './types.ts'
 
-type TabKey = 'overview' | 'scl' | 'decisions' | 'changes'
+type TabKey = 'overview' | 'scl' | 'decisions' | 'work-items'
 
 const TAB_LABELS: Record<TabKey, string> = {
   overview: 'Overview',
   scl: 'SCL',
   decisions: 'Decisions',
-  changes: 'Changes',
+  'work-items': 'Work Items',
 }
 
 const renderOverviewTab = (site: SiteInput): string => {
-  const { scl, decisions, changes } = site
+  const { scl, decisions, work_items: workItems } = site
   const sclSectionCount = sclTocItems(scl).length - 1
   const adrCount = decisions.filter((d) => d.kind === 'adr').length
   const conceptionCount = decisions.filter((d) => d.kind === 'conception').length
-  const inProgress = changes.filter((c) => c.work_item.status === 'in_progress').length
-  const pending = changes.filter((c) => c.work_item.status === 'pending').length
-  const completed = changes.filter((c) => c.work_item.status === 'completed').length
+  const inProgress = workItems.filter((c) => c.work_item.status === 'in_progress').length
+  const pending = workItems.filter((c) => c.work_item.status === 'pending').length
+  const completed = workItems.filter((c) => c.work_item.status === 'completed').length
 
   return `<section id="ov-hero" class="tab-overview">
     <header class="page-header">
       <div class="eyebrow">Regenerative Architecture</div>
       <h1>${esc(site.title ?? scl.system)}</h1>
-      <p class="lead">SCL spec ${esc(scl.spec_version)} — 仕様核と、それを支える設計判断・変更履歴を一つの文書にまとめたもの。</p>
+      <p class="lead">SCL spec ${esc(scl.spec_version)} — 仕様核と、それを支える設計判断・ワークアイテムを一つの文書にまとめたもの。</p>
     </header>
     <div class="overview-grid">
       <a class="overview-tile" href="#tab=scl">
@@ -52,9 +52,9 @@ const renderOverviewTab = (site: SiteInput): string => {
         <div class="overview-tile-num">${adrCount}</div>
         <div class="overview-tile-hint">ADRs · ${conceptionCount} conception doc${conceptionCount === 1 ? '' : 's'}</div>
       </a>
-      <a class="overview-tile" href="#tab=changes">
-        <div class="overview-tile-label">Changes</div>
-        <div class="overview-tile-num">${changes.length}</div>
+      <a class="overview-tile" href="#tab=work-items">
+        <div class="overview-tile-label">Work Items</div>
+        <div class="overview-tile-num">${workItems.length}</div>
         <div class="overview-tile-hint">${inProgress} in progress · ${pending} pending · ${completed} done</div>
       </a>
     </div>
@@ -65,7 +65,7 @@ const renderTab = (key: TabKey, body: string): string =>
   `<div class="tab" data-tab="${esc(key)}" id="tab-${esc(key)}">${body}</div>`
 
 const renderTabBar = (active: TabKey): string => {
-  const tabs = (['overview', 'scl', 'decisions', 'changes'] as TabKey[])
+  const tabs = (['overview', 'scl', 'decisions', 'work-items'] as TabKey[])
     .map(
       (key) =>
         `<a class="tab-link${key === active ? ' active' : ''}" data-tab-link="${esc(key)}" href="#tab=${esc(key)}">${esc(TAB_LABELS[key])}</a>`,
@@ -539,7 +539,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
   .adr-index-row { grid-template-columns: 1fr; gap: 4px; }
 }
 
-/* changes */
+/* work items */
 .ch-index { display: grid; gap: 6px; margin: 12px 0 24px; }
 .ch-index-row {
   display: grid; grid-template-columns: 120px minmax(0, 1fr) auto auto auto;
@@ -551,7 +551,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
 .ch-index-row:hover { border-color: var(--accent); text-decoration: none; }
 .ch-index-row .ch-id { color: var(--muted); font-size: 12px; }
 .ch-index-row .ch-title { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.work-item, .completion-report { margin-top: 8px; }
+.work-item, .completion-record { margin-top: 8px; }
 .wi-header, .cr-header { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; margin-bottom: 8px; }
 .wi-header h4, .cr-header h4 { margin: 0; font-size: 15px; }
 .wi-meta, .cr-meta { display: flex; flex-wrap: wrap; gap: 4px; }
@@ -572,7 +572,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
 }
 .change-list { padding-left: 22px; margin: 6px 0; }
 .change-list li { margin: 4px 0; }
-.completion-report {
+.completion-record {
   margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--border);
 }
 `
@@ -683,21 +683,21 @@ const SCRIPT = `
 `
 
 export const renderPage = (site: SiteInput): string => {
-  const { scl, decisions, changes } = site
+  const { scl, decisions, work_items: workItems } = site
   const title = site.title ?? scl.system
 
   const tabs = [
     renderTab('overview', renderOverviewTab(site)),
     renderTab('scl', renderSclTab(scl)),
     renderTab('decisions', renderDecisionsTab(decisions)),
-    renderTab('changes', renderChangesTab(changes)),
+    renderTab('work-items', renderChangesTab(workItems)),
   ].join('\n')
 
   const tocs = [
     renderTocFor('overview', [{ id: 'ov-hero', label: 'Overview' }]),
     renderTocFor('scl', sclTocItems(scl)),
     renderTocFor('decisions', decisionsTocItems(decisions)),
-    renderTocFor('changes', changesTocItems(changes)),
+    renderTocFor('work-items', changesTocItems(workItems)),
   ].join('\n')
 
   const html = `<!doctype html>

@@ -1,15 +1,15 @@
 /**
- * Render work items + completion reports (Changes tab).
+ * Render work items and their optional completion records.
  *
  * Each change directory becomes one card with header badges (status,
  * risk, dates) and three collapsible blocks: motivation, scope, and
- * verification. When a completion-report.yaml is present its summary
+ * verification. When completion is present its summary
  * and residual risk hang underneath.
  */
 
 import { badge, chip, esc, isObj, kvRow, renderValue, slug } from './html.ts'
 import { renderMarkdown } from './markdown.ts'
-import type { ChangeEntry, CompletionReport, WorkItem } from './types.ts'
+import type { ChangeEntry, Completion, WorkItem } from './types.ts'
 
 const STATUS_KIND: Record<string, string> = {
   pending: 'status-pending',
@@ -120,14 +120,11 @@ const WORK_ITEM_KEYS = [
   'affected_guarantees',
   'verification',
   'risk_notes',
+  'completion',
 ] as const
 
-const COMPLETION_REPORT_KEYS = [
-  'id',
-  'title',
-  'status',
+const COMPLETION_KEYS = [
   'completed_at',
-  'work_item',
   'summary',
   'semantic_diff',
   'verification',
@@ -191,59 +188,59 @@ const renderWorkItem = (wi: WorkItem): string => {
   </div>`
 }
 
-const renderCompletionReport = (cr: CompletionReport): string => {
+const renderCompletion = (completion: Completion, status: string | undefined): string => {
   const meta = [
-    cr.status ? badge(cr.status, STATUS_KIND[cr.status] ?? '') : '',
-    cr.completed_at ? chip(`completed ${cr.completed_at}`, 'hint') : '',
+    status ? badge(status, STATUS_KIND[status] ?? '') : '',
+    completion.completed_at ? chip(`completed ${completion.completed_at}`, 'hint') : '',
   ]
     .filter(Boolean)
     .join(' ')
   const blocks: string[] = []
-  if (cr.summary) {
+  if (completion.summary) {
     blocks.push(
-      `<details class="change-block" open><summary>Summary</summary>${renderProse(cr.summary)}</details>`,
+      `<details class="change-block" open><summary>Summary</summary>${renderProse(completion.summary)}</details>`,
     )
   }
-  if (cr.semantic_diff !== undefined) {
+  if (completion.semantic_diff !== undefined) {
     blocks.push(
-      `<details class="change-block"><summary>Semantic diff</summary>${renderListOrText(cr.semantic_diff)}</details>`,
+      `<details class="change-block"><summary>Semantic diff</summary>${renderListOrText(completion.semantic_diff)}</details>`,
     )
   }
-  if (cr.verification !== undefined) {
+  if (completion.verification !== undefined) {
     blocks.push(
-      `<details class="change-block"><summary>Verification results</summary>${renderListOrText(cr.verification)}</details>`,
+      `<details class="change-block"><summary>Verification results</summary>${renderListOrText(completion.verification)}</details>`,
     )
   }
-  const guarantees = cr.affected_guarantees_state ?? cr.remaining_guarantees_state
+  const guarantees = completion.affected_guarantees_state ?? completion.remaining_guarantees_state
   if (guarantees !== undefined) {
     blocks.push(
       `<details class="change-block"><summary>Guarantees state</summary>${renderListOrText(guarantees)}</details>`,
     )
   }
-  if (cr.residual_risk !== undefined) {
+  if (completion.residual_risk !== undefined) {
     blocks.push(
-      `<details class="change-block"><summary>Residual risk</summary>${renderListOrText(cr.residual_risk)}</details>`,
+      `<details class="change-block"><summary>Residual risk</summary>${renderListOrText(completion.residual_risk)}</details>`,
     )
   }
-  if (cr.traceability !== undefined) {
+  if (completion.traceability !== undefined) {
     blocks.push(
-      `<details class="change-block"><summary>Traceability</summary>${renderListOrText(cr.traceability)}</details>`,
+      `<details class="change-block"><summary>Traceability</summary>${renderListOrText(completion.traceability)}</details>`,
     )
   }
-  if (cr.human_decisions !== undefined) {
+  if (completion.human_decisions !== undefined) {
     blocks.push(
-      `<details class="change-block"><summary>Human decisions</summary>${renderListOrText(cr.human_decisions)}</details>`,
+      `<details class="change-block"><summary>Human decisions</summary>${renderListOrText(completion.human_decisions)}</details>`,
     )
   }
-  if (cr.approver_note) {
+  if (completion.approver_note) {
     blocks.push(
-      `<details class="change-block"><summary>Approver note</summary>${renderProse(cr.approver_note)}</details>`,
+      `<details class="change-block"><summary>Approver note</summary>${renderProse(completion.approver_note)}</details>`,
     )
   }
-  blocks.push(...renderExtraBlocks(cr, COMPLETION_REPORT_KEYS))
-  return `<div class="completion-report">
+  blocks.push(...renderExtraBlocks(completion, COMPLETION_KEYS))
+  return `<div class="completion-record">
     <header class="cr-header">
-      <h4>Completion report</h4>
+      <h4>Completion</h4>
       <div class="cr-meta">${meta}</div>
     </header>
     ${blocks.join('')}
@@ -256,10 +253,10 @@ const renderChangeCard = (entry: ChangeEntry): string => {
     <header>
       <h3>${esc(wi.title ?? entry.id)}</h3>
       ${chip(entry.id, 'hint')}
-      ${entry.completion_report ? badge('has completion report', 'has-cr') : ''}
+      ${wi.completion ? badge('has completion', 'has-cr') : ''}
     </header>
     ${renderWorkItem(wi)}
-    ${entry.completion_report ? renderCompletionReport(entry.completion_report) : ''}
+    ${wi.completion ? renderCompletion(wi.completion, wi.status) : ''}
   </article>`
 }
 
@@ -267,8 +264,8 @@ export const renderChangesTab = (changes: ChangeEntry[]): string => {
   if (changes.length === 0) {
     return `<section id="ch-empty" class="tab-overview">
       <header class="page-header">
-        <div class="eyebrow">Changes</div>
-        <h1>Changes</h1>
+        <div class="eyebrow">Work Items</div>
+        <h1>Work Items</h1>
       </header>
       <p class="lead">No work items were provided.</p>
     </section>`
@@ -310,7 +307,7 @@ export const renderChangesTab = (changes: ChangeEntry[]): string => {
         <span class="ch-title">${esc(wi.title ?? c.id)}</span>
         ${wi.status ? badge(wi.status, STATUS_KIND[wi.status] ?? '') : ''}
         ${wi.risk ? badge(wi.risk, RISK_KIND[wi.risk] ?? '') : ''}
-        ${c.completion_report ? chip('completion report', 'has-cr') : ''}
+        ${wi.completion ? chip('completion', 'has-cr') : ''}
       </a>`
     })
     .join('')
@@ -319,8 +316,8 @@ export const renderChangesTab = (changes: ChangeEntry[]): string => {
 
   return `<section id="ch-overview" class="tab-overview">
     <header class="page-header">
-      <div class="eyebrow">Changes</div>
-      <h1>Work items &amp; completion reports</h1>
+      <div class="eyebrow">Work Items</div>
+      <h1>Work items</h1>
     </header>
     <div class="stats">${stats}</div>
   </section>

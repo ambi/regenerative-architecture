@@ -24,7 +24,7 @@ describe('parseCliArgs', () => {
     const r = parseCliArgs([
       '--scl=a.yaml',
       '--decisions=adr/',
-      '--changes=changes/',
+      '--work-items=work-items/',
       '--title=demo',
       '--out=out.html',
     ])
@@ -33,11 +33,17 @@ describe('parseCliArgs', () => {
       expect(r.opts).toEqual({
         scl: 'a.yaml',
         decisions: 'adr/',
-        changes: 'changes/',
+        workItems: 'work-items/',
         title: 'demo',
         out: 'out.html',
       })
     }
+  })
+
+  it('accepts --changes as a compatibility alias', () => {
+    const r = parseCliArgs(['--scl=a.yaml', '--changes=old/'])
+    expect(r.kind).toBe('ok')
+    if (r.kind === 'ok') expect(r.opts.workItems).toBe('old/')
   })
 
   it('returns help when --help is given', () => {

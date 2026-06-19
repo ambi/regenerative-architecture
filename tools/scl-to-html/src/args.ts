@@ -8,7 +8,7 @@
 export type CliOptions = {
   scl: string
   decisions: string | null
-  changes: string | null
+  workItems: string | null
   out: string | null
   title: string | null
 }
@@ -19,25 +19,32 @@ export type ParseResult =
   | { kind: 'error'; code: number; message: string }
 
 const USAGE = [
-  'Usage: scl-to-html --scl <file> [--decisions <dir>] [--changes <dir>]',
+  'Usage: scl-to-html --scl <file> [--decisions <dir>] [--work-items <dir>]',
   '                   [--title <string>] [--out <path>]',
   '       scl-to-html --help',
   '',
   '  --scl        SCL YAML document (required).',
   '  --decisions  Directory with CONCEPTION*.md + ADR-*.md (optional).',
-  '  --changes    Directory with <id>/{work-item,completion-report}.yaml (optional).',
+  '  --work-items Directory with *.yaml work-item records (optional).',
   '  --title      Override the page <title> and header (defaults to the SCL system name).',
   '  --out        Output HTML path. Without --out the HTML is written to stdout.',
   '',
 ].join('\n')
 
-const FLAGS_WITH_VALUE = new Set(['--scl', '--decisions', '--changes', '--title', '--out'])
+const FLAGS_WITH_VALUE = new Set([
+  '--scl',
+  '--decisions',
+  '--work-items',
+  '--changes',
+  '--title',
+  '--out',
+])
 
 export function parseCliArgs(argv: readonly string[]): ParseResult {
   const opts: CliOptions = {
     scl: '',
     decisions: null,
-    changes: null,
+    workItems: null,
     out: null,
     title: null,
   }
@@ -76,8 +83,9 @@ export function parseCliArgs(argv: readonly string[]): ParseResult {
       case '--decisions':
         opts.decisions = value ?? null
         break
+      case '--work-items':
       case '--changes':
-        opts.changes = value ?? null
+        opts.workItems = value ?? null
         break
       case '--title':
         opts.title = value ?? null

@@ -1,0 +1,100 @@
+id: wi-26-unified-work-item-record
+title: ワークアイテムと完了記録を単一 work-item.yaml に統合する
+created_at: 2026-06-20
+status: completed
+authors: [tn]
+
+motivation: |
+  変更管理の正本が work-item.yaml と completion-report.yaml に分かれていると、
+  完了時に status は work-item.yaml、検証結果と残リスクは completion-report.yaml
+  という二重更新になる。未完了時は work-item.yaml しか存在しないため、完了時だけ
+  正本が分裂する形でもある。
+
+  Regenerative Architecture の単一上流ソースの考え方に合わせ、ワークアイテムを
+  変更管理の正本とし、完了または中止の判断記録は同じ work-item.yaml の
+  completion セクションに保持する。
+
+scope:
+  documentation:
+    - REGENERATIVE_ARCHITECTURE.md の §4.2 と §4.2.1 を単一 work-item.yaml 正本へ更新する。
+    - SPECIFICATION_CORE_LANGUAGE.md と ra-idp-go の構想文書の旧用語を更新する。
+  work_items:
+    - 既存の completion-report.yaml を各 work-item.yaml の completion セクションへ移す。
+    - completion-report.yaml を削除する。
+    - 既存ワークアイテム本文中の旧呼称を completion に揃える。
+  tooling:
+    - work-item schema に completion を追加し、completed/cancelled では completion を必須にする。
+    - completion-report schema と yaml-check:completion-reports を削除する。
+    - scl-to-html が work_item.completion を読むように更新する。
+    - 関連 README、テスト、生成 HTML を更新する。
+
+out_of_scope:
+  - 外部 Issue / PR サービスとの同期実装。
+  - evidence/manifest.yaml の詳細スキーマ化。
+  - ra-idp-go のアプリケーション機能変更。
+
+affected_guarantees:
+  - 変更管理の正本性: 作業計画、status、完了判断が 1 ファイルで追跡できる。
+  - スキーマ検証: completed/cancelled の work-item は completion なしでは通らない。
+  - 表示生成: Work Items タブは completion を同一カード内に表示する。
+
+verification:
+  - cmd: bun run yaml-check:work-items
+    in: tools
+  - cmd: bun run yaml-check:all
+    in: tools
+  - cmd: bun test
+    in: tools
+  - cmd: bun run typecheck
+    in: tools
+  - cmd: bun run lint
+    in: tools
+  - cmd: fd 'completion[-]report[.]yaml' work-items ra-idp-go/work-items tools
+    reason: 旧完了記録ファイルが残らないこと。
+
+risk: low
+risk_notes: |
+  主なリスクは既存 YAML の移行時に値の解釈を変えてしまうこと。特に YAML 1.1 系の
+  パーサは `1:1` のような文字列を数値として扱うため、完了記録は元ファイルの本文を
+  テキストとして移植し、Bun の YAML ローダで最終検証した。
+
+completion:
+  completed_at: 2026-06-20
+  summary: |
+    ワークアイテムの保存規約を、work-items/<id>.yaml の単一正本へ変更した。
+    完了または中止の判断記録は completion セクションとして同じファイルに保持する。
+    既存 11 件の completion-report.yaml は対応する work-item.yaml に統合し、独立した
+    completion-report schema と検証スクリプトを削除した。
+  semantic_diff:
+    before:
+      storage: changes/<id>/work-item.yaml と任意の completion-report.yaml
+      completion_state: status と完了判断が別ファイルに分散する
+    after:
+      storage: work-items/<id>.yaml
+      completion_state: status と completion が同じ正本に存在する
+  verification:
+    - cmd: bun run yaml-check:work-items
+      in: tools
+      result: ok, 23 file(s) OK
+    - cmd: bun run yaml-check:all
+      in: tools
+      result: ok
+    - cmd: bun test
+      in: tools
+      result: ok, 114 pass
+    - cmd: bun run typecheck
+      in: tools
+      result: ok
+    - cmd: bun run lint
+      in: tools
+      result: ok
+    - cmd: fd 'completion[-]report[.]yaml' work-items ra-idp-go/work-items tools
+      result: empty
+  affected_guarantees_state:
+    - 変更管理の正本性: pass。完了情報は work-item.yaml の completion に統合済み。
+    - スキーマ検証: pass。completed/cancelled は completion 必須。
+    - 表示生成: pass。scl-to-html は work_item.completion を Work Items タブに表示する。
+  residual_risk:
+    - 既存の外部参照が completion-report.yaml のパスを直接参照している場合はリンク切れになる。リポジトリ内の対象範囲では旧参照が残っていないことを rg で確認した。
+  human_decisions:
+    - work-item と completion-report は統合し、completion を work-item.yaml の任意セクションとする。

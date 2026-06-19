@@ -5,7 +5,7 @@
  * directory path to avoid stale results across runs.
  */
 
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, describe, expect, it } from 'bun:test'
@@ -77,12 +77,11 @@ describe('loadDecisions', () => {
 })
 
 describe('loadChanges', () => {
-  it('reads each <id>/work-item.yaml as a WorkItem keyed by directory name', async () => {
+  it('reads each <id>.yaml as a WorkItem keyed by filename', async () => {
     const dir = await tempDir()
     const id = 'wi-1-demo'
-    await mkdir(join(dir, id), { recursive: true })
     await writeFile(
-      join(dir, id, 'work-item.yaml'),
+      join(dir, `${id}.yaml`),
       [
         'id: wi-1-demo',
         'title: Demo',
@@ -102,26 +101,23 @@ describe('loadChanges', () => {
     expect(changes.length).toBe(1)
     expect(changes[0]?.id).toBe(id)
     expect(changes[0]?.work_item.title).toBe('Demo')
-    expect(changes[0]?.completion_report).toBeUndefined()
+    expect(changes[0]?.work_item.completion).toBeUndefined()
   })
 
-  it('picks up completion-report.yaml when present', async () => {
+  it('picks up completion when present in work-item.yaml', async () => {
     const dir = await tempDir()
     const id = 'wi-2-done'
-    await mkdir(join(dir, id), { recursive: true })
-    await writeFile(join(dir, id, 'work-item.yaml'), 'id: wi-2-done\ntitle: D\nstatus: completed\n')
     await writeFile(
-      join(dir, id, 'completion-report.yaml'),
-      'id: wi-2-done\ntitle: D\nstatus: completed\nsummary: done\n',
+      join(dir, `${id}.yaml`),
+      'id: wi-2-done\ntitle: D\nstatus: completed\ncompletion:\n  summary: done\n',
     )
     const changes = await loadChanges(dir)
-    expect(changes[0]?.completion_report?.summary).toBe('done')
+    expect(changes[0]?.work_item.completion?.summary).toBe('done')
   })
 
-  it('skips directories without a parseable work-item.yaml', async () => {
+  it('skips files without YAML objects', async () => {
     const dir = await tempDir()
-    await mkdir(join(dir, 'no-wi'), { recursive: true })
-    // No work-item.yaml here.
+    await writeFile(join(dir, 'not-object.yaml'), '- item\n')
     const changes = await loadChanges(dir)
     expect(changes).toEqual([])
   })

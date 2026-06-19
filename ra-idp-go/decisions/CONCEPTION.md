@@ -90,4 +90,4 @@ SAML、WS-Federation、外部 IdP 連携、SCIM、高保証プロファイルは
 - UI の `bun run typecheck`、`bun run lint`、`bun run build` が成功する。
 - Go の coherence test が SCL 内部参照とバインディングの整合を確認する。
 - SCL の保証義務ごとに必要な検証と再検証条件が宣言されている。
-- 高リスクな未充足や例外承認が完了レポートに明示される。
+- 高リスクな未充足や例外承認がワークアイテムの completion に明示される。

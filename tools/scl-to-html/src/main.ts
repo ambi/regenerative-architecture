@@ -4,12 +4,12 @@
  *
  *   scl-to-html --scl <path/to/scl.yaml>
  *               [--decisions <dir>]
- *               [--changes <dir>]
+ *               [--work-items <dir>]
  *               [--title <string>]
  *               [--out <path>]
  *
- * --decisions and --changes are optional. Without them the produced HTML
- * still has the Overview and SCL tabs; the Decisions / Changes tabs render
+ * --decisions and --work-items are optional. Without them the produced HTML
+ * still has the Overview and SCL tabs; the Decisions / Work Items tabs render
  * an "empty" placeholder.
  *
  * Without --out the HTML is written to stdout.
@@ -35,17 +35,17 @@ if (parsed.kind === 'error') {
   process.exit(parsed.code)
 }
 
-const { scl: sclArg, decisions: decisionsArg, changes: changesArg, out, title } = parsed.opts
+const { scl: sclArg, decisions: decisionsArg, workItems: workItemsArg, out, title } = parsed.opts
 
 const sclPath = resolve(process.cwd(), sclArg)
 const decisionsPath = decisionsArg ? resolve(process.cwd(), decisionsArg) : null
-const changesPath = changesArg ? resolve(process.cwd(), changesArg) : null
+const workItemsPath = workItemsArg ? resolve(process.cwd(), workItemsArg) : null
 
 const scl = await loadScl(sclPath)
 const decisions = decisionsPath ? await loadDecisions(decisionsPath) : []
-const changes = changesPath ? await loadChanges(changesPath) : []
+const workItems = workItemsPath ? await loadChanges(workItemsPath) : []
 
-const html = renderPage({ scl, decisions, changes, title: title ?? undefined })
+const html = renderPage({ scl, decisions, work_items: workItems, title: title ?? undefined })
 
 if (out) {
   const outPath = resolve(process.cwd(), out)

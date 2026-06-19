@@ -1,6 +1,6 @@
 /**
  * Types for every artifact the tool renders: SCL document, ADRs (incl.
- * CONCEPTION), and Changes (work items + completion reports).
+ * CONCEPTION), and work items with optional completion records.
  *
  * SCL types follow SPECIFICATION_CORE_LANGUAGE.md §2–§3. Change types
  * mirror the JSON Schemas under tools/yaml-check/schemas/.
@@ -242,7 +242,7 @@ export interface DecisionDoc {
   number?: number
 }
 
-// ─── Changes (work items + completion reports) ─────────────────────
+// ─── Work items with optional completion records ────────────────────
 
 export interface WorkItem {
   id: string
@@ -257,15 +257,12 @@ export interface WorkItem {
   affected_guarantees?: unknown
   verification?: unknown
   risk_notes?: string
+  completion?: Completion
   [k: string]: unknown
 }
 
-export interface CompletionReport {
-  id: string
-  title?: string
-  status?: 'completed' | 'cancelled'
+export interface Completion {
   completed_at?: string
-  work_item?: string
   summary?: string
   verification?: unknown
   affected_guarantees_state?: unknown
@@ -279,10 +276,9 @@ export interface CompletionReport {
 }
 
 export interface ChangeEntry {
-  /** Directory name under `changes/` (also the in-page anchor). */
+  /** File stem under `work-items/` (also the in-page anchor). */
   id: string
   work_item: WorkItem
-  completion_report?: CompletionReport
 }
 
 // ─── Top-level page input ──────────────────────────────────────────
@@ -290,7 +286,7 @@ export interface ChangeEntry {
 export interface SiteInput {
   scl: SclDocument
   decisions: DecisionDoc[]
-  changes: ChangeEntry[]
+  work_items: ChangeEntry[]
   /** Optional override for the document <title> and page header. */
   title?: string
 }

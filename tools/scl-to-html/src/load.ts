@@ -3,16 +3,16 @@
  *
  *   - SCL document   — single YAML file (Bun's native YAML importer)
  *   - Decisions      — directory of *.md (CONCEPTION*.md + ADR-*.md)
- *   - Changes        — directory of <id>/{work-item.yaml,completion-report.yaml}
+ *   - Work items     — directory of *.yaml
  *
  * Pure-ish: file IO only. No network, no clock.
  */
 
 import { readFile, readdir } from 'node:fs/promises'
-import { basename, join } from 'node:path'
+import { basename, extname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { splitTitle } from './markdown.ts'
-import type { ChangeEntry, CompletionReport, DecisionDoc, SclDocument, WorkItem } from './types.ts'
+import type { ChangeEntry, DecisionDoc, SclDocument, WorkItem } from './types.ts'
 
 export async function loadScl(path: string): Promise<SclDocument> {
   const mod = await import(pathToFileURL(path).href)
@@ -55,35 +55,25 @@ export async function loadDecisions(dir: string): Promise<DecisionDoc[]> {
 
 export async function loadChanges(dir: string): Promise<ChangeEntry[]> {
   const entries = await readdir(dir, { withFileTypes: true })
-  const dirs = entries
-    .filter((e) => e.isDirectory())
+  const files = entries
+    .filter((e) => e.isFile() && extname(e.name) === '.yaml')
     .map((e) => e.name)
     .sort()
   const out: ChangeEntry[] = []
-  for (const id of dirs) {
-    const wiPath = join(dir, id, 'work-item.yaml')
+  for (const file of files) {
+    const id = basename(file, '.yaml')
+    const wiPath = join(dir, file)
     let work_item: WorkItem
     try {
       const mod = await import(pathToFileURL(wiPath).href)
       const data = (mod as { default?: unknown }).default
-      if (!data || typeof data !== 'object') continue
+      if (!data || typeof data !== 'object' || Array.isArray(data)) continue
       work_item = { id, ...(data as object) } as WorkItem
     } catch {
-      // No work-item.yaml or it failed to parse — skip this directory.
+      // Failed to parse — skip this file.
       continue
     }
-    const crPath = join(dir, id, 'completion-report.yaml')
-    let completion_report: CompletionReport | undefined
-    try {
-      const mod = await import(pathToFileURL(crPath).href)
-      const data = (mod as { default?: unknown }).default
-      if (data && typeof data === 'object') {
-        completion_report = { id, ...(data as object) } as CompletionReport
-      }
-    } catch {
-      // completion-report.yaml is optional; missing is fine.
-    }
-    out.push({ id, work_item, completion_report })
+    out.push({ id, work_item })
   }
   return out
 }

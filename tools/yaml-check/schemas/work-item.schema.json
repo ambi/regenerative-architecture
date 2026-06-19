@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://regenerative-architecture/schemas/work-item.json",
   "title": "Work Item",
-  "description": "ra.md §4.2.1 / CLAUDE.md で規定されるワークアイテム。changes/<id>/work-item.yaml に置く。",
+  "description": "ra.md §4.2.1 / CLAUDE.md で規定されるワークアイテム正本。<component>/work-items/<id>.yaml に置き、完了時は completion を同じファイルに追記する。",
   "type": "object",
   "required": [
     "id",
@@ -17,6 +17,15 @@
     "verification",
     "risk",
     "risk_notes"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": { "status": { "enum": ["completed", "cancelled"] } },
+        "required": ["status"]
+      },
+      "then": { "required": ["completion"] }
+    }
   ],
   "properties": {
     "id": {
@@ -83,6 +92,70 @@
     },
     "target_state": {
       "description": "推奨形式。Refactor 系で「整合後の状態」を宣言する場合に使う。"
+    },
+    "completion": {
+      "description": "完了または中止の判断記録。status が completed/cancelled になった時点で同じ work-item.yaml に追記する。",
+      "type": "object",
+      "required": ["completed_at", "summary", "verification"],
+      "anyOf": [
+        { "required": ["affected_guarantees_state"] },
+        { "required": ["remaining_guarantees_state"] }
+      ],
+      "properties": {
+        "completed_at": {
+          "oneOf": [
+            { "type": "string", "format": "date" },
+            { "type": "string", "format": "date-time" }
+          ]
+        },
+        "summary": {
+          "description": "意味上の差分の要約。",
+          "type": "string",
+          "minLength": 1
+        },
+        "verification": {
+          "description": "検証結果。",
+          "type": "array",
+          "items": {
+            "oneOf": [
+              { "type": "string", "minLength": 1 },
+              {
+                "type": "object",
+                "required": ["cmd"],
+                "properties": {
+                  "cmd": { "type": "string", "minLength": 1 },
+                  "in": { "type": "string" },
+                  "result": {}
+                }
+              }
+            ]
+          }
+        },
+        "affected_guarantees_state": {
+          "description": "保証義務の状態。",
+          "type": "array"
+        },
+        "remaining_guarantees_state": {
+          "description": "保証義務の状態 (旧表記)。`affected_guarantees_state` を推奨。",
+          "type": "array"
+        },
+        "residual_risk": {
+          "description": "残リスク。",
+          "type": "array"
+        },
+        "semantic_diff": {
+          "description": "意味上の差分の詳細。"
+        },
+        "traceability": {
+          "description": "仕様 ⇄ 実装 / テストへの対応関係。"
+        },
+        "human_decisions": {
+          "description": "人間の判断。"
+        },
+        "approver_note": {
+          "type": "string"
+        }
+      }
     }
   }
 }

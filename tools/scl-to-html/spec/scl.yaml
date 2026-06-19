@@ -1,6 +1,6 @@
 # scl-to-html — Specification Core Language (SCL) Document
 #
-# 「RA ドキュメント (SCL / CONCEPTION / ADR / changes) を 1 枚の HTML に
+# 「RA ドキュメント (SCL / CONCEPTION / ADR / work items) を 1 枚の HTML に
 # 束ねるツール」自身を 1 つの RA として記述したもの。Layer 1 (仕様核)。
 # 実装 (Layer 3) は本ファイルから派生する。
 #
@@ -27,8 +27,8 @@ vocabulary:
 
   ChangeEntry:
     definition: |
-      changes/<id>/ ディレクトリ 1 件分のレコード。常に work-item.yaml を
-      持ち、completion-report.yaml は任意。Changes タブの 1 カード。
+      work-items/<id>.yaml 1 件分のレコード。完了情報は
+      work_item.completion に含める。Work Items タブの 1 カード。
 
   HtmlDocument:
     definition: |
@@ -37,7 +37,7 @@ vocabulary:
 
   Tab:
     definition: |
-      HtmlDocument 内の論理的ビュー。Overview / SCL / Decisions / Changes
+      HtmlDocument 内の論理的ビュー。Overview / SCL / Decisions / Work Items
       の 4 種。URL ハッシュ #tab=<name> でルーティングされる。
 
   Section:
@@ -64,7 +64,7 @@ models:
 
   TabKind:
     kind: enum
-    values: [overview, scl, decisions, changes]
+    values: [overview, scl, decisions, work_items]
 
   SectionKind:
     kind: enum
@@ -119,11 +119,10 @@ models:
 
   ChangeEntry:
     kind: value_object
-    description: 1 つの changes ディレクトリ分のレコード。
+    description: 1 つの work item ファイル分のレコード。
     fields:
-      id:                { type: String, constraints: [non_empty], description: "ディレクトリ名" }
-      work_item:         { type: Map, description: "work-item.yaml 由来" }
-      completion_report: { type: Map, optional: true, description: "completion-report.yaml 由来" }
+      id:                { type: String, constraints: [non_empty], description: "ファイル名 (拡張子なし)" }
+      work_item:         { type: Map, description: "work-items/<id>.yaml 由来。completion もここに含む。" }
 
   HtmlDocument:
     kind: value_object
@@ -137,7 +136,7 @@ models:
     fields:
       scl:       { type: SclDocument }
       decisions: { type: "DecisionDoc[]" }
-      changes:   { type: "ChangeEntry[]" }
+      work_items: { type: "ChangeEntry[]" }
       title:     { type: String, optional: true, description: "省略時は scl.system" }
 
 # =================================================================
@@ -166,7 +165,7 @@ interfaces:
     input:
       scl_path:        { type: Path, description: "SCL YAML パス" }
       decisions_dir:   { type: Path, optional: true, description: "CONCEPTION*.md + ADR-*.md のディレクトリ" }
-      changes_dir:     { type: Path, optional: true, description: "<id>/work-item.yaml のディレクトリ" }
+      work_items_dir:  { type: Path, optional: true, description: "work-items/*.yaml のディレクトリ" }
     output:
       input: { type: SiteInput }
     read_only: true
@@ -181,7 +180,7 @@ interfaces:
         flags:
           - { name: scl,       required: true }
           - { name: decisions, required: false }
-          - { name: changes,   required: false }
+          - { name: work-items, required: false }
           - { name: title,     required: false }
           - { name: out,       required: false }
         stdout: HtmlDocument          # --out 省略時はここに書き出す
@@ -213,10 +212,10 @@ invariants:
     always: "∀ d ∈ decisions : html contains 'id=\"' + d.id + '\"'"
     severity: must
 
-  all_changes_addressable:
+  all_work_items_addressable:
     description: 入力された ChangeEntry 各件は HtmlDocument 内に 1 つの安定アンカーを持つ。
     target: Render
-    always: "∀ c ∈ changes : html contains 'id=\"' + slug(c.id) + '\"'"
+    always: "∀ w ∈ work_items : html contains 'id=\"' + slug(w.id) + '\"'"
     severity: must
 
   user_text_escaped:
@@ -304,19 +303,19 @@ scenarios:
       - 出力に Decisions タブが現れる
       - 出力に CONCEPTION 由来の見出しと ADR-001 のアンカーが含まれる
 
-  完了レポート付きの WorkItem は Changes タブに 1 つのカードとして並ぶ:
+  completion 付きの WorkItem は Work Items タブに 1 つのカードとして並ぶ:
     steps:
-      - 1 つの work-item.yaml と同ディレクトリの completion-report.yaml を用意する
+      - completion を持つ work-items/<id>.yaml を用意する
       - "そのディレクトリを LoadSite で読み込み Render に渡す"
-      - 出力に Changes タブが現れる
+      - 出力に Work Items タブが現れる
       - 出力に work item の id をアンカーに持つカードが 1 つ含まれる
-      - 出力に completion-report の summary が含まれる
+      - 出力に completion の summary が含まれる
 
-  --scl だけ与えれば Decisions / Changes タブは空表示で生成できる:
+  --scl だけ与えれば Decisions / Work Items タブは空表示で生成できる:
     steps:
       - SCL のみ指定して LoadSite を呼ぶ
-      - "decisions と changes は空配列になる"
-      - Render は失敗せず、Decisions / Changes タブには placeholder が出る
+      - "decisions と work_items は空配列になる"
+      - Render は失敗せず、Decisions / Work Items タブには placeholder が出る
 
 # =================================================================
 # 6. objectives
@@ -329,7 +328,7 @@ objectives:
     metric: latency_p95
     target: "<500ms"
     interface: Render
-    description: 数 MiB クラスの SCL + 数十件の ADR + 数十件の changes を p95 500ms 以内で変換する。
+    description: 数 MiB クラスの SCL + 数十件の ADR + 数十件の work items を p95 500ms 以内で変換する。
 
   read_only:
     kind: security

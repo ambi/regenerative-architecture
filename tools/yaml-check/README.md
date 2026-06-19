@@ -23,11 +23,10 @@ bun yaml-check --help
 
 ### 同梱スキーマ
 
-| 名前                 | 対象                              | 由来                                |
-| -------------------- | --------------------------------- | ----------------------------------- |
-| `work-item`          | `changes/<id>/work-item.yaml`         | `REGENERATIVE_ARCHITECTURE.md` §4.2 |
-| `completion-report`  | `changes/<id>/completion-report.yaml` | 同上                                |
-| `scl`                | `*/spec/scl.yaml`                     | `SPECIFICATION_CORE_LANGUAGE.md` §2–§3 |
+| 名前        | 対象                          | 由来                                |
+| ----------- | ----------------------------- | ----------------------------------- |
+| `work-item` | `*/work-items/<id>.yaml`      | `REGENERATIVE_ARCHITECTURE.md` §4.2 |
+| `scl`       | `*/spec/scl.yaml`             | `SPECIFICATION_CORE_LANGUAGE.md` §2–§3 |
 
 未知のスキーマ名を渡すと、ファイル検査を一切行わずに exit code 2 を返す。
 
@@ -36,10 +35,9 @@ bun yaml-check --help
 `tools/package.json` から:
 
 ```bash
-bun run yaml-check:work-items          # changes/*/work-item.yaml
-bun run yaml-check:completion-reports  # changes/*/completion-report.yaml
+bun run yaml-check:work-items          # */work-items/*.yaml
 bun run yaml-check:scl                 # ra-idp-go / scl-to-html / yaml-check の SCL 3 本
-bun run yaml-check:all                 # 上 3 つを直列で
+bun run yaml-check:all                 # 上 2 つを直列で
 ```
 
 ## Exit code

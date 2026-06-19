@@ -156,15 +156,17 @@ describe('renderChangesTab', () => {
     },
     {
       id: 'wi-2-done',
-      work_item: { id: 'wi-2-done', title: 'Done thing', status: 'completed', risk: 'low' },
-      completion_report: {
+      work_item: {
         id: 'wi-2-done',
         title: 'Done thing',
         status: 'completed',
-        summary: 'finished',
-        affected_guarantees_state: ['unchanged'],
-        scl_changes: {
-          models: ['Foo'],
+        risk: 'low',
+        completion: {
+          summary: 'finished',
+          affected_guarantees_state: ['unchanged'],
+          scl_changes: {
+            models: ['Foo'],
+          },
         },
       },
     },
@@ -182,8 +184,8 @@ describe('renderChangesTab', () => {
     expect(html).toContain('ch-index-row')
   })
 
-  it('renders the completion report under the work item when present', () => {
-    expect(html).toContain('Completion report')
+  it('renders the completion under the work item when present', () => {
+    expect(html).toContain('Completion')
     expect(html).toContain('finished')
   })
 
@@ -219,7 +221,7 @@ describe('renderPage (integration)', () => {
         number: 1,
       },
     ],
-    changes: [
+    work_items: [
       {
         id: 'wi-x',
         work_item: { id: 'wi-x', title: 'X', status: 'pending', risk: 'low' },
@@ -239,7 +241,7 @@ describe('renderPage (integration)', () => {
     expect(html).toContain('data-tab="overview"')
     expect(html).toContain('data-tab="scl"')
     expect(html).toContain('data-tab="decisions"')
-    expect(html).toContain('data-tab="changes"')
+    expect(html).toContain('data-tab="work-items"')
   })
 
   it('emits a tab bar with active overview by default (server side)', () => {

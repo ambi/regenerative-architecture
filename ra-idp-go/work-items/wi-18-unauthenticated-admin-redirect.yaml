@@ -1,0 +1,206 @@
+id: wi-18-unauthenticated-admin-redirect
+title: 未認証で /admin/* を開いたとき login に redirect し、戻り先を保持する
+created_at: 2026-06-16
+status: pending
+authors: [tn]
+
+motivation: |
+  ログアウト状態 (session 無し) で `/admin/users` などをブラウザに
+  直接打ち込むと、現状は `/api/auth/account` が 401 を返した結果、
+  UI 側の `request()` が AuthenticationAPIError を投げて
+  「認証を続行できません」というエラー文言で画面が止まる。
+  これは UX として明確に悪い:
+
+  1. ログインへの動線が無く、admin はブックマークを開き直すか
+     URL を `/login` に手で書き換える必要がある。
+  2. ログイン後に元のページ (`/admin/users` 等) に戻る経路が
+     失われ、もう一度 sidebar を辿り直すことになる。
+  3. エラー文言が「認証サービスに接続できませんでした」と読めるため、
+     サービス障害と取り違える可能性がある (実態は単に未ログイン)。
+
+  業界標準 (Okta / Google Admin / Microsoft 365) は未認証時:
+    - 自動的に login にリダイレクト
+    - 元の URL を query / state に乗せて、ログイン後に deep-link
+      復帰させる
+  を提供する。本 WI はこの 2 点を満たす。
+
+scope:
+  go:
+    http:
+      - >-
+        `/api/auth/account` の 401 ハンドリングは変更しない (バックエンド
+        側のレスポンスはそのまま 401 を返す)。リダイレクトは UI 層で
+        行う。これにより API 単体の挙動は別経路 (CLI 等) のために維持
+        される。
+      - >-
+        既存の `/authorize` (GET) は未認証時に login にリダイレクトする
+        実装が既にある。AdminAPI ルートは別系統なのでこの動線には
+        乗らない。本 WI はそれを SPA 側で吸収する設計に揃える。
+
+  ui:
+    api:
+      - >-
+        ui/src/api.ts の `loadPageData()` が `/api/auth/account` を呼ぶ
+        際の 401 を AuthenticationAPIError ではなく、専用の
+        `UnauthenticatedError` (新規) として扱うか、HTTP status を
+        判別できるよう `request()` を拡張する。
+      - >-
+        `/admin/*` 系のページ kind を返す前に account が必要なすべての
+        分岐で、401 を catch → return `{ kind: 'admin-unauthenticated',
+        returnTo: <current-path> }` を返す形に揃える。
+    pages:
+      - >-
+        新規 ページ kind `'admin-unauthenticated'` を `PageData` に
+        追加。router.tsx で `/admin/*` パスかつ kind が
+        `admin-unauthenticated` の場合は、即座に `window.location.assign`
+        で `/authorize` (= デモログイン経路) または `/login` に遷移
+        させる。`returnTo` は sessionStorage / URL query
+        (`?next=/admin/users` 形式) で保持し、ログイン成功後の
+        `continueBrowserFlow` で復元する。
+      - >-
+        遷移先を `/authorize` にするか `/login` にするかは設計判断:
+        ra-idp 自身が IdP であり、admin もまず認可コードフローを
+        通って入る前提で `/authorize` を起点にする。authn 成立後、
+        管理 SPA に戻る redirect_uri は `/admin/*` のフルパスに
+        合わせる。
+      - >-
+        SPA 起点 (`/admin/users` 直打ち) からのログイン完了時、
+        SessionStorage に保存した returnTo パスへ `window.history.
+        replaceState` 後にロードする。
+    routing:
+      - 新規 `admin-unauthenticated` kind を扱う router.tsx エントリは
+        不要 (loadPageData 内で window.location.assign してしまうため)。
+        loadPageData が遷移を起こすことを明示するため、関数名や
+        コメントを整理する。
+
+  api:
+    - 変更なし。
+
+  documentation:
+    - ra-idp-go/ui/README.md に "未認証で /admin を直リンクすると
+      `/authorize` 経由でログイン → 元のページに復帰" の挙動を
+      1〜2 行で明記する。
+
+out_of_scope:
+  - end user 側 (`/account/*`) の未認証時の挙動見直し。`/authorize`
+    起点の OAuth フローが既に正常で、本 WI は admin SPA だけ扱う。
+  - 認証済だが admin role が無い user が `/admin/*` を開いたときの
+    挙動。これは既に 403 access_denied として正しく動いているため、
+    別 WI で「権限不足ですメッセージ + sidebar 一括無効化」の UI
+    改善が必要なら扱う。
+  - ログイン後に多段の戻り先 (consent → /admin/users) を持つケース。
+    ra-idp が IdP 自身として admin 用 client を持っているかどうか
+    現状で判別する仕組みを足すのは本 WI のスコープを越える。
+  - エラー画面の汎用化 (404 / 500 / network エラーの統一画面)。
+    別 polish WI でまとめる。
+  - PKCE / state / nonce の発行を SPA 側で持つかどうかの設計
+    再評価。既存 `startDemoAuthorization` の枠を流用する。
+
+affected_guarantees:
+  - >-
+    admin RBAC: 認可境界に変更なし。backend の 401 / 403 はそのまま
+    使う。
+  - >-
+    CSRF: 未認証経由ではトークンを持たないので CSRF 検査は元々
+    関係ない。ログイン成功後の CSRF 取得経路は変更しない。
+  - >-
+    open redirect 防止: `returnTo` パラメータは **同一オリジン内の
+    `/admin/*` ホワイトリスト** だけを許容する。`http://attacker/`
+    のような外部 URL は弾く。実装は `tenantBasePath()` 配下の path
+    のみ受理する形に固める。
+  - >-
+    SCL coherence: SCL 変更なし。
+  - >-
+    backend 既存挙動: 不変。
+
+verification:
+  - cmd: 'bun --cwd ra-idp-go/ui typecheck'
+  - cmd: 'bun --cwd ra-idp-go/ui lint'
+  - cmd: 'bun --cwd ra-idp-go/ui build'
+  - cmd: 'go test ./...'
+    in: ra-idp-go
+    reason: backend に変更なし。回帰なしを再確認。
+  - >-
+    手動 1: シークレットウィンドウで `/admin/users` を開く →
+    自動的に `/authorize` (or `/login`) に遷移する。
+  - >-
+    手動 2: そのままログイン → 入力後に `/admin/users` に戻る。
+  - >-
+    手動 3: シークレットウィンドウで `/admin/keys` を開く → ログイン
+    後に `/admin/keys` に戻る (returnTo が path に依存して動く)。
+  - >-
+    手動 4: `returnTo=http://attacker/x` 等の外部 URL を強引に
+    sessionStorage / query に入れた状態でログインしても、外部 URL
+    には飛ばず `/admin` (or default) に戻る。
+  - >-
+    手動 5: admin role 無し user で `/admin/users` を開いた場合は
+    本 WI の対象外。既存の 403 挙動が変わっていないことを確認。
+
+risk: medium
+risk_notes: |
+  open redirect は実装ミスで脆弱性になるため、`returnTo` の検証は
+  ホワイトリスト方式を厳格に守る。テストで攻撃ベクタを 2-3 個
+  (`//attacker/`, `/\\\\attacker/`, `%2F%2Fattacker/`,
+  `https://attacker/`) を加えて検証する。
+
+  ログイン経路として `/authorize` を選ぶか `/login` を選ぶかは、
+  ra-idp 自身が IdP であることに由来する判断。`/authorize` を選ぶ
+  場合は管理 SPA 用の OAuth client (例: `admin-spa`) が常に存在する
+  ことを前提にする。default tenant では `demo-client` を流用しても
+  よいが、本 WI で client metadata を変更する必要は無いか確認する。
+
+completion:
+  completed_at: 2026-06-16
+
+  summary: |
+    `/admin/*` の初期ロードで account API が 401 を返した場合、現在の path と
+    query を `return_to` として `/login` へ移動する。ログイン API と TOTP API
+    は SCL に既定済みの任意 `return_to` を受け取り、認証完了後に元の管理画面
+    へ戻す。戻り先は現在の realm の `/admin` 配下だけを許可する。
+
+  semantic_diff:
+    before: "未認証の /admin/* は AuthenticationAPIError の画面で停止する"
+    after: "login へ自動遷移し、password または TOTP 成功後に元の /admin/* へ戻る"
+
+  traceability:
+    specification:
+      - "ra-idp-go/spec/scl.yaml BrowserLoginRequest.return_to"
+      - "ra-idp-go/spec/scl.yaml BrowserTotpRequest.return_to"
+      - "ra-idp-go/spec/scl.yaml UX-TRANSACTION-BOUND"
+    implementation:
+      - ra-idp-go/internal/adapters/http/authorize_handler.go
+      - ra-idp-go/ui/src/api.ts
+      - ra-idp-go/ui/src/pages/LoginPage.tsx
+      - ra-idp-go/ui/src/pages/TotpPage.tsx
+    tests:
+      - ra-idp-go/internal/adapters/http/routes_e2e_test.go
+
+  affected_guarantees_state:
+    - "API の既存 401 / 403 と admin RBAC 境界は不変"
+    - "CSRF double-submit 検証は直接 login / TOTP でも維持"
+    - >-
+      return_to は scheme / host / fragment / backslash / 別 realm /
+      path traversal を拒否し、現在 realm の /admin 配下だけを許可
+
+  verification:
+    - cmd: "bun --cwd ra-idp-go/ui typecheck"
+      result: ok
+    - cmd: "bun --cwd ra-idp-go/ui lint"
+      result: "ok (40 files)"
+    - cmd: "bun --cwd ra-idp-go/ui build"
+      result: "ok (6284 modules)"
+    - cmd: "GOCACHE=/tmp/ra-idp-go-cache go test -race ./..."
+      in: ra-idp-go
+      result: ok
+    - >-
+      E2E: password login 復帰、TOTP login 復帰、//host、backslash、
+      encoded slash、absolute URL、別 realm、dot segment を検証
+    - "実ブラウザのシークレットウィンドウによる手動確認は未実施。"
+
+  residual_risk:
+    - "認証後に session が失効して後続 admin API が 401 になった場合の再 redirect は初期 account load に限定される。"
+
+  human_decisions:
+    - >-
+      `/authorize` は管理 SPA 用 client の存在を保証できないため採用せず、
+      SCL に既定済みの直接 `/login?return_to=...` を実装した。

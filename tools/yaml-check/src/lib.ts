@@ -8,7 +8,6 @@
 import Ajv2020, { type ErrorObject, type ValidateFunction } from 'ajv/dist/2020.js'
 import addFormats from 'ajv-formats'
 import workItemSchema from '../schemas/work-item.schema.json' with { type: 'json' }
-import completionReportSchema from '../schemas/completion-report.schema.json' with { type: 'json' }
 import sclSchema from '../schemas/scl.schema.json' with { type: 'json' }
 
 export type Finding = { line: number; column: number; message: string }
@@ -18,7 +17,6 @@ addFormats.default(ajv)
 
 export const SCHEMAS: Record<string, ValidateFunction> = {
   'work-item': ajv.compile(workItemSchema),
-  'completion-report': ajv.compile(completionReportSchema),
   scl: ajv.compile(sclSchema),
 }
 

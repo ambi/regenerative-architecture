@@ -1,7 +1,7 @@
 id: wi-4-component-alignment
 title: ra-idp-go の package 構成と scl.yaml components の整合性を取る
 created_at: 2026-06-14
-status: in_progress
+status: completed
 authors: [tn]
 
 motivation: |

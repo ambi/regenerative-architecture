@@ -211,7 +211,10 @@ func formatAddressHeader(address string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return parsed.Address, nil
+	// mail.ParseAddress already rejects embedded CR/LF, but strip them
+	// explicitly so the address can never carry header-injection sequences
+	// into the message and the sanitizer is visible to static analysis.
+	return sanitizeHeaderValue(parsed.Address), nil
 }
 
 func sanitizeHeaderValue(value string) string {

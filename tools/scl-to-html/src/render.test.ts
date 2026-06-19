@@ -164,6 +164,21 @@ describe('renderChangesTab', () => {
         completion: {
           summary: 'finished',
           affected_guarantees_state: ['unchanged'],
+          evidence: [
+            {
+              id: 'go-test',
+              kind: 'test',
+              result: 'passed',
+              command: 'go test ./...',
+              artifacts: [
+                {
+                  path: 'work-items/artifacts/wi-2-done/go-test.log',
+                  sha256: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+                  summary: 'test output',
+                },
+              ],
+            },
+          ],
           scl_changes: {
             models: ['Foo'],
           },
@@ -187,6 +202,12 @@ describe('renderChangesTab', () => {
   it('renders the completion under the work item when present', () => {
     expect(html).toContain('Completion')
     expect(html).toContain('finished')
+  })
+
+  it('renders completion evidence as a first-class block', () => {
+    expect(html).toContain('Evidence')
+    expect(html).toContain('go-test')
+    expect(html).toContain('work-items/artifacts/wi-2-done/go-test.log')
   })
 
   it('renders schema-extension fields instead of dropping them', () => {

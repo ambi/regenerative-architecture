@@ -131,6 +131,87 @@
             ]
           }
         },
+        "evidence": {
+          "description": "検証証跡。大容量ログやバイナリは埋め込まず、artifact 参照とハッシュを記録する。",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "kind", "result"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]*$"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "test",
+                  "property_test",
+                  "model_check",
+                  "contract_test",
+                  "mutation_test",
+                  "static_analysis",
+                  "scan",
+                  "runtime_observation",
+                  "manual_inspection",
+                  "build",
+                  "lint",
+                  "typecheck",
+                  "other"
+                ]
+              },
+              "command": { "type": "string", "minLength": 1 },
+              "procedure": { "type": "string", "minLength": 1 },
+              "environment": { "type": "string", "minLength": 1 },
+              "producer": {
+                "type": "string",
+                "enum": ["generator", "independent", "human", "ci", "local"]
+              },
+              "executed_at": {
+                "oneOf": [
+                  { "type": "string", "format": "date" },
+                  { "type": "string", "format": "date-time" }
+                ]
+              },
+              "target_revision": { "type": "string", "minLength": 1 },
+              "result": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": ["passed", "failed", "not_run", "exception_approved"]
+                  },
+                  { "type": "string", "minLength": 1 }
+                ]
+              },
+              "summary": { "type": "string", "minLength": 1 },
+              "artifacts": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["summary"],
+                  "properties": {
+                    "summary": { "type": "string", "minLength": 1 },
+                    "path": { "type": "string", "minLength": 1 },
+                    "uri": { "type": "string", "minLength": 1 },
+                    "sha256": {
+                      "type": "string",
+                      "pattern": "^[a-fA-F0-9]{64}$"
+                    },
+                    "content_type": { "type": "string", "minLength": 1 },
+                    "size_bytes": { "type": "integer", "minimum": 0 }
+                  },
+                  "anyOf": [{ "required": ["path"] }, { "required": ["uri"] }]
+                }
+              }
+            },
+            "anyOf": [
+              { "required": ["command"] },
+              { "required": ["procedure"] },
+              { "required": ["artifacts"] }
+            ]
+          }
+        },
         "affected_guarantees_state": {
           "description": "保証義務の状態。",
           "type": "array"

@@ -1,0 +1,127 @@
+id: wi-28-inline-work-item-evidence
+title: ワークアイテム証跡 manifest を廃止し completion.evidence に内包する
+created_at: 2026-06-20
+status: completed
+authors: [tn]
+
+motivation: |
+  REGENERATIVE_ARCHITECTURE.md は `work-items/evidence/<work-item-id>/manifest.yaml`
+  を検証証跡の置き場として定義していたが、リポジトリ内に実例はなく、
+  既存の運用は `work-items/<id>.yaml` の `completion.verification` に
+  検証結果を追記する形で定着している。
+
+  ワークアイテムの正本と証跡 manifest が分かれると、完了判断をレビューする
+  ときに参照先が増え、リンク切れや見落としが起きやすい。証跡の要約と
+  artifact 参照は `completion.evidence` として同じ YAML に内包し、大容量
+  ログやバイナリだけを外部 artifact として参照する形へ簡素化する。
+
+scope:
+  documentation:
+    - REGENERATIVE_ARCHITECTURE.md の保存規約から evidence/manifest.yaml の標準構造を削除する。
+    - completion.evidence に手順、実行環境、実行主体、対象 revision、結果、artifact 参照、ハッシュを記録する方針を明記する。
+  schema:
+    - tools/yaml-check の work-item schema に optional な completion.evidence を追加する。
+    - evidence item は id / kind / result を必須とし、command / procedure / artifacts の少なくとも 1 つを要求する。
+    - artifact は summary と path または uri を必須にし、sha256 を任意で検証可能にする。
+  rendering:
+    - tools/scl-to-html が completion.evidence を Completion 内の first-class block として表示する。
+  tests:
+    - yaml-check の schema test に evidence の許可・拒否ケースを追加する。
+    - scl-to-html の render test に Evidence 表示を追加する。
+
+out_of_scope:
+  - 既存 completed work item に evidence を追記すること。
+  - 大容量 artifact の保存先規約を固定すること。
+  - 外部 CI / Issue / PR サービスとの同期。
+  - work item ID の採番規則変更。
+
+affected_guarantees:
+  - 正本性: ワークアイテムの完了判断と証跡参照が同じ YAML にまとまる。
+  - 検証可能性: 証跡の command / procedure / artifact 参照を schema で検査できる。
+  - レビュー容易性: scl-to-html の Work Items タブで証跡を同じ completion block から確認できる。
+  - 後方互換性: completion.evidence は optional で、既存 work item は変更なしで通る。
+
+verification:
+  - cmd: bun test
+    in: tools
+  - cmd: bun run typecheck
+    in: tools
+  - cmd: bun run yaml-check:work-items
+    in: tools
+  - cmd: bun run yaml-check:all
+    in: tools
+  - cmd: rg -n 'work-items/evidence|evidence/<work-item-id>|manifest.yaml' REGENERATIVE_ARCHITECTURE.md tools ra-idp-go -g '*.md' -g '*.ts' -g '*.json' -g '*.yaml'
+    reason: 標準構造としての旧 evidence manifest 参照が残っていないこと。
+
+risk: low
+risk_notes: |
+  completion.evidence は optional であり、既存 work item の schema 互換性を壊さない。
+  主なリスクは schema を厳しくしすぎて将来の証跡形式を狭めることなので、artifact
+  の保存先は path または uri のどちらでも許容し、kind には other を残す。
+
+completion:
+  completed_at: 2026-06-20
+  summary: |
+    `work-items/evidence/<work-item-id>/manifest.yaml` を標準構造から外し、
+    検証証跡の正本参照を `completion.evidence` に内包する形へ変更した。
+    大容量ログやバイナリは YAML に埋め込まず、artifact の path / uri、
+    summary、必要に応じた sha256 で参照する方針を REGENERATIVE_ARCHITECTURE.md
+    に明記した。
+
+    tools/yaml-check の work-item schema は optional な `completion.evidence`
+    を受け付け、id / kind / result と command / procedure / artifacts の
+    いずれかを要求する。tools/scl-to-html は Completion 内で Evidence を
+    first-class block として表示する。
+  semantic_diff:
+    before:
+      evidence_storage: work-items/evidence/<work-item-id>/manifest.yaml が標準構造
+      review_path: work-item YAML と evidence manifest を別々に確認する
+    after:
+      evidence_storage: work-item YAML の completion.evidence に証跡参照を内包
+      review_path: completion block だけで検証結果と証跡参照を確認できる
+  verification:
+    - cmd: bun test
+      in: tools
+      result: ok, 118 pass
+    - cmd: bun run typecheck
+      in: tools
+      result: ok
+    - cmd: bun run yaml-check:work-items
+      in: tools
+      result: ok, 33 file(s) OK
+    - cmd: rg -n 'work-items/evidence|evidence/<work-item-id>|manifest.yaml' REGENERATIVE_ARCHITECTURE.md tools ra-idp-go -g '*.md' -g '*.ts' -g '*.json' -g '*.yaml'
+      result: empty
+  evidence:
+    - id: bun-test
+      kind: test
+      command: bun test
+      environment: local
+      producer: local
+      executed_at: 2026-06-20
+      result: passed
+      summary: tools test suite passed with 118 tests.
+    - id: yaml-check-work-items
+      kind: static_analysis
+      command: bun run yaml-check:work-items
+      environment: local
+      producer: local
+      executed_at: 2026-06-20
+      result: passed
+      summary: all 33 work item YAML files passed parse, lint, and work-item schema checks.
+    - id: old-manifest-reference-search
+      kind: static_analysis
+      command: rg -n 'work-items/evidence|evidence/<work-item-id>|manifest.yaml' REGENERATIVE_ARCHITECTURE.md tools ra-idp-go -g '*.md' -g '*.ts' -g '*.json' -g '*.yaml'
+      environment: local
+      producer: local
+      executed_at: 2026-06-20
+      result: passed
+      summary: no old evidence manifest references remain in the checked documentation and tool sources.
+  affected_guarantees_state:
+    - 正本性: pass。証跡参照は work item YAML の completion.evidence に内包される。
+    - 検証可能性: pass。yaml-check schema が completion.evidence の最低構造を検査する。
+    - レビュー容易性: pass。scl-to-html が Evidence block を表示する。
+    - 後方互換性: pass。completion.evidence は optional で既存 work item は変更不要。
+  residual_risk:
+    - artifact の保存先命名規約はまだ固定していない。現時点では path または uri を許可し、プロジェクトや CI ごとに選べる余地を残している。
+  human_decisions:
+    - evidence manifest は標準構造としては廃止し、証跡参照を completion.evidence に寄せる。

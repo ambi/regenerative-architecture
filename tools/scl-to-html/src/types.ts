@@ -265,6 +265,7 @@ export interface Completion {
   completed_at?: string
   summary?: string
   verification?: unknown
+  evidence?: unknown
   affected_guarantees_state?: unknown
   remaining_guarantees_state?: unknown
   residual_risk?: unknown

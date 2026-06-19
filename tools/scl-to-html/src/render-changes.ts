@@ -128,6 +128,7 @@ const COMPLETION_KEYS = [
   'summary',
   'semantic_diff',
   'verification',
+  'evidence',
   'affected_guarantees_state',
   'remaining_guarantees_state',
   'residual_risk',
@@ -209,6 +210,11 @@ const renderCompletion = (completion: Completion, status: string | undefined): s
   if (completion.verification !== undefined) {
     blocks.push(
       `<details class="change-block"><summary>Verification results</summary>${renderListOrText(completion.verification)}</details>`,
+    )
+  }
+  if (completion.evidence !== undefined) {
+    blocks.push(
+      `<details class="change-block"><summary>Evidence</summary>${renderListOrText(completion.evidence)}</details>`,
     )
   }
   const guarantees = completion.affected_guarantees_state ?? completion.remaining_guarantees_state

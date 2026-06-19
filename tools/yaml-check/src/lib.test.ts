@@ -146,6 +146,21 @@ describe('validateAgainstSchema — work-item', () => {
     verification: [{ cmd: 'go test ./...', result: 'ok' }],
     affected_guarantees_state: [],
   }
+  const validEvidence = {
+    id: 'go-test',
+    kind: 'test',
+    command: 'go test ./...',
+    executed_at: '2026-06-17T00:00:00Z',
+    target_revision: 'abc1234',
+    result: 'passed',
+    artifacts: [
+      {
+        path: 'work-items/artifacts/wi-1-demo/go-test.log',
+        sha256: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+        summary: 'go test output',
+      },
+    ],
+  }
 
   it('accepts a minimal valid work item', () => {
     expect(validateAgainstSchema('work-item', validWorkItem, '')).toEqual([])
@@ -192,6 +207,26 @@ describe('validateAgainstSchema — work-item', () => {
   it('accepts completion embedded in a completed work item', () => {
     const data = { ...validWorkItem, status: 'completed', completion: validCompletion }
     expect(validateAgainstSchema('work-item', data, '')).toEqual([])
+  })
+
+  it('accepts completion evidence embedded in the work item', () => {
+    const data = {
+      ...validWorkItem,
+      status: 'completed',
+      completion: { ...validCompletion, evidence: [validEvidence] },
+    }
+    expect(validateAgainstSchema('work-item', data, '')).toEqual([])
+  })
+
+  it('rejects completion evidence without a command, procedure, or artifact', () => {
+    const { command: _omitted, artifacts: _alsoOmitted, ...brokenEvidence } = validEvidence
+    const data = {
+      ...validWorkItem,
+      status: 'completed',
+      completion: { ...validCompletion, evidence: [brokenEvidence] },
+    }
+    const f = validateAgainstSchema('work-item', data, '')
+    expect(f.length).toBeGreaterThan(0)
   })
 
   it('requires completion when status is completed', () => {

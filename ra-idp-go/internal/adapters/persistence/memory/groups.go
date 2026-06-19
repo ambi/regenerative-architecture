@@ -15,7 +15,7 @@ import (
 
 type GroupRepository struct {
 	mu      sync.RWMutex
-	groups  map[string]*spec.Group       // key: tenantKey(tenant_id, id)
+	groups  map[string]*spec.Group         // key: tenantKey(tenant_id, id)
 	members map[string][]*spec.GroupMember // key: tenantKey(tenant_id, group_id)
 }
 

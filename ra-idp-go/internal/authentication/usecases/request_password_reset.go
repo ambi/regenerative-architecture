@@ -50,7 +50,7 @@ func RequestPasswordReset(ctx context.Context, deps RequestPasswordResetDeps, in
 	if err != nil {
 		return err
 	}
-	if user == nil || !user.EmailVerified {
+	if user == nil || !user.EmailVerified || user.Email == nil {
 		return nil
 	}
 
@@ -74,8 +74,10 @@ func RequestPasswordReset(ctx context.Context, deps RequestPasswordResetDeps, in
 
 	resetURL := strings.TrimRight(deps.Issuer, "/") + "/reset_password?token=" + url.QueryEscape(rawToken)
 	minutes := int(ttl.Round(time.Minute) / time.Minute)
+	// Send to the verified address stored on the account, not the raw request
+	// input, so untrusted request data never reaches the email content (CWE-640).
 	delivered := deps.EmailSender.SendEmail(ctx, authports.EmailMessage{
-		To:      email,
+		To:      *user.Email,
 		Subject: "Password reset",
 		Text: fmt.Sprintf(
 			"A password reset was requested for your account.\n\nOpen the link below within %d minutes to set a new password:\n%s\n\nIf you did not request this, you can safely ignore this email.",

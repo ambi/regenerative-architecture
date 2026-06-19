@@ -1,0 +1,136 @@
+id: wi-34-http-request-cancellation-policy
+title: HTTP request cancellation policy を定義し、mutation の整合性とログ分類を整理する
+created_at: 2026-06-20
+status: pending
+authors: [tn]
+
+motivation: |
+  現状の HTTP adapter は多くの箇所で `c.Request().Context()` を use case /
+  repository / adapter に渡している。Go の HTTP request context は、クライアント
+  切断、HTTP/2 cancel、handler return などで cancel される。read-only な処理では
+  これは自然だが、IdP の mutation では以下の問題が起きうる:
+
+  - authorization code exchange / refresh token rotation / consent accept /
+    password reset / admin mutation / key rotation の途中で context が cancel
+    され、永続状態が中途半端になる。
+  - commit 後に必要な audit / outbox / cleanup が request cancel に巻き込まれ、
+    セキュリティ上必要な証跡が残らない。
+  - クライアント切断はクライアント側の問題であり、サーバーの内部障害ではないのに、
+    `context canceled` が error log や 5xx 系の運用アラートとして記録される。
+
+  本 WI は endpoint 種別ごとの cancellation policy を明文化し、mutation の
+  atomicity、commit 後副作用、ログ分類を整理する。
+
+scope:
+  decision:
+    - >-
+      新規 ADR: HTTP request cancellation policy を定義する。read-only は
+      request context cancel で中断してよい。mutation は endpoint ごとに
+      rollback / complete / detached completion のいずれかを明示する。
+    - >-
+      ADR では `context.Canceled` / `context.DeadlineExceeded` を
+      client-aborted / server-timeout / upstream-timeout に分類し、ログレベルと
+      metric label を定義する。client-aborted は原則 error log としない。
+
+  scl:
+    - >-
+      objectives / assurance に CancellationConsistency を追加する。
+      主張: クライアント切断により、認可コード、refresh token family、
+      consent、session、audit/outbox が観測不能な中間状態に残らない。
+    - >-
+      assurance に ClientAbortLogClassification を追加する。
+      主張: client abort 由来の `context canceled` は server error として
+      記録・集計しない。
+
+  go:
+    policy:
+      - >-
+        request context をそのまま使ってよい read-only endpoint を明示する:
+        discovery / jwks / userinfo / introspect / admin list-get 系。
+      - >-
+        mutation endpoint を棚卸しする:
+        /token (authorization_code / refresh_token / client_credentials /
+        device_code), /authorize login/consent/totp/change-password/logout,
+        /par, /device_authorization, password reset, admin clients/users/groups/
+        tenants/keys/consents/settings。
+      - >-
+        mutation には `operation context` を導入する。基本は
+        `context.WithTimeout(context.WithoutCancel(requestCtx), operationTimeout)`
+        とし、tenant / issuer / trace / actor など request context の値は
+        保持する。ただし client abort 時に rollback すべき endpoint は
+        request context を使い続ける。
+      - >-
+        commit 後に必須の audit / outbox / security cleanup は request cancel
+        から切り離し、短い timeout を持つ detached context で完了させる。
+    logging:
+      - >-
+        HTTP error handling / middleware に cancel classification helper を
+        追加する。`errors.Is(err, context.Canceled)` かつ request context が
+        client abort で閉じた場合は `client_aborted` とし、error log ではなく
+        debug/info または access log の status 499 相当として扱う。
+      - >-
+        server-side timeout / DB timeout / upstream timeout は
+        `context deadline exceeded` でも別 label として扱い、必要なら error log
+        と alert 対象にする。
+      - >-
+        metrics に `http_request_aborts_total{kind=client_aborted|server_timeout|upstream_timeout}`
+        と `operation_detached_completion_failures_total` を追加する。
+    tests:
+      - >-
+        cancel された request context を注入して、read-only endpoint は中断されるが
+        server error として記録されないことを確認する。
+      - >-
+        mutation の代表として `/token` authorization_code、refresh rotation、
+        consent accept、admin user disable/delete、key rotation を選び、
+        cancellation policy に従うことをテストする。
+      - >-
+        audit/outbox が commit 後に request cancel へ巻き込まれないことを
+        fake repository / fake event sink で確認する。
+
+  documentation:
+    - README または ADR に、client abort は利用者・ネットワーク都合であり、
+      server error rate とは別に観測することを明記する。
+
+out_of_scope:
+  - すべての repository 操作の transaction 化。必要な箇所は別 WI に分割する。
+  - distributed transaction / exactly-once outbox の再設計。
+  - reverse proxy / load balancer 側の 499 ログ設定。
+  - OpenTelemetry collector / alert rule の本番投入。
+
+affected_guarantees:
+  - mutation consistency: client abort で中間状態が残らない。
+  - audit durability: commit 済みの security-relevant mutation は audit/outbox を残す。
+  - log correctness: client abort 由来の `context canceled` を server error として扱わない。
+  - availability: read-only / expensive query は client disconnect で速やかに中断できる。
+  - traceability: endpoint ごとの cancellation policy が ADR / SCL / tests へ追跡できる。
+
+verification:
+  - cmd: 'go test ./...'
+    in: ra-idp-go
+    reason: cancellation policy helper、HTTP handlers、usecase 代表経路、audit/outbox detached completion を確認する。
+  - cmd: 'go test -race ./...'
+    in: ra-idp-go
+    reason: detached completion と cancellation 周辺の race を確認する。
+  - cmd: 'go vet ./...'
+    in: ra-idp-go
+  - cmd: 'go build ./...'
+    in: ra-idp-go
+  - >-
+    手動: `/token` 実行中にクライアント接続を切断し、server error log が出ず、
+    metric が `client_aborted` として増えることを確認する。
+  - >-
+    手動: admin mutation 中にクライアント接続を切断し、完了または rollback の
+    どちらか一貫した結果になり、audit/outbox が policy 通り残ることを確認する。
+
+risk: high
+risk_notes: |
+  request context の扱いは全 HTTP adapter と persistence に波及する。安易に
+  `context.Background()` へ置き換えると tenant / trace / actor などの値を失い、
+  shutdown や timeout でも止まらない処理を作る危険がある。`WithoutCancel`
+  を使う場合も必ず timeout を付け、どの mutation が client abort 後も続行
+  してよいかを ADR とテストで固定する。
+
+  `/token` は特に難しい。authorization code を消費した後に client が token を
+  受け取れないと retry 不能になる一方、rollback が不完全だと code reuse /
+  token family inconsistency のリスクがある。最初に policy を決め、必要なら
+  token exchange の atomicity 改修を別 WI として切る。

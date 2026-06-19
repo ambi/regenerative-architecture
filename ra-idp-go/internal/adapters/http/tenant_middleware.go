@@ -2,6 +2,7 @@ package http
 
 import (
 	"net/http"
+	"net/url"
 	"strings"
 
 	"ra-idp-go/internal/spec"
@@ -64,7 +65,11 @@ func (d Deps) resolveTenant(c *echo.Context, next echo.HandlerFunc, tenantID, ur
 }
 
 func tenantIssuer(base, tenantID string) string {
-	return strings.TrimSuffix(base, "/") + "/realms/" + tenantID
+	// tenantID は元をたどるとリクエストのパスパラメータ由来。issuer は token の
+	// iss / discovery / パスワードリセットメールのリンクに埋め込まれるため、URL
+	// パスセグメントとしてエスケープし、信頼できない値が URL や本文へ注入される
+	// 経路を断つ (CWE-640)。正当な tenant ID (^[a-z0-9][a-z0-9-]{0,62}$) では no-op。
+	return strings.TrimSuffix(base, "/") + "/realms/" + url.PathEscape(tenantID)
 }
 
 func requestTenantID(c *echo.Context) string {

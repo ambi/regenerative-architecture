@@ -1,0 +1,71 @@
+id: wi-26-webauthn-passkey-and-recovery-codes
+title: WebAuthn / Passkey と recovery codes を phishing-resistant MFA として導入する
+created_at: 2026-06-20
+status: pending
+authors: [tn]
+
+motivation: |
+  現状の MFA は TOTP 中心で、認証強度としては実運用の最低ラインに届くが、
+  phishing-resistant MFA ではない。Keycloak / Okta / Google アカウント相当の
+  IdP として考えると、WebAuthn / Passkey と recovery codes は必要になる。
+
+  本 WI は WebAuthn credential の登録・認証・削除、passkey による step-up、
+  TOTP / WebAuthn を失った場合の backup recovery codes を SCL と実装に追加する。
+
+scope:
+  decision:
+    - >-
+      新規 ADR: WebAuthn / Passkey を phishing-resistant MFA として採用する。
+      RP ID / origin 検証、attestation 方針、resident key / user verification
+      要件、credential lifecycle、recovery code の one-time semantics を記録する。
+  scl:
+    - WebAuthnCredential / RecoveryCodeSet / RecoveryCodeUsed event を追加する。
+    - RegisterWebAuthnCredential / VerifyWebAuthnAssertion / RemoveWebAuthnCredential を追加する。
+    - GenerateRecoveryCodes / ConsumeRecoveryCode / RevokeRecoveryCodes を追加する。
+    - acr/amr に WebAuthn / passkey / recovery_code を反映する。
+  go:
+    - WebAuthn library を選定し、core ceremony を自前実装しない。
+    - credential repository を memory / PostgreSQL に実装する。
+    - browser auth flow に WebAuthn challenge 発行・検証 endpoint を追加する。
+    - recovery codes は平文を一度だけ表示し、DB にはハッシュだけ保存する。
+  ui:
+    - login / step-up 画面で passkey 認証を選択できるようにする。
+    - account portal の security ページから credential 登録・削除を行えるようにする。
+    - recovery codes の生成・再生成・使用済み数の表示を追加する。
+  documentation:
+    - README に WebAuthn の RP ID / origin 設定、HTTPS 必須、ローカル開発時の注意を書く。
+
+out_of_scope:
+  - SMS / Push MFA。
+  - enterprise attestation の厳格 enforcement。
+  - device trust / managed device inventory。
+  - passwordless-only tenant policy。初期は password + WebAuthn MFA / step-up とする。
+
+affected_guarantees:
+  - phishing-resistant MFA: WebAuthn assertion は origin / RP ID / challenge / user presence を検証する。
+  - replay resistance: challenge は短命・単発消費とする。
+  - tenant isolation: credential は tenant_id + sub に紐づけ、cross-tenant で再利用しない。
+  - recovery code secrecy: recovery code 平文を log / DB / audit に残さない。
+  - audit: credential enrolled / removed、recovery code generated / consumed を監査イベントに残す。
+
+verification:
+  - cmd: 'go test ./...'
+    in: ra-idp-go
+  - cmd: 'go vet ./...'
+    in: ra-idp-go
+  - cmd: 'go build ./...'
+    in: ra-idp-go
+  - cmd: 'bun --cwd ra-idp-go/ui typecheck'
+  - cmd: 'bun --cwd ra-idp-go/ui lint'
+  - cmd: 'bun --cwd ra-idp-go/ui build'
+  - >-
+    手動: account portal で passkey 登録 → logout → password + passkey で login /
+    step-up が成立することを確認する。
+  - >-
+    手動: recovery code を 1 つ使うと再利用できず、使用済み数が増えることを確認する。
+
+risk: high
+risk_notes: |
+  WebAuthn はブラウザ API、origin、RP ID、challenge store が絡むため実装ミスの
+  余地が大きい。既存 TOTP と同じ Factor 抽象に無理に押し込まず、WebAuthn
+  ceremony は独立した use case として扱う。

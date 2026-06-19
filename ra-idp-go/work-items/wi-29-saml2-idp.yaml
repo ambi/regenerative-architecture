@@ -1,0 +1,70 @@
+id: wi-29-saml2-idp
+title: SAML 2.0 IdP を実装し、エンタープライズ SSO に対応する
+created_at: 2026-06-20
+status: pending
+authors: [tn]
+
+motivation: |
+  OIDC だけでは B2B / enterprise 販売の最低ラインを満たせないケースが多い。
+  Keycloak / Okta は SAML 2.0 IdP として SP-initiated / IdP-initiated SSO、
+  metadata、assertion 署名、attribute mapping、Single Logout を提供する。
+
+  本 WI は ra-idp-go を SAML 2.0 IdP として振る舞えるようにする。
+
+scope:
+  decision:
+    - >-
+      新規 ADR: SAML 2.0 IdP の対応範囲を定義する。初期対応は
+      Web Browser SSO Profile、HTTP-Redirect / HTTP-POST binding、
+      signed response/assertion、metadata 公開、SP-initiated / IdP-initiated
+      SSO、Single Logout とする。
+  scl:
+    - SamlServiceProvider / SamlAuthnRequest / SamlResponse / SamlAssertion を追加する。
+    - SamlMetadata / SamlSso / SamlSlo interface を追加する。
+    - attribute mapping と NameID format を client metadata に追加する。
+  go:
+    - 実績ある SAML library を選定し、XML signature / canonicalization を自前実装しない。
+    - SAML SP 管理 API を admin clients と同じ tenant boundary で追加する。
+    - >-
+      `/saml/metadata`, `/saml/sso`, `/saml/slo` を realm 配下に公開する。
+    - assertion 署名鍵は OAuth signing key と分離するか ADR で明確に決める。
+    - RelayState、InResponseTo、AudienceRestriction、Recipient、Destination を検証する。
+  ui:
+    - admin clients に SAML client/SP 種別を追加し、metadata import / export を提供する。
+    - attribute mapping UI を追加する。
+  documentation:
+    - README に SAML 対応範囲、metadata URL、SP 設定例を書く。
+
+out_of_scope:
+  - SAML SP として外部 IdP に接続すること。これは inbound federation WI で扱う。
+  - SAML ECP。
+  - WS-Federation / WS-Trust。
+  - encrypted assertion の初期必須化。必要なら追加 WI とする。
+
+affected_guarantees:
+  - XML signature safety: unsigned / tampered request/response を受け入れない。
+  - audience restriction: assertion は登録 SP の entityID に限定する。
+  - replay protection: AuthnRequest ID / assertion ID を短期 replay store で管理する。
+  - tenant isolation: SP metadata と SAML endpoints は realm ごとに分離する。
+  - audit: SAML login / SLO / metadata change を監査に残す。
+
+verification:
+  - cmd: 'go test ./...'
+    in: ra-idp-go
+  - cmd: 'go vet ./...'
+    in: ra-idp-go
+  - cmd: 'go build ./...'
+    in: ra-idp-go
+  - cmd: 'bun --cwd ra-idp-go/ui typecheck'
+  - cmd: 'bun --cwd ra-idp-go/ui lint'
+  - cmd: 'bun --cwd ra-idp-go/ui build'
+  - >-
+    手動: test SP から SP-initiated SSO を開始し、SAMLResponse の署名・Audience・NameID
+    が正しいことを確認する。
+  - >-
+    手動: metadata import で登録した SP に対して SLO が成立することを確認する。
+
+risk: high
+risk_notes: |
+  SAML は XML signature wrapping、canonicalization、metadata trust のリスクが大きい。
+  library 選定と conformance smoke を作業の前半に置き、手書き XML 処理を避ける。

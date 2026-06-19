@@ -1,0 +1,70 @@
+id: wi-28-session-management-and-oidc-logout-completion
+title: セッション管理と OIDC logout を実運用相当に完成させる
+created_at: 2026-06-20
+status: pending
+authors: [tn]
+
+motivation: |
+  `/end_session` は存在するが、production IdP としては user/admin の
+  session inventory、個別 revoke、OIDC RP-Initiated Logout の厳密化、
+  Front-Channel Logout、Back-Channel Logout、Session Management 1.0 が足りない。
+
+  Keycloak / Okta / Google 相当では、ユーザーがデバイス・セッションを確認し、
+  管理者が全セッションを失効し、RP に logout を伝播できることが重要になる。
+
+scope:
+  decision:
+    - >-
+      新規 ADR: local session、browser session、client session、refresh token family、
+      OIDC logout notification の関係を定義する。`id_token_hint` 検証と
+      client 解決の失敗時挙動も明記する。
+  scl:
+    - SessionRecord / ClientSession / LogoutNotification を追加する。
+    - ListSessions / RevokeSession / RevokeUserSessions を admin/self interface として追加する。
+    - BackChannelLogout / FrontChannelLogout / CheckSessionIframe を追加する。
+  go:
+    - session repository を拡張し、session_id / sub / client_id / amr / acr / started_at / last_seen を保存する。
+    - >-
+      `/end_session` で `id_token_hint` 署名・iss・aud・sub・sid を検証する。
+    - RP ごとの backchannel_logout_uri / frontchannel_logout_uri を client metadata に追加する。
+    - logout token を生成し、back-channel logout を retry 付きで送信する。
+    - session revoke 時に refresh token family / device code / browser cookie を整合して失効する。
+  ui:
+    - account portal に active sessions / devices を表示する。
+    - admin users detail に user sessions と revoke all を表示する。
+  documentation:
+    - README に OIDC logout 対応範囲、RP metadata、既知制約を書く。
+
+out_of_scope:
+  - CAEP / Shared Signals。別 WI で扱う。
+  - device trust / managed device inventory。
+  - native app の platform-specific logout。
+
+affected_guarantees:
+  - logout propagation: local logout と RP logout notification が同一イベントから派生する。
+  - token revocation: session revoke は refresh token family を失効する。
+  - tenant isolation: tenant を越えた sid / sub の revoke を禁止する。
+  - protocol correctness: logout token と id_token_hint は OIDC 仕様に従って検証する。
+  - audit: admin/self logout 操作と RP notification 結果を記録する。
+
+verification:
+  - cmd: 'go test ./...'
+    in: ra-idp-go
+  - cmd: 'go vet ./...'
+    in: ra-idp-go
+  - cmd: 'go build ./...'
+    in: ra-idp-go
+  - cmd: 'bun --cwd ra-idp-go/ui typecheck'
+  - cmd: 'bun --cwd ra-idp-go/ui lint'
+  - cmd: 'bun --cwd ra-idp-go/ui build'
+  - >-
+    手動: 複数ブラウザで login し、account portal から片方の session を revoke
+    すると対象 browser だけが再認証要求になることを確認する。
+  - >-
+    手動: backchannel_logout_uri を持つ test RP に logout token が送信されることを確認する。
+
+risk: high
+risk_notes: |
+  session、refresh token、browser cookie、RP notification の整合が崩れると
+  logout したつもりで生き残る経路ができる。状態遷移を SCL に寄せ、session
+  lifecycle の property test を厚くする。

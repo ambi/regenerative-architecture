@@ -32,3 +32,6 @@
 | Go | Rust |
 | React | Vue, Next.js |
 | Postgres | MySQL |
+| `golangci-lint` | `go vet` |
+| `biome` | `eslint` |
+| `tools/yaml-check` | Python/Ruby YAML parser |

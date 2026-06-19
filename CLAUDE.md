@@ -16,3 +16,19 @@
 - Use `type` from the standard set: `feat`, `fix`, `docs`, `refactor`, `chore`,
   `test`, `perf`, `build`, `ci`, `style`. Append `!` for breaking changes.
 - Keep the subject line ≤ 72 chars. Use the body for the *why*, not the *what*.
+
+## 3. Default Tooling
+
+**Prefer the team's default stack; override only when a task or existing code demands it.**
+
+| Prefer | Over |
+| --- | --- |
+| `rg` | `grep` |
+| `fd` | `find` |
+| `bat` | `cat` |
+| `jq` | ad-hoc JSON parsing |
+| TypeScript | Python |
+| Bun | Node.js |
+| Go | Rust |
+| React | Vue, Next.js |
+| Postgres | MySQL |

@@ -67,7 +67,7 @@ func (s *AuditEventStore) List(_ context.Context, q ports.AuditEventQuery) ([]*p
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	// OccurredAt 降順 (新しい順) で limit 件まで集める。
-	result := make([]*ports.AuditEventRecord, 0, limit)
+	result := make([]*ports.AuditEventRecord, 0, auditMaxListLimit)
 	for i := len(s.events) - 1; i >= 0; i-- {
 		rec := s.events[i]
 		if !auditEventMatches(rec, q) {

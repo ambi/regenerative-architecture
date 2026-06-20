@@ -22,10 +22,10 @@ components:
 
   Authentication:
     description: エンドユーザ (Subject) の identity、credentials、MFA、ログインセッション、パスワードリセット、および管理 API からの User ライフサイクル操作を所有する。
-    owns_models: [User, MfaFactor, MfaFactorType, LoginSession, AuthenticationContext, PasswordResetTokenRecord, BrowserLoginRequest, BrowserTotpRequest, BrowserChangePasswordRequest, BrowserForgotPasswordRequest, BrowserResetPasswordRequest, AdminUserCreateRequest, AdminUserUpdateRequest, AdminRequiredActionRequest, AdminUserListResponse, AdminUserResponse, Group, GroupMember, GroupCreateRequest, GroupUpdateRequest, GroupSummaryResponse, GroupListResponse, GroupMemberResponse, GroupAddMemberRequest, UserGroupsResponse, UserLifecycle, AttributeValue, UserStatus, RequiredAction, AccountProfileResponse, AccountProfileUpdateRequest]
+    owns_models: [User, MfaFactor, MfaFactorType, LoginSession, AuthenticationContext, PasswordResetTokenRecord, BrowserLoginRequest, BrowserTotpRequest, BrowserChangePasswordRequest, BrowserForgotPasswordRequest, BrowserResetPasswordRequest, AdminUserCreateRequest, AdminUserUpdateRequest, AdminRequiredActionRequest, AdminUserListResponse, AdminUserResponse, Group, GroupMember, GroupCreateRequest, GroupUpdateRequest, GroupSummaryResponse, GroupListResponse, GroupMemberResponse, GroupAddMemberRequest, UserGroupsResponse, UserLifecycle, AttributeValue, UserStatus, RequiredAction, AccountProfileResponse, AccountProfileUpdateRequest, AccountSummary]
     owns_states: [UserLifecycle, GroupLifecycle]
     owns_events: [UserAuthenticated, AuthenticationFailed, PasswordChanged, LoginThrottled, PasswordResetRequested, EmailSent, UserCreated, UserUpdated, UserDisabled, UserEnabled, UserDeleted, UserRequiredActionSet, UserRequiredActionCleared, GroupCreated, GroupUpdated, GroupDeleted, GroupMemberAdded, GroupMemberRemoved]
-    owns_interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, ChangePassword, GetUserProfile, UpdateUserProfile, RequestPasswordReset, ResetPasswordWithToken, ListAdminUsers, GetAdminUser, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser, DeleteAdminUser, SetUserRequiredAction, ClearUserRequiredAction, ListGroups, GetGroup, CreateGroup, UpdateGroup, DeleteGroup, AddGroupMember, RemoveGroupMember, ListUserGroups]
+    owns_interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, ChangePassword, GetAccountSummary, GetUserProfile, UpdateUserProfile, RequestPasswordReset, ResetPasswordWithToken, ListAdminUsers, GetAdminUser, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser, DeleteAdminUser, SetUserRequiredAction, ClearUserRequiredAction, ListGroups, GetGroup, CreateGroup, UpdateGroup, DeleteGroup, AddGroupMember, RemoveGroupMember, ListUserGroups]
     owns_invariants: [PasswordHistoryNoReuse, EffectiveRolesComposition, GroupMembershipAuditEmission]
     owns_permissions: [AdminUserRead, AdminUserCreate, AdminUserUpdate, AdminUserDelete, AdminGroupsRead, AdminGroupsWrite]
     owns_objectives: [PiiPurgeAfterDeletion]
@@ -1827,6 +1827,26 @@ models:
       family_name: { type: String, optional: true, annotations: { pii: true } }
       attributes:  { type: "Map<String,AttributeValue>", optional: true }
 
+  AccountSummary:
+    kind: value_object
+    description: |
+      `/api/account/summary` の返り値 (end-user account portal のホーム)。呼び出し
+      ユーザ自身のアカウント概要で、admin shell 用の AccountContext (/api/auth/account)
+      とは別契約。roles は含めず、最終ログイン・パスワード変更日時・MFA 状態・未対応の
+      required actions を portal home の summary card 用に返す (wi-21 / ADR-042)。
+    annotations: { component: Authentication }
+    fields:
+      sub:                 { type: String }
+      preferred_username:  { type: String, annotations: { pii: true } }
+      name:                { type: String, optional: true, annotations: { pii: true } }
+      email:               { type: String, optional: true, constraints: [{ format: email }], annotations: { pii: true } }
+      email_verified:      { type: Boolean }
+      mfa_enrolled:        { type: Boolean }
+      status:              { type: UserStatus }
+      last_login_at:       { type: Timestamp, optional: true }
+      password_changed_at: { type: Timestamp, optional: true }
+      required_actions:    { type: "RequiredAction[]" }
+
   Group:
     kind: entity
     description: ADR-038 で導入した tenant-scoped ロール束集約。所属 User に roles を一斉付与する。id は不変の生成識別子、name はテナント内で一意な編集可能ラベル。
@@ -2874,6 +2894,19 @@ interfaces:
     emits: [PasswordChanged]
     bindings:
       - { kind: http, method: POST, path: /api/auth/change_password, request_body: json }
+
+  GetAccountSummary:
+    description: |
+      認証済みユーザーが自身のアカウント概要を取得する (self-service portal home)。
+      対象は actor.sub に固定。roles を含まず、最終ログイン・パスワード変更日時・
+      MFA 状態・未対応 required actions を返す。admin shell の AccountContext とは
+      別契約 (wi-21 / ADR-042)。
+    output:
+      summary: { type: AccountSummary }
+    errors: [AccessDeniedError]
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: /api/account/summary }
 
   GetUserProfile:
     description: |

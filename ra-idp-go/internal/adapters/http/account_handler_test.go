@@ -91,6 +91,43 @@ func TestAccountProfileGetReturnsSelfView(t *testing.T) {
 	}
 }
 
+func TestAccountSummaryRequiresAuth(t *testing.T) {
+	e := newAccountServer(t, nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/realms/default/api/account/summary", http.NoBody))
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestAccountSummaryReturnsLifecycleAndOmitsRoles(t *testing.T) {
+	user := accountUser()
+	last := time.Date(2026, 6, 20, 9, 0, 0, 0, time.UTC)
+	user.Lifecycle.LastLoginAt = &last
+	user.Lifecycle.RequiredActions = []spec.RequiredAction{spec.RequiredActionUpdatePassword}
+	user.Roles = []string{"admin"}
+	e := newAccountServer(t, user)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/realms/default/api/account/summary", http.NoBody))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var body map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := body["roles"]; ok {
+		t.Fatalf("summary must not expose roles: %+v", body)
+	}
+	if body["last_login_at"] == nil {
+		t.Fatalf("last_login_at missing: %+v", body)
+	}
+	actions, ok := body["required_actions"].([]any)
+	if !ok || len(actions) != 1 || actions[0] != string(spec.RequiredActionUpdatePassword) {
+		t.Fatalf("required_actions not projected: %+v", body["required_actions"])
+	}
+}
+
 func TestAccountProfilePatchUpdatesEditableAttribute(t *testing.T) {
 	e := newAccountServer(t, accountUser())
 	rec := patchSettings(t, e, "/realms/default/api/account/profile", map[string]any{

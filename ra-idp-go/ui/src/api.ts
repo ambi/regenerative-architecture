@@ -1,7 +1,9 @@
 import type {
   BrowserFlowResponse,
+  AccountHomePage,
   AccountProfile,
   AccountProfilePage,
+  AccountSummary,
   AdminAuditEvent,
   AdminAuditEventsPage,
   AdminTenantAttributesPage,
@@ -158,6 +160,19 @@ export async function loadPageData(): Promise<PageData> {
       return new Promise<PageData>(() => {})
     }
   }
+  // end-user account portal も認証必須。未認証なら login へ誘導し戻り先を保持する
+  // (wi-18 と同じ pattern)。一度取得したコンテキストは各 /account/* 分岐で再利用する。
+  let accountContext: AccountContextResponse | undefined
+  if (path === '/account' || path.startsWith('/account/')) {
+    try {
+      accountContext = await request<AccountContextResponse>('/api/auth/account')
+    } catch (error) {
+      if (!(error instanceof UnauthenticatedError)) throw error
+      const returnTo = `${window.location.pathname}${window.location.search}`
+      window.location.assign(`${tenantURL('/login')}?return_to=${encodeURIComponent(returnTo)}`)
+      return new Promise<PageData>(() => {})
+    }
+  }
   if (path === '/') {
     return { kind: 'home', demoEnabled: import.meta.env.DEV } satisfies HomePage
   }
@@ -187,8 +202,17 @@ export async function loadPageData(): Promise<PageData> {
       userCode: data.user_code,
     } satisfies DevicePage
   }
+  if (path === '/account') {
+    const account = accountContext!
+    const summary = await getAccountSummary()
+    return {
+      kind: 'account-home',
+      summary,
+      isAdmin: hasAdminRole(account.roles),
+    } satisfies AccountHomePage
+  }
   if (path === '/account/password') {
-    const data = await request<AccountContextResponse>('/api/auth/account')
+    const data = accountContext!
     return {
       kind: 'change-password',
       csrfToken: data.csrf_token,
@@ -198,7 +222,7 @@ export async function loadPageData(): Promise<PageData> {
     } satisfies ChangePasswordPage
   }
   if (path === '/account/profile') {
-    const account = await request<AccountContextResponse>('/api/auth/account')
+    const account = accountContext!
     const profile = await request<AccountProfile>('/api/account/profile')
     return {
       kind: 'account-profile',
@@ -811,6 +835,10 @@ export async function updateAccountProfile(
   input: UpdateAccountProfileInput,
 ): Promise<AccountProfile> {
   return request('/api/account/profile', adminRequest(csrfToken, 'PATCH', input))
+}
+
+export async function getAccountSummary(): Promise<AccountSummary> {
+  return request<AccountSummary>('/api/account/summary')
 }
 
 export async function getTenantUserAttributeSchema(): Promise<TenantUserAttributeSchema> {

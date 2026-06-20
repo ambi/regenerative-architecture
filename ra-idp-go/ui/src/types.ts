@@ -397,6 +397,25 @@ export type AccountProfilePage = {
   isAdmin: boolean
 }
 
+export type AccountSummary = {
+  sub: string
+  preferred_username: string
+  name?: string
+  email?: string
+  email_verified: boolean
+  mfa_enrolled: boolean
+  status: string
+  last_login_at?: string
+  password_changed_at?: string
+  required_actions: string[]
+}
+
+export type AccountHomePage = {
+  kind: 'account-home'
+  summary: AccountSummary
+  isAdmin: boolean
+}
+
 export type AdminTenantAttributesPage = {
   kind: 'admin-tenant-attributes'
   csrfToken: string
@@ -431,6 +450,7 @@ export type PageData =
   | AdminSettingsPage
   | AdminTenantAttributesPage
   | AccountProfilePage
+  | AccountHomePage
 
 export type BrowserFlowResponse = {
   next?: string

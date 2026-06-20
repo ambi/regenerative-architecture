@@ -28,6 +28,21 @@ type accountProfileResponse struct {
 	EditableAttributes []spec.UserAttributeDef `json:"editable_attributes"`
 }
 
+// accountSummaryResponse は portal home 用のアカウント概要 (self-service)。
+// admin shell 用の AccountContext とは別契約で roles を含めない (wi-21 / ADR-042)。
+type accountSummaryResponse struct {
+	Sub               string                `json:"sub"`
+	PreferredUsername string                `json:"preferred_username"`
+	Name              *string               `json:"name,omitempty"`
+	Email             *string               `json:"email,omitempty"`
+	EmailVerified     bool                  `json:"email_verified"`
+	MfaEnrolled       bool                  `json:"mfa_enrolled"`
+	Status            spec.UserStatus       `json:"status"`
+	LastLoginAt       *time.Time            `json:"last_login_at,omitempty"`
+	PasswordChangedAt *time.Time            `json:"password_changed_at,omitempty"`
+	RequiredActions   []spec.RequiredAction `json:"required_actions"`
+}
+
 type accountProfileUpdateRequest struct {
 	Name       *string                         `json:"name"`
 	GivenName  *string                         `json:"given_name"`
@@ -50,6 +65,33 @@ func (d Deps) accountProfileDeps() authusecases.AccountProfileDeps {
 	return authusecases.AccountProfileDeps{
 		UserRepo: d.UserRepo, AttrSchemaRepo: d.AttrSchemaRepo, Emit: d.Emit,
 	}
+}
+
+func toAccountSummaryResponse(user *spec.User) accountSummaryResponse {
+	actions := user.Lifecycle.RequiredActions
+	if actions == nil {
+		actions = []spec.RequiredAction{}
+	}
+	return accountSummaryResponse{
+		Sub: user.Sub, PreferredUsername: user.PreferredUsername, Name: user.Name,
+		Email: user.Email, EmailVerified: user.EmailVerified, MfaEnrolled: user.MfaEnrolled,
+		Status:            user.Lifecycle.EffectiveStatus(),
+		LastLoginAt:       user.Lifecycle.LastLoginAt,
+		PasswordChangedAt: user.Lifecycle.PasswordChangedAt,
+		RequiredActions:   actions,
+	}
+}
+
+func (d Deps) handleGetAccountSummary(c *echo.Context) error {
+	sub, err := d.requireAuthenticatedSub(c)
+	if err != nil {
+		return d.writeAccountError(c, err)
+	}
+	user, _, err := authusecases.GetUserProfile(c.Request().Context(), d.accountProfileDeps(), sub)
+	if err != nil {
+		return d.writeAccountError(c, err)
+	}
+	return noStoreJSON(c, http.StatusOK, toAccountSummaryResponse(user))
 }
 
 func (d Deps) handleGetAccountProfile(c *echo.Context) error {

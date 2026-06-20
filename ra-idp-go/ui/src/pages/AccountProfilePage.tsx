@@ -1,8 +1,7 @@
-import { IconArrowLeft } from '@tabler/icons-react'
 import { type FormEvent, useState } from 'react'
 import { AuthenticationAPIError, tenantURL, updateAccountProfile } from '../api'
 import { attributeLabel } from '../lib/utils'
-import { AuthShell } from '../components/AuthShell'
+import { AccountShell } from '../components/AccountShell'
 import { Alert } from '../components/ui/alert'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -109,26 +108,14 @@ export function AccountProfilePage({ csrfToken, profile: initial, isAdmin }: Pag
   }
 
   return (
-    <AuthShell aside={false}>
+    <AccountShell
+      active="profile"
+      username={profile.preferred_username}
+      isAdmin={isAdmin}
+      title="個人情報"
+      description="表示名やプロフィール属性を編集できます。"
+    >
       <div className="grid gap-6">
-        <header className="grid gap-3">
-          {isAdmin ? (
-            <a
-              href={tenantURL('/admin')}
-              className="inline-flex w-fit items-center gap-1 text-sm font-medium text-slate-500 hover:text-slate-800"
-            >
-              <IconArrowLeft size={15} aria-hidden="true" />
-              管理コンソールへ戻る
-            </a>
-          ) : null}
-          <div>
-            <h1 className="text-xl font-semibold text-slate-900">プロフィール</h1>
-            <p className="mt-1 text-sm text-slate-600">
-              <span className="font-mono">{profile.preferred_username}</span> としてサインイン中
-            </p>
-          </div>
-        </header>
-
         {error ? <Alert variant="destructive">{error}</Alert> : null}
         {notice ? <Alert variant="success">{notice}</Alert> : null}
 
@@ -199,7 +186,7 @@ export function AccountProfilePage({ csrfToken, profile: initial, isAdmin }: Pag
           </a>
         </div>
       </div>
-    </AuthShell>
+    </AccountShell>
   )
 }
 

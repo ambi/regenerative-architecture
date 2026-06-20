@@ -53,7 +53,7 @@ func RevokeConsent(
 		return err
 	}
 	emit(deps.Emit, &spec.ConsentRevokedEvent{
-		At: adminNow(now), ActorSub: actorSub, Sub: sub, ClientID: clientID,
+		At: adminNow(now), TenantID: tenancy.TenantID(ctx), ActorSub: actorSub, Sub: sub, ClientID: clientID,
 	})
 	return nil
 }

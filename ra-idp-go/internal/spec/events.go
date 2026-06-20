@@ -15,6 +15,7 @@ type DomainEvent interface {
 
 type ClientRegistered struct {
 	At         time.Time  `json:"-"`
+	TenantID   string     `json:"tenantId"`
 	ClientID   string     `json:"clientId"`
 	ClientType ClientType `json:"clientType"`
 }
@@ -135,6 +136,7 @@ func (e *UserDeleted) OccurredAt() time.Time { return e.At }
 
 type AdminClientCreated struct {
 	At       time.Time `json:"-"`
+	TenantID string    `json:"tenantId"`
 	ActorSub string    `json:"actorSub"`
 	ClientID string    `json:"clientId"`
 }
@@ -144,6 +146,7 @@ func (e *AdminClientCreated) OccurredAt() time.Time { return e.At }
 
 type AdminClientUpdated struct {
 	At            time.Time `json:"-"`
+	TenantID      string    `json:"tenantId"`
 	ActorSub      string    `json:"actorSub"`
 	ClientID      string    `json:"clientId"`
 	ChangedFields []string  `json:"changedFields"`
@@ -154,6 +157,7 @@ func (e *AdminClientUpdated) OccurredAt() time.Time { return e.At }
 
 type AdminClientDeleted struct {
 	At       time.Time `json:"-"`
+	TenantID string    `json:"tenantId"`
 	ActorSub string    `json:"actorSub"`
 	ClientID string    `json:"clientId"`
 }
@@ -163,6 +167,7 @@ func (e *AdminClientDeleted) OccurredAt() time.Time { return e.At }
 
 type ConsentGrantedEvent struct {
 	At       time.Time `json:"-"`
+	TenantID string    `json:"tenantId"`
 	Sub      string    `json:"sub"`
 	ClientID string    `json:"clientId"`
 	Scopes   []string  `json:"scopes"`
@@ -173,6 +178,7 @@ func (e *ConsentGrantedEvent) OccurredAt() time.Time { return e.At }
 
 type ConsentRevokedEvent struct {
 	At       time.Time `json:"-"`
+	TenantID string    `json:"tenantId"`
 	ActorSub string    `json:"actorSub,omitempty"`
 	Sub      string    `json:"sub"`
 	ClientID string    `json:"clientId"`
@@ -183,6 +189,7 @@ func (e *ConsentRevokedEvent) OccurredAt() time.Time { return e.At }
 
 type AuthorizationCodeIssued struct {
 	At                  time.Time           `json:"-"`
+	TenantID            string              `json:"tenantId"`
 	ClientID            string              `json:"clientId"`
 	Sub                 string              `json:"sub"`
 	Scopes              []string            `json:"scopes"`
@@ -194,6 +201,7 @@ func (e *AuthorizationCodeIssued) OccurredAt() time.Time { return e.At }
 
 type AuthorizationCodeRedeemed struct {
 	At       time.Time `json:"-"`
+	TenantID string    `json:"tenantId"`
 	ClientID string    `json:"clientId"`
 	Sub      string    `json:"sub"`
 }
@@ -203,6 +211,7 @@ func (e *AuthorizationCodeRedeemed) OccurredAt() time.Time { return e.At }
 
 type AccessTokenIssued struct {
 	At               time.Time `json:"-"`
+	TenantID         string    `json:"tenantId"`
 	JTI              string    `json:"jti"`
 	ClientID         string    `json:"clientId"`
 	Sub              string    `json:"sub"`
@@ -215,6 +224,7 @@ func (e *AccessTokenIssued) OccurredAt() time.Time { return e.At }
 
 type RefreshTokenIssued struct {
 	At       time.Time `json:"-"`
+	TenantID string    `json:"tenantId"`
 	TokenID  string    `json:"tokenId"`
 	FamilyID string    `json:"familyId"`
 	ParentID string    `json:"parentId,omitempty"`
@@ -227,6 +237,7 @@ func (e *RefreshTokenIssued) OccurredAt() time.Time { return e.At }
 
 type RefreshTokenRotated struct {
 	At         time.Time `json:"-"`
+	TenantID   string    `json:"tenantId"`
 	OldTokenID string    `json:"oldTokenId"`
 	NewTokenID string    `json:"newTokenId"`
 	FamilyID   string    `json:"familyId"`
@@ -237,6 +248,7 @@ func (e *RefreshTokenRotated) OccurredAt() time.Time { return e.At }
 
 type TokenRevoked struct {
 	At        time.Time `json:"-"`
+	TenantID  string    `json:"tenantId"`
 	TokenType string    `json:"tokenType"` // "access_token" | "refresh_token"
 	TokenID   string    `json:"tokenId"`
 	Reason    string    `json:"reason"`
@@ -247,6 +259,7 @@ func (e *TokenRevoked) OccurredAt() time.Time { return e.At }
 
 type TokenIntrospected struct {
 	At         time.Time `json:"-"`
+	TenantID   string    `json:"tenantId"`
 	RSClientID string    `json:"rsClientId"`
 	TokenID    string    `json:"tokenId"`
 	Active     bool      `json:"active"`
@@ -257,6 +270,7 @@ func (e *TokenIntrospected) OccurredAt() time.Time { return e.At }
 
 type RefreshTokenReuseDetected struct {
 	At       time.Time `json:"-"`
+	TenantID string    `json:"tenantId"`
 	FamilyID string    `json:"familyId"`
 	TokenID  string    `json:"tokenId"`
 	ClientID string    `json:"clientId"`
@@ -276,6 +290,7 @@ func (e *SigningKeyRotated) OccurredAt() time.Time { return e.At }
 
 type PARStored struct {
 	At         time.Time `json:"-"`
+	TenantID   string    `json:"tenantId"`
 	RequestURI string    `json:"requestUri"`
 	ClientID   string    `json:"clientId"`
 }
@@ -285,6 +300,7 @@ func (e *PARStored) OccurredAt() time.Time { return e.At }
 
 type DeviceAuthorizationRequested struct {
 	At       time.Time `json:"-"`
+	TenantID string    `json:"tenantId"`
 	ClientID string    `json:"clientId"`
 	Scopes   []string  `json:"scopes"`
 }
@@ -294,6 +310,7 @@ func (e *DeviceAuthorizationRequested) OccurredAt() time.Time { return e.At }
 
 type DeviceAuthorizationApproved struct {
 	At       time.Time `json:"-"`
+	TenantID string    `json:"tenantId"`
 	ClientID string    `json:"clientId"`
 	Sub      string    `json:"sub"`
 }
@@ -303,6 +320,7 @@ func (e *DeviceAuthorizationApproved) OccurredAt() time.Time { return e.At }
 
 type DeviceAuthorizationDenied struct {
 	At       time.Time `json:"-"`
+	TenantID string    `json:"tenantId"`
 	ClientID string    `json:"clientId"`
 	Sub      string    `json:"sub"`
 }

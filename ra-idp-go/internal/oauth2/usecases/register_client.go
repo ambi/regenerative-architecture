@@ -131,6 +131,6 @@ func RegisterClient(ctx context.Context, deps RegisterClientDeps, in RegisterCli
 	if err := deps.ClientRepo.Save(ctx, c); err != nil {
 		return nil, err
 	}
-	emit(deps.Emit, &spec.ClientRegistered{At: now, ClientID: clientID, ClientType: in.ClientType})
+	emit(deps.Emit, &spec.ClientRegistered{At: now, TenantID: tenancy.TenantID(ctx), ClientID: clientID, ClientType: in.ClientType})
 	return &RegisterClientResult{Client: c, ClientSecret: secret}, nil
 }

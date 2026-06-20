@@ -91,7 +91,7 @@ func RequestDeviceAuthorization(ctx context.Context, deps DeviceAuthorizationDep
 	if err := deps.DeviceCodeStore.Save(ctx, rec); err != nil {
 		return nil, err
 	}
-	emit(deps.Emit, &spec.DeviceAuthorizationRequested{At: now, ClientID: client.ClientID, Scopes: scopes})
+	emit(deps.Emit, &spec.DeviceAuthorizationRequested{At: now, TenantID: tenantID, ClientID: client.ClientID, Scopes: scopes})
 	return &DeviceAuthorizationResponse{
 		DeviceCode:              deviceCode,
 		UserCode:                userCode,
@@ -148,7 +148,7 @@ func ApproveUserCode(ctx context.Context, deps VerifyUserCodeDeps, userCode, sub
 	if err := deps.DeviceCodeStore.Update(ctx, rec); err != nil {
 		return err
 	}
-	emit(deps.Emit, &spec.DeviceAuthorizationApproved{At: now, ClientID: rec.ClientID, Sub: sub})
+	emit(deps.Emit, &spec.DeviceAuthorizationApproved{At: now, TenantID: rec.TenantID, ClientID: rec.ClientID, Sub: sub})
 	return nil
 }
 
@@ -179,7 +179,7 @@ func DenyUserCode(ctx context.Context, deps VerifyUserCodeDeps, userCode, sub st
 	if err := deps.DeviceCodeStore.Update(ctx, rec); err != nil {
 		return err
 	}
-	emit(deps.Emit, &spec.DeviceAuthorizationDenied{At: now, ClientID: rec.ClientID, Sub: sub})
+	emit(deps.Emit, &spec.DeviceAuthorizationDenied{At: now, TenantID: rec.TenantID, ClientID: rec.ClientID, Sub: sub})
 	return nil
 }
 
@@ -302,7 +302,7 @@ func ExchangeDeviceCode(ctx context.Context, deps ExchangeDeviceCodeDeps, in Exc
 	if err != nil {
 		return nil, err
 	}
-	emit(deps.Emit, &spec.AccessTokenIssued{At: now, JTI: jti, ClientID: client.ClientID, Sub: user.Sub, Scopes: rec.Scopes, SenderConstraint: senderConstraintTag(sc)})
+	emit(deps.Emit, &spec.AccessTokenIssued{At: now, TenantID: tenantID, JTI: jti, ClientID: client.ClientID, Sub: user.Sub, Scopes: rec.Scopes, SenderConstraint: senderConstraintTag(sc)})
 
 	idTok, err := deps.TokenIssuer.SignIDToken(ctx, ports.IDTokenInput{
 		Client: client, User: user, Scopes: rec.Scopes, AuthTime: *rec.AuthTime, AtHashFor: access,
@@ -319,7 +319,7 @@ func ExchangeDeviceCode(ctx context.Context, deps ExchangeDeviceCodeDeps, in Exc
 	if err := deps.RefreshStore.Save(ctx, refresh.Record); err != nil {
 		return nil, err
 	}
-	emit(deps.Emit, &spec.RefreshTokenIssued{At: now, TokenID: refresh.Record.ID, FamilyID: refresh.Record.FamilyID, ClientID: client.ClientID, Sub: user.Sub})
+	emit(deps.Emit, &spec.RefreshTokenIssued{At: now, TenantID: tenantID, TokenID: refresh.Record.ID, FamilyID: refresh.Record.FamilyID, ClientID: client.ClientID, Sub: user.Sub})
 	fam := refresh.Record.FamilyID
 	rec.IssuedFamilyID = &fam
 	_ = deps.DeviceCodeStore.Update(ctx, rec)

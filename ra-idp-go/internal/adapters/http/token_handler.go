@@ -143,7 +143,7 @@ func (d Deps) handleToken(c *echo.Context) error {
 			if sc != nil {
 				tag = string(sc.Type)
 			}
-			d.Emit(&spec.AccessTokenIssued{At: now, JTI: jti, ClientID: client.ClientID, Sub: client.ClientID, Scopes: scopes, SenderConstraint: tag})
+			d.Emit(&spec.AccessTokenIssued{At: now, TenantID: requestTenantID(c), JTI: jti, ClientID: client.ClientID, Sub: client.ClientID, Scopes: scopes, SenderConstraint: tag})
 		}
 		tokenType := "Bearer"
 		if sc != nil && sc.Type == spec.SenderConstraintDPoP {
@@ -221,7 +221,7 @@ func (d Deps) handleIntrospect(c *echo.Context) error {
 		return writeOAuthError(c, err)
 	}
 	if d.Emit != nil {
-		d.Emit(&spec.TokenIntrospected{At: time.Now().UTC(), RSClientID: clientStub.ID, TokenID: resp.JTI, Active: resp.Active})
+		d.Emit(&spec.TokenIntrospected{At: time.Now().UTC(), TenantID: requestTenantID(c), RSClientID: clientStub.ID, TokenID: resp.JTI, Active: resp.Active})
 	}
 	return c.JSON(http.StatusOK, resp)
 }

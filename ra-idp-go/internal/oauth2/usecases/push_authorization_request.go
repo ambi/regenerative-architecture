@@ -57,6 +57,6 @@ func PushAuthorizationRequest(ctx context.Context, deps PARDeps, in PARInput, no
 	if err := deps.Store.Save(ctx, rec); err != nil {
 		return nil, err
 	}
-	emit(deps.Emit, &spec.PARStored{At: now, RequestURI: requestURI, ClientID: in.ClientID})
+	emit(deps.Emit, &spec.PARStored{At: now, TenantID: tenantID, RequestURI: requestURI, ClientID: in.ClientID})
 	return &PARResult{RequestURI: requestURI, ExpiresIn: 90}, nil
 }

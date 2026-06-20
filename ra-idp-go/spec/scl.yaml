@@ -2214,6 +2214,7 @@ models:
     description: /register で新しいクライアントが動的登録された (RFC 7591)。クライアント登録監査の起点。
     payload:
       occurredAt:   { type: Timestamp }
+      tenantId:     { type: String, description: "クライアントが属するテナント ID。" }
       clientId:     { type: String }
       clientType:   { type: ClientType, optional: true }
 
@@ -2394,6 +2395,7 @@ models:
     annotations: { component: Administration }
     payload:
       occurredAt: { type: Timestamp }
+      tenantId:   { type: String, description: "クライアントが属するテナント ID。actor と一致する。" }
       actorSub:   { type: String }
       clientId:   { type: String }
 
@@ -2403,6 +2405,7 @@ models:
     annotations: { component: Administration }
     payload:
       occurredAt:    { type: Timestamp }
+      tenantId:      { type: String, description: "クライアントが属するテナント ID。actor と一致する。" }
       actorSub:      { type: String }
       clientId:      { type: String }
       changedFields: { type: "String[]" }
@@ -2413,6 +2416,7 @@ models:
     annotations: { component: Administration }
     payload:
       occurredAt: { type: Timestamp }
+      tenantId:   { type: String, description: "クライアントが属するテナント ID。actor と一致する。" }
       actorSub:   { type: String }
       clientId:   { type: String }
 
@@ -2458,6 +2462,7 @@ models:
     description: ResourceOwner がクライアントに対する scope の同意を与えた (GDPR Art.6 法的根拠の取得記録)。
     payload:
       occurredAt:   { type: Timestamp }
+      tenantId:     { type: String, description: "同意が起きたテナント ID。" }
       sub:          { type: String }
       clientId:     { type: String }
       scopes:       { type: "String[]" }
@@ -2467,6 +2472,7 @@ models:
     description: ResourceOwner または所属テナントの Administrator が既存の同意を撤回した (GDPR Art.7(3) 同意撤回権)。以後の発行はブロックされる。
     payload:
       occurredAt:   { type: Timestamp }
+      tenantId:     { type: String, description: "同意が属するテナント ID。" }
       actorSub:     { type: String, optional: true, description: "管理 API からの撤回時の Administrator sub。ResourceOwner 自身の撤回では省略可。" }
       sub:          { type: String }
       clientId:     { type: String }
@@ -2476,6 +2482,7 @@ models:
     description: /authorize 完了時に AuthorizationCode を発行した。/token への交換まで 60 秒以内に行う必要がある。
     payload:
       occurredAt:           { type: Timestamp }
+      tenantId:             { type: String, description: "認可コードを発行したテナント ID。" }
       clientId:             { type: String }
       sub:                  { type: String }
       scopes:               { type: "String[]" }
@@ -2486,6 +2493,7 @@ models:
     description: AuthorizationCode が /token で正しく交換された。同一コードの再使用はファミリー失効を引き起こす。
     payload:
       occurredAt:   { type: Timestamp }
+      tenantId:     { type: String, description: "交換が起きたテナント ID。" }
       clientId:     { type: String }
       sub:          { type: String }
 
@@ -2494,6 +2502,7 @@ models:
     description: AccessToken (JWT) を発行した。senderConstraint がある場合は所有証明（DPoP/mTLS）バインド済み。
     payload:
       occurredAt:         { type: Timestamp }
+      tenantId:           { type: String, description: "トークンを発行したテナント ID。" }
       jti:                { type: String }
       clientId:           { type: String }
       sub:                { type: String }
@@ -2505,6 +2514,7 @@ models:
     description: RefreshToken を発行した。familyId は元の認可コード由来のファミリーを識別し、ローテーションで継承される。
     payload:
       occurredAt:   { type: Timestamp }
+      tenantId:     { type: String, description: "トークンを発行したテナント ID。" }
       tokenId:      { type: String }
       familyId:     { type: String }
       parentId:     { type: String, optional: true }
@@ -2516,6 +2526,7 @@ models:
     description: RefreshToken を /token で交換し、新しい子トークンを発行して親を Rotated 状態にした (ADR-004)。
     payload:
       occurredAt:   { type: Timestamp }
+      tenantId:     { type: String, description: "ローテーションが起きたテナント ID。" }
       oldTokenId:   { type: String }
       newTokenId:   { type: String }
       familyId:     { type: String }
@@ -2525,6 +2536,7 @@ models:
     description: /revoke もしくは管理操作によってトークンが失効された (RFC 7009)。監査・即時性要件あり。
     payload:
       occurredAt:   { type: Timestamp }
+      tenantId:     { type: String, description: "失効が起きたテナント ID。" }
       tokenType:    { type: TokenType }
       tokenId:      { type: String }
       reason:       { type: String, optional: true }
@@ -2534,6 +2546,7 @@ models:
     description: /introspect が呼ばれてトークン状態を返した (RFC 7662)。ResourceServer の利用パターン分析に使用。
     payload:
       occurredAt:   { type: Timestamp }
+      tenantId:     { type: String, description: "introspection が起きたテナント ID。" }
       rsClientId:   { type: String }
       tokenId:      { type: String }
       active:       { type: Boolean }
@@ -2543,6 +2556,7 @@ models:
     description: Rotated 状態の RefreshToken が再提示された。ファミリー全失効をトリガーする (RFC 9700 §4.14)。
     payload:
       occurredAt:   { type: Timestamp }
+      tenantId:     { type: String, description: "再利用が検出されたテナント ID。" }
       familyId:     { type: String }
       tokenId:      { type: String }
       clientId:     { type: String, optional: true }
@@ -2560,6 +2574,7 @@ models:
     description: /par に届いた authorize パラメータをサーバー側に格納し短命の request_uri を発行した (RFC 9126)。
     payload:
       occurredAt:   { type: Timestamp }
+      tenantId:     { type: String, description: "PAR を受け付けたテナント ID。" }
       requestUri:   { type: String }
       clientId:     { type: String }
 
@@ -2568,6 +2583,7 @@ models:
     description: "RFC 8628 §3.1 — device_code/user_code を発行した。user_code は監査ログに残さない。"
     payload:
       occurredAt:   { type: Timestamp }
+      tenantId:     { type: String, description: "デバイス認可を受け付けたテナント ID。" }
       clientId:     { type: String }
       scopes:       { type: "String[]" }
 
@@ -2576,6 +2592,7 @@ models:
     description: "RFC 8628 §3.3 — ユーザーが承認した。"
     payload:
       occurredAt:   { type: Timestamp }
+      tenantId:     { type: String, description: "承認が起きたテナント ID。" }
       clientId:     { type: String }
       sub:          { type: String }
 
@@ -2584,6 +2601,7 @@ models:
     description: "RFC 8628 §3.3 — ユーザーが拒否、または user_code 誤り続けた。"
     payload:
       occurredAt:   { type: Timestamp }
+      tenantId:     { type: String, description: "拒否が起きたテナント ID。" }
       clientId:     { type: String }
       sub:          { type: String, optional: true }
 

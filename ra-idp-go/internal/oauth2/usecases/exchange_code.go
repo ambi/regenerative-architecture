@@ -134,8 +134,8 @@ func ExchangeCodeForToken(ctx context.Context, deps ExchangeCodeDeps, in Exchang
 	if err != nil {
 		return nil, err
 	}
-	emit(deps.Emit, &spec.AccessTokenIssued{At: now, JTI: jti, ClientID: client.ClientID, Sub: user.Sub, Scopes: rec.Scopes, SenderConstraint: senderConstraintTag(sc)})
-	emit(deps.Emit, &spec.AuthorizationCodeRedeemed{At: now, ClientID: client.ClientID, Sub: user.Sub})
+	emit(deps.Emit, &spec.AccessTokenIssued{At: now, TenantID: tenantID, JTI: jti, ClientID: client.ClientID, Sub: user.Sub, Scopes: rec.Scopes, SenderConstraint: senderConstraintTag(sc)})
+	emit(deps.Emit, &spec.AuthorizationCodeRedeemed{At: now, TenantID: tenantID, ClientID: client.ClientID, Sub: user.Sub})
 
 	var idToken string
 	if slices.Contains(rec.Scopes, "openid") {
@@ -164,7 +164,7 @@ func ExchangeCodeForToken(ctx context.Context, deps ExchangeCodeDeps, in Exchang
 		if err := deps.RefreshStore.Save(ctx, gen.Record); err != nil {
 			return nil, err
 		}
-		emit(deps.Emit, &spec.RefreshTokenIssued{At: now, TokenID: gen.Record.ID, FamilyID: gen.Record.FamilyID, ClientID: client.ClientID, Sub: user.Sub})
+		emit(deps.Emit, &spec.RefreshTokenIssued{At: now, TenantID: tenantID, TokenID: gen.Record.ID, FamilyID: gen.Record.FamilyID, ClientID: client.ClientID, Sub: user.Sub})
 		if err := deps.CodeStore.LinkFamily(ctx, rec.Code, gen.Record.FamilyID); err != nil {
 			return nil, err
 		}

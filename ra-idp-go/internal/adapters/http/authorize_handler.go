@@ -532,7 +532,7 @@ func (d Deps) handleConsentAPI(c *echo.Context) error {
 			return err
 		}
 		if d.Emit != nil {
-			d.Emit(&spec.ConsentGrantedEvent{At: now, Sub: authn.Sub, ClientID: req.ClientID, Scopes: scopes})
+			d.Emit(&spec.ConsentGrantedEvent{At: now, TenantID: requestTenantID(c), Sub: authn.Sub, ClientID: req.ClientID, Scopes: scopes})
 		}
 	}
 	redirectTo, err := d.issueCodeURL(c, req, authn.Sub, time.Unix(authn.AuthTime, 0))
@@ -624,7 +624,7 @@ func (d Deps) issueCodeURL(
 	}
 	if d.Emit != nil {
 		d.Emit(&spec.AuthorizationCodeIssued{
-			At: time.Now().UTC(), ClientID: req.ClientID, Sub: sub,
+			At: time.Now().UTC(), TenantID: requestTenantID(c), ClientID: req.ClientID, Sub: sub,
 			Scopes: out.Code.Scopes, CodeChallengeMethod: req.CodeChallengeMethod,
 		})
 	}

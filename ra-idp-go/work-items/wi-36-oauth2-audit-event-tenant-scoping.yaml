@@ -1,0 +1,264 @@
+id: wi-36-oauth2-audit-event-tenant-scoping
+title: oauth2 / token / consent / client 系の監査イベントにも emit 時点で tenant_id を載せる
+created_at: 2026-06-20
+status: completed
+authors: [tn]
+
+motivation: |
+  [[wi-35-audit-event-tenant-scoping]] で Authentication + identity 系の
+  15 イベントに emit 時点で tenant_id を載せ、テナント所属 admin の監査
+  ビュー (`/admin/audit_events`) に出るようにした。しかし wi-35 は意図的に
+  Authentication + identity に絞ったため、**oauth2 component が owns する
+  イベント群は依然 tenant_id 空で記録され、テナント admin の監査ビューから
+  除外されたまま**になっている。
+
+  対象 (scl.yaml の OAuth2 component `owns_events`、emit 実績あり):
+  - クライアント: ClientRegistered / AdminClientCreated / AdminClientUpdated
+    / AdminClientDeleted
+  - 同意: ConsentGranted / ConsentRevoked
+  - 認可コード: AuthorizationCodeIssued / AuthorizationCodeRedeemed
+  - トークン: AccessTokenIssued / RefreshTokenIssued / RefreshTokenRotated /
+    RefreshTokenReuseDetected / TokenRevoked / TokenIntrospected
+  - PAR: PARStored
+  - デバイスフロー: DeviceAuthorizationRequested / DeviceAuthorizationApproved
+    / DeviceAuthorizationDenied
+
+  これらは [[wi-35-audit-event-tenant-scoping]] と同じ構造的ギャップ:
+  newAuditEventRecord が payload["tenantId"] を拾えず tenant_id 空で記録 →
+  auditEventMatches がテナント絞り込みで除外。テナント admin はクライアント
+  登録・同意付与/失効・トークン失効などを自テナントの監査ビューで一切
+  確認できない。
+
+  wi-35 と同一方針 (emit 時点で tenant_id を載せ、フィルタは変えない) で
+  このギャップを埋める。tenant コンテキストは各 emit 箇所で取得可能と確認済み:
+  - HTTP 層 (authorize_handler の ConsentGranted / AuthorizationCodeIssued、
+    token_handler の client_credentials AccessTokenIssued / TokenIntrospected)
+    は requestTenantID(c)。
+  - oauth2 usecase 層 (exchange_code / refresh_tokens / device_flow /
+    register_client / admin_clients / admin_consents / revoke_token /
+    push_authorization_request) は tenancy.TenantID(ctx) もしくは解決済み
+    aggregate (client / consent / refresh record) の TenantID。
+
+scope:
+  scl:
+    - >-
+      spec/scl.yaml の以下 event payload に `tenantId: { type: String }` を
+      追加する: ClientRegistered / AdminClientCreated / AdminClientUpdated /
+      AdminClientDeleted / ConsentGranted / ConsentRevoked /
+      AuthorizationCodeIssued / AuthorizationCodeRedeemed / AccessTokenIssued
+      / RefreshTokenIssued / RefreshTokenRotated / RefreshTokenReuseDetected /
+      TokenRevoked / TokenIntrospected / PARStored /
+      DeviceAuthorizationRequested / DeviceAuthorizationApproved /
+      DeviceAuthorizationDenied。
+    - >-
+      これらは OAuth2 component が owns する event。owns_events / component
+      所属は不変。AuditEventResponse.tenant_id (既存) も不変。
+    - spec/ra-idp-go.html を scl-to-html:ra-idp-go で再生成する。
+
+  go:
+    - >-
+      internal/spec/events.go の対象 18 struct に
+      `TenantID string \`json:"tenantId"\`` を追加 (SCL twin、json タグは
+      tenantId)。ConsentGrantedEvent / ConsentRevokedEvent の Go 型名はそのまま
+      (EventType は ConsentGranted / ConsentRevoked)。
+    - >-
+      emit 各所で tenant_id を渡す:
+      - internal/adapters/http/authorize_handler.go: ConsentGranted /
+        AuthorizationCodeIssued は requestTenantID(c)。
+      - internal/adapters/http/token_handler.go: client_credentials の
+        AccessTokenIssued と TokenIntrospected は requestTenantID(c)。
+      - internal/oauth2/usecases/exchange_code.go / refresh_tokens.go /
+        device_flow.go / register_client.go / admin_clients.go /
+        admin_consents.go / revoke_token.go / push_authorization_request.go:
+        tenancy.TenantID(ctx) もしくは scope 内の client/consent/refresh
+        record の TenantID。
+    - >-
+      newAuditEventRecord は変更なし (wi-35 と同じく既存抽出が効くようになる)。
+
+  ui:
+    - >-
+      変更なし。AdminAuditEventsPage / AdminDashboardPage は既存のまま、
+      クライアント・同意・トークン系イベントがテナント絞り込みで返るように
+      なる。
+
+  documentation:
+    - README には新規記述を増やさない。意味的差分は completion に記録する。
+
+out_of_scope:
+  - >-
+    SigningKeyRotated: 現状の署名鍵はインスタンス全体で 1 系統 (per-tenant
+    鍵は [[wi-32-kms-hsm-and-per-tenant-signing-keys]] の領分) のため、
+    帰属テナントが定義できない。tenant_id は載せず、wi-32 で per-tenant 鍵を
+    入れる際に併せて対応する。
+  - >-
+    フィルタ semantics の変更 (auditEventMatches / parseAuditEventQuery)。
+    wi-35 と同様、emit 時 tenant_id 付与のみで解決する。
+  - >-
+    高頻度トークンイベントの aggregation / bucketing / retention。これは
+    [[wi-20-authentication-event-history]] の専用サブシステムの領分。本 WI は
+    既存イベントの「テナント帰属の可視化」だけに絞り、量・保管は変えない。
+  - 既存 (legacy) の tenant_id 空レコードの遡及補正 / バックフィル。
+
+affected_guarantees:
+  - >-
+    監査の可視性: テナント所属 admin が自テナントの client / consent / token
+    系イベントを監査画面で確認できるようになる。AdminAuditEventsRead の SCL
+    permission は不変。
+  - >-
+    cross-tenant 隔離: tenant_id を正しく載せることで別テナント admin に
+    他テナントのイベントが漏れない。現状の tenant_id 空 (system_admin の
+    all_tenants ビューでのみ可視) より隔離が厳密になる。
+  - >-
+    SCL coherence: scl.yaml event payload と Go struct を twin で更新。
+    OAuth2 component の owns_events は不変。coherence_test の event
+    vocabulary チェックは無影響。
+  - >-
+    後方互換: 既存の event 消費者 (EventSink / kafka_relay / postgres
+    マッピング) は tenantId 追加で壊れない (additive)。
+
+verification:
+  - cmd: 'go test ./...'
+    in: ra-idp-go
+    reason: events_test の wire 名規約、spec coherence、admin audit /
+      oauth2 flow handler テストの回帰がないこと。
+  - cmd: 'golangci-lint run ./...'
+    in: ra-idp-go
+  - cmd: 'go build ./...'
+    in: ra-idp-go
+  - cmd: 'bun --cwd ra-idp-go/ui typecheck'
+  - cmd: 'bun --cwd ra-idp-go/ui build'
+  - cmd: 'bun run yaml-check:scl'
+    in: tools
+  - >-
+    手動 1 (client): admin でクライアントを登録 →
+    `/admin/audit_events` を type=ClientRegistered (および AdminClientCreated)
+    で絞ると自テナントに出ること。
+  - >-
+    手動 2 (consent / token): authorization code フローを 1 回通す →
+    ConsentGranted / AuthorizationCodeIssued / AuthorizationCodeRedeemed /
+    AccessTokenIssued / RefreshTokenIssued が自テナントの監査ビューに出ること。
+  - >-
+    手動 3 (cross-tenant 隔離): 2 テナント構成で、テナント A の admin が
+    テナント B の token / consent イベントを見られないこと (all_tenants OFF)。
+  - >-
+    手動 4 (key 除外): 署名鍵ローテーションを起こしても SigningKeyRotated は
+    tenant_id 空のままで、テナント admin ビューには出ないこと (意図どおり)。
+
+risk: medium
+risk_notes: |
+  event struct と scl.yaml を twin で 18 件触るため、片方だけの更新は
+  spec↔impl drift になる。events_test と coherence_test を緑にして担保する。
+
+  oauth2 flow は emit 箇所が usecase / HTTP 両層に散らばる。各箇所で
+  「正しいテナント」を渡すのが肝。token_handler の client_credentials は
+  user が存在せず client が RS/AS をまたぐため、requestTenantID(c)
+  (リクエストパス由来) を正とする。TokenIntrospected は RS client の経路だが
+  introspection も realm path 配下なので requestTenantID(c) で一貫させる。
+
+  本 WI 完了で、SigningKeyRotated を除く監査イベントが概ねテナント帰属を
+  持つ。SigningKeyRotated はインスタンス全体鍵のため意図的に空のままで、
+  [[wi-32-kms-hsm-and-per-tenant-signing-keys]] で per-tenant 鍵を入れる
+  ときに対応する。境界を completion に明示する。
+
+completion:
+  completed_at: 2026-06-20
+
+  summary: |
+    [[wi-35-audit-event-tenant-scoping]] の残課題だった OAuth2 component の
+    18 イベントに tenantId を追加し、emit 時点で所属テナントを載せた。これで
+    クライアント登録・同意付与/失効・認可コード・トークン発行/失効/再利用検出・
+    PAR・デバイスフローの各イベントが、テナント所属 admin の
+    `/admin/audit_events` に出るようになった。wi-35 と同じく newAuditEventRecord
+    と監査フィルタは一切変更していない (既存の payload["tenantId"] 抽出が効く
+    ようになっただけ)。
+
+    SigningKeyRotated は意図的に対象外。現状の署名鍵はインスタンス全体で
+    1 系統のため帰属テナントが定義できず、tenant_id 空のまま残る。per-tenant
+    鍵を入れる [[wi-32-kms-hsm-and-per-tenant-signing-keys]] で対応する。
+
+  scl_changes:
+    - >-
+      spec/scl.yaml: ClientRegistered / AdminClientCreated/Updated/Deleted /
+      ConsentGranted / ConsentRevoked / AuthorizationCodeIssued/Redeemed /
+      AccessTokenIssued / RefreshTokenIssued/Rotated/ReuseDetected /
+      TokenRevoked / TokenIntrospected / PARStored /
+      DeviceAuthorizationRequested/Approved/Denied の payload に tenantId を
+      追加 (18 件)。SigningKeyRotated は据え置き。
+    - spec/ra-idp-go.html を再生成。
+
+  go_changes:
+    - >-
+      internal/spec/events.go: 上記 18 struct に
+      `TenantID string \`json:"tenantId"\`` を追加 (SCL twin)。
+    - >-
+      internal/adapters/http/authorize_handler.go: ConsentGranted /
+      AuthorizationCodeIssued に requestTenantID(c)。
+    - >-
+      internal/adapters/http/token_handler.go: client_credentials の
+      AccessTokenIssued と TokenIntrospected に requestTenantID(c)。
+    - >-
+      internal/oauth2/usecases/{exchange_code,device_flow,refresh_tokens,
+      register_client,admin_clients,admin_consents,revoke_token,
+      push_authorization_request}.go: tenancy.TenantID(ctx) もしくは scope 内
+      の client / consent / device-code / refresh record の TenantID を載せる。
+    - newAuditEventRecord は変更なし。
+
+  test_changes:
+    - >-
+      internal/bootstrap/audit_event_record_test.go: ClientRegistered /
+      AccessTokenIssued / ConsentGranted の tenantId 伝播を追加検証。
+      SigningKeyRotated が tenant_id 空のままであることも境界として固定。
+
+  semantic_diff:
+    before:
+      oauth2_audit_visibility: "client / consent / token 系イベントは tenant_id 空。テナント admin の監査ビューから除外"
+    after:
+      oauth2_audit_visibility: "SigningKeyRotated を除く OAuth2 系 18 イベントが所属テナントで記録され、テナント admin の監査ビューに出る"
+
+  affected_guarantees_state:
+    - >-
+      監査の可視性: テナント admin が自テナントの client / consent / token
+      系イベントを確認できる。AdminAuditEventsRead permission は不変。
+    - >-
+      cross-tenant 隔離: tenant_id を正しく載せたため別テナント admin に漏れ
+      ない。tenant_id 空 (system_admin の all_tenants ビューでのみ可視) より
+      厳密になる。
+    - >-
+      SCL coherence: scl.yaml と Go struct を twin 更新。go test
+      ./internal/spec/... と events_test の wire 名検証が緑。
+    - 後方互換: 既存 event 消費者は additive な tenantId 追加で無影響。
+
+  residual_risk:
+    - >-
+      SigningKeyRotated は tenant_id 空のまま (意図どおり)。per-tenant 鍵の
+      [[wi-32-kms-hsm-and-per-tenant-signing-keys]] で併せて対応する。
+    - >-
+      高頻度トークンイベント (AccessTokenIssued 等) の量・保管は本 WI では
+      変えていない。aggregation / retention は
+      [[wi-20-authentication-event-history]] の専用サブシステムで扱う。
+    - >-
+      既存 (legacy) の tenant_id 空レコードは遡及補正しない。本 WI 適用後の
+      イベントから可視化される。
+    - >-
+      手動 1〜4 (実ブラウザでのフロー実行→監査ビュー目視) は本セッションでは
+      未実施。go test ./... / golangci-lint / UI typecheck・build / yaml-check:scl
+      が全緑で、newAuditEventRecord の追加テストで emit→record の tenant 伝播を
+      固定した。
+
+  verification:
+    - cmd: 'go test ./...'
+      in: ra-idp-go
+      result: ok (exit 0、FAIL なし)
+    - cmd: 'golangci-lint run ./...'
+      in: ra-idp-go
+      result: ok (0 issues)
+    - cmd: 'go build ./...'
+      in: ra-idp-go
+      result: ok
+    - cmd: 'bun --cwd ra-idp-go/ui typecheck'
+      result: ok
+    - cmd: 'bun --cwd ra-idp-go/ui build'
+      result: ok
+    - cmd: 'bun run yaml-check:scl'
+      in: tools
+      result: ok

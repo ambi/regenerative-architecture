@@ -40,7 +40,7 @@ func CreateClient(
 		return nil, err
 	}
 	emit(deps.Emit, &spec.AdminClientCreated{
-		At: adminNow(in.Now), ActorSub: in.ActorSub, ClientID: result.Client.ClientID,
+		At: adminNow(in.Now), TenantID: result.Client.TenantID, ActorSub: in.ActorSub, ClientID: result.Client.ClientID,
 	})
 	return result, nil
 }
@@ -107,7 +107,7 @@ func UpdateClient(ctx context.Context, deps ClientDeps, in UpdateClientInput) (*
 		return nil, err
 	}
 	emit(deps.Emit, &spec.AdminClientUpdated{
-		At: adminNow(in.Now), ActorSub: in.ActorSub, ClientID: client.ClientID,
+		At: adminNow(in.Now), TenantID: tenantID, ActorSub: in.ActorSub, ClientID: client.ClientID,
 		ChangedFields: changed,
 	})
 	return &updated, nil
@@ -131,7 +131,7 @@ func DeleteClient(
 		return err
 	}
 	emit(deps.Emit, &spec.AdminClientDeleted{
-		At: adminNow(now), ActorSub: actorSub, ClientID: clientID,
+		At: adminNow(now), TenantID: tenantID, ActorSub: actorSub, ClientID: clientID,
 	})
 	return nil
 }

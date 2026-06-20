@@ -90,6 +90,69 @@ func TestAdminUserAPICreatesAndDisablesUser(t *testing.T) {
 	}
 }
 
+func TestAdminUserAPISetsAndClearsRequiredAction(t *testing.T) {
+	e, repo := newAdminUserHandler(t)
+	csrf, cookie := adminCSRF(t, e)
+
+	create := adminJSONRequest(t, e, http.MethodPost, "/api/admin/users", csrf, cookie, map[string]any{
+		"preferred_username": "carol",
+		"password":           "initial-password-9182",
+		"email":              "carol@example.com",
+	})
+	if create.Code != http.StatusCreated {
+		t.Fatalf("create status=%d body=%s", create.Code, create.Body.String())
+	}
+	var created struct {
+		Sub string `json:"sub"`
+	}
+	if err := json.Unmarshal(create.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+
+	set := adminJSONRequest(t, e, http.MethodPost,
+		"/api/admin/users/"+created.Sub+"/required_actions", csrf, cookie,
+		map[string]any{"action": "update_password"})
+	if set.Code != http.StatusOK {
+		t.Fatalf("set status=%d body=%s", set.Code, set.Body.String())
+	}
+	var afterSet struct {
+		RequiredActions []string `json:"required_actions"`
+	}
+	if err := json.Unmarshal(set.Body.Bytes(), &afterSet); err != nil {
+		t.Fatal(err)
+	}
+	if len(afterSet.RequiredActions) != 1 || afterSet.RequiredActions[0] != "update_password" {
+		t.Fatalf("required_actions=%v, want [update_password]", afterSet.RequiredActions)
+	}
+	user, err := repo.FindBySub(context.Background(), created.Sub)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if user == nil || len(user.Lifecycle.RequiredActions) != 1 {
+		t.Fatalf("persisted required actions=%+v", user)
+	}
+
+	bad := adminJSONRequest(t, e, http.MethodPost,
+		"/api/admin/users/"+created.Sub+"/required_actions", csrf, cookie,
+		map[string]any{"action": "teleport"})
+	if bad.Code != http.StatusBadRequest {
+		t.Fatalf("invalid action status=%d body=%s", bad.Code, bad.Body.String())
+	}
+
+	cleared := adminJSONRequest(t, e, http.MethodDelete,
+		"/api/admin/users/"+created.Sub+"/required_actions/update_password", csrf, cookie, nil)
+	if cleared.Code != http.StatusOK {
+		t.Fatalf("clear status=%d body=%s", cleared.Code, cleared.Body.String())
+	}
+	user, err = repo.FindBySub(context.Background(), created.Sub)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if user == nil || len(user.Lifecycle.RequiredActions) != 0 {
+		t.Fatalf("required actions not cleared: %+v", user)
+	}
+}
+
 func TestAdminUserAPIDeletesUserWithCascade(t *testing.T) {
 	e, repo := newAdminUserHandler(t)
 	csrf, cookie := adminCSRF(t, e)

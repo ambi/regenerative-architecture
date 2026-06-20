@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -342,6 +343,14 @@ func (d Deps) handleLoginAPI(c *echo.Context) error {
 		}
 		return noStoreJSON(c, http.StatusOK, browserFlowResponse{Next: next})
 	}
+	// full authentication 完了 (pwd-only)。last_login_at 記録 + required action gate。
+	gateNext, err := d.recordLoginAndRequiredAction(c, user, authTime)
+	if err != nil {
+		return err
+	}
+	if gateNext != "" {
+		return noStoreJSON(c, http.StatusOK, browserFlowResponse{Next: gateNext})
+	}
 	if directAdminLogin {
 		return noStoreJSON(c, http.StatusOK, browserFlowResponse{RedirectTo: input.ReturnTo})
 	}
@@ -363,6 +372,23 @@ func (d Deps) handleLoginAPI(c *echo.Context) error {
 		d.clearTransactionCookie(c)
 	}
 	return writeAuthorizationNext(c, next)
+}
+
+// recordLoginAndRequiredAction は full authentication 完了時に last_login_at を
+// 記録し (wi-19)、未充足の required action があればログイン後の強制誘導先を返す。
+// 返り値 gateNext が非空なら OAuth フローを完了させず、その画面へ誘導する。現状
+// 専用画面のある update_password のみ change-password へ gate する (UI 拡張は wi-21)。
+func (d Deps) recordLoginAndRequiredAction(c *echo.Context, user *spec.User, now time.Time) (string, error) {
+	updated := *user
+	updated.Lifecycle.LastLoginAt = &now
+	if err := d.UserRepo.Save(c.Request().Context(), &updated); err != nil {
+		return "", err
+	}
+	*user = updated
+	if slices.Contains(updated.Lifecycle.RequiredActions, spec.RequiredActionUpdatePassword) {
+		return tenantRoute(c, "/change_password"), nil
+	}
+	return "", nil
 }
 
 func (d Deps) handleTOTPAPI(c *echo.Context) error {
@@ -416,6 +442,18 @@ func (d Deps) handleTOTPAPI(c *echo.Context) error {
 	d.setSessionCookie(c, completed.SessionID)
 	if d.Emit != nil {
 		d.Emit(&spec.UserAuthenticated{At: time.Now().UTC(), Sub: completed.Sub, AMR: completed.AMR})
+	}
+	// full authentication 完了 (pwd + otp)。last_login_at 記録 + required action gate。
+	if user, err := d.UserRepo.FindBySub(c.Request().Context(), completed.Sub); err != nil {
+		return err
+	} else if user != nil {
+		gateNext, err := d.recordLoginAndRequiredAction(c, user, time.Now().UTC())
+		if err != nil {
+			return err
+		}
+		if gateNext != "" {
+			return noStoreJSON(c, http.StatusOK, browserFlowResponse{Next: gateNext})
+		}
 	}
 	if directAdminLogin {
 		return noStoreJSON(c, http.StatusOK, browserFlowResponse{RedirectTo: input.ReturnTo})

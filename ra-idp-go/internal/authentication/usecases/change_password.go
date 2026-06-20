@@ -3,6 +3,7 @@ package usecases
 import (
 	"context"
 	"errors"
+	"slices"
 	"time"
 
 	authports "ra-idp-go/internal/authentication/ports"
@@ -89,6 +90,14 @@ func ChangePassword(ctx context.Context, deps ChangePasswordDeps, in ChangePassw
 	updated := *user
 	updated.PasswordHash = encoded
 	updated.UpdatedAt = now
+	updated.Lifecycle.PasswordChangedAt = &now
+	// 本人がパスワードを変更したので update_password の強制アクションは自動解除する。
+	clearedUpdatePassword := slices.Contains(updated.Lifecycle.RequiredActions, spec.RequiredActionUpdatePassword)
+	if clearedUpdatePassword {
+		updated.Lifecycle.RequiredActions = removeRequiredAction(
+			updated.Lifecycle.RequiredActions, spec.RequiredActionUpdatePassword,
+		)
+	}
 	if err := deps.UserRepo.Save(ctx, &updated); err != nil {
 		return nil, err
 	}
@@ -97,6 +106,13 @@ func ChangePassword(ctx context.Context, deps ChangePasswordDeps, in ChangePassw
 	}
 	if deps.Emit != nil {
 		deps.Emit(&spec.PasswordChanged{At: now, TenantID: user.TenantID, Sub: user.Sub})
+		if clearedUpdatePassword {
+			// 自動解除なので ActorSub は本人 (system 操作ではなく能動的解除)。
+			deps.Emit(&spec.UserRequiredActionCleared{
+				At: now, TenantID: user.TenantID, ActorSub: user.Sub, TargetSub: user.Sub,
+				Action: string(spec.RequiredActionUpdatePassword),
+			})
+		}
 	}
 	return &updated, nil
 }

@@ -71,9 +71,36 @@ export type AdminUser = {
   roles: string[]
   status?: string
   attributes?: Record<string, AttributeValue>
+  required_actions?: string[]
+  last_login_at?: string
+  password_changed_at?: string
   disabled_at?: string
   created_at: string
   updated_at: string
+}
+
+export const REQUIRED_ACTIONS = [
+  'update_password',
+  'verify_email',
+  'configure_totp',
+  'update_profile',
+  'terms_and_conditions',
+] as const
+
+export type RequiredActionValue = (typeof REQUIRED_ACTIONS)[number]
+
+export const REQUIRED_ACTION_LABELS: Record<string, string> = {
+  update_password: 'パスワードの変更',
+  verify_email: 'メールアドレスの確認',
+  configure_totp: '二要素認証の設定',
+  update_profile: 'プロフィールの更新',
+  terms_and_conditions: '利用規約への同意',
+}
+
+// requiredActionLabel は内部値を利用者向けの日本語表示名へ変換する。未知の値でも
+// 内部表現をそのまま見せず、一般的な文言にフォールバックする。
+export function requiredActionLabel(action: string): string {
+  return REQUIRED_ACTION_LABELS[action] ?? 'その他の必須対応'
 }
 
 export type AdminUsersPage = {

@@ -349,6 +349,59 @@ func TestDirectAdminLoginReturnsToRequestedPage(t *testing.T) {
 	}
 }
 
+func TestLoginWithUpdatePasswordActionRedirectsToChangePassword(t *testing.T) {
+	srv, userRepo := newServerWithUserAccess(t)
+	defer srv.Close()
+	client := browserClient(t)
+	returnTo := "/admin/users?status=active"
+
+	// 対象 user に update_password の required action を立てる。
+	user, err := userRepo.FindBySub(context.Background(), "user_alice")
+	if err != nil || user == nil {
+		t.Fatalf("seed user lookup: %v", err)
+	}
+	user.Lifecycle.RequiredActions = []spec.RequiredAction{spec.RequiredActionUpdatePassword}
+	if err := userRepo.Save(context.Background(), user); err != nil {
+		t.Fatal(err)
+	}
+
+	transaction := getJSON[struct {
+		Kind      string `json:"kind"`
+		CSRFToken string `json:"csrf_token"`
+	}](t, client, srv.URL+"/api/auth/transaction?return_to="+url.QueryEscape(returnTo))
+	if transaction.Kind != "login" || transaction.CSRFToken == "" {
+		t.Fatalf("unexpected direct login transaction: %+v", transaction)
+	}
+
+	result := postJSON[map[string]string](
+		t,
+		client,
+		srv.URL+"/api/auth/login",
+		transaction.CSRFToken,
+		map[string]string{
+			"username":  demoUsername,
+			"password":  demoPassword,
+			"return_to": returnTo,
+		},
+	)
+	// OAuth フローは完了させず change-password 画面へ強制誘導する (gate)。
+	if result["redirect_to"] != "" {
+		t.Fatalf("redirect_to=%q, want empty (gated)", result["redirect_to"])
+	}
+	if !strings.HasSuffix(result["next"], "/change_password") {
+		t.Fatalf("next=%q, want suffix /change_password", result["next"])
+	}
+
+	// last_login_at が記録される。
+	updated, err := userRepo.FindBySub(context.Background(), "user_alice")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.Lifecycle.LastLoginAt == nil {
+		t.Fatal("last_login_at was not recorded on login")
+	}
+}
+
 func TestDirectAdminLoginRejectsUnsafeReturnTo(t *testing.T) {
 	srv := newServer(t)
 	defer srv.Close()

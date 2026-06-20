@@ -53,10 +53,17 @@ type adminUserResponse struct {
 	Roles             []string                       `json:"roles"`
 	Status            spec.UserStatus                `json:"status"`
 	Attributes        map[string]spec.AttributeValue `json:"attributes,omitempty"`
+	RequiredActions   []spec.RequiredAction          `json:"required_actions,omitempty"`
+	LastLoginAt       *time.Time                     `json:"last_login_at,omitempty"`
+	PasswordChangedAt *time.Time                     `json:"password_changed_at,omitempty"`
 	// DisabledAt は status から導出した後方互換フィールド (現行 UI 用)。
 	DisabledAt *time.Time `json:"disabled_at,omitempty"`
 	CreatedAt  time.Time  `json:"created_at"`
 	UpdatedAt  time.Time  `json:"updated_at"`
+}
+
+type adminRequiredActionRequest struct {
+	Action string `json:"action"`
 }
 
 func (d Deps) handleListAdminUsers(c *echo.Context) error {
@@ -252,6 +259,8 @@ func (d Deps) writeAdminUserError(c *echo.Context, err error) error {
 		return writeBrowserError(c, http.StatusBadRequest, "self_delete_forbidden", "管理者は自身を削除できません")
 	case errors.Is(err, authusecases.ErrInvalidAttribute):
 		return writeBrowserError(c, http.StatusBadRequest, "invalid_attribute", "属性がスキーマに適合していません")
+	case errors.Is(err, authusecases.ErrInvalidRequiredAction):
+		return writeBrowserError(c, http.StatusBadRequest, "invalid_required_action", "required action が不正です")
 	default:
 		var policyErr *authusecases.PasswordPolicyError
 		if errors.As(err, &policyErr) {
@@ -278,7 +287,51 @@ func toAdminUserResponse(user *spec.User) adminUserResponse {
 		GivenName: user.GivenName, FamilyName: user.FamilyName,
 		Email: user.Email, EmailVerified: user.EmailVerified, MfaEnrolled: user.MfaEnrolled,
 		Roles: slices.Clone(user.Roles), Status: user.Lifecycle.EffectiveStatus(),
-		Attributes: user.Attributes, DisabledAt: disabledAt,
-		CreatedAt: user.CreatedAt, UpdatedAt: user.UpdatedAt,
+		Attributes:        user.Attributes,
+		RequiredActions:   slices.Clone(user.Lifecycle.RequiredActions),
+		LastLoginAt:       user.Lifecycle.LastLoginAt,
+		PasswordChangedAt: user.Lifecycle.PasswordChangedAt,
+		DisabledAt:        disabledAt,
+		CreatedAt:         user.CreatedAt, UpdatedAt: user.UpdatedAt,
 	}
+}
+
+func (d Deps) handleSetUserRequiredAction(c *echo.Context) error {
+	if err := d.verifyBrowserRequest(c); err != nil {
+		return err
+	}
+	actor, err := d.requireAdmin(c)
+	if err != nil {
+		return d.writeAdminAccessError(c, err)
+	}
+	var input adminRequiredActionRequest
+	if err := decodeJSON(c.Request(), &input); err != nil {
+		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	}
+	user, err := authusecases.SetUserRequiredAction(
+		c.Request().Context(), d.adminUserDeps(), actor.Sub, c.Param("sub"),
+		spec.RequiredAction(input.Action), time.Now().UTC(),
+	)
+	if err != nil {
+		return d.writeAdminUserError(c, err)
+	}
+	return noStoreJSON(c, http.StatusOK, toAdminUserResponse(user))
+}
+
+func (d Deps) handleClearUserRequiredAction(c *echo.Context) error {
+	if err := d.verifyBrowserRequest(c); err != nil {
+		return err
+	}
+	actor, err := d.requireAdmin(c)
+	if err != nil {
+		return d.writeAdminAccessError(c, err)
+	}
+	user, err := authusecases.ClearUserRequiredAction(
+		c.Request().Context(), d.adminUserDeps(), actor.Sub, c.Param("sub"),
+		spec.RequiredAction(c.Param("action")), time.Now().UTC(),
+	)
+	if err != nil {
+		return d.writeAdminUserError(c, err)
+	}
+	return noStoreJSON(c, http.StatusOK, toAdminUserResponse(user))
 }

@@ -3,6 +3,7 @@ package usecases
 import (
 	"context"
 	"errors"
+	"slices"
 	"time"
 
 	authports "ra-idp-go/internal/authentication/ports"
@@ -93,6 +94,14 @@ func ResetPasswordWithToken(
 	updated := *user
 	updated.PasswordHash = encoded
 	updated.UpdatedAt = now
+	updated.Lifecycle.PasswordChangedAt = &now
+	// リセットで新パスワードを設定したので update_password 強制アクションを自動解除する。
+	clearedUpdatePassword := slices.Contains(updated.Lifecycle.RequiredActions, spec.RequiredActionUpdatePassword)
+	if clearedUpdatePassword {
+		updated.Lifecycle.RequiredActions = removeRequiredAction(
+			updated.Lifecycle.RequiredActions, spec.RequiredActionUpdatePassword,
+		)
+	}
 	if err := deps.UserRepo.Save(ctx, &updated); err != nil {
 		return nil, err
 	}
@@ -101,6 +110,12 @@ func ResetPasswordWithToken(
 	}
 	if deps.Emit != nil {
 		deps.Emit(&spec.PasswordChanged{At: now, TenantID: user.TenantID, Sub: user.Sub})
+		if clearedUpdatePassword {
+			deps.Emit(&spec.UserRequiredActionCleared{
+				At: now, TenantID: user.TenantID, ActorSub: user.Sub, TargetSub: user.Sub,
+				Action: string(spec.RequiredActionUpdatePassword),
+			})
+		}
 	}
 	return &updated, nil
 }

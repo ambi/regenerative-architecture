@@ -1,8 +1,22 @@
 id: wi-19-rich-user-attributes
 title: ユーザー属性を実運用相当 (Keycloak / Okta / Google IAM 同等) まで拡張する
 created_at: 2026-06-17
-status: pending
+status: completed
 authors: [tn]
+
+amendments:
+  - >-
+    2026-06-20: 実装途中で ADR-039 (thin core + sparse attribute bag) /
+    ADR-040 に設計転換した。これに伴い当初設計の以下を本 WI から外す:
+    (a) 多値連絡先 (`UserContact` の emails/phones/addresses[] と
+    user_emails / user_phones 等の別テーブル、primary/verified 不変条件、
+    AddUserContact 等の専用 interface) — 属性は JSONB の単一 attribute bag に
+    集約したため不要。(b) `VerifiedClaim` 型と verified_claims (OIDC4IDA は
+    元々 out_of_scope)。(c) 属性ごとの粒度イベント
+    (UserProfileUpdated / UserOrganizationUpdated / UserContact* /
+    UserCustomAttributeUpdated) — 既存 `UserUpdated` に集約。
+    ライフサイクル属性 (last_login_at / password_changed_at /
+    required_actions と Set/Clear/ログイン強制誘導) は本 WI の対象として残す。
 
 motivation: |
   現在の `spec.User` は OIDC Core の最小プロファイル
@@ -83,12 +97,6 @@ scope:
       `employee_number` / `cost_center` / `manager_sub` / `hire_date` /
       `employment_type`。SCIM `enterprise:User` 拡張と同等。
     - >-
-      `UserContact` を新 model として、`emails: ContactValue[]` /
-      `phones: ContactValue[]` / `addresses: AddressClaim[]` を持たせる
-      設計に切替える (primary フラグ + verified フラグ + type
-      enum {work / home / mobile / other})。primary は 1 個だけ
-      存在することを invariant とする。
-    - >-
       `UserLifecycle` を新 model として、`status: UserStatus
       {active / disabled / locked / staged / suspended}` /
       `last_login_at` / `password_changed_at` / `required_actions:
@@ -103,34 +111,23 @@ scope:
       を tenant の schema に対して validate する flow を SCL の
       precondition に書く。
     - >-
-      `VerifiedClaim` を新 model として、`claim_name` / `verified_at` /
-      `verification_method` (`document` / `email` / `sms` / `idv_vendor`)
-      / `verified_by` (`admin_sub` または `system`) を持たせる。
-      `User.verified_claims: VerifiedClaim[]` を任意で添えられるように
-      する (OIDC4IDA を将来取り込めるよう薄く)。
-    - >-
       新規イベント:
-        UserProfileUpdated   (sub / changedKeys[] / actorSub)
-        UserOrganizationUpdated (sub / actorSub)
-        UserContactAdded      (sub / kind / valueHash / actorSub)
-        UserContactRemoved    (sub / kind / valueHash / actorSub)
-        UserContactVerified   (sub / kind / valueHash / method)
-        UserCustomAttributeUpdated (sub / key / actorSub)
         UserRequiredActionSet / UserRequiredActionCleared
-          (sub / action / actorSub)
-      既存 UserUpdated は profile 以外の構造変更 (roles / status) に
-      責務を絞る。
+          (tenantId / targetSub / action / actorSub)
+      profile / 組織 / 連絡先 / custom 属性の変更は ADR-039 の
+      thin-core 再設計に伴い既存 `UserUpdated` (changedFields に
+      "attributes" 等を載せる) に集約し、属性ごとの粒度イベント
+      (UserProfileUpdated / UserOrganizationUpdated / UserContact* /
+      UserCustomAttributeUpdated) は導入しない。
     - >-
       新規 interface:
-        UpdateUserProfile        (Authentication / self)
-        UpdateUserOrganization   (Authentication / admin)
-        AddUserContact / RemoveUserContact / VerifyUserContact
-        SetUserCustomAttribute / DeleteUserCustomAttribute
-        SetRequiredAction / ClearRequiredAction
-        GetTenantAttributeSchema / UpdateTenantAttributeSchema (Tenancy)
-      既存 `UpdateAdminUser` は admin が組織属性まで踏み込めるように
-      拡張するが、self-service 経路 (end-user 用) は別 interface に
-      分け、admin/self の境界を SCL の permission で表現する。
+        UpdateUserProfile        (Authentication / self、実装済み)
+        SetUserRequiredAction / ClearUserRequiredAction (Authentication / admin)
+        GetTenantAttributeSchema / UpdateTenantAttributeSchema (Tenancy、実装済み)
+      組織属性は admin の `UpdateAdminUser` が attributes 経由で扱い、
+      self-service 経路 (end-user 用) は `UpdateUserProfile` に分けて
+      admin/self の境界を表現する。連絡先専用 interface
+      (AddUserContact 等) は多値連絡先を採らないため設けない。
 
   go:
     domain:
@@ -195,31 +192,17 @@ scope:
         手書き)。
     persistence:
       - >-
-        in-memory adapter (`internal/adapters/memory`): User 拡張に
-        追従。primary email / primary phone のユニーク化 hint を構造
-        体内のフラグで保持。
-      - >-
-        Postgres adapter (`internal/adapters/postgres`): users テーブルを
-        中心に **多値属性は別テーブル** に分割する設計とする
-        (`user_emails` / `user_phones` / `user_addresses` /
-        `user_organizations` / `user_required_actions` /
-        `user_custom_attributes` / `user_verified_claims`)。理由は
-        (a) primary フラグ + verified の検索が走るため、(b) custom
-        attribute は schema 変更が頻繁、(c) GDPR の部分削除を行う
-        ため。マイグレーションは多段階で安全に: 旧 columns を保持
-        したまま新テーブルを追加 → backfill → 旧 columns を deprecate
-        → 後続 WI で削除。
-      - >-
-        index: `user_emails(tenant_id, lower(value))` UNIQUE WHERE
-        primary, `user_phones` 同様。tenant 境界は ADR-034 に従い
-        テーブル単位で `tenant_id` カラムを必ず持たせる。
+        in-memory adapter / Postgres adapter とも ADR-039 の通り
+        `lifecycle` / `attributes` を JSONB の単一カラムに格納する
+        (migration 0009)。多値属性の別テーブル化 (`user_emails` 等) は
+        採らない (上記 amendments(a))。required_actions /
+        last_login_at / password_changed_at は `lifecycle` JSONB に含めて
+        Save で追従するため追加スキーマは不要。
     audit:
       - >-
-        新イベントを `audit_event_record.go` でレコード化する。
-        PII (email/phone/address) は **SHA-256 hash で記録** する規約を
-        ADR-018 に従い継続。"changedKeys" のみ平文で残し、値の中身は
-        ハッシュ化する。`verified_claims` の検証手段 (`document` 等) は
-        平文で残しても安全。
+        新イベント (UserRequiredActionSet / Cleared) を
+        `audit_event_record.go` 経由でレコード化する。属性値の平文は
+        残さず changedFields 粒度に留める規約 (ADR-018 / ADR-039) を継続。
 
   ui:
     api:
@@ -229,10 +212,10 @@ scope:
         共通部分のみを `UserProfile` として抽出する。
     pages:
       - >-
-        `AdminUsersPage` に詳細ペインを追加する。現状の一覧+モーダルから、
-        list / detail の 2-pane に拡張する。タブ: General /
-        Organization / Contact / Required Actions / Custom Attributes /
-        Verified Claims / Sessions (wi-21 と共通)。
+        `AdminUsersPage` の user editor に attributes 編集と Required
+        Actions の付与/解除、last_login_at / password_changed_at の
+        read-only 表示を追加する。多値連絡先 / Verified Claims タブは
+        設けない (上記 amendments)。詳細 2-pane 化は wi-21 と共通で扱う。
       - >-
         `/admin/tenant/attributes` ページを新設し、tenant の custom
         attribute schema を編集できるようにする。新規 nav 項目
@@ -374,3 +357,89 @@ risk_notes: |
   API 拡張 / (iii) self API 追加 / (iv) UI 拡張 / (v) UserInfo
   scope 拡張 / (vi) tenant attribute schema、の 6 PR 程度に切る前提で
   scope_split を別途用意することを推奨。
+
+completion:
+  completed_at: 2026-06-20
+
+  summary: |
+    ユーザー属性を実運用相当まで拡張した。中核は ADR-039 (thin core +
+    sparse attribute bag) / ADR-040 で、User は識別・認証・表示名・RBAC・
+    ライフサイクルを型付きで持ち、OIDC §5.1 optional claim と SCIM 組織属性は
+    組み込みカタログ駆動の単一 attribute bag (JSONB) に格納する。admin/self の
+    属性編集 API・UI、tenant custom attribute schema、scope 別の claim 露出
+    (UserInfo / ID Token) は先行 PR で実装済み。本セッションで残りの
+    ライフサイクル配線を完了した: (1) Required Actions 一式 (admin の
+    付与/解除 API・usecase・イベント、パスワード変更での update_password 自動
+    解除、未充足時のログイン強制誘導フック、admin UI トグル)、(2) ログイン時の
+    last_login_at とパスワード変更時の password_changed_at の記録。あわせて
+    当初設計のうち amendments(a)〜(c) (多値連絡先 / VerifiedClaim / 属性ごとの
+    粒度イベント) を thin-core 再設計に伴い正式に descope した。
+
+  semantic_diff:
+    before: >-
+      User は OIDC 最小プロファイル + 運用フラグのみ。Required Actions /
+      last_login_at / password_changed_at は型はあれど読み書きされず、admin が
+      強制アクションを管理する手段やログイン時の強制誘導も無かった。
+    after: >-
+      属性は組み込み ∪ tenant schema で検証される sparse bag。admin は強制
+      アクションを付与/解除でき、update_password 保持ユーザーは次回ログインで
+      change-password 画面へ誘導され、本人の変更で自動解除される。last_login_at /
+      password_changed_at が各経路で記録される。
+
+  affected_guarantees_state:
+    - "tenant isolation: 新規 API は requestTenantID / loadTenantUser でテナント越え参照を拒否 (ADR-034)。"
+    - "admin RBAC: SetUserRequiredAction / ClearUserRequiredAction は requireAdmin 必須。self 経路 (UpdateUserProfile) とは分離。"
+    - "OIDC ID Token / UserInfo: 既存 RP のクレーム集合は不変。scope gating は ClaimsForScopes で維持。"
+    - "監査ログ: UserRequiredActionSet/Cleared は changedFields/enum 粒度のみ平文。属性値は ADR-018/039 に従い非露出。"
+    - "SCL coherence: events (UserRequiredActionSet/Cleared)・interfaces (Set/ClearUserRequiredAction)・AdminUserResponse/AdminRequiredActionRequest を SCL/Go 同期。yaml-check:scl + coherence test OK。"
+    - "backwards compatibility: admin API レスポンスはフィールド追加のみ。"
+    - "内部表現の非露出: Required Actions の UI は requiredActionLabel() で日本語化し snake_case enum を表示しない。"
+
+  traceability:
+    - implementation:
+        files:
+          - ra-idp-go/internal/spec/events.go
+          - ra-idp-go/internal/authentication/usecases/admin_users.go
+          - ra-idp-go/internal/authentication/usecases/change_password.go
+          - ra-idp-go/internal/authentication/usecases/reset_password_with_token.go
+          - ra-idp-go/internal/adapters/http/authorize_handler.go
+          - ra-idp-go/internal/adapters/http/admin_user_handler.go
+          - ra-idp-go/internal/adapters/http/routes.go
+          - ra-idp-go/ui/src/api.ts
+          - ra-idp-go/ui/src/types.ts
+          - ra-idp-go/ui/src/pages/AdminUsersPage.tsx
+        tests:
+          - ra-idp-go/internal/authentication/usecases/required_actions_test.go
+          - ra-idp-go/internal/adapters/http/admin_user_handler_test.go
+          - ra-idp-go/internal/adapters/http/routes_e2e_test.go
+        specification:
+          - ra-idp-go/spec/scl.yaml
+          - ra-idp-go/decisions/ADR-039-user-profile-shape.md
+          - ra-idp-go/decisions/ADR-040-user-custom-attribute-policy.md
+
+  verification:
+    - cmd: "go test ./..."
+      in: ra-idp-go
+      result: ok
+    - cmd: "golangci-lint run ./..."
+      in: ra-idp-go
+      result: "0 issues"
+    - cmd: "go build ./..."
+      in: ra-idp-go
+      result: ok
+    - cmd: "bun run yaml-check:all"
+      in: tools
+      result: ok
+    - cmd: "bun --cwd ra-idp-go/ui typecheck"
+      result: ok
+    - cmd: "bun --cwd ra-idp-go/ui lint"
+      result: "ok (46 files)"
+    - cmd: "bun --cwd ra-idp-go/ui build"
+      result: ok
+    - "手動 1-7 は実ブラウザでの目視確認が未実施。"
+
+  residual_risk:
+    - "ログイン強制誘導は最低限のフック。change-password 後に元の OAuth フローへ自動復帰せず admin/profile へ戻る (resume の磨き込みは wi-21)。"
+    - "update_password 以外の Required Action (verify_email / configure_totp 等) は専用画面が無くログインを gate しない。付与は記録されるが強制画面は wi-21。"
+    - "amendments(a) で多値連絡先別テーブルを採らないため、primary email の DB 一意制約は JSONB 運用に依存 (重複検出はアプリ層)。"
+    - "out_of_scope: SCIM サーバ / OIDC4IDA / 外部 IdP 属性 sync / consent UI の scope 一覧更新は別 WI。"

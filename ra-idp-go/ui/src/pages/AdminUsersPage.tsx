@@ -24,12 +24,14 @@ import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react
 import {
   addAdminGroupMember,
   AuthenticationAPIError,
+  clearAdminUserRequiredAction,
   createAdminUser,
   deleteAdminUser,
   getAdminUserGroups,
   listAdminGroups,
   listAdminUsers,
   setAdminUserDisabled,
+  setAdminUserRequiredAction,
   tenantURL,
   type UpdateAdminUserInput,
   updateAdminUser,
@@ -48,13 +50,15 @@ import {
   DropdownMenuTrigger,
 } from '../components/ui/dropdown-menu'
 import { attributeLabel, cn } from '../lib/utils'
-import type {
-  AdminGroup,
-  AdminUser,
-  AdminUserGroups,
-  AdminUsersPage as AdminUsersPageData,
-  AttributeValue,
-  UserAttributeDef,
+import {
+  type AdminGroup,
+  type AdminUser,
+  type AdminUserGroups,
+  type AdminUsersPage as AdminUsersPageData,
+  type AttributeValue,
+  REQUIRED_ACTIONS,
+  requiredActionLabel,
+  type UserAttributeDef,
 } from '../types'
 
 type StatusFilter = 'all' | 'active' | 'disabled'
@@ -159,6 +163,20 @@ export function AdminUsersPage({
         await refresh(user.sub)
       },
       disabled ? 'ユーザーを無効化しました。' : 'ユーザーを再有効化しました。',
+    )
+  }
+
+  async function handleRequiredAction(user: AdminUser, action: string, present: boolean) {
+    await run(
+      async () => {
+        if (present) {
+          await clearAdminUserRequiredAction(csrfToken, user.sub, action)
+        } else {
+          await setAdminUserRequiredAction(csrfToken, user.sub, action)
+        }
+        await refresh(user.sub)
+      },
+      present ? '強制アクションを解除しました。' : '強制アクションを付与しました。',
     )
   }
 
@@ -339,6 +357,9 @@ export function AdminUsersPage({
                       onEdit={() => setShowUserEditor(true)}
                       onDisabled={() => void handleDisabled(selected)}
                       onDelete={() => setShowDelete(true)}
+                      onRequiredAction={(action, present) =>
+                        void handleRequiredAction(selected, action, present)
+                      }
                     />
                   ) : (
                     <div className="flex h-full min-h-80 items-center justify-center p-8 text-center text-sm text-slate-500">
@@ -389,6 +410,7 @@ function UserDetails({
   onEdit,
   onDisabled,
   onDelete,
+  onRequiredAction,
 }: {
   user: AdminUser
   csrfToken: string
@@ -396,6 +418,7 @@ function UserDetails({
   onEdit: () => void
   onDisabled: () => void
   onDelete: () => void
+  onRequiredAction: (action: string, present: boolean) => void
 }) {
   return (
     <div className="flex h-full flex-col">
@@ -471,14 +494,73 @@ function UserDetails({
               value={user.mfa_enrolled ? 'Password + MFA' : 'Password'}
             />
             <DetailRow icon={IconClock} label="作成日時" value={formatDateTime(user.created_at)} />
+            <DetailRow
+              icon={IconClock}
+              label="最終ログイン"
+              value={user.last_login_at ? formatDateTime(user.last_login_at) : '未ログイン'}
+            />
+            <DetailRow
+              icon={IconKey}
+              label="パスワード変更"
+              value={
+                user.password_changed_at ? formatDateTime(user.password_changed_at) : '記録なし'
+              }
+            />
             <DetailRow icon={IconUser} label="Subject ID" value={user.sub} mono />
           </dl>
         </section>
+
+        <UserRequiredActionsSection user={user} busy={busy} onToggle={onRequiredAction} />
 
         <UserGroupsSection user={user} csrfToken={csrfToken} />
 
       </div>
     </div>
+  )
+}
+
+function UserRequiredActionsSection({
+  user,
+  busy,
+  onToggle,
+}: {
+  user: AdminUser
+  busy: boolean
+  onToggle: (action: string, present: boolean) => void
+}) {
+  const active = new Set(user.required_actions ?? [])
+  return (
+    <section>
+      <h3 className="text-xs font-bold uppercase tracking-[0.1em] text-slate-400">
+        強制アクション
+      </h3>
+      <p className="mt-1 text-xs text-slate-500">
+        付与すると、次回ログイン時にユーザーへ対応を求めます。
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {REQUIRED_ACTIONS.map((action) => {
+          const present = active.has(action)
+          return (
+            <button
+              key={action}
+              type="button"
+              disabled={busy}
+              onClick={() => onToggle(action, present)}
+              aria-pressed={present}
+              className={cn(
+                'rounded-full border px-3 py-1 text-xs font-medium transition-colors disabled:opacity-50',
+                present
+                  ? 'border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100'
+                  : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50',
+              )}
+            >
+              {present ? '✓ ' : '+ '}
+              {requiredActionLabel(action)}
+            </button>
+          )
+        })}
+      </div>
+    </section>
   )
 }
 

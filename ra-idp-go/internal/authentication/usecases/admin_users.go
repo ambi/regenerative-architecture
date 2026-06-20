@@ -254,6 +254,104 @@ func SetUserDisabled(
 	return &updated, nil
 }
 
+// ErrInvalidRequiredAction は RequiredAction enum に無い値が指定された場合に返る。
+var ErrInvalidRequiredAction = errors.New("required action is not in enum")
+
+// SetUserRequiredAction は対象ユーザに次回ログイン時の強制アクションを付与する
+// (admin 専用 / wi-19)。既に付与済みの場合は冪等に no-op で返す。
+func SetUserRequiredAction(
+	ctx context.Context,
+	deps AdminUserDeps,
+	actorSub, targetSub string,
+	action spec.RequiredAction,
+	now time.Time,
+) (*spec.User, error) {
+	if !action.Valid() {
+		return nil, ErrInvalidRequiredAction
+	}
+	user, err := loadTenantUser(ctx, deps, targetSub)
+	if err != nil {
+		return nil, err
+	}
+	if slices.Contains(user.Lifecycle.RequiredActions, action) {
+		return user, nil
+	}
+	updated := *user
+	updated.Lifecycle.RequiredActions = append(slices.Clone(user.Lifecycle.RequiredActions), action)
+	now = normalizedNow(now)
+	updated.UpdatedAt = now
+	if err := updated.Validate(); err != nil {
+		return nil, err
+	}
+	if err := deps.UserRepo.Save(ctx, &updated); err != nil {
+		return nil, err
+	}
+	adminEmit(deps.Emit, &spec.UserRequiredActionSet{
+		At: now, TenantID: updated.TenantID, ActorSub: actorSub, TargetSub: targetSub, Action: string(action),
+	})
+	return &updated, nil
+}
+
+// ClearUserRequiredAction は強制アクションを解除する (admin 専用 / wi-19)。
+// 未付与の場合は冪等に no-op で返す。本人のパスワード変更に伴う自動解除は
+// clearRequiredAction (change_password.go) を使う。
+func ClearUserRequiredAction(
+	ctx context.Context,
+	deps AdminUserDeps,
+	actorSub, targetSub string,
+	action spec.RequiredAction,
+	now time.Time,
+) (*spec.User, error) {
+	if !action.Valid() {
+		return nil, ErrInvalidRequiredAction
+	}
+	user, err := loadTenantUser(ctx, deps, targetSub)
+	if err != nil {
+		return nil, err
+	}
+	if !slices.Contains(user.Lifecycle.RequiredActions, action) {
+		return user, nil
+	}
+	updated := *user
+	updated.Lifecycle.RequiredActions = removeRequiredAction(user.Lifecycle.RequiredActions, action)
+	now = normalizedNow(now)
+	updated.UpdatedAt = now
+	if err := updated.Validate(); err != nil {
+		return nil, err
+	}
+	if err := deps.UserRepo.Save(ctx, &updated); err != nil {
+		return nil, err
+	}
+	adminEmit(deps.Emit, &spec.UserRequiredActionCleared{
+		At: now, TenantID: updated.TenantID, ActorSub: actorSub, TargetSub: targetSub, Action: string(action),
+	})
+	return &updated, nil
+}
+
+// loadTenantUser は現在のテナント内の user を取得する。存在しない / 別テナントなら
+// ErrUserNotFound。admin user 操作の共通プレリュード。
+func loadTenantUser(ctx context.Context, deps AdminUserDeps, sub string) (*spec.User, error) {
+	user, err := deps.UserRepo.FindBySub(ctx, sub)
+	if err != nil {
+		return nil, err
+	}
+	if user == nil || user.TenantID != tenancy.TenantID(ctx) {
+		return nil, ErrUserNotFound
+	}
+	return user, nil
+}
+
+// removeRequiredAction は action を除いた新しいスライスを返す (元を破壊しない)。
+func removeRequiredAction(actions []spec.RequiredAction, action spec.RequiredAction) []spec.RequiredAction {
+	out := make([]spec.RequiredAction, 0, len(actions))
+	for _, a := range actions {
+		if a != action {
+			out = append(out, a)
+		}
+	}
+	return out
+}
+
 func normalizeRoles(roles []string) ([]string, error) {
 	out := make([]string, 0, len(roles))
 	for _, role := range roles {

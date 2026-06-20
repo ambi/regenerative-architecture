@@ -22,10 +22,10 @@ components:
 
   Authentication:
     description: エンドユーザ (Subject) の identity、credentials、MFA、ログインセッション、パスワードリセット、および管理 API からの User ライフサイクル操作を所有する。
-    owns_models: [User, MfaFactor, MfaFactorType, LoginSession, AuthenticationContext, PasswordResetTokenRecord, BrowserLoginRequest, BrowserTotpRequest, BrowserChangePasswordRequest, BrowserForgotPasswordRequest, BrowserResetPasswordRequest, AdminUserCreateRequest, AdminUserUpdateRequest, AdminUserListResponse, AdminUserResponse, Group, GroupMember, GroupCreateRequest, GroupUpdateRequest, GroupSummaryResponse, GroupListResponse, GroupMemberResponse, GroupAddMemberRequest, UserGroupsResponse, UserLifecycle, AttributeValue, UserStatus, RequiredAction, AccountProfileResponse, AccountProfileUpdateRequest]
+    owns_models: [User, MfaFactor, MfaFactorType, LoginSession, AuthenticationContext, PasswordResetTokenRecord, BrowserLoginRequest, BrowserTotpRequest, BrowserChangePasswordRequest, BrowserForgotPasswordRequest, BrowserResetPasswordRequest, AdminUserCreateRequest, AdminUserUpdateRequest, AdminRequiredActionRequest, AdminUserListResponse, AdminUserResponse, Group, GroupMember, GroupCreateRequest, GroupUpdateRequest, GroupSummaryResponse, GroupListResponse, GroupMemberResponse, GroupAddMemberRequest, UserGroupsResponse, UserLifecycle, AttributeValue, UserStatus, RequiredAction, AccountProfileResponse, AccountProfileUpdateRequest]
     owns_states: [UserLifecycle, GroupLifecycle]
-    owns_events: [UserAuthenticated, AuthenticationFailed, PasswordChanged, LoginThrottled, PasswordResetRequested, EmailSent, UserCreated, UserUpdated, UserDisabled, UserEnabled, UserDeleted, GroupCreated, GroupUpdated, GroupDeleted, GroupMemberAdded, GroupMemberRemoved]
-    owns_interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, ChangePassword, GetUserProfile, UpdateUserProfile, RequestPasswordReset, ResetPasswordWithToken, ListAdminUsers, GetAdminUser, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser, DeleteAdminUser, ListGroups, GetGroup, CreateGroup, UpdateGroup, DeleteGroup, AddGroupMember, RemoveGroupMember, ListUserGroups]
+    owns_events: [UserAuthenticated, AuthenticationFailed, PasswordChanged, LoginThrottled, PasswordResetRequested, EmailSent, UserCreated, UserUpdated, UserDisabled, UserEnabled, UserDeleted, UserRequiredActionSet, UserRequiredActionCleared, GroupCreated, GroupUpdated, GroupDeleted, GroupMemberAdded, GroupMemberRemoved]
+    owns_interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, ChangePassword, GetUserProfile, UpdateUserProfile, RequestPasswordReset, ResetPasswordWithToken, ListAdminUsers, GetAdminUser, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser, DeleteAdminUser, SetUserRequiredAction, ClearUserRequiredAction, ListGroups, GetGroup, CreateGroup, UpdateGroup, DeleteGroup, AddGroupMember, RemoveGroupMember, ListUserGroups]
     owns_invariants: [PasswordHistoryNoReuse, EffectiveRolesComposition, GroupMembershipAuditEmission]
     owns_permissions: [AdminUserRead, AdminUserCreate, AdminUserUpdate, AdminUserDelete, AdminGroupsRead, AdminGroupsWrite]
     owns_objectives: [PiiPurgeAfterDeletion]
@@ -1779,9 +1779,19 @@ models:
       email_verified:     { type: Boolean }
       mfa_enrolled:       { type: Boolean }
       roles:              { type: "String[]" }
+      required_actions:   { type: "RequiredAction[]", optional: true, description: "次回ログイン時の強制アクション (wi-19)。" }
+      last_login_at:      { type: Timestamp, optional: true, description: "直近の認証完了時刻 (wi-19)。" }
+      password_changed_at: { type: Timestamp, optional: true, description: "直近のパスワード変更時刻 (wi-19)。" }
       disabled_at:        { type: Timestamp, optional: true }
       created_at:         { type: Timestamp }
       updated_at:         { type: Timestamp, optional: true }
+
+  AdminRequiredActionRequest:
+    kind: value_object
+    description: SetUserRequiredAction の JSON リクエスト (wi-19)。action は RequiredAction enum の wire 値。
+    annotations: { component: Administration }
+    fields:
+      action: { type: RequiredAction }
 
   AccountProfileResponse:
     kind: value_object
@@ -2464,6 +2474,28 @@ models:
       targetSub:  { type: String }
       reason:     { type: String, optional: true }
 
+  UserRequiredActionSet:
+    kind: event
+    description: 管理者が次回ログイン時の強制アクション (RequiredAction) を付与した (wi-19)。action は enum 値で、監査に平文で残しても安全。
+    annotations: { component: Administration }
+    payload:
+      occurredAt: { type: Timestamp }
+      tenantId:   { type: String, description: "操作対象テナント ID。actor / target と一致する。" }
+      actorSub:   { type: String }
+      targetSub:  { type: String }
+      action:     { type: String, description: "RequiredAction enum 値 (update_password など)。" }
+
+  UserRequiredActionCleared:
+    kind: event
+    description: 強制アクションが解除された (wi-19)。admin の明示解除のほか、本人がパスワードを変更した結果 update_password が自動解除される場合も発火し、その際 actorSub は対象本人の sub になる。
+    annotations: { component: Administration }
+    payload:
+      occurredAt: { type: Timestamp }
+      tenantId:   { type: String, description: "操作対象テナント ID。actor / target と一致する。" }
+      actorSub:   { type: String, description: "解除を行った主体。自動解除時は対象本人。" }
+      targetSub:  { type: String }
+      action:     { type: String, description: "RequiredAction enum 値。" }
+
   GroupCreated:
     kind: event
     description: 管理者がグループを作成した (ADR-038)。
@@ -3142,6 +3174,37 @@ interfaces:
     emits: [UserDeleted]
     bindings:
       - { kind: http, method: DELETE, path: "/api/admin/users/{sub}", request_form: body, successful_status_codes: ["204"] }
+
+  SetUserRequiredAction:
+    description: |
+      管理者が対象ユーザーに次回ログイン時の強制アクション (RequiredAction) を
+      付与する (wi-19)。update_password を付与されたユーザーは次回ログイン時に
+      change-password 画面へ強制誘導される (本人の変更で自動解除)。冪等で、既に
+      付与済みなら現状を返す。admin 専用。
+    input:
+      sub:     { type: String }
+      request: { type: AdminRequiredActionRequest }
+    output:
+      user: { type: AdminUserResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [UserRequiredActionSet]
+    bindings:
+      - { kind: http, method: POST, path: "/api/admin/users/{sub}/required_actions", request_form: body }
+
+  ClearUserRequiredAction:
+    description: |
+      管理者が対象ユーザーの強制アクションを解除する (wi-19)。冪等で、未付与なら
+      現状を返す。admin 専用。本人のパスワード変更に伴う update_password の自動
+      解除は ChangePassword / ResetPasswordWithToken 側で発火する。
+    input:
+      sub:    { type: String }
+      action: { type: RequiredAction }
+    output:
+      user: { type: AdminUserResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [UserRequiredActionCleared]
+    bindings:
+      - { kind: http, method: DELETE, path: "/api/admin/users/{sub}/required_actions/{action}" }
 
   ListGroups:
     description: 管理者が所属テナントのグループを一覧する (ADR-038)。各グループは member_count を含む。

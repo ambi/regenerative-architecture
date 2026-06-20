@@ -106,6 +106,8 @@ func registerTenantRoutes(g *echo.Group, d Deps) {
 	g.POST("/api/admin/users/:sub/disable", d.handleDisableAdminUser)
 	g.POST("/api/admin/users/:sub/enable", d.handleEnableAdminUser)
 	g.DELETE("/api/admin/users/:sub", d.handleDeleteAdminUser)
+	g.POST("/api/admin/users/:sub/required_actions", d.handleSetUserRequiredAction)
+	g.DELETE("/api/admin/users/:sub/required_actions/:action", d.handleClearUserRequiredAction)
 	g.GET("/api/admin/users/:sub/groups", d.handleListUserGroups)
 	g.GET("/api/admin/groups", d.handleListGroups)
 	g.GET("/api/admin/groups/:group_id", d.handleGetGroup)

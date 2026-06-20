@@ -565,6 +565,28 @@ export async function updateAdminUser(
   )
 }
 
+export async function setAdminUserRequiredAction(
+  csrfToken: string,
+  sub: string,
+  action: string,
+): Promise<AdminUser> {
+  return request(
+    `/api/admin/users/${encodeURIComponent(sub)}/required_actions`,
+    adminRequest(csrfToken, 'POST', { action }),
+  )
+}
+
+export async function clearAdminUserRequiredAction(
+  csrfToken: string,
+  sub: string,
+  action: string,
+): Promise<AdminUser> {
+  return request(
+    `/api/admin/users/${encodeURIComponent(sub)}/required_actions/${encodeURIComponent(action)}`,
+    adminRequest(csrfToken, 'DELETE'),
+  )
+}
+
 export async function setAdminUserDisabled(
   csrfToken: string,
   sub: string,

@@ -123,6 +123,33 @@ type UserEnabled struct {
 func (e *UserEnabled) EventType() string     { return "UserEnabled" }
 func (e *UserEnabled) OccurredAt() time.Time { return e.At }
 
+// UserRequiredActionSet は admin が次回ログイン時の強制アクションを付与した
+// (Keycloak Required Actions 相当 / wi-19)。値は監査に平文で残しても安全な enum。
+type UserRequiredActionSet struct {
+	At        time.Time `json:"-"`
+	TenantID  string    `json:"tenantId"`
+	ActorSub  string    `json:"actorSub"`
+	TargetSub string    `json:"targetSub"`
+	Action    string    `json:"action"`
+}
+
+func (e *UserRequiredActionSet) EventType() string     { return "UserRequiredActionSet" }
+func (e *UserRequiredActionSet) OccurredAt() time.Time { return e.At }
+
+// UserRequiredActionCleared は強制アクションが解除された。admin の明示解除のほか、
+// 本人がパスワードを変更した結果 update_password が自動解除される場合も発火する
+// (その場合 ActorSub は対象本人の sub)。
+type UserRequiredActionCleared struct {
+	At        time.Time `json:"-"`
+	TenantID  string    `json:"tenantId"`
+	ActorSub  string    `json:"actorSub"`
+	TargetSub string    `json:"targetSub"`
+	Action    string    `json:"action"`
+}
+
+func (e *UserRequiredActionCleared) EventType() string     { return "UserRequiredActionCleared" }
+func (e *UserRequiredActionCleared) OccurredAt() time.Time { return e.At }
+
 type UserDeleted struct {
 	At        time.Time `json:"-"`
 	TenantID  string    `json:"tenantId"`

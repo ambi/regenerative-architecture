@@ -1,33 +1,8 @@
 id: wi-22-spa-e2e-smoke-test
-title: SPA E2E スモークテストを Playwright で 1 本だけ導入する
+title: SPA E2E スモークテストを Bun のヘッドレスブラウザ (Bun.WebView) で 1 本だけ導入する
 created_at: 2026-06-19
 status: completed
 authors: [tn]
-
-amendments:
-  - >-
-    2026-06-21: テストランナーを Playwright から Bun 組み込みの `Bun.WebView` +
-    `bun test` に変更した。理由: (a) `Bun.WebView` は macOS で WKWebView を使い
-    zero-dependency・ブラウザのダウンロード不要 (Linux/Windows は既存 Chrome を
-    CDP で駆動) で、本 WI の動機「Playwright や別ブラウザ取得なしで golden path
-    を縛る」に最も合致する、(b) CLAUDE.md の Bun 優先方針に沿う、(c) chromium
-    取得 (`playwright install`) が不要になり CI / サンドボックス制約に強い。
-    これに伴い `@playwright/test` 依存・`playwright.config.ts`・`globalSetup`・
-    `test:e2e:install` スクリプトは作らない。コールバック収集はテストプロセス内の
-    `Bun.serve` (:3000) で行い、認可レスポンス URL は `view.url` から直接読む。
-    assert 対象 (dispatcher の `meta[name="ra-idp:page"]` と callback の code/iss)
-    と golden path は WI 記載どおり。`Bun.WebView` が experimental である点は
-    スモーク 1 本・Bun バージョン固定の範囲で受容する。
-  - >-
-    2026-06-21: dispatcher 不変条件の `meta[name="ra-idp:page"]` は実装側に存在
-    しない drift だった。assert を成立させるため `ui/src/main.tsx` の bootstrap で
-    `loadPageData()` の `data.kind` (唯一の真実源) を `<meta name="ra-idp:page">`
-    として出力する最小実装を追加した。
-  - >-
-    2026-06-21: 起動構成は README のローカル開発手順に合わせ
-    `ADDR=:8081 ISSUER=http://localhost:5173`。WI 当初記載の
-    `ISSUER=http://localhost:<port>` は不正確で、`verifyBrowserRequest` が Origin と
-    ISSUER オリジンの一致を要求するため ISSUER はブラウザ origin (5173) に合わせる。
 
 motivation: |
   現状の検証層 (`go test`, `bun typecheck` / `lint` / `build`) では次の
@@ -43,75 +18,85 @@ motivation: |
 
   Go 側のユニットテストは「正しい HTTP レスポンスを返す」ことは保証
   するが、ブラウザの DOM が実際に描画され `fetch` が想定の挙動を取って
-  いることは別レイヤでしか確認できない。Playwright スモーク 1 本で
-  golden path を縛り、上記 2 領域の回帰を機械的に検知する。
+  いることは別レイヤでしか確認できない。実ブラウザで golden path 1 本を
+  縛り、上記 2 領域の回帰を機械的に検知する。
 
-  本 WI はテスト戦略の足場 (Playwright runtime / fixture / 1 シナリオ)
-  を入れるところまで。シナリオの拡充や consent 拒否経路、`error` page
-  の検証は別 WI で積み増す。
+  ブラウザ自動化には Bun 組み込みの `Bun.WebView` を使う。macOS では
+  システムの WKWebView を駆動するため zero-dependency でブラウザの
+  ダウンロードが不要、Linux / Windows ではインストール済みの Chrome を
+  Chrome DevTools Protocol で駆動する。これにより外部のブラウザ自動化
+  フレームワークや別ブラウザの取得なしに、`bun test` だけで golden path を
+  実機検証できる (CLAUDE.md の Bun 優先方針とも一致)。
+
+  本 WI はテスト戦略の足場 (ランナー / fixture / 1 シナリオ) を入れる
+  ところまで。シナリオの拡充や consent 拒否経路、`error` page の検証は
+  別 WI で積み増す。
 
 scope:
   decision:
-    - 新規 ADR は不要。テスト戦略の段階導入は README §Phase 9 の
-      "SPA E2E スモークテスト" の最小要件をそのまま実装する範囲。
+    - >-
+      新規 ADR は不要。テスト戦略の段階導入で、normative spec は変えない。
+      ランナーは Bun 組み込みの `Bun.WebView` + `bun test` とし、外部の
+      ブラウザ自動化フレームワークやブラウザバイナリの取得には依存しない
+      (macOS は WKWebView、その他は既存 Chrome を CDP 駆動)。
 
   go:
     - >-
-      変更なし。Playwright fixture から `cmd/ra-idp-go` を
-      `PERSISTENCE=memory ISSUER=http://localhost:<port>` で起動する
-      ので、追加の起動オプションは設けない。
+      アプリ本体は変更なし。テストが `cmd/ra-idp-go` を `PERSISTENCE=memory`
+      / `ADDR=:8081` / `ISSUER=http://localhost:5173` で起動する。ISSUER を
+      5173 (ブラウザ origin) に合わせるのは、`verifyBrowserRequest` が Origin と
+      ISSUER オリジンの一致を要求するため (README のローカル開発手順と同一構成)。
 
   ui:
-    dependencies:
+    bootstrap:
       - >-
-        `ra-idp-go/ui/package.json` の devDependency に
-        `@playwright/test` を追加する。`bun install` で取得し、
-        `npx playwright install chromium` で chromium だけ取得する
-        方針 (Firefox / WebKit は本 WI では入れない)。
+        SPA dispatcher の不変条件を機械検証できるよう、`ui/src/main.tsx` の
+        bootstrap で `loadPageData()` が解決した `data.kind` (描画ページ種別の
+        唯一の真実源) を `<meta name="ra-idp:page">` として DOM に出力する。
+        これにより login / consent / device / error などの分岐を assert できる。
     layout:
       - >-
-        `ra-idp-go/ui/tests/e2e/` 配下に Playwright 設定 (`playwright.config.ts`)
-        と shared fixture (`fixtures.ts`) を置く。`bun.lock` に新規依存が
-        追加される。
+        `ra-idp-go/ui/tests/e2e/` 配下に `bun test` 用のスモーク
+        (`authorize-golden-path.spec.ts`) と共有 fixture (`fixtures.ts`) を置く。
+        新規の npm 依存は追加しない (`Bun.WebView` は Bun 同梱)。
       - >-
-        `playwright.config.ts` の `webServer` で Vite dev server を起動し、
-        `globalSetup` で次を立ち上げる:
-          (a) Go API を memory mode で別ポートに起動。
-          (b) コールバック収集用のミニマムな HTTP サーバ (Node 標準モジュール
-              のみで実装) を別ポートに起動。受け取った URL を fixture が参照
-              できる場所に書く。
+        テスト自身が beforeAll/afterAll で次を起動・停止する:
+          (a) Go API を memory mode で `:8081` に (上記 go 節の env)。
+          (b) Vite dev server を `:5173` に (`/authorize`・`/api` を 8081 へプロキシ)。
+          (c) demo-client の登録済み redirect_uri (`http://localhost:3000/callback`)
+              を受ける最小コールバックサーバを `:3000` に (テストプロセス内の
+              `Bun.serve`)。認可レスポンス URL はブラウザ側 (`view.url`) から読む。
     scenarios:
       - >-
         `tests/e2e/authorize-golden-path.spec.ts` を 1 本だけ追加する:
           1. `/authorize?client_id=demo-client&response_type=code&...` を
-             開く。
-          2. `meta[name="ra-idp:page"][content="login"]` の存在と
-             `input[name="username"]` の可視性を assert (dispatcher 回帰
-             防止)。
+             `Bun.WebView` で開く。
+          2. `meta[name="ra-idp:page"]` が `login` であることと
+             `input[name="username"]` の存在を assert (dispatcher 回帰防止)。
           3. `alice` / `demo-password-1234` を入力して submit。
-          4. `meta[name="ra-idp:page"][content="consent"]` を assert。
-          5. 「許可する」を押す。
-          6. コールバック収集サーバが受けた URL に `code=...` と
-             `iss=...` が乗っていることを assert (cross-origin redirect
-             の回帰防止)。
+          4. `meta[name="ra-idp:page"]` が `consent` になることを assert。
+          5. 「許可して続行」を押す。
+          6. cross-origin redirect 後の `view.url` (= callback URL) に
+             `code` / `iss` / `state` が乗っていることを assert (redirect の回帰防止)。
     scripts:
       - >-
-        `package.json` に `"test:e2e": "playwright test"` と
-        `"test:e2e:install": "playwright install chromium"` を追加する。
+        `package.json` に `"test:e2e": "bun test tests/e2e"` を追加する。
+        ブラウザ取得用の install スクリプトは不要 (macOS は WKWebView、
+        その他は既存 Chrome を検出)。
 
   documentation:
     - >-
-      `ra-idp-go/ui/README.md` (または `ra-idp-go/README.md`) に
-      「E2E スモーク」節を追加し、`bun run test:e2e:install` →
-      `bun run test:e2e` のローカル実行手順を書く。
+      `ra-idp-go/ui/README.md` に「E2E スモーク」節を追加し、
+      `bun run test:e2e` のローカル実行手順 (前提は go / bun が PATH に
+      あることのみ) を書く。
     - >-
       README §Phase 9 の "SPA E2E スモークテスト" 行は completion で
       「実装済 (本 WI)」として除去を記録する。
 
 out_of_scope:
   - >-
-    Chromium 以外のブラウザ (Firefox / WebKit) でのクロスブラウザ
-    実行。本 WI は 1 ブラウザに固定する。
+    複数ブラウザエンジンでのクロスブラウザ実行。本 WI は 1 エンジン
+    (macOS は WKWebView) に固定する。
   - >-
     consent 拒否経路、`error` page の表示確認、device flow、PAR の
     E2E。golden path 1 本のみ。
@@ -128,8 +113,8 @@ out_of_scope:
 affected_guarantees:
   - >-
     SPA dispatcher invariant: login / consent / device / error の
-    各画面で `meta[name="ra-idp:page"][content=<expected>]` が
-    描画される。本 WI では login / consent の 2 つだけ assert する。
+    各画面で `meta[name="ra-idp:page"]` に描画ページ種別が出力される。
+    本 WI では login / consent の 2 つだけ assert する。
   - >-
     Callback fetch behavior: `/authorize` から callback への redirect で
     `code` と `iss` の両方が消えないこと。RFC 9207 の `iss` 検査前提を
@@ -139,45 +124,43 @@ affected_guarantees:
     で golden path が成立し続けること。README §デモシードと整合。
 
 verification:
-  - cmd: 'bun --cwd ra-idp-go/ui install'
-    reason: Playwright 依存の取得を確認する。
-  - cmd: 'bun --cwd ra-idp-go/ui test:e2e:install'
-    reason: chromium の取得を確認する。
-  - cmd: 'bun --cwd ra-idp-go/ui test:e2e'
+  - cmd: 'bun --cwd ra-idp-go/ui run test:e2e'
     reason: スモーク 1 シナリオが pass することを確認する。
   - cmd: 'bun --cwd ra-idp-go/ui typecheck'
   - cmd: 'bun --cwd ra-idp-go/ui lint'
   - cmd: 'bun --cwd ra-idp-go/ui build'
   - >-
-    手動: 意図的に `dispatcher` の login / consent 分岐を一行壊して
+    手動: 意図的に dispatcher のページ種別出力 (`markPage`) を一行壊して
     `test:e2e` が失敗することを目視確認する (回帰検知が機能している
     ことの自己テスト)。
 
 risk: low
 risk_notes: |
-  Playwright 自身の維持コスト (chromium バイナリ更新) は CI 化を本 WI で
-  しない範囲では限定的。ローカルで `bun run test:e2e` を CI に乗せる
-  かは別 WI で判断する。
+  `Bun.WebView` は experimental API のため、将来のバージョンで挙動・API が
+  変わる可能性がある。スモーク 1 本・Bun バージョン固定の範囲で受容し、
+  問題が出れば fixture / helper 側で吸収する。
 
-  1 ブラウザのみで開始するため、Firefox / Safari の SPA 挙動差は
-  catch できない。これは現時点での意思決定であり、現状の
-  RP / End-user の主要ブラウザは chromium 系で十分に代表できる
-  という判断 (本番ターゲットが変わったら拡張する)。
+  1 エンジンのみで開始するため、Firefox など他エンジンの SPA 挙動差は
+  catch できない。これは現時点での意思決定であり、主要ブラウザは
+  chromium / WebKit 系で十分に代表できるという判断 (本番ターゲットが
+  変わったら拡張する)。
+
+  ローカルで `bun run test:e2e` を CI に常駐させるかは別 WI で判断する。
 
 completion:
   completed_at: 2026-06-21
 
   summary: |
     SPA の golden path (authorize -> login -> consent -> callback) を 1 本の
-    E2E スモークとして導入した。ランナーは Playwright ではなく Bun 組み込みの
-    `Bun.WebView` + `bun test` (amendments 参照)。テストは Go API (memory,
-    :8081)・Vite dev (:5173)・demo-client の redirect_uri を受ける最小コールバック
-    サーバ (:3000) を自動起動/停止し、(1) ログイン画面で `meta[name="ra-idp:page"]`
-    が `login` であること + `input[name="username"]` の存在、(2) ログイン後に
-    `consent` へ遷移すること、(3) 「許可して続行」後の cross-origin redirect で
-    callback URL に `code` / `iss` / `state` が乗ること、を assert する。
-    dispatcher 不変条件を成立させるため `ui/src/main.tsx` に
-    `meta[name="ra-idp:page"]` 出力を追加した。
+    E2E スモークとして導入した。ランナーは Bun 組み込みの `Bun.WebView` +
+    `bun test` で、外部のブラウザ自動化フレームワークやブラウザバイナリ取得に
+    依存しない (macOS は WKWebView)。テストは Go API (memory, :8081)・Vite dev
+    (:5173)・demo-client の redirect_uri を受ける最小コールバックサーバ (:3000) を
+    自動起動/停止し、(1) ログイン画面で `meta[name="ra-idp:page"]` が `login` で
+    あること + `input[name="username"]` の存在、(2) ログイン後に `consent` へ遷移
+    すること、(3) 「許可して続行」後の cross-origin redirect で callback URL に
+    `code` / `iss` / `state` が乗ること、を assert する。dispatcher 不変条件を
+    成立させるため `ui/src/main.tsx` に `meta[name="ra-idp:page"]` 出力を追加した。
 
   semantic_diff:
     before: >-
@@ -222,6 +205,6 @@ completion:
 
   residual_risk:
     - "Bun.WebView は experimental。API 変更・WKWebView/Chrome バックエンド差のリスクは Bun バージョン固定とスモーク 1 本の範囲で受容。"
-    - "1 ブラウザ (macOS は WKWebView) のみ。Firefox / 他エンジンの SPA 挙動差は対象外。"
+    - "1 エンジン (macOS は WKWebView) のみ。Firefox / 他エンジンの SPA 挙動差は対象外。"
     - "consent 拒否経路・error 画面・device flow・PAR・CI 常駐 (GitHub Actions) は別 WI。"
     - "Go API は go build したバイナリを spawn して直接 kill する。go / bun が PATH に必要。"

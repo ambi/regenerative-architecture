@@ -1,7 +1,7 @@
 // wi-22: SPA E2E スモーク 1 本。golden path (authorize -> login -> consent ->
 // callback) を Bun.WebView (macOS: WKWebView / その他: Chrome via CDP) で縛り、
 // (a) SPA dispatcher の画面分岐と (b) cross-origin redirect での code / iss 保持
-// の 2 領域の回帰を機械検知する。Playwright や別ブラウザの取得は不要。
+// の 2 領域の回帰を機械検知する。外部のブラウザ自動化フレームワークや別ブラウザの取得は不要。
 //
 // README のローカル開発手順と同じ構成で起動する:
 //   ADDR=:8081 ISSUER=http://localhost:5173 go run ./cmd/ra-idp-go

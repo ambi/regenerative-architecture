@@ -367,5 +367,5 @@ inbound 連携を両方サポートする。SAML 2.0 IdP は現代の B2B SaaS /
 `code=` と `iss=` が乗る` までの golden path を `ra-idp-go/ui/tests/e2e/` に 1 本だけ持つ。
 SPA dispatcher の画面分岐 (`meta[name="ra-idp:page"]`) と cross-origin redirect 挙動の回帰を
 機械検知する。ランナーは `bun test` + 組み込みの `Bun.WebView` (macOS は WKWebView、その他は
-Chrome via CDP) で、Playwright や別ブラウザの取得は不要。実行は `bun --cwd ra-idp-go/ui run test:e2e`
+Chrome via CDP) で、外部のブラウザ自動化フレームワークや別ブラウザの取得は不要。実行は `bun --cwd ra-idp-go/ui run test:e2e`
 (詳細は `ui/README.md`)。シナリオ拡充・consent 拒否・error 画面・CI 常駐は別 WI。

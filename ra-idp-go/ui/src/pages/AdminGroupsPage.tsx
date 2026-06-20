@@ -1,4 +1,5 @@
 import {
+  IconPencil,
   IconPlus,
   IconRefresh,
   IconTrash,
@@ -220,19 +221,15 @@ function GroupDetailCard({
 }) {
   const [members, setMembers] = useState<AdminGroupMember[]>([])
   const [allUsers, setAllUsers] = useState<AdminUser[]>([])
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
-  const [roles, setRoles] = useState('')
   const [addSub, setAddSub] = useState('')
   const [localBusy, setLocalBusy] = useState(false)
   const [localError, setLocalError] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [editing, setEditing] = useState(false)
 
   useEffect(() => {
-    setName(group?.name ?? '')
-    setDescription(group?.description ?? '')
-    setRoles(group?.roles.join(', ') ?? '')
     setConfirmDelete(false)
+    setEditing(false)
     setLocalError('')
     if (!group) {
       setMembers([])
@@ -277,18 +274,6 @@ function GroupDetailCard({
     setMembers(detail.members)
   }
 
-  async function handleSave(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    const nextRoles = parseRoles(roles)
-    onChanged(activeGroup.id)
-    await updateAdminGroup(csrfToken, activeGroup.id, {
-      name: name.trim() !== activeGroup.name ? name.trim() : undefined,
-      description:
-        description.trim() !== (activeGroup.description ?? '') ? description.trim() : undefined,
-      roles: nextRoles.join(',') !== activeGroup.roles.join(',') ? nextRoles : undefined,
-    })
-  }
-
   const memberSubs = new Set(members.map((m) => m.user_sub))
   const addableUsers = allUsers.filter((u) => !memberSubs.has(u.sub))
 
@@ -319,43 +304,65 @@ function GroupDetailCard({
             </Button>
           </div>
         ) : (
-          <Button
-            variant="ghost"
-            className="text-rose-700 hover:bg-rose-50"
-            disabled={busy || localBusy}
-            onClick={() => setConfirmDelete(true)}
-          >
-            <IconTrash size={14} aria-hidden="true" />
-            削除
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              disabled={busy || localBusy}
+              onClick={() => setEditing(true)}
+            >
+              <IconPencil size={14} aria-hidden="true" />
+              編集
+            </Button>
+            <Button
+              variant="ghost"
+              className="text-rose-700 hover:bg-rose-50"
+              disabled={busy || localBusy}
+              onClick={() => setConfirmDelete(true)}
+            >
+              <IconTrash size={14} aria-hidden="true" />
+              削除
+            </Button>
+          </div>
         )}
       </div>
 
       {localError ? <Alert variant="destructive" className="mt-3">{localError}</Alert> : null}
 
-      <form onSubmit={handleSave} className="mt-5 grid gap-3 border-t border-slate-100 pt-5">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">編集</p>
-        <div className="grid gap-1.5">
-          <Label htmlFor={`gname-${group.id}`}>グループ名</Label>
-          <Input id={`gname-${group.id}`} value={name} onChange={(e) => setName(e.target.value)} />
+      <dl className="mt-5 grid gap-3 border-t border-slate-100 pt-5">
+        <div>
+          <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">説明</dt>
+          <dd className="mt-1 text-sm text-slate-700">{group.description || '—'}</dd>
         </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor={`gdesc-${group.id}`}>説明</Label>
-          <Input
-            id={`gdesc-${group.id}`}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-          />
+        <div>
+          <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">ロール</dt>
+          <dd className="mt-1 flex flex-wrap gap-1.5">
+            {group.roles.length > 0 ? (
+              group.roles.map((role) => (
+                <span
+                  key={role}
+                  className="rounded-md bg-slate-100 px-2 py-1 font-mono text-xs text-slate-700"
+                >
+                  {role}
+                </span>
+              ))
+            ) : (
+              <span className="text-sm text-slate-400">なし</span>
+            )}
+          </dd>
         </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor={`groles-${group.id}`}>ロール</Label>
-          <Input id={`groles-${group.id}`} value={roles} onChange={(e) => setRoles(e.target.value)} placeholder="catalog:read, invoice:read" />
-          <p className="text-xs text-slate-500">カンマ区切り。</p>
-        </div>
-        <Button type="submit" disabled={busy || localBusy} className="justify-self-start">
-          保存
-        </Button>
-      </form>
+      </dl>
+
+      {editing ? (
+        <GroupEditorDialog
+          group={activeGroup}
+          csrfToken={csrfToken}
+          onClose={() => setEditing(false)}
+          onSaved={(id) => {
+            setEditing(false)
+            onChanged(id)
+          }}
+        />
+      ) : null}
 
       <section className="mt-5 border-t border-slate-100 pt-5">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -424,6 +431,123 @@ function GroupDetailCard({
         </div>
       </section>
     </Card>
+  )
+}
+
+function GroupEditorDialog({
+  group,
+  csrfToken,
+  onClose,
+  onSaved,
+}: {
+  group: AdminGroup
+  csrfToken: string
+  onClose: () => void
+  onSaved: (id: string) => void
+}) {
+  const [name, setName] = useState(group.name)
+  const [description, setDescription] = useState(group.description ?? '')
+  const [roles, setRoles] = useState(group.roles.join(', '))
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const trimmedName = name.trim()
+  const nextRoles = parseRoles(roles)
+  const nameInvalid = trimmedName === ''
+  const changed =
+    trimmedName !== group.name ||
+    description.trim() !== (group.description ?? '') ||
+    nextRoles.join(',') !== group.roles.join(',')
+
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    if (nameInvalid || !changed) return
+    setSaving(true)
+    setError('')
+    try {
+      await updateAdminGroup(csrfToken, group.id, {
+        name: trimmedName !== group.name ? trimmedName : undefined,
+        description:
+          description.trim() !== (group.description ?? '') ? description.trim() : undefined,
+        roles: nextRoles.join(',') !== group.roles.join(',') ? nextRoles : undefined,
+      })
+      onSaved(group.id)
+    } catch (cause) {
+      setError(
+        cause instanceof AuthenticationAPIError
+          ? cause.message
+          : 'グループを更新できませんでした。',
+      )
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 p-5 backdrop-blur-[2px]"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="group-editor-title"
+    >
+      <button type="button" className="absolute inset-0 cursor-default" aria-label="閉じる" onClick={onClose} />
+      <Card className="relative flex max-h-[88vh] w-full max-w-md flex-col overflow-hidden shadow-2xl">
+        <div className="flex items-start justify-between border-b border-slate-200 px-6 py-5">
+          <div>
+            <h2 id="group-editor-title" className="text-xl font-semibold">
+              グループを編集
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">{group.name}</p>
+          </div>
+          <Button variant="ghost" className="px-2.5" onClick={onClose} aria-label="閉じる">
+            <IconX size={18} aria-hidden="true" />
+          </Button>
+        </div>
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 overflow-y-auto p-6">
+            {error ? <Alert variant="destructive" className="mb-4">{error}</Alert> : null}
+            <div className="grid gap-4">
+              <div className="grid gap-1.5">
+                <Label htmlFor="group-editor-name">グループ名</Label>
+                <Input
+                  id="group-editor-name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  aria-invalid={nameInvalid}
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="group-editor-description">説明</Label>
+                <Input
+                  id="group-editor-description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="group-editor-roles">ロール</Label>
+                <Input
+                  id="group-editor-roles"
+                  value={roles}
+                  onChange={(e) => setRoles(e.target.value)}
+                  placeholder="catalog:read, invoice:read"
+                />
+                <p className="text-xs text-slate-500">カンマ区切り。所属ユーザーに一斉付与されます。</p>
+              </div>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-6 py-4">
+            <Button type="button" variant="outline" onClick={onClose}>
+              キャンセル
+            </Button>
+            <Button type="submit" disabled={saving || nameInvalid || !changed}>
+              {saving ? '保存中…' : '保存'}
+            </Button>
+          </div>
+        </form>
+      </Card>
+    </div>
   )
 }
 

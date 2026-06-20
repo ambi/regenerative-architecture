@@ -12,9 +12,9 @@ import (
 
 func strp(s string) *string { return &s }
 
-func TestGetAttributeSchemaReturnsEmptyForUndefinedTenant(t *testing.T) {
-	repo := memory.NewTenantAttributeSchemaRepository()
-	schema, err := GetAttributeSchema(context.Background(), repo, spec.DefaultTenantID)
+func TestGetUserAttributeSchemaReturnsEmptyForUndefinedTenant(t *testing.T) {
+	repo := memory.NewTenantUserAttributeSchemaRepository()
+	schema, err := GetUserAttributeSchema(context.Background(), repo, spec.DefaultTenantID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -23,20 +23,20 @@ func TestGetAttributeSchemaReturnsEmptyForUndefinedTenant(t *testing.T) {
 	}
 }
 
-func TestUpdateAttributeSchemaPersistsCustomDefs(t *testing.T) {
-	repo := memory.NewTenantAttributeSchemaRepository()
+func TestUpdateUserAttributeSchemaPersistsCustomDefs(t *testing.T) {
+	repo := memory.NewTenantUserAttributeSchemaRepository()
 	ctx := context.Background()
-	defs := []spec.AttributeDef{
+	defs := []spec.UserAttributeDef{
 		{Key: "region", Type: spec.AttributeTypeString, Visibility: spec.AttrVisibilityClaimExposed, ClaimName: strp("region")},
 	}
-	saved, err := UpdateAttributeSchema(ctx, repo, spec.DefaultTenantID, defs, time.Now().UTC())
+	saved, err := UpdateUserAttributeSchema(ctx, repo, spec.DefaultTenantID, defs, time.Now().UTC())
 	if err != nil {
 		t.Fatalf("update failed: %v", err)
 	}
 	if len(saved.Attributes) != 1 || saved.Attributes[0].Key != "region" {
 		t.Fatalf("unexpected saved schema: %#v", saved)
 	}
-	reloaded, err := GetAttributeSchema(ctx, repo, spec.DefaultTenantID)
+	reloaded, err := GetUserAttributeSchema(ctx, repo, spec.DefaultTenantID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,27 +45,27 @@ func TestUpdateAttributeSchemaPersistsCustomDefs(t *testing.T) {
 	}
 }
 
-func TestUpdateAttributeSchemaRejectsBuiltinCollision(t *testing.T) {
-	repo := memory.NewTenantAttributeSchemaRepository()
-	defs := []spec.AttributeDef{
+func TestUpdateUserAttributeSchemaRejectsBuiltinCollision(t *testing.T) {
+	repo := memory.NewTenantUserAttributeSchemaRepository()
+	defs := []spec.UserAttributeDef{
 		{Key: "nickname", Type: spec.AttributeTypeString, Visibility: spec.AttrVisibilityClaimExposed},
 	}
-	if _, err := UpdateAttributeSchema(
+	if _, err := UpdateUserAttributeSchema(
 		context.Background(), repo, spec.DefaultTenantID, defs, time.Now().UTC(),
-	); !errors.Is(err, ErrInvalidAttributeSchema) {
-		t.Fatalf("expected ErrInvalidAttributeSchema, got %v", err)
+	); !errors.Is(err, ErrInvalidUserAttributeSchema) {
+		t.Fatalf("expected ErrInvalidUserAttributeSchema, got %v", err)
 	}
 }
 
-func TestUpdateAttributeSchemaAllowsEmptyClear(t *testing.T) {
-	repo := memory.NewTenantAttributeSchemaRepository()
+func TestUpdateUserAttributeSchemaAllowsEmptyClear(t *testing.T) {
+	repo := memory.NewTenantUserAttributeSchemaRepository()
 	ctx := context.Background()
-	if _, err := UpdateAttributeSchema(ctx, repo, spec.DefaultTenantID,
-		[]spec.AttributeDef{{Key: "region", Type: spec.AttributeTypeString, Visibility: spec.AttrVisibilityAdminReadable}},
+	if _, err := UpdateUserAttributeSchema(ctx, repo, spec.DefaultTenantID,
+		[]spec.UserAttributeDef{{Key: "region", Type: spec.AttributeTypeString, Visibility: spec.AttrVisibilityAdminReadable}},
 		time.Now().UTC()); err != nil {
 		t.Fatal(err)
 	}
-	cleared, err := UpdateAttributeSchema(ctx, repo, spec.DefaultTenantID, nil, time.Now().UTC())
+	cleared, err := UpdateUserAttributeSchema(ctx, repo, spec.DefaultTenantID, nil, time.Now().UTC())
 	if err != nil {
 		t.Fatalf("clear failed: %v", err)
 	}

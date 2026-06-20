@@ -36,7 +36,7 @@ const deletedPasswordHashSentinel = "$deleted$"
 
 type AdminUserDeps struct {
 	UserRepo            oauthports.UserRepository
-	AttrSchemaRepo      tenantports.TenantAttributeSchemaRepository
+	AttrSchemaRepo      tenantports.TenantUserAttributeSchemaRepository
 	ConsentRepo         oauthports.ConsentRepository
 	RefreshStore        oauthports.RefreshTokenStore
 	DeviceCodeStore     oauthports.DeviceCodeStore
@@ -165,7 +165,7 @@ func UpdateUser(ctx context.Context, deps AdminUserDeps, in UpdateUserInput) (*s
 		changed = append(changed, "family_name")
 	}
 	if in.Attributes != nil {
-		defs, err := effectiveAttributeDefs(ctx, deps, user.TenantID)
+		defs, err := effectiveUserAttributeDefs(ctx, deps, user.TenantID)
 		if err != nil {
 			return nil, err
 		}
@@ -342,10 +342,10 @@ func hasPrivilegedRole(roles []string) bool {
 	return slices.Contains(roles, "admin") || slices.Contains(roles, "system_admin")
 }
 
-// effectiveAttributeDefs は組み込み属性 + tenant 固有 schema を結合した実効定義を返す。
+// effectiveUserAttributeDefs は組み込み属性 + tenant 固有 schema を結合した実効定義を返す。
 // AttrSchemaRepo 未配線 (nil) の場合は組み込み属性のみで検証する。
-func effectiveAttributeDefs(ctx context.Context, deps AdminUserDeps, tenantID string) ([]spec.AttributeDef, error) {
-	defs := spec.BuiltinAttributeDefs()
+func effectiveUserAttributeDefs(ctx context.Context, deps AdminUserDeps, tenantID string) ([]spec.UserAttributeDef, error) {
+	defs := spec.BuiltinUserAttributeDefs()
 	if deps.AttrSchemaRepo == nil {
 		return defs, nil
 	}

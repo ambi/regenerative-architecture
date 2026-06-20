@@ -87,9 +87,9 @@ func TestAttributeValueRequiresSingleMatchingField(t *testing.T) {
 	}
 }
 
-func TestBuiltinAttributeDefsCoverOIDCAndOrg(t *testing.T) {
-	defs := BuiltinAttributeDefs()
-	byKey := map[string]AttributeDef{}
+func TestBuiltinUserAttributeDefsCoverOIDCAndOrg(t *testing.T) {
+	defs := BuiltinUserAttributeDefs()
+	byKey := map[string]UserAttributeDef{}
 	for _, d := range defs {
 		byKey[d.Key] = d
 	}
@@ -104,15 +104,15 @@ func TestBuiltinAttributeDefsCoverOIDCAndOrg(t *testing.T) {
 	}
 	// 返却値の変更がカタログ本体に波及しないこと。
 	defs[0].Key = "mutated"
-	if BuiltinAttributeDefs()[0].Key == "mutated" {
-		t.Fatal("BuiltinAttributeDefs must return a copy")
+	if BuiltinUserAttributeDefs()[0].Key == "mutated" {
+		t.Fatal("BuiltinUserAttributeDefs must return a copy")
 	}
 }
 
-func sampleSchema() TenantAttributeSchema {
-	return TenantAttributeSchema{
+func sampleSchema() TenantUserAttributeSchema {
+	return TenantUserAttributeSchema{
 		TenantID: "default",
-		Attributes: []AttributeDef{
+		Attributes: []UserAttributeDef{
 			{Key: "region", Type: AttributeTypeString, Required: true, Visibility: AttrVisibilityClaimExposed, ClaimName: ptr("region"), PII: false},
 			{Key: "tags", Type: AttributeTypeStringArray, MultiValued: true, Visibility: AttrVisibilityAdminReadable, PII: true},
 		},
@@ -120,13 +120,13 @@ func sampleSchema() TenantAttributeSchema {
 	}
 }
 
-func TestTenantAttributeSchemaValidate(t *testing.T) {
+func TestTenantUserAttributeSchemaValidate(t *testing.T) {
 	if err := sampleSchema().Validate(); err != nil {
 		t.Fatalf("expected valid schema, got %v", err)
 	}
 }
 
-func TestTenantAttributeSchemaRejectsBadKey(t *testing.T) {
+func TestTenantUserAttributeSchemaRejectsBadKey(t *testing.T) {
 	s := sampleSchema()
 	s.Attributes[0].Key = "Region-1"
 	if err := s.Validate(); err == nil {
@@ -134,7 +134,7 @@ func TestTenantAttributeSchemaRejectsBadKey(t *testing.T) {
 	}
 }
 
-func TestTenantAttributeSchemaRejectsBuiltinCollision(t *testing.T) {
+func TestTenantUserAttributeSchemaRejectsBuiltinCollision(t *testing.T) {
 	s := sampleSchema()
 	s.Attributes[0].Key = "nickname" // builtin と衝突
 	if err := s.Validate(); err == nil {

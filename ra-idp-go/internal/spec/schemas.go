@@ -189,9 +189,9 @@ func (v AttributeValue) Validate() error {
 	return nil
 }
 
-// AttributeDef は属性 1 件の定義 (ADR-040)。OIDC 組み込みカタログ
-// (BuiltinAttributeDefs) と tenant 定義 (TenantAttributeSchema) の両方で使う。
-type AttributeDef struct {
+// UserAttributeDef は属性 1 件の定義 (ADR-040)。OIDC 組み込みカタログ
+// (BuiltinUserAttributeDefs) と tenant 定義 (TenantUserAttributeSchema) の両方で使う。
+type UserAttributeDef struct {
 	Key            string         `json:"key"`
 	Type           AttributeType  `json:"type"`
 	MultiValued    bool           `json:"multi_valued"`
@@ -203,20 +203,20 @@ type AttributeDef struct {
 	PII            bool           `json:"pii"` // 省略時は PII 扱い (hash 化) が安全側 default
 }
 
-func (d AttributeDef) Validate() error { return validate(attributeDefSchema, &d) }
+func (d UserAttributeDef) Validate() error { return validate(userAttributeDefSchema, &d) }
 
-// TenantAttributeSchema は tenant 単位の custom 属性定義集合 (ADR-040)。
-// 組み込み属性は BuiltinAttributeDefs() がコードで持ち、本集合は tenant 固有分のみ。
+// TenantUserAttributeSchema は tenant 単位の custom 属性定義集合 (ADR-040)。
+// 組み込み属性は BuiltinUserAttributeDefs() がコードで持ち、本集合は tenant 固有分のみ。
 // tenant 削除時に cascade する。
-type TenantAttributeSchema struct {
-	TenantID   string         `json:"tenant_id"`
-	Attributes []AttributeDef `json:"attributes"`
-	UpdatedAt  time.Time      `json:"updated_at"`
+type TenantUserAttributeSchema struct {
+	TenantID   string             `json:"tenant_id"`
+	Attributes []UserAttributeDef `json:"attributes"`
+	UpdatedAt  time.Time          `json:"updated_at"`
 }
 
-func (s TenantAttributeSchema) Validate() error {
+func (s TenantUserAttributeSchema) Validate() error {
 	builtin := map[string]bool{}
-	for _, d := range BuiltinAttributeDefs() {
+	for _, d := range BuiltinUserAttributeDefs() {
 		builtin[d.Key] = true
 	}
 	seen := map[string]bool{}
@@ -236,15 +236,15 @@ func (s TenantAttributeSchema) Validate() error {
 }
 
 // EffectiveDefs は組み込み属性 + tenant custom 属性を結合した実効定義を返す。
-func (s TenantAttributeSchema) EffectiveDefs() []AttributeDef {
-	defs := BuiltinAttributeDefs()
+func (s TenantUserAttributeSchema) EffectiveDefs() []UserAttributeDef {
+	defs := BuiltinUserAttributeDefs()
 	return append(defs, s.Attributes...)
 }
 
 // ValidateAttributes は User.Attributes を実効属性定義に対して検証する。
 // 未定義 key の拒否、型の一致、multi_valued の整合、required の充足を見る。
-func ValidateAttributes(values map[string]AttributeValue, defs []AttributeDef) error {
-	byKey := make(map[string]AttributeDef, len(defs))
+func ValidateAttributes(values map[string]AttributeValue, defs []UserAttributeDef) error {
+	byKey := make(map[string]UserAttributeDef, len(defs))
 	for _, d := range defs {
 		byKey[d.Key] = d
 	}

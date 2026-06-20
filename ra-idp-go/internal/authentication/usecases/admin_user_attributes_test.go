@@ -14,9 +14,9 @@ import (
 
 func strp(s string) *string { return &s }
 
-func attrTestDeps(t *testing.T) (context.Context, authusecases.AdminUserDeps, *memory.TenantAttributeSchemaRepository) {
+func attrTestDeps(t *testing.T) (context.Context, authusecases.AdminUserDeps, *memory.TenantUserAttributeSchemaRepository) {
 	t.Helper()
-	schemaRepo := memory.NewTenantAttributeSchemaRepository()
+	schemaRepo := memory.NewTenantUserAttributeSchemaRepository()
 	deps := authusecases.AdminUserDeps{
 		UserRepo:            memory.NewUserRepository(),
 		AttrSchemaRepo:      schemaRepo,
@@ -79,9 +79,9 @@ func TestUpdateUserRejectsUndefinedAttribute(t *testing.T) {
 
 func TestUpdateUserAcceptsTenantCustomAttribute(t *testing.T) {
 	ctx, deps, schemaRepo := attrTestDeps(t)
-	if err := schemaRepo.Save(ctx, &spec.TenantAttributeSchema{
+	if err := schemaRepo.Save(ctx, &spec.TenantUserAttributeSchema{
 		TenantID: spec.DefaultTenantID,
-		Attributes: []spec.AttributeDef{
+		Attributes: []spec.UserAttributeDef{
 			{Key: "region", Type: spec.AttributeTypeString, Visibility: spec.AttrVisibilityClaimExposed, ClaimName: strp("region")},
 		},
 		UpdatedAt: time.Now().UTC(),

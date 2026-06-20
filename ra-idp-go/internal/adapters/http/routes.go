@@ -21,7 +21,7 @@ type Deps struct {
 	Issuer                     string
 	SCL                        *spec.SCL
 	TenantRepo                 tenantports.TenantRepository
-	AttrSchemaRepo             tenantports.TenantAttributeSchemaRepository
+	AttrSchemaRepo             tenantports.TenantUserAttributeSchemaRepository
 	LegacyBareIssuer           bool
 	ClientRepo                 oauthports.ClientRepository
 	UserRepo                   oauthports.UserRepository
@@ -128,6 +128,6 @@ func registerTenantRoutes(g *echo.Group, d Deps) {
 	g.GET("/api/admin/policy/roles", d.handleListAdminRolePolicies)
 	g.GET("/api/admin/settings", d.handleGetAdminSettings)
 	g.PATCH("/api/admin/settings", d.handleUpdateAdminSettings)
-	g.GET("/api/admin/tenant/attribute_schema", d.handleGetAttributeSchema)
-	g.PUT("/api/admin/tenant/attribute_schema", d.handleUpdateAttributeSchema)
+	g.GET("/api/admin/tenant/user_attribute_schema", d.handleGetUserAttributeSchema)
+	g.PUT("/api/admin/tenant/user_attribute_schema", d.handleUpdateUserAttributeSchema)
 }

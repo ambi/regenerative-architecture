@@ -93,7 +93,7 @@ var userSchema = z.Struct(z.Shape{
 	"UpdatedAt":         z.Time().Required(),
 })
 
-var attributeDefSchema = z.Struct(z.Shape{
+var userAttributeDefSchema = z.Struct(z.Shape{
 	"Key": z.String().TestFunc(
 		func(value *string, _ z.Ctx) bool {
 			return value != nil && attrKeyPattern.MatchString(*value)

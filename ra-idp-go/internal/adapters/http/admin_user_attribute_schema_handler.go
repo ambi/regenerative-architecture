@@ -11,43 +11,43 @@ import (
 	"github.com/labstack/echo/v5"
 )
 
-type attributeSchemaResponse struct {
-	TenantID   string              `json:"tenant_id"`
-	Attributes []spec.AttributeDef `json:"attributes"`
-	Builtin    []spec.AttributeDef `json:"builtin"`
-	UpdatedAt  time.Time           `json:"updated_at"`
+type userAttributeSchemaResponse struct {
+	TenantID   string                  `json:"tenant_id"`
+	Attributes []spec.UserAttributeDef `json:"attributes"`
+	Builtin    []spec.UserAttributeDef `json:"builtin"`
+	UpdatedAt  time.Time               `json:"updated_at"`
 }
 
-type attributeSchemaUpdateRequest struct {
-	Attributes []spec.AttributeDef `json:"attributes"`
+type userAttributeSchemaUpdateRequest struct {
+	Attributes []spec.UserAttributeDef `json:"attributes"`
 }
 
-func toAttributeSchemaResponse(schema *spec.TenantAttributeSchema) attributeSchemaResponse {
+func toUserAttributeSchemaResponse(schema *spec.TenantUserAttributeSchema) userAttributeSchemaResponse {
 	attributes := schema.Attributes
 	if attributes == nil {
-		attributes = []spec.AttributeDef{}
+		attributes = []spec.UserAttributeDef{}
 	}
-	return attributeSchemaResponse{
+	return userAttributeSchemaResponse{
 		TenantID:   schema.TenantID,
 		Attributes: attributes,
-		Builtin:    spec.BuiltinAttributeDefs(),
+		Builtin:    spec.BuiltinUserAttributeDefs(),
 		UpdatedAt:  schema.UpdatedAt,
 	}
 }
 
-func (d Deps) handleGetAttributeSchema(c *echo.Context) error {
+func (d Deps) handleGetUserAttributeSchema(c *echo.Context) error {
 	actor, err := d.requireTenantAdmin(c)
 	if err != nil {
 		return d.writeAdminAccessError(c, err)
 	}
-	schema, err := tenantusecases.GetAttributeSchema(c.Request().Context(), d.AttrSchemaRepo, actor.TenantID)
+	schema, err := tenantusecases.GetUserAttributeSchema(c.Request().Context(), d.AttrSchemaRepo, actor.TenantID)
 	if err != nil {
 		return err
 	}
-	return noStoreJSON(c, http.StatusOK, toAttributeSchemaResponse(schema))
+	return noStoreJSON(c, http.StatusOK, toUserAttributeSchemaResponse(schema))
 }
 
-func (d Deps) handleUpdateAttributeSchema(c *echo.Context) error {
+func (d Deps) handleUpdateUserAttributeSchema(c *echo.Context) error {
 	if err := d.verifyBrowserRequest(c); err != nil {
 		return err
 	}
@@ -55,15 +55,15 @@ func (d Deps) handleUpdateAttributeSchema(c *echo.Context) error {
 	if err != nil {
 		return d.writeAdminAccessError(c, err)
 	}
-	var input attributeSchemaUpdateRequest
+	var input userAttributeSchemaUpdateRequest
 	if err := decodeJSON(c.Request(), &input); err != nil {
 		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
-	schema, err := tenantusecases.UpdateAttributeSchema(
+	schema, err := tenantusecases.UpdateUserAttributeSchema(
 		c.Request().Context(), d.AttrSchemaRepo, actor.TenantID, input.Attributes, time.Now().UTC(),
 	)
 	if err != nil {
-		if errors.Is(err, tenantusecases.ErrInvalidAttributeSchema) {
+		if errors.Is(err, tenantusecases.ErrInvalidUserAttributeSchema) {
 			return writeBrowserError(c, http.StatusBadRequest, "invalid_attribute_schema", "属性定義が不正です")
 		}
 		return err
@@ -73,9 +73,9 @@ func (d Deps) handleUpdateAttributeSchema(c *echo.Context) error {
 		for i, def := range schema.Attributes {
 			keys[i] = def.Key
 		}
-		d.Emit(&spec.TenantAttributeSchemaUpdated{
+		d.Emit(&spec.TenantUserAttributeSchemaUpdated{
 			At: time.Now().UTC(), ActorSub: actor.Sub, TenantID: actor.TenantID, AttributeKeys: keys,
 		})
 	}
-	return noStoreJSON(c, http.StatusOK, toAttributeSchemaResponse(schema))
+	return noStoreJSON(c, http.StatusOK, toUserAttributeSchemaResponse(schema))
 }

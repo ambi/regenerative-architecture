@@ -9,28 +9,28 @@
 [[ADR-039]] で、core 以外のプロフィール属性を `User.attributes:
 Map<String, AttributeValue>` に sparse に持つと決めた。本 ADR はその属性を
 統治する schema の形と運用規約を定める。OIDC 標準クレームの組み込み属性と、
-tenant 定義のカスタム属性を **同一の `AttributeDef` 機構**で扱う点が要点。
+tenant 定義のカスタム属性を **同一の `UserAttributeDef` 機構**で扱う点が要点。
 Keycloak UserProfile / Okta Custom Profile / Google customSchemas 相当。
 
 ## 決定
 
-1. **2 階建ての属性定義**。属性は `AttributeDef` で定義し、出所を 2 つ持つ。
-   - **組み込みカタログ** `BuiltinAttributeDefs()` (コード、全テナント共通)。
+1. **2 階建ての属性定義**。属性は `UserAttributeDef` で定義し、出所を 2 つ持つ。
+   - **組み込みカタログ** `BuiltinUserAttributeDefs()` (コード、全テナント共通)。
      OIDC §5.1 optional claim と SCIM enterprise:User 拡張相当の組織属性を
      定義する。OIDC claim は `claim_name` + `oidc_scope` + `visibility:
      ClaimExposed` を持ち、組織属性は `visibility: AdminReadable` で claim
      露出しない。
-   - **tenant 定義** `TenantAttributeSchema` (独立 aggregate、identity:
+   - **tenant 定義** `TenantUserAttributeSchema` (独立 aggregate、identity:
      `tenant_id`)。tenant 固有の custom 属性を足す。tenant aggregate には
      embed せず別 aggregate とする理由は、(a) schema 変更が tenant 本体より
      頻繁、(b) 後続 PR で別テーブル化したい、(c) tenant 削除時の cascade を
      明示したい、ため。tenant 削除時は
-     `TenantAttributeSchemaRepository.Delete(tenantID)` で cascade する
+     `TenantUserAttributeSchemaRepository.Delete(tenantID)` で cascade する
      ([[ADR-034]] のテナント境界に従い全テーブルが `tenant_id` を持つ)。
    - 実効定義 = 組み込み ∪ tenant。custom key が組み込み key と衝突する schema
      は拒否する。
 
-2. **`AttributeDef` のフィールド**。
+2. **`UserAttributeDef` のフィールド**。
    - `key`: **snake_case、英字始まり** (`^[a-z][a-z0-9_]{0,62}$`)。
    - `type`: `string` / `number` / `boolean` / `date` / `string_array`
      (`AttributeValue` の sum type discriminator と一致)。
@@ -62,8 +62,8 @@ Keycloak UserProfile / Okta Custom Profile / Google customSchemas 相当。
 
 ## 影響
 
-- 本 PR では `AttributeValue` / `AttributeDef` / `TenantAttributeSchema` の
-  spec 型・zog 検証・`BuiltinAttributeDefs()` カタログ・in-memory repository
+- 本 PR では `AttributeValue` / `UserAttributeDef` / `TenantUserAttributeSchema` の
+  spec 型・zog 検証・`BuiltinUserAttributeDefs()` カタログ・in-memory repository
   まで。schema を編集する admin API、custom attribute scope での claim 露出、
   UI は後続 PR。
 - `ValidateAttributes` は usecase 層から呼ぶ前提の純関数として spec に置く。

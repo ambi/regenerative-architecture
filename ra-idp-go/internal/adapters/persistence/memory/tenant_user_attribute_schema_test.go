@@ -10,20 +10,20 @@ import (
 )
 
 // 実装がポートを満たすことをコンパイル時に保証する。
-var _ tenantports.TenantAttributeSchemaRepository = (*TenantAttributeSchemaRepository)(nil)
+var _ tenantports.TenantUserAttributeSchemaRepository = (*TenantUserAttributeSchemaRepository)(nil)
 
-func TestTenantAttributeSchemaRepositoryRoundTrip(t *testing.T) {
+func TestTenantUserAttributeSchemaRepositoryRoundTrip(t *testing.T) {
 	ctx := context.Background()
-	repo := NewTenantAttributeSchemaRepository()
+	repo := NewTenantUserAttributeSchemaRepository()
 
 	if got, err := repo.FindByTenant(ctx, "acme"); err != nil || got != nil {
 		t.Fatalf("expected nil schema for unknown tenant, got %v, %v", got, err)
 	}
 
 	claim := "region"
-	schema := &spec.TenantAttributeSchema{
+	schema := &spec.TenantUserAttributeSchema{
 		TenantID: "acme",
-		Attributes: []spec.AttributeDef{
+		Attributes: []spec.UserAttributeDef{
 			{Key: "region", Type: spec.AttributeTypeString, Required: true, Visibility: spec.AttrVisibilityClaimExposed, ClaimName: &claim},
 		},
 		UpdatedAt: time.Now().UTC(),
@@ -55,10 +55,10 @@ func TestTenantAttributeSchemaRepositoryRoundTrip(t *testing.T) {
 	}
 }
 
-func TestTenantAttributeSchemaRepositoryDefaultsTenant(t *testing.T) {
+func TestTenantUserAttributeSchemaRepositoryDefaultsTenant(t *testing.T) {
 	ctx := context.Background()
-	repo := NewTenantAttributeSchemaRepository()
-	if err := repo.Save(ctx, &spec.TenantAttributeSchema{UpdatedAt: time.Now().UTC()}); err != nil {
+	repo := NewTenantUserAttributeSchemaRepository()
+	if err := repo.Save(ctx, &spec.TenantUserAttributeSchema{UpdatedAt: time.Now().UTC()}); err != nil {
 		t.Fatalf("save failed: %v", err)
 	}
 	got, err := repo.FindByTenant(ctx, "")

@@ -14,33 +14,33 @@ package spec
 
 func sp(s string) *string { return &s }
 
-// builtinDefs は副作用のない不変カタログ。BuiltinAttributeDefs() がコピーを返す。
-var builtinDefs = func() []AttributeDef {
+// builtinDefs は副作用のない不変カタログ。BuiltinUserAttributeDefs() がコピーを返す。
+var builtinDefs = func() []UserAttributeDef {
 	// OIDC `profile` scope で開示する標準クレーム (core にある分を除く)。
-	profile := func(key string, t AttributeType) AttributeDef {
-		return AttributeDef{
+	profile := func(key string, t AttributeType) UserAttributeDef {
+		return UserAttributeDef{
 			Key: key, Type: t, EditableByUser: true,
 			ClaimName: sp(key), OIDCScope: sp("profile"),
 			Visibility: AttrVisibilityClaimExposed, PII: true,
 		}
 	}
 	// OIDC `address` scope。claim 名は親 "address"、key は address_* に分解。
-	address := func(key string) AttributeDef {
-		return AttributeDef{
+	address := func(key string) UserAttributeDef {
+		return UserAttributeDef{
 			Key: key, Type: AttributeTypeString, EditableByUser: true,
 			ClaimName: sp("address"), OIDCScope: sp("address"),
 			Visibility: AttrVisibilityClaimExposed, PII: true,
 		}
 	}
 	// SCIM enterprise:User 拡張相当の組織属性。OIDC claim ではなく admin 管理。
-	org := func(key string, t AttributeType) AttributeDef {
-		return AttributeDef{
+	org := func(key string, t AttributeType) UserAttributeDef {
+		return UserAttributeDef{
 			Key: key, Type: t, EditableByUser: false,
 			Visibility: AttrVisibilityAdminReadable, PII: false,
 		}
 	}
 
-	return []AttributeDef{
+	return []UserAttributeDef{
 		profile("middle_name", AttributeTypeString),
 		profile("nickname", AttributeTypeString),
 		profile("profile", AttributeTypeString),
@@ -78,9 +78,9 @@ var builtinDefs = func() []AttributeDef {
 	}
 }()
 
-// BuiltinAttributeDefs は全テナント共通の組み込み属性定義のコピーを返す。
-func BuiltinAttributeDefs() []AttributeDef {
-	out := make([]AttributeDef, len(builtinDefs))
+// BuiltinUserAttributeDefs は全テナント共通の組み込み属性定義のコピーを返す。
+func BuiltinUserAttributeDefs() []UserAttributeDef {
+	out := make([]UserAttributeDef, len(builtinDefs))
 	copy(out, builtinDefs)
 	return out
 }

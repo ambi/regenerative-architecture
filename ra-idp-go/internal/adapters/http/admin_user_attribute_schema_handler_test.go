@@ -1,7 +1,7 @@
 package http
 
 // SCL scenario "テナント内 admin は所属テナントの custom 属性定義を読み・更新できる"
-// を /api/admin/tenant/attribute_schema 経由で検証する (ADR-040 / wi-19)。
+// を /api/admin/tenant/user_attribute_schema 経由で検証する (ADR-040 / wi-19)。
 
 import (
 	"bytes"
@@ -19,9 +19,9 @@ import (
 	"github.com/labstack/echo/v5"
 )
 
-func newAttributeSchemaServer(
+func newUserAttributeSchemaServer(
 	t *testing.T, actor *spec.User, tenants ...*spec.Tenant,
-) (*echo.Echo, *memory.TenantAttributeSchemaRepository, *[]spec.DomainEvent) {
+) (*echo.Echo, *memory.TenantUserAttributeSchemaRepository, *[]spec.DomainEvent) {
 	t.Helper()
 	userRepo := memory.NewUserRepository()
 	if actor != nil {
@@ -33,7 +33,7 @@ func newAttributeSchemaServer(
 			t.Fatal(err)
 		}
 	}
-	schemaRepo := memory.NewTenantAttributeSchemaRepository()
+	schemaRepo := memory.NewTenantUserAttributeSchemaRepository()
 	resolver := &fakeAuthnResolver{}
 	if actor != nil {
 		resolver.ctx = &authdomain.AuthenticationContext{
@@ -51,7 +51,7 @@ func newAttributeSchemaServer(
 	return e, schemaRepo, &events
 }
 
-func putAttributeSchema(t *testing.T, e *echo.Echo, path string, body any) *httptest.ResponseRecorder {
+func putUserAttributeSchema(t *testing.T, e *echo.Echo, path string, body any) *httptest.ResponseRecorder {
 	t.Helper()
 	tenant := tenantPrefix(path)
 	csrf, cookie := passwordResetContextCSRF(t, e, tenant+"/api/auth/password_reset_context")
@@ -69,14 +69,14 @@ func putAttributeSchema(t *testing.T, e *echo.Echo, path string, body any) *http
 	return rec
 }
 
-func TestAttributeSchemaGetReturnsBuiltinForUndefinedTenant(t *testing.T) {
-	e, _, _ := newAttributeSchemaServer(t, settingsActor("admin", "acme", []string{"admin"}), activeTenant("acme", "Acme"))
+func TestUserAttributeSchemaGetReturnsBuiltinForUndefinedTenant(t *testing.T) {
+	e, _, _ := newUserAttributeSchemaServer(t, settingsActor("admin", "acme", []string{"admin"}), activeTenant("acme", "Acme"))
 	rec := httptest.NewRecorder()
-	e.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/realms/acme/api/admin/tenant/attribute_schema", http.NoBody))
+	e.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/realms/acme/api/admin/tenant/user_attribute_schema", http.NoBody))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
 	}
-	var body attributeSchemaResponse
+	var body userAttributeSchemaResponse
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatal(err)
 	}
@@ -88,20 +88,20 @@ func TestAttributeSchemaGetReturnsBuiltinForUndefinedTenant(t *testing.T) {
 	}
 }
 
-func TestAttributeSchemaGetRejectsNonAdmin(t *testing.T) {
-	e, _, _ := newAttributeSchemaServer(t, settingsActor("alice", "acme", nil), activeTenant("acme", "Acme"))
+func TestUserAttributeSchemaGetRejectsNonAdmin(t *testing.T) {
+	e, _, _ := newUserAttributeSchemaServer(t, settingsActor("alice", "acme", nil), activeTenant("acme", "Acme"))
 	rec := httptest.NewRecorder()
-	e.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/realms/acme/api/admin/tenant/attribute_schema", http.NoBody))
+	e.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/realms/acme/api/admin/tenant/user_attribute_schema", http.NoBody))
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
 	}
 }
 
-func TestAttributeSchemaPutPersistsAndEmitsEvent(t *testing.T) {
-	e, schemaRepo, events := newAttributeSchemaServer(
+func TestUserAttributeSchemaPutPersistsAndEmitsEvent(t *testing.T) {
+	e, schemaRepo, events := newUserAttributeSchemaServer(
 		t, settingsActor("admin", "acme", []string{"admin"}), activeTenant("acme", "Acme"),
 	)
-	rec := putAttributeSchema(t, e, "/realms/acme/api/admin/tenant/attribute_schema", map[string]any{
+	rec := putUserAttributeSchema(t, e, "/realms/acme/api/admin/tenant/user_attribute_schema", map[string]any{
 		"attributes": []map[string]any{
 			{"key": "region", "type": "string", "visibility": "claim_exposed", "claim_name": "region"},
 		},
@@ -118,20 +118,20 @@ func TestAttributeSchemaPutPersistsAndEmitsEvent(t *testing.T) {
 	}
 	found := false
 	for _, ev := range *events {
-		if ev.EventType() == "TenantAttributeSchemaUpdated" {
+		if ev.EventType() == "TenantUserAttributeSchemaUpdated" {
 			found = true
 		}
 	}
 	if !found {
-		t.Fatalf("TenantAttributeSchemaUpdated not emitted: %+v", *events)
+		t.Fatalf("TenantUserAttributeSchemaUpdated not emitted: %+v", *events)
 	}
 }
 
-func TestAttributeSchemaPutRejectsBuiltinCollision(t *testing.T) {
-	e, _, _ := newAttributeSchemaServer(
+func TestUserAttributeSchemaPutRejectsBuiltinCollision(t *testing.T) {
+	e, _, _ := newUserAttributeSchemaServer(
 		t, settingsActor("admin", "acme", []string{"admin"}), activeTenant("acme", "Acme"),
 	)
-	rec := putAttributeSchema(t, e, "/realms/acme/api/admin/tenant/attribute_schema", map[string]any{
+	rec := putUserAttributeSchema(t, e, "/realms/acme/api/admin/tenant/user_attribute_schema", map[string]any{
 		"attributes": []map[string]any{
 			{"key": "nickname", "type": "string", "visibility": "claim_exposed"},
 		},

@@ -14,7 +14,7 @@ import (
 type Dependencies struct {
 	ClientRepo              oauthports.ClientRepository
 	TenantRepo              tenantports.TenantRepository
-	AttrSchemaRepo          tenantports.TenantAttributeSchemaRepository
+	AttrSchemaRepo          tenantports.TenantUserAttributeSchemaRepository
 	UserRepo                oauthports.UserRepository
 	GroupRepo               authports.GroupRepository
 	MfaFactorRepo           authports.MfaFactorRepository

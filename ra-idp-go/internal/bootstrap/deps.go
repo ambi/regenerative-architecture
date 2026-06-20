@@ -20,6 +20,7 @@ type Dependencies struct {
 	MfaFactorRepo           authports.MfaFactorRepository
 	PasswordHistoryRepo     authports.PasswordHistoryRepository
 	PasswordResetTokenStore authports.PasswordResetTokenStore
+	EmailChangeTokenStore   authports.EmailChangeTokenStore
 	ConsentRepo             oauthports.ConsentRepository
 	RequestStore            oauthports.AuthorizationRequestStore
 	CodeStore               oauthports.AuthorizationCodeStore

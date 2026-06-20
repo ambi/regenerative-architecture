@@ -213,12 +213,16 @@ end-user 向けの「マイページ」を `/account` 配下に持つ (ADR-042 /
   未対応の required actions を summary card で示す。
 - **個人情報** (`/account/profile`): 表示名と `editable_by_user=true` の属性を編集
   (self-service、wi-19 の `/api/account/profile`)。
+- **メールアドレス** (`/account/emails`): primary email の変更。新アドレスへワンタイム
+  リンクを送り、`/account/email/verify` で確認するまで反映しない (ADR-030 と同じトークン
+  方式 / EmailSender)。確認時に `email_verified=true` とし、`verify_email` の required
+  action があれば自動解除する。
 - **パスワード** (`/account/password`): パスワード変更 (既存)。
 
-self が変更できるのは表示名 / 編集可能属性 / パスワードのみ。`roles` / `status` /
-組織属性 / `editable_by_user=false` の属性は admin 専用 (ADR-042)。secondary/recovery
-email・MFA enroll・セッション/consent 管理・データエクスポート・アカウント削除リクエスト
-は wi-21 の後続ステージで追加する。
+self が変更できるのは表示名 / 編集可能属性 / メールアドレス / パスワードのみ。`roles` /
+`status` / 組織属性 / `editable_by_user=false` の属性は admin 専用 (ADR-042)。secondary/
+recovery email・MFA enroll・セッション/consent 管理・データエクスポート・アカウント削除
+リクエストは wi-21 の後続ステージで追加する。
 
 ## 検証
 

@@ -45,6 +45,7 @@ type Deps struct {
 	MfaFactorRepo              authports.MfaFactorRepository
 	PasswordHistoryRepo        authports.PasswordHistoryRepository
 	PasswordResetTokenStore    authports.PasswordResetTokenStore
+	EmailChangeTokenStore      authports.EmailChangeTokenStore
 	EmailSender                authports.EmailSender
 	BreachedPasswordChecker    authports.BreachedPasswordChecker
 	LoginAttemptThrottle       authports.LoginAttemptThrottle
@@ -80,6 +81,9 @@ func registerTenantRoutes(g *echo.Group, d Deps) {
 	g.GET("/api/account/summary", d.handleGetAccountSummary)
 	g.GET("/api/account/profile", d.handleGetAccountProfile)
 	g.PATCH("/api/account/profile", d.handleUpdateAccountProfile)
+	g.POST("/api/account/email/change_request", d.handleRequestEmailChange)
+	g.GET("/api/account/email/verify_context", d.handleEmailVerifyContext)
+	g.POST("/api/account/email/verify", d.handleConfirmEmailChange)
 	g.POST("/api/auth/login", d.handleLoginAPI)
 	g.POST("/api/auth/change_password", d.handleChangePasswordAPI)
 	g.GET("/api/auth/password_reset_context", d.handlePasswordResetContext)

@@ -122,6 +122,7 @@ func Run() error {
 		Authorizer:     authorizer, JWKResolver: jwkResolver,
 		PasswordHasher: hasher, GroupRepo: deps.GroupRepo, MfaFactorRepo: deps.MfaFactorRepo, PasswordHistoryRepo: deps.PasswordHistoryRepo,
 		PasswordResetTokenStore: deps.PasswordResetTokenStore,
+		EmailChangeTokenStore:   deps.EmailChangeTokenStore,
 		EmailSender:             emailSender,
 		BreachedPasswordChecker: policy.NoopBreachedPasswordChecker{},
 		LoginAttemptThrottle:    loginThrottle,

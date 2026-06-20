@@ -82,6 +82,25 @@ type EmailSent struct {
 func (e *EmailSent) EventType() string     { return "EmailSent" }
 func (e *EmailSent) OccurredAt() time.Time { return e.At }
 
+type EmailChangeRequested struct {
+	At           time.Time `json:"-"`
+	TenantID     string    `json:"tenantId"`
+	Sub          string    `json:"sub"`
+	NewEmailHash string    `json:"newEmailHash"`
+}
+
+func (e *EmailChangeRequested) EventType() string     { return "EmailChangeRequested" }
+func (e *EmailChangeRequested) OccurredAt() time.Time { return e.At }
+
+type EmailChanged struct {
+	At       time.Time `json:"-"`
+	TenantID string    `json:"tenantId"`
+	Sub      string    `json:"sub"`
+}
+
+func (e *EmailChanged) EventType() string     { return "EmailChanged" }
+func (e *EmailChanged) OccurredAt() time.Time { return e.At }
+
 type UserCreated struct {
 	At        time.Time `json:"-"`
 	TenantID  string    `json:"tenantId"`

@@ -5,8 +5,10 @@ import {
   createRoute,
   createRouter,
 } from '@tanstack/react-router'
+import { AccountEmailsPage } from './pages/AccountEmailsPage'
 import { AccountHomePage } from './pages/AccountHomePage'
 import { AccountProfilePage } from './pages/AccountProfilePage'
+import { EmailVerifyPage } from './pages/EmailVerifyPage'
 import { CallbackPage } from './pages/CallbackPage'
 import { AdminAuditEventsPage } from './pages/AdminAuditEventsPage'
 import { AdminClientDetailPage, AdminClientsPage } from './pages/AdminClientsPage'
@@ -85,6 +87,16 @@ export function createAppRouter(data: PageData) {
     getParentRoute: () => rootRoute,
     path: '/account/profile',
     component: () => (data.kind === 'account-profile' ? <AccountProfilePage {...data} /> : null),
+  })
+  const accountEmailsRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/account/emails',
+    component: () => (data.kind === 'account-emails' ? <AccountEmailsPage {...data} /> : null),
+  })
+  const emailVerifyRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/account/email/verify',
+    component: () => (data.kind === 'email-verify' ? <EmailVerifyPage {...data} /> : null),
   })
   const forgotPasswordRoute = createRoute({
     getParentRoute: () => rootRoute,
@@ -191,6 +203,8 @@ export function createAppRouter(data: PageData) {
       changePasswordRoute,
       accountHomeRoute,
       accountProfileRoute,
+      accountEmailsRoute,
+      emailVerifyRoute,
       forgotPasswordRoute,
       resetPasswordRoute,
       adminDashboardRoute,

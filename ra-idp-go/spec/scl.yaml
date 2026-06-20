@@ -22,10 +22,10 @@ components:
 
   Authentication:
     description: エンドユーザ (Subject) の identity、credentials、MFA、ログインセッション、パスワードリセット、および管理 API からの User ライフサイクル操作を所有する。
-    owns_models: [User, MfaFactor, MfaFactorType, LoginSession, AuthenticationContext, PasswordResetTokenRecord, BrowserLoginRequest, BrowserTotpRequest, BrowserChangePasswordRequest, BrowserForgotPasswordRequest, BrowserResetPasswordRequest, AdminUserCreateRequest, AdminUserUpdateRequest, AdminRequiredActionRequest, AdminUserListResponse, AdminUserResponse, Group, GroupMember, GroupCreateRequest, GroupUpdateRequest, GroupSummaryResponse, GroupListResponse, GroupMemberResponse, GroupAddMemberRequest, UserGroupsResponse, UserLifecycle, AttributeValue, UserStatus, RequiredAction, AccountProfileResponse, AccountProfileUpdateRequest, AccountSummary]
+    owns_models: [User, MfaFactor, MfaFactorType, LoginSession, AuthenticationContext, PasswordResetTokenRecord, BrowserLoginRequest, BrowserTotpRequest, BrowserChangePasswordRequest, BrowserForgotPasswordRequest, BrowserResetPasswordRequest, AdminUserCreateRequest, AdminUserUpdateRequest, AdminRequiredActionRequest, AdminUserListResponse, AdminUserResponse, Group, GroupMember, GroupCreateRequest, GroupUpdateRequest, GroupSummaryResponse, GroupListResponse, GroupMemberResponse, GroupAddMemberRequest, UserGroupsResponse, UserLifecycle, AttributeValue, UserStatus, RequiredAction, AccountProfileResponse, AccountProfileUpdateRequest, AccountSummary, AccountEmailChangeRequest, AccountEmailChangeConfirm]
     owns_states: [UserLifecycle, GroupLifecycle]
-    owns_events: [UserAuthenticated, AuthenticationFailed, PasswordChanged, LoginThrottled, PasswordResetRequested, EmailSent, UserCreated, UserUpdated, UserDisabled, UserEnabled, UserDeleted, UserRequiredActionSet, UserRequiredActionCleared, GroupCreated, GroupUpdated, GroupDeleted, GroupMemberAdded, GroupMemberRemoved]
-    owns_interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, ChangePassword, GetAccountSummary, GetUserProfile, UpdateUserProfile, RequestPasswordReset, ResetPasswordWithToken, ListAdminUsers, GetAdminUser, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser, DeleteAdminUser, SetUserRequiredAction, ClearUserRequiredAction, ListGroups, GetGroup, CreateGroup, UpdateGroup, DeleteGroup, AddGroupMember, RemoveGroupMember, ListUserGroups]
+    owns_events: [UserAuthenticated, AuthenticationFailed, PasswordChanged, LoginThrottled, PasswordResetRequested, EmailSent, EmailChangeRequested, EmailChanged, UserCreated, UserUpdated, UserDisabled, UserEnabled, UserDeleted, UserRequiredActionSet, UserRequiredActionCleared, GroupCreated, GroupUpdated, GroupDeleted, GroupMemberAdded, GroupMemberRemoved]
+    owns_interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, ChangePassword, GetAccountSummary, GetUserProfile, UpdateUserProfile, RequestEmailChange, ConfirmEmailChange, RequestPasswordReset, ResetPasswordWithToken, ListAdminUsers, GetAdminUser, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser, DeleteAdminUser, SetUserRequiredAction, ClearUserRequiredAction, ListGroups, GetGroup, CreateGroup, UpdateGroup, DeleteGroup, AddGroupMember, RemoveGroupMember, ListUserGroups]
     owns_invariants: [PasswordHistoryNoReuse, EffectiveRolesComposition, GroupMembershipAuditEmission]
     owns_permissions: [AdminUserRead, AdminUserCreate, AdminUserUpdate, AdminUserDelete, AdminGroupsRead, AdminGroupsWrite]
     owns_objectives: [PiiPurgeAfterDeletion]
@@ -1847,6 +1847,24 @@ models:
       password_changed_at: { type: Timestamp, optional: true }
       required_actions:    { type: "RequiredAction[]" }
 
+  AccountEmailChangeRequest:
+    kind: value_object
+    description: |
+      primary email 変更の起票リクエスト (self-service, wi-21)。新アドレスへ確認リンクを
+      送るだけで、User.email の反映は確認完了 (ConfirmEmailChange) まで起きない。
+    annotations: { component: Authentication }
+    fields:
+      new_email: { type: String, constraints: [{ format: email }], annotations: { pii: true } }
+
+  AccountEmailChangeConfirm:
+    kind: value_object
+    description: |
+      新アドレスへ送ったワンタイムリンクの確認リクエスト (self-service, wi-21)。token が
+      新アドレス所有の証左なので認証済みセッションは要求しない (reset password と同方針)。
+    annotations: { component: Authentication }
+    fields:
+      token: { type: String, constraints: [non_empty] }
+
   Group:
     kind: entity
     description: ADR-038 で導入した tenant-scoped ロール束集約。所属 User に roles を一斉付与する。id は不変の生成識別子、name はテナント内で一意な編集可能ラベル。
@@ -2439,8 +2457,33 @@ models:
     payload:
       occurredAt: { type: Timestamp }
       toHash:     { type: String, description: "宛先 email の SHA-256 hex" }
-      purpose:    { type: String, description: "password_reset / email_verification など。" }
+      purpose:    { type: String, description: "password_reset / email_change / email_verification など。" }
       delivered:  { type: Boolean }
+
+  EmailChangeRequested:
+    kind: event
+    description: |
+      end-user が primary email の変更を起票し、新アドレスへ確認リンクを送った
+      (self-service, wi-21)。実際の email 反映は ConfirmEmailChange まで起きない。
+      newEmailHash は SHA-256 で、平文を audit log に流さない。
+    annotations: { component: Authentication }
+    payload:
+      occurredAt:   { type: Timestamp }
+      tenantId:     { type: String, description: "対象 user の所属テナント ID。" }
+      sub:          { type: String }
+      newEmailHash: { type: String, description: "新 email の SHA-256 hex" }
+
+  EmailChanged:
+    kind: event
+    description: |
+      新アドレスへ送ったワンタイムリンクの確認が完了し、primary email を確定した
+      (self-service, wi-21)。email_verified=true に更新し、verify_email の
+      required action があれば自動解除する。
+    annotations: { component: Authentication }
+    payload:
+      occurredAt: { type: Timestamp }
+      tenantId:   { type: String, description: "対象 user の所属テナント ID。" }
+      sub:        { type: String }
 
   UserCreated:
     kind: event
@@ -2934,6 +2977,30 @@ interfaces:
     emits: [UserUpdated]
     bindings:
       - { kind: http, method: PATCH, path: /api/account/profile, request_form: body }
+
+  RequestEmailChange:
+    description: |
+      認証済みユーザーが自身の primary email 変更を起票する (self-service)。新アドレスへ
+      ワンタイムリンクを送るだけで User.email は変えない。actor.sub に固定し、tenant 内で
+      既に使われているアドレスは拒否する (wi-21 / ADR-042)。
+    input:
+      request: { type: AccountEmailChangeRequest }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [EmailChangeRequested, EmailSent]
+    bindings:
+      - { kind: http, method: POST, path: /api/account/email/change_request, request_form: body }
+
+  ConfirmEmailChange:
+    description: |
+      新アドレスへ送ったワンタイムリンクを消費して primary email を確定する。
+      token が新アドレス所有の証左なので認証済みセッションは要求しない。確定時に
+      email_verified=true とし、verify_email の required action があれば自動解除する。
+    input:
+      request: { type: AccountEmailChangeConfirm }
+    errors: [InvalidRequestError]
+    emits: [EmailChanged]
+    bindings:
+      - { kind: http, method: POST, path: /api/account/email/verify, request_form: body }
 
   RequestPasswordReset:
     description: |

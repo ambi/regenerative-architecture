@@ -1,9 +1,11 @@
 import type {
   BrowserFlowResponse,
+  AccountEmailsPage,
   AccountHomePage,
   AccountProfile,
   AccountProfilePage,
   AccountSummary,
+  EmailVerifyPage,
   AdminAuditEvent,
   AdminAuditEventsPage,
   AdminTenantAttributesPage,
@@ -162,8 +164,9 @@ export async function loadPageData(): Promise<PageData> {
   }
   // end-user account portal も認証必須。未認証なら login へ誘導し戻り先を保持する
   // (wi-18 と同じ pattern)。一度取得したコンテキストは各 /account/* 分岐で再利用する。
+  // ただしメール変更の検証ページはメールのリンクから (未ログインで) 開かれうるため除外する。
   let accountContext: AccountContextResponse | undefined
-  if (path === '/account' || path.startsWith('/account/')) {
+  if (path !== '/account/email/verify' && (path === '/account' || path.startsWith('/account/'))) {
     try {
       accountContext = await request<AccountContextResponse>('/api/auth/account')
     } catch (error) {
@@ -210,6 +213,22 @@ export async function loadPageData(): Promise<PageData> {
       summary,
       isAdmin: hasAdminRole(account.roles),
     } satisfies AccountHomePage
+  }
+  if (path === '/account/emails') {
+    const account = accountContext!
+    const summary = await getAccountSummary()
+    return {
+      kind: 'account-emails',
+      csrfToken: account.csrf_token,
+      email: summary.email,
+      emailVerified: summary.email_verified,
+      isAdmin: hasAdminRole(account.roles),
+    } satisfies AccountEmailsPage
+  }
+  if (path === '/account/email/verify') {
+    const ctx = await request<{ csrf_token: string }>('/api/account/email/verify_context')
+    const token = new URLSearchParams(window.location.search).get('token') ?? ''
+    return { kind: 'email-verify', csrfToken: ctx.csrf_token, token } satisfies EmailVerifyPage
   }
   if (path === '/account/password') {
     const data = accountContext!
@@ -839,6 +858,35 @@ export async function updateAccountProfile(
 
 export async function getAccountSummary(): Promise<AccountSummary> {
   return request<AccountSummary>('/api/account/summary')
+}
+
+export async function requestEmailChange(csrfToken: string, newEmail: string): Promise<void> {
+  const response = await fetch(tenantURL('/api/account/email/change_request'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+    body: JSON.stringify({ new_email: newEmail }),
+    credentials: 'same-origin',
+    cache: 'no-store',
+  })
+  if (response.status === 204) return
+  const body = (await response.json().catch(() => ({}))) as APIError
+  throw new AuthenticationAPIError(
+    body.message ?? 'メールアドレスの変更を要求できませんでした。',
+    body.error,
+  )
+}
+
+export async function confirmEmailChange(csrfToken: string, token: string): Promise<void> {
+  const response = await fetch(tenantURL('/api/account/email/verify'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+    body: JSON.stringify({ token }),
+    credentials: 'same-origin',
+    cache: 'no-store',
+  })
+  if (response.ok) return
+  const body = (await response.json().catch(() => ({}))) as APIError
+  throw new AuthenticationAPIError(body.message ?? '確認に失敗しました。', body.error)
 }
 
 export async function getTenantUserAttributeSchema(): Promise<TenantUserAttributeSchema> {

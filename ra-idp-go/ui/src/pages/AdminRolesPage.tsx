@@ -1,10 +1,15 @@
-import { IconChevronRight, IconShieldCheck, IconUsers } from '@tabler/icons-react'
+import { IconArrowLeft, IconChevronRight, IconShieldCheck, IconUsers } from '@tabler/icons-react'
 import { useMemo, useState } from 'react'
 import { tenantURL } from '../api'
+import { AdminPaneActions } from '../components/AdminPaneActions'
 import { AdminShell } from '../components/AdminShell'
 import { Card } from '../components/ui/card'
 import { cn } from '../lib/utils'
-import type { AdminRole, AdminRolesPage as AdminRolesPageData } from '../types'
+import type {
+  AdminRole,
+  AdminRoleDetailPage as AdminRoleDetailPageData,
+  AdminRolesPage as AdminRolesPageData,
+} from '../types'
 
 export function AdminRolesPage({ actorUsername, roles, users }: AdminRolesPageData) {
   const [selectedName, setSelectedName] = useState(roles[0]?.name ?? '')
@@ -78,18 +83,55 @@ export function AdminRolesPage({ actorUsername, roles, users }: AdminRolesPageDa
 
         <Card className="overflow-hidden">
           {selected ? (
-            <RoleDetails
-              role={selected}
-              count={roleCounts[selected.name] ?? 0}
-              usernames={users
-                .filter((user) => user.roles.includes(selected.name))
-                .map((user) => user.preferred_username)}
-            />
+            <div>
+              <div className="border-b border-slate-200 bg-white p-4">
+                <AdminPaneActions
+                  detailHref={tenantURL(`/admin/roles/${encodeURIComponent(selected.name)}`)}
+                />
+              </div>
+              <RoleDetails
+                role={selected}
+                count={roleCounts[selected.name] ?? 0}
+                usernames={users
+                  .filter((user) => user.roles.includes(selected.name))
+                  .map((user) => user.preferred_username)}
+              />
+            </div>
           ) : (
             <div className="p-8 text-sm text-slate-500">ロールを選択してください。</div>
           )}
         </Card>
       </div>
+    </AdminShell>
+  )
+}
+
+// AdminRoleDetailPage はロールの全権限と付与ユーザーを扱う専用詳細画面 (wi-39)。
+export function AdminRoleDetailPage({
+  actorUsername,
+  role,
+  count,
+  usernames,
+}: AdminRoleDetailPageData) {
+  return (
+    <AdminShell
+      active="roles"
+      actorUsername={actorUsername}
+      title={role.name}
+      description={role.description}
+      actions={
+        <a
+          href={tenantURL('/admin/roles')}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+        >
+          <IconArrowLeft size={16} aria-hidden="true" />
+          ロール一覧
+        </a>
+      }
+    >
+      <Card className="overflow-hidden">
+        <RoleDetails role={role} count={count} usernames={usernames} />
+      </Card>
     </AdminShell>
   )
 }

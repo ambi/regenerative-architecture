@@ -1,0 +1,249 @@
+id: wi-39-admin-detail-pages
+title: 管理コンソールに専用の詳細画面を設け、右ペインは「スクロール不要の簡易ビュー」に役割分担する
+created_at: 2026-06-20
+authors: [tn]
+status: completed
+
+motivation: |
+  管理コンソール (`AdminUsersPage` / `AdminGroupsPage` / `AdminClientsPage` /
+  `AdminRolesPage`) は「左に一覧・右に選択対象の詳細ペイン」という 2 カラム
+  構成だが、対象の全情報を見るための **専用の詳細画面が無い**。実際に触ると
+  以下が問題になる:
+
+  1. **右ペインが狭く、確認のたびに縦スクロールを強いられる**。プロフィール +
+     ライフサイクル + 強制アクション + 所属グループ … と縦に積むため、対象の
+     情報が増えるほどペイン内スクロールが深くなり、一覧と詳細を行き来しながら
+     確認する用途には向かない。
+
+  2. **ユーザーの全属性が右ペインに出ていない**。wi-19 で User は sparse
+     attribute bag (OIDC §5.1 標準クレーム / SCIM 組織属性 / tenant custom) を
+     持つようになったが、右ペインは email / メール確認 / 認証方式 / 時刻 /
+     Subject ID と所属グループしか表示せず、`attributes` の中身は **編集
+     モーダルを開かないと見えない**。「閲覧のために編集を開く」のは不自然で、
+     誤編集のリスクもある。
+
+  右ペイン自体は「一覧を選ぶとその場で要点が見える」便利機能なので残す。ただし
+  役割を明確に分ける:
+
+  - **右ペイン = 簡易ビュー**。識別・状態・主要操作だけを、common な
+    ビューポートで **縦スクロール無しに収まる量** で見せる。これを超える情報
+    (全属性・全セクション) は載せない。
+  - **詳細画面 = 全情報**。スクロールが要るような網羅的情報は専用ページに寄せる。
+    最低限 **ユーザー** には詳細画面が必須。グループ / アプリケーション (client) /
+    ロールも同じ型で揃える。
+
+  ルーティング機構上、ページは client 側 `resolvePageData(path)` (ui/src/api.ts)
+  が path → `kind` + bootstrap データに解決し、`router.tsx` が `data.kind` で
+  ページコンポーネントを出し分ける。詳細画面は新しい path param ルート
+  (`/admin/users/:sub` 等) と `kind` を 1 つ足す形で実装できる。バックエンドは
+  既存の admin GET (`/api/admin/users/{sub}` 等) を再利用でき、新規エンドポイント
+  は原則不要。
+
+scope:
+  decision:
+    - >-
+      新規 ADR は設けない。本 WI は UI/UX の画面設計レベル (画面構成と情報設計) に
+      閉じ、normative な spec (SCL / permission / API 契約) は変更しない。
+      「右ペイン=簡易ビュー / 詳細画面=全情報」の役割分担は実装規約として
+      この WI に記述するに留める。
+
+  ui:
+    routing:
+      - >-
+        `router.tsx` に詳細ルートを追加する: `/admin/users/:sub` を正式化し
+        (wi-19 で予告済みの「list query のみ → サブパス化」を実装)、対象が
+        揃い次第 `/admin/groups/:group_id` / `/admin/clients/:client_id` /
+        `/admin/roles/:role` も同型で足す。`resolvePageData(path)` (ui/src/api.ts)
+        に path param のマッチを追加し、新 `kind`
+        (`admin-user-detail` ほか) と bootstrap データを返す。
+      - >-
+        bootstrap は既存 admin GET を再利用する。user 詳細は
+        `/api/admin/users/{sub}` + `/api/admin/users/{sub}/groups` +
+        `/api/admin/tenant/user_attribute_schema` (属性 label / 並び) を
+        並列取得する。新規バックエンドエンドポイントは追加しない。
+    pages:
+      - >-
+        `AdminUserDetailPage` を新設する。ユーザーの **全情報** を縦スクロール
+        前提で網羅的に表示する: 基本プロフィール (name / given_name /
+        family_name / preferred_username / email / email_verified /
+        mfa_enrolled / sub)、ライフサイクル (status / last_login_at /
+        password_changed_at / 強制アクション)、**全 attributes**
+        (組み込み OIDC 標準 / SCIM 組織 / tenant custom に区分し、
+        UserAttributeDef.label の日本語表示名 + key 併記。address_* は
+        住所としてまとめる)、ロール (effective / direct)、所属グループ。
+        値の無い属性の扱い (非表示 or 「未設定」) は読みやすさ優先で決める。
+      - >-
+        詳細画面からの操作導線は既存の編集モーダル / 無効化 / 削除 /
+        強制アクション付与を再利用する (編集 UX の作り込みは wi-37 で対応済み
+        のため本 WI では新設しない)。
+      - >-
+        右ペイン (`UserDetails` ほか) を **簡易ビュー** に整理する: 識別
+        (アバター / 表示名 / @username / status バッジ)、要点数項目、主要操作
+        (編集 / 詳細を開く / 無効化・削除メニュー) に絞り、common viewport で
+        ペイン内スクロールが出ない情報量に収める。全属性・全セクションは
+        載せず、「詳細を開く」リンクで `AdminUserDetailPage` へ送る。一覧行の
+        クリックは従来どおり簡易ビュー選択、明示的な「詳細」導線でページ遷移。
+      - >-
+        グループ / アプリケーション (client) / ロールにも同型の詳細画面
+        (`AdminGroupDetailPage` / `AdminClientDetailPage` /
+        `AdminRoleDetailPage`) と簡易ビュー整理を適用する。ユーザーを先行
+        実装し、残りは同じ型をなぞる (PR 分割可)。
+    components:
+      - >-
+        詳細画面と簡易ビューで重複する小要素 (DetailRow / StatusBadge /
+        属性レンダリング / アバター) は共有コンポーネントに切り出して
+        一覧・ペイン・詳細の 3 箇所で再利用する。属性表示は wi-19 の
+        attributeLabel / requiredActionLabel を流用し、内部 snake_case 値や
+        enum を生で出さない。
+    navigation:
+      - >-
+        admin nav / パンくず・戻る導線を整える。詳細画面には一覧へ戻る導線を
+        置き、deep link (`/admin/users/{sub}` の直接アクセス) でも単独で
+        開けるようにする (bootstrap が param から解決)。
+
+  documentation:
+    - >-
+      README / spec ドキュメントは画面追加のみで normative 変更が無いため
+      原則更新しない。必要なら admin console の画面一覧に詳細画面を 1 行
+      追記する程度に留める。
+
+out_of_scope:
+  - >-
+    エンドユーザー向け「マイページ」(Account Portal) の詳細・編集体験は
+    [[wi-21-end-user-account-portal]] が扱う。本 WI は admin コンソール側に
+    限定する。
+  - >-
+    編集 UX 自体の作り直し (モーダル構造 / その場編集の統一) は
+    [[wi-37-admin-ui-consistency-and-localization-polish]] で完了済み。本 WI は
+    「閲覧のための詳細画面」と「簡易ビューの役割分担」に閉じ、編集フローは
+    既存を再利用する。
+  - >-
+    新しいバックエンド集約・エンドポイント (ユーザーのセッション一覧 API、
+    consent の inline 表示など現状 API に無いもの) の新設。詳細画面は既存の
+    admin GET で得られる情報に限り、未提供の情報は別 WI とする。
+  - >-
+    SCL / permission / API 契約の変更。本 WI は UI の画面設計レベルに閉じる。
+  - >-
+    監査イベントや鍵 (keys) など、そもそも「対象選択 → 詳細」のメタファが
+    薄い画面への詳細ページ適用。対象は users / groups / clients / roles に限る。
+
+affected_guarantees:
+  - >-
+    admin RBAC: 詳細画面は既存の admin-guarded GET を使うのみで、新たな権限
+    境界を作らない。未認証 / 非 admin のアクセスは既存ハンドラの 401/403 に従う。
+  - >-
+    tenant isolation: 既存 GET が `requestTenantID` でテナント越え参照を
+    拒否する挙動に乗る。詳細画面が別テナントの sub を引けないこと。
+  - >-
+    内部表現の非露出: 属性・ロール・強制アクションは label / 対応表経由で
+    日本語表示し、snake_case key や enum 値を生で出さない (wi-19 / wi-37 の方針継続)。
+  - >-
+    backwards compatibility: 既存 admin API レスポンスは不変。UI 追加のみで
+    既存 RP / API 利用者に影響しない。
+  - >-
+    SCL coherence: 本 WI では SCL を変更しないため derived artifact の再生成は不要。
+
+verification:
+  - cmd: 'bun --cwd ra-idp-go/ui typecheck'
+  - cmd: 'bun --cwd ra-idp-go/ui lint'
+  - cmd: 'bun --cwd ra-idp-go/ui build'
+  - >-
+    手動 1: `/admin/users` で一覧からユーザーを選ぶと、右の簡易ビューが
+    common なビューポートでペイン内スクロール無しに収まる。
+  - >-
+    手動 2: 簡易ビューの「詳細を開く」から `/admin/users/{sub}` へ遷移し、
+    全 attributes (OIDC 標準 / 組織 / tenant custom)・ライフサイクル・
+    強制アクション・ロール・所属グループがすべて表示される。
+  - >-
+    手動 3: `/admin/users/{sub}` を直接 URL で開いても (deep link) 詳細画面が
+    単独で描画され、一覧へ戻る導線が機能する。
+  - >-
+    手動 4: 別テナントの sub を URL に入れても詳細が引けない (404/403)。
+  - >-
+    手動 5: グループ / アプリケーション / ロールでも同様に簡易ビュー +
+    詳細画面の役割分担が成立する (実装した範囲について)。
+  - >-
+    手動 6: 属性・ロール・強制アクションの表示に内部 snake_case 値や enum が
+    出ていない。
+
+risk: low
+risk_notes: |
+  UI の画面設計レベルに閉じた追加で、normative spec / API / 権限境界を変えない
+  ため影響範囲は限定的。主なリスクは (a) 既存の右ペイン UX を壊さずに情報量を
+  簡易ビュー側へ削れるか (削りすぎると一覧操作の利便が落ちる)、(b) 詳細ページの
+  bootstrap を既存ルーティング機構 (resolvePageData + data.kind) に param ルート
+  として無理なく載せられるか、の 2 点。どちらも局所的で、typecheck / lint /
+  build と手動確認で十分カバーできる。
+
+  リリースは users の詳細画面 + 簡易ビュー整理を先行 PR とし、groups /
+  clients / roles を同じ型でなぞる後続 PR に分けるのが安全。「右ペイン =
+  スクロール不要の簡易ビュー / スクロールが要る網羅情報は詳細画面」という
+  役割分担を全画面で一貫させることが本 WI の肝。
+
+completion:
+  completed_at: 2026-06-20
+
+  summary: |
+    管理コンソールの 4 エンティティ (ユーザー / グループ / アプリケーション
+    (client) / ロール) に専用の詳細画面を新設し、右ペインとの役割分担を整えた。
+    詳細画面は対象の全情報を縦スクロール前提で網羅表示する。ユーザー詳細は
+    基本プロフィール・ライフサイクル (status / last_login_at /
+    password_changed_at / 強制アクション)・全 attributes (組み込み OIDC 標準 /
+    SCIM 組織 / tenant custom を区分し label + key 併記)・ロール・所属グループ
+    を見せる。右ペインは要点と主要操作を残した簡易ビューとし、上部に
+    「詳細を開く」(primary) → 「編集」(outline) → その他操作 (⋮) の順で
+    そろえた共有アクション行 `AdminPaneActions` を全画面に適用して、
+    一覧画面ごとにバラバラだったボタン配置を統一した。ルーティングは
+    `resolvePageData` に path param ルート (`/admin/users/:sub` ほか) と新 kind
+    を追加し、deep link でも単独描画できる。バックエンドは既存 admin GET の
+    再利用のみで新規エンドポイント・SCL・権限境界の変更は無い。
+
+  semantic_diff:
+    before: >-
+      admin コンソールは「左一覧・右ペイン」の 2 カラムのみで、対象の全情報を
+      見る専用画面が無く、ユーザーの全属性は編集モーダルを開かないと見えなかった。
+      右ペインは縦に積むほどペイン内スクロールが深くなり、「詳細を開く / 編集 /
+      削除」の配置も画面ごとに異なっていた。
+    after: >-
+      4 エンティティに deep link 可能な専用詳細画面があり全情報を網羅表示する。
+      右ペインは簡易ビューに役割分担し、共有 `AdminPaneActions` で
+      詳細 → 編集 → その他操作の配置を全画面で統一。属性・強制アクションは
+      label / 対応表で日本語表示し内部 snake_case 値や enum を生で出さない。
+
+  affected_guarantees_state:
+    - "admin RBAC: 詳細画面は既存の admin-guarded GET を再利用するのみで新たな権限境界を作らない。"
+    - "tenant isolation: 既存 GET の requestTenantID に乗り、別テナントの対象は引けない。"
+    - "内部表現の非露出: requiredActionLabel / attribute label 経由で日本語表示し、snake_case key や enum を生で出さない (wi-19 / wi-37 継続)。"
+    - "backwards compatibility: 既存 admin API レスポンスは不変。UI 追加のみで RP / API 利用者に影響しない。"
+    - "SCL coherence: 本 WI は SCL を変更しないため derived artifact の再生成は不要 (HTML は work-item 取り込み分のみ更新)。"
+
+  traceability:
+    - implementation:
+        files:
+          - ra-idp-go/ui/src/components/AdminPaneActions.tsx
+          - ra-idp-go/ui/src/api.ts
+          - ra-idp-go/ui/src/router.tsx
+          - ra-idp-go/ui/src/types.ts
+          - ra-idp-go/ui/src/pages/AdminUsersPage.tsx
+          - ra-idp-go/ui/src/pages/AdminGroupsPage.tsx
+          - ra-idp-go/ui/src/pages/AdminClientsPage.tsx
+          - ra-idp-go/ui/src/pages/AdminRolesPage.tsx
+        specification:
+          - ra-idp-go/spec/ra-idp-go.html
+
+  verification:
+    - cmd: "bun --cwd ra-idp-go/ui typecheck"
+      result: ok
+    - cmd: "bun --cwd ra-idp-go/ui lint"
+      result: "ok (47 files)"
+    - cmd: "bun --cwd ra-idp-go/ui build"
+      result: ok
+    - cmd: "bun run yaml-check:all"
+      in: tools
+      result: ok
+    - "手動 1-6 (簡易ビューのスクロール無し収まり / 詳細遷移 / deep link / テナント分離 / 4 エンティティの一貫性 / 内部表現非露出) は実ブラウザでの目視確認が未実施。"
+
+  residual_risk:
+    - "右ペイン簡易ビューが common viewport でスクロール無しに収まるかは目視未確認。属性の多いユーザーでペイン内スクロールが出る可能性は残る。"
+    - "詳細画面の操作導線は既存の編集モーダル / 無効化 / 削除を再利用。編集 UX の作り直しは wi-37、end-user 向けマイページは wi-21 が別途扱う。"
+    - "out_of_scope: 新規バックエンド集約・エンドポイント / SCL・権限境界の変更 / 監査・鍵など詳細メタファの薄い画面への適用は対象外。"

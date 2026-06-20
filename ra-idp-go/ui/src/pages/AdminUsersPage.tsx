@@ -1,6 +1,7 @@
 import {
   IconAdjustments,
   IconAlertTriangle,
+  IconArrowLeft,
   IconBan,
   IconCheck,
   IconCircleCheck,
@@ -27,6 +28,7 @@ import {
   clearAdminUserRequiredAction,
   createAdminUser,
   deleteAdminUser,
+  getAdminUser,
   getAdminUserGroups,
   listAdminGroups,
   listAdminUsers,
@@ -36,6 +38,7 @@ import {
   type UpdateAdminUserInput,
   updateAdminUser,
 } from '../api'
+import { AdminPaneActions } from '../components/AdminPaneActions'
 import { AdminShell } from '../components/AdminShell'
 import { Alert } from '../components/ui/alert'
 import { Button } from '../components/ui/button'
@@ -53,11 +56,13 @@ import { attributeLabel, cn } from '../lib/utils'
 import {
   type AdminGroup,
   type AdminUser,
+  type AdminUserDetailPage as AdminUserDetailPageData,
   type AdminUserGroups,
   type AdminUsersPage as AdminUsersPageData,
   type AttributeValue,
   REQUIRED_ACTIONS,
   requiredActionLabel,
+  type TenantUserAttributeSchema,
   type UserAttributeDef,
 } from '../types'
 
@@ -403,6 +408,319 @@ export function AdminUsersPage({
   )
 }
 
+// AdminUserDetailPage はユーザーの全情報を扱う専用詳細画面 (wi-39)。右ペインの
+// 簡易ビューに収まらない網羅情報 (全プロフィール / 全属性 / ライフサイクル /
+// 強制アクション / ロールとグループ) をここに集約し、縦スクロール前提で見せる。
+export function AdminUserDetailPage({
+  csrfToken,
+  actorUsername,
+  user: initialUser,
+  schema,
+}: AdminUserDetailPageData) {
+  const [user, setUser] = useState(initialUser)
+  const [showEditor, setShowEditor] = useState(false)
+  const [showDelete, setShowDelete] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
+
+  const attributeDefs = [...schema.builtin, ...schema.attributes]
+
+  async function reload() {
+    setUser(await getAdminUser(user.sub))
+  }
+
+  async function run(action: () => Promise<void>, success: string) {
+    setBusy(true)
+    setError('')
+    setNotice('')
+    try {
+      await action()
+      setNotice(success)
+    } catch (cause) {
+      setError(
+        cause instanceof AuthenticationAPIError ? cause.message : '管理操作を完了できませんでした。',
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleUpdate(input: UpdateAdminUserInput) {
+    await run(async () => {
+      await updateAdminUser(csrfToken, user.sub, input)
+      setShowEditor(false)
+      await reload()
+    }, 'ユーザーを更新しました。')
+  }
+
+  async function handleDisabled() {
+    const disabled = !user.disabled_at
+    await run(
+      async () => {
+        await setAdminUserDisabled(csrfToken, user.sub, disabled)
+        await reload()
+      },
+      disabled ? 'ユーザーを無効化しました。' : 'ユーザーを再有効化しました。',
+    )
+  }
+
+  async function handleDelete(reason: string) {
+    await run(async () => {
+      await deleteAdminUser(csrfToken, user.sub, reason)
+      window.location.assign(tenantURL('/admin/users'))
+    }, 'ユーザーを削除しました。')
+  }
+
+  async function handleRequiredAction(action: string, present: boolean) {
+    await run(
+      async () => {
+        if (present) {
+          await clearAdminUserRequiredAction(csrfToken, user.sub, action)
+        } else {
+          await setAdminUserRequiredAction(csrfToken, user.sub, action)
+        }
+        await reload()
+      },
+      present ? '強制アクションを解除しました。' : '強制アクションを付与しました。',
+    )
+  }
+
+  return (
+    <>
+      <AdminShell
+        active="users"
+        actorUsername={actorUsername}
+        title={user.name || user.preferred_username}
+        description={`@${user.preferred_username}`}
+        actions={
+          <div className="flex items-center gap-2">
+            <a
+              href={tenantURL('/admin/users')}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+            >
+              <IconArrowLeft size={16} aria-hidden="true" />
+              ユーザー一覧
+            </a>
+            <Button type="button" disabled={busy} onClick={() => setShowEditor(true)}>
+              <IconPencil size={16} aria-hidden="true" />
+              編集
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="size-9 px-0"
+                  aria-label="ユーザー操作"
+                  disabled={busy}
+                >
+                  <IconDotsVertical size={18} aria-hidden="true" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  className={user.disabled_at ? undefined : 'text-red-700'}
+                  onSelect={() => void handleDisabled()}
+                >
+                  {user.disabled_at ? (
+                    <IconCheck size={17} aria-hidden="true" />
+                  ) : (
+                    <IconBan size={17} aria-hidden="true" />
+                  )}
+                  {user.disabled_at ? 'アカウントを再有効化' : 'アカウントを無効化'}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="my-1 h-px bg-slate-200" />
+                <DropdownMenuItem className="text-red-700" onSelect={() => setShowDelete(true)}>
+                  <IconTrash size={17} aria-hidden="true" />
+                  アカウントを削除
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        }
+      >
+        {error && <Alert>{error}</Alert>}
+        {notice && (
+          <div
+            role="status"
+            className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
+          >
+            <IconCheck size={18} aria-hidden="true" />
+            {notice}
+          </div>
+        )}
+
+        <div className="flex items-center gap-3">
+          <UserAvatar user={user} large />
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h2 className="truncate text-lg font-semibold text-slate-950">
+                {user.name || user.preferred_username}
+              </h2>
+              <StatusBadge disabled={Boolean(user.disabled_at)} compact />
+            </div>
+            <p className="mt-0.5 text-sm text-slate-500">@{user.preferred_username}</p>
+          </div>
+        </div>
+
+        <div className="grid gap-5 xl:grid-cols-3">
+          <div className="flex flex-col gap-5 xl:col-span-2">
+            <Card className="p-5">
+              <h3 className="text-xs font-bold uppercase tracking-[0.1em] text-slate-400">
+                プロフィール
+              </h3>
+              <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+                <DetailRow icon={IconUser} label="名前" value={user.name || '未設定'} />
+                <DetailRow icon={IconUser} label="名" value={user.given_name || '未設定'} />
+                <DetailRow icon={IconUser} label="姓" value={user.family_name || '未設定'} />
+                <DetailRow
+                  icon={IconUser}
+                  label="ユーザー名"
+                  value={user.preferred_username}
+                  mono
+                />
+                <DetailRow icon={IconMail} label="メール" value={user.email || '未設定'} />
+                <DetailRow
+                  icon={IconShieldCheck}
+                  label="メール確認"
+                  value={user.email_verified ? '確認済み' : '未確認'}
+                />
+                <DetailRow
+                  icon={IconKey}
+                  label="認証方式"
+                  value={user.mfa_enrolled ? 'Password + MFA' : 'Password'}
+                />
+                <DetailRow icon={IconUser} label="Subject ID" value={user.sub} mono />
+              </dl>
+            </Card>
+
+            <Card className="p-5">
+              <h3 className="text-xs font-bold uppercase tracking-[0.1em] text-slate-400">属性</h3>
+              <p className="mt-1 text-xs text-slate-500">
+                値が設定されている属性を区分ごとに表示します。編集は「編集」から行います。
+              </p>
+              <div className="mt-4 flex flex-col gap-5">
+                <AttributeGroup title="OIDC 標準クレーム" defs={oidcDefs(schema)} user={user} />
+                <AttributeGroup title="組織情報" defs={orgDefs(schema)} user={user} />
+                <AttributeGroup title="カスタム属性" defs={schema.attributes} user={user} />
+              </div>
+            </Card>
+          </div>
+
+          <div className="flex flex-col gap-5">
+            <Card className="p-5">
+              <h3 className="text-xs font-bold uppercase tracking-[0.1em] text-slate-400">
+                ライフサイクル
+              </h3>
+              <dl className="mt-3 grid gap-3 text-sm">
+                <DetailRow
+                  icon={IconCircleCheck}
+                  label="状態"
+                  value={user.disabled_at ? '無効' : '有効'}
+                />
+                <DetailRow icon={IconClock} label="作成日時" value={formatDateTime(user.created_at)} />
+                <DetailRow
+                  icon={IconClock}
+                  label="更新日時"
+                  value={formatDateTime(user.updated_at)}
+                />
+                <DetailRow
+                  icon={IconClock}
+                  label="最終ログイン"
+                  value={user.last_login_at ? formatDateTime(user.last_login_at) : '未ログイン'}
+                />
+                <DetailRow
+                  icon={IconKey}
+                  label="パスワード変更"
+                  value={
+                    user.password_changed_at ? formatDateTime(user.password_changed_at) : '記録なし'
+                  }
+                />
+              </dl>
+              <div className="mt-5 border-t border-slate-200 pt-5">
+                <UserRequiredActionsSection
+                  user={user}
+                  busy={busy}
+                  onToggle={handleRequiredAction}
+                />
+              </div>
+            </Card>
+
+            <Card className="p-5">
+              <UserGroupsSection user={user} csrfToken={csrfToken} />
+            </Card>
+          </div>
+        </div>
+      </AdminShell>
+
+      {showEditor && (
+        <UserEditorDialog
+          user={user}
+          attributeDefs={attributeDefs}
+          busy={busy}
+          onSubmit={(input) => void handleUpdate(input)}
+          onClose={() => setShowEditor(false)}
+        />
+      )}
+      {showDelete && (
+        <DeleteUserDialog
+          user={user}
+          busy={busy}
+          onClose={() => setShowDelete(false)}
+          onConfirm={(reason) => void handleDelete(reason)}
+        />
+      )}
+    </>
+  )
+}
+
+// oidcDefs / orgDefs は組み込みカタログを区分する: OIDC scope を持つものは標準
+// クレーム、持たないものは SCIM 組織属性。tenant custom は schema.attributes 側。
+function oidcDefs(schema: TenantUserAttributeSchema): UserAttributeDef[] {
+  return schema.builtin.filter((def) => Boolean(def.oidc_scope))
+}
+
+function orgDefs(schema: TenantUserAttributeSchema): UserAttributeDef[] {
+  return schema.builtin.filter((def) => !def.oidc_scope)
+}
+
+// AttributeGroup は区分内で「値が設定されている」属性だけを読み取り表示する。
+// 全 def を出すと未設定行で埋もれるため、設定済みのみを示し、無ければその旨を出す。
+function AttributeGroup({
+  title,
+  defs,
+  user,
+}: {
+  title: string
+  defs: UserAttributeDef[]
+  user: AdminUser
+}) {
+  const rows = defs
+    .map((def) => ({ def, value: user.attributes?.[def.key] }))
+    .filter((row): row is { def: UserAttributeDef; value: AttributeValue } => Boolean(row.value))
+  return (
+    <div>
+      <h4 className="text-[0.68rem] font-bold uppercase tracking-wide text-slate-400">{title}</h4>
+      {rows.length === 0 ? (
+        <p className="mt-2 text-xs text-slate-400">設定された項目はありません</p>
+      ) : (
+        <dl className="mt-2 grid gap-2 text-sm sm:grid-cols-2">
+          {rows.map(({ def, value }) => (
+            <div key={def.key} className="grid gap-0.5">
+              <dt className="text-xs text-slate-500">{attributeLabel(def)}</dt>
+              <dd className="min-w-0 break-all text-slate-800">{attributeValueToText(value)}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+    </div>
+  )
+}
+
+// UserDetails は右ペインの詳細ビュー。同一画面で複数ユーザーを見比べられるよう
+// 情報量は厚めに残しつつ、上部に「詳細を開く / 編集」を置いて専用詳細ページや
+// 編集モーダルへすぐ飛べるようにする (wi-39)。
 function UserDetails({
   user,
   csrfToken,
@@ -434,53 +752,42 @@ function UserDetails({
             </div>
             <p className="mt-0.5 text-sm text-slate-500">@{user.preferred_username}</p>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                className="size-9 px-0"
-                aria-label="ユーザー操作"
-                disabled={busy}
-              >
-                <IconDotsVertical size={18} aria-hidden="true" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                className={user.disabled_at ? undefined : 'text-red-700'}
-                onSelect={onDisabled}
-              >
-                {user.disabled_at ? (
-                  <IconCheck size={17} aria-hidden="true" />
-                ) : (
-                  <IconBan size={17} aria-hidden="true" />
-                )}
-                {user.disabled_at ? 'アカウントを再有効化' : 'アカウントを無効化'}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator className="my-1 h-px bg-slate-200" />
-              <DropdownMenuItem className="text-red-700" onSelect={onDelete}>
-                <IconTrash size={17} aria-hidden="true" />
-                アカウントを削除
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+        </div>
+
+        <div className="mt-4">
+          <AdminPaneActions
+            detailHref={tenantURL(`/admin/users/${encodeURIComponent(user.sub)}`)}
+            busy={busy}
+            onEdit={onEdit}
+            menu={
+              <>
+                <DropdownMenuItem
+                  className={user.disabled_at ? undefined : 'text-red-700'}
+                  onSelect={onDisabled}
+                >
+                  {user.disabled_at ? (
+                    <IconCheck size={17} aria-hidden="true" />
+                  ) : (
+                    <IconBan size={17} aria-hidden="true" />
+                  )}
+                  {user.disabled_at ? 'アカウントを再有効化' : 'アカウントを無効化'}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="my-1 h-px bg-slate-200" />
+                <DropdownMenuItem className="text-red-700" onSelect={onDelete}>
+                  <IconTrash size={17} aria-hidden="true" />
+                  アカウントを削除
+                </DropdownMenuItem>
+              </>
+            }
+          />
         </div>
       </div>
 
       <div className="flex flex-1 flex-col gap-6 p-5">
         <section>
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold uppercase tracking-[0.1em] text-slate-400">プロフィール</h3>
-            <Button
-              type="button"
-              disabled={busy}
-              onClick={onEdit}
-            >
-              <IconPencil size={16} aria-hidden="true" />
-              編集
-            </Button>
-          </div>
+          <h3 className="text-xs font-bold uppercase tracking-[0.1em] text-slate-400">
+            プロフィール
+          </h3>
           <dl className="mt-3 grid gap-3 text-sm">
             <DetailRow icon={IconMail} label="メール" value={user.email || '未設定'} />
             <DetailRow
@@ -513,7 +820,6 @@ function UserDetails({
         <UserRequiredActionsSection user={user} busy={busy} onToggle={onRequiredAction} />
 
         <UserGroupsSection user={user} csrfToken={csrfToken} />
-
       </div>
     </div>
   )

@@ -8,16 +8,16 @@ import {
 import { AccountProfilePage } from './pages/AccountProfilePage'
 import { CallbackPage } from './pages/CallbackPage'
 import { AdminAuditEventsPage } from './pages/AdminAuditEventsPage'
-import { AdminClientsPage } from './pages/AdminClientsPage'
+import { AdminClientDetailPage, AdminClientsPage } from './pages/AdminClientsPage'
 import { AdminConsentsPage } from './pages/AdminConsentsPage'
 import { AdminDashboardPage } from './pages/AdminDashboardPage'
-import { AdminGroupsPage } from './pages/AdminGroupsPage'
+import { AdminGroupDetailPage, AdminGroupsPage } from './pages/AdminGroupsPage'
 import { AdminKeysPage } from './pages/AdminKeysPage'
-import { AdminRolesPage } from './pages/AdminRolesPage'
+import { AdminRoleDetailPage, AdminRolesPage } from './pages/AdminRolesPage'
 import { AdminSettingsPage } from './pages/AdminSettingsPage'
 import { AdminTenantAttributesPage } from './pages/AdminTenantAttributesPage'
 import { AdminTenantsPage } from './pages/AdminTenantsPage'
-import { AdminUsersPage } from './pages/AdminUsersPage'
+import { AdminUserDetailPage, AdminUsersPage } from './pages/AdminUsersPage'
 import { ChangePasswordPage } from './pages/ChangePasswordPage'
 import { ConsentPage } from './pages/ConsentPage'
 import { DevicePage } from './pages/DevicePage'
@@ -101,15 +101,33 @@ export function createAppRouter(data: PageData) {
     path: '/admin/users',
     component: () => (data.kind === 'admin-users' ? <AdminUsersPage {...data} /> : null),
   })
+  const adminUserDetailRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/admin/users/$sub',
+    component: () =>
+      data.kind === 'admin-user-detail' ? <AdminUserDetailPage {...data} /> : null,
+  })
   const adminRolesRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/admin/roles',
     component: () => (data.kind === 'admin-roles' ? <AdminRolesPage {...data} /> : null),
   })
+  const adminRoleDetailRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/admin/roles/$name',
+    component: () =>
+      data.kind === 'admin-role-detail' ? <AdminRoleDetailPage {...data} /> : null,
+  })
   const adminClientsRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/admin/clients',
     component: () => (data.kind === 'admin-clients' ? <AdminClientsPage {...data} /> : null),
+  })
+  const adminClientDetailRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/admin/clients/$clientId',
+    component: () =>
+      data.kind === 'admin-client-detail' ? <AdminClientDetailPage {...data} /> : null,
   })
   const adminConsentsRoute = createRoute({
     getParentRoute: () => rootRoute,
@@ -136,6 +154,12 @@ export function createAppRouter(data: PageData) {
     getParentRoute: () => rootRoute,
     path: '/admin/groups',
     component: () => (data.kind === 'admin-groups' ? <AdminGroupsPage {...data} /> : null),
+  })
+  const adminGroupDetailRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/admin/groups/$groupId',
+    component: () =>
+      data.kind === 'admin-group-detail' ? <AdminGroupDetailPage {...data} /> : null,
   })
   const adminSettingsRoute = createRoute({
     getParentRoute: () => rootRoute,
@@ -164,13 +188,17 @@ export function createAppRouter(data: PageData) {
       resetPasswordRoute,
       adminDashboardRoute,
       adminUsersRoute,
+      adminUserDetailRoute,
       adminRolesRoute,
+      adminRoleDetailRoute,
       adminClientsRoute,
+      adminClientDetailRoute,
       adminConsentsRoute,
       adminAuditEventsRoute,
       adminKeysRoute,
       adminTenantsRoute,
       adminGroupsRoute,
+      adminGroupDetailRoute,
       adminSettingsRoute,
       adminTenantAttributesRoute,
     ]),

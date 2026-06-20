@@ -6,23 +6,27 @@ import type {
   AdminAuditEventsPage,
   AdminTenantAttributesPage,
   AdminClient,
+  AdminClientDetailPage,
   AdminClientsPage,
   AdminConsent,
   AdminConsentsPage,
   AdminDashboardPage,
   AdminGroup,
+  AdminGroupDetailPage,
   AdminGroupMember,
   AdminGroupsPage,
   AdminUserGroups,
   AdminKey,
   AdminKeysPage,
   AdminRole,
+  AdminRoleDetailPage,
   AdminRolesPage,
   AdminSettings,
   AdminSettingsPage,
   AdminTenant,
   AdminTenantsPage,
   AdminUser,
+  AdminUserDetailPage,
   AdminUsersPage,
   ChangePasswordPage,
   ConsentPage,
@@ -241,6 +245,21 @@ export async function loadPageData(): Promise<PageData> {
       attributeDefs: [...schema.builtin, ...schema.attributes],
     } satisfies AdminUsersPage
   }
+  const userDetailMatch = path.match(/^\/admin\/users\/([^/]+)$/)
+  if (userDetailMatch) {
+    const sub = decodeURIComponent(userDetailMatch[1])
+    const [user, schema] = await Promise.all([
+      getAdminUser(sub),
+      request<TenantUserAttributeSchema>('/api/admin/tenant/user_attribute_schema'),
+    ])
+    return {
+      kind: 'admin-user-detail',
+      csrfToken: adminAccount!.csrf_token,
+      actorUsername: adminAccount!.preferred_username,
+      user,
+      schema,
+    } satisfies AdminUserDetailPage
+  }
   if (path === '/admin/roles') {
     const [roles, users] = await Promise.all([
       request<AdminRoleListResponse>('/api/admin/policy/roles'),
@@ -253,6 +272,26 @@ export async function loadPageData(): Promise<PageData> {
       users: users.users,
     } satisfies AdminRolesPage
   }
+  const roleDetailMatch = path.match(/^\/admin\/roles\/([^/]+)$/)
+  if (roleDetailMatch) {
+    const name = decodeURIComponent(roleDetailMatch[1])
+    const [roles, users] = await Promise.all([
+      request<AdminRoleListResponse>('/api/admin/policy/roles'),
+      request<AdminUserListResponse>('/api/admin/users'),
+    ])
+    const role = roles.roles.find((r) => r.name === name)
+    if (!role) throw new AuthenticationAPIError('ロールが見つかりません', 'not_found')
+    const usernames = users.users
+      .filter((u) => u.roles.includes(name))
+      .map((u) => u.preferred_username)
+    return {
+      kind: 'admin-role-detail',
+      actorUsername: adminAccount!.preferred_username,
+      role,
+      count: usernames.length,
+      usernames,
+    } satisfies AdminRoleDetailPage
+  }
   if (path === '/admin/clients') {
     const clients = await request<AdminClientListResponse>('/api/admin/clients')
     return {
@@ -261,6 +300,17 @@ export async function loadPageData(): Promise<PageData> {
       actorUsername: adminAccount!.preferred_username,
       clients: clients.clients,
     } satisfies AdminClientsPage
+  }
+  const clientDetailMatch = path.match(/^\/admin\/clients\/([^/]+)$/)
+  if (clientDetailMatch) {
+    const clientID = decodeURIComponent(clientDetailMatch[1])
+    const client = await getAdminClient(clientID)
+    return {
+      kind: 'admin-client-detail',
+      csrfToken: adminAccount!.csrf_token,
+      actorUsername: adminAccount!.preferred_username,
+      client,
+    } satisfies AdminClientDetailPage
   }
   if (path === '/admin/consents') {
     const consents = await request<AdminConsentListResponse>('/api/admin/consents')
@@ -332,6 +382,17 @@ export async function loadPageData(): Promise<PageData> {
       actorUsername: adminAccount!.preferred_username,
       groups: groups.groups,
     } satisfies AdminGroupsPage
+  }
+  const groupDetailMatch = path.match(/^\/admin\/groups\/([^/]+)$/)
+  if (groupDetailMatch) {
+    const id = decodeURIComponent(groupDetailMatch[1])
+    const { group } = await getAdminGroup(id)
+    return {
+      kind: 'admin-group-detail',
+      csrfToken: adminAccount!.csrf_token,
+      actorUsername: adminAccount!.preferred_username,
+      group,
+    } satisfies AdminGroupDetailPage
   }
   if (path === '/forgot_password' || path === '/reset_password') {
     const data = await request<PasswordResetContextResponse>('/api/auth/password_reset_context')
@@ -536,6 +597,10 @@ export async function listAdminUsers(): Promise<AdminUser[]> {
   return (await request<AdminUserListResponse>('/api/admin/users')).users
 }
 
+export async function getAdminUser(sub: string): Promise<AdminUser> {
+  return request<AdminUser>(`/api/admin/users/${encodeURIComponent(sub)}`)
+}
+
 export async function createAdminUser(
   csrfToken: string,
   input: CreateAdminUserInput,
@@ -636,6 +701,10 @@ export type UpdateAdminClientInput = {
 
 export async function listAdminClients(): Promise<AdminClient[]> {
   return (await request<AdminClientListResponse>('/api/admin/clients')).clients
+}
+
+export async function getAdminClient(clientID: string): Promise<AdminClient> {
+  return request<AdminClient>(`/api/admin/clients/${encodeURIComponent(clientID)}`)
 }
 
 export async function createAdminClient(

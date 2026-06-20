@@ -111,6 +111,14 @@ export type AdminUsersPage = {
   attributeDefs: UserAttributeDef[]
 }
 
+export type AdminUserDetailPage = {
+  kind: 'admin-user-detail'
+  csrfToken: string
+  actorUsername?: string
+  user: AdminUser
+  schema: TenantUserAttributeSchema
+}
+
 export type AdminDashboardPage = {
   kind: 'admin-dashboard'
   csrfToken: string
@@ -289,6 +297,28 @@ export type AdminRolesPage = {
   users: AdminUser[]
 }
 
+export type AdminRoleDetailPage = {
+  kind: 'admin-role-detail'
+  actorUsername?: string
+  role: AdminRole
+  count: number
+  usernames: string[]
+}
+
+export type AdminClientDetailPage = {
+  kind: 'admin-client-detail'
+  csrfToken: string
+  actorUsername?: string
+  client: AdminClient
+}
+
+export type AdminGroupDetailPage = {
+  kind: 'admin-group-detail'
+  csrfToken: string
+  actorUsername?: string
+  group: AdminGroup
+}
+
 export type AdminSettings = {
   tenant_id: string
   display_name: string
@@ -387,13 +417,17 @@ export type PageData =
   | ResetPasswordPage
   | AdminDashboardPage
   | AdminUsersPage
+  | AdminUserDetailPage
   | AdminClientsPage
   | AdminConsentsPage
   | AdminAuditEventsPage
   | AdminKeysPage
   | AdminTenantsPage
   | AdminGroupsPage
+  | AdminGroupDetailPage
   | AdminRolesPage
+  | AdminRoleDetailPage
+  | AdminClientDetailPage
   | AdminSettingsPage
   | AdminTenantAttributesPage
   | AccountProfilePage

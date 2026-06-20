@@ -1,5 +1,5 @@
 import {
-  IconPencil,
+  IconArrowLeft,
   IconPlus,
   IconRefresh,
   IconTrash,
@@ -21,14 +21,17 @@ import {
   tenantURL,
   updateAdminGroup,
 } from '../api'
+import { AdminPaneActions } from '../components/AdminPaneActions'
 import { AdminShell } from '../components/AdminShell'
 import { Alert } from '../components/ui/alert'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
+import { DropdownMenuItem } from '../components/ui/dropdown-menu'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import type {
   AdminGroup,
+  AdminGroupDetailPage as AdminGroupDetailPageData,
   AdminGroupMember,
   AdminGroupsPage as AdminGroupsPageData,
   AdminUser,
@@ -163,6 +166,9 @@ export function AdminGroupsPage({
           group={selected}
           csrfToken={csrfToken}
           busy={busy}
+          detailHref={
+            selected ? tenantURL(`/admin/groups/${encodeURIComponent(selected.id)}`) : undefined
+          }
           onChanged={(id) => run(() => refresh(id), 'グループを更新しました。')}
           onDeleted={() => run(() => refresh(), 'グループを削除しました。')}
         />
@@ -206,16 +212,69 @@ export function AdminGroupsPage({
   )
 }
 
+// AdminGroupDetailPage はグループの編集・メンバー管理を扱う専用詳細画面 (wi-39)。
+export function AdminGroupDetailPage({
+  csrfToken,
+  actorUsername,
+  group: initialGroup,
+}: AdminGroupDetailPageData) {
+  const [group, setGroup] = useState(initialGroup)
+  const [error, setError] = useState('')
+
+  async function reload(id: string) {
+    try {
+      const { group: next } = await getAdminGroup(id)
+      setGroup(next)
+      setError('')
+    } catch (cause) {
+      setError(
+        cause instanceof AuthenticationAPIError ? cause.message : 'グループの再取得に失敗しました。',
+      )
+    }
+  }
+
+  return (
+    <AdminShell
+      active="groups"
+      actorUsername={actorUsername}
+      title={group.name}
+      description={group.description || group.id}
+      actions={
+        <a
+          href={tenantURL('/admin/groups')}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+        >
+          <IconArrowLeft size={16} aria-hidden="true" />
+          グループ一覧
+        </a>
+      }
+    >
+      {error ? <Alert variant="destructive">{error}</Alert> : null}
+      <div className="max-w-3xl">
+        <GroupDetailCard
+          group={group}
+          csrfToken={csrfToken}
+          busy={false}
+          onChanged={(id) => void reload(id)}
+          onDeleted={() => window.location.assign(tenantURL('/admin/groups'))}
+        />
+      </div>
+    </AdminShell>
+  )
+}
+
 function GroupDetailCard({
   group,
   csrfToken,
   busy,
+  detailHref,
   onChanged,
   onDeleted,
 }: {
   group: AdminGroup | null
   csrfToken: string
   busy: boolean
+  detailHref?: string
   onChanged: (id: string) => void
   onDeleted: () => void
 }) {
@@ -279,12 +338,28 @@ function GroupDetailCard({
 
   return (
     <Card className="p-5">
-      <div className="flex items-start justify-between">
-        <div>
-          <h2 className="text-base font-semibold text-slate-900">{group.name}</h2>
-          <p className="mt-0.5 font-mono text-xs text-slate-500">{group.id}</p>
-        </div>
-        {confirmDelete ? (
+      <div>
+        <h2 className="text-base font-semibold text-slate-900">{group.name}</h2>
+        <p className="mt-0.5 font-mono text-xs text-slate-500">{group.id}</p>
+      </div>
+
+      <div className="mt-4">
+        <AdminPaneActions
+          detailHref={detailHref}
+          busy={busy || localBusy}
+          onEdit={() => setEditing(true)}
+          menu={
+            <DropdownMenuItem className="text-red-700" onSelect={() => setConfirmDelete(true)}>
+              <IconTrash size={17} aria-hidden="true" />
+              グループを削除
+            </DropdownMenuItem>
+          }
+        />
+      </div>
+
+      {confirmDelete ? (
+        <Alert variant="destructive" className="mt-3 flex flex-wrap items-center justify-between gap-2">
+          <span>このグループを削除しますか？所属ユーザーからロールが外れます。</span>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setConfirmDelete(false)} disabled={localBusy}>
               取消
@@ -303,28 +378,8 @@ function GroupDetailCard({
               削除を確定
             </Button>
           </div>
-        ) : (
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              disabled={busy || localBusy}
-              onClick={() => setEditing(true)}
-            >
-              <IconPencil size={14} aria-hidden="true" />
-              編集
-            </Button>
-            <Button
-              variant="ghost"
-              className="text-rose-700 hover:bg-rose-50"
-              disabled={busy || localBusy}
-              onClick={() => setConfirmDelete(true)}
-            >
-              <IconTrash size={14} aria-hidden="true" />
-              削除
-            </Button>
-          </div>
-        )}
-      </div>
+        </Alert>
+      ) : null}
 
       {localError ? <Alert variant="destructive" className="mt-3">{localError}</Alert> : null}
 

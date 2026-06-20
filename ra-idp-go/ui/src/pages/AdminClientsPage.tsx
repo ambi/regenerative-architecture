@@ -1,5 +1,6 @@
 import {
   IconAlertTriangle,
+  IconArrowLeft,
   IconCheck,
   IconCopy,
   IconEdit,
@@ -15,17 +16,25 @@ import {
   AuthenticationAPIError,
   createAdminClient,
   deleteAdminClient,
+  getAdminClient,
   listAdminClients,
+  tenantURL,
   updateAdminClient,
 } from '../api'
+import { AdminPaneActions } from '../components/AdminPaneActions'
 import { AdminShell } from '../components/AdminShell'
 import { Alert } from '../components/ui/alert'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
+import { DropdownMenuItem } from '../components/ui/dropdown-menu'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { cn } from '../lib/utils'
-import type { AdminClient, AdminClientsPage as AdminClientsPageData } from '../types'
+import type {
+  AdminClient,
+  AdminClientDetailPage as AdminClientDetailPageData,
+  AdminClientsPage as AdminClientsPageData,
+} from '../types'
 
 type ClientForm = {
   client_name: string
@@ -262,7 +271,7 @@ export function AdminClientsPage({
                 </div>
                 <aside className="border-t border-slate-200 bg-slate-50/40 xl:border-l xl:border-t-0">
                   {selected ? (
-                    <ClientDetails client={selected} busy={busy} onEdit={() => openEdit(selected)} onDelete={() => setDialog('delete')} />
+                    <ClientPaneView client={selected} busy={busy} onEdit={() => openEdit(selected)} onDelete={() => setDialog('delete')} />
                   ) : (
                     <div className="flex h-full min-h-80 items-center justify-center p-8 text-center text-sm text-slate-500">アプリケーションを選択すると詳細が表示されます。</div>
                   )}
@@ -283,12 +292,28 @@ export function AdminClientsPage({
   )
 }
 
-function ClientDetails({ client, busy, onEdit, onDelete }: { client: AdminClient; busy: boolean; onEdit: () => void; onDelete: () => void }) {
+// ClientPaneView は一覧右の詳細ビュー。同一画面で見比べられるよう主要メタデータを
+// 残しつつ、上部に「詳細を開く / 編集」を置いて専用詳細ページ・編集へすぐ飛べる
+// ようにする (wi-39)。全メタデータは詳細ページで確認できる。
+function ClientPaneView({ client, busy, onEdit, onDelete }: { client: AdminClient; busy: boolean; onEdit: () => void; onDelete: () => void }) {
   return (
     <div className="flex h-full flex-col">
       <div className="border-b border-slate-200 bg-white p-5">
         <h2 className="text-lg font-semibold">{client.client_name || client.client_id}</h2>
         <p className="mt-1 break-all font-mono text-xs text-slate-500">{client.client_id}</p>
+        <div className="mt-4">
+          <AdminPaneActions
+            detailHref={tenantURL(`/admin/clients/${encodeURIComponent(client.client_id)}`)}
+            busy={busy}
+            onEdit={onEdit}
+            menu={
+              <DropdownMenuItem className="text-red-700" onSelect={onDelete}>
+                <IconTrash size={17} aria-hidden="true" />
+                アプリケーションを削除
+              </DropdownMenuItem>
+            }
+          />
+        </div>
       </div>
       <div className="flex flex-1 flex-col gap-5 p-5">
         <Detail label="種別" value={client.client_type} />
@@ -297,12 +322,185 @@ function ClientDetails({ client, busy, onEdit, onDelete }: { client: AdminClient
         <Detail label="Grant types" value={client.grant_types.join(', ')} />
         <Detail label="Scope" value={client.scope || '未設定'} />
         <Detail label="セキュリティ" value={[client.require_pushed_authorization_requests ? 'PAR required' : '', client.dpop_bound_access_tokens ? 'DPoP bound' : ''].filter(Boolean).join(', ') || '標準'} />
-        <div className="mt-auto grid gap-2 border-t border-slate-200 pt-5">
-          <Button variant="outline" disabled={busy} onClick={onEdit}><IconEdit size={16} />メタデータを編集</Button>
-          <Button variant="destructive" disabled={busy} onClick={onDelete}><IconTrash size={16} />アプリケーションを削除</Button>
-        </div>
       </div>
     </div>
+  )
+}
+
+// ClientDetailBody はアプリケーションの全メタデータを表示する (wi-39)。
+function ClientDetailBody({ client }: { client: AdminClient }) {
+  const security =
+    [
+      client.require_pushed_authorization_requests ? 'PAR 必須' : '',
+      client.dpop_bound_access_tokens ? 'DPoP バインド' : '',
+    ]
+      .filter(Boolean)
+      .join(', ') || '標準'
+  return (
+    <div className="grid gap-5 lg:grid-cols-2">
+      <Card className="p-5">
+        <h3 className="text-xs font-bold uppercase tracking-[0.1em] text-slate-400">基本情報</h3>
+        <div className="mt-3 flex flex-col gap-5">
+          <Detail label="表示名" value={client.client_name || '未設定'} />
+          <Detail label="Client ID" value={client.client_id} mono />
+          <Detail label="種別" value={client.client_type} />
+          <Detail label="認証方式" value={client.token_endpoint_auth_method} />
+          <Detail label="作成日時" value={client.created_at} />
+        </div>
+      </Card>
+      <Card className="p-5">
+        <h3 className="text-xs font-bold uppercase tracking-[0.1em] text-slate-400">エンドポイント</h3>
+        <div className="mt-3 flex flex-col gap-5">
+          <Detail label="Redirect URI" value={client.redirect_uris.join('\n') || '未設定'} mono />
+          <Detail label="Grant types" value={client.grant_types.join(', ') || '未設定'} />
+          <Detail label="Response types" value={client.response_types.join(', ') || '未設定'} />
+          <Detail label="Scope" value={client.scope || '未設定'} />
+          {client.jwks_uri ? <Detail label="JWKS URI" value={client.jwks_uri} mono /> : null}
+          {client.tls_client_auth_subject_dn ? (
+            <Detail label="TLS Subject DN" value={client.tls_client_auth_subject_dn} mono />
+          ) : null}
+        </div>
+      </Card>
+      <Card className="p-5 lg:col-span-2">
+        <h3 className="text-xs font-bold uppercase tracking-[0.1em] text-slate-400">セキュリティ</h3>
+        <div className="mt-3 grid gap-5 sm:grid-cols-3">
+          <Detail label="プロファイル" value={security} />
+          <Detail label="ID Token 署名アルゴリズム" value={client.id_token_signed_response_alg} />
+          <Detail label="FAPI プロファイル" value={client.fapi_profile} />
+        </div>
+      </Card>
+    </div>
+  )
+}
+
+// AdminClientDetailPage はアプリケーションの全メタデータと編集/削除を扱う専用詳細画面 (wi-39)。
+export function AdminClientDetailPage({
+  csrfToken,
+  actorUsername,
+  client: initialClient,
+}: AdminClientDetailPageData) {
+  const [client, setClient] = useState(initialClient)
+  const [form, setForm] = useState<ClientForm>(emptyForm)
+  const [dialog, setDialog] = useState<'edit' | 'delete' | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
+
+  async function run(action: () => Promise<void>, success: string) {
+    setBusy(true)
+    setError('')
+    setNotice('')
+    try {
+      await action()
+      setNotice(success)
+    } catch (cause) {
+      setError(
+        cause instanceof AuthenticationAPIError
+          ? cause.message
+          : 'アプリケーション管理操作を完了できませんでした。',
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  function openEdit() {
+    setForm({
+      client_name: client.client_name ?? '',
+      client_type: client.client_type,
+      redirect_uris: client.redirect_uris.join('\n'),
+      grant_types: client.grant_types.join(', '),
+      response_types: client.response_types.join(', '),
+      token_endpoint_auth_method: client.token_endpoint_auth_method,
+      scope: client.scope,
+      jwks_uri: client.jwks_uri ?? '',
+      tls_client_auth_subject_dn: client.tls_client_auth_subject_dn ?? '',
+      require_pushed_authorization_requests: client.require_pushed_authorization_requests,
+      dpop_bound_access_tokens: client.dpop_bound_access_tokens,
+    })
+    setDialog('edit')
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    await run(async () => {
+      await updateAdminClient(csrfToken, client.client_id, {
+        client_name: optional(form.client_name),
+        redirect_uris: lines(form.redirect_uris),
+        grant_types: values(form.grant_types),
+        response_types: values(form.response_types),
+        scope: form.scope.trim(),
+        require_pushed_authorization_requests: form.require_pushed_authorization_requests,
+        dpop_bound_access_tokens: form.dpop_bound_access_tokens,
+      })
+      setDialog(null)
+      setClient(await getAdminClient(client.client_id))
+    }, 'アプリケーションを更新しました。')
+  }
+
+  async function handleDelete() {
+    await run(async () => {
+      await deleteAdminClient(csrfToken, client.client_id)
+      window.location.assign(tenantURL('/admin/clients'))
+    }, 'アプリケーションを削除しました。')
+  }
+
+  return (
+    <>
+      <AdminShell
+        active="clients"
+        actorUsername={actorUsername}
+        title={client.client_name || client.client_id}
+        description={client.client_id}
+        actions={
+          <div className="flex items-center gap-2">
+            <a
+              href={tenantURL('/admin/clients')}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+            >
+              <IconArrowLeft size={16} aria-hidden="true" />
+              アプリケーション一覧
+            </a>
+            <Button type="button" disabled={busy} onClick={openEdit}>
+              <IconEdit size={16} aria-hidden="true" />
+              編集
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={busy}
+              onClick={() => setDialog('delete')}
+            >
+              <IconTrash size={16} aria-hidden="true" />
+              削除
+            </Button>
+          </div>
+        }
+      >
+        {error && <Alert variant="destructive">{error}</Alert>}
+        {notice && <Alert variant="success">{notice}</Alert>}
+        <ClientDetailBody client={client} />
+      </AdminShell>
+
+      {dialog === 'edit' && (
+        <ClientFormDialog
+          mode="edit"
+          form={form}
+          busy={busy}
+          onChange={setForm}
+          onClose={() => setDialog(null)}
+          onSubmit={handleSubmit}
+        />
+      )}
+      {dialog === 'delete' && (
+        <DeleteDialog
+          client={client}
+          busy={busy}
+          onClose={() => setDialog(null)}
+          onConfirm={() => void handleDelete()}
+        />
+      )}
+    </>
   )
 }
 

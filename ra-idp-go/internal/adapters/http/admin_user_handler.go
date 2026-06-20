@@ -27,11 +27,14 @@ type adminUserCreateRequest struct {
 }
 
 type adminUserUpdateRequest struct {
-	PreferredUsername *string   `json:"preferred_username"`
-	Name              *string   `json:"name"`
-	Email             *string   `json:"email"`
-	EmailVerified     *bool     `json:"email_verified"`
-	Roles             *[]string `json:"roles"`
+	PreferredUsername *string                         `json:"preferred_username"`
+	Name              *string                         `json:"name"`
+	GivenName         *string                         `json:"given_name"`
+	FamilyName        *string                         `json:"family_name"`
+	Email             *string                         `json:"email"`
+	EmailVerified     *bool                           `json:"email_verified"`
+	Roles             *[]string                       `json:"roles"`
+	Attributes        *map[string]spec.AttributeValue `json:"attributes"`
 }
 
 type adminUserDeleteRequest struct {
@@ -39,14 +42,17 @@ type adminUserDeleteRequest struct {
 }
 
 type adminUserResponse struct {
-	Sub               string          `json:"sub"`
-	PreferredUsername string          `json:"preferred_username"`
-	Name              *string         `json:"name,omitempty"`
-	Email             *string         `json:"email,omitempty"`
-	EmailVerified     bool            `json:"email_verified"`
-	MfaEnrolled       bool            `json:"mfa_enrolled"`
-	Roles             []string        `json:"roles"`
-	Status            spec.UserStatus `json:"status"`
+	Sub               string                         `json:"sub"`
+	PreferredUsername string                         `json:"preferred_username"`
+	Name              *string                        `json:"name,omitempty"`
+	GivenName         *string                        `json:"given_name,omitempty"`
+	FamilyName        *string                        `json:"family_name,omitempty"`
+	Email             *string                        `json:"email,omitempty"`
+	EmailVerified     bool                           `json:"email_verified"`
+	MfaEnrolled       bool                           `json:"mfa_enrolled"`
+	Roles             []string                       `json:"roles"`
+	Status            spec.UserStatus                `json:"status"`
+	Attributes        map[string]spec.AttributeValue `json:"attributes,omitempty"`
 	// DisabledAt は status から導出した後方互換フィールド (現行 UI 用)。
 	DisabledAt *time.Time `json:"disabled_at,omitempty"`
 	CreatedAt  time.Time  `json:"created_at"`
@@ -129,8 +135,10 @@ func (d Deps) handleUpdateAdminUser(c *echo.Context) error {
 		d.adminUserDeps(),
 		authusecases.UpdateUserInput{
 			ActorSub: actor.Sub, Sub: c.Param("sub"),
-			PreferredUsername: input.PreferredUsername, Name: input.Name, Email: input.Email,
-			EmailVerified: input.EmailVerified, Roles: input.Roles, Now: time.Now().UTC(),
+			PreferredUsername: input.PreferredUsername, Name: input.Name,
+			GivenName: input.GivenName, FamilyName: input.FamilyName, Email: input.Email,
+			EmailVerified: input.EmailVerified, Roles: input.Roles,
+			Attributes: input.Attributes, Now: time.Now().UTC(),
 		},
 	)
 	if err != nil {
@@ -220,7 +228,8 @@ func (d Deps) writeAdminAccessError(c *echo.Context, err error) error {
 
 func (d Deps) adminUserDeps() authusecases.AdminUserDeps {
 	deps := authusecases.AdminUserDeps{
-		UserRepo: d.UserRepo, ConsentRepo: d.ConsentRepo, RefreshStore: d.RefreshStore,
+		UserRepo: d.UserRepo, AttrSchemaRepo: d.AttrSchemaRepo,
+		ConsentRepo: d.ConsentRepo, RefreshStore: d.RefreshStore,
 		DeviceCodeStore: d.DeviceCodeStore, MfaFactorRepo: d.MfaFactorRepo,
 		PasswordHasher: d.PasswordHasher, PasswordHistoryRepo: d.PasswordHistoryRepo,
 		Emit: d.Emit,
@@ -241,6 +250,8 @@ func (d Deps) writeAdminUserError(c *echo.Context, err error) error {
 		return writeBrowserError(c, http.StatusBadRequest, "invalid_role", "roleが不正です")
 	case errors.Is(err, authusecases.ErrSelfDeleteForbidden):
 		return writeBrowserError(c, http.StatusBadRequest, "self_delete_forbidden", "管理者は自身を削除できません")
+	case errors.Is(err, authusecases.ErrInvalidAttribute):
+		return writeBrowserError(c, http.StatusBadRequest, "invalid_attribute", "属性がスキーマに適合していません")
 	default:
 		var policyErr *authusecases.PasswordPolicyError
 		if errors.As(err, &policyErr) {
@@ -264,8 +275,10 @@ func toAdminUserResponse(user *spec.User) adminUserResponse {
 	}
 	return adminUserResponse{
 		Sub: user.Sub, PreferredUsername: user.PreferredUsername, Name: user.Name,
+		GivenName: user.GivenName, FamilyName: user.FamilyName,
 		Email: user.Email, EmailVerified: user.EmailVerified, MfaEnrolled: user.MfaEnrolled,
-		Roles: slices.Clone(user.Roles), Status: user.Lifecycle.Status, DisabledAt: disabledAt,
+		Roles: slices.Clone(user.Roles), Status: user.Lifecycle.EffectiveStatus(),
+		Attributes: user.Attributes, DisabledAt: disabledAt,
 		CreatedAt: user.CreatedAt, UpdatedAt: user.UpdatedAt,
 	}
 }

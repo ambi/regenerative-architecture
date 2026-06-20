@@ -15,6 +15,7 @@ import (
 	oauthports "ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/spec"
 	"ra-idp-go/internal/tenancy"
+	tenantports "ra-idp-go/internal/tenancy/ports"
 )
 
 var (
@@ -23,6 +24,9 @@ var (
 	// ErrSelfDeleteForbidden は admin / system_admin が自身を削除しようとした場合に
 	// 返る (ADR-036 の自爆防止)。
 	ErrSelfDeleteForbidden = errors.New("admins cannot delete themselves")
+	// ErrInvalidAttribute は attributes が実効スキーマ (組み込み ∪ tenant) に
+	// 適合しない場合に返る (ADR-040)。
+	ErrInvalidAttribute = errors.New("attribute does not conform to schema")
 )
 
 // deletedPasswordHashSentinel は ADR-036 の tombstone 用に PasswordHash へ設定する
@@ -32,6 +36,7 @@ const deletedPasswordHashSentinel = "$deleted$"
 
 type AdminUserDeps struct {
 	UserRepo            oauthports.UserRepository
+	AttrSchemaRepo      tenantports.TenantAttributeSchemaRepository
 	ConsentRepo         oauthports.ConsentRepository
 	RefreshStore        oauthports.RefreshTokenStore
 	DeviceCodeStore     oauthports.DeviceCodeStore
@@ -107,10 +112,14 @@ type UpdateUserInput struct {
 	Sub               string
 	PreferredUsername *string
 	Name              *string
+	GivenName         *string
+	FamilyName        *string
 	Email             *string
 	EmailVerified     *bool
 	Roles             *[]string
-	Now               time.Time
+	// Attributes は指定時に attributes 全体を置換する (実効スキーマで検証)。
+	Attributes *map[string]spec.AttributeValue
+	Now        time.Time
 }
 
 func UpdateUser(ctx context.Context, deps AdminUserDeps, in UpdateUserInput) (*spec.User, error) {
@@ -146,6 +155,25 @@ func UpdateUser(ctx context.Context, deps AdminUserDeps, in UpdateUserInput) (*s
 	if in.Name != nil && !equalOptionalString(user.Name, in.Name) {
 		updated.Name = in.Name
 		changed = append(changed, "name")
+	}
+	if in.GivenName != nil && !equalOptionalString(user.GivenName, in.GivenName) {
+		updated.GivenName = in.GivenName
+		changed = append(changed, "given_name")
+	}
+	if in.FamilyName != nil && !equalOptionalString(user.FamilyName, in.FamilyName) {
+		updated.FamilyName = in.FamilyName
+		changed = append(changed, "family_name")
+	}
+	if in.Attributes != nil {
+		defs, err := effectiveAttributeDefs(ctx, deps, user.TenantID)
+		if err != nil {
+			return nil, err
+		}
+		if err := spec.ValidateAttributes(*in.Attributes, defs); err != nil {
+			return nil, errors.Join(ErrInvalidAttribute, err)
+		}
+		updated.Attributes = *in.Attributes
+		changed = append(changed, "attributes")
 	}
 	if in.Email != nil && !equalOptionalString(user.Email, in.Email) {
 		updated.Email = in.Email
@@ -312,6 +340,23 @@ func DeleteUser(ctx context.Context, deps AdminUserDeps, in DeleteUserInput) err
 
 func hasPrivilegedRole(roles []string) bool {
 	return slices.Contains(roles, "admin") || slices.Contains(roles, "system_admin")
+}
+
+// effectiveAttributeDefs は組み込み属性 + tenant 固有 schema を結合した実効定義を返す。
+// AttrSchemaRepo 未配線 (nil) の場合は組み込み属性のみで検証する。
+func effectiveAttributeDefs(ctx context.Context, deps AdminUserDeps, tenantID string) ([]spec.AttributeDef, error) {
+	defs := spec.BuiltinAttributeDefs()
+	if deps.AttrSchemaRepo == nil {
+		return defs, nil
+	}
+	schema, err := deps.AttrSchemaRepo.FindByTenant(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if schema != nil {
+		defs = append(defs, schema.Attributes...)
+	}
+	return defs, nil
 }
 
 func anonymizeUser(user *spec.User, now time.Time) *spec.User {

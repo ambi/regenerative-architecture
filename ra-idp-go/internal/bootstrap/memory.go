@@ -14,6 +14,7 @@ func assembleMemory() (*Dependencies, error) {
 	}
 	return &Dependencies{
 		TenantRepo:              memory.NewTenantRepository(),
+		AttrSchemaRepo:          memory.NewTenantAttributeSchemaRepository(),
 		ClientRepo:              memory.NewClientRepository(),
 		UserRepo:                memory.NewUserRepository(),
 		GroupRepo:               memory.NewGroupRepository(),

@@ -110,6 +110,7 @@ func Run() error {
 	httpadapter.Register(e, httpadapter.Deps{
 		Issuer: issuer, SCL: sclDoc,
 		TenantRepo:       deps.TenantRepo,
+		AttrSchemaRepo:   deps.AttrSchemaRepo,
 		LegacyBareIssuer: envDefault("LEGACY_BARE_ISSUER", "false") == "true",
 		ClientRepo:       deps.ClientRepo, UserRepo: deps.UserRepo, ConsentRepo: deps.ConsentRepo,
 		RequestStore: deps.RequestStore, CodeStore: deps.CodeStore, PARStore: deps.PARStore,

@@ -21,6 +21,7 @@ type Deps struct {
 	Issuer                     string
 	SCL                        *spec.SCL
 	TenantRepo                 tenantports.TenantRepository
+	AttrSchemaRepo             tenantports.TenantAttributeSchemaRepository
 	LegacyBareIssuer           bool
 	ClientRepo                 oauthports.ClientRepository
 	UserRepo                   oauthports.UserRepository

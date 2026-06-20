@@ -81,7 +81,7 @@ export function AdminShell({
               </DropdownMenuLabel>
               <DropdownMenuSeparator className="my-1 h-px bg-slate-200" />
               <DropdownMenuItem asChild>
-                <a href={tenantURL('/account/password')}>
+                <a href={tenantURL('/account/profile')}>
                   <IconUserCircle size={17} aria-hidden="true" />
                   アカウント概要
                 </a>

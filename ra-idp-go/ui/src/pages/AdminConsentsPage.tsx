@@ -71,7 +71,7 @@ export function AdminConsentsPage({
       active="consents"
       actorUsername={actorUsername}
       title="同意 (Consents)"
-      description="ユーザーがクライアントに与えた scope の付与状況。取り消しは即時に反映されます。"
+      description="ユーザーがアプリケーションに与えた scope の付与状況。取り消しは即時に反映されます。"
     >
       {error ? <Alert variant="destructive">{error}</Alert> : null}
       {notice ? <Alert variant="success">{notice}</Alert> : null}

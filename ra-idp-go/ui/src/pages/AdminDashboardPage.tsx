@@ -131,7 +131,7 @@ export function AdminDashboardPage({
               href={tenantURL('/admin/clients')}
               icon={IconKey}
               label="アプリケーションを追加"
-              description="OAuth クライアントを登録します。"
+              description="アプリケーションを登録します。"
             />
             <QuickLink
               href={tenantURL('/admin/keys')}

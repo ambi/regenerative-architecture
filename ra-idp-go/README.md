@@ -218,11 +218,14 @@ end-user 向けの「マイページ」を `/account` 配下に持つ (ADR-042 /
   方式 / EmailSender)。確認時に `email_verified=true` とし、`verify_email` の required
   action があれば自動解除する。
 - **パスワード** (`/account/password`): パスワード変更 (既存)。
+- **接続済みアプリ** (`/account/applications`): アクセスを許可した OAuth クライアント
+  (active な Consent) の一覧と、個別の取り消し。取り消すと次回その client の認可で
+  consent が再要求される (admin の Consent 取り消しと同じ論理撤回 + `ConsentRevoked`)。
 
-self が変更できるのは表示名 / 編集可能属性 / メールアドレス / パスワードのみ。`roles` /
-`status` / 組織属性 / `editable_by_user=false` の属性は admin 専用 (ADR-042)。secondary/
-recovery email・MFA enroll・セッション/consent 管理・データエクスポート・アカウント削除
-リクエストは wi-21 の後続ステージで追加する。
+self が変更できるのは表示名 / 編集可能属性 / メールアドレス / パスワード / 接続済みアプリの
+取り消しのみ。`roles` / `status` / 組織属性 / `editable_by_user=false` の属性は admin 専用
+(ADR-042)。secondary/recovery email・MFA enroll・セッション管理・データエクスポート・
+アカウント削除リクエストは wi-21 の後続ステージで追加する。
 
 ## 検証
 

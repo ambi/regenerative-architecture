@@ -430,6 +430,22 @@ export type EmailVerifyPage = {
   token: string
 }
 
+export type AccountConsent = {
+  client_id: string
+  scopes: string[]
+  state: string
+  granted_at: string
+  expires_at: string
+}
+
+export type AccountApplicationsPage = {
+  kind: 'account-applications'
+  csrfToken: string
+  username: string
+  consents: AccountConsent[]
+  isAdmin: boolean
+}
+
 export type AdminTenantAttributesPage = {
   kind: 'admin-tenant-attributes'
   csrfToken: string
@@ -467,6 +483,7 @@ export type PageData =
   | AccountHomePage
   | AccountEmailsPage
   | EmailVerifyPage
+  | AccountApplicationsPage
 
 export type BrowserFlowResponse = {
   next?: string

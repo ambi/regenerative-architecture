@@ -1,5 +1,7 @@
 import type {
   BrowserFlowResponse,
+  AccountApplicationsPage,
+  AccountConsent,
   AccountEmailsPage,
   AccountHomePage,
   AccountProfile,
@@ -229,6 +231,17 @@ export async function loadPageData(): Promise<PageData> {
     const ctx = await request<{ csrf_token: string }>('/api/account/email/verify_context')
     const token = new URLSearchParams(window.location.search).get('token') ?? ''
     return { kind: 'email-verify', csrfToken: ctx.csrf_token, token } satisfies EmailVerifyPage
+  }
+  if (path === '/account/applications') {
+    const account = accountContext!
+    const consents = await listAccountConsents()
+    return {
+      kind: 'account-applications',
+      csrfToken: account.csrf_token,
+      username: account.preferred_username ?? 'account',
+      consents,
+      isAdmin: hasAdminRole(account.roles),
+    } satisfies AccountApplicationsPage
   }
   if (path === '/account/password') {
     const data = accountContext!
@@ -874,6 +887,25 @@ export async function requestEmailChange(csrfToken: string, newEmail: string): P
     body.message ?? 'メールアドレスの変更を要求できませんでした。',
     body.error,
   )
+}
+
+export async function listAccountConsents(): Promise<AccountConsent[]> {
+  return (await request<{ consents: AccountConsent[] }>('/api/account/consents')).consents
+}
+
+export async function revokeAccountConsent(csrfToken: string, clientId: string): Promise<void> {
+  const response = await fetch(
+    tenantURL(`/api/account/consents/${encodeURIComponent(clientId)}/revoke`),
+    {
+      method: 'POST',
+      headers: { 'X-CSRF-Token': csrfToken },
+      credentials: 'same-origin',
+      cache: 'no-store',
+    },
+  )
+  if (response.status === 204) return
+  const body = (await response.json().catch(() => ({}))) as APIError
+  throw new AuthenticationAPIError(body.message ?? 'アクセスを取り消せませんでした。', body.error)
 }
 
 export async function confirmEmailChange(csrfToken: string, token: string): Promise<void> {

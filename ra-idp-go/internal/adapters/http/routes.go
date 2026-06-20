@@ -84,6 +84,8 @@ func registerTenantRoutes(g *echo.Group, d Deps) {
 	g.POST("/api/account/email/change_request", d.handleRequestEmailChange)
 	g.GET("/api/account/email/verify_context", d.handleEmailVerifyContext)
 	g.POST("/api/account/email/verify", d.handleConfirmEmailChange)
+	g.GET("/api/account/consents", d.handleListAccountConsents)
+	g.POST("/api/account/consents/:client_id/revoke", d.handleRevokeAccountConsent)
 	g.POST("/api/auth/login", d.handleLoginAPI)
 	g.POST("/api/auth/change_password", d.handleChangePasswordAPI)
 	g.GET("/api/auth/password_reset_context", d.handlePasswordResetContext)

@@ -77,6 +77,8 @@ func registerTenantRoutes(g *echo.Group, d Deps) {
 	g.POST("/end_session", d.handleEndSession)
 	g.GET("/api/auth/transaction", d.handleTransaction)
 	g.GET("/api/auth/account", d.handleAccountContext)
+	g.GET("/api/account/profile", d.handleGetAccountProfile)
+	g.PATCH("/api/account/profile", d.handleUpdateAccountProfile)
 	g.POST("/api/auth/login", d.handleLoginAPI)
 	g.POST("/api/auth/change_password", d.handleChangePasswordAPI)
 	g.GET("/api/auth/password_reset_context", d.handlePasswordResetContext)

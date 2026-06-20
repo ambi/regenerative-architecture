@@ -165,7 +165,7 @@ func UpdateUser(ctx context.Context, deps AdminUserDeps, in UpdateUserInput) (*s
 		changed = append(changed, "family_name")
 	}
 	if in.Attributes != nil {
-		defs, err := effectiveUserAttributeDefs(ctx, deps, user.TenantID)
+		defs, err := effectiveUserAttributeDefs(ctx, deps.AttrSchemaRepo, user.TenantID)
 		if err != nil {
 			return nil, err
 		}
@@ -344,12 +344,14 @@ func hasPrivilegedRole(roles []string) bool {
 
 // effectiveUserAttributeDefs は組み込み属性 + tenant 固有 schema を結合した実効定義を返す。
 // AttrSchemaRepo 未配線 (nil) の場合は組み込み属性のみで検証する。
-func effectiveUserAttributeDefs(ctx context.Context, deps AdminUserDeps, tenantID string) ([]spec.UserAttributeDef, error) {
+func effectiveUserAttributeDefs(
+	ctx context.Context, repo tenantports.TenantUserAttributeSchemaRepository, tenantID string,
+) ([]spec.UserAttributeDef, error) {
 	defs := spec.BuiltinUserAttributeDefs()
-	if deps.AttrSchemaRepo == nil {
+	if repo == nil {
 		return defs, nil
 	}
-	schema, err := deps.AttrSchemaRepo.FindByTenant(ctx, tenantID)
+	schema, err := repo.FindByTenant(ctx, tenantID)
 	if err != nil {
 		return nil, err
 	}

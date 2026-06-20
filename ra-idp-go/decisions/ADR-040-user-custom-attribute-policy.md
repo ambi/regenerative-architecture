@@ -51,8 +51,9 @@ Keycloak UserProfile / Okta Custom Profile / Google customSchemas 相当。
    - 値の `type` が定義の `type` と一致しない場合は拒否。
    - `AttributeValue` は Type が示すフィールドだけが設定されている
      (sum type の単一充足) ことを保証する。
-   self-service 経路は加えて `editable_by_user=true` の属性しか触れない
-   (use case は後続 PR)。
+   self-service 経路 (`UpdateUserProfile` / `/api/account/profile`) は加えて
+   `editable_by_user=true` の属性しか触れず、属性は key 単位の merge で admin
+   管理属性を保持する。`self_readable` / `claim_exposed` のみ self に開示する。
 
 4. **PII と監査の切り替え**。`pii=true` の属性値は [[ADR-018]] に従い保管・
    監査で **SHA-256 hash 化**する。`pii=false` のみ平文を許す。default が
@@ -66,5 +67,6 @@ Keycloak UserProfile / Okta Custom Profile / Google customSchemas 相当。
   spec 型・zog 検証・`BuiltinUserAttributeDefs()` カタログ・in-memory repository
   まで。schema を編集する admin API、custom attribute scope での claim 露出、
   UI は後続 PR。
-- `ValidateAttributes` は usecase 層から呼ぶ前提の純関数として spec に置く。
-  admin / self の権限差は actor の permission で吸収する (後続 PR)。
+- `ValidateAttributes` / `ValidateAttributeValue` は usecase 層から呼ぶ前提の
+  純関数として spec に置く。admin は全置換、self は editable_by_user の merge と
+  権限差を usecase で吸収する。

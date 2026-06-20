@@ -22,10 +22,10 @@ components:
 
   Authentication:
     description: エンドユーザ (Subject) の identity、credentials、MFA、ログインセッション、パスワードリセット、および管理 API からの User ライフサイクル操作を所有する。
-    owns_models: [User, MfaFactor, MfaFactorType, LoginSession, AuthenticationContext, PasswordResetTokenRecord, BrowserLoginRequest, BrowserTotpRequest, BrowserChangePasswordRequest, BrowserForgotPasswordRequest, BrowserResetPasswordRequest, AdminUserCreateRequest, AdminUserUpdateRequest, AdminUserListResponse, AdminUserResponse, Group, GroupMember, GroupCreateRequest, GroupUpdateRequest, GroupSummaryResponse, GroupListResponse, GroupMemberResponse, GroupAddMemberRequest, UserGroupsResponse, UserLifecycle, AttributeValue, UserStatus, RequiredAction]
+    owns_models: [User, MfaFactor, MfaFactorType, LoginSession, AuthenticationContext, PasswordResetTokenRecord, BrowserLoginRequest, BrowserTotpRequest, BrowserChangePasswordRequest, BrowserForgotPasswordRequest, BrowserResetPasswordRequest, AdminUserCreateRequest, AdminUserUpdateRequest, AdminUserListResponse, AdminUserResponse, Group, GroupMember, GroupCreateRequest, GroupUpdateRequest, GroupSummaryResponse, GroupListResponse, GroupMemberResponse, GroupAddMemberRequest, UserGroupsResponse, UserLifecycle, AttributeValue, UserStatus, RequiredAction, AccountProfileResponse, AccountProfileUpdateRequest]
     owns_states: [UserLifecycle, GroupLifecycle]
     owns_events: [UserAuthenticated, AuthenticationFailed, PasswordChanged, LoginThrottled, PasswordResetRequested, EmailSent, UserCreated, UserUpdated, UserDisabled, UserEnabled, UserDeleted, GroupCreated, GroupUpdated, GroupDeleted, GroupMemberAdded, GroupMemberRemoved]
-    owns_interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, ChangePassword, RequestPasswordReset, ResetPasswordWithToken, ListAdminUsers, GetAdminUser, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser, DeleteAdminUser, ListGroups, GetGroup, CreateGroup, UpdateGroup, DeleteGroup, AddGroupMember, RemoveGroupMember, ListUserGroups]
+    owns_interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, ChangePassword, GetUserProfile, UpdateUserProfile, RequestPasswordReset, ResetPasswordWithToken, ListAdminUsers, GetAdminUser, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser, DeleteAdminUser, ListGroups, GetGroup, CreateGroup, UpdateGroup, DeleteGroup, AddGroupMember, RemoveGroupMember, ListUserGroups]
     owns_invariants: [PasswordHistoryNoReuse, EffectiveRolesComposition, GroupMembershipAuditEmission]
     owns_permissions: [AdminUserRead, AdminUserCreate, AdminUserUpdate, AdminUserDelete, AdminGroupsRead, AdminGroupsWrite]
     owns_objectives: [PiiPurgeAfterDeletion]
@@ -1782,6 +1782,40 @@ models:
       created_at:         { type: Timestamp }
       updated_at:         { type: Timestamp, optional: true }
 
+  AccountProfileResponse:
+    kind: value_object
+    description: |
+      `/api/account/profile` の返り値 (self-service)。呼び出しユーザ自身の表示用
+      projection。attributes は self が読める分 (self_readable / claim_exposed) のみ、
+      editable_attributes は editable_by_user=true の定義一覧で、UI のフォーム描画に使う
+      (ADR-040 / wi-19)。
+    annotations: { component: Authentication }
+    fields:
+      sub:                 { type: String }
+      preferred_username:  { type: String, annotations: { pii: true } }
+      name:                { type: String, optional: true, annotations: { pii: true } }
+      given_name:          { type: String, optional: true, annotations: { pii: true } }
+      family_name:         { type: String, optional: true, annotations: { pii: true } }
+      email:               { type: String, optional: true, constraints: [{ format: email }], annotations: { pii: true } }
+      email_verified:      { type: Boolean }
+      mfa_enrolled:        { type: Boolean }
+      status:              { type: UserStatus }
+      attributes:          { type: "Map<String,AttributeValue>" }
+      editable_attributes: { type: "UserAttributeDef[]" }
+
+  AccountProfileUpdateRequest:
+    kind: value_object
+    description: |
+      self-service プロフィール更新リクエスト。表示名と editable_by_user=true の属性
+      のみを受け付ける。attributes は key 単位の merge (指定 key のみ upsert、未指定は
+      現状維持) で、admin 管理属性 (status / roles / organization) は対象外 (ADR-040)。
+    annotations: { component: Authentication }
+    fields:
+      name:        { type: String, optional: true, annotations: { pii: true } }
+      given_name:  { type: String, optional: true, annotations: { pii: true } }
+      family_name: { type: String, optional: true, annotations: { pii: true } }
+      attributes:  { type: "Map<String,AttributeValue>", optional: true }
+
   Group:
     kind: entity
     description: ADR-038 で導入した tenant-scoped ロール束集約。所属 User に roles を一斉付与する。id は不変の生成識別子、name はテナント内で一意な編集可能ラベル。
@@ -2807,6 +2841,33 @@ interfaces:
     emits: [PasswordChanged]
     bindings:
       - { kind: http, method: POST, path: /api/auth/change_password, request_body: json }
+
+  GetUserProfile:
+    description: |
+      認証済みユーザーが自身のプロフィールを取得する (self-service)。対象は
+      actor.sub に固定するため cross-user 参照は構造的に発生しない。attributes は
+      self が読める分のみ、editable_attributes に編集可能定義を併せて返す (ADR-040)。
+    output:
+      profile: { type: AccountProfileResponse }
+    errors: [AccessDeniedError]
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: /api/account/profile }
+
+  UpdateUserProfile:
+    description: |
+      認証済みユーザーが自身の表示名と editable_by_user=true の属性を更新する
+      (self-service)。actor.sub == target.sub に固定。属性は key 単位の merge とし、
+      editable_by_user=false の key は拒否する。status / roles / organization の変更は
+      admin 専用で本経路では扱わない (ADR-040)。
+    input:
+      request: { type: AccountProfileUpdateRequest }
+    output:
+      profile: { type: AccountProfileResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [UserUpdated]
+    bindings:
+      - { kind: http, method: PATCH, path: /api/account/profile, request_form: body }
 
   RequestPasswordReset:
     description: |

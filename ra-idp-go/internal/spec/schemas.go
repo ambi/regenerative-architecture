@@ -269,6 +269,21 @@ func (s TenantUserAttributeSchema) EffectiveDefs() []UserAttributeDef {
 	return append(defs, s.Attributes...)
 }
 
+// ValidateAttributeValue は属性値 1 件を定義に対して検証する (required は見ない)。
+// 値自体の整合・型の一致・multi_valued の整合を確認する。
+func ValidateAttributeValue(value AttributeValue, def UserAttributeDef) error {
+	if err := value.Validate(); err != nil {
+		return err
+	}
+	if value.Type != def.Type {
+		return fmt.Errorf("expects type %q, got %q", def.Type, value.Type)
+	}
+	if def.MultiValued != (def.Type == AttributeTypeStringArray) {
+		return fmt.Errorf("multi_valued/type mismatch")
+	}
+	return nil
+}
+
 // ValidateAttributes は User.Attributes を実効属性定義に対して検証する。
 // 未定義 key の拒否、型の一致、multi_valued の整合、required の充足を見る。
 func ValidateAttributes(values map[string]AttributeValue, defs []UserAttributeDef) error {
@@ -281,14 +296,8 @@ func ValidateAttributes(values map[string]AttributeValue, defs []UserAttributeDe
 		if !ok {
 			return fmt.Errorf("attribute %q is not defined", key)
 		}
-		if err := v.Validate(); err != nil {
+		if err := ValidateAttributeValue(v, def); err != nil {
 			return fmt.Errorf("attribute %q: %w", key, err)
-		}
-		if v.Type != def.Type {
-			return fmt.Errorf("attribute %q expects type %q, got %q", key, def.Type, v.Type)
-		}
-		if def.MultiValued != (def.Type == AttributeTypeStringArray) {
-			return fmt.Errorf("attribute %q multi_valued/type mismatch", key)
 		}
 	}
 	for _, def := range defs {

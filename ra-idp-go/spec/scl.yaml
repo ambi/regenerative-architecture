@@ -14,9 +14,9 @@ components:
 
   Tenancy:
     description: テナント (Realm) 集約、ライフサイクル、HTTP リクエストからのテナント解決、テナント管理 API を所有する。テナントは ra-idp のあらゆる集約に共通する境界文脈。
-    owns_models: [Tenant, TenantStatus, TenantCreateRequest, TenantUpdateRequest, TenantSummaryResponse, TenantListResponse, PasswordPolicyOverride, PasswordPolicyDefaults, AdminSettingsResponse, TenantAttributeSchema, AttributeDef, AttributeType, AttrVisibility]
+    owns_models: [Tenant, TenantStatus, TenantCreateRequest, TenantUpdateRequest, TenantSummaryResponse, TenantListResponse, PasswordPolicyOverride, PasswordPolicyDefaults, AdminSettingsResponse, TenantAttributeSchema, TenantAttributeSchemaResponse, TenantAttributeSchemaUpdateRequest, AttributeDef, AttributeType, AttrVisibility]
     owns_states: [TenantLifecycle]
-    owns_events: [TenantCreated, TenantUpdated, TenantDisabled, TenantEnabled]
+    owns_events: [TenantCreated, TenantUpdated, TenantAttributeSchemaUpdated, TenantDisabled, TenantEnabled]
     owns_interfaces: [ResolveTenant, ListTenants, GetTenant, CreateTenant, UpdateTenant, DisableTenant, EnableTenant, GetAdminSettings, UpdateAdminSettings]
     owns_permissions: [AdminTenantsManage, AdminSettingsRead, AdminSettingsUpdate]
 
@@ -1679,6 +1679,26 @@ models:
       password_policy_override: { type: PasswordPolicyOverride, optional: true }
       password_policy_defaults: { type: PasswordPolicyDefaults }
 
+  TenantAttributeSchemaResponse:
+    kind: value_object
+    description: |
+      `/api/admin/tenant/attribute_schema` の返り値。tenant 固有の custom 属性定義
+      (attributes) に加え、参照用にコードが持つ組み込みカタログ (builtin) を併せて返し、
+      UI が key 衝突を避けつつ全属性を一覧できるようにする (ADR-040)。
+    annotations: { component: Tenancy }
+    fields:
+      tenant_id:  { type: String }
+      attributes: { type: "AttributeDef[]", description: "tenant が編集可能な custom 定義。" }
+      builtin:    { type: "AttributeDef[]", description: "コード提供の読み取り専用カタログ (BuiltinAttributeDefs)。" }
+      updated_at: { type: Timestamp }
+
+  TenantAttributeSchemaUpdateRequest:
+    kind: value_object
+    description: tenant の custom 属性定義を全置換する JSON リクエスト (ADR-040)。組み込み属性との key 衝突・重複 key は use case 側で拒否する。
+    annotations: { component: Tenancy }
+    fields:
+      attributes: { type: "AttributeDef[]", description: "新しい custom 定義一覧。空配列で全削除。" }
+
   TenantCreateRequest:
     kind: value_object
     description: 管理者が新規テナントを登録する JSON リクエスト (ADR-032)。`id` は URL-safe slug。
@@ -2511,6 +2531,16 @@ models:
       actorSub:      { type: String }
       tenantId:      { type: String }
       changedFields: { type: "String[]" }
+
+  TenantAttributeSchemaUpdated:
+    kind: event
+    description: テナント内 admin が custom 属性定義 (TenantAttributeSchema) を更新した (ADR-040)。値は持たず、変更後の custom 属性 key 一覧のみを記録する。
+    annotations: { component: Tenancy }
+    payload:
+      occurredAt:    { type: Timestamp }
+      actorSub:      { type: String }
+      tenantId:      { type: String }
+      attributeKeys: { type: "String[]" }
 
   TenantDisabled:
     kind: event
@@ -3383,6 +3413,33 @@ interfaces:
     emits: [TenantUpdated]
     bindings:
       - { kind: http, method: PATCH, path: /api/admin/settings, request_form: body }
+
+  GetTenantAttributeSchema:
+    description: |
+      テナント内 admin が自身のテナントの custom 属性定義を取得する (ADR-040)。
+      対象テナントは actor.tenant_id に固定し cross-tenant 読み出しを構造的に排除する。
+      レスポンスには tenant 固有の custom 定義に加えて組み込みカタログ (builtin) も
+      含め、UI が全属性を一覧しつつ key 衝突を避けられるようにする。
+    output:
+      schema: { type: TenantAttributeSchemaResponse }
+    errors: [AccessDeniedError]
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: /api/admin/tenant/attribute_schema }
+
+  UpdateTenantAttributeSchema:
+    description: |
+      テナント内 admin が custom 属性定義を全置換する (ADR-040)。actor.tenant_id に
+      固定した上で、各 AttributeDef を検証し、組み込み属性との key 衝突・重複 key を
+      拒否する。値そのものは保持せず定義のみを扱う。
+    input:
+      request: { type: TenantAttributeSchemaUpdateRequest }
+    output:
+      schema: { type: TenantAttributeSchemaResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [TenantAttributeSchemaUpdated]
+    bindings:
+      - { kind: http, method: PUT, path: /api/admin/tenant/attribute_schema, request_form: body }
 
 
 # =================================================================

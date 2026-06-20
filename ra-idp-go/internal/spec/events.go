@@ -347,6 +347,16 @@ type TenantUpdated struct {
 func (e *TenantUpdated) EventType() string     { return "TenantUpdated" }
 func (e *TenantUpdated) OccurredAt() time.Time { return e.At }
 
+type TenantAttributeSchemaUpdated struct {
+	At            time.Time `json:"-"`
+	ActorSub      string    `json:"actorSub"`
+	TenantID      string    `json:"tenantId"`
+	AttributeKeys []string  `json:"attributeKeys"`
+}
+
+func (e *TenantAttributeSchemaUpdated) EventType() string     { return "TenantAttributeSchemaUpdated" }
+func (e *TenantAttributeSchemaUpdated) OccurredAt() time.Time { return e.At }
+
 type TenantDisabled struct {
 	At       time.Time `json:"-"`
 	ActorSub string    `json:"actorSub"`

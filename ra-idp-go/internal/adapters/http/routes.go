@@ -128,4 +128,6 @@ func registerTenantRoutes(g *echo.Group, d Deps) {
 	g.GET("/api/admin/policy/roles", d.handleListAdminRolePolicies)
 	g.GET("/api/admin/settings", d.handleGetAdminSettings)
 	g.PATCH("/api/admin/settings", d.handleUpdateAdminSettings)
+	g.GET("/api/admin/tenant/attribute_schema", d.handleGetAttributeSchema)
+	g.PUT("/api/admin/tenant/attribute_schema", d.handleUpdateAttributeSchema)
 }

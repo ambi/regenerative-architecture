@@ -708,6 +708,7 @@ var eventTopics = map[string]string{
 	"DeviceAuthorizationApproved": "oauth2.device-authorization.v1", "DeviceAuthorizationDenied": "oauth2.device-authorization.v1",
 	"TenantCreated": "tenancy.lifecycle.v1", "TenantUpdated": "tenancy.lifecycle.v1",
 	"TenantDisabled": "tenancy.lifecycle.v1", "TenantEnabled": "tenancy.lifecycle.v1",
+	"TenantAttributeSchemaUpdated": "tenancy.lifecycle.v1",
 	"AdminClientCreated":           "oauth2.administration.v1", "AdminClientUpdated": "oauth2.administration.v1",
 	"AdminClientDeleted": "oauth2.administration.v1",
 	"GroupCreated":       "iam.groups.v1", "GroupUpdated": "iam.groups.v1", "GroupDeleted": "iam.groups.v1",

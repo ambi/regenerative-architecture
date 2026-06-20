@@ -281,6 +281,36 @@ export type AdminSettingsPage = {
   settings: AdminSettings
 }
 
+export type AttributeType = 'string' | 'number' | 'boolean' | 'date' | 'string_array'
+
+export type AttrVisibility = 'private' | 'self_readable' | 'admin_readable' | 'claim_exposed'
+
+export type UserAttributeDef = {
+  key: string
+  type: AttributeType
+  multi_valued: boolean
+  required: boolean
+  editable_by_user: boolean
+  claim_name?: string
+  oidc_scope?: string
+  visibility: AttrVisibility
+  pii: boolean
+}
+
+export type TenantUserAttributeSchema = {
+  tenant_id: string
+  attributes: UserAttributeDef[]
+  builtin: UserAttributeDef[]
+  updated_at: string
+}
+
+export type AdminTenantAttributesPage = {
+  kind: 'admin-tenant-attributes'
+  csrfToken: string
+  actorUsername?: string
+  schema: TenantUserAttributeSchema
+}
+
 export type PageData =
   | HomePage
   | LoginPage
@@ -302,6 +332,7 @@ export type PageData =
   | AdminGroupsPage
   | AdminRolesPage
   | AdminSettingsPage
+  | AdminTenantAttributesPage
 
 export type BrowserFlowResponse = {
   next?: string

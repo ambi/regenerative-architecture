@@ -2,6 +2,7 @@ import {
   IconActivity,
   IconBuildingCommunity,
   IconCheckupList,
+  IconForms,
   IconKey,
   IconLayoutDashboard,
   IconSettings,
@@ -22,6 +23,7 @@ export type AdminNavKey =
   | 'audit-events'
   | 'keys'
   | 'tenants'
+  | 'tenant-attributes'
   | 'settings'
 
 export type AdminNavItem = {
@@ -56,6 +58,13 @@ export function adminNavItems(active: AdminNavKey): AdminNavItem[] {
       controlPlaneOnly: true,
     })
   }
+  items.push({
+    key: 'tenant-attributes',
+    label: 'ユーザー属性',
+    icon: IconForms,
+    href: tenantURL('/admin/tenant/attributes'),
+    active: active === 'tenant-attributes',
+  })
   items.push({
     key: 'settings',
     label: '設定',

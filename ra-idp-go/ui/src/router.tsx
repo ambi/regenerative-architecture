@@ -14,6 +14,7 @@ import { AdminGroupsPage } from './pages/AdminGroupsPage'
 import { AdminKeysPage } from './pages/AdminKeysPage'
 import { AdminRolesPage } from './pages/AdminRolesPage'
 import { AdminSettingsPage } from './pages/AdminSettingsPage'
+import { AdminTenantAttributesPage } from './pages/AdminTenantAttributesPage'
 import { AdminTenantsPage } from './pages/AdminTenantsPage'
 import { AdminUsersPage } from './pages/AdminUsersPage'
 import { ChangePasswordPage } from './pages/ChangePasswordPage'
@@ -135,6 +136,12 @@ export function createAppRouter(data: PageData) {
     path: '/admin/settings',
     component: () => (data.kind === 'admin-settings' ? <AdminSettingsPage {...data} /> : null),
   })
+  const adminTenantAttributesRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/admin/tenant/attributes',
+    component: () =>
+      data.kind === 'admin-tenant-attributes' ? <AdminTenantAttributesPage {...data} /> : null,
+  })
 
   return createRouter({
     routeTree: rootRoute.addChildren([
@@ -158,6 +165,7 @@ export function createAppRouter(data: PageData) {
       adminTenantsRoute,
       adminGroupsRoute,
       adminSettingsRoute,
+      adminTenantAttributesRoute,
     ]),
     history: createBrowserHistory(),
     basepath: tenantBasePath() || '/',

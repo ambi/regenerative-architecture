@@ -2,6 +2,7 @@ import type {
   BrowserFlowResponse,
   AdminAuditEvent,
   AdminAuditEventsPage,
+  AdminTenantAttributesPage,
   AdminClient,
   AdminClientsPage,
   AdminConsent,
@@ -30,7 +31,9 @@ import type {
   LoginPage,
   PageData,
   StatusPage,
+  TenantUserAttributeSchema,
   TotpPage,
+  UserAttributeDef,
   ResetPasswordPage,
 } from './types'
 
@@ -279,6 +282,17 @@ export async function loadPageData(): Promise<PageData> {
       actorTenantID: adminAccount!.tenant_id ?? '',
       settings,
     } satisfies AdminSettingsPage
+  }
+  if (path === '/admin/tenant/attributes') {
+    const schema = await request<TenantUserAttributeSchema>(
+      '/api/admin/tenant/user_attribute_schema',
+    )
+    return {
+      kind: 'admin-tenant-attributes',
+      csrfToken: adminAccount!.csrf_token,
+      actorUsername: adminAccount!.preferred_username,
+      schema,
+    } satisfies AdminTenantAttributesPage
   }
   if (path === '/admin/tenants') {
     const tenants = await request<AdminTenantListResponse>('/admin/tenants')
@@ -664,6 +678,20 @@ export async function updateAdminSettings(
   input: UpdateAdminSettingsInput,
 ): Promise<AdminSettings> {
   return request('/api/admin/settings', adminRequest(csrfToken, 'PATCH', input))
+}
+
+export async function getTenantUserAttributeSchema(): Promise<TenantUserAttributeSchema> {
+  return request<TenantUserAttributeSchema>('/api/admin/tenant/user_attribute_schema')
+}
+
+export async function updateTenantUserAttributeSchema(
+  csrfToken: string,
+  attributes: UserAttributeDef[],
+): Promise<TenantUserAttributeSchema> {
+  return request(
+    '/api/admin/tenant/user_attribute_schema',
+    adminRequest(csrfToken, 'PUT', { attributes }),
+  )
 }
 
 export async function listAdminTenants(): Promise<AdminTenant[]> {

@@ -1,7 +1,7 @@
 id: wi-38-user-facing-copy-and-self-service-chrome
 title: 利用者向けコピーと self-service 画面の体裁を整える (属性の日本語名 / 内部表現の排除 / プロモ枠の除去)
 created_at: 2026-06-20
-status: pending
+status: completed
 authors: [tn]
 
 motivation: |
@@ -158,3 +158,89 @@ risk_notes: |
   の user-facing コピーの訳語品質、(b) AuthShell の単一カラム化での既存
   レイアウト regression。前者は対応表を 1 箇所に集約し、後者は CSS の
   単一カラム variant を 1 つ足して両画面で共有する。
+
+completion:
+  completed_at: 2026-06-20
+
+  summary: |
+    7 件の利用者向けコピー/体裁の不整合を 6 コミットで解消した。
+    UserAttributeDef に日本語表示名 label を追加し組み込み属性すべてに付与、
+    管理・self の各画面で「表示名 (key)」を表示 (address_* も区別可能に)。
+    AuthShell に aside=false の単一カラムモードを足し profile / change-password
+    からプロモ枠を除去。監査ログの (Audit Events)/DomainEvent、グループの
+    ロール束/group.roles、ロール権限の内部英語 (User.roles 等) を user-facing
+    日本語に置換。UI の "ra-idp" を "RA Identity" に統一。
+
+  semantic_diff:
+    before: >-
+      属性は英語 key のみ表示で address が区別不能。profile/password に宣伝枠。
+      監査/グループ/ロール説明に DomainEvent/group.roles/User.roles 等の内部語。
+      ra-idp の実装名が露出。
+    after: >-
+      属性は日本語表示名 + key 併記。認証済み self-service は単一カラム。
+      説明は平易な日本語で内部語なし。製品名は RA Identity。
+
+  issue_resolution:
+    - "issue 1 (属性の日本語名): UserAttributeDef.label を spec/SCL/zog/API/UI に追加。組み込み 26 属性に日本語 label。"
+    - "issue 2 (address 区別): label により 市区町村/都道府県/郵便番号 等で識別可能に (issue 1 で解消)。"
+    - "issue 3 (プロモ枠): AuthShell aside=false + .auth-frame--solo。profile/change-password で使用。"
+    - "issue 4 (監査ログ): タイトルから (Audit Events) 除去、説明の DomainEvent を平易化。"
+    - "issue 5 (グループ説明): ロール束/group.roles を平易な日本語に。"
+    - "issue 6 (ロール権限の内部英語): API 層に user-facing コピー対応表。description から User.roles/SystemAdministrator/tenant/client/Consent/tombstone/reject/SCL を排除しテストで固定。"
+    - "issue 7 (ra-idp): UI テキストを RA Identity に (sessionStorage キー等の内部識別子は除く)。"
+
+  decisions:
+    - "label は表示メタとして UserAttributeDef に追加 (normative ではない)。SCL には型を同期するが coherence の制約は型追加のみ。"
+    - "ロール/権限の user-facing コピーは SCL を変えずハンドラ層の対応表で解決 (wi-37 と同方針)。未登録名は ADR 除去フォールバック。"
+    - "属性 label の翻訳は組み込みカタログに集約。tenant custom は admin が表示名を入力。"
+
+  traceability:
+    implementation:
+      - ra-idp-go/internal/spec/schemas.go
+      - ra-idp-go/internal/spec/validation.go
+      - ra-idp-go/internal/spec/attributes.go
+      - ra-idp-go/spec/scl.yaml
+      - ra-idp-go/internal/adapters/http/admin_role_policy_handler.go
+      - ra-idp-go/internal/adapters/http/admin_role_policy_handler_test.go
+      - ra-idp-go/ui/src/components/AuthShell.tsx
+      - ra-idp-go/ui/src/styles.css
+      - ra-idp-go/ui/src/lib/utils.ts
+      - ra-idp-go/ui/src/types.ts
+      - ra-idp-go/ui/src/pages/AccountProfilePage.tsx
+      - ra-idp-go/ui/src/pages/ChangePasswordPage.tsx
+      - ra-idp-go/ui/src/pages/AdminUsersPage.tsx
+      - ra-idp-go/ui/src/pages/AdminTenantAttributesPage.tsx
+      - ra-idp-go/ui/src/pages/AdminAuditEventsPage.tsx
+      - ra-idp-go/ui/src/pages/AdminGroupsPage.tsx
+      - ra-idp-go/ui/src/pages/AdminTenantsPage.tsx
+      - ra-idp-go/ui/src/pages/AdminSettingsPage.tsx
+    specification: "UserAttributeDef に label を追加 (SCL 同期)。role/permission の normative 定義は不変。"
+
+  affected_guarantees_state:
+    - "admin RBAC / API endpoint / CSRF 境界は不変。"
+    - "内部表現の非露出: policy/roles の description に User.roles/SystemAdministrator/tombstone/reject/Consent/SCL を含めないことをテストで固定。"
+    - "SCL coherence: UserAttributeDef.label を SCL/Go で同期。yaml-check:all OK。"
+    - "i18n: 属性は日本語 label + 英語 key 併記。spec 語 (OIDC scope/claim 名) は維持。"
+
+  verification:
+    - cmd: "go test ./..."
+      in: ra-idp-go
+      result: ok
+    - cmd: "golangci-lint run ./..."
+      in: ra-idp-go
+      result: "0 issues"
+    - cmd: "bun run yaml-check:all"
+      in: tools
+      result: ok
+    - cmd: "bun --cwd ra-idp-go/ui typecheck"
+      result: ok
+    - cmd: "bun --cwd ra-idp-go/ui lint"
+      result: "ok (46 files)"
+    - cmd: "bun --cwd ra-idp-go/ui build"
+      result: ok
+    - "手動 1-7 は実ブラウザでの目視確認が未実施。"
+
+  residual_risk:
+    - "属性 label の訳語 (コストセンター / ロケール 等) はレビューで調整余地。"
+    - "tenant custom 属性は label 未入力だと key 表示のまま (admin の運用次第)。"
+    - "ロール/permission コピーは対応表のハードコード。permission 追加時は対応表の更新が必要 (未登録は ADR 除去フォールバック)。"

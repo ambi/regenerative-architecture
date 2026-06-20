@@ -184,8 +184,12 @@ func scanClient(row rowScanner) (*spec.Client, error) {
 
 type UserRepository struct{ Pool *pgxpool.Pool }
 
+// notDeleted は削除済みユーザを除外する述語。削除状態は lifecycle.status に統合
+// した (ADR-039)。status 未設定 (NULL) は active 扱いなので残す。
+const notDeleted = " AND (lifecycle->>'status' IS DISTINCT FROM 'deleted')"
+
 func (r *UserRepository) FindBySub(ctx context.Context, sub string) (*spec.User, error) {
-	return scanUser(r.Pool.QueryRow(ctx, userSelect+" WHERE sub=$1 AND deleted_at IS NULL", sub))
+	return scanUser(r.Pool.QueryRow(ctx, userSelect+" WHERE sub=$1"+notDeleted, sub))
 }
 
 func (r *UserRepository) FindBySubIncludingDeleted(ctx context.Context, sub string) (*spec.User, error) {
@@ -193,19 +197,19 @@ func (r *UserRepository) FindBySubIncludingDeleted(ctx context.Context, sub stri
 }
 
 func (r *UserRepository) FindByUsername(ctx context.Context, tenantID, username string) (*spec.User, error) {
-	return scanUser(r.Pool.QueryRow(ctx, userSelect+" WHERE tenant_id=$1 AND preferred_username=$2 AND deleted_at IS NULL", tenantID, username))
+	return scanUser(r.Pool.QueryRow(ctx, userSelect+" WHERE tenant_id=$1 AND preferred_username=$2"+notDeleted, tenantID, username))
 }
 
 func (r *UserRepository) FindByEmail(ctx context.Context, tenantID, email string) (*spec.User, error) {
 	return scanUser(r.Pool.QueryRow(
 		ctx,
-		userSelect+" WHERE tenant_id=$1 AND lower(email)=lower($2) AND deleted_at IS NULL LIMIT 1",
+		userSelect+" WHERE tenant_id=$1 AND lower(email)=lower($2)"+notDeleted+" LIMIT 1",
 		tenantID, email,
 	))
 }
 
 func (r *UserRepository) FindAll(ctx context.Context, tenantID string) ([]*spec.User, error) {
-	rows, err := r.Pool.Query(ctx, userSelect+" WHERE tenant_id=$1 AND deleted_at IS NULL ORDER BY preferred_username", tenantID)
+	rows, err := r.Pool.Query(ctx, userSelect+" WHERE tenant_id=$1"+notDeleted+" ORDER BY preferred_username", tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -704,7 +708,7 @@ var eventTopics = map[string]string{
 	"DeviceAuthorizationApproved": "oauth2.device-authorization.v1", "DeviceAuthorizationDenied": "oauth2.device-authorization.v1",
 	"TenantCreated": "tenancy.lifecycle.v1", "TenantUpdated": "tenancy.lifecycle.v1",
 	"TenantDisabled": "tenancy.lifecycle.v1", "TenantEnabled": "tenancy.lifecycle.v1",
-	"AdminClientCreated": "oauth2.administration.v1", "AdminClientUpdated": "oauth2.administration.v1",
+	"AdminClientCreated":           "oauth2.administration.v1", "AdminClientUpdated": "oauth2.administration.v1",
 	"AdminClientDeleted": "oauth2.administration.v1",
 	"GroupCreated":       "iam.groups.v1", "GroupUpdated": "iam.groups.v1", "GroupDeleted": "iam.groups.v1",
 	"GroupMemberAdded": "iam.groups.v1", "GroupMemberRemoved": "iam.groups.v1",

@@ -1,5 +1,17 @@
 # CLAUDE.md / AGENTS.md
 
+## 0. Interaction Language
+
+**User-facing messages must be in Japanese.**
+
+- Reply to the user in Japanese by default.
+- Status updates, explanations, questions, summaries, and final responses must be
+  Japanese.
+- Keep commit messages, branch names, code identifiers, logs, command output, and
+  quoted upstream text in their original or required language.
+- If a tool, API, or external specification requires English, use English only
+  for that artifact and explain it in Japanese.
+
 ## 1. Regenerative Architecture
 
 **Design and implement things according to Regenerative Architecture.**

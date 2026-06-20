@@ -15,7 +15,7 @@ import (
 //
 // OIDC `address` Claim (§5.1.1) は構造体ではなく address_* のフラット key に
 // 分解して保持し、claim 生成時 (ClaimsForScopes) に address オブジェクトへ
-// 再構成する。UserInfo は実装済み、ID Token への展開は後続 PR。
+// 再構成する。UserInfo と ID Token の両方で同じ scope gating を適用する。
 
 func sp(s string) *string { return &s }
 

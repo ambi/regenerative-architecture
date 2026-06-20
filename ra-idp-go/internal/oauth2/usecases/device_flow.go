@@ -210,6 +210,8 @@ type ExchangeDeviceCodeDeps struct {
 	RefreshStore    ports.RefreshTokenStore
 	TokenIssuer     ports.TokenIssuer
 	Emit            func(spec.DomainEvent)
+	// ResolveAttributeDefs は ID Token の属性 claim 生成用 (wi-19)。nil 可。
+	ResolveAttributeDefs func(ctx context.Context, tenantID string) ([]spec.UserAttributeDef, error)
 }
 
 func ExchangeDeviceCode(ctx context.Context, deps ExchangeDeviceCodeDeps, in ExchangeDeviceCodeInput, now time.Time) (*ExchangeDeviceCodeResult, error) {
@@ -306,6 +308,7 @@ func ExchangeDeviceCode(ctx context.Context, deps ExchangeDeviceCodeDeps, in Exc
 
 	idTok, err := deps.TokenIssuer.SignIDToken(ctx, ports.IDTokenInput{
 		Client: client, User: user, Scopes: rec.Scopes, AuthTime: *rec.AuthTime, AtHashFor: access,
+		ResolveAttributeDefs: deps.ResolveAttributeDefs,
 	})
 	if err != nil {
 		return nil, err

@@ -120,6 +120,18 @@ func (s *JWTSigner) SignIDToken(ctx context.Context, in ports.IDTokenInput) (str
 		claims["email"] = *in.User.Email
 		claims["email_verified"] = in.User.EmailVerified
 	}
+	if in.ResolveAttributeDefs != nil {
+		defs, err := in.ResolveAttributeDefs(ctx, in.User.TenantID)
+		if err != nil {
+			return "", err
+		}
+		// 標準 claim とキーが衝突した場合は標準 claim を優先する。
+		for key, value := range spec.ClaimsForScopes(*in.User, defs, in.Scopes) {
+			if _, exists := claims[key]; !exists {
+				claims[key] = value
+			}
+		}
+	}
 	return signPS256(key, nil, claims)
 }
 

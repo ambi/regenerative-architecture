@@ -24,6 +24,8 @@ type ExchangeCodeDeps struct {
 	RefreshStore ports.RefreshTokenStore
 	TokenIssuer  ports.TokenIssuer
 	Emit         func(spec.DomainEvent)
+	// ResolveAttributeDefs は ID Token の属性 claim 生成用 (wi-19)。nil 可。
+	ResolveAttributeDefs func(ctx context.Context, tenantID string) ([]spec.UserAttributeDef, error)
 }
 
 type ExchangeCodeInput struct {
@@ -148,6 +150,8 @@ func ExchangeCodeForToken(ctx context.Context, deps ExchangeCodeDeps, in Exchang
 			AMR:       rec.AMR,
 			ACR:       optionalValue(rec.ACR),
 			AtHashFor: access,
+
+			ResolveAttributeDefs: deps.ResolveAttributeDefs,
 		})
 		if err != nil {
 			return nil, err

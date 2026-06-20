@@ -25,6 +25,9 @@ type IDTokenInput struct {
 	AMR       []string
 	ACR       string
 	AtHashFor string // access token whose hash goes into at_hash
+	// ResolveAttributeDefs はユーザのテナントに有効な属性定義 (builtin + custom) を
+	// 返す。nil の場合は属性ベースの claim 生成をスキップする (wi-19)。
+	ResolveAttributeDefs func(ctx context.Context, tenantID string) ([]spec.UserAttributeDef, error)
 }
 
 type TokenIssuer interface {

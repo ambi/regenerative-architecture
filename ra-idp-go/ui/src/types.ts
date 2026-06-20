@@ -244,7 +244,6 @@ export type AdminRolePermission = {
   name: string
   action: string
   description: string
-  requirements: string[]
   interfaces: AdminRoleInterface[]
 }
 

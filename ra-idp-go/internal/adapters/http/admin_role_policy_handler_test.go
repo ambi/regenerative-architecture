@@ -4,10 +4,25 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"ra-idp-go/internal/spec"
 )
+
+func TestAdminRolePoliciesOmitInternalDocReferences(t *testing.T) {
+	e, _, _ := newKeyAdminServer(t, keyAdminUser("admin", "acme", []string{"admin"}))
+	rec := getAdminRolePolicies(e, "/realms/acme/api/admin/policy/roles")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	for _, leak := range []string{"ADR-", "actor.roles", "allow_when", `"requirements"`} {
+		if strings.Contains(body, leak) {
+			t.Fatalf("response leaks internal token %q: %s", leak, body)
+		}
+	}
+}
 
 func TestAdminRolePoliciesRequireAdminRole(t *testing.T) {
 	e, _, _ := newKeyAdminServer(t, keyAdminUser("plain", "acme", nil))

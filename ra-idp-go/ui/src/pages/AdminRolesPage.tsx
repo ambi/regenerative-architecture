@@ -25,7 +25,7 @@ export function AdminRolesPage({ actorUsername, roles, users }: AdminRolesPageDa
       active="roles"
       actorUsername={actorUsername}
       title="ロールと権限"
-      description="SCL で定義された管理ロールと、各ロールに許可される操作を確認します。"
+      description="管理ロールと、各ロールに許可される操作を確認します。"
     >
       <section className="grid gap-3 sm:grid-cols-2" aria-label="ロール概要">
         {roles.map((role) => (
@@ -33,7 +33,7 @@ export function AdminRolesPage({ actorUsername, roles, users }: AdminRolesPageDa
             key={role.name}
             label={role.name}
             value={roleCounts[role.name] ?? 0}
-            hint={`${role.permissions.length} permissions`}
+            hint={`${role.permissions.length} 件の操作`}
           />
         ))}
       </section>
@@ -141,13 +141,6 @@ function RoleDetails({
                   </code>
                 </div>
                 <p className="mt-2 text-xs leading-5 text-slate-600">{permission.description}</p>
-                <ul className="mt-3 grid gap-1">
-                  {permission.requirements.map((requirement) => (
-                    <li key={requirement} className="font-mono text-[0.7rem] text-slate-500">
-                      {requirement}
-                    </li>
-                  ))}
-                </ul>
                 <div className="mt-3 grid gap-1.5">
                   {permission.interfaces.map((iface) => (
                     <div

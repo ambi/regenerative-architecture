@@ -2,13 +2,25 @@ package http
 
 import (
 	"net/http"
+	"regexp"
 	"slices"
+	"strings"
 
 	"ra-idp-go/internal/oauth2/usecases"
 	"ra-idp-go/internal/spec"
 
 	"github.com/labstack/echo/v5"
 )
+
+// adrReference は SCL の説明文に埋め込まれた ADR 参照 (例 " (ADR-031 / ADR-032)")。
+// 設計ドキュメントの語彙なので、管理者向けレスポンスからは取り除く。
+var adrReference = regexp.MustCompile(`\s*\(ADR-[^)]*\)`)
+
+// sanitizeAdminCopy は SCL 由来の説明文を管理 UI 向けに整える。内部の ADR 参照を
+// 取り除くだけで文意は保つ。allow_when 式 (requirements) は別途レスポンスに含めない。
+func sanitizeAdminCopy(text string) string {
+	return strings.TrimSpace(adrReference.ReplaceAllString(text, ""))
+}
 
 type adminRolePolicyResponse struct {
 	Name        string                        `json:"name"`
@@ -18,11 +30,10 @@ type adminRolePolicyResponse struct {
 }
 
 type adminRolePermissionResponse struct {
-	Name         string                       `json:"name"`
-	Action       string                       `json:"action"`
-	Description  string                       `json:"description"`
-	Requirements []string                     `json:"requirements"`
-	Interfaces   []adminRoleInterfaceResponse `json:"interfaces"`
+	Name        string                       `json:"name"`
+	Action      string                       `json:"action"`
+	Description string                       `json:"description"`
+	Interfaces  []adminRoleInterfaceResponse `json:"interfaces"`
 }
 
 type adminRoleInterfaceResponse struct {
@@ -62,12 +73,12 @@ func toAdminRolePolicyResponse(role usecases.RolePolicy) adminRolePolicyResponse
 			interfaces[j] = adminRoleInterfaceResponse(iface)
 		}
 		permissions[i] = adminRolePermissionResponse{
-			Name: permission.Name, Action: permission.Action, Description: permission.Description,
-			Requirements: slices.Clone(permission.Requirements), Interfaces: interfaces,
+			Name: permission.Name, Action: permission.Action,
+			Description: sanitizeAdminCopy(permission.Description), Interfaces: interfaces,
 		}
 	}
 	return adminRolePolicyResponse{
-		Name: role.Name, Description: role.Description, Aliases: slices.Clone(role.Aliases),
+		Name: role.Name, Description: sanitizeAdminCopy(role.Description), Aliases: slices.Clone(role.Aliases),
 		Permissions: permissions,
 	}
 }

@@ -22,6 +22,24 @@ func TestAdminRolePoliciesOmitInternalDocReferences(t *testing.T) {
 			t.Fatalf("response leaks internal token %q: %s", leak, body)
 		}
 	}
+	// 説明文 (description) には設計者向けの内部語を出さない。interface 名/path は
+	// 技術的識別子なので対象外とし、description のみを検査する。
+	internalTerms := []string{
+		"User.roles", "SystemAdministrator", "tombstone", "reject", "Consent", "SCL",
+	}
+	for _, role := range decodeAdminRolePolicies(t, rec) {
+		descriptions := []string{role.Description}
+		for _, permission := range role.Permissions {
+			descriptions = append(descriptions, permission.Description)
+		}
+		for _, description := range descriptions {
+			for _, term := range internalTerms {
+				if strings.Contains(description, term) {
+					t.Fatalf("description leaks internal term %q: %q", term, description)
+				}
+			}
+		}
+	}
 }
 
 func TestAdminRolePoliciesRequireAdminRole(t *testing.T) {

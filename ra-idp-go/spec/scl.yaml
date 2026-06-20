@@ -1614,7 +1614,7 @@ models:
       device_authorization_endpoint:                 { type: Uri }
       registration_endpoint:                         { type: Uri }
       end_session_endpoint:                          { type: Uri, optional: true }
-      scopes_supported:                              { type: "String[]", default: [openid, profile, email, offline_access] }
+      scopes_supported:                              { type: "String[]", default: [openid, profile, email, phone, address, custom_attribute, offline_access] }
       response_types_supported:                      { type: "ResponseType[]" }
       response_modes_supported:                      { type: "ResponseMode[]", optional: true }
       grant_types_supported:                         { type: "GrantType[]" }

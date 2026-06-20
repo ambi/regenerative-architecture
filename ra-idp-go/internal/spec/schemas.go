@@ -189,6 +189,34 @@ func (v AttributeValue) Validate() error {
 	return nil
 }
 
+// JSONValue は属性値を OIDC claim へ載せる JSON ネイティブ値に変換する。型と
+// 中身が食い違う / 値が無い場合は nil を返し、呼び出し側が claim を省略できる。
+func (v AttributeValue) JSONValue() any {
+	switch v.Type {
+	case AttributeTypeString:
+		if v.String != nil {
+			return *v.String
+		}
+	case AttributeTypeNumber:
+		if v.Number != nil {
+			return *v.Number
+		}
+	case AttributeTypeBoolean:
+		if v.Boolean != nil {
+			return *v.Boolean
+		}
+	case AttributeTypeDate:
+		if v.Date != nil {
+			return *v.Date
+		}
+	case AttributeTypeStringArray:
+		if v.StringArray != nil {
+			return v.StringArray
+		}
+	}
+	return nil
+}
+
 // UserAttributeDef は属性 1 件の定義 (ADR-040)。OIDC 組み込みカタログ
 // (BuiltinUserAttributeDefs) と tenant 定義 (TenantUserAttributeSchema) の両方で使う。
 type UserAttributeDef struct {

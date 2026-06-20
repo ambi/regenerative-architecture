@@ -1,5 +1,10 @@
 package spec
 
+import (
+	"slices"
+	"strings"
+)
+
 // 組み込み属性カタログ (wi-19 / ADR-039 / ADR-040)。
 //
 // core (User の型付きフィールド: sub / preferred_username / name / given_name /
@@ -9,8 +14,8 @@ package spec
 // sparse に入るため、使わない属性は保存領域を消費しない。
 //
 // OIDC `address` Claim (§5.1.1) は構造体ではなく address_* のフラット key に
-// 分解して保持し、UserInfo / ID Token 生成時に address オブジェクトへ再構成する
-// (claim 生成は後続 PR)。
+// 分解して保持し、claim 生成時 (ClaimsForScopes) に address オブジェクトへ
+// 再構成する。UserInfo は実装済み、ID Token への展開は後続 PR。
 
 func sp(s string) *string { return &s }
 
@@ -83,4 +88,62 @@ func BuiltinUserAttributeDefs() []UserAttributeDef {
 	out := make([]UserAttributeDef, len(builtinDefs))
 	copy(out, builtinDefs)
 	return out
+}
+
+// ClaimsForScopes は visibility=claim_exposed の属性のうち、要求 scope で開示が
+// 許可されたものを OIDC claim の map に変換する (OIDC Core §5.4 / wi-19)。core の
+// 型付きフィールド (name / email など) は呼び出し側が別途扱い、本関数は
+// User.Attributes に入った sparse 属性だけを対象とする。address_* キーは §5.1.1 の
+// 入れ子 address オブジェクトへ再構成する。値が無い属性は出力しない。
+func ClaimsForScopes(u User, defs []UserAttributeDef, scopes []string) map[string]any {
+	if len(u.Attributes) == 0 {
+		return nil
+	}
+	out := map[string]any{}
+	var address map[string]any
+	for _, def := range defs {
+		if def.Visibility != AttrVisibilityClaimExposed || !scopeExposesDef(def, scopes) {
+			continue
+		}
+		value, ok := u.Attributes[def.Key]
+		if !ok {
+			continue
+		}
+		jv := value.JSONValue()
+		if jv == nil {
+			continue
+		}
+		if claimName(def) == "address" && strings.HasPrefix(def.Key, "address_") {
+			if address == nil {
+				address = map[string]any{}
+			}
+			address[strings.TrimPrefix(def.Key, "address_")] = jv
+			continue
+		}
+		out[claimName(def)] = jv
+	}
+	if address != nil {
+		out["address"] = address
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+// scopeExposesDef は def の開示を要求 scope が解禁するかを判定する。OIDC scope を
+// 持つ組み込み属性 (profile / phone / address) はその scope、scope を持たない
+// tenant custom 属性は custom_attribute scope で解禁する。
+func scopeExposesDef(def UserAttributeDef, scopes []string) bool {
+	if def.OIDCScope != nil && *def.OIDCScope != "" {
+		return slices.Contains(scopes, *def.OIDCScope)
+	}
+	return slices.Contains(scopes, "custom_attribute")
+}
+
+func claimName(def UserAttributeDef) string {
+	if def.ClaimName != nil && *def.ClaimName != "" {
+		return *def.ClaimName
+	}
+	return def.Key
 }

@@ -2,6 +2,7 @@
 package http
 
 import (
+	"context"
 	"crypto/subtle"
 	"net/http"
 	"strings"
@@ -13,6 +14,23 @@ import (
 
 	"github.com/labstack/echo/v5"
 )
+
+// effectiveUserAttributeDefs はテナントに有効な属性定義 (組み込み + tenant custom)
+// を返す。AttrSchemaRepo 未設定時は組み込み定義のみ。
+func (d Deps) effectiveUserAttributeDefs(ctx context.Context, tenantID string) ([]spec.UserAttributeDef, error) {
+	defs := spec.BuiltinUserAttributeDefs()
+	if d.AttrSchemaRepo == nil {
+		return defs, nil
+	}
+	schema, err := d.AttrSchemaRepo.FindByTenant(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if schema != nil {
+		defs = append(defs, schema.Attributes...)
+	}
+	return defs, nil
+}
 
 func (d Deps) handleUserInfo(c *echo.Context) error {
 	auth := c.Request().Header.Get("Authorization")
@@ -72,6 +90,7 @@ func (d Deps) handleUserInfo(c *echo.Context) error {
 	}
 	res, err := usecases.UserInfo(c.Request().Context(), d.UserRepo, d.Authorizer, usecases.UserInfoInput{
 		Scopes: strings.Fields(intro.Scope), Sub: intro.Sub, Active: intro.Active, ClientID: intro.ClientID,
+		ResolveAttributeDefs: d.effectiveUserAttributeDefs,
 	})
 	if err != nil {
 		return writeOAuthError(c, err)

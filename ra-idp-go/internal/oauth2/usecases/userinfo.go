@@ -3,6 +3,7 @@ package usecases
 
 import (
 	"context"
+	"encoding/json"
 	"slices"
 	"strings"
 
@@ -15,6 +16,10 @@ type UserInfoInput struct {
 	Sub      string
 	Active   bool
 	ClientID string
+	// ResolveAttributeDefs はユーザのテナントに有効な属性定義 (builtin + custom) を
+	// 返す。nil の場合は属性ベースの claim 生成をスキップする。tenant_id は対象
+	// ユーザを読み込んだ後に確定するため、関数として遅延解決する。
+	ResolveAttributeDefs func(ctx context.Context, tenantID string) ([]spec.UserAttributeDef, error)
 }
 
 type UserInfoResponse struct {
@@ -26,6 +31,30 @@ type UserInfoResponse struct {
 	Email             string `json:"email,omitempty"`
 	EmailVerified     bool   `json:"email_verified,omitempty"`
 	UpdatedAt         int64  `json:"updated_at,omitempty"`
+	// Extra は scope に応じて開示する属性ベースの追加 claim (OIDC §5.4 / wi-19)。
+	// 標準 claim とキーが衝突した場合は標準 claim を優先する。
+	Extra map[string]any `json:"-"`
+}
+
+func (r UserInfoResponse) MarshalJSON() ([]byte, error) {
+	type alias UserInfoResponse
+	raw, err := json.Marshal(alias(r))
+	if err != nil {
+		return nil, err
+	}
+	if len(r.Extra) == 0 {
+		return raw, nil
+	}
+	var merged map[string]any
+	if err := json.Unmarshal(raw, &merged); err != nil {
+		return nil, err
+	}
+	for key, value := range r.Extra {
+		if _, exists := merged[key]; !exists {
+			merged[key] = value
+		}
+	}
+	return json.Marshal(merged)
 }
 
 func UserInfo(
@@ -83,6 +112,13 @@ func UserInfo(
 	if slices.Contains(in.Scopes, "email") && u.Email != nil {
 		res.Email = *u.Email
 		res.EmailVerified = u.EmailVerified
+	}
+	if in.ResolveAttributeDefs != nil {
+		defs, err := in.ResolveAttributeDefs(ctx, u.TenantID)
+		if err != nil {
+			return nil, err
+		}
+		res.Extra = spec.ClaimsForScopes(*u, defs, in.Scopes)
 	}
 	return res, nil
 }

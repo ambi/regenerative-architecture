@@ -173,3 +173,63 @@ func TestValidateAttributesEnforcesEffectiveSchema(t *testing.T) {
 		t.Fatal("expected error for type mismatch")
 	}
 }
+
+func TestClaimsForScopesExposesByScope(t *testing.T) {
+	u := validUser()
+	u.Attributes = map[string]AttributeValue{
+		"nickname":     {Type: AttributeTypeString, String: ptr("ally")},
+		"phone_number": {Type: AttributeTypeString, String: ptr("+819012345678")},
+		"title":        {Type: AttributeTypeString, String: ptr("Engineer")}, // admin_readable, never a claim
+	}
+	defs := BuiltinUserAttributeDefs()
+
+	// profile scope は nickname を開示するが phone scope 無しでは phone_number を出さない。
+	claims := ClaimsForScopes(u, defs, []string{"openid", "profile"})
+	if claims["nickname"] != "ally" {
+		t.Fatalf("nickname not exposed: %#v", claims)
+	}
+	if _, ok := claims["phone_number"]; ok {
+		t.Fatalf("phone_number exposed without phone scope: %#v", claims)
+	}
+	if _, ok := claims["title"]; ok {
+		t.Fatalf("admin_readable title must never be a claim: %#v", claims)
+	}
+
+	// phone scope を足すと phone_number が出る。
+	withPhone := ClaimsForScopes(u, defs, []string{"openid", "profile", "phone"})
+	if withPhone["phone_number"] != "+819012345678" {
+		t.Fatalf("phone_number not exposed with phone scope: %#v", withPhone)
+	}
+}
+
+func TestClaimsForScopesReassemblesAddress(t *testing.T) {
+	u := validUser()
+	u.Attributes = map[string]AttributeValue{
+		"address_locality": {Type: AttributeTypeString, String: ptr("Tokyo")},
+		"address_country":  {Type: AttributeTypeString, String: ptr("JP")},
+	}
+	claims := ClaimsForScopes(u, BuiltinUserAttributeDefs(), []string{"openid", "address"})
+	addr, ok := claims["address"].(map[string]any)
+	if !ok {
+		t.Fatalf("address not reassembled into nested object: %#v", claims)
+	}
+	if addr["locality"] != "Tokyo" || addr["country"] != "JP" {
+		t.Fatalf("address fields wrong: %#v", addr)
+	}
+}
+
+func TestClaimsForScopesCustomAttributeGatedByCustomScope(t *testing.T) {
+	u := validUser()
+	u.Attributes = map[string]AttributeValue{"region": {Type: AttributeTypeString, String: ptr("apac")}}
+	defs := append(BuiltinUserAttributeDefs(), UserAttributeDef{
+		Key: "region", Type: AttributeTypeString, Visibility: AttrVisibilityClaimExposed, ClaimName: ptr("region"),
+	})
+
+	if c := ClaimsForScopes(u, defs, []string{"openid", "profile"}); c["region"] != nil {
+		t.Fatalf("custom attribute exposed without custom_attribute scope: %#v", c)
+	}
+	c := ClaimsForScopes(u, defs, []string{"openid", "custom_attribute"})
+	if c["region"] != "apac" {
+		t.Fatalf("custom attribute not exposed with custom_attribute scope: %#v", c)
+	}
+}

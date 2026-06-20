@@ -9,6 +9,16 @@ motivation: |
   tenant 間で token を誤受理しうる前提を明記している。本番マルチテナント IdP としては、
   per-tenant signing key と実 KMS/HSM による秘密鍵管理が必要である。
 
+  あわせて、[[wi-36-oauth2-audit-event-tenant-scoping]] から繰り延べた残課題を
+  本 WI で回収する: `SigningKeyRotated` イベントは現状の「インスタンス全体で
+  署名鍵 1 系統」モデルでは帰属テナントが定義できず、emit 時 tenant_id 付与
+  ([[wi-35-audit-event-tenant-scoping]] / wi-36 の方針) の対象外として
+  tenant_id 空のまま記録されている。そのためテナント所属 admin の監査ビュー
+  (`/admin/audit_events`) に鍵ローテーションが出てこない。per-tenant 鍵を
+  入れる本 WI で `SigningKeyRotated` に帰属テナントが定まるので、同イベントにも
+  tenant_id を載せ、wi-35/wi-36 で揃えた「監査イベントはテナント帰属を持つ」
+  原則を全イベントで満たす。
+
 scope:
   decision:
     - >-
@@ -17,6 +27,11 @@ scope:
   scl:
     - TenantSigningKey / KeyProvider / KeyUsage / KeyLifecycle objective を追加する。
     - RotateTenantSigningKey / ListTenantJwks / DisableTenantKey を追加する。
+    - >-
+      `SigningKeyRotated` event の payload に `tenantId: { type: String }` を
+      追加する (wi-36 から繰り延べた残課題)。per-tenant 鍵の帰属テナントを表す。
+      spec/scl.yaml の event 定義と internal/spec/events.go の struct を twin で
+      更新し、spec HTML を再生成する。
   go:
     - KeyStore port を tenant-aware に変更する。
     - >-
@@ -25,6 +40,12 @@ scope:
     - KMS adapter を 1 つ選定して実装する。初期は AWS KMS または GCP Cloud KMS のどちらか 1 つ。
     - local/postgres KeyStore は dev/test 用 fallback として維持する。
     - key rotation scheduler (`wi-23`) を tenant-aware に拡張する。
+    - >-
+      `internal/oauth2/usecases/rotate_signing_key.go` の
+      `SigningKeyRotated` emit に、回転対象鍵の帰属テナント (tenant-aware
+      KeyStore から取得) を `TenantID` として載せる。これによりテナント所属
+      admin の監査ビューに鍵ローテーションが出るようになる
+      (wi-35/wi-36 と同じ emit 時 tenant_id 方針)。
   ui:
     - admin keys page に tenant key provider / active kid / rotation 状態を表示する。
     - system_admin は tenant ごとの key health を一覧できるようにする。
@@ -43,6 +64,12 @@ affected_guarantees:
   - rotation continuity: grace 期間中の旧鍵は tenant JWKS に残る。
   - fail-closed: key provider failure 時は新規 token 発行を止め、既発行 token 検証用 JWKS は返せる範囲で返す。
   - audit: key create / rotate / retire / provider error を監査に残す。
+  - >-
+    audit tenant-scoping: `SigningKeyRotated` が tenant_id を持つことで、
+    テナント所属 admin が自テナントの鍵ローテーションを `/admin/audit_events`
+    で確認できる。これで wi-35/wi-36 とあわせ、SigningKeyRotated を含む全
+    監査イベントがテナント帰属を持つ状態になる (auditEventMatches の
+    テナント絞り込みに乗る)。
 
 verification:
   - cmd: 'go test ./...'

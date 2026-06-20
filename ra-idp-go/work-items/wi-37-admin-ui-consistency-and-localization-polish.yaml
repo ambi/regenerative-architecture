@@ -1,0 +1,234 @@
+id: wi-37-admin-ui-consistency-and-localization-polish
+title: 管理 UI の編集体験・用語・日本語化を一周ぶん整える (モーダル統一 / 内部文書の非露出 / 誤リンク修正)
+created_at: 2026-06-20
+status: pending
+authors: [tn]
+
+motivation: |
+  wi-19 で属性編集まわりの UI を一通り足したことで、管理画面を一周
+  すると「同じアプリの同じ操作」に見えない不整合と、利用者に見せる
+  べきでない内部表現の露出が複数たまっていることが顕在化した。個々は
+  小さいが、IdP の管理画面としての信頼感・安全性に直結する。
+
+  1. **ユーザー編集モーダルがビューポートより縦に長く、保存できない**。
+     `AdminUsersPage` の `UserEditorDialog` は max-height / 内部スクロール
+     を持たず、Profile + given/family + email + Roles + Attributes を
+     縦に積むため、属性が増えると下部の「保存」ボタンまで含めて画面
+     外にはみ出し、まともに更新できない。モーダルは「ヘッダ/フッタを
+     固定し本文だけスクロール」する構造にすべき。
+
+  2. **グループは「その場編集」で、ユーザーと操作様式が違う**。
+     `AdminGroupsPage` は一覧上で直接編集して即保存するスタイルで、
+     ユーザー (明示的に編集モーダルを開いて保存) と一貫しない。誤操作
+     で簡単に書き換わってしまい、ロール束という権限に直結する集約と
+     しては危うい。ユーザーと同じ「編集を開始 → モーダルで編集 →
+     明示保存」に揃える。
+
+  3. **内部文書 (ADR / SCL / allow_when) が画面にそのまま出ている**。
+     `AdminRolesPage` のページ説明は "SCL で定義された管理ロール…"、
+     各 permission の `description` / `requirements` には ADR 参照や
+     `allow_when` 式のような内部メタがそのまま表示される。これらは
+     設計ドキュメントの語彙で、管理者向けの画面コピーではない。
+     利用者には「何ができる権限か」を平易な日本語で示し、ADR 番号・
+     SCL・式表現といった内部表現は出さない。
+
+  4. **「アプリケーション」と「クライアント」の用語がブレている**。
+     `AdminClientsPage` はページ名が "アプリケーション" なのに、ボタン
+     "クライアントを追加"、メトリクス "総クライアント"、テーブル見出し
+     "クライアント" と表記が割れている。画面の主たる名詞を
+     "アプリケーション" に統一し、`client_id` / `client_type` のような
+     プロトコル上の技術語が必要な箇所だけ "client" を残す。
+
+  5. **ユーザー属性の custom 定義もインライン編集で、危険かつ縦長**。
+     `AdminTenantAttributesPage` は custom 属性を一覧上で直接編集する
+     (wi-19 で追加した形)。グループと同じ問題で、(a) ユーザー編集と
+     様式が不一致、(b) 即時編集で誤操作しやすい、(c) custom 属性を
+     多数足すとカードが縦に積み上がりページが極端に長くなる。一覧 +
+     個別編集モーダルに揃え、追加・編集を明示操作にする。
+
+  6. **日本語化されるべき英語ラベルが残っている**。
+     PROFILE / GRANT / Confidential / Metadata / Consents / Sub /
+     Client / OCCURRED / TYPE / Payload / custom などが、セクション
+     見出し・テーブル列・タブ・ボタンに英語のまま出ている。`uppercase`
+     の eyebrow ラベル (Profile / Roles / Attributes / Directory 等) も
+     含む。固有技術語として英語しか存在しないもの (OIDC scope 名、
+     `client_id`、PKCE 等) は英語のままで構わないが、一般語として日本語
+     訳が定まるものは日本語にする。CLAUDE.md §0「ユーザー向けメッセージ
+     は日本語」を UI ラベルにも適用する。
+
+  7. **マイメニューの「アカウント概要」がパスワード変更画面に飛ぶ**。
+     `AdminShell` の右上ドロップダウンで "アカウント概要" と
+     "パスワードを変更" が両方 `/account/password` を指している。
+     wi-19 で `/account/profile` (self-service プロフィール) を用意した
+     ので、"アカウント概要" はそちらに向ける。重複リンクを解消する。
+
+scope:
+  ui:
+    components:
+      - >-
+        `UserEditorDialog` (AdminUsersPage.tsx) のモーダルを
+        max-height + 本文スクロール構造にする。ヘッダ (タイトル) と
+        フッタ (キャンセル / 保存) は固定し、Profile / Roles /
+        Attributes の本文だけが縦スクロールする。`max-h-[85vh]` 程度を
+        基準に、確認 (confirming) ステップでも同様にはみ出さないこと。
+        同じ問題を持つ他のダイアログ (クライアント編集 / 属性編集) にも
+        共通化できるなら、`Dialog` / モーダル shell 側に
+        scroll-body の slot を持たせて再利用する。
+      - >-
+        `AdminShell` のユーザーメニューで "アカウント概要" のリンク先を
+        `/account/password` から `/account/profile` に変更する。
+        "パスワードを変更" は現状どおり `/account/password`。両項目が
+        別ページを指すことを確認する。
+      - >-
+        編集モーダルの共通シェル (ヘッダ固定 / 本文スクロール / フッタ
+        固定 / Esc・背景クリックで閉じる / フォーカストラップ) を 1 つに
+        まとめ、ユーザー・グループ・属性・クライアントで使い回せるように
+        する。「一覧 + 明示的な編集モーダル + 明示保存」を管理画面の
+        標準パターンとして固定する。
+    pages:
+      - >-
+        `AdminGroupsPage` のインライン編集を撤去し、ユーザーと同じ
+        「行の編集ボタン → 編集モーダル → 保存」に変更する。グループ名・
+        説明・ロールの編集はモーダル内で行い、保存を押すまで反映しない。
+        メンバー追加/削除など破壊的操作は確認を挟む方針を維持する。
+      - >-
+        `AdminTenantAttributesPage` を「custom 属性の一覧 (表)」+
+        「追加 / 行ごとの編集モーダル」に作り替える。一覧は key・type・
+        可視性・編集可否を 1 行で見せ、編集・削除はモーダル経由にする。
+        多数の属性でもページが縦に伸び続けないようにする (一覧はテーブル、
+        編集はモーダル)。保存は明示操作。組み込み属性の参照表は据え置き。
+      - >-
+        `AdminRolesPage` のページ説明・ロール説明・操作 (permission) の
+        説明から内部文書語彙を排除する。"SCL で定義された…" のような
+        コピーを管理者向けの平易な説明に置き換え、permission の
+        `requirements` に出る `allow_when` 式 / ADR 参照は、(a) UI 側で
+        非表示にするか、(b) API (`/api/admin/policy/roles`) が
+        user-facing な説明文を返すように整える。どちらに寄せるかは WI の
+        最初の commit で決める (下記 open question)。
+      - >-
+        `AdminClientsPage` の画面コピーを "アプリケーション" に統一する。
+        "クライアントを追加" → "アプリケーションを追加"、"総クライアント"
+        や検索 placeholder・テーブル見出しの "クライアント" を
+        "アプリケーション" に。`client_id` / `client_type` /
+        `redirect_uri` 等のプロトコル語はラベルとして英語を残してよいが、
+        画面の主たる名詞は揃える。
+      - >-
+        英語ラベルの日本語化を全管理ページ + end-user ページ横断で行う。
+        対象例: PROFILE/Roles/Attributes/Directory 等の eyebrow 見出し、
+        Confidential / Metadata / Payload / Consents / Sub / Client /
+        OCCURRED / TYPE といった列・タブ・ボタン、`custom 属性` の
+        "custom"。固有技術語 (scope 名・`client_id`・PKCE・JWKS 等) は
+        英語のまま許容する方針を README か WI 内で明文化する。
+    routing:
+      - 変更なし (既存ルートのリンク先修正のみ)。
+    navigation:
+      - >-
+        マイメニューの "アカウント概要" → `/account/profile`。nav ラベル
+        自体の文言は変えない。
+
+  api:
+    - >-
+      原則 UI のみ。ただし issue 3 を「API が user-facing description を
+      返す」方向で解く場合は、`/api/admin/policy/roles` のレスポンス
+      (RolePolicy / permission description) を、SCL 内部記述ではなく
+      管理者向けの説明文へ整える。SCL の permission に管理者向け
+      description を持たせ、そこから生成する形が望ましい。式や ADR 参照は
+      返さない。
+
+  documentation:
+    - >-
+      ra-idp-go/ui に「管理画面の編集は “一覧 + 編集モーダル + 明示保存”
+      に統一する」「ユーザー向けラベルは日本語、固有技術語のみ英語可」
+      の 2 つの UI 規約を 1 箇所 (ui/README 等) に明記する。
+
+out_of_scope:
+  - >-
+    新機能の追加 (新しい admin ページ / 新しい属性種別 / 新エンドポイント)。
+    本 WI は既存画面の一貫性・用語・日本語化・誤リンク修正に限定する。
+  - >-
+    end-user 向けポータルの本格 UI 拡充 ([[wi-21-end-user-account-portal]]
+    が担当)。本 WI では既存の `/account/*` のラベル日本語化と
+    "アカウント概要" の誤リンク修正までに留める。
+  - >-
+    AdminShell / breadcrumb / レイアウト幅などシェル外観の再設計
+    ([[wi-16-admin-shell-visual-consistency]] で対応済みの領域)。
+  - >-
+    監査ログ Payload の構造化表示・整形 ([[wi-20-authentication-event-history]]
+    側の関心)。本 WI では "Payload" ラベルの日本語化のみ。
+  - dark mode / theme 切替 / mobile 最適化。
+  - RBAC ポリシーそのものの変更 (ロール・permission の定義は不変)。
+
+affected_guarantees:
+  - >-
+    admin RBAC: 表示・編集導線の変更のみで、エンドポイントと
+    `requireAdmin` / `requireTenantAdmin` の権限境界は不変。グループ・
+    属性の編集が「モーダル経由の明示保存」になっても、許可される操作の
+    集合は変わらない。
+  - >-
+    機密情報の非露出: ADR 番号・SCL・`allow_when` 式などの内部設計表現を
+    管理画面に出さない。これは [[ADR-018]] の「内部表現を利用者に漏らさ
+    ない」方針と整合する。client secret 等の既存マスキングは不変。
+  - >-
+    SCL coherence: UI のみで解く場合は SCL 変更なし。issue 3 を API 側で
+    解く場合は permission description を SCL に追加し coherence を保つ。
+  - >-
+    i18n / 言語方針: CLAUDE.md §0 に従い、利用者向けラベルは日本語。
+    commit message・コード識別子・ログ・プロトコル固有語は対象外。
+  - >-
+    backend 既存挙動: 不変 (issue 3 を API で解く場合の description 整形を
+    除く)。
+
+verification:
+  - cmd: 'bun --cwd ra-idp-go/ui typecheck'
+  - cmd: 'bun --cwd ra-idp-go/ui lint'
+  - cmd: 'bun --cwd ra-idp-go/ui build'
+  - cmd: 'go test ./internal/adapters/http/...'
+    in: ra-idp-go
+    reason: >-
+      UI 中心のため backend の handler テスト群が回帰しないことを確認。
+      issue 3 を API 側で解いた場合は policy/roles レスポンスのテストも
+      追加する。
+  - >-
+    手動 1: 「ユーザー」を開き、custom 属性を多数持つユーザーの編集
+    モーダルでヘッダ/フッタが固定され本文がスクロールし、最下部の「保存」
+    まで操作できる。
+  - >-
+    手動 2: 「グループ」がインライン編集ではなく、編集ボタン → モーダル →
+    保存の流れになっている。保存前は一覧に反映されない。
+  - >-
+    手動 3: 「ロールと権限」に ADR 番号・SCL・`allow_when` 式が出ず、
+    各操作が平易な日本語で説明される。
+  - >-
+    手動 4: 「アプリケーション」ページのボタン・メトリクス・列見出しが
+    "アプリケーション" 表記で統一され、技術語のみ英語で残る。
+  - >-
+    手動 5: 「ユーザー属性」の custom が一覧 + 編集モーダルになり、多数
+    追加しても一覧が表形式で縦に伸びすぎない。
+  - >-
+    手動 6: PROFILE / GRANT / Confidential / Metadata / Consents / Sub /
+    Client / OCCURRED / TYPE / Payload / custom などが日本語化され、英語の
+    まま残るのは固有技術語のみ。
+  - >-
+    手動 7: 右上マイメニューの「アカウント概要」が `/account/profile`
+    (プロフィール) を開き、「パスワードを変更」とは別ページになる。
+
+risk: low
+risk_notes: |
+  ほぼ表示・コピー・編集導線の調整で、権限境界やデータモデルは触らない。
+  主なリスクは (a) グループ / 属性のインライン編集をモーダルに作り替える
+  際の状態管理の作り込み (保存前破棄・差分検出)、(b) 大量の日本語化に
+  よる訳語の不統一。訳語は最初の commit で用語集 (アプリケーション /
+  同意 / ペイロード 等) を決めてから一括で当てると揺れにくい。
+
+  issue 3 (内部文書露出) を UI 非表示で済ませるか API 側で user-facing
+  description を持つかは、後者の方が筋が良い (表示の都度フィルタするより
+  source of truth を user-facing にする) が、SCL 拡張と coherence 更新を
+  伴う。WI 最初の commit で方針を確定する。
+
+open_questions:
+  - >-
+    issue 3: permission/ロールの user-facing 説明を「UI でフィルタ」か
+    「API (SCL) が user-facing description を返す」か。推奨は後者。
+  - >-
+    編集モーダルの共通化をどこまで一気にやるか (まず縦長修正だけ先に
+    出し、共通シェル化は段階的でも可)。

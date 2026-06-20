@@ -1,5 +1,7 @@
 import type {
   BrowserFlowResponse,
+  AccountProfile,
+  AccountProfilePage,
   AdminAuditEvent,
   AdminAuditEventsPage,
   AdminTenantAttributesPage,
@@ -185,6 +187,15 @@ export async function loadPageData(): Promise<PageData> {
       sub: data.sub,
       preferredUsername: data.preferred_username,
     } satisfies ChangePasswordPage
+  }
+  if (path === '/account/profile') {
+    const account = await request<AccountContextResponse>('/api/auth/account')
+    const profile = await request<AccountProfile>('/api/account/profile')
+    return {
+      kind: 'account-profile',
+      csrfToken: account.csrf_token,
+      profile,
+    } satisfies AccountProfilePage
   }
   if (path === '/admin') {
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
@@ -678,6 +689,24 @@ export async function updateAdminSettings(
   input: UpdateAdminSettingsInput,
 ): Promise<AdminSettings> {
   return request('/api/admin/settings', adminRequest(csrfToken, 'PATCH', input))
+}
+
+export type UpdateAccountProfileInput = {
+  name?: string
+  given_name?: string
+  family_name?: string
+  attributes?: AccountProfile['attributes']
+}
+
+export async function getAccountProfile(): Promise<AccountProfile> {
+  return request<AccountProfile>('/api/account/profile')
+}
+
+export async function updateAccountProfile(
+  csrfToken: string,
+  input: UpdateAccountProfileInput,
+): Promise<AccountProfile> {
+  return request('/api/account/profile', adminRequest(csrfToken, 'PATCH', input))
 }
 
 export async function getTenantUserAttributeSchema(): Promise<TenantUserAttributeSchema> {

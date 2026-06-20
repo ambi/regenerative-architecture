@@ -297,11 +297,40 @@ export type UserAttributeDef = {
   pii: boolean
 }
 
+export type AttributeValue = {
+  type: AttributeType
+  string?: string
+  number?: number
+  boolean?: boolean
+  date?: string
+  string_array?: string[]
+}
+
 export type TenantUserAttributeSchema = {
   tenant_id: string
   attributes: UserAttributeDef[]
   builtin: UserAttributeDef[]
   updated_at: string
+}
+
+export type AccountProfile = {
+  sub: string
+  preferred_username: string
+  name?: string
+  given_name?: string
+  family_name?: string
+  email?: string
+  email_verified: boolean
+  mfa_enrolled: boolean
+  status: string
+  attributes: Record<string, AttributeValue>
+  editable_attributes: UserAttributeDef[]
+}
+
+export type AccountProfilePage = {
+  kind: 'account-profile'
+  csrfToken: string
+  profile: AccountProfile
 }
 
 export type AdminTenantAttributesPage = {
@@ -333,6 +362,7 @@ export type PageData =
   | AdminRolesPage
   | AdminSettingsPage
   | AdminTenantAttributesPage
+  | AccountProfilePage
 
 export type BrowserFlowResponse = {
   next?: string

@@ -855,7 +855,7 @@ function UserEditorDialog({
         aria-label="閉じる"
         onClick={onClose}
       />
-      <Card className="relative w-full max-w-lg overflow-hidden shadow-2xl">
+      <Card className="relative flex max-h-[88vh] w-full max-w-lg flex-col overflow-hidden shadow-2xl">
         <div className="flex items-start justify-between border-b border-slate-200 px-6 py-5">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.12em] text-blue-700">
@@ -873,7 +873,8 @@ function UserEditorDialog({
           </Button>
         </div>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 overflow-y-auto">
           {confirming ? (
             <div className="p-6">
               <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
@@ -1023,6 +1024,7 @@ function UserEditorDialog({
               )}
             </div>
           )}
+          </div>
           <div className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-6 py-4">
             <Button
               type="button"

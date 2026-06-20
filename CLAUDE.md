@@ -35,15 +35,18 @@
 
 | Prefer | Over |
 | --- | --- |
-| `rg` | `grep` |
-| `fd` | `find` |
-| `bat` | `cat` |
-| `jq` | ad-hoc JSON parsing |
 | TypeScript | Python |
 | Bun | Node.js |
 | Go | Rust |
 | React | Vue, Next.js |
-| Postgres | MySQL |
-| `golangci-lint` | `go vet` |
+| Tailwind CSS + Radix UI + shadcn/ui | Bootstrap, Bulma, MUI, Chakra UI |
+| PostgreSQL | MySQL |
+| Valkey | Redis |
+| `rg` | `grep` |
+| `fd` | `find` |
+| `bat` | `cat` |
+| `jq` | ad-hoc JSON parsing |
+| `golangci-lint run` | `go vet` |
+| `golangci-lint fmt` | go fmt` |
 | `biome` | `eslint` |
 | `tools/yaml-check` | Python/Ruby YAML parser |

@@ -223,12 +223,16 @@ export async function loadPageData(): Promise<PageData> {
     } satisfies AdminDashboardPage
   }
   if (path === '/admin/users') {
-    const users = await request<AdminUserListResponse>('/api/admin/users')
+    const [users, schema] = await Promise.all([
+      request<AdminUserListResponse>('/api/admin/users'),
+      request<TenantUserAttributeSchema>('/api/admin/tenant/user_attribute_schema'),
+    ])
     return {
       kind: 'admin-users',
       csrfToken: adminAccount!.csrf_token,
       actorUsername: adminAccount!.preferred_username,
       users: users.users,
+      attributeDefs: [...schema.builtin, ...schema.attributes],
     } satisfies AdminUsersPage
   }
   if (path === '/admin/roles') {
@@ -536,9 +540,12 @@ export async function createAdminUser(
 export type UpdateAdminUserInput = {
   preferred_username?: string
   name?: string
+  given_name?: string
+  family_name?: string
   email?: string
   email_verified?: boolean
   roles?: string[]
+  attributes?: AdminUser['attributes']
 }
 
 export async function updateAdminUser(

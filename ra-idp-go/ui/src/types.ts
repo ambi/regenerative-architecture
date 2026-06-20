@@ -62,10 +62,14 @@ export type AdminUser = {
   sub: string
   preferred_username: string
   name?: string
+  given_name?: string
+  family_name?: string
   email?: string
   email_verified: boolean
   mfa_enrolled: boolean
   roles: string[]
+  status?: string
+  attributes?: Record<string, AttributeValue>
   disabled_at?: string
   created_at: string
   updated_at: string
@@ -76,6 +80,7 @@ export type AdminUsersPage = {
   csrfToken: string
   actorUsername?: string
   users: AdminUser[]
+  attributeDefs: UserAttributeDef[]
 }
 
 export type AdminDashboardPage = {

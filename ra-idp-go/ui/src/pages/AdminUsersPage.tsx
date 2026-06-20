@@ -53,6 +53,8 @@ import type {
   AdminUser,
   AdminUserGroups,
   AdminUsersPage as AdminUsersPageData,
+  AttributeValue,
+  UserAttributeDef,
 } from '../types'
 
 type StatusFilter = 'all' | 'active' | 'disabled'
@@ -61,6 +63,7 @@ export function AdminUsersPage({
   csrfToken,
   actorUsername,
   users: initialUsers,
+  attributeDefs,
 }: AdminUsersPageData) {
   const [users, setUsers] = useState(initialUsers)
   const [selectedSub, setSelectedSub] = useState(initialUsers[0]?.sub ?? '')
@@ -361,6 +364,7 @@ export function AdminUsersPage({
       {showUserEditor && selected && (
         <UserEditorDialog
           user={selected}
+          attributeDefs={attributeDefs}
           busy={busy}
           onSubmit={(input) => void handleUpdate(input)}
           onClose={() => setShowUserEditor(false)}
@@ -658,39 +662,158 @@ function RoleDiff({
   )
 }
 
+function attributeValueToText(value: AttributeValue): string {
+  switch (value.type) {
+    case 'string':
+      return value.string ?? ''
+    case 'date':
+      return value.date ?? ''
+    case 'number':
+      return value.number?.toString() ?? ''
+    case 'boolean':
+      return value.boolean ? 'true' : 'false'
+    case 'string_array':
+      return (value.string_array ?? []).join(', ')
+    default:
+      return ''
+  }
+}
+
+function textToAttributeValue(def: UserAttributeDef, text: string): AttributeValue | undefined {
+  const trimmed = text.trim()
+  switch (def.type) {
+    case 'boolean':
+      return { type: 'boolean', boolean: text === 'true' }
+    case 'number':
+      return trimmed ? { type: 'number', number: Number(trimmed) } : undefined
+    case 'date':
+      return trimmed ? { type: 'date', date: trimmed } : undefined
+    case 'string_array': {
+      const items = trimmed
+        .split(',')
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0)
+      return items.length ? { type: 'string_array', string_array: items } : undefined
+    }
+    default:
+      return trimmed ? { type: 'string', string: trimmed } : undefined
+  }
+}
+
+function attributeDraftFromUser(
+  user: AdminUser,
+  defs: UserAttributeDef[],
+): Record<string, string> {
+  const draft: Record<string, string> = {}
+  for (const def of defs) {
+    const value = user.attributes?.[def.key]
+    draft[def.key] = value ? attributeValueToText(value) : ''
+  }
+  return draft
+}
+
+function attributeMapFromDraft(
+  draft: Record<string, string>,
+  defs: UserAttributeDef[],
+): Record<string, AttributeValue> {
+  const map: Record<string, AttributeValue> = {}
+  for (const def of defs) {
+    const value = textToAttributeValue(def, draft[def.key] ?? '')
+    if (value) {
+      map[def.key] = value
+    }
+  }
+  return map
+}
+
+function AdminAttributeField({
+  def,
+  value,
+  onChange,
+}: {
+  def: UserAttributeDef
+  value: string
+  onChange: (next: string) => void
+}) {
+  const id = `user-editor-attr-${def.key}`
+  const label = def.claim_name ? `${def.key} (${def.claim_name})` : def.key
+  if (def.type === 'boolean') {
+    return (
+      <label htmlFor={id} className="inline-flex items-center gap-2 text-sm text-slate-700">
+        <input
+          id={id}
+          type="checkbox"
+          checked={value === 'true'}
+          onChange={(event) => onChange(event.target.checked ? 'true' : 'false')}
+          className="size-4 rounded border-slate-300"
+        />
+        <span className="font-mono">{label}</span>
+      </label>
+    )
+  }
+  return (
+    <div className="grid gap-1.5">
+      <Label htmlFor={id} className="font-mono text-xs">
+        {label}
+      </Label>
+      <Input
+        id={id}
+        type={def.type === 'number' ? 'number' : def.type === 'date' ? 'date' : 'text'}
+        value={value}
+        placeholder={def.type === 'string_array' ? 'カンマ区切り' : undefined}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </div>
+  )
+}
+
 function UserEditorDialog({
   user,
+  attributeDefs,
   busy,
   onSubmit,
   onClose,
 }: {
   user: AdminUser
+  attributeDefs: UserAttributeDef[]
   busy: boolean
   onSubmit: (input: UpdateAdminUserInput) => void
   onClose: () => void
 }) {
   const initialUsername = user.preferred_username
   const initialName = user.name ?? ''
+  const initialGivenName = user.given_name ?? ''
+  const initialFamilyName = user.family_name ?? ''
   const initialEmail = user.email ?? ''
   const initialEmailVerified = user.email_verified
+  const initialAttrDraft = attributeDraftFromUser(user, attributeDefs)
 
   const [username, setUsername] = useState(initialUsername)
   const [name, setName] = useState(initialName)
+  const [givenName, setGivenName] = useState(initialGivenName)
+  const [familyName, setFamilyName] = useState(initialFamilyName)
   const [email, setEmail] = useState(initialEmail)
   const [emailVerified, setEmailVerified] = useState(initialEmailVerified)
   const [emailVerifiedTouched, setEmailVerifiedTouched] = useState(false)
   const [roles, setRoles] = useState(user.roles.join(', '))
+  const [attrDraft, setAttrDraft] = useState<Record<string, string>>(initialAttrDraft)
   const [confirming, setConfirming] = useState(false)
 
   const emailChanged = email !== initialEmail
   const effectiveEmailVerified = emailChanged && !emailVerifiedTouched ? false : emailVerified
   const trimmedUsername = username.trim()
   const usernameInvalid = trimmedUsername === ''
+  const attributesChanged = attributeDefs.some(
+    (def) => (attrDraft[def.key] ?? '') !== (initialAttrDraft[def.key] ?? ''),
+  )
   const profileChanged =
     trimmedUsername !== initialUsername ||
     name !== initialName ||
+    givenName !== initialGivenName ||
+    familyName !== initialFamilyName ||
     email !== initialEmail ||
-    effectiveEmailVerified !== initialEmailVerified
+    effectiveEmailVerified !== initialEmailVerified ||
+    attributesChanged
   const nextRoles = parseRoles(roles)
   const addedRoles = nextRoles.filter((role) => !user.roles.includes(role))
   const removedRoles = user.roles.filter((role) => !nextRoles.includes(role))
@@ -707,11 +830,15 @@ function UserEditorDialog({
     const input: UpdateAdminUserInput = {}
     if (trimmedUsername !== initialUsername) input.preferred_username = trimmedUsername
     if (name !== initialName) input.name = name
+    if (givenName !== initialGivenName) input.given_name = givenName
+    if (familyName !== initialFamilyName) input.family_name = familyName
     if (email !== initialEmail) input.email = email
     if (effectiveEmailVerified !== initialEmailVerified) {
       input.email_verified = effectiveEmailVerified
     }
     if (rolesChanged) input.roles = nextRoles
+    // admin は属性バッグ全体を置換するため、ドラフトから完全な map を再構成する。
+    if (attributesChanged) input.attributes = attributeMapFromDraft(attrDraft, attributeDefs)
     onSubmit(input)
   }
 
@@ -802,6 +929,24 @@ function UserEditorDialog({
                     onChange={(event) => setName(event.target.value)}
                   />
                 </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid gap-2">
+                    <Label htmlFor="user-editor-given-name">名 (given_name)</Label>
+                    <Input
+                      id="user-editor-given-name"
+                      value={givenName}
+                      onChange={(event) => setGivenName(event.target.value)}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="user-editor-family-name">姓 (family_name)</Label>
+                    <Input
+                      id="user-editor-family-name"
+                      value={familyName}
+                      onChange={(event) => setFamilyName(event.target.value)}
+                    />
+                  </div>
+                </div>
                 <div className="grid gap-2">
                   <Label htmlFor="user-editor-email">メールアドレス</Label>
                   <Input
@@ -854,6 +999,28 @@ function UserEditorDialog({
                   複数指定する場合はカンマで区切ります。変更時は保存前に差分を確認します。
                 </p>
               </section>
+              {attributeDefs.length > 0 && (
+                <section className="grid gap-3 border-t border-slate-200 pt-5">
+                  <h3 className="text-xs font-bold uppercase tracking-[0.1em] text-slate-400">
+                    Attributes
+                  </h3>
+                  <p className="text-xs leading-5 text-slate-500">
+                    OIDC / SCIM / tenant custom 属性。保存時に属性全体が置換されます。
+                  </p>
+                  <div className="grid gap-3">
+                    {attributeDefs.map((def) => (
+                      <AdminAttributeField
+                        key={def.key}
+                        def={def}
+                        value={attrDraft[def.key] ?? ''}
+                        onChange={(next) =>
+                          setAttrDraft((current) => ({ ...current, [def.key]: next }))
+                        }
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
             </div>
           )}
           <div className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-6 py-4">

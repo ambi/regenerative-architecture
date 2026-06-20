@@ -47,6 +47,6 @@
 | `bat` | `cat` |
 | `jq` | ad-hoc JSON parsing |
 | `golangci-lint run` | `go vet` |
-| `golangci-lint fmt` | go fmt` |
+| `golangci-lint fmt` | `go fmt`, `gofmt` |
 | `biome` | `eslint` |
 | `tools/yaml-check` | Python/Ruby YAML parser |

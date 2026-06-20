@@ -1,5 +1,6 @@
 import {
   IconAlertCircle,
+  IconArrowLeft,
   IconArrowRight,
   IconCircleCheck,
   IconEye,
@@ -10,8 +11,9 @@ import {
 import { type FormEvent, useState } from 'react'
 import {
   AuthenticationAPIError,
-  PasswordPolicyError,
   changePassword,
+  PasswordPolicyError,
+  tenantURL,
 } from '../api'
 import { AuthShell } from '../components/AuthShell'
 import { Alert } from '../components/ui/alert'
@@ -31,7 +33,13 @@ function violationMessage(violation: string): string {
   }
 }
 
-export function ChangePasswordPage({ csrfToken, preferredUsername }: ChangePasswordPageData) {
+export function ChangePasswordPage({
+  csrfToken,
+  preferredUsername,
+  isAdmin,
+}: ChangePasswordPageData) {
+  const backHref = isAdmin ? tenantURL('/admin') : tenantURL('/account/profile')
+  const backLabel = isAdmin ? '管理コンソールへ戻る' : 'プロフィールへ戻る'
   const [showCurrent, setShowCurrent] = useState(false)
   const [showNew, setShowNew] = useState(false)
   const [error, setError] = useState('')
@@ -81,6 +89,13 @@ export function ChangePasswordPage({ csrfToken, preferredUsername }: ChangePassw
     <AuthShell aside={false}>
       <div className="flex flex-col gap-7">
         <header className="flex flex-col gap-2.5">
+          <a
+            href={backHref}
+            className="inline-flex w-fit items-center gap-1 text-sm font-medium text-slate-500 hover:text-slate-800"
+          >
+            <IconArrowLeft size={15} aria-hidden="true" />
+            {backLabel}
+          </a>
           <p className="eyebrow">アカウントセキュリティ</p>
           <h2 className="page-title">パスワードを変更</h2>
           <p className="page-description">
@@ -102,6 +117,13 @@ export function ChangePasswordPage({ csrfToken, preferredUsername }: ChangePassw
               <p className="mt-1 text-sm leading-5 text-emerald-900">
                 次回のログインから新しいパスワードを使用してください。
               </p>
+              <a
+                href={backHref}
+                className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-emerald-900 hover:underline"
+              >
+                <IconArrowLeft size={15} aria-hidden="true" />
+                {backLabel}
+              </a>
             </div>
           </Alert>
         ) : null}

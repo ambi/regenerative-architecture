@@ -65,7 +65,7 @@ function textToValue(def: UserAttributeDef, text: string): AttributeValue | unde
   }
 }
 
-export function AccountProfilePage({ csrfToken, profile: initial }: PageProps) {
+export function AccountProfilePage({ csrfToken, profile: initial, isAdmin }: PageProps) {
   const [profile, setProfile] = useState(initial)
   const [name, setName] = useState(initial.name ?? '')
   const [givenName, setGivenName] = useState(initial.given_name ?? '')
@@ -111,11 +111,22 @@ export function AccountProfilePage({ csrfToken, profile: initial }: PageProps) {
   return (
     <AuthShell aside={false}>
       <div className="grid gap-6">
-        <header>
-          <h1 className="text-xl font-semibold text-slate-900">プロフィール</h1>
-          <p className="mt-1 text-sm text-slate-600">
-            <span className="font-mono">{profile.preferred_username}</span> としてサインイン中
-          </p>
+        <header className="grid gap-3">
+          {isAdmin ? (
+            <a
+              href={tenantURL('/admin')}
+              className="inline-flex w-fit items-center gap-1 text-sm font-medium text-slate-500 hover:text-slate-800"
+            >
+              <IconArrowLeft size={15} aria-hidden="true" />
+              管理コンソールへ戻る
+            </a>
+          ) : null}
+          <div>
+            <h1 className="text-xl font-semibold text-slate-900">プロフィール</h1>
+            <p className="mt-1 text-sm text-slate-600">
+              <span className="font-mono">{profile.preferred_username}</span> としてサインイン中
+            </p>
+          </div>
         </header>
 
         {error ? <Alert variant="destructive">{error}</Alert> : null}
@@ -171,19 +182,22 @@ export function AccountProfilePage({ csrfToken, profile: initial }: PageProps) {
             </fieldset>
           ) : null}
 
-          <div className="flex items-center gap-3">
+          <div>
             <Button type="submit" disabled={saving}>
               {saving ? '保存中…' : '保存'}
             </Button>
-            <a
-              href={tenantURL('/account/password')}
-              className="inline-flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-slate-700"
-            >
-              <IconArrowLeft size={15} aria-hidden="true" />
-              パスワード変更へ
-            </a>
           </div>
         </form>
+
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-slate-100 pt-5 text-sm">
+          <span className="text-slate-500">その他の操作:</span>
+          <a
+            href={tenantURL('/account/password')}
+            className="font-medium text-blue-700 hover:underline"
+          >
+            パスワードを変更
+          </a>
+        </div>
       </div>
     </AuthShell>
   )

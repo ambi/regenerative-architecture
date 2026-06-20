@@ -137,6 +137,10 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   return body
 }
 
+function hasAdminRole(roles: string[] | undefined): boolean {
+  return (roles ?? []).some((role) => role === 'admin' || role === 'system_admin')
+}
+
 export async function loadPageData(): Promise<PageData> {
   const path = tenantLocalPath()
   let adminAccount: AccountContextResponse | undefined
@@ -186,6 +190,7 @@ export async function loadPageData(): Promise<PageData> {
       csrfToken: data.csrf_token,
       sub: data.sub,
       preferredUsername: data.preferred_username,
+      isAdmin: hasAdminRole(data.roles),
     } satisfies ChangePasswordPage
   }
   if (path === '/account/profile') {
@@ -195,6 +200,7 @@ export async function loadPageData(): Promise<PageData> {
       kind: 'account-profile',
       csrfToken: account.csrf_token,
       profile,
+      isAdmin: hasAdminRole(account.roles),
     } satisfies AccountProfilePage
   }
   if (path === '/admin') {

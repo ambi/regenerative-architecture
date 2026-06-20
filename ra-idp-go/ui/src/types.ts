@@ -45,6 +45,7 @@ export type ChangePasswordPage = {
   csrfToken: string
   sub: string
   preferredUsername?: string
+  isAdmin: boolean
 }
 
 export type ForgotPasswordPage = {
@@ -336,6 +337,7 @@ export type AccountProfilePage = {
   kind: 'account-profile'
   csrfToken: string
   profile: AccountProfile
+  isAdmin: boolean
 }
 
 export type AdminTenantAttributesPage = {

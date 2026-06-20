@@ -11,6 +11,8 @@ type AuthShellProps = {
   children: ReactNode
   asideTitle?: string
   asideText?: string
+  // aside=false で左のプロモ枠を出さない (認証済み self-service 画面向け)。
+  aside?: boolean
 }
 
 const assuranceItems = [
@@ -23,11 +25,13 @@ export function AuthShell({
   children,
   asideTitle = '組織のすべてのサービスへ、安全なひとつの入口から。',
   asideText = 'RA Identity は、利用者とアプリケーションを保護するエンタープライズ認証基盤です。',
+  aside = true,
 }: AuthShellProps) {
   return (
     <div className="auth-background">
       <div className="auth-container">
-        <div className="auth-frame">
+        <div className={aside ? 'auth-frame' : 'auth-frame auth-frame--solo'}>
+          {aside ? (
           <aside className="auth-aside">
             <Brand inverse />
 
@@ -62,6 +66,7 @@ export function AuthShell({
               <span>OpenID Connect / OAuth 2.0</span>
             </div>
           </aside>
+          ) : null}
 
           <main className="auth-main">
             <div className="mobile-brand text-slate-950">

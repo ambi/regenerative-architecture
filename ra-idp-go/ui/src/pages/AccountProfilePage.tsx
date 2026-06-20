@@ -108,10 +108,7 @@ export function AccountProfilePage({ csrfToken, profile: initial }: PageProps) {
   }
 
   return (
-    <AuthShell
-      asideTitle="プロフィール"
-      asideText="表示名と、編集が許可された属性を更新できます。"
-    >
+    <AuthShell aside={false}>
       <div className="grid gap-6">
         <header>
           <h1 className="text-xl font-semibold text-slate-900">プロフィール</h1>

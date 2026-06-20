@@ -106,6 +106,19 @@
     @apply mb-12 hidden;
   }
 
+  /* solo: 認証済み self-service 画面向け。プロモ枠の aside を出さない単一カラム。 */
+  .auth-frame--solo {
+    @apply mx-auto min-h-0 w-full max-w-[34rem] grid-cols-1;
+  }
+
+  .auth-frame--solo .auth-main {
+    @apply max-w-none px-10 py-10;
+  }
+
+  .auth-frame--solo .mobile-brand {
+    @apply mb-8 block;
+  }
+
   .page-title {
     @apply text-[1.75rem] font-semibold leading-tight tracking-[-0.025em] text-slate-950;
   }

@@ -100,7 +100,7 @@ func ExchangeCodeForToken(ctx context.Context, deps ExchangeCodeDeps, in Exchang
 	if user.TenantID != tenantID {
 		return nil, NewOAuthError("invalid_grant", "code が無効です")
 	}
-	if user.DisabledAt != nil {
+	if !user.IsActive() {
 		return nil, NewOAuthError("invalid_grant", "ユーザーは無効化されています")
 	}
 	redeemed, err := deps.CodeStore.Redeem(ctx, in.Code, now)

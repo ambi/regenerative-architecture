@@ -14,7 +14,7 @@ components:
 
   Tenancy:
     description: テナント (Realm) 集約、ライフサイクル、HTTP リクエストからのテナント解決、テナント管理 API を所有する。テナントは ra-idp のあらゆる集約に共通する境界文脈。
-    owns_models: [Tenant, TenantStatus, TenantCreateRequest, TenantUpdateRequest, TenantSummaryResponse, TenantListResponse, PasswordPolicyOverride, PasswordPolicyDefaults, AdminSettingsResponse]
+    owns_models: [Tenant, TenantStatus, TenantCreateRequest, TenantUpdateRequest, TenantSummaryResponse, TenantListResponse, PasswordPolicyOverride, PasswordPolicyDefaults, AdminSettingsResponse, TenantAttributeSchema, AttributeDef, AttributeType, AttrVisibility]
     owns_states: [TenantLifecycle]
     owns_events: [TenantCreated, TenantUpdated, TenantDisabled, TenantEnabled]
     owns_interfaces: [ResolveTenant, ListTenants, GetTenant, CreateTenant, UpdateTenant, DisableTenant, EnableTenant, GetAdminSettings, UpdateAdminSettings]
@@ -22,7 +22,7 @@ components:
 
   Authentication:
     description: エンドユーザ (Subject) の identity、credentials、MFA、ログインセッション、パスワードリセット、および管理 API からの User ライフサイクル操作を所有する。
-    owns_models: [User, MfaFactor, MfaFactorType, LoginSession, AuthenticationContext, PasswordResetTokenRecord, BrowserLoginRequest, BrowserTotpRequest, BrowserChangePasswordRequest, BrowserForgotPasswordRequest, BrowserResetPasswordRequest, AdminUserCreateRequest, AdminUserUpdateRequest, AdminUserListResponse, AdminUserResponse, Group, GroupMember, GroupCreateRequest, GroupUpdateRequest, GroupSummaryResponse, GroupListResponse, GroupMemberResponse, GroupAddMemberRequest, UserGroupsResponse]
+    owns_models: [User, MfaFactor, MfaFactorType, LoginSession, AuthenticationContext, PasswordResetTokenRecord, BrowserLoginRequest, BrowserTotpRequest, BrowserChangePasswordRequest, BrowserForgotPasswordRequest, BrowserResetPasswordRequest, AdminUserCreateRequest, AdminUserUpdateRequest, AdminUserListResponse, AdminUserResponse, Group, GroupMember, GroupCreateRequest, GroupUpdateRequest, GroupSummaryResponse, GroupListResponse, GroupMemberResponse, GroupAddMemberRequest, UserGroupsResponse, UserLifecycle, AttributeValue, UserStatus, RequiredAction]
     owns_states: [UserLifecycle, GroupLifecycle]
     owns_events: [UserAuthenticated, AuthenticationFailed, PasswordChanged, LoginThrottled, PasswordResetRequested, EmailSent, UserCreated, UserUpdated, UserDisabled, UserEnabled, UserDeleted, GroupCreated, GroupUpdated, GroupDeleted, GroupMemberAdded, GroupMemberRemoved]
     owns_interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, ChangePassword, RequestPasswordReset, ResetPasswordWithToken, ListAdminUsers, GetAdminUser, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser, DeleteAdminUser, ListGroups, GetGroup, CreateGroup, UpdateGroup, DeleteGroup, AddGroupMember, RemoveGroupMember, ListUserGroups]
@@ -1202,6 +1202,27 @@ models:
       - InsufficientScope
       - AuthorizationPending
 
+  # ---------- ユーザー属性拡張の列挙 (wi-19 / ADR-039 / ADR-040) ----------
+  UserStatus:
+    kind: enum
+    description: User の運用状態の唯一の真実 (ADR-039)。状態機械 UserLifecycle (Active / Disabled / Deleted) と一致し、Okta lifecycle_state / Keycloak 相当の Locked / Staged / Suspended を追加する。Active 以外は認証不可、Deleted は終端 (tombstone)。「いつ遷移したか」は監査イベントと status_changed_at が持つ。
+    values: [Active, Disabled, Deleted, Locked, Staged, Suspended]
+
+  RequiredAction:
+    kind: enum
+    description: 次回ログイン時にユーザへ強制するアクション (Keycloak Required Actions / Okta transitioning 相当)。
+    values: [UpdatePassword, VerifyEmail, ConfigureTotp, UpdateProfile, TermsAndConditions]
+
+  AttributeType:
+    kind: enum
+    description: 属性値の sum type discriminator (ADR-040)。OIDC 標準クレームの組み込み属性と tenant 定義 custom 属性の両方で共通。
+    values: [String, Number, Boolean, Date, StringArray]
+
+  AttrVisibility:
+    kind: enum
+    description: 属性の開示範囲 (ADR-040)。ClaimExposed のみ UserInfo / ID Token に出せる。
+    values: [Private, SelfReadable, AdminReadable, ClaimExposed]
+
   # ---------- 永続エンティティ ----------
   Tenant:
     kind: entity
@@ -1257,7 +1278,11 @@ models:
 
   User:
     kind: entity
-    description: OIDC Core §5.1 標準クレーム + PII 注釈付きユーザー。
+    description: |
+      IdP の最小コア (ADR-039)。識別・認証・表示名・RBAC・ライフサイクルだけを
+      型付きで持つ。それ以外のプロフィール属性 (OIDC §5.1 optional claim / 組織属性 /
+      tenant 定義 custom) は attributes に sparse に格納し、テナントが実際に使う属性
+      だけが領域を消費する。
     identity: sub
     fields:
       sub:                  { type: String, constraints: [non_empty], description: "global 一意の subject (ADR-034)。tenant 跨ぎでも衝突しない。" }
@@ -1271,10 +1296,58 @@ models:
       email_verified:       { type: Boolean, default: false }
       mfa_enrolled:         { type: Boolean, default: false }
       roles:                { type: "String[]", default: [], description: "RBAC ロール名の集合 (重複なし)。ADR-031。値 admin を持つ user だけが /admin/* を呼べる。空配列は通常ユーザ。" }
-      disabled_at:          { type: Timestamp, optional: true, description: "管理操作で無効化された時刻 (ADR-031)。non-null なら login / token 経路は active=false 相当。deleted_at と独立で、復活可能。" }
+      lifecycle:            { type: UserLifecycle, description: "運用ライフサイクル (status / 各時刻 / required_actions)。status が無効化・削除の唯一の真実。" }
+      attributes:           { type: "Map<String,AttributeValue>", optional: true, description: "OIDC optional claim / 組織属性 / custom を統合した sparse 属性。BuiltinAttributeDefs + TenantAttributeSchema に対して検証する。" }
       created_at:           { type: Timestamp }
       updated_at:           { type: Timestamp, optional: true }
-      deleted_at:           { type: Timestamp, optional: true, description: "Tombstone 設定時刻 (ADR-036)。non-null なら PII は匿名化済みで login / token 経路は active=false。終端で復元不可。`sub` は audit のためだけ保持し、`preferred_username` は `\"deleted:<sub>\"` に置換される。" }
+
+  UserLifecycle:
+    kind: value_object
+    description: |
+      User の運用ライフサイクル属性 (ADR-039)。status は状態機械 UserLifecycle
+      (states セクション) と一致する唯一の真実で、旧 disabled_at / deleted_at は
+      status + status_changed_at に統合した。tombstone は status == Deleted。
+    fields:
+      status:              { type: UserStatus, default: Active }
+      status_changed_at:   { type: Timestamp, optional: true, description: "現在の status になった時刻。詳細な遷移履歴は監査イベントが持つ。" }
+      last_login_at:       { type: Timestamp, optional: true }
+      password_changed_at: { type: Timestamp, optional: true }
+      required_actions:    { type: "RequiredAction[]", optional: true }
+
+  AttributeValue:
+    kind: value_object
+    description: 属性 1 件の値 (sum type)。type が示すフィールドだけが設定される。OIDC 組み込み属性と tenant 定義 custom で共通 (ADR-040)。
+    fields:
+      type:         { type: AttributeType }
+      string:       { type: String, optional: true, annotations: { pii: true } }
+      number:       { type: Float, optional: true }
+      boolean:      { type: Boolean, optional: true }
+      date:         { type: String, optional: true }
+      string_array: { type: "String[]", optional: true, annotations: { pii: true } }
+
+  AttributeDef:
+    kind: value_object
+    description: 属性 1 件の定義 (ADR-040)。OIDC 組み込みカタログ (BuiltinAttributeDefs) と tenant 定義 (TenantAttributeSchema) の両方で使う。key は snake_case、英字始まり。
+    fields:
+      key:              { type: String, constraints: [non_empty, { pattern: "^[a-z][a-z0-9_]{0,62}$" }] }
+      type:             { type: AttributeType }
+      multi_valued:     { type: Boolean, default: false, description: "type == StringArray のときのみ true。" }
+      required:         { type: Boolean, default: false }
+      editable_by_user: { type: Boolean, default: false, description: "self-service 経路で end-user が編集できるか。" }
+      claim_name:       { type: String, optional: true, description: "露出時に UserInfo / ID Token に出す OIDC claim 名。" }
+      oidc_scope:       { type: String, optional: true, description: "露出を解禁する OIDC scope (profile / phone / address 等)。" }
+      visibility:       { type: AttrVisibility, default: Private }
+      pii:              { type: Boolean, default: true, description: "省略時は PII 扱い (監査 hash 化) が安全側 default。" }
+
+  TenantAttributeSchema:
+    kind: entity
+    description: tenant 単位の custom 属性定義集合 (ADR-040)。組み込み属性はコード (BuiltinAttributeDefs) が持ち、本集合は tenant 固有分のみ。tenant aggregate には埋め込まず独立 aggregate として持ち、tenant 削除時に cascade する。
+    identity: tenant_id
+    annotations: { component: Tenancy }
+    fields:
+      tenant_id:  { type: String, default: "default", description: "所属テナント ID (ADR-034)。" }
+      attributes: { type: "AttributeDef[]", description: "key が一意で組み込み属性と衝突しない定義の並び。" }
+      updated_at: { type: Timestamp }
 
   MfaFactor:
     kind: entity

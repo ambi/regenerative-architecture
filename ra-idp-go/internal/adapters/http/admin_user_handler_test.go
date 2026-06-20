@@ -77,7 +77,7 @@ func TestAdminUserAPICreatesAndDisablesUser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if user == nil || user.DisabledAt == nil {
+	if user == nil || user.Lifecycle.Status != spec.UserStatusDisabled {
 		t.Fatalf("disabled user=%+v", user)
 	}
 
@@ -124,7 +124,7 @@ func TestAdminUserAPIDeletesUserWithCascade(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if tombstone == nil || tombstone.DeletedAt == nil {
+	if tombstone == nil || !tombstone.IsDeleted() {
 		t.Fatalf("tombstone not persisted: %+v", tombstone)
 	}
 	if tombstone.PreferredUsername != "deleted:"+created.Sub || tombstone.Email != nil {
@@ -170,7 +170,8 @@ func TestDisabledUserCannotLogIn(t *testing.T) {
 	now := time.Now().UTC()
 	repo.Seed(&spec.User{
 		Sub: "disabled", PreferredUsername: "disabled", PasswordHash: hash,
-		DisabledAt: &now, CreatedAt: now, UpdatedAt: now,
+		Lifecycle: spec.UserLifecycle{Status: spec.UserStatusDisabled, StatusChangedAt: &now},
+		CreatedAt: now, UpdatedAt: now,
 	})
 	if err := requestStore.Save(context.Background(), &spec.AuthorizationRequest{
 		ID: "transaction", State: spec.AuthFlowReceived, ExpiresAt: now.Add(time.Minute),

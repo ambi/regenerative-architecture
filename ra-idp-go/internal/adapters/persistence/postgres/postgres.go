@@ -222,33 +222,54 @@ func (r *UserRepository) FindAll(ctx context.Context, tenantID string) ([]*spec.
 }
 
 func (r *UserRepository) Save(ctx context.Context, u *spec.User) error {
-	_, err := r.Pool.Exec(ctx, `
+	// lifecycle / attributes は JSONB に格納する (ADR-039)。多値属性は本 PR では
+	// 単一カラムで持ち、検索が要るようになった段階で別テーブル化する。
+	lifecycle, err := json.Marshal(u.Lifecycle)
+	if err != nil {
+		return err
+	}
+	attributes, err := json.Marshal(u.Attributes)
+	if err != nil {
+		return err
+	}
+	_, err = r.Pool.Exec(ctx, `
 INSERT INTO users (sub,tenant_id,preferred_username,password_hash,name,given_name,family_name,email,
- email_verified,mfa_enrolled,roles,disabled_at,created_at,updated_at,deleted_at)
+ email_verified,mfa_enrolled,roles,lifecycle,attributes,created_at,updated_at)
 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
 ON CONFLICT (sub) DO UPDATE SET preferred_username=EXCLUDED.preferred_username,
  password_hash=EXCLUDED.password_hash,name=EXCLUDED.name,given_name=EXCLUDED.given_name,
  family_name=EXCLUDED.family_name,email=EXCLUDED.email,email_verified=EXCLUDED.email_verified,
- mfa_enrolled=EXCLUDED.mfa_enrolled,roles=EXCLUDED.roles,disabled_at=EXCLUDED.disabled_at,
- updated_at=EXCLUDED.updated_at,deleted_at=EXCLUDED.deleted_at`,
+ mfa_enrolled=EXCLUDED.mfa_enrolled,roles=EXCLUDED.roles,lifecycle=EXCLUDED.lifecycle,
+ attributes=EXCLUDED.attributes,updated_at=EXCLUDED.updated_at`,
 		u.Sub, u.TenantID, u.PreferredUsername, u.PasswordHash, u.Name, u.GivenName, u.FamilyName, u.Email,
-		u.EmailVerified, u.MfaEnrolled, u.Roles, u.DisabledAt, u.CreatedAt, u.UpdatedAt, u.DeletedAt)
+		u.EmailVerified, u.MfaEnrolled, u.Roles, lifecycle, attributes, u.CreatedAt, u.UpdatedAt)
 	return err
 }
 
 const userSelect = `SELECT sub,tenant_id,preferred_username,password_hash,name,given_name,family_name,email,
-email_verified,mfa_enrolled,roles,disabled_at,created_at,updated_at,deleted_at FROM users`
+email_verified,mfa_enrolled,roles,lifecycle,attributes,created_at,updated_at FROM users`
 
 func scanUser(row rowScanner) (*spec.User, error) {
 	var u spec.User
+	var lifecycle, attributes []byte
 	err := row.Scan(&u.Sub, &u.TenantID, &u.PreferredUsername, &u.PasswordHash, &u.Name, &u.GivenName,
-		&u.FamilyName, &u.Email, &u.EmailVerified, &u.MfaEnrolled, &u.Roles, &u.DisabledAt, &u.CreatedAt,
-		&u.UpdatedAt, &u.DeletedAt)
+		&u.FamilyName, &u.Email, &u.EmailVerified, &u.MfaEnrolled, &u.Roles, &lifecycle, &attributes,
+		&u.CreatedAt, &u.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
+	}
+	if len(lifecycle) > 0 {
+		if err := json.Unmarshal(lifecycle, &u.Lifecycle); err != nil {
+			return nil, err
+		}
+	}
+	if len(attributes) > 0 {
+		if err := json.Unmarshal(attributes, &u.Attributes); err != nil {
+			return nil, err
+		}
 	}
 	return &u, u.Validate()
 }

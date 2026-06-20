@@ -83,7 +83,7 @@ func RefreshTokens(ctx context.Context, deps RefreshDeps, in RefreshInput, now t
 	if user.TenantID != tenantID {
 		return nil, NewOAuthError("invalid_grant", "リフレッシュトークンが無効")
 	}
-	if user.DisabledAt != nil {
+	if !user.IsActive() {
 		_ = deps.RefreshStore.RevokeFamily(ctx, record.FamilyID)
 		return nil, NewOAuthError("invalid_grant", "ユーザーは無効化されています")
 	}

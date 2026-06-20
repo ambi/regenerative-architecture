@@ -85,7 +85,7 @@ func (d Deps) requireAuditReader(c *echo.Context) (*spec.User, error) {
 	if err != nil {
 		return nil, err
 	}
-	if user == nil || user.DisabledAt != nil {
+	if user == nil || !user.IsActive() {
 		return nil, errAdminAccessDenied
 	}
 	actor := d.withEffectiveRoles(c.Request().Context(), user)

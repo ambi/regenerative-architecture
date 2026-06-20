@@ -285,7 +285,7 @@ func ExchangeDeviceCode(ctx context.Context, deps ExchangeDeviceCodeDeps, in Exc
 	if user.TenantID != tenantID {
 		return nil, NewOAuthError("invalid_grant", "未知の device_code")
 	}
-	if user.DisabledAt != nil {
+	if !user.IsActive() {
 		return nil, NewOAuthError("invalid_grant", "ユーザーは無効化されています")
 	}
 

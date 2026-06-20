@@ -63,7 +63,7 @@ func UserInfo(
 	if u.IsDeleted() {
 		return nil, NewOAuthError("invalid_token", "ユーザーは利用できません")
 	}
-	if u.DisabledAt != nil {
+	if !u.IsActive() {
 		return nil, NewOAuthError("invalid_token", "ユーザーは無効化されています")
 	}
 	res := &UserInfoResponse{Sub: u.Sub}

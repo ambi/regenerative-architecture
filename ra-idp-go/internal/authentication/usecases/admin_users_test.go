@@ -54,8 +54,8 @@ func TestCreateUpdateAndDisableUser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if user.DisabledAt == nil {
-		t.Fatal("disabled_at was not set")
+	if user.Lifecycle.Status != spec.UserStatusDisabled {
+		t.Fatal("status was not set to disabled")
 	}
 	if got := events[len(events)-1].EventType(); got != "UserDisabled" {
 		t.Fatalf("last event=%s", got)
@@ -66,8 +66,8 @@ func TestCreateUpdateAndDisableUser(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if user.DisabledAt != nil {
-		t.Fatal("disabled_at was not cleared")
+	if user.Lifecycle.Status != spec.UserStatusActive {
+		t.Fatal("status was not cleared to active")
 	}
 	if got := events[len(events)-1].EventType(); got != "UserEnabled" {
 		t.Fatalf("last event=%s", got)
@@ -151,8 +151,8 @@ func TestDeleteUserAnonymizesAndCascades(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if tombstone == nil || tombstone.DeletedAt == nil {
-		t.Fatalf("expected tombstone with deleted_at set, got %+v", tombstone)
+	if tombstone == nil || !tombstone.IsDeleted() {
+		t.Fatalf("expected tombstone with status=deleted, got %+v", tombstone)
 	}
 	if tombstone.PreferredUsername != "deleted:"+user.Sub {
 		t.Fatalf("preferred_username not anonymized: %s", tombstone.PreferredUsername)

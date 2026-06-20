@@ -305,7 +305,7 @@ func (d Deps) handleLoginAPI(c *echo.Context) error {
 		d.emitAuthenticationFailure(c, input.Username, "invalid_credentials")
 		return writeBrowserError(c, http.StatusUnauthorized, "invalid_credentials", "ユーザー名またはパスワードを確認してください。")
 	}
-	if user.DisabledAt != nil {
+	if !user.IsActive() {
 		d.emitAuthenticationFailure(c, input.Username, "account_disabled")
 		return writeBrowserError(c, http.StatusUnauthorized, "invalid_credentials", "ユーザー名またはパスワードを確認してください。")
 	}
@@ -776,7 +776,7 @@ func (d Deps) resolveAuthentication(c *echo.Context) (*authdomain.Authentication
 	if err != nil {
 		return nil, err
 	}
-	if user == nil || user.DisabledAt != nil {
+	if user == nil || !user.IsActive() {
 		if d.SessionManager != nil && authn.SessionID != "" {
 			_ = d.SessionManager.Store.Delete(c.Request().Context(), authn.SessionID)
 		}

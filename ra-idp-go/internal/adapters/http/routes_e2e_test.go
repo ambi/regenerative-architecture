@@ -657,7 +657,8 @@ func TestDisabledUserLoginAndExistingSessionAreRejected(t *testing.T) {
 		t.Fatalf("seed lookup: user=%v err=%v", user, err)
 	}
 	now := time.Now().UTC()
-	user.DisabledAt = &now
+	user.Lifecycle.Status = spec.UserStatusDisabled
+	user.Lifecycle.StatusChangedAt = &now
 	if err := repo.Save(context.Background(), user); err != nil {
 		t.Fatalf("disable: %v", err)
 	}

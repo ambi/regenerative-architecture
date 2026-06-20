@@ -58,6 +58,7 @@ func seedDemoData(
 		PreferredUsername: "alice", PasswordHash: hash,
 		Email: &email, EmailVerified: true, MfaEnrolled: totpSecret != "",
 		Roles:     []string{"admin"},
+		Lifecycle: spec.UserLifecycle{Status: spec.UserStatusActive},
 		CreatedAt: now, UpdatedAt: now,
 	}); err != nil {
 		return err

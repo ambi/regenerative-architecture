@@ -143,7 +143,7 @@ func (r *UserRepository) FindBySub(_ context.Context, sub string) (*spec.User, e
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	user := r.bySub[sub]
-	if user == nil || user.DeletedAt != nil {
+	if user == nil || user.IsDeleted() {
 		return nil, nil
 	}
 	return user, nil
@@ -159,7 +159,7 @@ func (r *UserRepository) FindByUsername(_ context.Context, tenantID, username st
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	user := r.byUser[tenantKey(tenantID, username)]
-	if user == nil || user.DeletedAt != nil {
+	if user == nil || user.IsDeleted() {
 		return nil, nil
 	}
 	return user, nil
@@ -169,7 +169,7 @@ func (r *UserRepository) FindByEmail(_ context.Context, tenantID, email string) 
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	for _, user := range r.bySub {
-		if user.DeletedAt != nil {
+		if user.IsDeleted() {
 			continue
 		}
 		if user.TenantID == tenantID && user.Email != nil && strings.EqualFold(*user.Email, email) {
@@ -184,7 +184,7 @@ func (r *UserRepository) FindAll(_ context.Context, tenantID string) ([]*spec.Us
 	defer r.mu.RUnlock()
 	out := make([]*spec.User, 0, len(r.bySub))
 	for _, user := range r.bySub {
-		if user.TenantID == tenantID && user.DeletedAt == nil {
+		if user.TenantID == tenantID && !user.IsDeleted() {
 			out = append(out, user)
 		}
 	}

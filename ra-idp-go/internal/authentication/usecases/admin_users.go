@@ -86,6 +86,7 @@ func CreateUser(ctx context.Context, deps AdminUserDeps, in CreateUserInput) (*s
 	user := &spec.User{
 		Sub: "user_" + id, TenantID: tenantID, PreferredUsername: username, PasswordHash: passwordHash,
 		Name: in.Name, Email: in.Email, EmailVerified: in.EmailVerified, Roles: roles,
+		Lifecycle: spec.UserLifecycle{Status: spec.UserStatusActive},
 		CreatedAt: now, UpdatedAt: now,
 	}
 	if err := user.Validate(); err != nil {
@@ -201,15 +202,17 @@ func SetUserDisabled(
 	updated := *user
 	now = normalizedNow(now)
 	if disabled {
-		if updated.DisabledAt != nil {
+		if updated.Lifecycle.Status == spec.UserStatusDisabled {
 			return &updated, nil
 		}
-		updated.DisabledAt = &now
+		updated.Lifecycle.Status = spec.UserStatusDisabled
+		updated.Lifecycle.StatusChangedAt = &now
 	} else {
-		if updated.DisabledAt == nil {
+		if updated.Lifecycle.Status == spec.UserStatusActive {
 			return &updated, nil
 		}
-		updated.DisabledAt = nil
+		updated.Lifecycle.Status = spec.UserStatusActive
+		updated.Lifecycle.StatusChangedAt = &now
 	}
 	updated.UpdatedAt = now
 	if err := deps.UserRepo.Save(ctx, &updated); err != nil {
@@ -322,8 +325,9 @@ func anonymizeUser(user *spec.User, now time.Time) *spec.User {
 	tombstone.EmailVerified = false
 	tombstone.MfaEnrolled = false
 	tombstone.Roles = []string{}
+	tombstone.Attributes = nil
 	tombstone.UpdatedAt = now
-	tombstone.DeletedAt = &now
+	tombstone.Lifecycle = spec.UserLifecycle{Status: spec.UserStatusDeleted, StatusChangedAt: &now}
 	return &tombstone
 }
 

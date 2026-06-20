@@ -180,7 +180,7 @@ func (d Deps) requireSystemAdmin(c *echo.Context) (*spec.User, error) {
 	if err != nil {
 		return nil, err
 	}
-	if user == nil || user.TenantID != spec.DefaultTenantID || user.DisabledAt != nil ||
+	if user == nil || user.TenantID != spec.DefaultTenantID || !user.IsActive() ||
 		!slices.Contains(d.effectiveRoles(c.Request().Context(), user), "system_admin") {
 		return nil, errAdminAccessDenied
 	}

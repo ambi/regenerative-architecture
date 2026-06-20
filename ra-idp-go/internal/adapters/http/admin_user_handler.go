@@ -39,16 +39,18 @@ type adminUserDeleteRequest struct {
 }
 
 type adminUserResponse struct {
-	Sub               string     `json:"sub"`
-	PreferredUsername string     `json:"preferred_username"`
-	Name              *string    `json:"name,omitempty"`
-	Email             *string    `json:"email,omitempty"`
-	EmailVerified     bool       `json:"email_verified"`
-	MfaEnrolled       bool       `json:"mfa_enrolled"`
-	Roles             []string   `json:"roles"`
-	DisabledAt        *time.Time `json:"disabled_at,omitempty"`
-	CreatedAt         time.Time  `json:"created_at"`
-	UpdatedAt         time.Time  `json:"updated_at"`
+	Sub               string          `json:"sub"`
+	PreferredUsername string          `json:"preferred_username"`
+	Name              *string         `json:"name,omitempty"`
+	Email             *string         `json:"email,omitempty"`
+	EmailVerified     bool            `json:"email_verified"`
+	MfaEnrolled       bool            `json:"mfa_enrolled"`
+	Roles             []string        `json:"roles"`
+	Status            spec.UserStatus `json:"status"`
+	// DisabledAt は status から導出した後方互換フィールド (現行 UI 用)。
+	DisabledAt *time.Time `json:"disabled_at,omitempty"`
+	CreatedAt  time.Time  `json:"created_at"`
+	UpdatedAt  time.Time  `json:"updated_at"`
 }
 
 func (d Deps) handleListAdminUsers(c *echo.Context) error {
@@ -199,7 +201,7 @@ func (d Deps) requireAdmin(c *echo.Context) (*spec.User, error) {
 	if err != nil {
 		return nil, err
 	}
-	if user == nil || user.TenantID != requestTenantID(c) || user.DisabledAt != nil ||
+	if user == nil || user.TenantID != requestTenantID(c) || !user.IsActive() ||
 		!slices.Contains(d.effectiveRoles(c.Request().Context(), user), "admin") {
 		return nil, errAdminAccessDenied
 	}
@@ -256,10 +258,14 @@ func (d Deps) writeAdminUserError(c *echo.Context, err error) error {
 }
 
 func toAdminUserResponse(user *spec.User) adminUserResponse {
+	var disabledAt *time.Time
+	if user.Lifecycle.Status == spec.UserStatusDisabled {
+		disabledAt = user.Lifecycle.StatusChangedAt
+	}
 	return adminUserResponse{
 		Sub: user.Sub, PreferredUsername: user.PreferredUsername, Name: user.Name,
 		Email: user.Email, EmailVerified: user.EmailVerified, MfaEnrolled: user.MfaEnrolled,
-		Roles: slices.Clone(user.Roles), DisabledAt: user.DisabledAt,
+		Roles: slices.Clone(user.Roles), Status: user.Lifecycle.Status, DisabledAt: disabledAt,
 		CreatedAt: user.CreatedAt, UpdatedAt: user.UpdatedAt,
 	}
 }

@@ -2,6 +2,7 @@ import type {
   BrowserFlowResponse,
   AccountApplicationsPage,
   AccountConsent,
+  AccountDataPage,
   AccountEmailsPage,
   AccountHomePage,
   AccountProfile,
@@ -242,6 +243,14 @@ export async function loadPageData(): Promise<PageData> {
       consents,
       isAdmin: hasAdminRole(account.roles),
     } satisfies AccountApplicationsPage
+  }
+  if (path === '/account/data') {
+    const account = accountContext!
+    return {
+      kind: 'account-data',
+      username: account.preferred_username ?? 'account',
+      isAdmin: hasAdminRole(account.roles),
+    } satisfies AccountDataPage
   }
   if (path === '/account/password') {
     const data = accountContext!
@@ -887,6 +896,10 @@ export async function requestEmailChange(csrfToken: string, newEmail: string): P
     body.message ?? 'メールアドレスの変更を要求できませんでした。',
     body.error,
   )
+}
+
+export async function exportAccountData(): Promise<unknown> {
+  return request<unknown>('/api/account/data_export')
 }
 
 export async function listAccountConsents(): Promise<AccountConsent[]> {

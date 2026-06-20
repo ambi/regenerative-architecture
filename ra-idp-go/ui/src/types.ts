@@ -446,6 +446,12 @@ export type AccountApplicationsPage = {
   isAdmin: boolean
 }
 
+export type AccountDataPage = {
+  kind: 'account-data'
+  username: string
+  isAdmin: boolean
+}
+
 export type AdminTenantAttributesPage = {
   kind: 'admin-tenant-attributes'
   csrfToken: string
@@ -484,6 +490,7 @@ export type PageData =
   | AccountEmailsPage
   | EmailVerifyPage
   | AccountApplicationsPage
+  | AccountDataPage
 
 export type BrowserFlowResponse = {
   next?: string

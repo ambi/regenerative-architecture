@@ -6,6 +6,7 @@ import {
   createRouter,
 } from '@tanstack/react-router'
 import { AccountApplicationsPage } from './pages/AccountApplicationsPage'
+import { AccountDataPage } from './pages/AccountDataPage'
 import { AccountEmailsPage } from './pages/AccountEmailsPage'
 import { AccountHomePage } from './pages/AccountHomePage'
 import { AccountProfilePage } from './pages/AccountProfilePage'
@@ -104,6 +105,11 @@ export function createAppRouter(data: PageData) {
     path: '/account/applications',
     component: () =>
       data.kind === 'account-applications' ? <AccountApplicationsPage {...data} /> : null,
+  })
+  const accountDataRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/account/data',
+    component: () => (data.kind === 'account-data' ? <AccountDataPage {...data} /> : null),
   })
   const forgotPasswordRoute = createRoute({
     getParentRoute: () => rootRoute,
@@ -213,6 +219,7 @@ export function createAppRouter(data: PageData) {
       accountEmailsRoute,
       emailVerifyRoute,
       accountApplicationsRoute,
+      accountDataRoute,
       forgotPasswordRoute,
       resetPasswordRoute,
       adminDashboardRoute,

@@ -1,6 +1,7 @@
 import {
   IconApps,
   IconChevronDown,
+  IconDatabaseCog,
   IconKey,
   IconLogout,
   IconMail,
@@ -25,7 +26,13 @@ import {
 // admin shell とは別の trust boundary で、admin 機能への導線は持たない。
 // 未実装のタブ (アクティビティ / 接続済みアプリ / データとプライバシー) は
 // 「未実装機能を操作可能に見せない」方針に従い、実装済みのものだけ出す。
-export type AccountNavKey = 'home' | 'profile' | 'emails' | 'security' | 'applications'
+export type AccountNavKey =
+  | 'home'
+  | 'profile'
+  | 'emails'
+  | 'security'
+  | 'applications'
+  | 'data'
 
 const navItems: { key: AccountNavKey; label: string; href: string; icon: typeof IconUser }[] = [
   { key: 'home', label: 'アカウント概要', href: '/account', icon: IconUserCircle },
@@ -33,6 +40,7 @@ const navItems: { key: AccountNavKey; label: string; href: string; icon: typeof 
   { key: 'emails', label: 'メールアドレス', href: '/account/emails', icon: IconMail },
   { key: 'security', label: 'パスワード', href: '/account/password', icon: IconKey },
   { key: 'applications', label: '接続済みアプリ', href: '/account/applications', icon: IconApps },
+  { key: 'data', label: 'データとプライバシー', href: '/account/data', icon: IconDatabaseCog },
 ]
 
 type AccountShellProps = {

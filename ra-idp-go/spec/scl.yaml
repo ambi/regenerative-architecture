@@ -22,10 +22,10 @@ components:
 
   Authentication:
     description: エンドユーザ (Subject) の identity、credentials、MFA、ログインセッション、パスワードリセット、および管理 API からの User ライフサイクル操作を所有する。
-    owns_models: [User, MfaFactor, MfaFactorType, LoginSession, AuthenticationContext, PasswordResetTokenRecord, BrowserLoginRequest, BrowserTotpRequest, BrowserChangePasswordRequest, BrowserForgotPasswordRequest, BrowserResetPasswordRequest, AdminUserCreateRequest, AdminUserUpdateRequest, AdminRequiredActionRequest, AdminUserListResponse, AdminUserResponse, Group, GroupMember, GroupCreateRequest, GroupUpdateRequest, GroupSummaryResponse, GroupListResponse, GroupMemberResponse, GroupAddMemberRequest, UserGroupsResponse, UserLifecycle, AttributeValue, UserStatus, RequiredAction, AccountProfileResponse, AccountProfileUpdateRequest, AccountSummary, AccountEmailChangeRequest, AccountEmailChangeConfirm]
+    owns_models: [User, MfaFactor, MfaFactorType, LoginSession, AuthenticationContext, PasswordResetTokenRecord, BrowserLoginRequest, BrowserTotpRequest, BrowserChangePasswordRequest, BrowserForgotPasswordRequest, BrowserResetPasswordRequest, AdminUserCreateRequest, AdminUserUpdateRequest, AdminRequiredActionRequest, AdminUserListResponse, AdminUserResponse, Group, GroupMember, GroupCreateRequest, GroupUpdateRequest, GroupSummaryResponse, GroupListResponse, GroupMemberResponse, GroupAddMemberRequest, UserGroupsResponse, UserLifecycle, AttributeValue, UserStatus, RequiredAction, AccountProfileResponse, AccountProfileUpdateRequest, AccountSummary, AccountEmailChangeRequest, AccountEmailChangeConfirm, AccountDataExport]
     owns_states: [UserLifecycle, GroupLifecycle]
     owns_events: [UserAuthenticated, AuthenticationFailed, PasswordChanged, LoginThrottled, PasswordResetRequested, EmailSent, EmailChangeRequested, EmailChanged, UserCreated, UserUpdated, UserDisabled, UserEnabled, UserDeleted, UserRequiredActionSet, UserRequiredActionCleared, GroupCreated, GroupUpdated, GroupDeleted, GroupMemberAdded, GroupMemberRemoved]
-    owns_interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, ChangePassword, GetAccountSummary, GetUserProfile, UpdateUserProfile, RequestEmailChange, ConfirmEmailChange, RequestPasswordReset, ResetPasswordWithToken, ListAdminUsers, GetAdminUser, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser, DeleteAdminUser, SetUserRequiredAction, ClearUserRequiredAction, ListGroups, GetGroup, CreateGroup, UpdateGroup, DeleteGroup, AddGroupMember, RemoveGroupMember, ListUserGroups]
+    owns_interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, ChangePassword, GetAccountSummary, GetUserProfile, UpdateUserProfile, RequestEmailChange, ConfirmEmailChange, ExportAccountData, RequestPasswordReset, ResetPasswordWithToken, ListAdminUsers, GetAdminUser, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser, DeleteAdminUser, SetUserRequiredAction, ClearUserRequiredAction, ListGroups, GetGroup, CreateGroup, UpdateGroup, DeleteGroup, AddGroupMember, RemoveGroupMember, ListUserGroups]
     owns_invariants: [PasswordHistoryNoReuse, EffectiveRolesComposition, GroupMembershipAuditEmission]
     owns_permissions: [AdminUserRead, AdminUserCreate, AdminUserUpdate, AdminUserDelete, AdminGroupsRead, AdminGroupsWrite]
     owns_objectives: [PiiPurgeAfterDeletion]
@@ -1865,6 +1865,18 @@ models:
     fields:
       token: { type: String, constraints: [non_empty] }
 
+  AccountDataExport:
+    kind: value_object
+    description: |
+      end-user 自身の個人データエクスポート (GDPR 第15条 right of access, wi-21)。本ステージは
+      同期生成で、現状 API から得られる profile と接続済みアプリ (consents) をまとめる。
+      sign-in activity / sessions の同梱は wi-20 / wi-28 後に追加する。
+    annotations: { component: Authentication }
+    fields:
+      exported_at: { type: Timestamp }
+      profile:     { type: AccountProfileResponse }
+      consents:    { type: "AccountConsentResponse[]" }
+
   Group:
     kind: entity
     description: ADR-038 で導入した tenant-scoped ロール束集約。所属 User に roles を一斉付与する。id は不変の生成識別子、name はテナント内で一意な編集可能ラベル。
@@ -3022,6 +3034,17 @@ interfaces:
     emits: [EmailChanged]
     bindings:
       - { kind: http, method: POST, path: /api/account/email/verify, request_form: body }
+
+  ExportAccountData:
+    description: |
+      認証済みユーザーが自身の個人データを JSON で取得する (self-service, GDPR access)。
+      対象は actor.sub に固定。本ステージは同期生成で profile と consents を含む。
+    output:
+      export: { type: AccountDataExport }
+    errors: [AccessDeniedError]
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: /api/account/data_export }
 
   RequestPasswordReset:
     description: |

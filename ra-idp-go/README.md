@@ -221,11 +221,15 @@ end-user 向けの「マイページ」を `/account` 配下に持つ (ADR-042 /
 - **接続済みアプリ** (`/account/applications`): アクセスを許可した OAuth クライアント
   (active な Consent) の一覧と、個別の取り消し。取り消すと次回その client の認可で
   consent が再要求される (admin の Consent 取り消しと同じ論理撤回 + `ConsentRevoked`)。
+- **データとプライバシー** (`/account/data`): 個人データの JSON エクスポート (GDPR 第15条
+  right of access)。本ステージは同期生成で、profile と接続済みアプリ (consents) を含む
+  (`GET /api/account/data_export`)。sign-in 履歴・セッションの同梱と非同期ジョブ/オブジェクト
+  ストレージ連携は後続ステージ。
 
 self が変更できるのは表示名 / 編集可能属性 / メールアドレス / パスワード / 接続済みアプリの
 取り消しのみ。`roles` / `status` / 組織属性 / `editable_by_user=false` の属性は admin 専用
-(ADR-042)。secondary/recovery email・MFA enroll・セッション管理・データエクスポート・
-アカウント削除リクエストは wi-21 の後続ステージで追加する。
+(ADR-042)。secondary/recovery email・MFA enroll・セッション管理・アカウント削除リクエストは
+wi-21 の後続ステージで追加する。
 
 ## 検証
 

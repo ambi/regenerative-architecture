@@ -82,7 +82,7 @@ export function AdminTenantsPage({
       active="tenants"
       actorUsername={actorUsername}
       title="テナント (Tenants)"
-      description="ra-idp が分離するテナントの一覧と管理。default は無効化できません。"
+      description="RA Identity が分離するテナントの一覧と管理。default は無効化できません。"
       actions={
         <>
           <Button

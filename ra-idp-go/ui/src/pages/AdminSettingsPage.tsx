@@ -33,7 +33,7 @@ const tabs: Tab[] = [
     key: 'password-policy',
     label: 'パスワードポリシー',
     description:
-      'テナント単位の上書き値。空欄のフィールドは ra-idp の標準値が適用されます。',
+      'テナント単位の上書き値。空欄のフィールドは RA Identity の標準値が適用されます。',
     icon: IconShieldLock,
   },
   {
@@ -280,7 +280,7 @@ function PasswordPolicyTab({
         <h2 className="text-base font-semibold text-slate-900">パスワードポリシー</h2>
         <p className="mt-1 text-sm text-slate-600">
           指定したフィールドのみテナント固有の値で上書きします。空欄のフィールドは
-          ra-idp の標準値が適用されます。
+          RA Identity の標準値が適用されます。
         </p>
         <dl className="mt-3 grid grid-cols-3 gap-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-xs">
           <div>

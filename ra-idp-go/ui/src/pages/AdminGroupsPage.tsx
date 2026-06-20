@@ -96,7 +96,7 @@ export function AdminGroupsPage({
       active="groups"
       actorUsername={actorUsername}
       title="グループ"
-      description="ロール束 (group.roles) を再利用し、所属ユーザーにまとめて権限を付与します。"
+      description="複数のロールをまとめ、所属ユーザーに一括で権限を付与します。"
       actions={
         <>
           <Button

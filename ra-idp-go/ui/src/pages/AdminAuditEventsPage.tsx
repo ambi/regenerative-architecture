@@ -67,8 +67,8 @@ export function AdminAuditEventsPage({
     <AdminShell
       active="audit-events"
       actorUsername={actorUsername}
-      title="監査ログ (Audit Events)"
-      description="所属テナント内の DomainEvent。コンプライアンスや調査の起点として利用します。"
+      title="監査ログ"
+      description="テナント内で起きた重要な操作の記録。コンプライアンスや調査の起点として利用します。"
     >
       {error ? <Alert variant="destructive">{error}</Alert> : null}
 

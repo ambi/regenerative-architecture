@@ -1,7 +1,7 @@
 id: wi-37-admin-ui-consistency-and-localization-polish
 title: 管理 UI の編集体験・用語・日本語化を一周ぶん整える (モーダル統一 / 内部文書の非露出 / 誤リンク修正)
 created_at: 2026-06-20
-status: pending
+status: completed
 authors: [tn]
 
 motivation: |
@@ -232,3 +232,90 @@ open_questions:
   - >-
     編集モーダルの共通化をどこまで一気にやるか (まず縦長修正だけ先に
     出し、共通シェル化は段階的でも可)。
+
+completion:
+  completed_at: 2026-06-20
+
+  summary: |
+    7 件の UI 不整合を 7 コミットで解消した。ユーザー編集モーダルを
+    max-h-[88vh] のヘッダ/フッタ固定 + 本文スクロール構造にし、グループと
+    カスタム属性のインライン編集を「一覧 + 明示的な編集モーダル + 明示保存」に
+    統一した。ロール/権限ページから内部文書 (ADR 参照 / allow_when 式 / SCL の
+    語) を排除し、アプリケーション/クライアントの用語ブレと一般英語ラベルを
+    日本語へ揃え、マイメニューの「アカウント概要」を /account/profile に向け直した。
+
+  semantic_diff:
+    before: >-
+      ユーザー編集モーダルがビューポートを超えて保存不可。グループ/属性は
+      インライン即時編集。ロールページが ADR/SCL/allow_when を露出。
+      アプリ/クライアント用語が混在し、英語ラベルが点在。アカウント概要が
+      パスワード変更へ誤リンク。
+    after: >-
+      編集モーダルはヘッダ/フッタ固定 + 本文スクロール。グループ/属性は
+      編集モーダル経由の明示保存。ロールページは ADR/allow_when を返さず
+      平易な日本語。用語は「アプリケーション」に統一、一般英語は日本語化。
+      アカウント概要は /account/profile を開く。
+
+  issue_resolution:
+    - "issue 1 (モーダル縦長): UserEditorDialog を flex 縦 + overflow-y-auto に。"
+    - "issue 2 (グループ即時編集): GroupEditorDialog を新設し read-only パネル + 編集ボタンに。"
+    - "issue 3 (内部文書露出): API 境界で ADR 参照を除去 + allow_when requirements をレスポンスから削除。回帰テスト追加。"
+    - "issue 4 (用語ブレ): user-facing クライアント → アプリケーション (技術識別子は据え置き)。"
+    - "issue 5 (属性即時編集 + 縦長): テーブル + AttributeEditorDialog に。各操作で全置換 PUT。"
+    - "issue 6 (英語ラベル): admin/auth 横断で一般語を日本語化。OIDC/SCIM/JWKS/Kid/Alg 等の spec 語は維持。"
+    - "issue 7 (誤リンク): アカウント概要 → /account/profile。"
+
+  decisions:
+    - "issue 3 は open question の推奨どおり API 境界で解いた。ただし SCL の normative description は変えず、レスポンス生成時に ADR 参照を除去し allow_when は出さない方針。SCL 拡張は不要だった。"
+    - "編集モーダルは共通シェル化せず、各ダイアログに同じ構造 (max-h-[88vh] / flex / scroll body) を当てた。共通コンポーネント抽出は後続課題。"
+    - "属性編集は全置換 PUT を各操作で即時実行 (グループと同じ即時保存) とし、ページ単位の保存ボタンは廃止。"
+
+  traceability:
+    implementation:
+      - ra-idp-go/ui/src/components/AdminShell.tsx
+      - ra-idp-go/ui/src/pages/AdminUsersPage.tsx
+      - ra-idp-go/ui/src/pages/AdminGroupsPage.tsx
+      - ra-idp-go/ui/src/pages/AdminTenantAttributesPage.tsx
+      - ra-idp-go/ui/src/pages/AdminRolesPage.tsx
+      - ra-idp-go/ui/src/pages/AdminClientsPage.tsx
+      - ra-idp-go/ui/src/pages/AdminConsentsPage.tsx
+      - ra-idp-go/ui/src/pages/AdminDashboardPage.tsx
+      - ra-idp-go/ui/src/pages/AdminAuditEventsPage.tsx
+      - ra-idp-go/ui/src/pages/AdminKeysPage.tsx
+      - ra-idp-go/ui/src/pages/LoginPage.tsx
+      - ra-idp-go/ui/src/pages/TotpPage.tsx
+      - ra-idp-go/ui/src/pages/ResetPasswordPage.tsx
+      - ra-idp-go/ui/src/pages/ForgotPasswordPage.tsx
+      - ra-idp-go/ui/src/pages/ChangePasswordPage.tsx
+      - ra-idp-go/ui/src/pages/DevicePage.tsx
+      - ra-idp-go/ui/src/pages/HomePage.tsx
+      - ra-idp-go/ui/src/pages/ConsentPage.tsx
+      - ra-idp-go/ui/src/types.ts
+      - ra-idp-go/internal/adapters/http/admin_role_policy_handler.go
+      - ra-idp-go/internal/adapters/http/admin_role_policy_handler_test.go
+    specification: "UI 表現と API レスポンス整形のみ。SCL の normative 定義は不変。"
+
+  affected_guarantees_state:
+    - "admin RBAC / API endpoint / CSRF 境界は不変。編集導線がモーダル化しても許可操作集合は不変。"
+    - "内部表現の非露出: policy/roles レスポンスに ADR-/actor.roles/allow_when/requirements を含めないことをテストで固定。"
+    - "i18n: 利用者向けラベルは日本語、spec 固有語は英語維持。"
+
+  verification:
+    - cmd: "bun --cwd ra-idp-go/ui typecheck"
+      result: ok
+    - cmd: "bun --cwd ra-idp-go/ui lint"
+      result: "ok (46 files)"
+    - cmd: "bun --cwd ra-idp-go/ui build"
+      result: ok
+    - cmd: "go test ./..."
+      in: ra-idp-go
+      result: ok
+    - cmd: "golangci-lint run ./..."
+      in: ra-idp-go
+      result: "0 issues"
+    - "手動 1-7 は実ブラウザでの目視確認が未実施。視覚回帰は残リスク。"
+
+  residual_risk:
+    - "編集モーダルの共通シェル未抽出。3 ダイアログで同型コードが重複している。"
+    - "属性の self-delete (値クリア) は self プロフィール側で未対応のまま (wi-19 既知)。"
+    - "日本語訳語の細部 (例: 機密タイプ / グラント) はレビューで再調整の余地。"

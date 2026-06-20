@@ -110,7 +110,7 @@ func CreateGroup(ctx context.Context, deps AdminGroupDeps, in CreateGroupInput) 
 	if err := deps.GroupRepo.Save(ctx, group); err != nil {
 		return nil, err
 	}
-	adminEmit(deps.Emit, &spec.GroupCreated{At: now, ActorSub: in.ActorSub, GroupID: group.ID})
+	adminEmit(deps.Emit, &spec.GroupCreated{At: now, TenantID: group.TenantID, ActorSub: in.ActorSub, GroupID: group.ID})
 	return group, nil
 }
 
@@ -176,7 +176,7 @@ func UpdateGroup(ctx context.Context, deps AdminGroupDeps, in UpdateGroupInput) 
 		return nil, err
 	}
 	adminEmit(deps.Emit, &spec.GroupUpdated{
-		At: now, ActorSub: in.ActorSub, GroupID: group.ID, ChangedFields: changed,
+		At: now, TenantID: group.TenantID, ActorSub: in.ActorSub, GroupID: group.ID, ChangedFields: changed,
 	})
 	return &updated, nil
 }
@@ -204,14 +204,14 @@ func DeleteGroup(ctx context.Context, deps AdminGroupDeps, actorSub, id string, 
 		}
 		if removed {
 			adminEmit(deps.Emit, &spec.GroupMemberRemoved{
-				At: now, ActorSub: actorSub, GroupID: id, UserSub: member.UserSub,
+				At: now, TenantID: tenantID, ActorSub: actorSub, GroupID: id, UserSub: member.UserSub,
 			})
 		}
 	}
 	if err := deps.GroupRepo.Delete(ctx, tenantID, id); err != nil {
 		return err
 	}
-	adminEmit(deps.Emit, &spec.GroupDeleted{At: now, ActorSub: actorSub, GroupID: id})
+	adminEmit(deps.Emit, &spec.GroupDeleted{At: now, TenantID: tenantID, ActorSub: actorSub, GroupID: id})
 	return nil
 }
 
@@ -242,7 +242,7 @@ func AddMember(ctx context.Context, deps AdminGroupDeps, actorSub, groupID, user
 	}
 	if added {
 		adminEmit(deps.Emit, &spec.GroupMemberAdded{
-			At: now, ActorSub: actorSub, GroupID: groupID, UserSub: userSub,
+			At: now, TenantID: tenantID, ActorSub: actorSub, GroupID: groupID, UserSub: userSub,
 		})
 	}
 	return nil
@@ -265,7 +265,7 @@ func RemoveMember(ctx context.Context, deps AdminGroupDeps, actorSub, groupID, u
 	}
 	if removed {
 		adminEmit(deps.Emit, &spec.GroupMemberRemoved{
-			At: now, ActorSub: actorSub, GroupID: groupID, UserSub: userSub,
+			At: now, TenantID: tenantID, ActorSub: actorSub, GroupID: groupID, UserSub: userSub,
 		})
 	}
 	return nil

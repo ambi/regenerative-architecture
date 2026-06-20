@@ -302,11 +302,11 @@ func (d Deps) handleLoginAPI(c *echo.Context) error {
 		if err := d.recordLoginFailure(c, normalizedUsername, clientIP); err != nil {
 			return err
 		}
-		d.emitAuthenticationFailure(input.Username, "invalid_credentials")
+		d.emitAuthenticationFailure(c, input.Username, "invalid_credentials")
 		return writeBrowserError(c, http.StatusUnauthorized, "invalid_credentials", "ユーザー名またはパスワードを確認してください。")
 	}
 	if user.DisabledAt != nil {
-		d.emitAuthenticationFailure(input.Username, "account_disabled")
+		d.emitAuthenticationFailure(c, input.Username, "account_disabled")
 		return writeBrowserError(c, http.StatusUnauthorized, "invalid_credentials", "ユーザー名またはパスワードを確認してください。")
 	}
 	if result := authusecases.ValidatePassword(input.Password); !result.OK {
@@ -333,7 +333,7 @@ func (d Deps) handleLoginAPI(c *echo.Context) error {
 	}
 	d.setSessionCookie(c, authn.SessionID)
 	if d.Emit != nil {
-		d.Emit(&spec.UserAuthenticated{At: authTime, Sub: user.Sub, AMR: []string{"pwd"}})
+		d.Emit(&spec.UserAuthenticated{At: authTime, TenantID: user.TenantID, Sub: user.Sub, AMR: []string{"pwd"}})
 	}
 	if user.MfaEnrolled {
 		next := tenantRoute(c, "/totp")
@@ -403,7 +403,7 @@ func (d Deps) handleTOTPAPI(c *echo.Context) error {
 		return err
 	}
 	if !result.OK {
-		d.emitAuthenticationFailure(authn.Sub, result.Reason)
+		d.emitAuthenticationFailure(c, authn.Sub, result.Reason)
 		return writeBrowserError(c, http.StatusUnauthorized, "invalid_totp", "TOTPコードを確認してください。")
 	}
 	completed, err := d.SessionManager.CompleteFactor(c.Request().Context(), authn.SessionID, []string{"otp"})
@@ -858,9 +858,11 @@ func (d Deps) secureCookies() bool {
 	return strings.HasPrefix(d.Issuer, "https://")
 }
 
-func (d Deps) emitAuthenticationFailure(username, reason string) {
+func (d Deps) emitAuthenticationFailure(c *echo.Context, username, reason string) {
 	if d.Emit != nil {
-		d.Emit(&spec.AuthenticationFailed{At: time.Now().UTC(), Username: username, Reason: reason})
+		d.Emit(&spec.AuthenticationFailed{
+			At: time.Now().UTC(), TenantID: requestTenantID(c), Username: username, Reason: reason,
+		})
 	}
 }
 
@@ -899,7 +901,8 @@ func (d Deps) recordLoginFailure(c *echo.Context, username, clientIP string) err
 		if result.Locked && d.Emit != nil {
 			sum := sha256.Sum256([]byte(attempt.key))
 			d.Emit(&spec.LoginThrottled{
-				At: now, Kind: string(attempt.kind), KeyHash: hex.EncodeToString(sum[:]),
+				At: now, TenantID: requestTenantID(c), Kind: string(attempt.kind),
+				KeyHash:           hex.EncodeToString(sum[:]),
 				RetryAfterSeconds: result.RetryAfterSeconds,
 			})
 		}

@@ -100,7 +100,7 @@ func ResetPasswordWithToken(
 		return nil, err
 	}
 	if deps.Emit != nil {
-		deps.Emit(&spec.PasswordChanged{At: now, Sub: user.Sub})
+		deps.Emit(&spec.PasswordChanged{At: now, TenantID: user.TenantID, Sub: user.Sub})
 	}
 	return &updated, nil
 }

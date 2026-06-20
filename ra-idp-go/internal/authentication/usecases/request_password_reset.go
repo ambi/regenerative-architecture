@@ -40,7 +40,7 @@ func RequestPasswordReset(ctx context.Context, deps RequestPasswordResetDeps, in
 	}
 	email := strings.ToLower(strings.TrimSpace(in.Email))
 	if deps.Emit != nil {
-		deps.Emit(&spec.PasswordResetRequested{At: now, EmailHash: sha256Hex(email)})
+		deps.Emit(&spec.PasswordResetRequested{At: now, TenantID: tenancy.TenantID(ctx), EmailHash: sha256Hex(email)})
 	}
 	if email == "" {
 		return nil

@@ -97,7 +97,7 @@ func CreateUser(ctx context.Context, deps AdminUserDeps, in CreateUserInput) (*s
 	if err := deps.PasswordHistoryRepo.Add(ctx, user.Sub, passwordHash, now); err != nil {
 		return nil, err
 	}
-	adminEmit(deps.Emit, &spec.UserCreated{At: now, ActorSub: in.ActorSub, TargetSub: user.Sub})
+	adminEmit(deps.Emit, &spec.UserCreated{At: now, TenantID: user.TenantID, ActorSub: in.ActorSub, TargetSub: user.Sub})
 	return user, nil
 }
 
@@ -176,7 +176,7 @@ func UpdateUser(ctx context.Context, deps AdminUserDeps, in UpdateUserInput) (*s
 		return nil, err
 	}
 	adminEmit(deps.Emit, &spec.UserUpdated{
-		At: now, ActorSub: in.ActorSub, TargetSub: user.Sub, ChangedFields: changed,
+		At: now, TenantID: user.TenantID, ActorSub: in.ActorSub, TargetSub: user.Sub, ChangedFields: changed,
 	})
 	return &updated, nil
 }
@@ -216,9 +216,9 @@ func SetUserDisabled(
 		return nil, err
 	}
 	if disabled {
-		adminEmit(deps.Emit, &spec.UserDisabled{At: now, ActorSub: actorSub, TargetSub: targetSub})
+		adminEmit(deps.Emit, &spec.UserDisabled{At: now, TenantID: updated.TenantID, ActorSub: actorSub, TargetSub: targetSub})
 	} else {
-		adminEmit(deps.Emit, &spec.UserEnabled{At: now, ActorSub: actorSub, TargetSub: targetSub})
+		adminEmit(deps.Emit, &spec.UserEnabled{At: now, TenantID: updated.TenantID, ActorSub: actorSub, TargetSub: targetSub})
 	}
 	return &updated, nil
 }
@@ -302,7 +302,7 @@ func DeleteUser(ctx context.Context, deps AdminUserDeps, in DeleteUserInput) err
 		return err
 	}
 	adminEmit(deps.Emit, &spec.UserDeleted{
-		At: now, ActorSub: in.ActorSub, TargetSub: user.Sub, Reason: in.Reason,
+		At: now, TenantID: user.TenantID, ActorSub: in.ActorSub, TargetSub: user.Sub, Reason: in.Reason,
 	})
 	return nil
 }

@@ -2223,6 +2223,7 @@ models:
     annotations: { component: Authentication }
     payload:
       occurredAt:   { type: Timestamp }
+      tenantId:     { type: String, description: "認証が起きたテナント ID。監査ビューのテナント絞り込みに使う。" }
       sub:          { type: String }
       amr:          { type: "String[]", optional: true }
 
@@ -2232,6 +2233,7 @@ models:
     annotations: { component: Authentication }
     payload:
       occurredAt:   { type: Timestamp }
+      tenantId:     { type: String, description: "認証を試みたテナント ID (リクエストパス由来)。" }
       username:     { type: String, optional: true, annotations: { pii: true } }
       reason:       { type: String, optional: true }
 
@@ -2241,6 +2243,7 @@ models:
     annotations: { component: Authentication }
     payload:
       occurredAt:   { type: Timestamp }
+      tenantId:     { type: String, description: "対象 user の所属テナント ID。" }
       sub:          { type: String }
 
   LoginThrottled:
@@ -2249,6 +2252,7 @@ models:
     annotations: { component: Authentication }
     payload:
       occurredAt:        { type: Timestamp }
+      tenantId:          { type: String, description: "スロットリングが起きたテナント ID (リクエストパス由来)。" }
       kind:              { type: String, description: "account または ip" }
       keyHash:           { type: String, description: "username (lowercased) または IP の SHA-256 hex" }
       retryAfterSeconds: { type: Integer }
@@ -2263,6 +2267,7 @@ models:
     annotations: { component: Authentication }
     payload:
       occurredAt: { type: Timestamp }
+      tenantId:   { type: String, description: "リセットを要求したテナント ID (リクエストパス由来)。" }
       emailHash:  { type: String, description: "送信元 email の SHA-256 hex" }
 
   EmailSent:
@@ -2284,6 +2289,7 @@ models:
     annotations: { component: Administration }
     payload:
       occurredAt: { type: Timestamp }
+      tenantId:   { type: String, description: "操作対象テナント ID。actor / target と一致する。" }
       actorSub:   { type: String }
       targetSub:  { type: String }
 
@@ -2293,6 +2299,7 @@ models:
     annotations: { component: Administration }
     payload:
       occurredAt:    { type: Timestamp }
+      tenantId:      { type: String, description: "操作対象テナント ID。actor / target と一致する。" }
       actorSub:      { type: String }
       targetSub:     { type: String }
       changedFields: { type: "String[]" }
@@ -2303,6 +2310,7 @@ models:
     annotations: { component: Administration }
     payload:
       occurredAt: { type: Timestamp }
+      tenantId:   { type: String, description: "操作対象テナント ID。actor / target と一致する。" }
       actorSub:   { type: String }
       targetSub:  { type: String }
 
@@ -2312,6 +2320,7 @@ models:
     annotations: { component: Administration }
     payload:
       occurredAt: { type: Timestamp }
+      tenantId:   { type: String, description: "操作対象テナント ID。actor / target と一致する。" }
       actorSub:   { type: String }
       targetSub:  { type: String }
 
@@ -2321,6 +2330,7 @@ models:
     annotations: { component: Administration }
     payload:
       occurredAt: { type: Timestamp }
+      tenantId:   { type: String, description: "操作対象テナント ID。actor / target と一致する。" }
       actorSub:   { type: String }
       targetSub:  { type: String }
       reason:     { type: String, optional: true }
@@ -2331,6 +2341,7 @@ models:
     annotations: { component: Authentication }
     payload:
       occurredAt: { type: Timestamp }
+      tenantId:   { type: String, description: "グループが属するテナント ID。" }
       actorSub:   { type: String }
       groupId:    { type: String }
 
@@ -2340,6 +2351,7 @@ models:
     annotations: { component: Authentication }
     payload:
       occurredAt:    { type: Timestamp }
+      tenantId:      { type: String, description: "グループが属するテナント ID。" }
       actorSub:      { type: String }
       groupId:       { type: String }
       changedFields: { type: "String[]" }
@@ -2350,6 +2362,7 @@ models:
     annotations: { component: Authentication }
     payload:
       occurredAt: { type: Timestamp }
+      tenantId:   { type: String, description: "グループが属するテナント ID。" }
       actorSub:   { type: String }
       groupId:    { type: String }
 
@@ -2359,6 +2372,7 @@ models:
     annotations: { component: Authentication }
     payload:
       occurredAt: { type: Timestamp }
+      tenantId:   { type: String, description: "グループが属するテナント ID。" }
       actorSub:   { type: String }
       groupId:    { type: String }
       userSub:    { type: String }
@@ -2369,6 +2383,7 @@ models:
     annotations: { component: Authentication }
     payload:
       occurredAt: { type: Timestamp }
+      tenantId:   { type: String, description: "グループが属するテナント ID。" }
       actorSub:   { type: String }
       groupId:    { type: String }
       userSub:    { type: String }

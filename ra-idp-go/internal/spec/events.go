@@ -23,9 +23,10 @@ func (e *ClientRegistered) EventType() string     { return "ClientRegistered" }
 func (e *ClientRegistered) OccurredAt() time.Time { return e.At }
 
 type UserAuthenticated struct {
-	At  time.Time `json:"-"`
-	Sub string    `json:"sub"`
-	AMR []string  `json:"amr"`
+	At       time.Time `json:"-"`
+	TenantID string    `json:"tenantId"`
+	Sub      string    `json:"sub"`
+	AMR      []string  `json:"amr"`
 }
 
 func (e *UserAuthenticated) EventType() string     { return "UserAuthenticated" }
@@ -33,6 +34,7 @@ func (e *UserAuthenticated) OccurredAt() time.Time { return e.At }
 
 type AuthenticationFailed struct {
 	At       time.Time `json:"-"`
+	TenantID string    `json:"tenantId"`
 	Username string    `json:"username"`
 	Reason   string    `json:"reason"`
 }
@@ -42,6 +44,7 @@ func (e *AuthenticationFailed) OccurredAt() time.Time { return e.At }
 
 type LoginThrottled struct {
 	At                time.Time `json:"-"`
+	TenantID          string    `json:"tenantId"`
 	Kind              string    `json:"kind"`
 	KeyHash           string    `json:"keyHash"`
 	RetryAfterSeconds int       `json:"retryAfterSeconds"`
@@ -51,8 +54,9 @@ func (e *LoginThrottled) EventType() string     { return "LoginThrottled" }
 func (e *LoginThrottled) OccurredAt() time.Time { return e.At }
 
 type PasswordChanged struct {
-	At  time.Time `json:"-"`
-	Sub string    `json:"sub"`
+	At       time.Time `json:"-"`
+	TenantID string    `json:"tenantId"`
+	Sub      string    `json:"sub"`
 }
 
 func (e *PasswordChanged) EventType() string     { return "PasswordChanged" }
@@ -60,6 +64,7 @@ func (e *PasswordChanged) OccurredAt() time.Time { return e.At }
 
 type PasswordResetRequested struct {
 	At        time.Time `json:"-"`
+	TenantID  string    `json:"tenantId"`
 	EmailHash string    `json:"emailHash"`
 }
 
@@ -78,6 +83,7 @@ func (e *EmailSent) OccurredAt() time.Time { return e.At }
 
 type UserCreated struct {
 	At        time.Time `json:"-"`
+	TenantID  string    `json:"tenantId"`
 	ActorSub  string    `json:"actorSub"`
 	TargetSub string    `json:"targetSub"`
 }
@@ -87,6 +93,7 @@ func (e *UserCreated) OccurredAt() time.Time { return e.At }
 
 type UserUpdated struct {
 	At            time.Time `json:"-"`
+	TenantID      string    `json:"tenantId"`
 	ActorSub      string    `json:"actorSub"`
 	TargetSub     string    `json:"targetSub"`
 	ChangedFields []string  `json:"changedFields"`
@@ -97,6 +104,7 @@ func (e *UserUpdated) OccurredAt() time.Time { return e.At }
 
 type UserDisabled struct {
 	At        time.Time `json:"-"`
+	TenantID  string    `json:"tenantId"`
 	ActorSub  string    `json:"actorSub"`
 	TargetSub string    `json:"targetSub"`
 }
@@ -106,6 +114,7 @@ func (e *UserDisabled) OccurredAt() time.Time { return e.At }
 
 type UserEnabled struct {
 	At        time.Time `json:"-"`
+	TenantID  string    `json:"tenantId"`
 	ActorSub  string    `json:"actorSub"`
 	TargetSub string    `json:"targetSub"`
 }
@@ -115,6 +124,7 @@ func (e *UserEnabled) OccurredAt() time.Time { return e.At }
 
 type UserDeleted struct {
 	At        time.Time `json:"-"`
+	TenantID  string    `json:"tenantId"`
 	ActorSub  string    `json:"actorSub"`
 	TargetSub string    `json:"targetSub"`
 	Reason    string    `json:"reason,omitempty"`
@@ -339,6 +349,7 @@ func (e *TenantEnabled) OccurredAt() time.Time { return e.At }
 
 type GroupCreated struct {
 	At       time.Time `json:"-"`
+	TenantID string    `json:"tenantId"`
 	ActorSub string    `json:"actorSub"`
 	GroupID  string    `json:"groupId"`
 }
@@ -348,6 +359,7 @@ func (e *GroupCreated) OccurredAt() time.Time { return e.At }
 
 type GroupUpdated struct {
 	At            time.Time `json:"-"`
+	TenantID      string    `json:"tenantId"`
 	ActorSub      string    `json:"actorSub"`
 	GroupID       string    `json:"groupId"`
 	ChangedFields []string  `json:"changedFields"`
@@ -358,6 +370,7 @@ func (e *GroupUpdated) OccurredAt() time.Time { return e.At }
 
 type GroupDeleted struct {
 	At       time.Time `json:"-"`
+	TenantID string    `json:"tenantId"`
 	ActorSub string    `json:"actorSub"`
 	GroupID  string    `json:"groupId"`
 }
@@ -367,6 +380,7 @@ func (e *GroupDeleted) OccurredAt() time.Time { return e.At }
 
 type GroupMemberAdded struct {
 	At       time.Time `json:"-"`
+	TenantID string    `json:"tenantId"`
 	ActorSub string    `json:"actorSub"`
 	GroupID  string    `json:"groupId"`
 	UserSub  string    `json:"userSub"`
@@ -377,6 +391,7 @@ func (e *GroupMemberAdded) OccurredAt() time.Time { return e.At }
 
 type GroupMemberRemoved struct {
 	At       time.Time `json:"-"`
+	TenantID string    `json:"tenantId"`
 	ActorSub string    `json:"actorSub"`
 	GroupID  string    `json:"groupId"`
 	UserSub  string    `json:"userSub"`

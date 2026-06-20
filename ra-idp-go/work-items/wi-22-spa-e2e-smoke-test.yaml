@@ -1,8 +1,33 @@
 id: wi-22-spa-e2e-smoke-test
 title: SPA E2E スモークテストを Playwright で 1 本だけ導入する
 created_at: 2026-06-19
-status: pending
+status: completed
 authors: [tn]
+
+amendments:
+  - >-
+    2026-06-21: テストランナーを Playwright から Bun 組み込みの `Bun.WebView` +
+    `bun test` に変更した。理由: (a) `Bun.WebView` は macOS で WKWebView を使い
+    zero-dependency・ブラウザのダウンロード不要 (Linux/Windows は既存 Chrome を
+    CDP で駆動) で、本 WI の動機「Playwright や別ブラウザ取得なしで golden path
+    を縛る」に最も合致する、(b) CLAUDE.md の Bun 優先方針に沿う、(c) chromium
+    取得 (`playwright install`) が不要になり CI / サンドボックス制約に強い。
+    これに伴い `@playwright/test` 依存・`playwright.config.ts`・`globalSetup`・
+    `test:e2e:install` スクリプトは作らない。コールバック収集はテストプロセス内の
+    `Bun.serve` (:3000) で行い、認可レスポンス URL は `view.url` から直接読む。
+    assert 対象 (dispatcher の `meta[name="ra-idp:page"]` と callback の code/iss)
+    と golden path は WI 記載どおり。`Bun.WebView` が experimental である点は
+    スモーク 1 本・Bun バージョン固定の範囲で受容する。
+  - >-
+    2026-06-21: dispatcher 不変条件の `meta[name="ra-idp:page"]` は実装側に存在
+    しない drift だった。assert を成立させるため `ui/src/main.tsx` の bootstrap で
+    `loadPageData()` の `data.kind` (唯一の真実源) を `<meta name="ra-idp:page">`
+    として出力する最小実装を追加した。
+  - >-
+    2026-06-21: 起動構成は README のローカル開発手順に合わせ
+    `ADDR=:8081 ISSUER=http://localhost:5173`。WI 当初記載の
+    `ISSUER=http://localhost:<port>` は不正確で、`verifyBrowserRequest` が Origin と
+    ISSUER オリジンの一致を要求するため ISSUER はブラウザ origin (5173) に合わせる。
 
 motivation: |
   現状の検証層 (`go test`, `bun typecheck` / `lint` / `build`) では次の
@@ -138,3 +163,65 @@ risk_notes: |
   catch できない。これは現時点での意思決定であり、現状の
   RP / End-user の主要ブラウザは chromium 系で十分に代表できる
   という判断 (本番ターゲットが変わったら拡張する)。
+
+completion:
+  completed_at: 2026-06-21
+
+  summary: |
+    SPA の golden path (authorize -> login -> consent -> callback) を 1 本の
+    E2E スモークとして導入した。ランナーは Playwright ではなく Bun 組み込みの
+    `Bun.WebView` + `bun test` (amendments 参照)。テストは Go API (memory,
+    :8081)・Vite dev (:5173)・demo-client の redirect_uri を受ける最小コールバック
+    サーバ (:3000) を自動起動/停止し、(1) ログイン画面で `meta[name="ra-idp:page"]`
+    が `login` であること + `input[name="username"]` の存在、(2) ログイン後に
+    `consent` へ遷移すること、(3) 「許可して続行」後の cross-origin redirect で
+    callback URL に `code` / `iss` / `state` が乗ること、を assert する。
+    dispatcher 不変条件を成立させるため `ui/src/main.tsx` に
+    `meta[name="ra-idp:page"]` 出力を追加した。
+
+  semantic_diff:
+    before: >-
+      検証層は go test / typecheck / lint / build のみで、SPA dispatcher の画面
+      分岐 (空白画面事故) と cross-origin redirect での code/iss 欠落をブラウザ
+      レイヤで捕まえる手段が無かった。dispatcher 種別を DOM に表明するマーカーも
+      存在しなかった。
+    after: >-
+      `bun run test:e2e` が golden path をブラウザ実機 (Bun.WebView) で 1 本縛り、
+      dispatcher 分岐と redirect 挙動の回帰を機械検知する。SPA は
+      `meta[name="ra-idp:page"]` で描画ページ種別を表明する。
+
+  affected_guarantees_state:
+    - "SPA dispatcher invariant: bootstrap が data.kind を meta[name=\"ra-idp:page\"] に出力。login / consent を assert。"
+    - "Callback fetch behavior: consent 後の cross-origin redirect (5173 -> 3000) で code と iss が保持される (RFC 9207) ことを実ブラウザ遷移後の view.url で検証。"
+    - "Demo seed contract: demo-client + alice / demo-password-1234 で golden path が成立 (seed.go と整合)。"
+
+  traceability:
+    - implementation:
+        files:
+          - ra-idp-go/ui/src/main.tsx
+          - ra-idp-go/ui/package.json
+          - ra-idp-go/README.md
+          - ra-idp-go/ui/README.md
+        tests:
+          - ra-idp-go/ui/tests/e2e/authorize-golden-path.spec.ts
+          - ra-idp-go/ui/tests/e2e/fixtures.ts
+
+  verification:
+    - cmd: "bun --cwd ra-idp-go/ui run test:e2e"
+      result: "1 pass (golden path)"
+    - cmd: "bun --cwd ra-idp-go/ui typecheck"
+      result: ok
+    - cmd: "bun --cwd ra-idp-go/ui lint"
+      result: "ok (49 files)"
+    - cmd: "bun --cwd ra-idp-go/ui build"
+      result: ok
+    - >-
+      自己テスト: main.tsx の markPage を定数に壊すと test:e2e が
+      "timeout waiting for page kind=login" で fail することを確認 (回帰検知が
+      機能している)。修正後は再び pass。
+
+  residual_risk:
+    - "Bun.WebView は experimental。API 変更・WKWebView/Chrome バックエンド差のリスクは Bun バージョン固定とスモーク 1 本の範囲で受容。"
+    - "1 ブラウザ (macOS は WKWebView) のみ。Firefox / 他エンジンの SPA 挙動差は対象外。"
+    - "consent 拒否経路・error 画面・device flow・PAR・CI 常駐 (GitHub Actions) は別 WI。"
+    - "Go API は go build したバイナリを spawn して直接 kill する。go / bun が PATH に必要。"

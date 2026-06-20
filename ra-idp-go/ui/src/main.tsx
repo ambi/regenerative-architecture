@@ -11,9 +11,23 @@ if (!root) {
   throw new Error('RA Identity root element is missing')
 }
 
+// markPage は描画したページ種別を <meta name="ra-idp:page"> で DOM に表明する。
+// SPA dispatcher の分岐 (login / consent / device など) を E2E から機械的に
+// 検証できるようにするための不変条件マーカー (wi-22)。
+function markPage(kind: string) {
+  let meta = document.head.querySelector<HTMLMetaElement>('meta[name="ra-idp:page"]')
+  if (!meta) {
+    meta = document.createElement('meta')
+    meta.name = 'ra-idp:page'
+    document.head.appendChild(meta)
+  }
+  meta.content = kind
+}
+
 async function start() {
   try {
     const pageData = await loadPageData()
+    markPage(pageData.kind)
     const router = createAppRouter(pageData)
     createRoot(root!).render(
       <StrictMode>
@@ -21,6 +35,7 @@ async function start() {
       </StrictMode>,
     )
   } catch (error) {
+    markPage('error')
     const message =
       error instanceof AuthenticationAPIError
         ? error.message

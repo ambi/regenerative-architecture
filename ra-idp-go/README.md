@@ -361,19 +361,11 @@ inbound 連携を両方サポートする。SAML 2.0 IdP は現代の B2B SaaS /
 | 領域                   | 不足している機能                                                                                                                                                                                                                           |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 開発者向け             | SDK、クライアント設定テンプレート、well-known docs、エラー診断・トラブルシュート                                                                                                                                                           |
-| SPA E2E スモークテスト | Playwright で `/authorize → login → consent → callback URL に code=` が乗るまでを 1 本のテストとして通す。SPA の DOM 描画と `fetch` の cross-origin redirect 挙動はバックエンドの bun test では捕まらないため、別レイヤが必要 (詳細は下記) |
 | プロトコル conformance | OAuth / OIDC conformance smoke suite を CI に常駐                                                                                                                                                                                          |
 
-**SPA E2E スモークテストの最小要件**:
-
-- `@playwright/test` を `ra-idp-go/ui/` の devDependency に追加し、`ui/tests/e2e/` 配下に置く。
-- フィクスチャでバックエンドを `memory` モードで起動し、`localhost:8080/callback` 相当のミニマムなコールバック収集サーバを Playwright `globalSetup` で別ポートに立てる。
-- シナリオ 1 本:
-  1. `http://localhost:3000/authorize?client_id=demo-web-app&...` を開く。
-  2. `meta[name="ra-idp:page"][content="login"]` が描画され、`input[name="username"]` が見えることを assert (TanStack Router の dispatcher 回帰防止)。
-  3. `alice` / `demo-password-1234` を入力して送信。
-  4. consent 画面 (`meta[name="ra-idp:page"][content="consent"]`) が表示されることを assert。
-  5. 「許可する」を押し、コールバックサーバが受け取った URL に `code=...&iss=...` が乗ることを assert (`fetch` の cross-origin redirect 挙動の回帰防止)。
-- CI では Chromium だけインストール (`npx playwright install chromium`)。
-
-これにより SPA の dispatcher と redirect モードの両方が回帰なく機能していることを 1 テストで保証できる。
+**SPA E2E スモークテスト**: 実装済 (wi-22)。`/authorize → login → consent → callback URL に
+`code=` と `iss=` が乗る` までの golden path を `ra-idp-go/ui/tests/e2e/` に 1 本だけ持つ。
+SPA dispatcher の画面分岐 (`meta[name="ra-idp:page"]`) と cross-origin redirect 挙動の回帰を
+機械検知する。ランナーは `bun test` + 組み込みの `Bun.WebView` (macOS は WKWebView、その他は
+Chrome via CDP) で、Playwright や別ブラウザの取得は不要。実行は `bun --cwd ra-idp-go/ui run test:e2e`
+(詳細は `ui/README.md`)。シナリオ拡充・consent 拒否・error 画面・CI 常駐は別 WI。

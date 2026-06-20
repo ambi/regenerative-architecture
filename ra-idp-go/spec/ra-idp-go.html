@@ -538,7 +538,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
       <a class="overview-tile" href="#tab=work-items">
         <div class="overview-tile-label">Work Items</div>
         <div class="overview-tile-num">36</div>
-        <div class="overview-tile-hint">0 in progress · 18 pending · 18 done</div>
+        <div class="overview-tile-hint">0 in progress · 17 pending · 19 done</div>
       </a>
     </div>
   </section></div>
@@ -16183,7 +16183,7 @@ UI は後続 PR。</li>
       <div class="eyebrow">Work Items</div>
       <h1>Work items</h1>
     </header>
-    <div class="stats"><span class="stat"><span class="stat-num">18</span><span class="stat-label">pending</span></span><span class="stat"><span class="stat-num">18</span><span class="stat-label">completed</span></span></div>
+    <div class="stats"><span class="stat"><span class="stat-num">17</span><span class="stat-label">pending</span></span><span class="stat"><span class="stat-num">19</span><span class="stat-label">completed</span></span></div>
   </section>
   <section id="ch-index">
     <h2>Index</h2>
@@ -16259,12 +16259,6 @@ UI は後続 PR。</li>
         <span class="ch-title">署名鍵 rotation を運用で自動化する (scheduler + grace 期間中の旧鍵保持)</span>
         <span class="badge badge-status-pending">pending</span>
         <span class="badge badge-risk-medium">medium</span>
-
-      </a><a class="ch-index-row" href="#wi-22-spa-e2e-smoke-test">
-        <code class="ch-id">wi-22-spa-e2e-smoke-test</code>
-        <span class="ch-title">SPA E2E スモークテストを Playwright で 1 本だけ導入する</span>
-        <span class="badge badge-status-pending">pending</span>
-        <span class="badge badge-risk-low">low</span>
 
       </a><a class="ch-index-row" href="#wi-21-end-user-account-portal">
         <code class="ch-id">wi-21-end-user-account-portal</code>
@@ -16361,6 +16355,12 @@ UI は後続 PR。</li>
         <span class="ch-title">監査イベントに emit 時点で tenant_id を載せ、テナント所属 admin の監査ビューに出るようにする</span>
         <span class="badge badge-status-done">completed</span>
         <span class="badge badge-risk-medium">medium</span>
+        <span class="chip chip-has-cr">completion</span>
+      </a><a class="ch-index-row" href="#wi-22-spa-e2e-smoke-test">
+        <code class="ch-id">wi-22-spa-e2e-smoke-test</code>
+        <span class="ch-title">SPA E2E スモークテストを Playwright で 1 本だけ導入する</span>
+        <span class="badge badge-status-done">completed</span>
+        <span class="badge badge-risk-low">low</span>
         <span class="chip chip-has-cr">completion</span>
       </a><a class="ch-index-row" href="#wi-19-rich-user-attributes">
         <code class="ch-id">wi-19-rich-user-attributes</code>
@@ -17080,82 +17080,6 @@ archive 表が単調増加する。</p>
 <p>(3) Multi-tenant 共有鍵: 現状の共有鍵を rotate する影響は全 tenant に
 及ぶ。本 WI ではこれを既存制約として明記し、per-tenant 化は
 Phase 8 の前提条件として残す。</p>
-</div></details>
-  </div>
-
-  </article><article class="card change" id="wi-22-spa-e2e-smoke-test">
-    <header>
-      <h3>SPA E2E スモークテストを Playwright で 1 本だけ導入する</h3>
-      <span class="chip chip-hint">wi-22-spa-e2e-smoke-test</span>
-
-    </header>
-    <div class="work-item">
-    <header class="wi-header">
-      <h4>SPA E2E スモークテストを Playwright で 1 本だけ導入する</h4>
-      <div class="wi-meta"><span class="badge badge-status-pending">pending</span> <span class="badge badge-risk-low">risk: low</span> <span class="chip chip-hint">created 2026-06-19</span> <span class="chip chip-hint">authors: tn</span></div>
-    </header>
-    <details class="change-block" open><summary>Motivation</summary><div class="md"><p>現状の検証層 (<code>go test</code>, <code>bun typecheck</code> / <code>lint</code> / <code>build</code>) では次の
-2 つの回帰を捕まえられない:</p>
-<ul>
-<li>TanStack Router 配下の SPA dispatcher (login / consent / device /
-error のいずれを描画するかを <code>meta[name=&quot;ra-idp:page&quot;]</code> で表明する
-層)。過去 dispatcher の分岐ミスで login URL を開いても空白画面
-になる事故があった。</li>
-<li><code>/authorize</code> → 認可コードを乗せた callback URL への遷移における
-cross-origin redirect 挙動。<code>fetch</code> の redirect モードや
-<code>Same-Site</code> 設定で <code>code=...</code> と <code>iss=...</code> の片方が落ちる事故が
-過去に発生している (RFC 9207 と整合させた経緯)。</li>
-</ul>
-<p>Go 側のユニットテストは「正しい HTTP レスポンスを返す」ことは保証
-するが、ブラウザの DOM が実際に描画され <code>fetch</code> が想定の挙動を取って
-いることは別レイヤでしか確認できない。Playwright スモーク 1 本で
-golden path を縛り、上記 2 領域の回帰を機械的に検知する。</p>
-<p>本 WI はテスト戦略の足場 (Playwright runtime / fixture / 1 シナリオ)
-を入れるところまで。シナリオの拡充や consent 拒否経路、<code>error</code> page
-の検証は別 WI で積み増す。</p>
-</div></details><details class="change-block"><summary>Scope</summary><div class="scope-group"><h4>decision</h4><ul class="change-list"><li><div class="md"><p>新規 ADR は不要。テスト戦略の段階導入は README §Phase 9 の &quot;SPA E2E スモークテスト&quot; の最小要件をそのまま実装する範囲。</p>
-</div></li></ul></div><div class="scope-group"><h4>go</h4><ul class="change-list"><li><div class="md"><p>変更なし。Playwright fixture から <code>cmd/ra-idp-go</code> を <code>PERSISTENCE=memory ISSUER=http://localhost:&lt;port&gt;</code> で起動する ので、追加の起動オプションは設けない。</p>
-</div></li></ul></div><div class="scope-group"><h4>ui</h4><dl class="kv change-kv"><dt>dependencies</dt><dd><ul class="change-list"><li><div class="md"><p><code>ra-idp-go/ui/package.json</code> の devDependency に <code>@playwright/test</code> を追加する。<code>bun install</code> で取得し、 <code>npx playwright install chromium</code> で chromium だけ取得する 方針 (Firefox / WebKit は本 WI では入れない)。</p>
-</div></li></ul></dd><dt>layout</dt><dd><ul class="change-list"><li><div class="md"><p><code>ra-idp-go/ui/tests/e2e/</code> 配下に Playwright 設定 (<code>playwright.config.ts</code>) と shared fixture (<code>fixtures.ts</code>) を置く。<code>bun.lock</code> に新規依存が 追加される。</p>
-</div></li><li><div class="md"><p><code>playwright.config.ts</code> の <code>webServer</code> で Vite dev server を起動し、 <code>globalSetup</code> で次を立ち上げる:
-(a) Go API を memory mode で別ポートに起動。
-(b) コールバック収集用のミニマムな HTTP サーバ (Node 標準モジュール
-のみで実装) を別ポートに起動。受け取った URL を fixture が参照
-できる場所に書く。</p>
-</div></li></ul></dd><dt>scenarios</dt><dd><ul class="change-list"><li><div class="md"><p><code>tests/e2e/authorize-golden-path.spec.ts</code> を 1 本だけ追加する:</p>
-<ol>
-<li><code>/authorize?client_id=demo-client&amp;response_type=code&amp;...</code> を
-開く。</li>
-<li><code>meta[name=&quot;ra-idp:page&quot;][content=&quot;login&quot;]</code> の存在と
-<code>input[name=&quot;username&quot;]</code> の可視性を assert (dispatcher 回帰
-防止)。</li>
-<li><code>alice</code> / <code>demo-password-1234</code> を入力して submit。</li>
-<li><code>meta[name=&quot;ra-idp:page&quot;][content=&quot;consent&quot;]</code> を assert。</li>
-<li>「許可する」を押す。</li>
-<li>コールバック収集サーバが受けた URL に <code>code=...</code> と
-<code>iss=...</code> が乗っていることを assert (cross-origin redirect
-の回帰防止)。</li>
-</ol>
-</div></li></ul></dd><dt>scripts</dt><dd><ul class="change-list"><li><div class="md"><p><code>package.json</code> に <code>&quot;test:e2e&quot;: &quot;playwright test&quot;</code> と <code>&quot;test:e2e:install&quot;: &quot;playwright install chromium&quot;</code> を追加する。</p>
-</div></li></ul></dd></dl></div><div class="scope-group"><h4>documentation</h4><ul class="change-list"><li><div class="md"><p><code>ra-idp-go/ui/README.md</code> (または <code>ra-idp-go/README.md</code>) に 「E2E スモーク」節を追加し、<code>bun run test:e2e:install</code> → <code>bun run test:e2e</code> のローカル実行手順を書く。</p>
-</div></li><li><div class="md"><p>README §Phase 9 の &quot;SPA E2E スモークテスト&quot; 行は completion で 「実装済 (本 WI)」として除去を記録する。</p>
-</div></li></ul></div></details><details class="change-block"><summary>Out of scope</summary><ul class="change-list"><li><div class="md"><p>Chromium 以外のブラウザ (Firefox / WebKit) でのクロスブラウザ 実行。本 WI は 1 ブラウザに固定する。</p>
-</div></li><li><div class="md"><p>consent 拒否経路、<code>error</code> page の表示確認、device flow、PAR の E2E。golden path 1 本のみ。</p>
-</div></li><li><div class="md"><p>visual regression / screenshot diff。</p>
-</div></li><li><div class="md"><p>GitHub Actions / CI へのワイヤリング。ローカル実行可能にして 完了。CI 化は別 WI とする。</p>
-</div></li><li><div class="md"><p>OAuth / OIDC conformance suite。これは別タスク (Phase 9 末尾)。</p>
-</div></li><li><div class="md"><p>Storybook / コンポーネント単位の visual テスト。</p>
-</div></li></ul></details><details class="change-block"><summary>Affected guarantees</summary><ul class="change-list"><li><div class="md"><p>SPA dispatcher invariant: login / consent / device / error の 各画面で <code>meta[name=&quot;ra-idp:page&quot;][content=&lt;expected&gt;]</code> が 描画される。本 WI では login / consent の 2 つだけ assert する。</p>
-</div></li><li><div class="md"><p>Callback fetch behavior: <code>/authorize</code> から callback への redirect で <code>code</code> と <code>iss</code> の両方が消えないこと。RFC 9207 の <code>iss</code> 検査前提を 破らない。</p>
-</div></li><li><div class="md"><p>Demo seed contract: <code>demo-client</code> + <code>alice</code> / <code>demo-password-1234</code> で golden path が成立し続けること。README §デモシードと整合。</p>
-</div></li></ul></details><details class="change-block"><summary>Verification</summary><ul class="change-list"><li><code>bun --cwd ra-idp-go/ui install</code> <span class="muted">— Playwright 依存の取得を確認する。</span></li><li><code>bun --cwd ra-idp-go/ui test:e2e:install</code> <span class="muted">— chromium の取得を確認する。</span></li><li><code>bun --cwd ra-idp-go/ui test:e2e</code> <span class="muted">— スモーク 1 シナリオが pass することを確認する。</span></li><li><code>bun --cwd ra-idp-go/ui typecheck</code></li><li><code>bun --cwd ra-idp-go/ui lint</code></li><li><code>bun --cwd ra-idp-go/ui build</code></li><li><div class="md"><p>手動: 意図的に <code>dispatcher</code> の login / consent 分岐を一行壊して <code>test:e2e</code> が失敗することを目視確認する (回帰検知が機能している ことの自己テスト)。</p>
-</div></li></ul></details><details class="change-block"><summary>Risk notes</summary><div class="md"><p>Playwright 自身の維持コスト (chromium バイナリ更新) は CI 化を本 WI で
-しない範囲では限定的。ローカルで <code>bun run test:e2e</code> を CI に乗せる
-かは別 WI で判断する。</p>
-<p>1 ブラウザのみで開始するため、Firefox / Safari の SPA 挙動差は
-catch できない。これは現時点での意思決定であり、現状の
-RP / End-user の主要ブラウザは chromium 系で十分に代表できる
-という判断 (本番ターゲットが変わったら拡張する)。</p>
 </div></details>
   </div>
 
@@ -19132,6 +19056,117 @@ user/group 操作は対象 aggregate の TenantID (actor と一致)。</p>
 </div></li><li><div class="md"><p>newAuditEventRecord (internal/bootstrap/audit_event_record.go) は 変更なし。狙いどおり既存の tenantId 抽出が効くようになった。</p>
 </div></li></ul></details><details class="change-block"><summary>Test Changes</summary><ul class="change-list"><li><div class="md"><p>internal/bootstrap/audit_event_record_test.go (新規): emit 時の tenantId が監査レコードの TenantID に流れ込むこと、tenantId を持たない event (EmailSent) は空のままであることを固定。既存の admin_audit_event_handler_test.go は「tenantId が載っていればテナント admin に見える」フィルタ挙動を既にカバーしており、本 WI で初めて その前提 (emit が tenantId を載せる) が実コードで満たされた。</p>
 </div></li></ul></details>
+  </div>
+  </article><article class="card change" id="wi-22-spa-e2e-smoke-test">
+    <header>
+      <h3>SPA E2E スモークテストを Playwright で 1 本だけ導入する</h3>
+      <span class="chip chip-hint">wi-22-spa-e2e-smoke-test</span>
+      <span class="badge badge-has-cr">has completion</span>
+    </header>
+    <div class="work-item">
+    <header class="wi-header">
+      <h4>SPA E2E スモークテストを Playwright で 1 本だけ導入する</h4>
+      <div class="wi-meta"><span class="badge badge-status-done">completed</span> <span class="badge badge-risk-low">risk: low</span> <span class="chip chip-hint">created 2026-06-19</span> <span class="chip chip-hint">authors: tn</span></div>
+    </header>
+    <details class="change-block" open><summary>Motivation</summary><div class="md"><p>現状の検証層 (<code>go test</code>, <code>bun typecheck</code> / <code>lint</code> / <code>build</code>) では次の
+2 つの回帰を捕まえられない:</p>
+<ul>
+<li>TanStack Router 配下の SPA dispatcher (login / consent / device /
+error のいずれを描画するかを <code>meta[name=&quot;ra-idp:page&quot;]</code> で表明する
+層)。過去 dispatcher の分岐ミスで login URL を開いても空白画面
+になる事故があった。</li>
+<li><code>/authorize</code> → 認可コードを乗せた callback URL への遷移における
+cross-origin redirect 挙動。<code>fetch</code> の redirect モードや
+<code>Same-Site</code> 設定で <code>code=...</code> と <code>iss=...</code> の片方が落ちる事故が
+過去に発生している (RFC 9207 と整合させた経緯)。</li>
+</ul>
+<p>Go 側のユニットテストは「正しい HTTP レスポンスを返す」ことは保証
+するが、ブラウザの DOM が実際に描画され <code>fetch</code> が想定の挙動を取って
+いることは別レイヤでしか確認できない。Playwright スモーク 1 本で
+golden path を縛り、上記 2 領域の回帰を機械的に検知する。</p>
+<p>本 WI はテスト戦略の足場 (Playwright runtime / fixture / 1 シナリオ)
+を入れるところまで。シナリオの拡充や consent 拒否経路、<code>error</code> page
+の検証は別 WI で積み増す。</p>
+</div></details><details class="change-block"><summary>Scope</summary><div class="scope-group"><h4>decision</h4><ul class="change-list"><li><div class="md"><p>新規 ADR は不要。テスト戦略の段階導入は README §Phase 9 の &quot;SPA E2E スモークテスト&quot; の最小要件をそのまま実装する範囲。</p>
+</div></li></ul></div><div class="scope-group"><h4>go</h4><ul class="change-list"><li><div class="md"><p>変更なし。Playwright fixture から <code>cmd/ra-idp-go</code> を <code>PERSISTENCE=memory ISSUER=http://localhost:&lt;port&gt;</code> で起動する ので、追加の起動オプションは設けない。</p>
+</div></li></ul></div><div class="scope-group"><h4>ui</h4><dl class="kv change-kv"><dt>dependencies</dt><dd><ul class="change-list"><li><div class="md"><p><code>ra-idp-go/ui/package.json</code> の devDependency に <code>@playwright/test</code> を追加する。<code>bun install</code> で取得し、 <code>npx playwright install chromium</code> で chromium だけ取得する 方針 (Firefox / WebKit は本 WI では入れない)。</p>
+</div></li></ul></dd><dt>layout</dt><dd><ul class="change-list"><li><div class="md"><p><code>ra-idp-go/ui/tests/e2e/</code> 配下に Playwright 設定 (<code>playwright.config.ts</code>) と shared fixture (<code>fixtures.ts</code>) を置く。<code>bun.lock</code> に新規依存が 追加される。</p>
+</div></li><li><div class="md"><p><code>playwright.config.ts</code> の <code>webServer</code> で Vite dev server を起動し、 <code>globalSetup</code> で次を立ち上げる:
+(a) Go API を memory mode で別ポートに起動。
+(b) コールバック収集用のミニマムな HTTP サーバ (Node 標準モジュール
+のみで実装) を別ポートに起動。受け取った URL を fixture が参照
+できる場所に書く。</p>
+</div></li></ul></dd><dt>scenarios</dt><dd><ul class="change-list"><li><div class="md"><p><code>tests/e2e/authorize-golden-path.spec.ts</code> を 1 本だけ追加する:</p>
+<ol>
+<li><code>/authorize?client_id=demo-client&amp;response_type=code&amp;...</code> を
+開く。</li>
+<li><code>meta[name=&quot;ra-idp:page&quot;][content=&quot;login&quot;]</code> の存在と
+<code>input[name=&quot;username&quot;]</code> の可視性を assert (dispatcher 回帰
+防止)。</li>
+<li><code>alice</code> / <code>demo-password-1234</code> を入力して submit。</li>
+<li><code>meta[name=&quot;ra-idp:page&quot;][content=&quot;consent&quot;]</code> を assert。</li>
+<li>「許可する」を押す。</li>
+<li>コールバック収集サーバが受けた URL に <code>code=...</code> と
+<code>iss=...</code> が乗っていることを assert (cross-origin redirect
+の回帰防止)。</li>
+</ol>
+</div></li></ul></dd><dt>scripts</dt><dd><ul class="change-list"><li><div class="md"><p><code>package.json</code> に <code>&quot;test:e2e&quot;: &quot;playwright test&quot;</code> と <code>&quot;test:e2e:install&quot;: &quot;playwright install chromium&quot;</code> を追加する。</p>
+</div></li></ul></dd></dl></div><div class="scope-group"><h4>documentation</h4><ul class="change-list"><li><div class="md"><p><code>ra-idp-go/ui/README.md</code> (または <code>ra-idp-go/README.md</code>) に 「E2E スモーク」節を追加し、<code>bun run test:e2e:install</code> → <code>bun run test:e2e</code> のローカル実行手順を書く。</p>
+</div></li><li><div class="md"><p>README §Phase 9 の &quot;SPA E2E スモークテスト&quot; 行は completion で 「実装済 (本 WI)」として除去を記録する。</p>
+</div></li></ul></div></details><details class="change-block"><summary>Out of scope</summary><ul class="change-list"><li><div class="md"><p>Chromium 以外のブラウザ (Firefox / WebKit) でのクロスブラウザ 実行。本 WI は 1 ブラウザに固定する。</p>
+</div></li><li><div class="md"><p>consent 拒否経路、<code>error</code> page の表示確認、device flow、PAR の E2E。golden path 1 本のみ。</p>
+</div></li><li><div class="md"><p>visual regression / screenshot diff。</p>
+</div></li><li><div class="md"><p>GitHub Actions / CI へのワイヤリング。ローカル実行可能にして 完了。CI 化は別 WI とする。</p>
+</div></li><li><div class="md"><p>OAuth / OIDC conformance suite。これは別タスク (Phase 9 末尾)。</p>
+</div></li><li><div class="md"><p>Storybook / コンポーネント単位の visual テスト。</p>
+</div></li></ul></details><details class="change-block"><summary>Affected guarantees</summary><ul class="change-list"><li><div class="md"><p>SPA dispatcher invariant: login / consent / device / error の 各画面で <code>meta[name=&quot;ra-idp:page&quot;][content=&lt;expected&gt;]</code> が 描画される。本 WI では login / consent の 2 つだけ assert する。</p>
+</div></li><li><div class="md"><p>Callback fetch behavior: <code>/authorize</code> から callback への redirect で <code>code</code> と <code>iss</code> の両方が消えないこと。RFC 9207 の <code>iss</code> 検査前提を 破らない。</p>
+</div></li><li><div class="md"><p>Demo seed contract: <code>demo-client</code> + <code>alice</code> / <code>demo-password-1234</code> で golden path が成立し続けること。README §デモシードと整合。</p>
+</div></li></ul></details><details class="change-block"><summary>Verification</summary><ul class="change-list"><li><code>bun --cwd ra-idp-go/ui install</code> <span class="muted">— Playwright 依存の取得を確認する。</span></li><li><code>bun --cwd ra-idp-go/ui test:e2e:install</code> <span class="muted">— chromium の取得を確認する。</span></li><li><code>bun --cwd ra-idp-go/ui test:e2e</code> <span class="muted">— スモーク 1 シナリオが pass することを確認する。</span></li><li><code>bun --cwd ra-idp-go/ui typecheck</code></li><li><code>bun --cwd ra-idp-go/ui lint</code></li><li><code>bun --cwd ra-idp-go/ui build</code></li><li><div class="md"><p>手動: 意図的に <code>dispatcher</code> の login / consent 分岐を一行壊して <code>test:e2e</code> が失敗することを目視確認する (回帰検知が機能している ことの自己テスト)。</p>
+</div></li></ul></details><details class="change-block"><summary>Risk notes</summary><div class="md"><p>Playwright 自身の維持コスト (chromium バイナリ更新) は CI 化を本 WI で
+しない範囲では限定的。ローカルで <code>bun run test:e2e</code> を CI に乗せる
+かは別 WI で判断する。</p>
+<p>1 ブラウザのみで開始するため、Firefox / Safari の SPA 挙動差は
+catch できない。これは現時点での意思決定であり、現状の
+RP / End-user の主要ブラウザは chromium 系で十分に代表できる
+という判断 (本番ターゲットが変わったら拡張する)。</p>
+</div></details><details class="change-block"><summary>Amendments</summary><ul class="change-list"><li><div class="md"><p>2026-06-21: テストランナーを Playwright から Bun 組み込みの <code>Bun.WebView</code> + <code>bun test</code> に変更した。理由: (a) <code>Bun.WebView</code> は macOS で WKWebView を使い zero-dependency・ブラウザのダウンロード不要 (Linux/Windows は既存 Chrome を CDP で駆動) で、本 WI の動機「Playwright や別ブラウザ取得なしで golden path を縛る」に最も合致する、(b) CLAUDE.md の Bun 優先方針に沿う、(c) chromium 取得 (<code>playwright install</code>) が不要になり CI / サンドボックス制約に強い。 これに伴い <code>@playwright/test</code> 依存・<code>playwright.config.ts</code>・<code>globalSetup</code>・ <code>test:e2e:install</code> スクリプトは作らない。コールバック収集はテストプロセス内の <code>Bun.serve</code> (:3000) で行い、認可レスポンス URL は <code>view.url</code> から直接読む。 assert 対象 (dispatcher の <code>meta[name=&quot;ra-idp:page&quot;]</code> と callback の code/iss) と golden path は WI 記載どおり。<code>Bun.WebView</code> が experimental である点は スモーク 1 本・Bun バージョン固定の範囲で受容する。</p>
+</div></li><li><div class="md"><p>2026-06-21: dispatcher 不変条件の <code>meta[name=&quot;ra-idp:page&quot;]</code> は実装側に存在 しない drift だった。assert を成立させるため <code>ui/src/main.tsx</code> の bootstrap で <code>loadPageData()</code> の <code>data.kind</code> (唯一の真実源) を <code>&lt;meta name=&quot;ra-idp:page&quot;&gt;</code> として出力する最小実装を追加した。</p>
+</div></li><li><div class="md"><p>2026-06-21: 起動構成は README のローカル開発手順に合わせ <code>ADDR=:8081 ISSUER=http://localhost:5173</code>。WI 当初記載の <code>ISSUER=http://localhost:&lt;port&gt;</code> は不正確で、<code>verifyBrowserRequest</code> が Origin と ISSUER オリジンの一致を要求するため ISSUER はブラウザ origin (5173) に合わせる。</p>
+</div></li></ul></details>
+  </div>
+    <div class="completion-record">
+    <header class="cr-header">
+      <h4>Completion</h4>
+      <div class="cr-meta"><span class="badge badge-status-done">completed</span> <span class="chip chip-hint">completed 2026-06-21</span></div>
+    </header>
+    <details class="change-block" open><summary>Summary</summary><div class="md"><p>SPA の golden path (authorize -&gt; login -&gt; consent -&gt; callback) を 1 本の
+E2E スモークとして導入した。ランナーは Playwright ではなく Bun 組み込みの
+<code>Bun.WebView</code> + <code>bun test</code> (amendments 参照)。テストは Go API (memory,
+:8081)・Vite dev (:5173)・demo-client の redirect_uri を受ける最小コールバック
+サーバ (:3000) を自動起動/停止し、(1) ログイン画面で <code>meta[name=&quot;ra-idp:page&quot;]</code>
+が <code>login</code> であること + <code>input[name=&quot;username&quot;]</code> の存在、(2) ログイン後に
+<code>consent</code> へ遷移すること、(3) 「許可して続行」後の cross-origin redirect で
+callback URL に <code>code</code> / <code>iss</code> / <code>state</code> が乗ること、を assert する。
+dispatcher 不変条件を成立させるため <code>ui/src/main.tsx</code> に
+<code>meta[name=&quot;ra-idp:page&quot;]</code> 出力を追加した。</p>
+</div></details><details class="change-block"><summary>Semantic diff</summary><dl class="kv change-kv"><dt>before</dt><dd><div class="md"><p>検証層は go test / typecheck / lint / build のみで、SPA dispatcher の画面 分岐 (空白画面事故) と cross-origin redirect での code/iss 欠落をブラウザ レイヤで捕まえる手段が無かった。dispatcher 種別を DOM に表明するマーカーも 存在しなかった。</p>
+</div></dd><dt>after</dt><dd><div class="md"><p><code>bun run test:e2e</code> が golden path をブラウザ実機 (Bun.WebView) で 1 本縛り、 dispatcher 分岐と redirect 挙動の回帰を機械検知する。SPA は <code>meta[name=&quot;ra-idp:page&quot;]</code> で描画ページ種別を表明する。</p>
+</div></dd></dl></details><details class="change-block"><summary>Verification results</summary><ul class="change-list"><li><code>bun --cwd ra-idp-go/ui run test:e2e</code> <span class="muted">→ 1 pass (golden path)</span></li><li><code>bun --cwd ra-idp-go/ui typecheck</code> <span class="muted">→ ok</span></li><li><code>bun --cwd ra-idp-go/ui lint</code> <span class="muted">→ ok (49 files)</span></li><li><code>bun --cwd ra-idp-go/ui build</code> <span class="muted">→ ok</span></li><li><div class="md"><p>自己テスト: main.tsx の markPage を定数に壊すと test:e2e が &quot;timeout waiting for page kind=login&quot; で fail することを確認 (回帰検知が 機能している)。修正後は再び pass。</p>
+</div></li></ul></details><details class="change-block"><summary>Guarantees state</summary><ul class="change-list"><li><div class="md"><p>SPA dispatcher invariant: bootstrap が data.kind を meta[name=&quot;ra-idp:page&quot;] に出力。login / consent を assert。</p>
+</div></li><li><div class="md"><p>Callback fetch behavior: consent 後の cross-origin redirect (5173 -&gt; 3000) で code と iss が保持される (RFC 9207) ことを実ブラウザ遷移後の view.url で検証。</p>
+</div></li><li><div class="md"><p>Demo seed contract: demo-client + alice / demo-password-1234 で golden path が成立 (seed.go と整合)。</p>
+</div></li></ul></details><details class="change-block"><summary>Residual risk</summary><ul class="change-list"><li><div class="md"><p>Bun.WebView は experimental。API 変更・WKWebView/Chrome バックエンド差のリスクは Bun バージョン固定とスモーク 1 本の範囲で受容。</p>
+</div></li><li><div class="md"><p>1 ブラウザ (macOS は WKWebView) のみ。Firefox / 他エンジンの SPA 挙動差は対象外。</p>
+</div></li><li><div class="md"><p>consent 拒否経路・error 画面・device flow・PAR・CI 常駐 (GitHub Actions) は別 WI。</p>
+</div></li><li><div class="md"><p>Go API は go build したバイナリを spawn して直接 kill する。go / bun が PATH に必要。</p>
+</div></li></ul></details><details class="change-block"><summary>Traceability</summary><ul class="change-list"><li><dl class="kv change-kv"><dt>implementation</dt><dd><dl class="kv change-kv"><dt>files</dt><dd><ul class="change-list"><li><div class="md"><p>ra-idp-go/ui/src/main.tsx</p>
+</div></li><li><div class="md"><p>ra-idp-go/ui/package.json</p>
+</div></li><li><div class="md"><p>ra-idp-go/README.md</p>
+</div></li><li><div class="md"><p>ra-idp-go/ui/README.md</p>
+</div></li></ul></dd><dt>tests</dt><dd><ul class="change-list"><li><div class="md"><p>ra-idp-go/ui/tests/e2e/authorize-golden-path.spec.ts</p>
+</div></li><li><div class="md"><p>ra-idp-go/ui/tests/e2e/fixtures.ts</p>
+</div></li></ul></dd></dl></dd></dl></li></ul></details>
   </div>
   </article><article class="card change" id="wi-19-rich-user-attributes">
     <header>

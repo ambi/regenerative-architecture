@@ -54,7 +54,7 @@ export function AdminDashboardPage({
           tone="violet"
         />
         <MetricCard
-          label="同意 (granted)"
+          label="付与済みの同意"
           value={grantedConsentCount}
           icon={IconCheckupList}
           tone="green"

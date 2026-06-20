@@ -81,7 +81,7 @@ export function ChangePasswordPage({ csrfToken, preferredUsername }: ChangePassw
     <AuthShell>
       <div className="flex flex-col gap-7">
         <header className="flex flex-col gap-2.5">
-          <p className="eyebrow">Account security</p>
+          <p className="eyebrow">アカウントセキュリティ</p>
           <h2 className="page-title">パスワードを変更</h2>
           <p className="page-description">
             {preferredUsername

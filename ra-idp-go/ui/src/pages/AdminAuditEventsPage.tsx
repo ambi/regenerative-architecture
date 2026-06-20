@@ -124,9 +124,9 @@ export function AdminAuditEventsPage({
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-4 py-3">Occurred</th>
-                <th className="px-4 py-3">Type</th>
-                <th className="px-4 py-3">Tenant</th>
+                <th className="px-4 py-3">発生日時</th>
+                <th className="px-4 py-3">種別</th>
+                <th className="px-4 py-3">テナント</th>
               </tr>
             </thead>
             <tbody>
@@ -156,7 +156,7 @@ export function AdminAuditEventsPage({
 
         <Card className="p-5">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-700">Payload</h2>
+            <h2 className="text-sm font-semibold text-slate-700">ペイロード</h2>
             {selected ? (
               <Button
                 variant="ghost"
@@ -173,11 +173,11 @@ export function AdminAuditEventsPage({
               <dl className="mt-4 grid grid-cols-[80px_minmax(0,1fr)] gap-y-2 text-xs">
                 <dt className="text-slate-500">ID</dt>
                 <dd className="break-all font-mono">{selected.id}</dd>
-                <dt className="text-slate-500">Type</dt>
+                <dt className="text-slate-500">種別</dt>
                 <dd>{selected.type}</dd>
-                <dt className="text-slate-500">Tenant</dt>
+                <dt className="text-slate-500">テナント</dt>
                 <dd className="font-mono">{selected.tenant_id}</dd>
-                <dt className="text-slate-500">At</dt>
+                <dt className="text-slate-500">日時</dt>
                 <dd>{formatDate(selected.occurred_at)}</dd>
               </dl>
               <pre className="mt-4 max-h-[420px] overflow-auto rounded-md bg-slate-950 p-3 text-xs text-slate-50">

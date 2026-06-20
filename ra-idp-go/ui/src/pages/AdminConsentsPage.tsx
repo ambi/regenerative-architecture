@@ -70,7 +70,7 @@ export function AdminConsentsPage({
     <AdminShell
       active="consents"
       actorUsername={actorUsername}
-      title="同意 (Consents)"
+      title="同意"
       description="ユーザーがアプリケーションに与えた scope の付与状況。取り消しは即時に反映されます。"
     >
       {error ? <Alert variant="destructive">{error}</Alert> : null}
@@ -99,7 +99,7 @@ export function AdminConsentsPage({
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-4 py-3">Sub</th>
+                <th className="px-4 py-3">ユーザー (sub)</th>
                 <th className="px-4 py-3">Client ID</th>
                 <th className="px-4 py-3">状態</th>
                 <th className="px-4 py-3">付与</th>
@@ -154,13 +154,13 @@ export function AdminConsentsPage({
           <h2 className="text-sm font-semibold text-slate-700">詳細</h2>
           {selected ? (
             <dl className="mt-4 grid grid-cols-[110px_minmax(0,1fr)] gap-y-3 text-sm">
-              <dt className="text-slate-500">Sub</dt>
+              <dt className="text-slate-500">ユーザー (sub)</dt>
               <dd className="font-mono text-xs">{selected.sub}</dd>
-              <dt className="text-slate-500">Client</dt>
+              <dt className="text-slate-500">アプリケーション</dt>
               <dd className="font-mono text-xs">{selected.client_id}</dd>
-              <dt className="text-slate-500">Tenant</dt>
+              <dt className="text-slate-500">テナント</dt>
               <dd className="font-mono text-xs">{selected.tenant_id}</dd>
-              <dt className="text-slate-500">Scopes</dt>
+              <dt className="text-slate-500">スコープ</dt>
               <dd className="flex flex-wrap gap-1">
                 {selected.scopes.length === 0 ? (
                   <span className="text-slate-400">なし</span>

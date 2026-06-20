@@ -199,7 +199,7 @@ export function AdminClientsPage({
       >
             <section className="grid gap-3 sm:grid-cols-3" aria-label="アプリケーション概要">
               <Metric label="総アプリケーション" value={clients.length} />
-              <Metric label="Confidential" value={clients.filter((client) => client.client_type === 'confidential').length} />
+              <Metric label="機密タイプ" value={clients.filter((client) => client.client_type === 'confidential').length} />
               <Metric label="PAR 必須" value={clients.filter((client) => client.require_pushed_authorization_requests).length} />
             </section>
 
@@ -235,7 +235,7 @@ export function AdminClientsPage({
                         <th className="px-5 py-3.5">アプリケーション</th>
                         <th className="px-5 py-3.5">種別</th>
                         <th className="px-5 py-3.5">認証方式</th>
-                        <th className="px-5 py-3.5">Grant</th>
+                        <th className="px-5 py-3.5">グラント</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -291,14 +291,14 @@ function ClientDetails({ client, busy, onEdit, onDelete }: { client: AdminClient
         <p className="mt-1 break-all font-mono text-xs text-slate-500">{client.client_id}</p>
       </div>
       <div className="flex flex-1 flex-col gap-5 p-5">
-        <Detail label="Client type" value={client.client_type} />
+        <Detail label="種別" value={client.client_type} />
         <Detail label="認証方式" value={client.token_endpoint_auth_method} />
         <Detail label="Redirect URI" value={client.redirect_uris.join('\n')} mono />
         <Detail label="Grant types" value={client.grant_types.join(', ')} />
         <Detail label="Scope" value={client.scope || '未設定'} />
-        <Detail label="Security" value={[client.require_pushed_authorization_requests ? 'PAR required' : '', client.dpop_bound_access_tokens ? 'DPoP bound' : ''].filter(Boolean).join(', ') || '標準'} />
+        <Detail label="セキュリティ" value={[client.require_pushed_authorization_requests ? 'PAR required' : '', client.dpop_bound_access_tokens ? 'DPoP bound' : ''].filter(Boolean).join(', ') || '標準'} />
         <div className="mt-auto grid gap-2 border-t border-slate-200 pt-5">
-          <Button variant="outline" disabled={busy} onClick={onEdit}><IconEdit size={16} />Metadata を編集</Button>
+          <Button variant="outline" disabled={busy} onClick={onEdit}><IconEdit size={16} />メタデータを編集</Button>
           <Button variant="destructive" disabled={busy} onClick={onDelete}><IconTrash size={16} />アプリケーションを削除</Button>
         </div>
       </div>
@@ -309,13 +309,13 @@ function ClientDetails({ client, busy, onEdit, onDelete }: { client: AdminClient
 function ClientFormDialog({ mode, form, busy, onChange, onClose, onSubmit }: { mode: 'create' | 'edit'; form: ClientForm; busy: boolean; onChange: (form: ClientForm) => void; onClose: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void }) {
   const set = <K extends keyof ClientForm>(key: K, value: ClientForm[K]) => onChange({ ...form, [key]: value })
   return (
-    <Dialog title={mode === 'create' ? 'アプリケーションを追加' : 'Metadata を編集'} onClose={onClose}>
+    <Dialog title={mode === 'create' ? 'アプリケーションを追加' : 'メタデータを編集'} onClose={onClose}>
       <form onSubmit={onSubmit}>
         <div className="grid max-h-[70vh] gap-5 overflow-y-auto p-6">
           <Field label="表示名"><Input value={form.client_name} onChange={(event) => set('client_name', event.target.value)} /></Field>
           {mode === 'create' && (
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Client type"><Select value={form.client_type} onChange={(value) => { const type = value as ClientForm['client_type']; set('client_type', type); set('token_endpoint_auth_method', type === 'public' ? 'none' : 'client_secret_basic') }} options={['confidential', 'public']} /></Field>
+              <Field label="種別"><Select value={form.client_type} onChange={(value) => { const type = value as ClientForm['client_type']; set('client_type', type); set('token_endpoint_auth_method', type === 'public' ? 'none' : 'client_secret_basic') }} options={['confidential', 'public']} /></Field>
               <Field label="認証方式"><Select value={form.token_endpoint_auth_method} onChange={(value) => set('token_endpoint_auth_method', value as AdminClient['token_endpoint_auth_method'])} options={['client_secret_basic', 'client_secret_post', 'private_key_jwt', 'tls_client_auth', 'none']} /></Field>
             </div>
           )}
@@ -370,7 +370,7 @@ function SecretDialog({ value, onClose }: { value: { clientID: string; secret: s
         <Alert>この secret はこの画面を閉じると再表示できません。安全な保管先へ保存してください。</Alert>
         <p className="mt-5 text-xs font-semibold text-slate-500">Client ID</p>
         <p className="mt-1 break-all font-mono text-sm">{value.clientID}</p>
-        <p className="mt-4 text-xs font-semibold text-slate-500">Client secret</p>
+        <p className="mt-4 text-xs font-semibold text-slate-500">クライアントシークレット</p>
         <div className="mt-1 flex gap-2">
           <code className="min-w-0 flex-1 break-all rounded-lg bg-slate-950 p-3 text-sm text-white">{value.secret}</code>
           <Button variant="outline" onClick={() => void copy()} aria-label="secretをコピー"><IconCopy size={17} />{copied ? 'コピー済み' : 'コピー'}</Button>

@@ -448,7 +448,7 @@ function UserDetails({
       <div className="flex flex-1 flex-col gap-6 p-5">
         <section>
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold uppercase tracking-[0.1em] text-slate-400">Profile</h3>
+            <h3 className="text-xs font-bold uppercase tracking-[0.1em] text-slate-400">プロフィール</h3>
             <Button
               type="button"
               disabled={busy}
@@ -859,7 +859,7 @@ function UserEditorDialog({
         <div className="flex items-start justify-between border-b border-slate-200 px-6 py-5">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.12em] text-blue-700">
-              Profile and access
+              プロフィールとアクセス
             </p>
             <h2 id="user-editor-title" className="mt-1 text-xl font-semibold">
               {confirming ? '変更内容を確認' : 'ユーザーを編集'}
@@ -906,7 +906,7 @@ function UserEditorDialog({
             <div className="grid gap-6 p-6">
               <section className="grid gap-4">
                 <h3 className="text-xs font-bold uppercase tracking-[0.1em] text-slate-400">
-                  Profile
+                  プロフィール
                 </h3>
                 <div className="grid gap-2">
                   <Label htmlFor="user-editor-username">ユーザー名</Label>
@@ -987,7 +987,7 @@ function UserEditorDialog({
               </section>
               <section className="grid gap-2 border-t border-slate-200 pt-5">
                 <h3 className="text-xs font-bold uppercase tracking-[0.1em] text-slate-400">
-                  Roles
+                  ロール
                 </h3>
                 <Label htmlFor="user-editor-roles">ロール</Label>
                 <Input
@@ -1003,10 +1003,10 @@ function UserEditorDialog({
               {attributeDefs.length > 0 && (
                 <section className="grid gap-3 border-t border-slate-200 pt-5">
                   <h3 className="text-xs font-bold uppercase tracking-[0.1em] text-slate-400">
-                    Attributes
+                    属性
                   </h3>
                   <p className="text-xs leading-5 text-slate-500">
-                    OIDC / SCIM / tenant custom 属性。保存時に属性全体が置換されます。
+                    OIDC / SCIM / テナントカスタム属性。保存時に属性全体が置換されます。
                   </p>
                   <div className="grid gap-3">
                     {attributeDefs.map((def) => (
@@ -1185,7 +1185,7 @@ function CreateUserDialog({
       <div className="relative flex h-full w-full max-w-md flex-col bg-white shadow-2xl">
         <div className="flex items-start justify-between border-b border-slate-200 px-6 py-5">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.12em] text-blue-700">Directory</p>
+            <p className="text-xs font-bold uppercase tracking-[0.12em] text-blue-700">ユーザー</p>
             <h2 id="create-user-title" className="mt-1 text-xl font-semibold">
               ユーザーを追加
             </h2>

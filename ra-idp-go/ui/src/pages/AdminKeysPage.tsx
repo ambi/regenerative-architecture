@@ -142,7 +142,7 @@ export function AdminKeysPage({
                 <dd className="break-all font-mono">{selected.kid}</dd>
                 <dt className="text-slate-500">Alg</dt>
                 <dd>{selected.alg}</dd>
-                <dt className="text-slate-500">Active</dt>
+                <dt className="text-slate-500">状態</dt>
                 <dd>{selected.active ? 'yes' : 'no'}</dd>
                 <dt className="text-slate-500">生成</dt>
                 <dd>{formatDate(selected.created_at)}</dd>

@@ -61,7 +61,7 @@ export function ConsentPage({ csrfToken, clientName, scopes }: ConsentPageData) 
     >
       <div className="flex flex-col gap-6">
         <header className="flex flex-col gap-2">
-          <p className="eyebrow">Access request</p>
+          <p className="eyebrow">アクセス要求</p>
           <h2 className="page-title">アクセスを許可しますか？</h2>
           <p className="page-description">要求元と共有される情報を確認してください。</p>
         </header>

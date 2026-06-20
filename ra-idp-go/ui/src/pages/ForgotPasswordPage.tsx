@@ -36,7 +36,7 @@ export function ForgotPasswordPage({ csrfToken }: ForgotPasswordPageData) {
     <AuthShell>
       <div className="flex flex-col gap-7">
         <header className="flex flex-col gap-2.5">
-          <p className="eyebrow">Password reset</p>
+          <p className="eyebrow">パスワード再設定</p>
           <h2 className="page-title">パスワードをリセット</h2>
           <p className="page-description">
             登録済みのメールアドレスに、30分間有効なリセットリンクを送信します。

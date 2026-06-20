@@ -38,7 +38,7 @@ export function ResetPasswordPage({ csrfToken, token }: ResetPasswordPageData) {
     <AuthShell>
       <div className="flex flex-col gap-7">
         <header className="flex flex-col gap-2.5">
-          <p className="eyebrow">Account recovery</p>
+          <p className="eyebrow">アカウント復旧</p>
           <h2 className="page-title">新しいパスワードを設定</h2>
           <p className="page-description">新しいパスワードは12文字以上で入力してください。</p>
         </header>

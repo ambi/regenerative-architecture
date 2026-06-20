@@ -9,7 +9,7 @@ export function HomePage({ demoEnabled }: HomePageData) {
     <AuthShell>
       <div className="flex flex-col gap-7 py-4">
         <header className="flex flex-col gap-2.5">
-          <p className="eyebrow">Identity provider</p>
+          <p className="eyebrow">IDプロバイダー</p>
           <h2 className="page-title">RA Identity は起動しています</h2>
           <p className="page-description">
             ログイン画面は、接続するアプリケーションから認証要求を受けたときに表示されます。

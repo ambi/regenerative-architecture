@@ -48,7 +48,7 @@ export function LoginPage({ csrfToken, returnTo }: LoginPageData) {
     <AuthShell>
       <div className="flex flex-col gap-7">
         <header className="flex flex-col gap-2.5">
-          <p className="eyebrow">Sign in</p>
+          <p className="eyebrow">サインイン</p>
           <h2 className="page-title">アカウントにログイン</h2>
           <p className="page-description">
             組織から発行された認証情報を入力して、安全に続行してください。

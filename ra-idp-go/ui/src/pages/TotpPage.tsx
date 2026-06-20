@@ -34,7 +34,7 @@ export function TotpPage({ csrfToken, returnTo }: TotpPageData) {
     <AuthShell>
       <div className="flex flex-col gap-7">
         <header className="flex flex-col gap-2.5">
-          <p className="eyebrow">Second factor</p>
+          <p className="eyebrow">二要素認証</p>
           <h2 className="page-title">確認コードを入力</h2>
           <p className="page-description">
             Authenticator アプリに表示されている6桁のコードを入力してください。

@@ -49,7 +49,7 @@ export function DevicePage({ csrfToken, userCode }: DevicePageData) {
           <div className="mb-1 flex size-12 items-center justify-center rounded-xl border border-blue-100 bg-blue-50 text-blue-700">
             <IconDeviceDesktopCheck size={25} aria-hidden="true" />
           </div>
-          <p className="eyebrow">Device authorization</p>
+          <p className="eyebrow">デバイス認可</p>
           <h2 className="page-title">デバイスを接続</h2>
           <p className="page-description">
             接続するデバイスに表示されている8文字のコードを入力してください。

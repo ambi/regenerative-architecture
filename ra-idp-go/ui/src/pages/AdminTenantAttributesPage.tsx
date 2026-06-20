@@ -92,7 +92,7 @@ export function AdminTenantAttributesPage({ csrfToken, actorUsername, schema }: 
       active="tenant-attributes"
       actorUsername={actorUsername}
       title="ユーザー属性"
-      description="このテナント固有の custom 属性を定義します。組み込み属性はコードが提供します。"
+      description="このテナント固有の カスタム属性を定義します。組み込み属性はコードが提供します。"
     >
       <div className="grid gap-6">
         {error ? <Alert variant="destructive">{error}</Alert> : null}
@@ -101,7 +101,7 @@ export function AdminTenantAttributesPage({ csrfToken, actorUsername, schema }: 
         <Card className="p-6">
           <header className="flex items-center justify-between gap-4">
             <div>
-              <h2 className="text-base font-semibold text-slate-900">custom 属性</h2>
+              <h2 className="text-base font-semibold text-slate-900">カスタム属性</h2>
               <p className="mt-1 text-sm text-slate-600">
                 key は snake_case (英字始まり)。組み込み属性と同じ key は使えません。
                 変更は「保存」で全置換されます。
@@ -115,7 +115,7 @@ export function AdminTenantAttributesPage({ csrfToken, actorUsername, schema }: 
 
           {attributes.length === 0 ? (
             <p className="mt-6 rounded-md border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-500">
-              custom 属性はまだありません。「属性を追加」で定義できます。
+              カスタム属性はまだありません。「属性を追加」で定義できます。
             </p>
           ) : (
             <ul className="mt-5 grid gap-4">
@@ -268,7 +268,7 @@ function BuiltinReference({ builtin }: { builtin: UserAttributeDef[] }) {
     <Card className="p-6">
       <h2 className="text-base font-semibold text-slate-900">組み込み属性 (参照)</h2>
       <p className="mt-1 text-sm text-slate-600">
-        OIDC §5.1 / SCIM 由来の読み取り専用カタログ。これらと同じ key は custom で定義できません。
+        OIDC §5.1 / SCIM 由来の読み取り専用カタログ。これらと同じ key はカスタムで定義できません。
       </p>
       <div className="mt-4 overflow-x-auto">
         <table className="w-full border-collapse text-sm">

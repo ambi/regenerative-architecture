@@ -1,0 +1,160 @@
+id: wi-38-user-facing-copy-and-self-service-chrome
+title: 利用者向けコピーと self-service 画面の体裁を整える (属性の日本語名 / 内部表現の排除 / プロモ枠の除去)
+created_at: 2026-06-20
+status: pending
+authors: [tn]
+
+motivation: |
+  wi-37 で用語と日本語化を一周整えたが、まだ「設計者の語彙」が利用者に
+  漏れている箇所と、self-service 画面の体裁が不適切な箇所が残っている。
+
+  1. **ユーザー属性に日本語の表示名が無い**。属性は key (nickname,
+     address_locality 等) と OIDC claim 名しか持たず、管理画面・プロフィール
+     画面とも英語 key のまま表示される。OIDC/SCIM とのつながりのため英語名の
+     併記は有用だが、日本語の表示名が無いと一般の利用者・管理者には意味が
+     伝わらない。属性定義に表示名 (label) を持たせる必要がある。
+
+  2. **プロフィール画面の address 属性が区別できない**。`/account/profile`
+     に address_formatted / address_locality / address_region /
+     address_postal_code / address_country / address_street_address が
+     英語 key で縦に並び、どれが何か分からない。issue 1 の表示名で解消する
+     (「市区町村」「都道府県」「郵便番号」等)。
+
+  3. **self-service 画面にもプロモーション枠が出る**。`AuthShell` は左側に
+     "RA Identity は…エンタープライズ認証基盤です" 等の宣伝コピーを出す。
+     未認証のログイン画面なら許容範囲だが、ログイン後の
+     プロフィール (`/account/profile`) やパスワード変更 (`/account/password`)
+     まで宣伝枠が出るのは利用者の印象が悪い。認証済み self-service 画面では
+     プロモ枠を出さない。
+
+  4. **「監査ログ (Audit Events)」と "DomainEvent" の露出**。監査ログ
+     ページのタイトルに英語併記 "(Audit Events)" があり不要。説明文の
+     "所属テナント内の DomainEvent" の DomainEvent は内部実装語。利用者向けの
+     表現に直す。
+
+  5. **グループの説明が内部語**。「ロール束 (group.roles) を再利用し…」の
+     「束」や `group.roles` は一般の利用者に伝わらない。平易な日本語にする。
+
+  6. **ロール/権限の説明に内部英語表現が残る**。wi-37 で ADR 参照と
+     allow_when は除去したが、説明文自体が SCL の normative 定義由来で
+     `User.roles` / `SystemAdministrator` / `tenant` / `client` / `Consent` /
+     `tombstone` / `reject` 等の内部語を含む。利用者向けの平易な日本語の
+     ロール・操作説明に置き換える。
+
+  7. **アプリ名に "ra-idp" が出る**。テナント・設定ページの説明文に
+     "ra-idp" (内部のプロジェクト/実装名) が出る。製品名は "RA Identity"
+     なので統一する。
+
+scope:
+  spec:
+    - >-
+      `UserAttributeDef` に表示名 `label` (日本語、任意) を追加する。
+      OIDC claim 名・key は技術的接続のため残し、label は利用者向けの
+      表示名とする。`spec/scl.yaml` の `UserAttributeDef` model と Go の
+      struct・zog schema・`BuiltinUserAttributeDefs()` を同期更新し、
+      組み込み属性すべてに日本語 label を与える (address_* は
+      「住所: 市区町村」等)。label は normative ではない表示メタなので
+      coherence の対象は型の追加のみ。
+
+  api:
+    - >-
+      `/api/admin/tenant/user_attribute_schema` / `/api/admin/users` /
+      `/api/account/profile` のレスポンスに含まれる属性定義へ label を
+      載せる (struct にフィールドを足すだけ)。
+    - >-
+      `/api/admin/policy/roles` のロール・操作 description を、SCL の
+      normative 定義の生テキストではなく利用者向けの平易な日本語に置き換える。
+      SCL 定義は変えず、ハンドラ/ユースケース層に user-facing なコピーの
+      対応表を持ち、そこから返す。`User.roles`/`SystemAdministrator`/
+      `tenant`/`client`/`Consent`/`tombstone`/`reject` 等の内部語を出さない。
+
+  ui:
+    components:
+      - >-
+        `AuthShell` に `aside` を出さないモード (例 `aside={false}`) を足し、
+        認証済み self-service 画面ではプロモ枠を描画しない単一カラム表示に
+        する。`AccountProfilePage` と `ChangePasswordPage` で利用する。
+        未認証のログイン/リセット系は現状維持。
+      - >-
+        属性を表示する箇所 (管理: ユーザー編集の Attributes / テナント属性
+        一覧・編集モーダル・組み込み参照、self: プロフィール) で、英語 key
+        ではなく `label (key)` 形式で日本語表示名を主に見せる。テナント属性
+        編集モーダルに「表示名」入力を足す。
+    pages:
+      - >-
+        `AdminAuditEventsPage` タイトルから "(Audit Events)" を除去し、説明の
+        "DomainEvent" を「テナント内で起きた重要な操作の記録」等に直す。
+      - >-
+        `AdminGroupsPage` の説明を「複数のロールをまとめ、所属ユーザーに
+        一括で権限を付与します」等の平易な日本語に直す。
+      - >-
+        `AdminTenantsPage` / `AdminSettingsPage` の "ra-idp" を
+        "RA Identity" に直す。
+      - >-
+        `AdminRolesPage` は API が返す user-facing description をそのまま
+        表示する (UI 側の追加加工は不要)。
+
+  documentation:
+    - >-
+      ra-idp-go/ui に「属性は label(日本語) + key(技術) を併記」「利用者向け
+      コピーに内部語(SCL/実装名/DSL)を出さない」を 1 行追記してもよい (任意)。
+
+out_of_scope:
+  - 属性 label の多言語対応 (locale 別 label)。日本語 1 本に限る。
+  - ロール/権限の説明を SCL 側に user-facing フィールドとして持たせる構造化
+    (本 WI ではハンドラ層の対応表で足りる。SCL 拡張は別途必要になれば)。
+  - self-service ポータルの本格 UI ([[wi-21-end-user-account-portal]])。
+  - 属性の self-delete (値クリア) 対応 (wi-37 の残課題)。
+  - 監査ログ Payload の構造化表示 ([[wi-20-authentication-event-history]])。
+
+affected_guarantees:
+  - >-
+    機密情報・内部表現の非露出: ロール/権限・監査ログ・グループの説明から
+    SCL/実装語 (DomainEvent / User.roles / tombstone / ra-idp 等) を出さない。
+    [[ADR-018]] の方針と整合。
+  - >-
+    admin RBAC / API 境界: label の追加と description の差し替えは表示のみで、
+    権限境界・エンドポイントは不変。
+  - >-
+    SCL coherence: `UserAttributeDef` への label 追加を SCL と Go で同期する。
+    role/permission の user-facing コピーは SCL の normative 定義を変えない。
+  - >-
+    i18n: 利用者向けは日本語、OIDC/SCIM の claim 名・scope 等の spec 語は
+    技術的併記として残す。
+
+verification:
+  - cmd: 'go test ./...'
+    in: ra-idp-go
+    reason: 属性 label の検証・policy/roles の user-facing description・
+      既存ハンドラの回帰を確認。policy/roles から内部語が消えたことを
+      テストで固定する。
+  - cmd: 'golangci-lint run ./...'
+    in: ra-idp-go
+  - cmd: 'bun --cwd ra-idp-go/ui typecheck'
+  - cmd: 'bun --cwd ra-idp-go/ui lint'
+  - cmd: 'bun --cwd ra-idp-go/ui build'
+  - >-
+    手動 1: ユーザー編集・テナント属性・プロフィールで各属性に日本語の
+    表示名が出て、英語 key も併記される。
+  - >-
+    手動 2: プロフィールの address が「市区町村」「都道府県」等で区別できる。
+  - >-
+    手動 3: プロフィール / パスワード変更画面に左の宣伝枠が出ない。
+  - >-
+    手動 4: 監査ログのタイトルが「監査ログ」のみで、説明に DomainEvent が
+    出ない。
+  - >-
+    手動 5: グループの説明が平易な日本語 (束 / group.roles が消えている)。
+  - >-
+    手動 6: ロールと権限の説明に User.roles / SystemAdministrator / tenant /
+    client / Consent / tombstone / reject 等が出ない。
+  - >-
+    手動 7: 設定・テナントページに "ra-idp" が出ず "RA Identity" になっている。
+
+risk: low
+risk_notes: |
+  表示メタ (label) の追加・コピー差し替え・shell の分岐が中心で、権限境界や
+  データモデルは触らない。主なリスクは (a) 組み込み属性 label と role/permission
+  の user-facing コピーの訳語品質、(b) AuthShell の単一カラム化での既存
+  レイアウト regression。前者は対応表を 1 箇所に集約し、後者は CSS の
+  単一カラム variant を 1 つ足して両画面で共有する。

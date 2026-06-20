@@ -1,6 +1,7 @@
 import { IconArrowLeft } from '@tabler/icons-react'
 import { type FormEvent, useState } from 'react'
 import { AuthenticationAPIError, tenantURL, updateAccountProfile } from '../api'
+import { attributeLabel } from '../lib/utils'
 import { AuthShell } from '../components/AuthShell'
 import { Alert } from '../components/ui/alert'
 import { Button } from '../components/ui/button'
@@ -217,13 +218,13 @@ function AttributeField({
           onChange={(event) => onChange(event.target.checked ? 'true' : 'false')}
           className="h-4 w-4 rounded border-slate-300"
         />
-        {def.claim_name ?? def.key}
+        {attributeLabel(def)}
       </label>
     )
   }
   return (
     <div className="grid gap-1.5">
-      <Label htmlFor={id}>{def.claim_name ?? def.key}</Label>
+      <Label htmlFor={id}>{attributeLabel(def)}</Label>
       <Input
         id={id}
         type={def.type === 'number' ? 'number' : def.type === 'date' ? 'date' : 'text'}

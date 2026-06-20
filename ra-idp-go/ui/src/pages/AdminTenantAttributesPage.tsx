@@ -32,6 +32,7 @@ const VISIBILITY_LABEL: Record<AttrVisibility, string> = {
 function newAttribute(): UserAttributeDef {
   return {
     key: '',
+    label: '',
     type: 'string',
     multi_valued: false,
     required: false,
@@ -77,6 +78,7 @@ export function AdminTenantAttributesPage({ csrfToken, actorUsername, schema }: 
     const cleaned: UserAttributeDef = {
       ...draft,
       key: draft.key.trim(),
+      label: draft.label?.trim() || undefined,
       multi_valued: draft.type === 'string_array',
       claim_name: draft.claim_name?.trim() || undefined,
       oidc_scope: draft.oidc_scope?.trim() || undefined,
@@ -128,7 +130,7 @@ export function AdminTenantAttributesPage({ csrfToken, actorUsername, schema }: 
             <table className="w-full text-sm">
               <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
                 <tr>
-                  <th className="px-5 py-3">key</th>
+                  <th className="px-5 py-3">属性</th>
                   <th className="px-5 py-3">型</th>
                   <th className="px-5 py-3">可視性</th>
                   <th className="px-5 py-3">本人編集</th>
@@ -138,7 +140,12 @@ export function AdminTenantAttributesPage({ csrfToken, actorUsername, schema }: 
               <tbody>
                 {attributes.map((def, index) => (
                   <tr key={def.key} className="border-t border-slate-100">
-                    <td className="px-5 py-3 font-mono text-slate-800">{def.key}</td>
+                    <td className="px-5 py-3">
+                      <div className="text-slate-800">{def.label || def.key}</div>
+                      {def.label ? (
+                        <div className="font-mono text-xs text-slate-500">{def.key}</div>
+                      ) : null}
+                    </td>
                     <td className="px-5 py-3 text-slate-600">{def.type}</td>
                     <td className="px-5 py-3 text-slate-600">{VISIBILITY_LABEL[def.visibility]}</td>
                     <td className="px-5 py-3 text-slate-600">{def.editable_by_user ? '可' : '不可'}</td>
@@ -233,6 +240,16 @@ function AttributeEditorDialog({
         >
           <div className="min-h-0 flex-1 overflow-y-auto p-6">
             <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-1.5 sm:col-span-2">
+                <Label htmlFor="attr-label">表示名</Label>
+                <Input
+                  id="attr-label"
+                  value={draft.label ?? ''}
+                  placeholder="例: 部署"
+                  onChange={(event) => patch({ label: event.target.value })}
+                />
+                <p className="text-xs text-slate-500">利用者・管理者に見せる日本語名。未設定なら key を表示します。</p>
+              </div>
               <div className="grid gap-1.5">
                 <Label htmlFor="attr-key">key</Label>
                 <Input
@@ -366,6 +383,7 @@ function BuiltinReference({ builtin }: { builtin: UserAttributeDef[] }) {
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
+              <th className="py-2 pr-4 font-medium">表示名</th>
               <th className="py-2 pr-4 font-medium">key</th>
               <th className="py-2 pr-4 font-medium">型</th>
               <th className="py-2 pr-4 font-medium">可視性</th>
@@ -375,7 +393,8 @@ function BuiltinReference({ builtin }: { builtin: UserAttributeDef[] }) {
           <tbody>
             {builtin.map((def) => (
               <tr key={def.key} className="border-b border-slate-100">
-                <td className="py-2 pr-4 font-mono text-slate-800">{def.key}</td>
+                <td className="py-2 pr-4 text-slate-800">{def.label || '—'}</td>
+                <td className="py-2 pr-4 font-mono text-slate-600">{def.key}</td>
                 <td className="py-2 pr-4 text-slate-600">{def.type}</td>
                 <td className="py-2 pr-4 text-slate-600">{VISIBILITY_LABEL[def.visibility]}</td>
                 <td className="py-2 pr-4 font-mono text-slate-500">{def.oidc_scope ?? '—'}</td>

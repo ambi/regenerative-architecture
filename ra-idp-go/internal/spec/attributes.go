@@ -45,7 +45,7 @@ var builtinDefs = func() []UserAttributeDef {
 		}
 	}
 
-	return []UserAttributeDef{
+	defs := []UserAttributeDef{
 		profile("middle_name", AttributeTypeString),
 		profile("nickname", AttributeTypeString),
 		profile("profile", AttributeTypeString),
@@ -81,7 +81,42 @@ var builtinDefs = func() []UserAttributeDef {
 		org("hire_date", AttributeTypeDate),
 		org("employment_type", AttributeTypeString),
 	}
+	// 利用者向けの日本語表示名を付与する。英語 key は技術的接続として UI で併記する。
+	for i := range defs {
+		defs[i].Label = builtinAttributeLabels[defs[i].Key]
+	}
+	return defs
 }()
+
+// builtinAttributeLabels は組み込み属性の日本語表示名。
+var builtinAttributeLabels = map[string]string{
+	"middle_name":            "ミドルネーム",
+	"nickname":               "ニックネーム",
+	"profile":                "プロフィール URL",
+	"picture":                "プロフィール画像 URL",
+	"website":                "ウェブサイト",
+	"gender":                 "性別",
+	"birthdate":              "生年月日",
+	"zoneinfo":               "タイムゾーン",
+	"locale":                 "ロケール",
+	"phone_number":           "電話番号",
+	"phone_number_verified":  "電話番号の検証状態",
+	"address_formatted":      "住所（全体）",
+	"address_street_address": "番地・建物",
+	"address_locality":       "市区町村",
+	"address_region":         "都道府県",
+	"address_postal_code":    "郵便番号",
+	"address_country":        "国",
+	"title":                  "役職",
+	"department":             "部署",
+	"division":               "部門",
+	"organization_name":      "組織名",
+	"employee_number":        "社員番号",
+	"cost_center":            "コストセンター",
+	"manager_sub":            "上長",
+	"hire_date":              "入社日",
+	"employment_type":        "雇用形態",
+}
 
 // BuiltinUserAttributeDefs は全テナント共通の組み込み属性定義のコピーを返す。
 func BuiltinUserAttributeDefs() []UserAttributeDef {

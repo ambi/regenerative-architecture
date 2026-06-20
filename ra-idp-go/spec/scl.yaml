@@ -1330,6 +1330,7 @@ models:
     description: 属性 1 件の定義 (ADR-040)。OIDC 組み込みカタログ (BuiltinUserAttributeDefs) と tenant 定義 (TenantUserAttributeSchema) の両方で使う。key は snake_case、英字始まり。
     fields:
       key:              { type: String, constraints: [non_empty, { pattern: "^[a-z][a-z0-9_]{0,62}$" }] }
+      label:            { type: String, optional: true, constraints: [{ max_length: 100 }], description: "利用者向けの日本語表示名。未設定なら UI は key を表示する。" }
       type:             { type: AttributeType }
       multi_valued:     { type: Boolean, default: false, description: "type == StringArray のときのみ true。" }
       required:         { type: Boolean, default: false }

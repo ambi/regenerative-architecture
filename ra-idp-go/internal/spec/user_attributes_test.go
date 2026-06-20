@@ -233,3 +233,11 @@ func TestClaimsForScopesCustomAttributeGatedByCustomScope(t *testing.T) {
 		t.Fatalf("custom attribute not exposed with custom_attribute scope: %#v", c)
 	}
 }
+
+func TestBuiltinUserAttributeDefsHaveLabels(t *testing.T) {
+	for _, def := range BuiltinUserAttributeDefs() {
+		if def.Label == "" {
+			t.Fatalf("builtin attribute %q has no Japanese label", def.Key)
+		}
+	}
+}

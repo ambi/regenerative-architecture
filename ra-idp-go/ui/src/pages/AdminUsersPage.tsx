@@ -47,7 +47,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../components/ui/dropdown-menu'
-import { cn } from '../lib/utils'
+import { attributeLabel, cn } from '../lib/utils'
 import type {
   AdminGroup,
   AdminUser,
@@ -736,7 +736,7 @@ function AdminAttributeField({
   onChange: (next: string) => void
 }) {
   const id = `user-editor-attr-${def.key}`
-  const label = def.claim_name ? `${def.key} (${def.claim_name})` : def.key
+  const label = attributeLabel(def)
   if (def.type === 'boolean') {
     return (
       <label htmlFor={id} className="inline-flex items-center gap-2 text-sm text-slate-700">

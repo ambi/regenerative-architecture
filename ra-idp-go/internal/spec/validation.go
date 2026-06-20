@@ -104,6 +104,7 @@ var userAttributeDefSchema = z.Struct(z.Shape{
 		func(value *AttributeType, _ z.Ctx) bool { return value.Valid() },
 		z.Message("attribute type is not in enum"),
 	).Required(),
+	"Label":     z.String().Max(100),
 	"ClaimName": z.Ptr(z.String().Min(1).Max(100)),
 	"OIDCScope": z.Ptr(z.String().Min(1).Max(60)),
 	"Visibility": z.StringLike[AttrVisibility]().TestFunc(

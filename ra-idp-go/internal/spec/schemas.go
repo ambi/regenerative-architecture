@@ -221,6 +221,7 @@ func (v AttributeValue) JSONValue() any {
 // (BuiltinUserAttributeDefs) と tenant 定義 (TenantUserAttributeSchema) の両方で使う。
 type UserAttributeDef struct {
 	Key            string         `json:"key"`
+	Label          string         `json:"label,omitempty"` // 利用者向けの日本語表示名 (任意)
 	Type           AttributeType  `json:"type"`
 	MultiValued    bool           `json:"multi_valued"`
 	Required       bool           `json:"required"`

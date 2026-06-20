@@ -291,6 +291,7 @@ export type AttrVisibility = 'private' | 'self_readable' | 'admin_readable' | 'c
 
 export type UserAttributeDef = {
   key: string
+  label?: string
   type: AttributeType
   multi_valued: boolean
   required: boolean

@@ -238,6 +238,19 @@ admin 専用 (ADR-042)。secondary/recovery email・WebAuthn/SMS の MFA・step-
 管理は wi-21 の後続ステージで追加する。アカウントの削除 / 退会は self-service では提供せず、
 ライフサイクルは admin 経路 (ADR-036) で管理する。
 
+### Authentication event history (サインイン履歴)
+
+wi-20 の最初のスライスとして、サインイン履歴の参照を持つ。本スライスは新テーブルを作らず、
+既存の監査イベントストアに蓄積済みの `UserAuthenticated` を発生時刻の降順で射影して返す:
+
+- 本人: `GET /api/account/signin_activity?limit=`（認証済みセッションの `actor.sub` に固定）
+- admin: `GET /api/admin/users/{sub}/signin_activity?limit=`（tenant 境界内）
+
+返すのは発生時刻と認証手段 (`amr`) のみ。limit は既定 10 / 上限 50。IP・User-Agent・
+session_id・client_id 等の付加属性、攻撃時の bucket 集約、retention、admin 検索 UI、
+federation イベントは wi-20 の後続スライスで追加する (ADR-041 / ADR-045 / ADR-046)。
+end-user 向けの履歴 UI は wi-21 の activity ステージで本 API を使って描く。
+
 ## 検証
 
 ```bash

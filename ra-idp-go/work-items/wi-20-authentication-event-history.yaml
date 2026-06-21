@@ -1,8 +1,25 @@
 id: wi-20-authentication-event-history
 title: ログイン履歴を実運用相当に拡張する (成功・連携・失敗・セッション、攻撃時の爆発を抑える)
 created_at: 2026-06-17
-status: pending
+status: in_progress
 authors: [tn]
+
+reconciliation: |
+  2026-06-21 着手時の現状合わせ (drift 解消):
+  - ADR 番号の再割当: 起票時に想定した ADR-039/040/041 は既に
+    user-profile-shape / user-custom-attribute-policy が占有済みのため、
+    本 WI の 3 本を ADR-041 (event-model) / ADR-045 (retention) /
+    ADR-046 (pii-policy) に振り直す。各 ADR 本文はそれを導入する
+    スライスで起こす。ADR-043/044 は [[wi-21-end-user-account-portal]]
+    予約のため避ける。
+  - イベント重複: `MfaFactorEnrolled` / `MfaFactorRemoved` は wi-21 の
+    security ステージで実装済み (Authentication が所有)。本 WI では
+    再定義せず、追加するのは `BackupCodeConsumed` と MFA チャレンジ系
+    (`MfaChallengeIssued` / `…Succeeded` / `…Failed`) のみ。
+  - リリース順は「価値優先」で組み替える。wi-21 の activity ステージを
+    最短で解くため、(i) end-user サインイン履歴 (既存 audit event store
+    からの導出、新テーブル無し) を最初のスライスにする。bucket 集約 /
+    retention / federation / admin 検索 UI は後続スライス。
 
 motivation: |
   現状のログイン関連の観測ポイントは以下に限られている:
@@ -62,7 +79,7 @@ motivation: |
 scope:
   decision:
     - >-
-      新規 ADR-039 **authentication-event-model**: ログイン関連イベントを
+      新規 ADR-041 **authentication-event-model**: ログイン関連イベントを
       従来の "1 イベント = 1 行" 純血モデルから、(a) 通常イベントと
       (b) 集約イベント (bucket) の 2 系統に分けることを決める。
       attacker 洪水時は bucket に集計され、bucket の `count` /
@@ -71,14 +88,14 @@ scope:
       切り替わる。閾値・閾値の単位 (per-account / per-ip / per-tenant /
       global) を ADR で明記する。
     - >-
-      ADR-040 **authentication-event-retention**: ストレージレイヤ別の
+      ADR-045 **authentication-event-retention**: ストレージレイヤ別の
       保管期間と削除手段を決める。デフォルト: 成功 365 日 / 失敗詳細
       30 日 / 失敗集約 (bucket) 90 日 / セッション 90 日 / MFA 90 日。
       tenant ごとに上書きでき、cap は global で別 ADR で抑える
       (`max_retention_days`)。削除は cron (時間単位の job) で
       tenant_id + occurred_at の partition / index 上を sweep する。
     - >-
-      ADR-041 **authentication-event-pii-policy**: IP / UA / location /
+      ADR-046 **authentication-event-pii-policy**: IP / UA / location /
       username の各属性の格納形式を整理する。username は SHA-256 hash
       を first-class、平文は失敗イベントに限り 7 日だけ保持する
       `raw_value` カラムにとどめる (LoginThrottled の既存方針と整合)。
@@ -102,8 +119,9 @@ scope:
         FederationUnlinked            (sub / idpAlias / actorSub)
         MfaChallengeIssued / MfaChallengeSucceeded / MfaChallengeFailed
                                       (sub / factor / sessionId / reason)
-        MfaFactorEnrolled / MfaFactorRemoved / BackupCodeConsumed
-                                      (sub / factor / actorSub)
+        BackupCodeConsumed            (sub / factor / actorSub)
+        # MfaFactorEnrolled / MfaFactorRemoved は wi-21 で実装済み
+        # (Authentication 所有)。本 WI では再定義しない。
         SessionStarted / SessionRefreshed / SessionEnded
                                       (sessionId / sub / clientId? /
                                        endReason: logout|idle|absolute|
@@ -165,7 +183,7 @@ scope:
         閾値: 失敗が同一 username (hash) で 5 分間に 10 回 / 同一 IP
         (truncated) で 5 分間に 50 回 / 同一 tenant で 5 分間に 1000 回
         のいずれかを超えたら bucket 化を発動。閾値は SCL の interface
-        パラメタとし、tenant override 可能。defaults は ADR-039 に
+        パラメタとし、tenant override 可能。defaults は ADR-041 に
         書く。
       - >-
         bucket 中は **個別行を一切書かない** (これが攻撃時の爆発を
@@ -205,7 +223,7 @@ scope:
         retention sweep: 既存 `internal/bootstrap` の周期 job に
         `AuthenticationEventRetention` を追加。tenant ごとの
         `retention_overrides` を tenant aggregate に保持する
-        (ADR-040 に従う上限を gating)。
+        (ADR-045 に従う上限を gating)。
     http:
       - >-
         admin 用:
@@ -287,7 +305,7 @@ out_of_scope:
     イベントの型のみ用意し、実 IdP 連携は別 WI。
   - >-
     Postgres の partition 化 / archive bucket (cold storage)。
-    monthly partition は ADR-040 で方針記載のみで実装は別 WI。
+    monthly partition は ADR-045 で方針記載のみで実装は別 WI。
   - >-
     end-user 用の "Suspicious activity" メール通知。
 
@@ -302,7 +320,7 @@ affected_guarantees:
     `SelfSessionsRevoke`)。self 経路は `actor.sub == target.sub` を
     最低要件にする。
   - >-
-    PII: ADR-018 / ADR-041 を遵守。平文 username / 平文 IP は失敗
+    PII: ADR-018 / ADR-046 を遵守。平文 username / 平文 IP は失敗
     イベントに限定し 7 日で粒度を落とす。device fingerprint は raw を
     保存しない。
   - >-
@@ -368,7 +386,7 @@ risk_notes: |
   (1) ストレージ爆発: 攻撃時に行が無制限に増えるシナリオが従来
       最大の落とし穴。本 WI の bucket モードはこの直接対策。
       bucket への切替閾値が低すぎると正規ユーザの失敗が観察できず
-      MTTR が悪化、高すぎると爆発が止まらない。閾値は ADR-039 で
+      MTTR が悪化、高すぎると爆発が止まらない。閾値は ADR-041 で
       根拠付きで決め、tenant override で運用調整する。
 
   (2) 検索性能: `authentication_events` のサイズが本 WI で急増する。
@@ -378,22 +396,31 @@ risk_notes: |
 
   (3) PII の漏洩: hash 化 / truncation を間違えると個人情報が
       audit log にそのまま流れる。code review でレビュー観点を
-      ADR-041 の表に照らして必ず確認する。レビュアー 2 名以上で
+      ADR-046 の表に照らして必ず確認する。レビュアー 2 名以上で
       明示的にチェックする運用を ADR に付記する。
 
   (4) impersonation のセキュリティ: 「admin が user として
       アクセスした事実」は user 側に確実に通知される必要がある。
       本 WI ではフィールドのみ用意し、通知は別 WI に分けるが、
       impersonation 機能本体の有効化は通知 WI 後にすべきと
-      ADR-039 に明示する。
+      ADR-041 に明示する。
 
   (5) 後方互換: `UserAuthenticated` のフィールドを増やしても既存
       SIEM パイプライン (もし顧客が外部に流していれば) が落ちない
       ことを `audit_event_record.go` のスナップショットテストで
       確認する。
 
-  リリースは段階的に: (i) bucket + 新テーブル + 既存イベントの
-  拡張 / (ii) admin 検索 UI / (iii) sessions API + admin UI /
-  (iv) end-user signin_activity API (UI は wi-21) / (v) retention
-  job / (vi) federation event 型のみ。impersonation と通知は別
-  WI で扱う。
+  リリースは「価値優先」で段階化する (Phase 番号順ではなく end-user
+  価値を先に解く方針)。wi-21 の activity ステージを最短で解くため、
+  着手スライスを end-user サインイン履歴にする:
+    (i)   end-user サインイン履歴 API (既存 audit event store からの
+          導出、新テーブル無し。`GET /api/account/signin_activity` +
+          admin の `/api/admin/users/{sub}/signin_activity`。UI は wi-21)
+    (ii)  sessions API + admin/self UI (SessionRecord の整理)
+    (iii) bucket 集約 + 新テーブル + 既存イベントの属性拡張
+          (IP / UA / sessionId 等) — ADR-041
+    (iv)  retention job — ADR-045 / (v) admin 検索 UI /
+    (vi)  federation event 型のみ。
+  impersonation と通知は別 WI で扱う。bucket 系の重い実装を後ろに
+  回すのは、攻撃時耐性は重要だが end-user 価値の先行提供を優先する
+  ため (リスクノート (1) の閾値設計は (iii) で対応する)。

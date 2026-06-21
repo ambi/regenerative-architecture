@@ -1,7 +1,7 @@
 id: wi-20-authentication-event-history
 title: ログイン履歴を実運用相当に拡張する (成功・連携・失敗・セッション、攻撃時の爆発を抑える)
 created_at: 2026-06-17
-status: in_progress
+status: completed
 authors: [tn]
 
 reconciliation: |
@@ -284,6 +284,16 @@ scope:
 
 out_of_scope:
   - >-
+    永続ストア (Postgres `authentication_events` /
+    `authentication_event_buckets` / `sessions`)・属性拡張 (IP / UA /
+    session_id / client_id / country_code / device fingerprint)・retention
+    sweep・admin 検索 UI / bucket ドリルダウン・federation / MFA challenge /
+    impersonation の語彙は本 WI 完了時点で in-memory + 価値優先スライスに
+    絞った。これらインフラ層の残件は
+    [[wi-44-authentication-event-store-and-search]] に集約した。admin / OIDC
+    logout 側のセッション完成は
+    [[wi-28-session-management-and-oidc-logout-completion]]。
+  - >-
     SIEM 連携の export pipeline (Splunk / Datadog / Elasticsearch への
     streaming)。`ExportAuthenticationEvents` を 1 つだけ用意し、外部
     storage への push は別 WI。
@@ -424,3 +434,63 @@ risk_notes: |
   impersonation と通知は別 WI で扱う。bucket 系の重い実装を後ろに
   回すのは、攻撃時耐性は重要だが end-user 価値の先行提供を優先する
   ため (リスクノート (1) の閾値設計は (iii) で対応する)。
+
+completion:
+  completed_at: 2026-06-21
+  summary: |
+    価値優先の 3 スライスで、wi-21 の activity ステージを最短で解きつつ
+    攻撃時の監査爆発も止めた。全スライスは新たな永続テーブルを足さず、
+    既存の監査イベントストアと in-memory アダプタの上で動かした:
+      - スライス 1: end-user サインイン履歴。既存 `UserAuthenticated` を
+        発生時刻の降順で射影する `GET /api/account/signin_activity` と
+        admin の `/api/admin/users/{sub}/signin_activity` (UI は wi-21)。
+      - スライス 2: 本人セッションの一覧・個別失効・他端末ログアウト
+        (`/api/account/sessions` *). `SessionEnded` (reason `self_revoke`) と
+        `SessionEndReason` enum、SessionStore.ListBySub を追加 (UI は wi-21)。
+      - スライス 3: 失敗ログインの bucket 集約。ADR-029 の throttle が key を
+        lock したら個別 `AuthenticationFailed` を止め、(tenantId, kind, keyHash,
+        5 分窓) の bucket に集約して `AuthenticationEventAggregated` を窓ごと
+        1 件だけ emit する。bucket と throttle は同じ keyHash を共有し、admin は
+        `GET /api/admin/authentication_event_buckets` で観測する。
+    永続ストア・属性拡張・retention・admin 検索 UI・federation / MFA challenge /
+    impersonation の語彙といったインフラ層の残件は
+    [[wi-44-authentication-event-store-and-search]] に集約し、admin / OIDC logout
+    側のセッション完成は [[wi-28-session-management-and-oidc-logout-completion]]
+    に委ねた。当初の ADR-041/045/046 は wi-44 で正式起草する。
+  verification:
+    - { cmd: 'go test ./...', in: ra-idp-go, result: passed }
+    - { cmd: 'golangci-lint run ./...', in: ra-idp-go, result: passed }
+    - { cmd: 'go build ./...', in: ra-idp-go, result: passed }
+    - >-
+      自動: bucket adapter の窓内集約・新窓分離・tenant/key 分離、
+      recordLoginFailure の lock 時集約と個別イベント抑制、ListAuthEventBuckets の
+      tenant 射影をユニットテストで確認。
+  remaining_guarantees_state:
+    - >-
+      可用性 (攻撃時に INSERT が詰まらない): スライス 3 で bucket モードを
+      導入し in-memory で個別行を止めた。Postgres 永続での同挙動は wi-44。維持。
+    - >-
+      tenant isolation / admin RBAC: 追加した self/admin エンドポイントは sub /
+      tenant_id 境界に固定し、bucket は tenant 境界内に閉じる。維持。
+      新 permission (`AdminAuthenticationEventsRead` 等の細分化) は wi-44。
+    - >-
+      PII: keyHash は SHA-256 で平文を audit に流さない (LoginThrottled と同方針)。
+      IP truncation / username 平文の 7 日保持などの正式な PII ポリシー (ADR-046) は
+      wi-44。
+    - >-
+      SCL coherence: 追加した model / event / interface を SCL に登録し、
+      coherence_test と yaml-check (scl / work-item) を通過。維持。
+    - >-
+      backwards compatibility: 既存 `UserAuthenticated` / `AuthenticationFailed` の
+      payload は破壊していない。属性拡張は wi-44 で拡張のみ行う。維持。
+  residual_risk:
+    - >-
+      集約は in-memory のため、プロセス再起動で bucket の count はリセットされる
+      (個別行の爆発抑制という主目的は満たすが、窓跨ぎの累計は失う)。永続化は wi-44。
+    - >-
+      bucket 切替は ADR-029 の throttle lock を入力源にした簡約で、wi-20 本文が挙げた
+      per-tenant 1000/5 分などの独立閾値や topKeys の実集計は未実装。ADR-041 正式版と
+      合わせて wi-44 で精緻化する。
+    - >-
+      セッション失効は OAuth クライアントへ発行済みの refresh token を失効しない
+      (per-session 紐付けが無いため)。per-session refresh 失効は wi-28。

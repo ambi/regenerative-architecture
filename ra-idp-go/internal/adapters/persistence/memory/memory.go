@@ -971,10 +971,20 @@ func (d *AccessTokenDenylist) IsRevoked(_ context.Context, jti string) (bool, er
 type SessionStore struct {
 	mu       sync.Mutex
 	sessions map[string]*spec.LoginSession
+	// Clock は期限切れ判定に使う時計。nil なら time.Now。決定的な時刻でセッション失効を
+	// 制御したいテストが差し替える (本番は実時計のまま)。
+	Clock func() time.Time
 }
 
 func NewSessionStore() *SessionStore {
 	return &SessionStore{sessions: map[string]*spec.LoginSession{}}
+}
+
+func (s *SessionStore) now() time.Time {
+	if s.Clock != nil {
+		return s.Clock()
+	}
+	return time.Now()
 }
 
 func (s *SessionStore) Save(_ context.Context, sess *spec.LoginSession) error {
@@ -992,7 +1002,7 @@ func (s *SessionStore) Find(_ context.Context, id string) (*spec.LoginSession, e
 	if !ok {
 		return nil, nil
 	}
-	if time.Now().After(sess.ExpiresAt) {
+	if s.now().After(sess.ExpiresAt) {
 		delete(s.sessions, id)
 		return nil, nil
 	}
@@ -1009,7 +1019,7 @@ func (s *SessionStore) Delete(_ context.Context, id string) error {
 func (s *SessionStore) ListBySub(_ context.Context, sub string) ([]*spec.LoginSession, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	now := time.Now()
+	now := s.now()
 	out := []*spec.LoginSession{}
 	for id, sess := range s.sessions {
 		if now.After(sess.ExpiresAt) {

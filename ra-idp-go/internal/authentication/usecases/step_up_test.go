@@ -79,7 +79,11 @@ func newStepUpFixture(t *testing.T, now time.Time) (StepUpDeps, *SessionManager,
 		t.Fatal(err)
 	}
 	var events []spec.DomainEvent
-	sm := NewSessionManager(memory.NewSessionStore())
+	// in-memory SessionStore は既定で実時計により期限切れ判定するため、固定 now の
+	// テストでセッションが失効しないよう時計を now に固定する。
+	sessionStore := memory.NewSessionStore()
+	sessionStore.Clock = func() time.Time { return now }
+	sm := NewSessionManager(sessionStore)
 	deps := StepUpDeps{
 		UserRepo: userRepo, PasswordHasher: hasher, MfaFactorRepo: mfaRepo, SessionManager: sm,
 		Emit: func(e spec.DomainEvent) { events = append(events, e) },

@@ -28,6 +28,17 @@ type UserAuthenticated struct {
 	TenantID string    `json:"tenantId"`
 	Sub      string    `json:"sub"`
 	AMR      []string  `json:"amr"`
+	// wi-44 / ADR-041: 産業標準の optional 属性 (後方互換: 既存 payload は破壊しない)。
+	// IP / device は ADR-046 の PII ポリシーに従い truncated / hash で持つ。
+	SessionID             string `json:"sessionId,omitempty"`
+	ClientID              string `json:"clientId,omitempty"`
+	ACR                   string `json:"acr,omitempty"`
+	IPTruncated           string `json:"ipTruncated,omitempty"`
+	IPHash                string `json:"ipHash,omitempty"`
+	UAHash                string `json:"uaHash,omitempty"`
+	CountryCode           string `json:"countryCode,omitempty"`
+	DeviceFingerprintHash string `json:"deviceFingerprintHash,omitempty"`
+	RiskScore             *int   `json:"riskScore,omitempty"`
 }
 
 func (e *UserAuthenticated) EventType() string     { return "UserAuthenticated" }
@@ -38,6 +49,17 @@ type AuthenticationFailed struct {
 	TenantID string    `json:"tenantId"`
 	Username string    `json:"username"`
 	Reason   string    `json:"reason"`
+	// wi-44 / ADR-046: usernameHash は first-class、IP / device は truncated / hash。
+	// 既存の Username 平文は失敗イベント限定で 7 日保持し sweep で粒度を落とす。
+	UsernameHash          string `json:"usernameHash,omitempty"`
+	SessionID             string `json:"sessionId,omitempty"`
+	ClientID              string `json:"clientId,omitempty"`
+	IPTruncated           string `json:"ipTruncated,omitempty"`
+	IPHash                string `json:"ipHash,omitempty"`
+	UAHash                string `json:"uaHash,omitempty"`
+	CountryCode           string `json:"countryCode,omitempty"`
+	DeviceFingerprintHash string `json:"deviceFingerprintHash,omitempty"`
+	RiskScore             *int   `json:"riskScore,omitempty"`
 }
 
 func (e *AuthenticationFailed) EventType() string     { return "AuthenticationFailed" }
@@ -73,6 +95,151 @@ type AuthenticationEventAggregated struct {
 
 func (e *AuthenticationEventAggregated) EventType() string     { return "AuthenticationEventAggregated" }
 func (e *AuthenticationEventAggregated) OccurredAt() time.Time { return e.At }
+
+// --- wi-44 / ADR-041: 認証ステップ・MFA・session・federation・impersonation の語彙。
+// use case / 実 IdP 連携は各専用 WI。本 WI はイベント型とストレージ列のみを用意する。
+
+type AuthenticationStepCompleted struct {
+	At        time.Time `json:"-"`
+	TenantID  string    `json:"tenantId"`
+	Sub       string    `json:"sub"`
+	Step      string    `json:"step"`
+	SessionID string    `json:"sessionId,omitempty"`
+}
+
+func (e *AuthenticationStepCompleted) EventType() string     { return "AuthenticationStepCompleted" }
+func (e *AuthenticationStepCompleted) OccurredAt() time.Time { return e.At }
+
+type AuthenticationStepFailed struct {
+	At           time.Time `json:"-"`
+	TenantID     string    `json:"tenantId"`
+	UsernameHash string    `json:"usernameHash,omitempty"`
+	Step         string    `json:"step"`
+	Reason       string    `json:"reason,omitempty"`
+}
+
+func (e *AuthenticationStepFailed) EventType() string     { return "AuthenticationStepFailed" }
+func (e *AuthenticationStepFailed) OccurredAt() time.Time { return e.At }
+
+type MfaChallengeIssued struct {
+	At         time.Time     `json:"-"`
+	TenantID   string        `json:"tenantId"`
+	Sub        string        `json:"sub"`
+	FactorType MfaFactorType `json:"factorType"`
+	SessionID  string        `json:"sessionId,omitempty"`
+}
+
+func (e *MfaChallengeIssued) EventType() string     { return "MfaChallengeIssued" }
+func (e *MfaChallengeIssued) OccurredAt() time.Time { return e.At }
+
+type MfaChallengeSucceeded struct {
+	At         time.Time     `json:"-"`
+	TenantID   string        `json:"tenantId"`
+	Sub        string        `json:"sub"`
+	FactorType MfaFactorType `json:"factorType"`
+	SessionID  string        `json:"sessionId,omitempty"`
+}
+
+func (e *MfaChallengeSucceeded) EventType() string     { return "MfaChallengeSucceeded" }
+func (e *MfaChallengeSucceeded) OccurredAt() time.Time { return e.At }
+
+type MfaChallengeFailed struct {
+	At         time.Time     `json:"-"`
+	TenantID   string        `json:"tenantId"`
+	Sub        string        `json:"sub,omitempty"`
+	FactorType MfaFactorType `json:"factorType"`
+	SessionID  string        `json:"sessionId,omitempty"`
+}
+
+func (e *MfaChallengeFailed) EventType() string     { return "MfaChallengeFailed" }
+func (e *MfaChallengeFailed) OccurredAt() time.Time { return e.At }
+
+type BackupCodeConsumed struct {
+	At             time.Time `json:"-"`
+	TenantID       string    `json:"tenantId"`
+	Sub            string    `json:"sub"`
+	RemainingCount *int      `json:"remainingCount,omitempty"`
+}
+
+func (e *BackupCodeConsumed) EventType() string     { return "BackupCodeConsumed" }
+func (e *BackupCodeConsumed) OccurredAt() time.Time { return e.At }
+
+type SessionStarted struct {
+	At          time.Time `json:"-"`
+	TenantID    string    `json:"tenantId"`
+	Sub         string    `json:"sub"`
+	SessionID   string    `json:"sessionId"`
+	AMR         []string  `json:"amr,omitempty"`
+	ACR         string    `json:"acr,omitempty"`
+	IPTruncated string    `json:"ipTruncated,omitempty"`
+	UAHash      string    `json:"uaHash,omitempty"`
+}
+
+func (e *SessionStarted) EventType() string     { return "SessionStarted" }
+func (e *SessionStarted) OccurredAt() time.Time { return e.At }
+
+type SessionRefreshed struct {
+	At        time.Time `json:"-"`
+	TenantID  string    `json:"tenantId"`
+	Sub       string    `json:"sub"`
+	SessionID string    `json:"sessionId"`
+}
+
+func (e *SessionRefreshed) EventType() string     { return "SessionRefreshed" }
+func (e *SessionRefreshed) OccurredAt() time.Time { return e.At }
+
+type FederatedAuthenticated struct {
+	At        time.Time `json:"-"`
+	TenantID  string    `json:"tenantId"`
+	Sub       string    `json:"sub"`
+	Provider  string    `json:"provider"`
+	SessionID string    `json:"sessionId,omitempty"`
+}
+
+func (e *FederatedAuthenticated) EventType() string     { return "FederatedAuthenticated" }
+func (e *FederatedAuthenticated) OccurredAt() time.Time { return e.At }
+
+type FederationLinked struct {
+	At       time.Time `json:"-"`
+	TenantID string    `json:"tenantId"`
+	Sub      string    `json:"sub"`
+	Provider string    `json:"provider"`
+}
+
+func (e *FederationLinked) EventType() string     { return "FederationLinked" }
+func (e *FederationLinked) OccurredAt() time.Time { return e.At }
+
+type FederationUnlinked struct {
+	At       time.Time `json:"-"`
+	TenantID string    `json:"tenantId"`
+	Sub      string    `json:"sub"`
+	Provider string    `json:"provider"`
+}
+
+func (e *FederationUnlinked) EventType() string     { return "FederationUnlinked" }
+func (e *FederationUnlinked) OccurredAt() time.Time { return e.At }
+
+type SessionImpersonationStarted struct {
+	At        time.Time `json:"-"`
+	TenantID  string    `json:"tenantId"`
+	ActorSub  string    `json:"actorSub"`
+	TargetSub string    `json:"targetSub"`
+	SessionID string    `json:"sessionId"`
+}
+
+func (e *SessionImpersonationStarted) EventType() string     { return "SessionImpersonationStarted" }
+func (e *SessionImpersonationStarted) OccurredAt() time.Time { return e.At }
+
+type SessionImpersonationEnded struct {
+	At        time.Time `json:"-"`
+	TenantID  string    `json:"tenantId"`
+	ActorSub  string    `json:"actorSub"`
+	TargetSub string    `json:"targetSub"`
+	SessionID string    `json:"sessionId"`
+}
+
+func (e *SessionImpersonationEnded) EventType() string     { return "SessionImpersonationEnded" }
+func (e *SessionImpersonationEnded) OccurredAt() time.Time { return e.At }
 
 type PasswordChanged struct {
 	At       time.Time `json:"-"`

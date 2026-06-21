@@ -83,54 +83,58 @@ type AuthZResponse struct {
 }
 
 const (
-	ActionTokenGrantAuthorizationCode = "token:grant_authorization_code"
-	ActionTokenGrantRefresh           = "token:grant_refresh"
-	ActionTokenGrantClientCredentials = "token:grant_client_credentials"
-	ActionTokenGrantDeviceCode        = "token:grant_device_code"
-	ActionTokenIntrospect             = "token:introspect"
-	ActionTokenRevoke                 = "token:revoke"
-	ActionUserInfoRead                = "userinfo:read"
-	ActionAuthorizeInitiate           = "authorize:initiate"
-	ActionAdminUserRead               = "admin:user_read"
-	ActionAdminUserCreate             = "admin:user_create"
-	ActionAdminUserUpdate             = "admin:user_update"
-	ActionAdminUserDelete             = "admin:user_delete"
-	ActionAdminClientsManage          = "admin:clients_manage"
-	ActionAdminConsentsManage         = "admin:consents_manage"
-	ActionAdminTenantsManage          = "admin:tenants_manage"
-	ActionAdminSettingsRead           = "admin:settings_read"
-	ActionAdminSettingsUpdate         = "admin:settings_update"
-	ActionAdminAuditEventsRead        = "admin:audit_events_read"
-	ActionAdminKeysRead               = "admin:keys_read"
-	ActionAdminKeysRotate             = "admin:keys_rotate"
-	ActionAdminGroupsRead             = "admin:groups_read"
-	ActionAdminGroupsWrite            = "admin:groups_write"
+	ActionTokenGrantAuthorizationCode   = "token:grant_authorization_code"
+	ActionTokenGrantRefresh             = "token:grant_refresh"
+	ActionTokenGrantClientCredentials   = "token:grant_client_credentials"
+	ActionTokenGrantDeviceCode          = "token:grant_device_code"
+	ActionTokenIntrospect               = "token:introspect"
+	ActionTokenRevoke                   = "token:revoke"
+	ActionUserInfoRead                  = "userinfo:read"
+	ActionAuthorizeInitiate             = "authorize:initiate"
+	ActionAdminUserRead                 = "admin:user_read"
+	ActionAdminUserCreate               = "admin:user_create"
+	ActionAdminUserUpdate               = "admin:user_update"
+	ActionAdminUserDelete               = "admin:user_delete"
+	ActionAdminClientsManage            = "admin:clients_manage"
+	ActionAdminConsentsManage           = "admin:consents_manage"
+	ActionAdminTenantsManage            = "admin:tenants_manage"
+	ActionAdminSettingsRead             = "admin:settings_read"
+	ActionAdminSettingsUpdate           = "admin:settings_update"
+	ActionAdminAuditEventsRead          = "admin:audit_events_read"
+	ActionAdminKeysRead                 = "admin:keys_read"
+	ActionAdminKeysRotate               = "admin:keys_rotate"
+	ActionAdminGroupsRead               = "admin:groups_read"
+	ActionAdminGroupsWrite              = "admin:groups_write"
+	ActionAdminAuthenticationEventsRead = "admin:authentication_events_read"
+	ActionAdminSessionsWrite            = "admin:sessions_write"
 )
 
 // PascalCase (SCL permissions のキー) → AuthZ action 名。
 var actionNameMapping = map[string]string{
-	"TokenGrantAuthorizationCode": ActionTokenGrantAuthorizationCode,
-	"TokenGrantRefresh":           ActionTokenGrantRefresh,
-	"TokenGrantClientCredentials": ActionTokenGrantClientCredentials,
-	"TokenGrantDeviceCode":        ActionTokenGrantDeviceCode,
-	"TokenIntrospect":             ActionTokenIntrospect,
-	"TokenRevoke":                 ActionTokenRevoke,
-	"UserInfoRead":                ActionUserInfoRead,
-	"AuthorizeInitiate":           ActionAuthorizeInitiate,
-	"AdminUserRead":               ActionAdminUserRead,
-	"AdminUserCreate":             ActionAdminUserCreate,
-	"AdminUserUpdate":             ActionAdminUserUpdate,
-	"AdminUserDelete":             ActionAdminUserDelete,
-	"AdminClientsManage":          ActionAdminClientsManage,
-	"AdminConsentsManage":         ActionAdminConsentsManage,
-	"AdminTenantsManage":          ActionAdminTenantsManage,
-	"AdminSettingsRead":           ActionAdminSettingsRead,
-	"AdminSettingsUpdate":         ActionAdminSettingsUpdate,
-	"AdminAuditEventsRead":        ActionAdminAuditEventsRead,
-	"AdminKeysRead":               ActionAdminKeysRead,
-	"AdminKeysRotate":             ActionAdminKeysRotate,
-	"AdminGroupsRead":             ActionAdminGroupsRead,
-	"AdminGroupsWrite":            ActionAdminGroupsWrite,
+	"TokenGrantAuthorizationCode":   ActionTokenGrantAuthorizationCode,
+	"TokenGrantRefresh":             ActionTokenGrantRefresh,
+	"TokenGrantClientCredentials":   ActionTokenGrantClientCredentials,
+	"TokenGrantDeviceCode":          ActionTokenGrantDeviceCode,
+	"TokenIntrospect":               ActionTokenIntrospect,
+	"TokenRevoke":                   ActionTokenRevoke,
+	"UserInfoRead":                  ActionUserInfoRead,
+	"AuthorizeInitiate":             ActionAuthorizeInitiate,
+	"AdminUserRead":                 ActionAdminUserRead,
+	"AdminUserCreate":               ActionAdminUserCreate,
+	"AdminUserUpdate":               ActionAdminUserUpdate,
+	"AdminUserDelete":               ActionAdminUserDelete,
+	"AdminClientsManage":            ActionAdminClientsManage,
+	"AdminConsentsManage":           ActionAdminConsentsManage,
+	"AdminTenantsManage":            ActionAdminTenantsManage,
+	"AdminSettingsRead":             ActionAdminSettingsRead,
+	"AdminSettingsUpdate":           ActionAdminSettingsUpdate,
+	"AdminAuditEventsRead":          ActionAdminAuditEventsRead,
+	"AdminKeysRead":                 ActionAdminKeysRead,
+	"AdminKeysRotate":               ActionAdminKeysRotate,
+	"AdminGroupsRead":               ActionAdminGroupsRead,
+	"AdminGroupsWrite":              ActionAdminGroupsWrite,
+	"AdminAuthenticationEventsRead": ActionAdminAuthenticationEventsRead,
+	"AdminSessionsWrite":            ActionAdminSessionsWrite,
 }
 
 func ActionNameForPermission(permissionName string) (string, bool) {
@@ -199,6 +203,12 @@ var actionRules = map[string][]string{
 	},
 	ActionAdminGroupsWrite: {
 		"actor_is_admin", "actor_is_active", "actor_is_authenticated", "actor_and_resource_share_tenant",
+	},
+	ActionAdminAuthenticationEventsRead: {
+		"actor_is_admin_or_system_admin", "actor_is_active", "actor_is_authenticated",
+	},
+	ActionAdminSessionsWrite: {
+		"actor_is_admin_or_system_admin", "actor_is_active", "actor_is_authenticated",
 	},
 }
 

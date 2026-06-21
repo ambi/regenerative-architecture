@@ -25,7 +25,7 @@ func seedSession(t *testing.T, store *memory.SessionStore, id, sub string, authT
 func TestListSessionsMarksCurrentAndSortsDesc(t *testing.T) {
 	ctx := context.Background()
 	store := memory.NewSessionStore()
-	base := time.Date(2026, 6, 21, 9, 0, 0, 0, time.UTC)
+	base := time.Now().UTC().Truncate(time.Second)
 	seedSession(t, store, "s1", "alice", base)
 	seedSession(t, store, "s2", "alice", base.Add(time.Minute))
 	seedSession(t, store, "s3", "bob", base.Add(2*time.Minute))
@@ -49,7 +49,7 @@ func TestListSessionsMarksCurrentAndSortsDesc(t *testing.T) {
 func TestRevokeOwnSessionRejectsOthersSession(t *testing.T) {
 	ctx := context.Background()
 	store := memory.NewSessionStore()
-	base := time.Date(2026, 6, 21, 9, 0, 0, 0, time.UTC)
+	base := time.Now().UTC().Truncate(time.Second)
 	seedSession(t, store, "s1", "alice", base)
 	seedSession(t, store, "s2", "bob", base)
 
@@ -80,7 +80,7 @@ func TestRevokeOwnSessionRejectsOthersSession(t *testing.T) {
 func TestRevokeOtherSessionsKeepsCurrent(t *testing.T) {
 	ctx := context.Background()
 	store := memory.NewSessionStore()
-	base := time.Date(2026, 6, 21, 9, 0, 0, 0, time.UTC)
+	base := time.Now().UTC().Truncate(time.Second)
 	seedSession(t, store, "s1", "alice", base)
 	seedSession(t, store, "s2", "alice", base.Add(time.Minute))
 	seedSession(t, store, "s3", "alice", base.Add(2*time.Minute))

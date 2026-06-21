@@ -44,6 +44,10 @@ var rolePermissionInterfaces = map[string][]string{
 	"AdminKeysRotate":      {"RotateAdminKey"},
 	"AdminGroupsRead":      {"ListGroups", "GetGroup", "ListUserGroups"},
 	"AdminGroupsWrite":     {"CreateGroup", "UpdateGroup", "DeleteGroup", "AddGroupMember", "RemoveGroupMember"},
+	"AdminAuthenticationEventsRead": {
+		"ListAuthenticationEvents", "GetAuthenticationEvent", "ExportAuthenticationEvents", "ListSessions",
+	},
+	"AdminSessionsWrite": {"RevokeSession", "RevokeAllSessions"},
 }
 
 func ListRolePolicies(scl *spec.SCL, actorRoles []string, controlPlane bool) ([]RolePolicy, error) {

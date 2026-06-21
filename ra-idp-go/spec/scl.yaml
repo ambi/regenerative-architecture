@@ -2247,9 +2247,9 @@ models:
       フィールドには含めない。type は SCL events セクションの型名。
     annotations: { component: OAuth2 }
     fields:
-      type:    { type: String, optional: true, description: "完全一致フィルタ。例: AccessTokenIssued" }
-      kind:    { type: String, optional: true, description: "認証系イベントの絞り込み (wi-44)。authentication / success / fail / aggregated。" }
-      sub:     { type: String, optional: true, description: "対象ユーザー sub の完全一致フィルタ。" }
+      type:     { type: String, optional: true, description: "type 完全一致フィルタ (機械向け低レベル)。例: AccessTokenIssued" }
+      category: { type: String, optional: true, description: "イベントカテゴリ絞り込み (wi-44)。authentication / success / fail / aggregated / user / group / client / consent / token / tenant / key。" }
+      sub:      { type: String, optional: true, description: "対象ユーザー sub の完全一致フィルタ。" }
       after:   { type: Timestamp, optional: true, description: "occurred_at がこの時刻以降。" }
       before:  { type: Timestamp, optional: true, description: "occurred_at がこの時刻以前。" }
       limit:   { type: Integer, optional: true, description: "返却件数の上限 (default 100, max 1000)。" }
@@ -4096,10 +4096,11 @@ interfaces:
     description: |
       管理者が所属テナントの監査用 DomainEvent を時系列降順で取得する。SOC / コンプライアンス
       用途を想定し、ページング (after / before / limit) と type / sub による絞り込みを提供する。
-      認証イベント (ログイン成功 / 失敗 / MFA / セッション / 集約) も同一ストアに属し、kind
-      (authentication / success / fail / aggregated) や username_hash / ip_truncated で絞り込んで
-      セキュリティ調査に使える (wi-44 で認証イベント専用ビューを本検索に統合)。system_admin で
-      あれば default tenant 経路から全テナント横断、admin は所属テナント内に閉じる。
+      認証イベント (ログイン成功 / 失敗 / MFA / セッション / 集約) も同一ストアに属し、category
+      (authentication / success / fail / aggregated / user / group / client / consent / token /
+      tenant / key) で絞り込んでセキュリティ調査や運用調査に使える (wi-44 で認証イベント専用
+      ビューを本検索に統合)。system_admin であれば default tenant 経路から全テナント横断、admin は
+      所属テナント内に閉じる。
     input:
       query: { type: AuditEventQuery }
     output:

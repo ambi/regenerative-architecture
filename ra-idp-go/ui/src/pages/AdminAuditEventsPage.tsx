@@ -65,8 +65,7 @@ export function AdminAuditEventsPage({
 }: AdminAuditEventsPageData) {
   const [events, setEvents] = useState(initial)
   const [selected, setSelected] = useState<AdminAuditEvent | null>(initial[0] ?? null)
-  const [type, setType] = useState('')
-  const [kind, setKind] = useState<'' | AdminAuditEventQuery['kind']>('')
+  const [category, setCategory] = useState<'' | AdminAuditEventQuery['category']>('')
   const [sub, setSub] = useState('')
   const [after, setAfter] = useState('')
   const [before, setBefore] = useState('')
@@ -81,8 +80,7 @@ export function AdminAuditEventsPage({
   function buildQuery(): AdminAuditEventQuery {
     const parsedLimit = limit.trim() ? Number.parseInt(limit, 10) : undefined
     return {
-      type: type.trim() || undefined,
-      kind: kind || undefined,
+      category: category || undefined,
       sub: sub.trim() || undefined,
       after: after.trim() ? new Date(after).toISOString() : undefined,
       before: before.trim() ? new Date(before).toISOString() : undefined,
@@ -125,25 +123,31 @@ export function AdminAuditEventsPage({
 
       <Card className="p-5">
         <form onSubmit={handleQuery} className="grid gap-4 lg:grid-cols-3">
-          <Field label="認証カテゴリ">
+          <Field label="イベントカテゴリ">
             <select
-              value={kind ?? ''}
-              onChange={(e) => setKind((e.target.value || '') as '' | AdminAuditEventQuery['kind'])}
+              value={category ?? ''}
+              onChange={(e) =>
+                setCategory((e.target.value || '') as '' | AdminAuditEventQuery['category'])
+              }
               className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm"
             >
-              <option value="">指定なし (すべてのイベント)</option>
-              <option value="authentication">認証イベント全体</option>
-              <option value="success">認証 成功</option>
-              <option value="fail">認証 失敗</option>
-              <option value="aggregated">認証 集約 (攻撃時)</option>
+              <option value="">すべてのイベント</option>
+              <optgroup label="認証">
+                <option value="authentication">認証イベント全体</option>
+                <option value="success">認証 成功</option>
+                <option value="fail">認証 失敗</option>
+                <option value="aggregated">認証 集約 (攻撃時)</option>
+              </optgroup>
+              <optgroup label="管理操作">
+                <option value="user">ユーザー管理</option>
+                <option value="group">グループ管理</option>
+                <option value="client">クライアント管理</option>
+                <option value="consent">同意</option>
+                <option value="token">トークン・フロー</option>
+                <option value="tenant">テナント管理</option>
+                <option value="key">署名鍵</option>
+              </optgroup>
             </select>
-          </Field>
-          <Field label="イベント種別">
-            <Input
-              value={type}
-              onChange={(e) => setType(e.target.value)}
-              placeholder="例: UserAuthenticated"
-            />
           </Field>
           <Field label="対象ユーザー (sub)">
             <Input value={sub} onChange={(e) => setSub(e.target.value)} placeholder="例: user_..." />

@@ -1,0 +1,97 @@
+id: wi-46-authentication-event-attribute-emit-and-correlation-search
+title: 認証イベント属性の実 emit と、ユーザー名 / IP による相関検索を実装する
+created_at: 2026-06-21
+status: pending
+authors: [tn]
+
+motivation: |
+  [[wi-44-authentication-event-store-and-search]] は `UserAuthenticated` /
+  `AuthenticationFailed` に産業標準の属性 (usernameHash / ipTruncated / ipHash /
+  uaHash / countryCode / deviceFingerprintHash / riskScore) を後方互換で
+  **フィールドとして用意した**が、実際の emit 経路 (ブラウザログイン /
+  失敗記録) はまだこれらに値を設定しておらず、ADR-046 の hash / truncation も
+  実装されていない (フィールド確保のみ)。
+
+  そのため wi-44 では「ユーザー名 / IP での絞り込み」を一旦見送った。生の
+  usernameHash (tenant salt 付き SHA-256) を admin に手入力させるのは非現実的で、
+  かつ値が無いため検索しても 0 件になるためである。
+
+  本 WI は ADR-046 を実装に落とす。emit 経路で username / IP / User-Agent を
+  hash / truncation して認証イベントに載せ、admin の監査ログ検索に「**平文の
+  ユーザー名 / IP を入力 → サーバ側が同じ salt で hash / 丸めて相関検索**」する
+  絞り込みを追加する。これにより credential stuffing の「同一ユーザー名を狙う
+  試行」「同一 IP からの試行」を平文を保管せずに調査できる。
+
+scope:
+  decision:
+    - >-
+      ADR-046 の実装化。tenant salt の生成・保管 (per-tenant、secret 扱い) と、
+      username (lowercased) / IP の SHA-256、IPv4 /24・IPv6 /48 への丸めを
+      emit 経路の単一ヘルパに集約する方針を確定する。throttle の keyHash
+      (ADR-029) と同一方式を共有し、bucket の keyHash とも一致させる。
+    - >-
+      平文 username は失敗イベント限定で 7 日保持し sweep で null 化する
+      (ADR-045 / ADR-046)。成功イベントは sub を持つため平文を保管しない。
+  scl:
+    - >-
+      `AuditEventQuery` に平文入力の相関フィルタを追加する (username / ip)。
+      サーバが salt 付き hash / 丸めに変換して検索するため、admin は hash を
+      意識しない。生 hash での検索は内部用途に限る。
+  go:
+    - >-
+      emit ヘルパ: ブラウザログイン成功 (`UserAuthenticated`) / 失敗
+      (`AuthenticationFailed`) で usernameHash / ipTruncated / ipHash / uaHash を
+      設定する。IP は `extractClientIP` 由来を /24・/48 で丸め、hash は tenant
+      salt 付き SHA-256。失敗イベントは平文 username も 7 日分だけ載せる。
+    - >-
+      検索: 監査ログ検索ハンドラで `username` / `ip` クエリを受け、サーバ側で
+      hash / 丸めに変換して payload (usernameHash / ipTruncated) と突き合わせる。
+      wi-44 で撤去した payload 等価フィルタを、平文入力前提で復活させる。
+    - tenant salt store (生成 / 取得) を追加し、既存の secret 保管方針に従う。
+  ui:
+    - >-
+      監査ログ検索に「ユーザー名」「IP アドレス」入力欄を追加する (平文入力)。
+      認証カテゴリと併用して相関調査できるようにする。
+
+out_of_scope:
+  - GeoIP 連携による country_code 解決 (当面 "" のまま。別 WI)。
+  - device fingerprint の収集と deviceFingerprintHash の算出。
+  - risk_score の算出 (フィールド確保のみ)。
+  - impersonation 機能本体と本人通知 (wi-44 / ADR-041 の通り別 WI)。
+
+affected_guarantees:
+  - >-
+    PII: 平文 username / IP は保管しない (失敗イベントの平文 username のみ 7 日)。
+    検索は salt 付き hash / 丸めを介して行い、admin に hash を入力させない。
+  - >-
+    tenant isolation: salt は tenant ごとに分離し、cross-tenant で同一ユーザー名 /
+    IP が同じ hash にならない。
+  - >-
+    一貫性: throttle (ADR-029) / bucket (ADR-041) / 監査検索の keyHash 方式を
+    一致させる。
+  - backwards compatibility: 既存イベント payload は拡張のみで破壊しない。
+
+verification:
+  - cmd: 'go test ./...'
+    in: ra-idp-go
+    reason: |
+      hash / 丸めの単一ヘルパの正しさ、tenant salt の分離 (同一ユーザー名でも
+      tenant が違えば hash が異なる)、平文入力 → サーバ hash 化での検索一致、
+      失敗イベント平文 username の 7 日 null 化。
+  - cmd: 'golangci-lint run ./...'
+    in: ra-idp-go
+  - cmd: 'go build ./...'
+    in: ra-idp-go
+  - cmd: 'bun --cwd ra-idp-go/ui typecheck'
+  - cmd: 'bun --cwd ra-idp-go/ui lint'
+  - cmd: 'bun --cwd ra-idp-go/ui build'
+  - >-
+    手動: 誤パスワードでログイン失敗 → 監査ログ検索で同じユーザー名 (平文) を
+    入力すると当該失敗イベントが相関ヒットする。IP でも同様に絞り込める。
+
+risk: medium
+risk_notes: |
+  hash / truncation を誤ると個人情報が監査ログに平文で流れる (ADR-046)。emit と
+  検索で同一の単一ヘルパを使い、PII 列を変える変更はレビュアー 2 名以上で確認する。
+  tenant salt の取り違えは cross-tenant 相関の漏洩につながるため、salt の取得は
+  必ず対象 tenant に紐づけて行う。

@@ -185,35 +185,44 @@ func TestAdminAuditEventsFilterByTypeAndSub(t *testing.T) {
 	}
 }
 
-// wi-44 統合: 監査ログ検索に認証イベントの kind 絞り込みが乗っていることを検証する。
-func TestAdminAuditEventsFilterByAuthenticationKind(t *testing.T) {
+// wi-44 統合: 監査ログ検索のイベントカテゴリ絞り込み (認証サブ分類 + 管理操作) を検証する。
+func TestAdminAuditEventsFilterByCategory(t *testing.T) {
 	user := auditUser("user_admin", "acme", []string{"admin"})
 	now := time.Now().UTC()
 	events := []*oauthports.AuditEventRecord{
 		auditEvent("acme", "UserAuthenticated", "alice", now),
 		auditEvent("acme", "AuthenticationFailed", "", now.Add(-time.Second)),
-		auditEvent("acme", "PasswordChanged", "alice", now.Add(-2*time.Second)), // 認証イベント外
+		auditEvent("acme", "PasswordChanged", "alice", now.Add(-2*time.Second)),  // user カテゴリ
+		auditEvent("acme", "AdminClientCreated", "ops", now.Add(-3*time.Second)), // client カテゴリ
 	}
 	e := newAuditAdminServer(t, user, events)
 
 	var body struct {
 		Events []adminAuditEventResponse `json:"events"`
 	}
-	rec := getAdminAuditEvents(e, "/realms/acme/api/admin/audit_events?kind=fail")
+	rec := getAdminAuditEvents(e, "/realms/acme/api/admin/audit_events?category=fail")
 	_ = json.Unmarshal(rec.Body.Bytes(), &body)
 	if len(body.Events) != 1 || body.Events[0].Type != "AuthenticationFailed" {
-		t.Fatalf("kind=fail mismatch: %+v", body.Events)
+		t.Fatalf("category=fail mismatch: %+v", body.Events)
 	}
 
-	rec = getAdminAuditEvents(e, "/realms/acme/api/admin/audit_events?kind=authentication")
+	// authentication は成功 + 失敗 (PasswordChanged / AdminClientCreated は対象外)。
+	rec = getAdminAuditEvents(e, "/realms/acme/api/admin/audit_events?category=authentication")
 	_ = json.Unmarshal(rec.Body.Bytes(), &body)
 	if len(body.Events) != 2 {
-		t.Fatalf("kind=authentication must exclude PasswordChanged, got %d: %+v", len(body.Events), body.Events)
+		t.Fatalf("category=authentication must return 2, got %d: %+v", len(body.Events), body.Events)
 	}
 
-	rec = getAdminAuditEvents(e, "/realms/acme/api/admin/audit_events?kind=bogus")
+	// 管理操作カテゴリ (認証以外) も絞り込めること。
+	rec = getAdminAuditEvents(e, "/realms/acme/api/admin/audit_events?category=client")
+	_ = json.Unmarshal(rec.Body.Bytes(), &body)
+	if len(body.Events) != 1 || body.Events[0].Type != "AdminClientCreated" {
+		t.Fatalf("category=client mismatch: %+v", body.Events)
+	}
+
+	rec = getAdminAuditEvents(e, "/realms/acme/api/admin/audit_events?category=bogus")
 	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("unknown kind must be 400, got %d", rec.Code)
+		t.Fatalf("unknown category must be 400, got %d", rec.Code)
 	}
 }
 
@@ -224,7 +233,7 @@ func TestAdminAuditEventsExportSetsAttachment(t *testing.T) {
 		auditEvent("acme", "UserAuthenticated", "alice", now),
 	}
 	e := newAuditAdminServer(t, user, events)
-	rec := getAdminAuditEvents(e, "/realms/acme/api/admin/audit_events/export?kind=authentication")
+	rec := getAdminAuditEvents(e, "/realms/acme/api/admin/audit_events/export?category=authentication")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("export status=%d body=%s", rec.Code, rec.Body.String())
 	}

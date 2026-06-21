@@ -25,9 +25,11 @@ type adminAuditEventResponse struct {
 	Payload    map[string]any `json:"payload"`
 }
 
-// 認証系イベントの kind → 監査 type 群 (wi-44)。監査ログ検索の kind フィルタで、認証の
-// 成功 / 失敗 / 集約や認証イベント全体に絞り込むのに使う。"authentication" は全認証系。
-var authenticationEventKindTypes = map[string][]string{
+// 監査ログのイベントカテゴリ → 監査 type 群 (wi-44)。admin が分かりやすく絞り込めるよう、
+// 認証系は成功 / 失敗 / 集約のサブ分類を持ち (authentication はその和集合)、管理操作系も
+// 大分類でまとめる。type 完全一致 (query.type) は機械向けの低レベルフィルタとして別に残す。
+// 各値は SCL events の EventType 文字列 (owns_events と一致)。
+var auditEventCategoryTypes = map[string][]string{
 	"success": {
 		(&spec.UserAuthenticated{}).EventType(),
 		(&spec.AuthenticationStepCompleted{}).EventType(),
@@ -52,14 +54,70 @@ var authenticationEventKindTypes = map[string][]string{
 		(&spec.AuthenticationEventAggregated{}).EventType(),
 		(&spec.LoginThrottled{}).EventType(),
 	},
+	"user": {
+		(&spec.UserCreated{}).EventType(),
+		(&spec.UserUpdated{}).EventType(),
+		(&spec.UserDisabled{}).EventType(),
+		(&spec.UserEnabled{}).EventType(),
+		(&spec.UserDeleted{}).EventType(),
+		(&spec.UserRequiredActionSet{}).EventType(),
+		(&spec.UserRequiredActionCleared{}).EventType(),
+		(&spec.PasswordChanged{}).EventType(),
+		(&spec.PasswordResetRequested{}).EventType(),
+		(&spec.EmailChangeRequested{}).EventType(),
+		(&spec.EmailChanged{}).EventType(),
+		(&spec.MfaFactorEnrolled{}).EventType(),
+		(&spec.MfaFactorRemoved{}).EventType(),
+	},
+	"group": {
+		(&spec.GroupCreated{}).EventType(),
+		(&spec.GroupUpdated{}).EventType(),
+		(&spec.GroupDeleted{}).EventType(),
+		(&spec.GroupMemberAdded{}).EventType(),
+		(&spec.GroupMemberRemoved{}).EventType(),
+	},
+	"client": {
+		(&spec.ClientRegistered{}).EventType(),
+		(&spec.AdminClientCreated{}).EventType(),
+		(&spec.AdminClientUpdated{}).EventType(),
+		(&spec.AdminClientDeleted{}).EventType(),
+	},
+	"consent": {
+		(&spec.ConsentGrantedEvent{}).EventType(),
+		(&spec.ConsentRevokedEvent{}).EventType(),
+	},
+	"token": {
+		(&spec.AuthorizationCodeIssued{}).EventType(),
+		(&spec.AuthorizationCodeRedeemed{}).EventType(),
+		(&spec.AccessTokenIssued{}).EventType(),
+		(&spec.RefreshTokenIssued{}).EventType(),
+		(&spec.RefreshTokenRotated{}).EventType(),
+		(&spec.TokenRevoked{}).EventType(),
+		(&spec.TokenIntrospected{}).EventType(),
+		(&spec.RefreshTokenReuseDetected{}).EventType(),
+		(&spec.PARStored{}).EventType(),
+		(&spec.DeviceAuthorizationRequested{}).EventType(),
+		(&spec.DeviceAuthorizationApproved{}).EventType(),
+		(&spec.DeviceAuthorizationDenied{}).EventType(),
+	},
+	"tenant": {
+		(&spec.TenantCreated{}).EventType(),
+		(&spec.TenantUpdated{}).EventType(),
+		(&spec.TenantDisabled{}).EventType(),
+		(&spec.TenantEnabled{}).EventType(),
+		(&spec.TenantUserAttributeSchemaUpdated{}).EventType(),
+	},
+	"key": {
+		(&spec.SigningKeyRotated{}).EventType(),
+	},
 }
 
 func init() {
-	all := []string{}
+	authn := []string{}
 	for _, k := range []string{"success", "fail", "aggregated"} {
-		all = append(all, authenticationEventKindTypes[k]...)
+		authn = append(authn, auditEventCategoryTypes[k]...)
 	}
-	authenticationEventKindTypes["authentication"] = all
+	auditEventCategoryTypes["authentication"] = authn
 }
 
 const adminAuditEventExportMaxLimit = 10000
@@ -174,11 +232,11 @@ func parseAuditEventQuery(c *echo.Context, actor *spec.User) (oauthports.AuditEv
 	if t := c.QueryParam("type"); t != "" {
 		q.Type = t
 	}
-	// kind は認証系イベントの絞り込み (wi-44 統合: authentication/success/fail/aggregated)。
-	if kind := c.QueryParam("kind"); kind != "" {
-		types, ok := authenticationEventKindTypes[kind]
+	// category はイベントカテゴリ絞り込み (wi-44 統合: 認証サブ分類 + 管理操作カテゴリ)。
+	if category := c.QueryParam("category"); category != "" {
+		types, ok := auditEventCategoryTypes[category]
 		if !ok {
-			return oauthports.AuditEventQuery{}, errors.New("kind は authentication / success / fail / aggregated を指定してください")
+			return oauthports.AuditEventQuery{}, errors.New("category が不正です")
 		}
 		q.Types = types
 	}

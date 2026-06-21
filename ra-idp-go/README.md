@@ -297,15 +297,15 @@ bucket の `count` に積む。bucket と throttle は同じ `keyHash` (username
 - 監査イベントの読み出しモデル (`audit_events`) と bucket 集約 (`authentication_event_buckets`)
   を Postgres に永続化する (migration 0012)。bucket は upsert 1 回で「窓ごとの件数」と
   「その窓で最初の記録か」を返し、攻撃時も個別 INSERT を出さない (ADR-041)。
-- admin 検索: `GET /api/admin/audit_events`（`type` / `kind`
-  = authentication / success / fail / aggregated / `sub` / `after` / `before` / `limit`）/
-  `GET .../{id}` / `GET .../export`。permission は `AdminAuditEventsRead`。認証系の調査は
-  `kind` で絞り込む。
+- admin 検索: `GET /api/admin/audit_events`（`category`
+  = authentication / success / fail / aggregated / user / group / client / consent / token /
+  tenant / key、`type` 完全一致、`sub` / `after` / `before` / `limit`）/ `GET .../{id}` /
+  `GET .../export`。permission は `AdminAuditEventsRead`。認証系の調査は `category` で絞り込む。
 - 保持期間 sweep (ADR-045): 成功 365 日 / 失敗詳細 30 日 / 集約・MFA・セッション 90 日。
   global cap を上限とし、impersonation は短縮しない。`RETENTION_SWEEP_INTERVAL` の周期 job が
   `occurred_at` の古い行を削除する。
-- admin UI: `/admin/audit_events` に認証カテゴリ (`kind`) フィルタ・種別バッジ・JSON
-  エクスポートを統合した (認証専用ページは設けない)。
+- admin UI: `/admin/audit_events` にイベントカテゴリ (`category`、認証サブ分類 + 管理操作)
+  の単一セレクト・種別バッジ・JSON エクスポートを統合した (認証専用ページは設けない)。
 
 属性拡張・新規イベント型・bucket・retention は共通基盤として残し、UI/API の切り口だけを
 監査ログに一本化した。username / IP を hash・truncated 値で相関検索する機能は、hash 化 (emit 側)

@@ -841,10 +841,24 @@ export async function revokeAdminConsent(
   )
 }
 
+// イベントカテゴリ (wi-44 統合)。認証サブ分類 + 管理操作カテゴリ。
+export type AdminAuditEventCategory =
+  | 'authentication'
+  | 'success'
+  | 'fail'
+  | 'aggregated'
+  | 'user'
+  | 'group'
+  | 'client'
+  | 'consent'
+  | 'token'
+  | 'tenant'
+  | 'key'
+
 export type AdminAuditEventQuery = {
+  // type 完全一致 (機械向け低レベルフィルタ)。UI には出さない。
   type?: string
-  // kind は認証系イベントの絞り込み (wi-44 統合)。
-  kind?: 'authentication' | 'success' | 'fail' | 'aggregated'
+  category?: AdminAuditEventCategory
   sub?: string
   after?: string
   before?: string
@@ -855,7 +869,7 @@ export type AdminAuditEventQuery = {
 function auditEventParams(query: AdminAuditEventQuery): URLSearchParams {
   const params = new URLSearchParams()
   if (query.type) params.set('type', query.type)
-  if (query.kind) params.set('kind', query.kind)
+  if (query.category) params.set('category', query.category)
   if (query.sub) params.set('sub', query.sub)
   if (query.after) params.set('after', query.after)
   if (query.before) params.set('before', query.before)

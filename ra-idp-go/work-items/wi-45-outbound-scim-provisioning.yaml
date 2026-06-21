@@ -1,0 +1,119 @@
+id: wi-45-outbound-scim-provisioning
+title: 下流 SaaS への outbound provisioning (SCIM client / lifecycle management) を実装する
+created_at: 2026-06-21
+status: pending
+authors: [tn]
+
+motivation: |
+  [[wi-31-scim2-provisioning]] は ra-idp-go が SCIM **server** として外部
+  system of record (Okta / Google IAM / Entra ID) から user / group を
+  受け取る inbound 方向を扱い、`out_of_scope` に「ra-idp-go が SCIM client
+  として外部アプリへ push provisioning すること」を明示的に除外している。
+
+  しかし Okta / Entra ID / OneLogin の中核機能の 1 つは逆方向、すなわち
+  IdP 自身が source of truth となり、接続済みの下流 SaaS (Slack /
+  Salesforce / GitHub / Zoom 等) へ user / group を **push** して
+  provisioning / deprovisioning / group sync する outbound lifecycle
+  management である。これが無いと「入社で IdP に user を作る → 各 SaaS に
+  自動で account が生える / 退職で一斉に無効化される」という、企業が IdP に
+  最も期待する運用が成立しない。ra-idp は inbound SCIM (wi-31) と
+  outbound SCIM (本 WI) の双方を持って初めて provisioning hub になる。
+
+  本 WI は ra-idp を SCIM 2.0 **client** にする。downstream connector を
+  tenant-scoped に登録し、user/group のライフサイクル変化 (作成・属性更新・
+  disable・delete・group membership 変更) を outbound event として下流の
+  SCIM service provider へ反映する。確実性のため push は同期呼び出しでなく
+  既存の outbox / queue を介した非同期・冪等・retry 付きの provisioning job
+  として実装する。
+
+scope:
+  decision:
+    - >-
+      新規 ADR: outbound provisioning model を定義する。connector (下流 app)
+      の設定 (base URL / bearer token / 対象 group による割当 / attribute
+      mapping)、push trigger となる内部イベント、active=false / delete の
+      下流への翻訳、冪等性 (external_id 相関) と retry / backoff、部分失敗時の
+      per-connector エラー状態と再同期方針を確定する。
+    - >-
+      provisioning の真実源は内部 user/group aggregate であり、下流は射影
+      (mirror) とする。下流での手動変更は次回 reconcile で上書きする方針を
+      ADR で明示する (Okta の "Sync Password" 相当の例外は out_of_scope)。
+  scl:
+    - >-
+      新規 model: ProvisioningConnector (下流 app の接続定義) /
+      ProvisioningAssignment (user|group → connector の割当) /
+      ProvisioningJob (poly pending|succeeded|failed、external_id 相関)。
+    - >-
+      新規イベント: ConnectorRegistered / ConnectorUpdated / ConnectorDisabled /
+      UserProvisioned / UserDeprovisioned / UserPushFailed /
+      GroupMembershipPushed / ProvisioningReconciled。
+    - >-
+      新規 interface (admin): RegisterConnector / UpdateConnector /
+      ListConnectors / AssignToConnector / ListProvisioningJobs /
+      RetryProvisioningJob / ReconcileConnector。
+      permission `AdminProvisioningRead` / `AdminProvisioningWrite`。
+  go:
+    - >-
+      SCIM client adapter: 下流 `/scim/v2/Users` `/scim/v2/Groups` への
+      POST / PATCH / DELETE を仕様準拠で送る。external_id で相関し、409/404 を
+      冪等に解決する。bearer token は secret として扱いログに出さない。
+    - >-
+      push を outbox / queue 経由の非同期 ProvisioningJob として実装し、
+      指数 backoff の retry と dead-letter、per-connector の rate limit を持つ。
+    - >-
+      Postgres adapter: `provisioning_connectors` / `provisioning_assignments` /
+      `provisioning_jobs` テーブルと index。connector token は既存の secret
+      保管方針に従う。
+    - >-
+      内部 user/group lifecycle イベント (create / attribute update / disable /
+      delete / membership 変更) を購読して対象 connector への job を起こす。
+  ui:
+    - >-
+      admin settings に「プロビジョニング (下流連携)」: connector の登録 /
+      編集 / 無効化、attribute mapping、割当 group、last sync、エラー履歴、
+      個別 job の retry と connector 単位の reconcile。
+
+out_of_scope:
+  - inbound SCIM server 機能 (wi-31 が扱う)。
+  - 各 SaaS 固有の非標準 provisioning API (SCIM を話さない app 向け connector)。
+  - password sync / 下流からの逆方向 import (それは inbound = wi-31)。
+  - HRIS / ディレクトリ connector (LDAP / AD)。
+  - SaaS app カタログ (事前定義テンプレート) の整備。初期は汎用 SCIM connector のみ。
+
+affected_guarantees:
+  - >-
+    lifecycle propagation: 内部 user の disable / delete は割当先の下流 SaaS で
+    deprovision として反映される (最終的整合、retry 付き)。
+  - >-
+    idempotency: 同一 lifecycle 変化を複数回 push しても下流状態は 1 つに収束する
+    (external_id 相関)。
+  - >-
+    group sync: 内部 Group membership の変更が下流の group member と一致する。
+  - tenant isolation: connector と token は tenant-scoped。
+  - secret hygiene: 下流 bearer token はログ・監査に平文で出さない。
+  - audit: connector 操作と provisioning 成功 / 失敗を監査に残す。
+
+verification:
+  - cmd: 'go test ./...'
+    in: ra-idp-go
+  - cmd: 'golangci-lint run ./...'
+    in: ra-idp-go
+  - cmd: 'go build ./...'
+    in: ra-idp-go
+  - cmd: 'bun --cwd ra-idp-go/ui typecheck'
+  - cmd: 'bun --cwd ra-idp-go/ui lint'
+  - cmd: 'bun --cwd ra-idp-go/ui build'
+  - >-
+    手動: connector を登録 → 内部で user 作成 → 下流 (mock SCIM server) に
+    POST が届く → user disable → 下流に PATCH active=false が届く流れを確認する。
+  - >-
+    手動: 下流が一時的に 5xx を返すとき job が retry され、復旧後に収束する
+    (冪等) ことを確認する。
+
+risk: high
+risk_notes: |
+  outbound provisioning は外部システムの状態を ra-idp が書き換える契約であり、
+  誤割当・誤った deprovision は下流 SaaS のアカウント大量無効化など破壊的影響を
+  持つ。active=false / delete の下流への翻訳と割当条件を ADR で先に固定し、
+  push は必ず冪等・retry 可能な非同期 job とする。inbound (wi-31) と outbound
+  (本 WI) で active=false の意味を一貫させる。

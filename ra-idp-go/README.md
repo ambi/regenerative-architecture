@@ -334,73 +334,30 @@ ra-idp-go/
 大きさ・RA 的清潔さ（既存 port を完成 → 新 port を追加の順）の 3 軸で
 フェーズ分けした実装ロードマップとして示す。
 
-> Phase 番号は依存関係と推奨順序の目安。ユーザ価値が大きい項目は他 Phase より優先してよい（順序の根拠が壊れる場合のみ後述の「順序の根拠」を参照）。既に実装済みの領域は本表から除外し、残タスクだけを掲載している（旧 Phase 1 の Token / DPoP / mTLS / PKCE 階段化、旧 Phase 2 の UI 基盤一式はいずれも完了済み）。
-
-### Phase 0 — 認証の土台
-
-Argon2id ハッシャ + 長さ (12–128 chars) + ユーザー識別子との類似禁止 + 共通パスワード辞書
-(bundled) + パスワード履歴再利用禁止 (`PasswordHistoryRepository`) のパスワードポリシーは
-実装済 (ADR-026)。文字種要件 / periodic rotation は ADR-026 で意図的に採用しない。
-per-account / per-IP のログイン試行レート制限とユーザー名列挙対策 (sentinel hash) も
-ADR-029 で実装済。本番運用可能な `EmailSender` adapter (SMTP) も ADR-035 で実装済。
-残るのは本番運用に必要な周辺強化。
-
-| 領域                   | 不足している機能                                                                                                                                                                                                                     |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 漏洩パスワード検査     | HIBP k-anonymity 等のオンライン漏洩データベース連携 (`BreachedPasswordChecker` port の実装。現状は `NoopBreachedPasswordChecker` のみ)                                                                                               |
-| ブルートフォース防御   | CAPTCHA / 行動分析                                                                                                                                                                                                                   |
-| エンドポイント保護     | `/token` `/authorize` `/par` `/device_authorization` の一般 rate limit / bot 対策                                                                                                                                                    |
-| アカウント整合性       | メール・電話番号検証                                                                                                                                                                                                                 |
-
-### Phase 1 — Secret / 鍵のライフサイクル運用
-
-旧 Phase 1（既存仕様の運用穴埋め）は Token (RFC 9207 + access token denylist)、
-DPoP nonce + 全経路適用、mTLS 検証 + cnf.x5t#S256 バインド、PKCE 階段化 (ADR-002 改訂)
-が完了済。残るのは鍵・シークレットの運用面のみ。実 KMS/HSM 差し替えは Phase 8 でカバーする。
-
-| 領域                     | 不足している機能                                                                                                     |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------- |
-| client_secret rotation   | rotate use case + `/rotate_secret` 系エンドポイント、確認・通知フロー                                                |
-| 署名鍵 rotation の自動化 | `rotateSigningKeyUseCase` と CLI は実装済。scheduler / k8s CronJob による定期実行、grace period 中の旧鍵保持運用は未 |
+> Phase 番号は依存関係と推奨順序の目安。ユーザ価値が大きい項目は他 Phase より優先してよい。既に実装済みの領域、および `work-items/` で具体化済みの残タスク（HIBP / rate limit・bot 対策 / メール・電話検証 / client_secret・署名鍵 rotation / WebAuthn・recovery codes / セッション・OIDC logout / SAML / inbound federation / SCIM 双方向 / KMS・HSM / conformance / k8s・監視 など）は本表から除外し、まだ work item 化していない長期項目だけを掲載する。
 
 ### Phase 2 — MFA / Passkey と acr/amr 体系
 
-旧 Phase 2 (UI 基盤) のデザインシステム、ja/en i18n、a11y 基盤、ブランディング slot、
-4 画面 (login / consent / device / error) はすべて実装済。TOTP (`urn:ra-idp:acr:mfa`
-対応) と `acr_values` / `max_age` を消費する step-up 再認証も実装済。本 Phase から
-は認証手段をさらに増やし、identity assurance 体系を整える。
-
-| 領域     | 不足している機能                                                              |
-| -------- | ----------------------------------------------------------------------------- |
-| 認証手段 | WebAuthn / Passkey、バックアップコード、magic link / passwordless email       |
-| 体系     | identity assurance (AAL/IAL) との対応                                         |
-| step-up  | リスクベース / 適応認証の足場                                                 |
-| 復旧     | アカウント復旧フロー                                                          |
+| 領域     | 不足している機能                                                     |
+| -------- | -------------------------------------------------------------------- |
+| 認証手段 | magic link / passwordless email                                      |
+| 体系     | identity assurance (AAL/IAL) との対応                                |
+| step-up  | リスクベース / 適応認証の足場                                        |
+| 復旧     | アカウント復旧フロー（recovery codes / recovery email を束ねる導線） |
 
 ### Phase 3 — セッション / OIDC ライフサイクル完成
 
-| 領域       | 不足している機能                                                                                         |
-| ---------- | -------------------------------------------------------------------------------------------------------- |
-| ユーザー側 | セッション一覧・失効 UI、デバイス管理                                                                    |
-| RP 側 SLO  | `id_token_hint` 署名検証・client 解決、Back-Channel Logout、Front-Channel Logout、Session Management 1.0 |
-| 継続評価   | CAEP / Shared Signals Framework によるイベント連動セッション失効                                         |
+| 領域       | 不足している機能                                                |
+| ---------- | --------------------------------------------------------------- |
+| ユーザー側 | デバイス管理                                                    |
+| 継続評価   | CAEP / Shared Signals Framework によるイベント連動セッション失効 |
 
 ### Phase 4 — 管理 / RBAC / マルチテナンシー
 
-client / consent / key / audit-event の admin CRUD と RBAC (`admin` / `system_admin`
-スコープ、`permissions` セクション)、realm / tenant 分離 (`/realms/{tenant_id}` + tenant
-管理 API + tenant-scoped persistence)、tenant 別のパスワードポリシー上書き、上記 API の
-上に乗る管理 UI とロール・権限の閲覧 UI は実装済。user は backend の create / read / update / disable と
-一覧・ロール編集 UI に加え、属性編集 (`preferred_username` / `name` / `email` /
-`email_verified`) の管理 UI も実装済。削除 (anonymize cascade) も DELETE
-`/api/admin/users/:sub` と削除確認 UI で実装済。group 集約 (tenant-scoped、
-roles 保持、user-group membership、admin CRUD API + UI、実効ロール
-`user.roles ∪ ⋃ group.roles`) も ADR-038 で実装済。
-
-| 領域                             | 不足している機能                                                                                                                                                            |
-| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Dynamic Client Registration 拡張 | registration_access_token、software_statement、client metadata 更新・削除（client_secret rotation 本体は Phase 1）                                                          |
-| 委譲・代行                       | impersonation、delegation、guest access                                                                                                                                     |
+| 領域                             | 不足している機能                                                                                               |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Dynamic Client Registration 拡張 | registration_access_token、software_statement、client metadata 更新・削除（client_secret rotation 本体は別 WI） |
+| 委譲・代行                       | impersonation、delegation、guest access                                                                        |
 
 ### Phase 5 — 同意 / プライバシー
 
@@ -412,16 +369,14 @@ roles 保持、user-group membership、admin CRUD API + UI、実効ロール
 
 ### Phase 6 — Federation / プロビジョニング
 
-ra-idp 自身が SAML 2.0 / WS-Federation を**しゃべる** outbound 方向と、外部 IdP との
-inbound 連携を両方サポートする。SAML 2.0 IdP は現代の B2B SaaS / エンタープライズ
-販売で事実上必須要件であり、OIDC のみでは最低ラインを満たさない。
+SAML 2.0 IdP・inbound federation・SCIM 双方向プロビジョニング (JIT / account
+linking 含む) は work item 化済み。残るのはレガシー protocol とエンタープライズ
+directory 連携。
 
-| 領域                                    | 不足している機能                                                                                                                                                         |
-| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| ra-idp が IdP として振る舞う (outbound) | SAML 2.0 IdP（SP-Initiated / IdP-Initiated SSO、metadata 公開、Single Logout、assertion 署名・暗号化、attribute mapping）、WS-Federation Passive Requestor、WS-Trust STS |
-| 外部 IdP との連携 (inbound)             | OIDC RP として外部 OIDC IdP、SAML SP として外部 SAML IdP、WS-Fed RP として外部 STS、social login、IdP discovery、broker パターン                                         |
-| エンタープライズ (inbound)              | LDAP / AD bind、Kerberos / SPNEGO                                                                                                                                        |
-| プロビジョニング                        | JIT provisioning、account linking、SCIM 2.0、deprovisioning、グループ同期                                                                                                |
+| 領域                                    | 不足している機能                             |
+| --------------------------------------- | -------------------------------------------- |
+| ra-idp が IdP として振る舞う (outbound) | WS-Federation Passive Requestor、WS-Trust STS |
+| エンタープライズ (inbound)              | LDAP / AD bind、Kerberos / SPNEGO            |
 
 ### Phase 7 — 高保証プロファイル / プロトコル拡張
 
@@ -436,24 +391,15 @@ inbound 連携を両方サポートする。SAML 2.0 IdP は現代の B2B SaaS /
 
 ### Phase 8 — 運用 / 可用性 / セキュリティ運用 / コンプライアンス
 
-| 領域             | 不足している機能                                                                                         |
-| ---------------- | -------------------------------------------------------------------------------------------------------- |
-| 鍵               | HSM / KMS 実鍵管理（Phase 1 の抽象 port を本物に差し替え）                                               |
-| 攻撃面           | SSRF 防御、WAF、bot 対策、異常検知（impossible travel 等）、侵害時 token revocation playbook             |
-| 可用性           | Kubernetes 配備、監視・アラート、負荷試験、マルチリージョン、zero-downtime migration、バックアップ・リストア演習、DR、容量計画 |
-| セキュリティ運用 | ペネトレーションテスト、bug bounty / responsible disclosure、chaos engineering、改竄防止監査ログ         |
-| コンプライアンス | OIDC / FAPI certification、SOC2 / ISO27001 証跡、監査レポート、データ処理契約用エクスポート              |
+| 領域             | 不足している機能                                                                            |
+| ---------------- | ------------------------------------------------------------------------------------------- |
+| 攻撃面           | SSRF 防御、WAF、異常検知（impossible travel 等）、侵害時 token revocation playbook           |
+| 可用性           | マルチリージョン、zero-downtime migration、バックアップ・リストア演習、DR、容量計画          |
+| セキュリティ運用 | ペネトレーションテスト、bug bounty / responsible disclosure、chaos engineering、改竄防止監査ログ |
+| コンプライアンス | OIDC / FAPI certification、SOC2 / ISO27001 証跡、監査レポート、データ処理契約用エクスポート  |
 
 ### Phase 9 — 開発者体験 / テスト基盤 / 仕上げ
 
-| 領域                   | 不足している機能                                                                                                                                                                                                                           |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 開発者向け             | SDK、クライアント設定テンプレート、well-known docs、エラー診断・トラブルシュート                                                                                                                                                           |
-| プロトコル conformance | OAuth / OIDC conformance smoke suite を CI に常駐                                                                                                                                                                                          |
-
-**SPA E2E スモークテスト**: 実装済 (wi-22)。`/authorize → login → consent → callback URL に
-`code=` と `iss=` が乗る` までの golden path を `ra-idp-go/ui/tests/e2e/` に 1 本だけ持つ。
-SPA dispatcher の画面分岐 (`meta[name="ra-idp:page"]`) と cross-origin redirect 挙動の回帰を
-機械検知する。ランナーは `bun test` + 組み込みの `Bun.WebView` (macOS は WKWebView、その他は
-Chrome via CDP) で、外部のブラウザ自動化フレームワークや別ブラウザの取得は不要。実行は `bun --cwd ra-idp-go/ui run test:e2e`
-(詳細は `ui/README.md`)。シナリオ拡充・consent 拒否・error 画面・CI 常駐は別 WI。
+| 領域       | 不足している機能                                                               |
+| ---------- | ------------------------------------------------------------------------------ |
+| 開発者向け | SDK、クライアント設定テンプレート、well-known docs、エラー診断・トラブルシュート |

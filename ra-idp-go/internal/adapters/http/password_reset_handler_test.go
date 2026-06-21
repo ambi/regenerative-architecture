@@ -11,11 +11,11 @@ import (
 	"testing"
 	"time"
 
-	"ra-idp-go/internal/adapters/crypto"
 	httpadapter "ra-idp-go/internal/adapters/http"
-	"ra-idp-go/internal/adapters/notification"
 	"ra-idp-go/internal/adapters/persistence/memory"
-	"ra-idp-go/internal/adapters/policy"
+	"ra-idp-go/internal/platform/crypto"
+	"ra-idp-go/internal/platform/notification"
+	"ra-idp-go/internal/platform/policy"
 	"ra-idp-go/internal/spec"
 
 	"github.com/labstack/echo/v5"

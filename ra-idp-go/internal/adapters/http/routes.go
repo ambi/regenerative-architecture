@@ -6,11 +6,11 @@
 package http
 
 import (
-	"ra-idp-go/internal/adapters/crypto"
 	authdomain "ra-idp-go/internal/authentication/domain"
 	authports "ra-idp-go/internal/authentication/ports"
 	authusecases "ra-idp-go/internal/authentication/usecases"
 	oauthports "ra-idp-go/internal/oauth2/ports"
+	"ra-idp-go/internal/platform/crypto"
 	"ra-idp-go/internal/spec"
 	tenantports "ra-idp-go/internal/tenancy/ports"
 

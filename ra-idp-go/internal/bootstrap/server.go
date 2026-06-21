@@ -11,12 +11,12 @@ import (
 	"syscall"
 	"time"
 
-	"ra-idp-go/internal/adapters/crypto"
 	httpadapter "ra-idp-go/internal/adapters/http"
-	"ra-idp-go/internal/adapters/observability"
 	"ra-idp-go/internal/adapters/persistence/memory"
-	"ra-idp-go/internal/adapters/policy"
 	authusecases "ra-idp-go/internal/authentication/usecases"
+	"ra-idp-go/internal/platform/crypto"
+	"ra-idp-go/internal/platform/observability"
+	"ra-idp-go/internal/platform/policy"
 	"ra-idp-go/internal/spec"
 	tenantusecases "ra-idp-go/internal/tenancy/usecases"
 

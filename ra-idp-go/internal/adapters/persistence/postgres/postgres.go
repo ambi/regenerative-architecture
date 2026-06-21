@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"time"
 
-	"ra-idp-go/internal/adapters/crypto"
 	authports "ra-idp-go/internal/authentication/ports"
 	"ra-idp-go/internal/oauth2/ports"
+	"ra-idp-go/internal/platform/crypto"
 	"ra-idp-go/internal/spec"
 
 	"github.com/jackc/pgx/v5"

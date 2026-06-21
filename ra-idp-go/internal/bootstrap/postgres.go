@@ -5,10 +5,10 @@ import (
 	"errors"
 	"os"
 
-	"ra-idp-go/internal/adapters/eventsink"
 	"ra-idp-go/internal/adapters/persistence/postgres"
 	redisstore "ra-idp-go/internal/adapters/persistence/redis"
 	oauthports "ra-idp-go/internal/oauth2/ports"
+	"ra-idp-go/internal/platform/eventsink"
 )
 
 func assemblePostgres(ctx context.Context) (*Dependencies, error) {

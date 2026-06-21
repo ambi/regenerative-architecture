@@ -8,8 +8,8 @@ import (
 	"strings"
 	"syscall"
 
-	"ra-idp-go/internal/adapters/eventsink"
 	"ra-idp-go/internal/adapters/persistence/postgres"
+	"ra-idp-go/internal/platform/eventsink"
 )
 
 // Run は outbox → Kafka リレーを起動する。SIGINT/SIGTERM で graceful shutdown。

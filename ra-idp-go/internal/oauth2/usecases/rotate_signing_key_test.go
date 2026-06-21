@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"ra-idp-go/internal/adapters/crypto"
+	"ra-idp-go/internal/platform/crypto"
 	"ra-idp-go/internal/spec"
 )
 

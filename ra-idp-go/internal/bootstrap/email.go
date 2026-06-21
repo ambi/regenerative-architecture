@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"ra-idp-go/internal/adapters/notification"
 	authports "ra-idp-go/internal/authentication/ports"
+	"ra-idp-go/internal/platform/notification"
 )
 
 // resolveEmailSender は EMAIL_SENDER / SMTP_* 環境変数から EmailSender adapter を組み立てる。

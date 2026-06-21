@@ -14,9 +14,9 @@ import (
 	"testing"
 	"time"
 
-	"ra-idp-go/internal/adapters/crypto"
 	"ra-idp-go/internal/adapters/persistence/memory"
 	authdomain "ra-idp-go/internal/authentication/domain"
+	"ra-idp-go/internal/platform/crypto"
 	"ra-idp-go/internal/spec"
 
 	"github.com/labstack/echo/v5"

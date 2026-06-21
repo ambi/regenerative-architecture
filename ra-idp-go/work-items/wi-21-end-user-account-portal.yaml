@@ -46,18 +46,19 @@ scope:
         - personal access のセッション一覧と revoke
         - 接続済みクライアントの consent revoke
         - 個人データのエクスポート (GDPR 第 15 条 right of access)
-        - アカウント削除リクエスト (ADR-036 に従い admin が承認 /
-          自動承認は tenant policy 次第)
       admin にしか触れないのは:
         - roles / status (active|disabled|locked|staged|suspended)
+        - アカウントの削除 / 退会 (エンタープライズではライフサイクルを
+          admin / プロビジョニング側で管理するため self-service の
+          退会導線は持たない)
         - organization 属性 (department / manager / employee_number)
         - custom attribute のうち editable_by_user=false なもの
         - impersonation 状態の編集
     - >-
       ADR-043 **account-portal-csrf-and-step-up**: self-service の
       mutation は (a) 通常 mutation は CSRF + same-origin、(b) 高
-      sensitivity (password / MFA / email primary / delete account /
-      revoke all sessions) は **step-up auth** を要求する。step-up は
+      sensitivity (password / MFA / email primary / revoke all
+      sessions) は **step-up auth** を要求する。step-up は
       "直近 N 分以内に再認証 (password or MFA) を完了している" を
       条件とする。N は ADR で 5 分とする。
     - >-
@@ -81,10 +82,9 @@ scope:
         ListMyConsents / RevokeMyConsent
         ListMyConnectedClients
         RequestAccountDataExport / DownloadAccountDataExport
-        RequestAccountDeletion / CancelAccountDeletionRequest
         ListMyRequiredActions            (self)
       対応 permission を追加: `SelfAccountRead` / `SelfAccountWrite` /
-      `SelfConsentManage` / `SelfDataExport` / `SelfAccountDelete`。
+      `SelfConsentManage` / `SelfDataExport`。
     - >-
       新規 model:
         AccountSummary  (User の self 用射影 + organization 公開部分 +
@@ -93,16 +93,11 @@ scope:
         DataExportJob   (id / sub / tenantId / requestedAt / completedAt? /
                          expiresAt / downloadUrl? / status: requested|
                          processing|ready|expired|failed)
-        AccountDeletionRequest (sub / tenantId / requestedAt /
-                                approvedAt? / status: pending|approved|
-                                rejected|cancelled)
     - >-
       新規イベント:
         AccountProfileUpdated   (self による更新を [[wi-19]] と区別)
         StepUpRequested / StepUpCompleted
         DataExportRequested / DataExportReady / DataExportDownloaded
-        AccountDeletionRequested / AccountDeletionCancelled /
-        AccountDeletionApproved / AccountDeletionRejected
         ConsentRevokedBySelf
 
   go:
@@ -116,12 +111,6 @@ scope:
         `DataExportJob` aggregate は `internal/account/` に新ディレクトリ
         を切る。ports / usecases / adapter を独立させる (Authentication
         component の所有とする)。
-      - >-
-        `AccountDeletionRequest` aggregate も `internal/account/` に
-        置く。ADR-036 の anonymization は admin 経路で発火するが、
-        request の起票は self 経路で行う。tenant policy
-        (`auto_approve_deletion: bool`) を tenant aggregate に追加し、
-        true なら request 起票時に即 anonymization へ移行する。
     http:
       - >-
         ハンドラ追加 (全て `/api/account/` プレフィックス、CSRF 必須、
@@ -145,8 +134,6 @@ scope:
           POST  /api/account/data_exports
           GET   /api/account/data_exports/{id}
           GET   /api/account/data_exports/{id}/download   (signed URL or stream)
-          POST  /api/account/deletion_request
-          DELETE /api/account/deletion_request
           GET   /api/account/required_actions
       - >-
         既存 `/api/auth/account` は admin shell 用 metadata。本 WI で
@@ -159,11 +146,6 @@ scope:
         requested_at / completed_at? / expires_at / status /
         artifact_object_key? (実体は別ストレージへの参照、本 WI では
         local filesystem 配下を mock として用意し、S3 / GCS は別 WI)。
-      - >-
-        `account_deletion_requests` テーブル: id / tenant_id / sub /
-        requested_at / status / approver_sub? / approved_at? /
-        scheduled_anonymize_at? / cancel_reason?。tenant の
-        `auto_approve_deletion` フラグに応じて即実行 or admin 承認。
       - >-
         `account_emails` (wi-19 の `user_emails` を再利用) に
         `verification_token_hash` / `verification_expires_at` を持つ
@@ -229,8 +211,6 @@ scope:
         AccountDataPage (`/account/data`):
           - Personal data export (`Request export` / 完了済み一覧 /
             ダウンロード)。
-          - Account deletion request (Submit / Cancel)。Submit 時は
-            tenant policy に応じて即実行 or 承認待ちかを文言で表示。
     routing:
       - 既存 `/account/password` は redirect で
         `/account/security#password` に張り替える。
@@ -283,16 +263,16 @@ out_of_scope:
     本 WI では local filesystem mock + 同期生成で開始し、生成中の
     job state を持つ点だけ整える。
   - >-
-    Deletion request の workflow UI (admin 側の承認画面)。承認 API
-    までは持つが、承認 UI の admin 側は別 WI (admin user detail に
-    "Pending deletion requests" バッジを出す程度) で扱う。
+    Self-Service によるアカウント削除 / 退会。エンタープライズでは
+    ユーザーライフサイクルを admin / 外部プロビジョニング (SCIM 等) で
+    管理する前提のため、本 WI では self の退会導線を設けない。物理削除 /
+    匿名化は引き続き admin 経路 (ADR-036) のみが担う。
 
 affected_guarantees:
   - >-
     tenant isolation: 全 self エンドポイントは認証された session の
     `tenant_id` を必ず参照し、URL / body の `tenant_id` 指定は
-    認められない。data export / deletion request は actor の
-    tenant 内のみ。
+    認められない。data export は actor の tenant 内のみ。
   - >-
     self RBAC: SCL の `Self*` permission を全 mutation に適用。
     `actor.sub == target.sub` を最低要件にする。admin による
@@ -316,9 +296,6 @@ affected_guarantees:
     保管期間は 7 日とし、それ以降は自動失効する。署名 URL は本 WI で
     は session 認証下のストリーミングで代用 (一時 URL は別 WI)。
   - >-
-    Account deletion: ADR-036 の anonymization に準拠。auto_approve
-    が false の tenant では admin 承認なしには user データが消えない。
-  - >-
     SCL coherence: 新 interface / event / permission / model を SCL に
     追加。`Self*` permission group は既存 `Admin*` と並列の trust
     boundary として明示する。
@@ -329,8 +306,7 @@ verification:
     reason: |
       self handler の RBAC 強制 (他人 sub を URL に入れても自分の
       sub に補正される) / step-up gate (5 分超過で 403) /
-      data export job のステータス遷移 / deletion request の auto-
-      approve / manual-approve 分岐 / consent revoke の rotation
+      data export job のステータス遷移 / consent revoke の rotation
       連動 / second email verify の token 期限と単発消費。
   - cmd: 'golangci-lint run ./...'
     in: ra-idp-go
@@ -365,15 +341,11 @@ verification:
     download で JSON を取得、中身に UserInfo + sign-in activity +
     sessions + consents が入っている。
   - >-
-    手動 8: `/account/data` から deletion request を submit →
-    tenant の auto_approve=false の場合は pending、true なら ADR-036
-    の anonymization が即発火し session が即終了する。
-  - >-
-    手動 9: step-up 未経由の状態で `/account/emails` から primary
+    手動 8: step-up 未経由の状態で `/account/emails` から primary
     変更を試みると 403 + `step_up_required` のレスポンス、UI が
     再認証 modal を表示する。再認証成功後に変更が完了する。
   - >-
-    手動 10: 他テナントの sub を `/api/account/profile` の PATCH に
+    手動 9: 他テナントの sub を `/api/account/profile` の PATCH に
     手書きで入れても、actor 側の sub に強制的に補正されることを
     確認 (リクエスト改竄耐性)。
 
@@ -396,11 +368,7 @@ risk_notes: |
       URL を本 WI で発行しない判断は、公開化リスクを避けるため
       意図的にしている。
 
-  (4) Deletion request の取り違え: ADR-036 の anonymization と本 WI
-      の request 起票が混在する。auto_approve の挙動を tenant policy
-      で必ず明示し、未設定 tenant は false 扱いとする。
-
-  (5) UI / admin shell の混乱: end-user shell と admin shell は明確
+  (4) UI / admin shell の混乱: end-user shell と admin shell は明確
       に区別する。同一画面に同時に admin と end-user が居ない前提を
       `AuthenticationContext` で固定し、admin role を持つ user が
       `/account` を開いても admin 機能には触れない (sidebar の
@@ -409,5 +377,5 @@ risk_notes: |
   リリースは段階的に: (i) `/api/account/summary` + portal shell /
   (ii) profile + emails (recovery 含む) / (iii) security
   (password / MFA) / (iv) activity (sessions + signin_activity) /
-  (v) applications (consents) / (vi) data export / (vii) deletion
-  request。各 PR で SCL の追加 → 実装 → UI の順を守る。
+  (v) applications (consents) / (vi) data export。各 PR で SCL の
+  追加 → 実装 → UI の順を守る。

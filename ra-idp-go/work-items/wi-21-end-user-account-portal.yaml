@@ -1,7 +1,7 @@
 id: wi-21-end-user-account-portal
 title: エンドユーザー向け「マイページ」(Account Portal) を実運用相当で用意する
 created_at: 2026-06-17
-status: pending
+status: completed
 authors: [tn]
 
 motivation: |
@@ -37,12 +37,12 @@ scope:
       self-service で変更可能な範囲と、admin にしか変更できない範囲を
       列挙する。以下を self に許可する初期スコープとする:
         - personal info: name 系 / nickname / picture URL / locale /
-          zoneinfo / phone / address / recovery_email / recovery_phone
-        - secondary email の add/remove/verify (primary email の変更は
-          再検証フローを通す)
+          zoneinfo / phone / address
+        - primary email の変更 (再検証フロー)。secondary / recovery 連絡先は
+          [[wi-41-secondary-and-recovery-email]] に分離
         - password 変更 (既存)
-        - MFA factor の enroll / remove (TOTP は実装済み、WebAuthn /
-          SMS は別 WI)
+        - MFA factor の enroll / remove (TOTP を実装。WebAuthn / passkey /
+          recovery codes は [[wi-26-webauthn-passkey-and-recovery-codes]])
         - personal access のセッション一覧と revoke
         - 接続済みクライアントの consent revoke
         - 個人データのエクスポート (GDPR 第 15 条 right of access)
@@ -55,12 +55,11 @@ scope:
         - custom attribute のうち editable_by_user=false なもの
         - impersonation 状態の編集
     - >-
-      ADR-043 **account-portal-csrf-and-step-up**: self-service の
-      mutation は (a) 通常 mutation は CSRF + same-origin、(b) 高
-      sensitivity (password / MFA / email primary / revoke all
-      sessions) は **step-up auth** を要求する。step-up は
-      "直近 N 分以内に再認証 (password or MFA) を完了している" を
-      条件とする。N は ADR で 5 分とする。
+      本 WI の self-service mutation は CSRF + same-origin で保護する。高
+      sensitivity な操作 (password / MFA / email primary / revoke all sessions)
+      への **step-up 再認証** (ADR-043) は横断ゲートとして
+      [[wi-43-account-portal-step-up-auth]] に分離し、本 WI では各操作の所持証明
+      (TOTP コード等) で代替する。
     - >-
       ADR-044 **account-portal-data-export**: 個人データ JSON エクスポート
       の形式を定める (OIDC UserInfo + custom attribute + sign-in
@@ -234,8 +233,17 @@ scope:
 
 out_of_scope:
   - >-
-    パスキー / WebAuthn / SMS OTP の MFA 追加。TOTP enroll / remove は
-    既存実装の薄い再公開のみ。WebAuthn は別 WI。
+    パスキー / WebAuthn / recovery codes の MFA factor 追加。本 WI は TOTP の
+    self-service 登録・解除までで、他 factor は
+    [[wi-26-webauthn-passkey-and-recovery-codes]]。SMS OTP は phishing-resistant
+    志向 (wi-26) に合わせて当面採用しない。
+  - >-
+    secondary / recovery 用メール・電話の self-service 管理。本 WI は primary email の
+    変更 (再検証フロー) までで、複数連絡先は [[wi-41-secondary-and-recovery-email]]。
+  - >-
+    高 sensitivity 操作への step-up 再認証ゲート (ADR-043)。本 WI は CSRF +
+    same-origin + 各操作の所持証明で保護し、横断 step-up は
+    [[wi-43-account-portal-step-up-auth]]。
   - >-
     Push 通知メール ("パスワードが変更されました"、"新しいデバイスから
     ログイン") の送信。`EmailSender` の口は持つが本 WI ではテンプレ
@@ -379,3 +387,54 @@ risk_notes: |
   (password / MFA) / (iv) activity (sessions + signin_activity) /
   (v) applications (consents) / (vi) data export。各 PR で SCL の
   追加 → 実装 → UI の順を守る。
+
+completion:
+  completed_at: 2026-06-21
+  summary: |
+    end-user 向け account portal (`/account`) を admin shell とは別の AccountShell で
+    実装し、以下のステージを段階的にリリースした:
+      - shell + アカウント概要 (`/api/account/summary`, roles を含まない self 契約)
+      - 個人情報 (表示名・editable 属性、wi-19 の self 経路)
+      - primary email 変更 (ワンタイムリンク再検証、ADR-030 方式)
+      - セキュリティ: パスワード変更導線 + TOTP の self-service 登録・解除
+        (登録時 QR コード [[wi-40-totp-enrollment-qr-code]]、所持証明で保護)
+      - アクティビティ: サインイン履歴 + 有効なセッションの一覧・個別失効・
+        他端末ログアウト (バックエンドは [[wi-20-authentication-event-history]]
+        スライス 1/2)
+      - 接続済みアプリ: consent の一覧と revoke
+      - データとプライバシー: 個人データの同期 JSON エクスポート
+    全 self エンドポイントは認証セッションの sub / tenant_id に固定し、mutation は
+    CSRF + same-origin で保護した。
+    残件は独立 WI に分離した: secondary / recovery 連絡先 →
+    [[wi-41-secondary-and-recovery-email]] / WebAuthn・passkey・recovery codes →
+    [[wi-26-webauthn-passkey-and-recovery-codes]] / 高 sensitivity 操作の横断 step-up
+    再認証 (ADR-043) → [[wi-43-account-portal-step-up-auth]]。data export の非同期ジョブ / object
+    storage 連携は引き続き out_of_scope (同期生成で提供)。
+  verification:
+    - { cmd: 'go test ./...', in: ra-idp-go, result: passed }
+    - { cmd: 'golangci-lint run ./...', in: ra-idp-go, result: passed }
+    - { cmd: 'go build ./...', in: ra-idp-go, result: passed }
+    - { cmd: 'bun --cwd ra-idp-go/ui typecheck', result: passed }
+    - { cmd: 'bun --cwd ra-idp-go/ui lint', result: passed }
+    - { cmd: 'bun --cwd ra-idp-go/ui build', result: passed }
+    - >-
+      手動: `/account` 概要・`/account/profile` 編集・`/account/emails` 再検証・
+      `/account/security` TOTP 登録/解除・`/account/activity` 履歴とセッション失効・
+      `/account/applications` consent revoke・`/account/data` エクスポートを確認。
+  affected_guarantees_state:
+    - >-
+      tenant isolation / self RBAC: 全 self エンドポイントは認証セッションの sub /
+      tenant_id に固定し、URL/body の指定値を信用しない (他人 sub のテストを含む)。維持。
+    - >-
+      CSRF: 全 self mutation を CSRF + same-origin で保護。横断 step-up (ADR-043) は
+      wi-43 に分離し、本 WI は各操作の所持証明 (TOTP コード等) で代替。
+    - >-
+      SCL coherence: 追加した self interface / model / event を SCL に登録し、
+      coherence_test と yaml-check (scl / work-item) を通過。
+  residual_risk:
+    - >-
+      高 sensitivity 操作の横断 step-up は未導入 (wi-43)。現状は所持証明 + CSRF で
+      保護しており、セッション乗っ取り時の被害低減は wi-43 完了で強化する。
+    - >-
+      consent / session の revoke は OAuth クライアントへ発行済みの refresh token を
+      失効しない (per-session 紐付けが無いため)。per-session refresh 失効は wi-20 後続。

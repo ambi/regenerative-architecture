@@ -1,0 +1,80 @@
+id: wi-41-secondary-and-recovery-email
+title: セカンダリ / リカバリ用メール・電話の self-service 管理
+created_at: 2026-06-21
+authors: [tn]
+status: pending
+
+motivation: |
+  [[wi-21-end-user-account-portal]] の account portal は primary email の
+  変更 (再検証フロー) までを実装した。一方、業界の "マイページ" は primary
+  以外に **セカンダリメール**（複数の連絡先）と **リカバリ用メール / 電話**
+  (アカウント回復・通知の宛先) を持つのが一般的:
+
+  - Google: 再設定用メール / 再設定用電話番号。
+  - Okta / Keycloak: secondary email, recovery factors。
+
+  本 WI はこれを self-service として切り出す。primary email の変更は wi-21 で
+  済んでいるため、本 WI は **複数連絡先のモデルと検証フロー** に集中する。
+
+  注意 (drift): [[wi-19-rich-user-attributes]] は multi-valued contacts
+  (`user_emails`) を一旦ドロップした (thin-core / sparse attribute 方針)。
+  本 WI ではまず「単数の recovery_email / recovery_phone を属性として持つ」
+  最小形から入り、複数 secondary email が必要になった段階で companion table を
+  足すか attribute の string_array で表すかを ADR で決める。
+
+scope:
+  decision:
+    - >-
+      新規 ADR: recovery / secondary 連絡先の格納形式。recovery_email /
+      recovery_phone を組み込み属性 (ADR-040 の sparse attribute) として持つか、
+      専用 companion table を切るかを決める。検証は ADR-030 の one-time token と
+      同方針 (hash 保存・単発消費・期限付き) にする。
+  scl:
+    - >-
+      新規 interface: UpdateRecoveryEmail / UpdateRecoveryPhone /
+      AddSecondaryEmail / VerifySecondaryEmail / RemoveSecondaryEmail (self)。
+      対応 model と検証イベント (RecoveryContactUpdated 等) を追加する。
+  go:
+    - >-
+      検証トークンストア (port + memory + postgres + migration) を email change の
+      パターン (EmailChangeTokenStore) に倣って追加。usecase は actor.sub 固定。
+  http:
+    - >-
+      `/api/account/recovery_email` (PUT) / `/api/account/recovery_phone` (PUT) /
+      `/api/account/emails` (POST/DELETE) / `…/verify_start` / `…/verify_finish`。
+      全て CSRF + same-origin + 認証必須。
+  ui:
+    - >-
+      AccountEmailsPage を primary / secondary / recovery に拡張し、Add / Verify /
+      Remove / Make primary を出す。検証はメール送信のみで、リンク踏みは別ルート。
+  documentation:
+    - README の account portal 節に recovery / secondary 連絡先の扱いを追記。
+
+out_of_scope:
+  - SMS による電話番号検証の実送信 (検証コード生成までで、配信は通知 WI)。
+  - 連絡先を使った step-up / 通知 ([[wi-43-account-portal-step-up-auth]] / 通知 WI)。
+
+affected_guarantees:
+  - >-
+    tenant isolation / self RBAC: 全エンドポイントは認証セッションの sub /
+    tenant_id に固定し、URL/body の指定値は信用しない。
+  - >-
+    PII: 連絡先の検証トークンは hash 保存・単発消費・期限付き (ADR-030 と整合)。
+  - SCL coherence: 新 interface / model / event を SCL に追加する。
+
+verification:
+  - cmd: 'go test ./...'
+    in: ra-idp-go
+  - cmd: 'golangci-lint run ./...'
+    in: ra-idp-go
+  - cmd: 'bun --cwd ra-idp-go/ui build'
+  - >-
+    手動: recovery email を設定 → 確認メールのリンクで検証完了 → 再ロードで
+    "確認済み" 表示。secondary email を追加 → 検証 → primary に昇格できる。
+
+risk: medium
+risk_notes: |
+  multi-valued contacts は wi-19 で一旦ドロップした経緯があるため、モデルの
+  作り方 (attribute か companion table か) を ADR で明示してから実装する。
+  検証トークンの単発消費・期限の取り違えが最大のリスクで、email change と同じ
+  テスト観点 (期限切れ・再利用拒否) を必ず置く。

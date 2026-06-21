@@ -1,0 +1,75 @@
+id: wi-43-account-portal-step-up-auth
+title: 高 sensitivity な self-service 操作に step-up 再認証を要求する
+created_at: 2026-06-21
+authors: [tn]
+status: pending
+
+motivation: |
+  [[wi-21-end-user-account-portal]] は self-service の mutation を CSRF +
+  same-origin で保護したが、**高 sensitivity な操作 (パスワード変更 / MFA factor の
+  解除 / primary email 変更 / 全セッション失効)** については、セッションが乗っ取られた
+  場合の被害を抑えるため、業界標準どおり **step-up 再認証** を要求すべきである
+  (Google の "確認のためもう一度ログイン"、Okta の re-auth、Keycloak の
+  `max_age` 相当)。
+
+  wi-21 時点では所持証明 (TOTP コード等) で個別に代替したが、横断的な step-up gate を
+  独立 WI として設計・実装する。これにより wi-26 の WebAuthn 解除など将来の sensitive
+  操作にも一貫したゲートを掛けられる。
+
+scope:
+  decision:
+    - >-
+      新規 ADR-043 **account-portal-csrf-and-step-up**: 高 sensitivity な mutation の
+      一覧と、step-up の条件 ("直近 N 分以内に password or MFA で再認証済み"、N=5 分) を
+      定める。step-up 未通過は 401 ではなく **403 + `step_up_required`** で返し、UI が
+      再認証 modal を出す。対象表は SCL interface annotation で機械照合する。
+  scl:
+    - >-
+      新規 interface: StartStepUpAuthentication / CompleteStepUpAuthentication。
+      新規イベント: StepUpRequested / StepUpCompleted。sensitive interface に
+      step-up 要求のアノテーションを付ける。
+  go:
+    - >-
+      AuthenticationContext に "最後に factor を提示した時刻" を持たせ (既存
+      auth_time / セッションの amr 履歴を利用)、step-up gate の usecase を追加する。
+      gate は handler 共通ミドルウェアとして sensitive ハンドラに適用する。
+  http:
+    - >-
+      `/api/account/step_up/start` / `/api/account/step_up/complete`。既存の sensitive
+      ハンドラ (change password / MFA remove / email change / revoke_others) に gate を
+      差し込み、未通過時は 403 + `step_up_required`。
+  ui:
+    - >-
+      sensitive 操作で 403 `step_up_required` を受けたら再認証 modal を出し、成功後に
+      元の操作を再試行する共通フックを SPA に追加する。
+  documentation:
+    - README の account portal 節に step-up の対象操作と挙動を明記する。
+
+out_of_scope:
+  - WebAuthn / passkey / recovery codes factor 自体の追加 ([[wi-26-webauthn-passkey-and-recovery-codes]])。
+  - admin 経路の step-up (本 WI は end-user self-service に限定)。
+
+affected_guarantees:
+  - >-
+    CSRF & step-up: 高 sensitivity な mutation は step-up を必須化する。未通過は
+    403 + `step_up_required`。対象表と実ハンドラの一致を機械照合する。
+  - >-
+    self RBAC: step-up は actor 本人の再認証であり、対象 sub を変えない。
+  - SCL coherence: 新 interface / event を SCL に追加し、sensitive interface に注記する。
+
+verification:
+  - cmd: 'go test ./...'
+    in: ra-idp-go
+    reason: step-up gate (5 分超過で 403) / 再認証後の通過 / 対象表と実装の一致。
+  - cmd: 'golangci-lint run ./...'
+    in: ra-idp-go
+  - cmd: 'bun --cwd ra-idp-go/ui build'
+  - >-
+    手動: 再認証から 5 分超過後にパスワード変更を試みると 403 `step_up_required` で
+    再認証 modal が出る。再認証成功後に変更が完了する。
+
+risk: medium
+risk_notes: |
+  最大のリスクは step-up を必要としない mutation から sensitive 操作へチェーンできて
+  しまう抜け道。対象表 (ADR-043) と実ハンドラの一致を SCL annotation で機械照合し、
+  テストで網羅する。再認証の recency 判定に使う時刻ソース (auth_time) の取り違えにも注意。

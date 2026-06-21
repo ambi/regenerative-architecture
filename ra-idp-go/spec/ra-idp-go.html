@@ -537,8 +537,8 @@ table.fields tbody tr:last-child td { border-bottom: none; }
       </a>
       <a class="overview-tile" href="#tab=work-items">
         <div class="overview-tile-label">Work Items</div>
-        <div class="overview-tile-num">37</div>
-        <div class="overview-tile-hint">1 in progress · 16 pending · 20 done</div>
+        <div class="overview-tile-num">39</div>
+        <div class="overview-tile-hint">1 in progress · 17 pending · 21 done</div>
       </a>
     </div>
   </section></div>
@@ -17249,7 +17249,7 @@ self 経路に出さないことをテストで担保する。</li>
       <div class="eyebrow">Work Items</div>
       <h1>Work items</h1>
     </header>
-    <div class="stats"><span class="stat"><span class="stat-num">16</span><span class="stat-label">pending</span></span><span class="stat"><span class="stat-num">1</span><span class="stat-label">in progress</span></span><span class="stat"><span class="stat-num">20</span><span class="stat-label">completed</span></span></div>
+    <div class="stats"><span class="stat"><span class="stat-num">17</span><span class="stat-label">pending</span></span><span class="stat"><span class="stat-num">1</span><span class="stat-label">in progress</span></span><span class="stat"><span class="stat-num">21</span><span class="stat-label">completed</span></span></div>
   </section>
   <section id="ch-index">
     <h2>Index</h2>
@@ -17259,6 +17259,18 @@ self 経路に出さないことをテストで担保する。</li>
         <span class="ch-title">ログイン履歴を実運用相当に拡張する (成功・連携・失敗・セッション、攻撃時の爆発を抑える)</span>
         <span class="badge badge-status-progress">in_progress</span>
         <span class="badge badge-risk-high">high</span>
+
+      </a><a class="ch-index-row" href="#wi-43-account-portal-step-up-auth">
+        <code class="ch-id">wi-43-account-portal-step-up-auth</code>
+        <span class="ch-title">高 sensitivity な self-service 操作に step-up 再認証を要求する</span>
+        <span class="badge badge-status-pending">pending</span>
+        <span class="badge badge-risk-medium">medium</span>
+
+      </a><a class="ch-index-row" href="#wi-41-secondary-and-recovery-email">
+        <code class="ch-id">wi-41-secondary-and-recovery-email</code>
+        <span class="ch-title">セカンダリ / リカバリ用メール・電話の self-service 管理</span>
+        <span class="badge badge-status-pending">pending</span>
+        <span class="badge badge-risk-medium">medium</span>
 
       </a><a class="ch-index-row" href="#wi-34-http-request-cancellation-policy">
         <code class="ch-id">wi-34-http-request-cancellation-policy</code>
@@ -17329,12 +17341,6 @@ self 経路に出さないことをテストで担保する。</li>
       </a><a class="ch-index-row" href="#wi-23-signing-key-rotation-scheduler">
         <code class="ch-id">wi-23-signing-key-rotation-scheduler</code>
         <span class="ch-title">署名鍵 rotation を運用で自動化する (scheduler + grace 期間中の旧鍵保持)</span>
-        <span class="badge badge-status-pending">pending</span>
-        <span class="badge badge-risk-medium">medium</span>
-
-      </a><a class="ch-index-row" href="#wi-21-end-user-account-portal">
-        <code class="ch-id">wi-21-end-user-account-portal</code>
-        <span class="ch-title">エンドユーザー向け「マイページ」(Account Portal) を実運用相当で用意する</span>
         <span class="badge badge-status-pending">pending</span>
         <span class="badge badge-risk-medium">medium</span>
 
@@ -17434,6 +17440,12 @@ self 経路に出さないことをテストで担保する。</li>
         <span class="badge badge-status-done">completed</span>
         <span class="badge badge-risk-low">low</span>
         <span class="chip chip-has-cr">completion</span>
+      </a><a class="ch-index-row" href="#wi-21-end-user-account-portal">
+        <code class="ch-id">wi-21-end-user-account-portal</code>
+        <span class="ch-title">エンドユーザー向け「マイページ」(Account Portal) を実運用相当で用意する</span>
+        <span class="badge badge-status-done">completed</span>
+        <span class="badge badge-risk-medium">medium</span>
+        <span class="chip chip-has-cr">completion</span>
       </a><a class="ch-index-row" href="#wi-19-rich-user-attributes">
         <code class="ch-id">wi-19-rich-user-attributes</code>
         <span class="ch-title">ユーザー属性を実運用相当 (Keycloak / Okta / Google IAM 同等) まで拡張する</span>
@@ -17479,7 +17491,7 @@ self 経路に出さないことをテストで担保する。</li>
       </a></div>
   </section>
   <section id="ch-details">
-    <h2>Details <span class="count">37</span></h2>
+    <h2>Details <span class="count">39</span></h2>
     <div class="cards"><article class="card change" id="wi-20-authentication-event-history">
     <header>
       <h3>ログイン履歴を実運用相当に拡張する (成功・連携・失敗・セッション、攻撃時の爆発を抑える)</h3>
@@ -17717,6 +17729,89 @@ security ステージで実装済み (Authentication が所有)。本 WI では
 からの導出、新テーブル無し) を最初のスライスにする。bucket 集約 /
 retention / federation / admin 検索 UI は後続スライス。</li>
 </ul>
+</div></details>
+  </div>
+
+  </article><article class="card change" id="wi-43-account-portal-step-up-auth">
+    <header>
+      <h3>高 sensitivity な self-service 操作に step-up 再認証を要求する</h3>
+      <span class="chip chip-hint">wi-43-account-portal-step-up-auth</span>
+
+    </header>
+    <div class="work-item">
+    <header class="wi-header">
+      <h4>高 sensitivity な self-service 操作に step-up 再認証を要求する</h4>
+      <div class="wi-meta"><span class="badge badge-status-pending">pending</span> <span class="badge badge-risk-medium">risk: medium</span> <span class="chip chip-hint">created 2026-06-21</span> <span class="chip chip-hint">authors: tn</span></div>
+    </header>
+    <details class="change-block" open><summary>Motivation</summary><div class="md"><p>[[wi-21-end-user-account-portal]] は self-service の mutation を CSRF +
+same-origin で保護したが、<strong>高 sensitivity な操作 (パスワード変更 / MFA factor の
+解除 / primary email 変更 / 全セッション失効)</strong> については、セッションが乗っ取られた
+場合の被害を抑えるため、業界標準どおり <strong>step-up 再認証</strong> を要求すべきである
+(Google の &quot;確認のためもう一度ログイン&quot;、Okta の re-auth、Keycloak の
+<code>max_age</code> 相当)。</p>
+<p>wi-21 時点では所持証明 (TOTP コード等) で個別に代替したが、横断的な step-up gate を
+独立 WI として設計・実装する。これにより wi-26 の WebAuthn 解除など将来の sensitive
+操作にも一貫したゲートを掛けられる。</p>
+</div></details><details class="change-block"><summary>Scope</summary><div class="scope-group"><h4>decision</h4><ul class="change-list"><li><div class="md"><p>新規 ADR-043 <strong>account-portal-csrf-and-step-up</strong>: 高 sensitivity な mutation の 一覧と、step-up の条件 (&quot;直近 N 分以内に password or MFA で再認証済み&quot;、N=5 分) を 定める。step-up 未通過は 401 ではなく <strong>403 + <code>step_up_required</code></strong> で返し、UI が 再認証 modal を出す。対象表は SCL interface annotation で機械照合する。</p>
+</div></li></ul></div><div class="scope-group"><h4>scl</h4><ul class="change-list"><li><div class="md"><p>新規 interface: StartStepUpAuthentication / CompleteStepUpAuthentication。 新規イベント: StepUpRequested / StepUpCompleted。sensitive interface に step-up 要求のアノテーションを付ける。</p>
+</div></li></ul></div><div class="scope-group"><h4>go</h4><ul class="change-list"><li><div class="md"><p>AuthenticationContext に &quot;最後に factor を提示した時刻&quot; を持たせ (既存 auth_time / セッションの amr 履歴を利用)、step-up gate の usecase を追加する。 gate は handler 共通ミドルウェアとして sensitive ハンドラに適用する。</p>
+</div></li></ul></div><div class="scope-group"><h4>http</h4><ul class="change-list"><li><div class="md"><p><code>/api/account/step_up/start</code> / <code>/api/account/step_up/complete</code>。既存の sensitive ハンドラ (change password / MFA remove / email change / revoke_others) に gate を 差し込み、未通過時は 403 + <code>step_up_required</code>。</p>
+</div></li></ul></div><div class="scope-group"><h4>ui</h4><ul class="change-list"><li><div class="md"><p>sensitive 操作で 403 <code>step_up_required</code> を受けたら再認証 modal を出し、成功後に 元の操作を再試行する共通フックを SPA に追加する。</p>
+</div></li></ul></div><div class="scope-group"><h4>documentation</h4><ul class="change-list"><li><div class="md"><p>README の account portal 節に step-up の対象操作と挙動を明記する。</p>
+</div></li></ul></div></details><details class="change-block"><summary>Out of scope</summary><ul class="change-list"><li><div class="md"><p>WebAuthn / passkey / recovery codes factor 自体の追加 ([[wi-26-webauthn-passkey-and-recovery-codes]])。</p>
+</div></li><li><div class="md"><p>admin 経路の step-up (本 WI は end-user self-service に限定)。</p>
+</div></li></ul></details><details class="change-block"><summary>Affected guarantees</summary><ul class="change-list"><li><div class="md"><p>CSRF &amp; step-up: 高 sensitivity な mutation は step-up を必須化する。未通過は 403 + <code>step_up_required</code>。対象表と実ハンドラの一致を機械照合する。</p>
+</div></li><li><div class="md"><p>self RBAC: step-up は actor 本人の再認証であり、対象 sub を変えない。</p>
+</div></li><li><dl class="kv change-kv"><dt>SCL coherence</dt><dd><div class="md"><p>新 interface / event を SCL に追加し、sensitive interface に注記する。</p>
+</div></dd></dl></li></ul></details><details class="change-block"><summary>Verification</summary><ul class="change-list"><li><code>go test ./...</code> <span class="chip chip-hint">in: ra-idp-go</span> <span class="muted">— step-up gate (5 分超過で 403) / 再認証後の通過 / 対象表と実装の一致。</span></li><li><code>golangci-lint run ./...</code> <span class="chip chip-hint">in: ra-idp-go</span></li><li><code>bun --cwd ra-idp-go/ui build</code></li><li><div class="md"><p>手動: 再認証から 5 分超過後にパスワード変更を試みると 403 <code>step_up_required</code> で 再認証 modal が出る。再認証成功後に変更が完了する。</p>
+</div></li></ul></details><details class="change-block"><summary>Risk notes</summary><div class="md"><p>最大のリスクは step-up を必要としない mutation から sensitive 操作へチェーンできて
+しまう抜け道。対象表 (ADR-043) と実ハンドラの一致を SCL annotation で機械照合し、
+テストで網羅する。再認証の recency 判定に使う時刻ソース (auth_time) の取り違えにも注意。</p>
+</div></details>
+  </div>
+
+  </article><article class="card change" id="wi-41-secondary-and-recovery-email">
+    <header>
+      <h3>セカンダリ / リカバリ用メール・電話の self-service 管理</h3>
+      <span class="chip chip-hint">wi-41-secondary-and-recovery-email</span>
+
+    </header>
+    <div class="work-item">
+    <header class="wi-header">
+      <h4>セカンダリ / リカバリ用メール・電話の self-service 管理</h4>
+      <div class="wi-meta"><span class="badge badge-status-pending">pending</span> <span class="badge badge-risk-medium">risk: medium</span> <span class="chip chip-hint">created 2026-06-21</span> <span class="chip chip-hint">authors: tn</span></div>
+    </header>
+    <details class="change-block" open><summary>Motivation</summary><div class="md"><p>[[wi-21-end-user-account-portal]] の account portal は primary email の
+変更 (再検証フロー) までを実装した。一方、業界の &quot;マイページ&quot; は primary
+以外に <strong>セカンダリメール</strong>（複数の連絡先）と <strong>リカバリ用メール / 電話</strong>
+(アカウント回復・通知の宛先) を持つのが一般的:</p>
+<ul>
+<li>Google: 再設定用メール / 再設定用電話番号。</li>
+<li>Okta / Keycloak: secondary email, recovery factors。</li>
+</ul>
+<p>本 WI はこれを self-service として切り出す。primary email の変更は wi-21 で
+済んでいるため、本 WI は <strong>複数連絡先のモデルと検証フロー</strong> に集中する。</p>
+<p>注意 (drift): [[wi-19-rich-user-attributes]] は multi-valued contacts
+(<code>user_emails</code>) を一旦ドロップした (thin-core / sparse attribute 方針)。
+本 WI ではまず「単数の recovery_email / recovery_phone を属性として持つ」
+最小形から入り、複数 secondary email が必要になった段階で companion table を
+足すか attribute の string_array で表すかを ADR で決める。</p>
+</div></details><details class="change-block"><summary>Scope</summary><div class="scope-group"><h4>decision</h4><ul class="change-list"><li><div class="md"><p>新規 ADR: recovery / secondary 連絡先の格納形式。recovery_email / recovery_phone を組み込み属性 (ADR-040 の sparse attribute) として持つか、 専用 companion table を切るかを決める。検証は ADR-030 の one-time token と 同方針 (hash 保存・単発消費・期限付き) にする。</p>
+</div></li></ul></div><div class="scope-group"><h4>scl</h4><ul class="change-list"><li><div class="md"><p>新規 interface: UpdateRecoveryEmail / UpdateRecoveryPhone / AddSecondaryEmail / VerifySecondaryEmail / RemoveSecondaryEmail (self)。 対応 model と検証イベント (RecoveryContactUpdated 等) を追加する。</p>
+</div></li></ul></div><div class="scope-group"><h4>go</h4><ul class="change-list"><li><div class="md"><p>検証トークンストア (port + memory + postgres + migration) を email change の パターン (EmailChangeTokenStore) に倣って追加。usecase は actor.sub 固定。</p>
+</div></li></ul></div><div class="scope-group"><h4>http</h4><ul class="change-list"><li><div class="md"><p><code>/api/account/recovery_email</code> (PUT) / <code>/api/account/recovery_phone</code> (PUT) / <code>/api/account/emails</code> (POST/DELETE) / <code>…/verify_start</code> / <code>…/verify_finish</code>。 全て CSRF + same-origin + 認証必須。</p>
+</div></li></ul></div><div class="scope-group"><h4>ui</h4><ul class="change-list"><li><div class="md"><p>AccountEmailsPage を primary / secondary / recovery に拡張し、Add / Verify / Remove / Make primary を出す。検証はメール送信のみで、リンク踏みは別ルート。</p>
+</div></li></ul></div><div class="scope-group"><h4>documentation</h4><ul class="change-list"><li><div class="md"><p>README の account portal 節に recovery / secondary 連絡先の扱いを追記。</p>
+</div></li></ul></div></details><details class="change-block"><summary>Out of scope</summary><ul class="change-list"><li><div class="md"><p>SMS による電話番号検証の実送信 (検証コード生成までで、配信は通知 WI)。</p>
+</div></li><li><div class="md"><p>連絡先を使った step-up / 通知 ([[wi-43-account-portal-step-up-auth]] / 通知 WI)。</p>
+</div></li></ul></details><details class="change-block"><summary>Affected guarantees</summary><ul class="change-list"><li><div class="md"><p>tenant isolation / self RBAC: 全エンドポイントは認証セッションの sub / tenant_id に固定し、URL/body の指定値は信用しない。</p>
+</div></li><li><div class="md"><p>PII: 連絡先の検証トークンは hash 保存・単発消費・期限付き (ADR-030 と整合)。</p>
+</div></li><li><dl class="kv change-kv"><dt>SCL coherence</dt><dd><div class="md"><p>新 interface / model / event を SCL に追加する。</p>
+</div></dd></dl></li></ul></details><details class="change-block"><summary>Verification</summary><ul class="change-list"><li><code>go test ./...</code> <span class="chip chip-hint">in: ra-idp-go</span></li><li><code>golangci-lint run ./...</code> <span class="chip chip-hint">in: ra-idp-go</span></li><li><code>bun --cwd ra-idp-go/ui build</code></li><li><div class="md"><p>手動: recovery email を設定 → 確認メールのリンクで検証完了 → 再ロードで &quot;確認済み&quot; 表示。secondary email を追加 → 検証 → primary に昇格できる。</p>
+</div></li></ul></details><details class="change-block"><summary>Risk notes</summary><div class="md"><p>multi-valued contacts は wi-19 で一旦ドロップした経緯があるため、モデルの
+作り方 (attribute か companion table か) を ADR で明示してから実装する。
+検証トークンの単発消費・期限の取り違えが最大のリスクで、email change と同じ
+テスト観点 (期限切れ・再利用拒否) を必ず置く。</p>
 </div></details>
   </div>
 
@@ -18392,220 +18487,6 @@ archive 表が単調増加する。</p>
 <p>(3) Multi-tenant 共有鍵: 現状の共有鍵を rotate する影響は全 tenant に
 及ぶ。本 WI ではこれを既存制約として明記し、per-tenant 化は
 Phase 8 の前提条件として残す。</p>
-</div></details>
-  </div>
-
-  </article><article class="card change" id="wi-21-end-user-account-portal">
-    <header>
-      <h3>エンドユーザー向け「マイページ」(Account Portal) を実運用相当で用意する</h3>
-      <span class="chip chip-hint">wi-21-end-user-account-portal</span>
-
-    </header>
-    <div class="work-item">
-    <header class="wi-header">
-      <h4>エンドユーザー向け「マイページ」(Account Portal) を実運用相当で用意する</h4>
-      <div class="wi-meta"><span class="badge badge-status-pending">pending</span> <span class="badge badge-risk-medium">risk: medium</span> <span class="chip chip-hint">created 2026-06-17</span> <span class="chip chip-hint">authors: tn</span></div>
-    </header>
-    <details class="change-block" open><summary>Motivation</summary><div class="md"><p>現状 end-user が自分自身に対して触れる UI は <code>/account/password</code>
-(パスワード変更) しか存在しない。OAuth クライアント側で profile を
-編集する場合は admin に頼むか直接 DB を触るしかなく、IdP として
-最低限欠かせる self-service が無い。</p>
-<p>比較対象として、業界の &quot;マイページ&quot; は概ね以下を揃える:</p>
-<ul>
-<li><strong>Keycloak Account Console (<code>/realms/{realm}/account/</code>)</strong>:
-Personal info / Account security (password / authenticator /
-devices / sign-in attempts) / Applications (granted clients) /
-Linked accounts / Resources (UMA)。</li>
-<li><strong>Okta End-User Dashboard</strong>: Profile / Security Methods /
-Recent Activity / My Apps / Settings (display / language)。</li>
-<li><strong>Google &quot;myaccount.google.com&quot;</strong>: 個人情報 / セキュリティ
-(パスワード・2 段階認証・パスキー・バックアップコード・最近の
-アクティビティ・接続済みデバイス・サードパーティアプリ) /
-プライバシーとデータ / 共有・連絡先 / 支払い (本 IdP では対象外)。</li>
-</ul>
-<p>本 WI はこの &quot;Self-Service&quot; の中核を ra-idp に持ち込み、admin に頼ら
-ずに end-user が完結できる範囲を明確化する。<code>spec.User</code> の拡張は
-[[wi-19-rich-user-attributes]] が、ログイン履歴・セッション一覧は
-[[wi-20-authentication-event-history]] が、それぞれ前提となるバック
-エンドを用意する。本 WI は <strong>これらを統合した end-user 向け portal
-UI と self-service API</strong> を担当する。</p>
-</div></details><details class="change-block"><summary>Scope</summary><div class="scope-group"><h4>decision</h4><ul class="change-list"><li><div class="md"><p>新規 ADR-042 <strong>end-user-account-portal-scope</strong>: end-user が self-service で変更可能な範囲と、admin にしか変更できない範囲を 列挙する。以下を self に許可する初期スコープとする:</p>
-<ul>
-<li>personal info: name 系 / nickname / picture URL / locale /
-zoneinfo / phone / address / recovery_email / recovery_phone</li>
-<li>secondary email の add/remove/verify (primary email の変更は
-再検証フローを通す)</li>
-<li>password 変更 (既存)</li>
-<li>MFA factor の enroll / remove (TOTP は実装済み、WebAuthn /
-SMS は別 WI)</li>
-<li>personal access のセッション一覧と revoke</li>
-<li>接続済みクライアントの consent revoke</li>
-<li>個人データのエクスポート (GDPR 第 15 条 right of access)
-admin にしか触れないのは:</li>
-<li>roles / status (active|disabled|locked|staged|suspended)</li>
-<li>アカウントの削除 / 退会 (エンタープライズではライフサイクルを
-admin / プロビジョニング側で管理するため self-service の
-退会導線は持たない)</li>
-<li>organization 属性 (department / manager / employee_number)</li>
-<li>custom attribute のうち editable_by_user=false なもの</li>
-<li>impersonation 状態の編集</li>
-</ul>
-</div></li><li><div class="md"><p>ADR-043 <strong>account-portal-csrf-and-step-up</strong>: self-service の mutation は (a) 通常 mutation は CSRF + same-origin、(b) 高 sensitivity (password / MFA / email primary / revoke all sessions) は <strong>step-up auth</strong> を要求する。step-up は &quot;直近 N 分以内に再認証 (password or MFA) を完了している&quot; を 条件とする。N は ADR で 5 分とする。</p>
-</div></li><li><div class="md"><p>ADR-044 <strong>account-portal-data-export</strong>: 個人データ JSON エクスポート の形式を定める (OIDC UserInfo + custom attribute + sign-in activity 直近 90 日 + sessions 直近 90 日 + consents)。生成は 非同期ジョブにし、完成までに数十秒〜分単位かかってよい。完成 時はメール送信 (ADR-035 経由) と、portal の &quot;Downloads&quot; タブで 再ダウンロード可能。</p>
-</div></li></ul></div><div class="scope-group"><h4>scl</h4><ul class="change-list"><li><div class="md"><p>新規 interface (Authentication / Tenancy component に分散):
-GetAccountSummary               (self)
-UpdateAccountProfile            (self)         # wi-19 の self 経路の薄い再公開
-AddSecondaryEmail / VerifySecondaryEmail / RemoveSecondaryEmail
-UpdateRecoveryEmail / UpdateRecoveryPhone
-StartStepUpAuthentication / CompleteStepUpAuthentication
-ListMySessions / RevokeMySession / RevokeMyOtherSessions
-ListMySignInActivity            (self)         # wi-20 の薄い再公開
-ListMyConsents / RevokeMyConsent
-ListMyConnectedClients
-RequestAccountDataExport / DownloadAccountDataExport
-ListMyRequiredActions            (self)
-対応 permission を追加: <code>SelfAccountRead</code> / <code>SelfAccountWrite</code> /
-<code>SelfConsentManage</code> / <code>SelfDataExport</code>。</p>
-</div></li><li><div class="md"><p>新規 model:
-AccountSummary  (User の self 用射影 + organization 公開部分 +
-lifecycle.requiredActions + lastLoginAt +
-passwordChangedAt + mfaEnrolledFactors[])
-DataExportJob   (id / sub / tenantId / requestedAt / completedAt? /
-expiresAt / downloadUrl? / status: requested|
-processing|ready|expired|failed)</p>
-</div></li><li><div class="md"><p>新規イベント:
-AccountProfileUpdated   (self による更新を [[wi-19]] と区別)
-StepUpRequested / StepUpCompleted
-DataExportRequested / DataExportReady / DataExportDownloaded
-ConsentRevokedBySelf</p>
-</div></li></ul></div><div class="scope-group"><h4>go</h4><dl class="kv change-kv"><dt>domain</dt><dd><ul class="change-list"><li><div class="md"><p><code>internal/authentication/usecases</code> に self 経路用の薄い use case 群を追加する。wi-19 が用意した <code>UpdateUserProfile</code> を portal 用に export し、<code>actor.sub == target.sub</code> の制約を 二重に強制する (handler 側 + use case 側)。</p>
-</div></li><li><div class="md"><p><code>DataExportJob</code> aggregate は <code>internal/account/</code> に新ディレクトリ を切る。ports / usecases / adapter を独立させる (Authentication component の所有とする)。</p>
-</div></li></ul></dd><dt>http</dt><dd><ul class="change-list"><li><div class="md"><p>ハンドラ追加 (全て <code>/api/account/</code> プレフィックス、CSRF 必須、 Same-origin、認証必須):
-GET   /api/account/summary
-PATCH /api/account/profile
-POST  /api/account/emails  / DELETE /api/account/emails/{value}
-POST  /api/account/emails/{value}/verify_start
-POST  /api/account/emails/{value}/verify_finish
-PUT   /api/account/recovery_email
-PUT   /api/account/recovery_phone
-POST  /api/account/step_up/start
-POST  /api/account/step_up/complete
-GET   /api/account/sessions
-POST  /api/account/sessions/{id}/revoke
-POST  /api/account/sessions/revoke_others
-GET   /api/account/signin_activity?limit=
-GET   /api/account/consents
-POST  /api/account/consents/{id}/revoke
-GET   /api/account/connected_clients
-POST  /api/account/data_exports
-GET   /api/account/data_exports/{id}
-GET   /api/account/data_exports/{id}/download   (signed URL or stream)
-GET   /api/account/required_actions</p>
-</div></li><li><div class="md"><p>既存 <code>/api/auth/account</code> は admin shell 用 metadata。本 WI で 新設する <code>/api/account/summary</code> は end-user 向けに roles を 省き、組織属性の公開可否を tenant 設定で制御できる形に切る (admin shell とは別 contract)。</p>
-</div></li></ul></dd><dt>persistence</dt><dd><ul class="change-list"><li><div class="md"><p><code>data_export_jobs</code> テーブル: id / tenant_id / sub / requested_at / completed_at? / expires_at / status / artifact_object_key? (実体は別ストレージへの参照、本 WI では local filesystem 配下を mock として用意し、S3 / GCS は別 WI)。</p>
-</div></li><li><div class="md"><p><code>account_emails</code> (wi-19 の <code>user_emails</code> を再利用) に <code>verification_token_hash</code> / <code>verification_expires_at</code> を持つ small companion table を追加。verification は ADR-030 と 同方針で one-time link をメール送信。</p>
-</div></li></ul></dd><dt>audit</dt><dd><ul class="change-list"><li><div class="md"><p>新イベントを <code>audit_event_record.go</code> に登録。<code>Account*</code> 系は admin 監査と end-user 自身のセキュリティ通知の両方で必要。 end-user 自身への通知 (例: パスワード変更時にメール) は本 WI では out-of-scope だが、event 自体は通知用 hook を埋めて おくのにふさわしい粒度で発火させる。</p>
-</div></li></ul></dd></dl></div><div class="scope-group"><h4>ui</h4><dl class="kv change-kv"><dt>layout</dt><dd><ul class="change-list"><li><div class="md"><p>admin shell とは別の <strong>end-user shell</strong> を新設する。<code>/account</code> トップを portal home として、左 sidebar に以下のタブ:</p>
-<ul>
-<li>個人情報 (Personal info)</li>
-<li>セキュリティ (Security)</li>
-<li>サインインアクティビティ (Activity)</li>
-<li>接続済みアプリ (Applications)</li>
-<li>データとプライバシー (Data &amp; privacy)
-ヘッダは admin shell と区別し、現在 tenant 名 + 自分の名前を
-最小限に出す。OAuth クライアントから戻る経路 (戻り URL) を
-breadcrumb に表示する。</li>
-</ul>
-</div></li></ul></dd><dt>pages</dt><dd><ul class="change-list"><li><div class="md"><p>AccountHomePage (<code>/account</code>): summary card。最後のログイン / パスワード変更日時 / MFA 状態 / 未対応 required actions / 接続 アプリ数 を一覧表示。required actions に未消化があれば最上部に prominent banner で促す。</p>
-</div></li><li><div class="md"><p>AccountProfilePage (<code>/account/profile</code>): 編集可能フィールド の form (wi-19 の self 経路を呼ぶ)。primary email の変更は 再検証フローへ誘導 (<code>/account/emails</code>)。</p>
-</div></li><li><div class="md"><p>AccountEmailsPage (<code>/account/emails</code>): primary / secondary / recovery を分けて表示。Add / Verify / Remove / Make primary の各操作。Verify は確認メール送信のみ、リンク踏みは別ルート。</p>
-</div></li><li><div class="md"><p>AccountSecurityPage (<code>/account/security</code>):</p>
-<ul>
-<li>パスワード変更 (既存 <code>/account/password</code> を本ページに移植
-し、URL は redirect で互換)。</li>
-<li>MFA factors: TOTP enroll / remove (既存 totp.go 流用)、
-backup codes 表示 (1 度だけ表示・再生成可)。</li>
-<li>Step-up: 直近 N 分以内の再認証要求 UI。</li>
-</ul>
-</div></li><li><div class="md"><p>AccountActivityPage (<code>/account/activity</code>):</p>
-<ul>
-<li>サインイン履歴 (wi-20 の <code>signin_activity</code>) と active
-セッション (wi-20 <code>sessions</code>) の 2 リスト。</li>
-<li>各セッションに &quot;このセッションを終了&quot; / &quot;他のセッションを
-全部終了&quot; ボタン。</li>
-<li>bucket (集約) 行は &quot;<strong>X 月 X 日 12:00〜12:05 に同一 IP
-から N 回失敗</strong>&quot; のような自然文サマリで表示。</li>
-</ul>
-</div></li><li><div class="md"><p>AccountApplicationsPage (<code>/account/applications</code>):</p>
-<ul>
-<li>granted consents の一覧 (client name / granted scopes /
-granted at / last used at)。</li>
-<li>&quot;アクセスを取り消す&quot; で consent 取り下げ。次回ログイン時に
-consent 画面が再表示されることを文言で明示。</li>
-</ul>
-</div></li><li><div class="md"><p>AccountDataPage (<code>/account/data</code>):</p>
-<ul>
-<li>Personal data export (<code>Request export</code> / 完了済み一覧 /
-ダウンロード)。</li>
-</ul>
-</div></li></ul></dd><dt>routing</dt><dd><ul class="change-list"><li><div class="md"><p>既存 <code>/account/password</code> は redirect で <code>/account/security#password</code> に張り替える。</p>
-</div></li><li><div class="md"><p>認証必須。未認証で <code>/account/*</code> を開いた場合は [[wi-18-unauthenticated-admin-redirect]] と同じ pattern で <code>/authorize</code> 経由のログインに飛ばし、戻り先を保持する。</p>
-</div></li></ul></dd><dt>accessibility</dt><dd><ul class="change-list"><li><div class="md"><p>既存 admin pages と同等 (focus order / aria-label / コントラスト AA / keyboard navigation) を最低基準とする。Apple Human Interface Guidelines に従ったフォントウェイトの強弱は明示的に避け、admin shell と視覚的に区別はするがブランド冗長は持ち込まない。</p>
-</div></li></ul></dd><dt>i18n</dt><dd><ul class="change-list"><li><div class="md"><p>本 WI では日本語 + 英語 fallback のみ用意 (既存と同じ)。 end-user が <code>locale</code> を変更しても表示文言は切り替わらない (出力する <code>Accept-Language</code> の往復だけ確立)。</p>
-</div></li></ul></dd></dl></div><div class="scope-group"><h4>documentation</h4><ul class="change-list"><li><div class="md"><p>ra-idp-go/README.md に &quot;End-user account portal&quot; の節を追加し、 self が触れる範囲・触れない範囲・step-up auth の対象を箇条書きで 明記する。</p>
-</div></li></ul></div></details><details class="change-block"><summary>Out of scope</summary><ul class="change-list"><li><div class="md"><p>パスキー / WebAuthn / SMS OTP の MFA 追加。TOTP enroll / remove は 既存実装の薄い再公開のみ。WebAuthn は別 WI。</p>
-</div></li><li><div class="md"><p>Push 通知メール (&quot;パスワードが変更されました&quot;、&quot;新しいデバイスから ログイン&quot;) の送信。<code>EmailSender</code> の口は持つが本 WI ではテンプレ 実装しない。</p>
-</div></li><li><div class="md"><p>UMA 2.0 / Resource server registration (Keycloak の &quot;Resources&quot; タブ相当)。</p>
-</div></li><li><div class="md"><p>&quot;Connected social accounts&quot; UI (Google / GitHub / SAML)。federation 自体が別 WI のため、portal も対応 UI を出さない。</p>
-</div></li><li><div class="md"><p>課金 / プラン管理 / 支払い情報。ra-idp は IdP のみ。</p>
-</div></li><li><div class="md"><p>GDPR の &quot;Right to rectification&quot; / &quot;Right to restriction of processing&quot; の専用 UI。<code>PATCH /account/profile</code> で実質達成できる 範囲に留め、明示的な workflow UI は持たない。</p>
-</div></li><li><div class="md"><p>Self-Service による role / status / organization 変更。これは admin 限定のままとする。</p>
-</div></li><li><div class="md"><p>端末ごとの &quot;trust this device&quot; / device naming (Apple の Trusted Devices 相当)。session 一覧の端末名は UA から推定する程度。</p>
-</div></li><li><div class="md"><p>Data export の非同期 worker / object storage 連携 (S3 / GCS)。 本 WI では local filesystem mock + 同期生成で開始し、生成中の job state を持つ点だけ整える。</p>
-</div></li><li><div class="md"><p>Self-Service によるアカウント削除 / 退会。エンタープライズでは ユーザーライフサイクルを admin / 外部プロビジョニング (SCIM 等) で 管理する前提のため、本 WI では self の退会導線を設けない。物理削除 / 匿名化は引き続き admin 経路 (ADR-036) のみが担う。</p>
-</div></li></ul></details><details class="change-block"><summary>Affected guarantees</summary><ul class="change-list"><li><div class="md"><p>tenant isolation: 全 self エンドポイントは認証された session の <code>tenant_id</code> を必ず参照し、URL / body の <code>tenant_id</code> 指定は 認められない。data export は actor の tenant 内のみ。</p>
-</div></li><li><div class="md"><p>self RBAC: SCL の <code>Self*</code> permission を全 mutation に適用。 <code>actor.sub == target.sub</code> を最低要件にする。admin による impersonation 中に self 経路を踏むと、impersonator sub が actor として記録される (wi-20 の <code>SessionImpersonationStarted</code> 系と 整合)。</p>
-</div></li><li><div class="md"><p>CSRF &amp; step-up: 高 sensitivity な mutation は ADR-043 の step-up を必須化する。step-up 未通過の場合は 401 ではなく <strong>403 + <code>step_up_required</code></strong> で返し、UI が再認証 modal を出す。</p>
-</div></li><li><div class="md"><p>Audit: 全 self mutation を <code>Account*</code> イベントとして残す。<code>self</code> actor タイプを <code>AuditEventRecord</code> に追加し、admin と区別できる ようにする (ADR-031 の actor type に enum 追加)。</p>
-</div></li><li><div class="md"><p>OAuth consent integrity: consent revoke は client 側のリフレッシュ トークン無効化と access token revoke を同時に行う (ADR-004 の rotation と整合)。</p>
-</div></li><li><div class="md"><p>Data export PII: 生成 artifact は本 WI では local filesystem mock。 保管期間は 7 日とし、それ以降は自動失効する。署名 URL は本 WI で は session 認証下のストリーミングで代用 (一時 URL は別 WI)。</p>
-</div></li><li><div class="md"><p>SCL coherence: 新 interface / event / permission / model を SCL に 追加。<code>Self*</code> permission group は既存 <code>Admin*</code> と並列の trust boundary として明示する。</p>
-</div></li></ul></details><details class="change-block"><summary>Verification</summary><ul class="change-list"><li><code>go test ./...</code> <span class="chip chip-hint">in: ra-idp-go</span> <span class="muted">— self handler の RBAC 強制 (他人 sub を URL に入れても自分の
-sub に補正される) / step-up gate (5 分超過で 403) /
-data export job のステータス遷移 / consent revoke の rotation
-連動 / second email verify の token 期限と単発消費。
-</span></li><li><code>golangci-lint run ./...</code> <span class="chip chip-hint">in: ra-idp-go</span></li><li><code>go build ./...</code> <span class="chip chip-hint">in: ra-idp-go</span></li><li><code>bun --cwd ra-idp-go/ui typecheck</code></li><li><code>bun --cwd ra-idp-go/ui lint</code></li><li><code>bun --cwd ra-idp-go/ui build</code></li><li><div class="md"><p>手動 1: end-user として <code>/account</code> を開き、summary が表示される (最終ログイン・パスワード変更日・MFA 状態・required actions)。</p>
-</div></li><li><div class="md"><p>手動 2: <code>/account/profile</code> で name / phone / locale を変更し保存。 再ロードで反映され、<code>AccountProfileUpdated</code> が audit に記録され、 admin の <code>/admin/users/{sub}</code> でも値が見える。</p>
-</div></li><li><div class="md"><p>手動 3: <code>/account/security</code> でパスワード変更 → step-up は パスワード入力自身でクリアされ、<code>PasswordChanged</code> が発火。</p>
-</div></li><li><div class="md"><p>手動 4: <code>/account/security</code> で TOTP enroll → enroll 確定で <code>MfaFactorEnrolled</code>、ログアウトして再ログインすると TOTP が 要求される。</p>
-</div></li><li><div class="md"><p>手動 5: <code>/account/activity</code> で active sessions に複数行が並び、 別ブラウザで開いた session を &quot;終了&quot; → 対象 session が次回 refresh で reject、<code>SessionEnded</code> (reason: self_revoke) が記録。</p>
-</div></li><li><div class="md"><p>手動 6: <code>/account/applications</code> で demo-client への consent を revoke → 次回 OAuth 認可で consent が再要求される。</p>
-</div></li><li><div class="md"><p>手動 7: <code>/account/data</code> で export を request → 数秒で ready、 download で JSON を取得、中身に UserInfo + sign-in activity + sessions + consents が入っている。</p>
-</div></li><li><div class="md"><p>手動 8: step-up 未経由の状態で <code>/account/emails</code> から primary 変更を試みると 403 + <code>step_up_required</code> のレスポンス、UI が 再認証 modal を表示する。再認証成功後に変更が完了する。</p>
-</div></li><li><div class="md"><p>手動 9: 他テナントの sub を <code>/api/account/profile</code> の PATCH に 手書きで入れても、actor 側の sub に強制的に補正されることを 確認 (リクエスト改竄耐性)。</p>
-</div></li></ul></details><details class="change-block"><summary>Risk notes</summary><div class="md"><p>end-user に露出する API / UI が一気に増えるため、リスクは主に
-以下:</p>
-<p>(1) Self の権限境界: URL / body / query を信用せず、actor.sub /
-actor.tenant_id のみを内部値として使う。テストで他人 sub の
-渡し方を 3 パターン以上書く。</p>
-<p>(2) Step-up auth の抜け道: step-up を必要としない mutation を
-持つハンドラから sensitive 操作にチェーンできてしまわないか、
-ADR-043 の対象表を SCL の interface annotation で機械的に
-照合する仕組みを入れる。</p>
-<p>(3) Data export の情報漏洩: 認証済 session 配下でしか落とせない
-ように request → poll → download の経路を厳格化する。署名
-URL を本 WI で発行しない判断は、公開化リスクを避けるため
-意図的にしている。</p>
-<p>(4) UI / admin shell の混乱: end-user shell と admin shell は明確
-に区別する。同一画面に同時に admin と end-user が居ない前提を
-<code>AuthenticationContext</code> で固定し、admin role を持つ user が
-<code>/account</code> を開いても admin 機能には触れない (sidebar の
-admin リンクは出さない)。</p>
-<p>リリースは段階的に: (i) <code>/api/account/summary</code> + portal shell /
-(ii) profile + emails (recovery 含む) / (iii) security
-(password / MFA) / (iv) activity (sessions + signin_activity) /
-(v) applications (consents) / (vi) data export。各 PR で SCL の
-追加 → 実装 → UI の順を守る。</p>
 </div></details>
   </div>
 
@@ -20299,6 +20180,255 @@ E2E スモークとして導入した。ランナーは Bun 組み込みの <cod
 </div></li></ul></dd><dt>tests</dt><dd><ul class="change-list"><li><div class="md"><p>ra-idp-go/ui/tests/e2e/authorize-golden-path.spec.ts</p>
 </div></li><li><div class="md"><p>ra-idp-go/ui/tests/e2e/fixtures.ts</p>
 </div></li></ul></dd></dl></dd></dl></li></ul></details>
+  </div>
+  </article><article class="card change" id="wi-21-end-user-account-portal">
+    <header>
+      <h3>エンドユーザー向け「マイページ」(Account Portal) を実運用相当で用意する</h3>
+      <span class="chip chip-hint">wi-21-end-user-account-portal</span>
+      <span class="badge badge-has-cr">has completion</span>
+    </header>
+    <div class="work-item">
+    <header class="wi-header">
+      <h4>エンドユーザー向け「マイページ」(Account Portal) を実運用相当で用意する</h4>
+      <div class="wi-meta"><span class="badge badge-status-done">completed</span> <span class="badge badge-risk-medium">risk: medium</span> <span class="chip chip-hint">created 2026-06-17</span> <span class="chip chip-hint">authors: tn</span></div>
+    </header>
+    <details class="change-block" open><summary>Motivation</summary><div class="md"><p>現状 end-user が自分自身に対して触れる UI は <code>/account/password</code>
+(パスワード変更) しか存在しない。OAuth クライアント側で profile を
+編集する場合は admin に頼むか直接 DB を触るしかなく、IdP として
+最低限欠かせる self-service が無い。</p>
+<p>比較対象として、業界の &quot;マイページ&quot; は概ね以下を揃える:</p>
+<ul>
+<li><strong>Keycloak Account Console (<code>/realms/{realm}/account/</code>)</strong>:
+Personal info / Account security (password / authenticator /
+devices / sign-in attempts) / Applications (granted clients) /
+Linked accounts / Resources (UMA)。</li>
+<li><strong>Okta End-User Dashboard</strong>: Profile / Security Methods /
+Recent Activity / My Apps / Settings (display / language)。</li>
+<li><strong>Google &quot;myaccount.google.com&quot;</strong>: 個人情報 / セキュリティ
+(パスワード・2 段階認証・パスキー・バックアップコード・最近の
+アクティビティ・接続済みデバイス・サードパーティアプリ) /
+プライバシーとデータ / 共有・連絡先 / 支払い (本 IdP では対象外)。</li>
+</ul>
+<p>本 WI はこの &quot;Self-Service&quot; の中核を ra-idp に持ち込み、admin に頼ら
+ずに end-user が完結できる範囲を明確化する。<code>spec.User</code> の拡張は
+[[wi-19-rich-user-attributes]] が、ログイン履歴・セッション一覧は
+[[wi-20-authentication-event-history]] が、それぞれ前提となるバック
+エンドを用意する。本 WI は <strong>これらを統合した end-user 向け portal
+UI と self-service API</strong> を担当する。</p>
+</div></details><details class="change-block"><summary>Scope</summary><div class="scope-group"><h4>decision</h4><ul class="change-list"><li><div class="md"><p>新規 ADR-042 <strong>end-user-account-portal-scope</strong>: end-user が self-service で変更可能な範囲と、admin にしか変更できない範囲を 列挙する。以下を self に許可する初期スコープとする:</p>
+<ul>
+<li>personal info: name 系 / nickname / picture URL / locale /
+zoneinfo / phone / address</li>
+<li>primary email の変更 (再検証フロー)。secondary / recovery 連絡先は
+[[wi-41-secondary-and-recovery-email]] に分離</li>
+<li>password 変更 (既存)</li>
+<li>MFA factor の enroll / remove (TOTP を実装。WebAuthn / passkey /
+recovery codes は [[wi-26-webauthn-passkey-and-recovery-codes]])</li>
+<li>personal access のセッション一覧と revoke</li>
+<li>接続済みクライアントの consent revoke</li>
+<li>個人データのエクスポート (GDPR 第 15 条 right of access)
+admin にしか触れないのは:</li>
+<li>roles / status (active|disabled|locked|staged|suspended)</li>
+<li>アカウントの削除 / 退会 (エンタープライズではライフサイクルを
+admin / プロビジョニング側で管理するため self-service の
+退会導線は持たない)</li>
+<li>organization 属性 (department / manager / employee_number)</li>
+<li>custom attribute のうち editable_by_user=false なもの</li>
+<li>impersonation 状態の編集</li>
+</ul>
+</div></li><li><div class="md"><p>本 WI の self-service mutation は CSRF + same-origin で保護する。高 sensitivity な操作 (password / MFA / email primary / revoke all sessions) への <strong>step-up 再認証</strong> (ADR-043) は横断ゲートとして [[wi-43-account-portal-step-up-auth]] に分離し、本 WI では各操作の所持証明 (TOTP コード等) で代替する。</p>
+</div></li><li><div class="md"><p>ADR-044 <strong>account-portal-data-export</strong>: 個人データ JSON エクスポート の形式を定める (OIDC UserInfo + custom attribute + sign-in activity 直近 90 日 + sessions 直近 90 日 + consents)。生成は 非同期ジョブにし、完成までに数十秒〜分単位かかってよい。完成 時はメール送信 (ADR-035 経由) と、portal の &quot;Downloads&quot; タブで 再ダウンロード可能。</p>
+</div></li></ul></div><div class="scope-group"><h4>scl</h4><ul class="change-list"><li><div class="md"><p>新規 interface (Authentication / Tenancy component に分散):
+GetAccountSummary               (self)
+UpdateAccountProfile            (self)         # wi-19 の self 経路の薄い再公開
+AddSecondaryEmail / VerifySecondaryEmail / RemoveSecondaryEmail
+UpdateRecoveryEmail / UpdateRecoveryPhone
+StartStepUpAuthentication / CompleteStepUpAuthentication
+ListMySessions / RevokeMySession / RevokeMyOtherSessions
+ListMySignInActivity            (self)         # wi-20 の薄い再公開
+ListMyConsents / RevokeMyConsent
+ListMyConnectedClients
+RequestAccountDataExport / DownloadAccountDataExport
+ListMyRequiredActions            (self)
+対応 permission を追加: <code>SelfAccountRead</code> / <code>SelfAccountWrite</code> /
+<code>SelfConsentManage</code> / <code>SelfDataExport</code>。</p>
+</div></li><li><div class="md"><p>新規 model:
+AccountSummary  (User の self 用射影 + organization 公開部分 +
+lifecycle.requiredActions + lastLoginAt +
+passwordChangedAt + mfaEnrolledFactors[])
+DataExportJob   (id / sub / tenantId / requestedAt / completedAt? /
+expiresAt / downloadUrl? / status: requested|
+processing|ready|expired|failed)</p>
+</div></li><li><div class="md"><p>新規イベント:
+AccountProfileUpdated   (self による更新を [[wi-19]] と区別)
+StepUpRequested / StepUpCompleted
+DataExportRequested / DataExportReady / DataExportDownloaded
+ConsentRevokedBySelf</p>
+</div></li></ul></div><div class="scope-group"><h4>go</h4><dl class="kv change-kv"><dt>domain</dt><dd><ul class="change-list"><li><div class="md"><p><code>internal/authentication/usecases</code> に self 経路用の薄い use case 群を追加する。wi-19 が用意した <code>UpdateUserProfile</code> を portal 用に export し、<code>actor.sub == target.sub</code> の制約を 二重に強制する (handler 側 + use case 側)。</p>
+</div></li><li><div class="md"><p><code>DataExportJob</code> aggregate は <code>internal/account/</code> に新ディレクトリ を切る。ports / usecases / adapter を独立させる (Authentication component の所有とする)。</p>
+</div></li></ul></dd><dt>http</dt><dd><ul class="change-list"><li><div class="md"><p>ハンドラ追加 (全て <code>/api/account/</code> プレフィックス、CSRF 必須、 Same-origin、認証必須):
+GET   /api/account/summary
+PATCH /api/account/profile
+POST  /api/account/emails  / DELETE /api/account/emails/{value}
+POST  /api/account/emails/{value}/verify_start
+POST  /api/account/emails/{value}/verify_finish
+PUT   /api/account/recovery_email
+PUT   /api/account/recovery_phone
+POST  /api/account/step_up/start
+POST  /api/account/step_up/complete
+GET   /api/account/sessions
+POST  /api/account/sessions/{id}/revoke
+POST  /api/account/sessions/revoke_others
+GET   /api/account/signin_activity?limit=
+GET   /api/account/consents
+POST  /api/account/consents/{id}/revoke
+GET   /api/account/connected_clients
+POST  /api/account/data_exports
+GET   /api/account/data_exports/{id}
+GET   /api/account/data_exports/{id}/download   (signed URL or stream)
+GET   /api/account/required_actions</p>
+</div></li><li><div class="md"><p>既存 <code>/api/auth/account</code> は admin shell 用 metadata。本 WI で 新設する <code>/api/account/summary</code> は end-user 向けに roles を 省き、組織属性の公開可否を tenant 設定で制御できる形に切る (admin shell とは別 contract)。</p>
+</div></li></ul></dd><dt>persistence</dt><dd><ul class="change-list"><li><div class="md"><p><code>data_export_jobs</code> テーブル: id / tenant_id / sub / requested_at / completed_at? / expires_at / status / artifact_object_key? (実体は別ストレージへの参照、本 WI では local filesystem 配下を mock として用意し、S3 / GCS は別 WI)。</p>
+</div></li><li><div class="md"><p><code>account_emails</code> (wi-19 の <code>user_emails</code> を再利用) に <code>verification_token_hash</code> / <code>verification_expires_at</code> を持つ small companion table を追加。verification は ADR-030 と 同方針で one-time link をメール送信。</p>
+</div></li></ul></dd><dt>audit</dt><dd><ul class="change-list"><li><div class="md"><p>新イベントを <code>audit_event_record.go</code> に登録。<code>Account*</code> 系は admin 監査と end-user 自身のセキュリティ通知の両方で必要。 end-user 自身への通知 (例: パスワード変更時にメール) は本 WI では out-of-scope だが、event 自体は通知用 hook を埋めて おくのにふさわしい粒度で発火させる。</p>
+</div></li></ul></dd></dl></div><div class="scope-group"><h4>ui</h4><dl class="kv change-kv"><dt>layout</dt><dd><ul class="change-list"><li><div class="md"><p>admin shell とは別の <strong>end-user shell</strong> を新設する。<code>/account</code> トップを portal home として、左 sidebar に以下のタブ:</p>
+<ul>
+<li>個人情報 (Personal info)</li>
+<li>セキュリティ (Security)</li>
+<li>サインインアクティビティ (Activity)</li>
+<li>接続済みアプリ (Applications)</li>
+<li>データとプライバシー (Data &amp; privacy)
+ヘッダは admin shell と区別し、現在 tenant 名 + 自分の名前を
+最小限に出す。OAuth クライアントから戻る経路 (戻り URL) を
+breadcrumb に表示する。</li>
+</ul>
+</div></li></ul></dd><dt>pages</dt><dd><ul class="change-list"><li><div class="md"><p>AccountHomePage (<code>/account</code>): summary card。最後のログイン / パスワード変更日時 / MFA 状態 / 未対応 required actions / 接続 アプリ数 を一覧表示。required actions に未消化があれば最上部に prominent banner で促す。</p>
+</div></li><li><div class="md"><p>AccountProfilePage (<code>/account/profile</code>): 編集可能フィールド の form (wi-19 の self 経路を呼ぶ)。primary email の変更は 再検証フローへ誘導 (<code>/account/emails</code>)。</p>
+</div></li><li><div class="md"><p>AccountEmailsPage (<code>/account/emails</code>): primary / secondary / recovery を分けて表示。Add / Verify / Remove / Make primary の各操作。Verify は確認メール送信のみ、リンク踏みは別ルート。</p>
+</div></li><li><div class="md"><p>AccountSecurityPage (<code>/account/security</code>):</p>
+<ul>
+<li>パスワード変更 (既存 <code>/account/password</code> を本ページに移植
+し、URL は redirect で互換)。</li>
+<li>MFA factors: TOTP enroll / remove (既存 totp.go 流用)、
+backup codes 表示 (1 度だけ表示・再生成可)。</li>
+<li>Step-up: 直近 N 分以内の再認証要求 UI。</li>
+</ul>
+</div></li><li><div class="md"><p>AccountActivityPage (<code>/account/activity</code>):</p>
+<ul>
+<li>サインイン履歴 (wi-20 の <code>signin_activity</code>) と active
+セッション (wi-20 <code>sessions</code>) の 2 リスト。</li>
+<li>各セッションに &quot;このセッションを終了&quot; / &quot;他のセッションを
+全部終了&quot; ボタン。</li>
+<li>bucket (集約) 行は &quot;<strong>X 月 X 日 12:00〜12:05 に同一 IP
+から N 回失敗</strong>&quot; のような自然文サマリで表示。</li>
+</ul>
+</div></li><li><div class="md"><p>AccountApplicationsPage (<code>/account/applications</code>):</p>
+<ul>
+<li>granted consents の一覧 (client name / granted scopes /
+granted at / last used at)。</li>
+<li>&quot;アクセスを取り消す&quot; で consent 取り下げ。次回ログイン時に
+consent 画面が再表示されることを文言で明示。</li>
+</ul>
+</div></li><li><div class="md"><p>AccountDataPage (<code>/account/data</code>):</p>
+<ul>
+<li>Personal data export (<code>Request export</code> / 完了済み一覧 /
+ダウンロード)。</li>
+</ul>
+</div></li></ul></dd><dt>routing</dt><dd><ul class="change-list"><li><div class="md"><p>既存 <code>/account/password</code> は redirect で <code>/account/security#password</code> に張り替える。</p>
+</div></li><li><div class="md"><p>認証必須。未認証で <code>/account/*</code> を開いた場合は [[wi-18-unauthenticated-admin-redirect]] と同じ pattern で <code>/authorize</code> 経由のログインに飛ばし、戻り先を保持する。</p>
+</div></li></ul></dd><dt>accessibility</dt><dd><ul class="change-list"><li><div class="md"><p>既存 admin pages と同等 (focus order / aria-label / コントラスト AA / keyboard navigation) を最低基準とする。Apple Human Interface Guidelines に従ったフォントウェイトの強弱は明示的に避け、admin shell と視覚的に区別はするがブランド冗長は持ち込まない。</p>
+</div></li></ul></dd><dt>i18n</dt><dd><ul class="change-list"><li><div class="md"><p>本 WI では日本語 + 英語 fallback のみ用意 (既存と同じ)。 end-user が <code>locale</code> を変更しても表示文言は切り替わらない (出力する <code>Accept-Language</code> の往復だけ確立)。</p>
+</div></li></ul></dd></dl></div><div class="scope-group"><h4>documentation</h4><ul class="change-list"><li><div class="md"><p>ra-idp-go/README.md に &quot;End-user account portal&quot; の節を追加し、 self が触れる範囲・触れない範囲・step-up auth の対象を箇条書きで 明記する。</p>
+</div></li></ul></div></details><details class="change-block"><summary>Out of scope</summary><ul class="change-list"><li><div class="md"><p>パスキー / WebAuthn / recovery codes の MFA factor 追加。本 WI は TOTP の self-service 登録・解除までで、他 factor は [[wi-26-webauthn-passkey-and-recovery-codes]]。SMS OTP は phishing-resistant 志向 (wi-26) に合わせて当面採用しない。</p>
+</div></li><li><div class="md"><p>secondary / recovery 用メール・電話の self-service 管理。本 WI は primary email の 変更 (再検証フロー) までで、複数連絡先は [[wi-41-secondary-and-recovery-email]]。</p>
+</div></li><li><div class="md"><p>高 sensitivity 操作への step-up 再認証ゲート (ADR-043)。本 WI は CSRF + same-origin + 各操作の所持証明で保護し、横断 step-up は [[wi-43-account-portal-step-up-auth]]。</p>
+</div></li><li><div class="md"><p>Push 通知メール (&quot;パスワードが変更されました&quot;、&quot;新しいデバイスから ログイン&quot;) の送信。<code>EmailSender</code> の口は持つが本 WI ではテンプレ 実装しない。</p>
+</div></li><li><div class="md"><p>UMA 2.0 / Resource server registration (Keycloak の &quot;Resources&quot; タブ相当)。</p>
+</div></li><li><div class="md"><p>&quot;Connected social accounts&quot; UI (Google / GitHub / SAML)。federation 自体が別 WI のため、portal も対応 UI を出さない。</p>
+</div></li><li><div class="md"><p>課金 / プラン管理 / 支払い情報。ra-idp は IdP のみ。</p>
+</div></li><li><div class="md"><p>GDPR の &quot;Right to rectification&quot; / &quot;Right to restriction of processing&quot; の専用 UI。<code>PATCH /account/profile</code> で実質達成できる 範囲に留め、明示的な workflow UI は持たない。</p>
+</div></li><li><div class="md"><p>Self-Service による role / status / organization 変更。これは admin 限定のままとする。</p>
+</div></li><li><div class="md"><p>端末ごとの &quot;trust this device&quot; / device naming (Apple の Trusted Devices 相当)。session 一覧の端末名は UA から推定する程度。</p>
+</div></li><li><div class="md"><p>Data export の非同期 worker / object storage 連携 (S3 / GCS)。 本 WI では local filesystem mock + 同期生成で開始し、生成中の job state を持つ点だけ整える。</p>
+</div></li><li><div class="md"><p>Self-Service によるアカウント削除 / 退会。エンタープライズでは ユーザーライフサイクルを admin / 外部プロビジョニング (SCIM 等) で 管理する前提のため、本 WI では self の退会導線を設けない。物理削除 / 匿名化は引き続き admin 経路 (ADR-036) のみが担う。</p>
+</div></li></ul></details><details class="change-block"><summary>Affected guarantees</summary><ul class="change-list"><li><div class="md"><p>tenant isolation: 全 self エンドポイントは認証された session の <code>tenant_id</code> を必ず参照し、URL / body の <code>tenant_id</code> 指定は 認められない。data export は actor の tenant 内のみ。</p>
+</div></li><li><div class="md"><p>self RBAC: SCL の <code>Self*</code> permission を全 mutation に適用。 <code>actor.sub == target.sub</code> を最低要件にする。admin による impersonation 中に self 経路を踏むと、impersonator sub が actor として記録される (wi-20 の <code>SessionImpersonationStarted</code> 系と 整合)。</p>
+</div></li><li><div class="md"><p>CSRF &amp; step-up: 高 sensitivity な mutation は ADR-043 の step-up を必須化する。step-up 未通過の場合は 401 ではなく <strong>403 + <code>step_up_required</code></strong> で返し、UI が再認証 modal を出す。</p>
+</div></li><li><div class="md"><p>Audit: 全 self mutation を <code>Account*</code> イベントとして残す。<code>self</code> actor タイプを <code>AuditEventRecord</code> に追加し、admin と区別できる ようにする (ADR-031 の actor type に enum 追加)。</p>
+</div></li><li><div class="md"><p>OAuth consent integrity: consent revoke は client 側のリフレッシュ トークン無効化と access token revoke を同時に行う (ADR-004 の rotation と整合)。</p>
+</div></li><li><div class="md"><p>Data export PII: 生成 artifact は本 WI では local filesystem mock。 保管期間は 7 日とし、それ以降は自動失効する。署名 URL は本 WI で は session 認証下のストリーミングで代用 (一時 URL は別 WI)。</p>
+</div></li><li><div class="md"><p>SCL coherence: 新 interface / event / permission / model を SCL に 追加。<code>Self*</code> permission group は既存 <code>Admin*</code> と並列の trust boundary として明示する。</p>
+</div></li></ul></details><details class="change-block"><summary>Verification</summary><ul class="change-list"><li><code>go test ./...</code> <span class="chip chip-hint">in: ra-idp-go</span> <span class="muted">— self handler の RBAC 強制 (他人 sub を URL に入れても自分の
+sub に補正される) / step-up gate (5 分超過で 403) /
+data export job のステータス遷移 / consent revoke の rotation
+連動 / second email verify の token 期限と単発消費。
+</span></li><li><code>golangci-lint run ./...</code> <span class="chip chip-hint">in: ra-idp-go</span></li><li><code>go build ./...</code> <span class="chip chip-hint">in: ra-idp-go</span></li><li><code>bun --cwd ra-idp-go/ui typecheck</code></li><li><code>bun --cwd ra-idp-go/ui lint</code></li><li><code>bun --cwd ra-idp-go/ui build</code></li><li><div class="md"><p>手動 1: end-user として <code>/account</code> を開き、summary が表示される (最終ログイン・パスワード変更日・MFA 状態・required actions)。</p>
+</div></li><li><div class="md"><p>手動 2: <code>/account/profile</code> で name / phone / locale を変更し保存。 再ロードで反映され、<code>AccountProfileUpdated</code> が audit に記録され、 admin の <code>/admin/users/{sub}</code> でも値が見える。</p>
+</div></li><li><div class="md"><p>手動 3: <code>/account/security</code> でパスワード変更 → step-up は パスワード入力自身でクリアされ、<code>PasswordChanged</code> が発火。</p>
+</div></li><li><div class="md"><p>手動 4: <code>/account/security</code> で TOTP enroll → enroll 確定で <code>MfaFactorEnrolled</code>、ログアウトして再ログインすると TOTP が 要求される。</p>
+</div></li><li><div class="md"><p>手動 5: <code>/account/activity</code> で active sessions に複数行が並び、 別ブラウザで開いた session を &quot;終了&quot; → 対象 session が次回 refresh で reject、<code>SessionEnded</code> (reason: self_revoke) が記録。</p>
+</div></li><li><div class="md"><p>手動 6: <code>/account/applications</code> で demo-client への consent を revoke → 次回 OAuth 認可で consent が再要求される。</p>
+</div></li><li><div class="md"><p>手動 7: <code>/account/data</code> で export を request → 数秒で ready、 download で JSON を取得、中身に UserInfo + sign-in activity + sessions + consents が入っている。</p>
+</div></li><li><div class="md"><p>手動 8: step-up 未経由の状態で <code>/account/emails</code> から primary 変更を試みると 403 + <code>step_up_required</code> のレスポンス、UI が 再認証 modal を表示する。再認証成功後に変更が完了する。</p>
+</div></li><li><div class="md"><p>手動 9: 他テナントの sub を <code>/api/account/profile</code> の PATCH に 手書きで入れても、actor 側の sub に強制的に補正されることを 確認 (リクエスト改竄耐性)。</p>
+</div></li></ul></details><details class="change-block"><summary>Risk notes</summary><div class="md"><p>end-user に露出する API / UI が一気に増えるため、リスクは主に
+以下:</p>
+<p>(1) Self の権限境界: URL / body / query を信用せず、actor.sub /
+actor.tenant_id のみを内部値として使う。テストで他人 sub の
+渡し方を 3 パターン以上書く。</p>
+<p>(2) Step-up auth の抜け道: step-up を必要としない mutation を
+持つハンドラから sensitive 操作にチェーンできてしまわないか、
+ADR-043 の対象表を SCL の interface annotation で機械的に
+照合する仕組みを入れる。</p>
+<p>(3) Data export の情報漏洩: 認証済 session 配下でしか落とせない
+ように request → poll → download の経路を厳格化する。署名
+URL を本 WI で発行しない判断は、公開化リスクを避けるため
+意図的にしている。</p>
+<p>(4) UI / admin shell の混乱: end-user shell と admin shell は明確
+に区別する。同一画面に同時に admin と end-user が居ない前提を
+<code>AuthenticationContext</code> で固定し、admin role を持つ user が
+<code>/account</code> を開いても admin 機能には触れない (sidebar の
+admin リンクは出さない)。</p>
+<p>リリースは段階的に: (i) <code>/api/account/summary</code> + portal shell /
+(ii) profile + emails (recovery 含む) / (iii) security
+(password / MFA) / (iv) activity (sessions + signin_activity) /
+(v) applications (consents) / (vi) data export。各 PR で SCL の
+追加 → 実装 → UI の順を守る。</p>
+</div></details>
+  </div>
+    <div class="completion-record">
+    <header class="cr-header">
+      <h4>Completion</h4>
+      <div class="cr-meta"><span class="badge badge-status-done">completed</span> <span class="chip chip-hint">completed 2026-06-21</span></div>
+    </header>
+    <details class="change-block" open><summary>Summary</summary><div class="md"><p>end-user 向け account portal (<code>/account</code>) を admin shell とは別の AccountShell で
+実装し、以下のステージを段階的にリリースした:</p>
+<ul>
+<li>shell + アカウント概要 (<code>/api/account/summary</code>, roles を含まない self 契約)</li>
+<li>個人情報 (表示名・editable 属性、wi-19 の self 経路)</li>
+<li>primary email 変更 (ワンタイムリンク再検証、ADR-030 方式)</li>
+<li>セキュリティ: パスワード変更導線 + TOTP の self-service 登録・解除
+(登録時 QR コード [[wi-40-totp-enrollment-qr-code]]、所持証明で保護)</li>
+<li>アクティビティ: サインイン履歴 + 有効なセッションの一覧・個別失効・
+他端末ログアウト (バックエンドは [[wi-20-authentication-event-history]]
+スライス 1/2)</li>
+<li>接続済みアプリ: consent の一覧と revoke</li>
+<li>データとプライバシー: 個人データの同期 JSON エクスポート
+全 self エンドポイントは認証セッションの sub / tenant_id に固定し、mutation は
+CSRF + same-origin で保護した。
+残件は独立 WI に分離した: secondary / recovery 連絡先 →
+[[wi-41-secondary-and-recovery-email]] / WebAuthn・passkey・recovery codes →
+[[wi-26-webauthn-passkey-and-recovery-codes]] / 高 sensitivity 操作の横断 step-up
+再認証 (ADR-043) → [[wi-43-account-portal-step-up-auth]]。data export の非同期ジョブ / object
+storage 連携は引き続き out_of_scope (同期生成で提供)。</li>
+</ul>
+</div></details><details class="change-block"><summary>Verification results</summary><ul class="change-list"><li><code>go test ./...</code> <span class="chip chip-hint">in: ra-idp-go</span> <span class="muted">→ passed</span></li><li><code>golangci-lint run ./...</code> <span class="chip chip-hint">in: ra-idp-go</span> <span class="muted">→ passed</span></li><li><code>go build ./...</code> <span class="chip chip-hint">in: ra-idp-go</span> <span class="muted">→ passed</span></li><li><code>bun --cwd ra-idp-go/ui typecheck</code> <span class="muted">→ passed</span></li><li><code>bun --cwd ra-idp-go/ui lint</code> <span class="muted">→ passed</span></li><li><code>bun --cwd ra-idp-go/ui build</code> <span class="muted">→ passed</span></li><li><div class="md"><p>手動: <code>/account</code> 概要・<code>/account/profile</code> 編集・<code>/account/emails</code> 再検証・ <code>/account/security</code> TOTP 登録/解除・<code>/account/activity</code> 履歴とセッション失効・ <code>/account/applications</code> consent revoke・<code>/account/data</code> エクスポートを確認。</p>
+</div></li></ul></details><details class="change-block"><summary>Guarantees state</summary><ul class="change-list"><li><div class="md"><p>tenant isolation / self RBAC: 全 self エンドポイントは認証セッションの sub / tenant_id に固定し、URL/body の指定値を信用しない (他人 sub のテストを含む)。維持。</p>
+</div></li><li><div class="md"><p>CSRF: 全 self mutation を CSRF + same-origin で保護。横断 step-up (ADR-043) は wi-43 に分離し、本 WI は各操作の所持証明 (TOTP コード等) で代替。</p>
+</div></li><li><div class="md"><p>SCL coherence: 追加した self interface / model / event を SCL に登録し、 coherence_test と yaml-check (scl / work-item) を通過。</p>
+</div></li></ul></details><details class="change-block"><summary>Residual risk</summary><ul class="change-list"><li><div class="md"><p>高 sensitivity 操作の横断 step-up は未導入 (wi-43)。現状は所持証明 + CSRF で 保護しており、セッション乗っ取り時の被害低減は wi-43 完了で強化する。</p>
+</div></li><li><div class="md"><p>consent / session の revoke は OAuth クライアントへ発行済みの refresh token を 失効しない (per-session 紐付けが無いため)。per-session refresh 失効は wi-20 後続。</p>
+</div></li></ul></details>
   </div>
   </article><article class="card change" id="wi-19-rich-user-attributes">
     <header>

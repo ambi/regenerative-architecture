@@ -452,6 +452,34 @@ export type AccountDataPage = {
   isAdmin: boolean
 }
 
+export type AccountMfaFactor = {
+  type: string
+  label?: string
+  created_at: string
+  last_used_at?: string
+}
+
+export type AccountSecurity = {
+  password_changed_at?: string
+  totp_enrolled: boolean
+  factors: AccountMfaFactor[]
+}
+
+export type TotpEnrollmentStart = {
+  secret: string
+  otpauth_uri: string
+  account_name: string
+  issuer: string
+}
+
+export type AccountSecurityPage = {
+  kind: 'account-security'
+  csrfToken: string
+  username: string
+  isAdmin: boolean
+  security: AccountSecurity
+}
+
 export type AdminTenantAttributesPage = {
   kind: 'admin-tenant-attributes'
   csrfToken: string
@@ -491,6 +519,7 @@ export type PageData =
   | EmailVerifyPage
   | AccountApplicationsPage
   | AccountDataPage
+  | AccountSecurityPage
 
 export type BrowserFlowResponse = {
   next?: string

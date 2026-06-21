@@ -143,6 +143,9 @@ func (d Deps) requireAuthenticatedSub(c *echo.Context) (string, error) {
 }
 
 func (d Deps) writeAccountError(c *echo.Context, err error) error {
+	if handled, result := writeAccountMfaError(c, err); handled {
+		return result
+	}
 	switch {
 	case errors.Is(err, errAdminAuthenticationRequired):
 		return writeBrowserError(c, http.StatusUnauthorized, "authentication_required", "認証済みセッションが必要です")

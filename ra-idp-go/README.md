@@ -217,7 +217,11 @@ end-user 向けの「マイページ」を `/account` 配下に持つ (ADR-042 /
   リンクを送り、`/account/email/verify` で確認するまで反映しない (ADR-030 と同じトークン
   方式 / EmailSender)。確認時に `email_verified=true` とし、`verify_email` の required
   action があれば自動解除する。
-- **パスワード** (`/account/password`): パスワード変更 (既存)。
+- **セキュリティ** (`/account/security`): パスワード変更 (`/account/password`) への導線と、
+  認証アプリ (TOTP) の self-service 登録・解除。登録は確認コード、解除は有効な TOTP コードに
+  よる所持証明を要求する (`POST /api/account/mfa/totp/enroll/start` |
+  `…/enroll/confirm` | `…/remove`)。登録で `mfa_enrolled=true`、解除で false に戻す。
+  WebAuthn / SMS OTP と step-up auth (ADR-043) は後続ステージ。
 - **接続済みアプリ** (`/account/applications`): アクセスを許可した OAuth クライアント
   (active な Consent) の一覧と、個別の取り消し。取り消すと次回その client の認可で
   consent が再要求される (admin の Consent 取り消しと同じ論理撤回 + `ConsentRevoked`)。
@@ -226,10 +230,11 @@ end-user 向けの「マイページ」を `/account` 配下に持つ (ADR-042 /
   (`GET /api/account/data_export`)。sign-in 履歴・セッションの同梱と非同期ジョブ/オブジェクト
   ストレージ連携は後続ステージ。
 
-self が変更できるのは表示名 / 編集可能属性 / メールアドレス / パスワード / 接続済みアプリの
-取り消しのみ。`roles` / `status` / 組織属性 / `editable_by_user=false` の属性は admin 専用
-(ADR-042)。secondary/recovery email・MFA enroll・セッション管理・アカウント削除リクエストは
-wi-21 の後続ステージで追加する。
+self が変更できるのは表示名 / 編集可能属性 / メールアドレス / パスワード / 認証アプリ (TOTP) /
+接続済みアプリの取り消しのみ。`roles` / `status` / 組織属性 / `editable_by_user=false` の属性は
+admin 専用 (ADR-042)。secondary/recovery email・WebAuthn/SMS の MFA・step-up auth・セッション
+管理は wi-21 の後続ステージで追加する。アカウントの削除 / 退会は self-service では提供せず、
+ライフサイクルは admin 経路 (ADR-036) で管理する。
 
 ## 検証
 

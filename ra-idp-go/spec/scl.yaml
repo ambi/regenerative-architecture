@@ -22,10 +22,10 @@ components:
 
   Authentication:
     description: エンドユーザ (Subject) の identity、credentials、MFA、ログインセッション、パスワードリセット、および管理 API からの User ライフサイクル操作を所有する。
-    owns_models: [User, MfaFactor, MfaFactorType, LoginSession, AuthenticationContext, PasswordResetTokenRecord, BrowserLoginRequest, BrowserTotpRequest, BrowserChangePasswordRequest, BrowserForgotPasswordRequest, BrowserResetPasswordRequest, AdminUserCreateRequest, AdminUserUpdateRequest, AdminRequiredActionRequest, AdminUserListResponse, AdminUserResponse, Group, GroupMember, GroupCreateRequest, GroupUpdateRequest, GroupSummaryResponse, GroupListResponse, GroupMemberResponse, GroupAddMemberRequest, UserGroupsResponse, UserLifecycle, AttributeValue, UserStatus, RequiredAction, AccountProfileResponse, AccountProfileUpdateRequest, AccountSummary, AccountEmailChangeRequest, AccountEmailChangeConfirm, AccountDataExport]
+    owns_models: [User, MfaFactor, MfaFactorType, LoginSession, AuthenticationContext, PasswordResetTokenRecord, BrowserLoginRequest, BrowserTotpRequest, BrowserChangePasswordRequest, BrowserForgotPasswordRequest, BrowserResetPasswordRequest, AdminUserCreateRequest, AdminUserUpdateRequest, AdminRequiredActionRequest, AdminUserListResponse, AdminUserResponse, Group, GroupMember, GroupCreateRequest, GroupUpdateRequest, GroupSummaryResponse, GroupListResponse, GroupMemberResponse, GroupAddMemberRequest, UserGroupsResponse, UserLifecycle, AttributeValue, UserStatus, RequiredAction, AccountProfileResponse, AccountProfileUpdateRequest, AccountSummary, AccountEmailChangeRequest, AccountEmailChangeConfirm, AccountDataExport, AccountMfaFactor, AccountSecurityResponse, TOTPEnrollmentStart, TOTPEnrollmentConfirmRequest, MfaFactorRemoveRequest]
     owns_states: [UserLifecycle, GroupLifecycle]
-    owns_events: [UserAuthenticated, AuthenticationFailed, PasswordChanged, LoginThrottled, PasswordResetRequested, EmailSent, EmailChangeRequested, EmailChanged, UserCreated, UserUpdated, UserDisabled, UserEnabled, UserDeleted, UserRequiredActionSet, UserRequiredActionCleared, GroupCreated, GroupUpdated, GroupDeleted, GroupMemberAdded, GroupMemberRemoved]
-    owns_interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, ChangePassword, GetAccountSummary, GetUserProfile, UpdateUserProfile, RequestEmailChange, ConfirmEmailChange, ExportAccountData, RequestPasswordReset, ResetPasswordWithToken, ListAdminUsers, GetAdminUser, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser, DeleteAdminUser, SetUserRequiredAction, ClearUserRequiredAction, ListGroups, GetGroup, CreateGroup, UpdateGroup, DeleteGroup, AddGroupMember, RemoveGroupMember, ListUserGroups]
+    owns_events: [UserAuthenticated, AuthenticationFailed, PasswordChanged, LoginThrottled, PasswordResetRequested, EmailSent, EmailChangeRequested, EmailChanged, UserCreated, UserUpdated, UserDisabled, UserEnabled, UserDeleted, UserRequiredActionSet, UserRequiredActionCleared, GroupCreated, GroupUpdated, GroupDeleted, GroupMemberAdded, GroupMemberRemoved, MfaFactorEnrolled, MfaFactorRemoved]
+    owns_interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, ChangePassword, GetAccountSummary, GetUserProfile, UpdateUserProfile, RequestEmailChange, ConfirmEmailChange, ExportAccountData, GetAccountSecurity, StartTotpEnrollment, ConfirmTotpEnrollment, RemoveTotpFactor, RequestPasswordReset, ResetPasswordWithToken, ListAdminUsers, GetAdminUser, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser, DeleteAdminUser, SetUserRequiredAction, ClearUserRequiredAction, ListGroups, GetGroup, CreateGroup, UpdateGroup, DeleteGroup, AddGroupMember, RemoveGroupMember, ListUserGroups]
     owns_invariants: [PasswordHistoryNoReuse, EffectiveRolesComposition, GroupMembershipAuditEmission]
     owns_permissions: [AdminUserRead, AdminUserCreate, AdminUserUpdate, AdminUserDelete, AdminGroupsRead, AdminGroupsWrite]
     owns_objectives: [PiiPurgeAfterDeletion]
@@ -1877,6 +1877,62 @@ models:
       profile:     { type: AccountProfileResponse }
       consents:    { type: "AccountConsentResponse[]" }
 
+  AccountMfaFactor:
+    kind: value_object
+    description: |
+      self-service セキュリティ画面で提示する MFA factor 1 件の射影 (wi-21)。secret は
+      返さず、種別・ラベル・作成/最終利用時刻のみ。現状 TOTP のみ。
+    annotations: { component: Authentication }
+    fields:
+      type:         { type: MfaFactorType }
+      label:        { type: String, optional: true }
+      created_at:   { type: Timestamp }
+      last_used_at: { type: Timestamp, optional: true }
+
+  AccountSecurityResponse:
+    kind: value_object
+    description: |
+      `/api/account/security` の返り値 (end-user account portal のセキュリティ概要, wi-21)。
+      パスワード変更日時と MFA (TOTP) の登録状態をまとめる。step-up auth (ADR-043) は本
+      ステージでは未導入。
+    annotations: { component: Authentication }
+    fields:
+      password_changed_at: { type: Timestamp, optional: true }
+      totp_enrolled:       { type: Boolean }
+      factors:             { type: "AccountMfaFactor[]" }
+
+  TOTPEnrollmentStart:
+    kind: value_object
+    description: |
+      TOTP 登録開始の返り値 (self-service, wi-21)。secret はクライアントが確認まで保持し、
+      otpauth_uri は QR / 手動登録のために提示する。secret は確認 (ConfirmTotpEnrollment) で
+      送り返されるまで永続化しない。
+    annotations: { component: Authentication }
+    fields:
+      secret:       { type: String, annotations: { sensitive: true } }
+      otpauth_uri:  { type: String, annotations: { sensitive: true } }
+      account_name: { type: String, annotations: { pii: true } }
+      issuer:       { type: String }
+
+  TOTPEnrollmentConfirmRequest:
+    kind: value_object
+    description: |
+      TOTP 登録確認リクエスト (self-service, wi-21)。secret は開始時の値、code はその secret
+      から生成した現在のコード (所持証明)。
+    annotations: { component: Authentication }
+    fields:
+      secret: { type: String, constraints: [non_empty], annotations: { sensitive: true } }
+      code:   { type: String, constraints: [non_empty] }
+
+  MfaFactorRemoveRequest:
+    kind: value_object
+    description: |
+      MFA factor 解除リクエスト (self-service, wi-21)。code は所持証明としての現在の TOTP
+      コード。解除は本人 + 所持証明を要求する。
+    annotations: { component: Authentication }
+    fields:
+      code: { type: String, constraints: [non_empty] }
+
   Group:
     kind: entity
     description: ADR-038 で導入した tenant-scoped ロール束集約。所属 User に roles を一斉付与する。id は不変の生成識別子、name はテナント内で一意な編集可能ラベル。
@@ -2518,6 +2574,30 @@ models:
       tenantId:   { type: String, description: "対象 user の所属テナント ID。" }
       sub:        { type: String }
 
+  MfaFactorEnrolled:
+    kind: event
+    description: |
+      本人が self-service で MFA factor (現状 TOTP) を登録した (wi-21)。secret は audit に
+      流さず種別だけを残す。User.mfa_enrolled を true にする。
+    annotations: { component: Authentication }
+    payload:
+      occurredAt: { type: Timestamp }
+      tenantId:   { type: String, description: "対象 user の所属テナント ID。" }
+      sub:        { type: String }
+      factorType: { type: MfaFactorType }
+
+  MfaFactorRemoved:
+    kind: event
+    description: |
+      本人が self-service で MFA factor を解除した (wi-21)。解除は有効な TOTP コードによる
+      所持証明を伴う。User.mfa_enrolled を false に戻す。
+    annotations: { component: Authentication }
+    payload:
+      occurredAt: { type: Timestamp }
+      tenantId:   { type: String, description: "対象 user の所属テナント ID。" }
+      sub:        { type: String }
+      factorType: { type: MfaFactorType }
+
   UserCreated:
     kind: event
     description: 管理者がユーザーを作成した。初期パスワードと password_hash は監査イベントに含めない。
@@ -3045,6 +3125,49 @@ interfaces:
     read_only: true
     bindings:
       - { kind: http, method: GET, path: /api/account/data_export }
+
+  GetAccountSecurity:
+    description: |
+      認証済みユーザーが自身のセキュリティ概要を取得する (self-service)。対象は actor.sub に
+      固定。パスワード変更日時と MFA (TOTP) 登録状態を返す (wi-21 / ADR-042)。
+    output:
+      security: { type: AccountSecurityResponse }
+    errors: [AccessDeniedError]
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: /api/account/security }
+
+  StartTotpEnrollment:
+    description: |
+      認証済みユーザーが TOTP 登録を開始する (self-service)。新しい secret と otpauth URI を
+      返すだけで永続化はしない。既に TOTP factor がある場合は拒否する。
+    output:
+      enrollment: { type: TOTPEnrollmentStart }
+    errors: [InvalidRequestError, AccessDeniedError]
+    bindings:
+      - { kind: http, method: POST, path: /api/account/mfa/totp/enroll/start }
+
+  ConfirmTotpEnrollment:
+    description: |
+      secret に対するコードの所持証明を検証し、TOTP factor を永続化する (self-service)。
+      actor.sub に固定し、確定時に User.mfa_enrolled を true にする。
+    input:
+      request: { type: TOTPEnrollmentConfirmRequest }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [MfaFactorEnrolled]
+    bindings:
+      - { kind: http, method: POST, path: /api/account/mfa/totp/enroll/confirm, request_form: body }
+
+  RemoveTotpFactor:
+    description: |
+      有効な TOTP コード (所持証明) を検証してから TOTP factor を解除する (self-service)。
+      actor.sub に固定し、解除時に User.mfa_enrolled を false に戻す。
+    input:
+      request: { type: MfaFactorRemoveRequest }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [MfaFactorRemoved]
+    bindings:
+      - { kind: http, method: POST, path: /api/account/mfa/totp/remove, request_form: body }
 
   RequestPasswordReset:
     description: |

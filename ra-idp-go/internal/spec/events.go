@@ -101,6 +101,30 @@ type EmailChanged struct {
 func (e *EmailChanged) EventType() string     { return "EmailChanged" }
 func (e *EmailChanged) OccurredAt() time.Time { return e.At }
 
+// MfaFactorEnrolled は本人が self-service で MFA factor (現状 TOTP) を登録した (wi-21)。
+// secret は audit に流さず、種別だけを残す。
+type MfaFactorEnrolled struct {
+	At         time.Time     `json:"-"`
+	TenantID   string        `json:"tenantId"`
+	Sub        string        `json:"sub"`
+	FactorType MfaFactorType `json:"factorType"`
+}
+
+func (e *MfaFactorEnrolled) EventType() string     { return "MfaFactorEnrolled" }
+func (e *MfaFactorEnrolled) OccurredAt() time.Time { return e.At }
+
+// MfaFactorRemoved は本人が self-service で MFA factor を解除した (wi-21)。
+// 解除は所持証明 (有効な TOTP コード) を伴う。
+type MfaFactorRemoved struct {
+	At         time.Time     `json:"-"`
+	TenantID   string        `json:"tenantId"`
+	Sub        string        `json:"sub"`
+	FactorType MfaFactorType `json:"factorType"`
+}
+
+func (e *MfaFactorRemoved) EventType() string     { return "MfaFactorRemoved" }
+func (e *MfaFactorRemoved) OccurredAt() time.Time { return e.At }
+
 type UserCreated struct {
 	At        time.Time `json:"-"`
 	TenantID  string    `json:"tenantId"`

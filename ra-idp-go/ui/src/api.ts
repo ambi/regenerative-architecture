@@ -7,8 +7,11 @@ import type {
   AccountHomePage,
   AccountProfile,
   AccountProfilePage,
+  AccountSecurity,
+  AccountSecurityPage,
   AccountSummary,
   EmailVerifyPage,
+  TotpEnrollmentStart,
   AdminAuditEvent,
   AdminAuditEventsPage,
   AdminTenantAttributesPage,
@@ -251,6 +254,17 @@ export async function loadPageData(): Promise<PageData> {
       username: account.preferred_username ?? 'account',
       isAdmin: hasAdminRole(account.roles),
     } satisfies AccountDataPage
+  }
+  if (path === '/account/security') {
+    const account = accountContext!
+    const security = await getAccountSecurity()
+    return {
+      kind: 'account-security',
+      csrfToken: account.csrf_token,
+      username: account.preferred_username ?? 'account',
+      isAdmin: hasAdminRole(account.roles),
+      security,
+    } satisfies AccountSecurityPage
   }
   if (path === '/account/password') {
     const data = accountContext!
@@ -919,6 +933,52 @@ export async function revokeAccountConsent(csrfToken: string, clientId: string):
   if (response.status === 204) return
   const body = (await response.json().catch(() => ({}))) as APIError
   throw new AuthenticationAPIError(body.message ?? 'アクセスを取り消せませんでした。', body.error)
+}
+
+export async function getAccountSecurity(): Promise<AccountSecurity> {
+  return request<AccountSecurity>('/api/account/security')
+}
+
+export async function startTotpEnrollment(csrfToken: string): Promise<TotpEnrollmentStart> {
+  const response = await fetch(tenantURL('/api/account/mfa/totp/enroll/start'), {
+    method: 'POST',
+    headers: { 'X-CSRF-Token': csrfToken },
+    credentials: 'same-origin',
+    cache: 'no-store',
+  })
+  if (response.ok) return (await response.json()) as TotpEnrollmentStart
+  const body = (await response.json().catch(() => ({}))) as APIError
+  throw new AuthenticationAPIError(body.message ?? '認証アプリの登録を開始できませんでした。', body.error)
+}
+
+export async function confirmTotpEnrollment(
+  csrfToken: string,
+  secret: string,
+  code: string,
+): Promise<void> {
+  const response = await fetch(tenantURL('/api/account/mfa/totp/enroll/confirm'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+    body: JSON.stringify({ secret, code }),
+    credentials: 'same-origin',
+    cache: 'no-store',
+  })
+  if (response.status === 204) return
+  const body = (await response.json().catch(() => ({}))) as APIError
+  throw new AuthenticationAPIError(body.message ?? '認証アプリを登録できませんでした。', body.error)
+}
+
+export async function removeTotpFactor(csrfToken: string, code: string): Promise<void> {
+  const response = await fetch(tenantURL('/api/account/mfa/totp/remove'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+    body: JSON.stringify({ code }),
+    credentials: 'same-origin',
+    cache: 'no-store',
+  })
+  if (response.status === 204) return
+  const body = (await response.json().catch(() => ({}))) as APIError
+  throw new AuthenticationAPIError(body.message ?? '認証アプリを解除できませんでした。', body.error)
 }
 
 export async function confirmEmailChange(csrfToken: string, token: string): Promise<void> {

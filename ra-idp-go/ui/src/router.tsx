@@ -10,6 +10,7 @@ import { AccountDataPage } from './pages/AccountDataPage'
 import { AccountEmailsPage } from './pages/AccountEmailsPage'
 import { AccountHomePage } from './pages/AccountHomePage'
 import { AccountProfilePage } from './pages/AccountProfilePage'
+import { AccountSecurityPage } from './pages/AccountSecurityPage'
 import { EmailVerifyPage } from './pages/EmailVerifyPage'
 import { CallbackPage } from './pages/CallbackPage'
 import { AdminAuditEventsPage } from './pages/AdminAuditEventsPage'
@@ -110,6 +111,11 @@ export function createAppRouter(data: PageData) {
     getParentRoute: () => rootRoute,
     path: '/account/data',
     component: () => (data.kind === 'account-data' ? <AccountDataPage {...data} /> : null),
+  })
+  const accountSecurityRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/account/security',
+    component: () => (data.kind === 'account-security' ? <AccountSecurityPage {...data} /> : null),
   })
   const forgotPasswordRoute = createRoute({
     getParentRoute: () => rootRoute,
@@ -220,6 +226,7 @@ export function createAppRouter(data: PageData) {
       emailVerifyRoute,
       accountApplicationsRoute,
       accountDataRoute,
+      accountSecurityRoute,
       forgotPasswordRoute,
       resetPasswordRoute,
       adminDashboardRoute,

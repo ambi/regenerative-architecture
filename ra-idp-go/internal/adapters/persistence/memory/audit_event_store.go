@@ -6,6 +6,7 @@ package memory
 
 import (
 	"context"
+	"slices"
 	"sync"
 
 	"ra-idp-go/internal/oauth2/ports"
@@ -121,9 +122,17 @@ func auditEventMatches(rec *ports.AuditEventRecord, q ports.AuditEventQuery) boo
 	if q.Type != "" && rec.Type != q.Type {
 		return false
 	}
+	if len(q.Types) > 0 && !slices.Contains(q.Types, rec.Type) {
+		return false
+	}
 	if q.Sub != "" {
 		sub, _ := rec.Payload["sub"].(string)
 		if sub != q.Sub {
+			return false
+		}
+	}
+	for key, want := range q.PayloadEquals {
+		if got, _ := rec.Payload[key].(string); got != want {
 			return false
 		}
 	}

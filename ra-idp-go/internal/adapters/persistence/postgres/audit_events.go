@@ -10,6 +10,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -82,8 +84,17 @@ func (r *AuditEventRepository) List(ctx context.Context, q ports.AuditEventQuery
 	if q.Type != "" {
 		add("type = $%d", q.Type)
 	}
+	if len(q.Types) > 0 {
+		add("type = ANY($%d)", q.Types)
+	}
 	if q.Sub != "" {
 		add("sub = $%d", q.Sub)
+	}
+	for _, key := range slices.Sorted(maps.Keys(q.PayloadEquals)) {
+		args = append(args, key)
+		keyIdx := len(args)
+		args = append(args, q.PayloadEquals[key])
+		conds = append(conds, fmt.Sprintf("payload->>$%d = $%d", keyIdx, len(args)))
 	}
 	if !q.After.IsZero() {
 		add("occurred_at >= $%d", q.After)

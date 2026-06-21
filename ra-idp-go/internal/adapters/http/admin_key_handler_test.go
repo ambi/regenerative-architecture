@@ -44,7 +44,7 @@ func newKeyAdminServer(t *testing.T, actor *spec.User) (*echo.Echo, *crypto.InMe
 	Register(e, Deps{
 		Issuer: "http://idp.test", SCL: spec.MustLoadSCL(), UserRepo: userRepo,
 		KeyStore: keyStore, AuthnResolver: resolver,
-		TenantRepo: newSingleTenantRepo("acme"),
+		TenantRepo: newSingleTenantRepo(),
 		Emit:       emit,
 	})
 	return e, keyStore, &events

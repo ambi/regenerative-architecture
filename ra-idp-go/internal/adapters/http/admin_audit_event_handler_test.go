@@ -42,7 +42,7 @@ func newAuditAdminServer(t *testing.T, actor *spec.User, events []*oauthports.Au
 	Register(e, Deps{
 		Issuer: "http://test", UserRepo: userRepo,
 		AuditEventRepo: auditStore, AuthnResolver: resolver,
-		TenantRepo: newSingleTenantRepo("acme"),
+		TenantRepo: newSingleTenantRepo(),
 	})
 	return e
 }

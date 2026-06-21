@@ -155,7 +155,7 @@ func TestUserInfoDPoPHTUUsesTenantPrefix(t *testing.T) {
 	}}
 
 	// "acme" テナントを返す TenantRepository をその場で組む。
-	tenantRepo := newSingleTenantRepo("acme")
+	tenantRepo := newSingleTenantRepo()
 
 	e := echo.New()
 	Register(e, Deps{
@@ -184,10 +184,10 @@ type singleTenantRepo struct {
 	tenant *spec.Tenant
 }
 
-func newSingleTenantRepo(id string) *singleTenantRepo {
+func newSingleTenantRepo() *singleTenantRepo {
 	now := time.Now().UTC()
 	return &singleTenantRepo{tenant: &spec.Tenant{
-		ID: id, Status: spec.TenantStatusActive, CreatedAt: now,
+		ID: "acme", Status: spec.TenantStatusActive, CreatedAt: now,
 	}}
 }
 

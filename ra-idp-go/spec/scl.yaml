@@ -22,10 +22,10 @@ components:
 
   Authentication:
     description: エンドユーザ (Subject) の identity、credentials、MFA、ログインセッション、パスワードリセット、および管理 API からの User ライフサイクル操作を所有する。
-    owns_models: [User, MfaFactor, MfaFactorType, LoginSession, AuthenticationContext, PasswordResetTokenRecord, BrowserLoginRequest, BrowserTotpRequest, BrowserChangePasswordRequest, BrowserForgotPasswordRequest, BrowserResetPasswordRequest, AdminUserCreateRequest, AdminUserUpdateRequest, AdminRequiredActionRequest, AdminUserListResponse, AdminUserResponse, Group, GroupMember, GroupCreateRequest, GroupUpdateRequest, GroupSummaryResponse, GroupListResponse, GroupMemberResponse, GroupAddMemberRequest, UserGroupsResponse, UserLifecycle, AttributeValue, UserStatus, RequiredAction, AccountProfileResponse, AccountProfileUpdateRequest, AccountSummary, AccountEmailChangeRequest, AccountEmailChangeConfirm, AccountDataExport, AccountMfaFactor, AccountSecurityResponse, TOTPEnrollmentStart, TOTPEnrollmentConfirmRequest, MfaFactorRemoveRequest, UserSignInActivity, UserSignInActivityResponse]
+    owns_models: [User, MfaFactor, MfaFactorType, LoginSession, AuthenticationContext, PasswordResetTokenRecord, BrowserLoginRequest, BrowserTotpRequest, BrowserChangePasswordRequest, BrowserForgotPasswordRequest, BrowserResetPasswordRequest, AdminUserCreateRequest, AdminUserUpdateRequest, AdminRequiredActionRequest, AdminUserListResponse, AdminUserResponse, Group, GroupMember, GroupCreateRequest, GroupUpdateRequest, GroupSummaryResponse, GroupListResponse, GroupMemberResponse, GroupAddMemberRequest, UserGroupsResponse, UserLifecycle, AttributeValue, UserStatus, RequiredAction, AccountProfileResponse, AccountProfileUpdateRequest, AccountSummary, AccountEmailChangeRequest, AccountEmailChangeConfirm, AccountDataExport, AccountMfaFactor, AccountSecurityResponse, TOTPEnrollmentStart, TOTPEnrollmentConfirmRequest, MfaFactorRemoveRequest, UserSignInActivity, UserSignInActivityResponse, SessionEndReason, AccountSession, AccountSessionListResponse]
     owns_states: [UserLifecycle, GroupLifecycle]
-    owns_events: [UserAuthenticated, AuthenticationFailed, PasswordChanged, LoginThrottled, PasswordResetRequested, EmailSent, EmailChangeRequested, EmailChanged, UserCreated, UserUpdated, UserDisabled, UserEnabled, UserDeleted, UserRequiredActionSet, UserRequiredActionCleared, GroupCreated, GroupUpdated, GroupDeleted, GroupMemberAdded, GroupMemberRemoved, MfaFactorEnrolled, MfaFactorRemoved]
-    owns_interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, ChangePassword, GetAccountSummary, GetUserProfile, UpdateUserProfile, RequestEmailChange, ConfirmEmailChange, ExportAccountData, GetAccountSecurity, StartTotpEnrollment, ConfirmTotpEnrollment, RemoveTotpFactor, ListMySignInActivity, ListUserSignInActivity, RequestPasswordReset, ResetPasswordWithToken, ListAdminUsers, GetAdminUser, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser, DeleteAdminUser, SetUserRequiredAction, ClearUserRequiredAction, ListGroups, GetGroup, CreateGroup, UpdateGroup, DeleteGroup, AddGroupMember, RemoveGroupMember, ListUserGroups]
+    owns_events: [UserAuthenticated, AuthenticationFailed, PasswordChanged, LoginThrottled, PasswordResetRequested, EmailSent, EmailChangeRequested, EmailChanged, UserCreated, UserUpdated, UserDisabled, UserEnabled, UserDeleted, UserRequiredActionSet, UserRequiredActionCleared, GroupCreated, GroupUpdated, GroupDeleted, GroupMemberAdded, GroupMemberRemoved, MfaFactorEnrolled, MfaFactorRemoved, SessionEnded]
+    owns_interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, ChangePassword, GetAccountSummary, GetUserProfile, UpdateUserProfile, RequestEmailChange, ConfirmEmailChange, ExportAccountData, GetAccountSecurity, StartTotpEnrollment, ConfirmTotpEnrollment, RemoveTotpFactor, ListMySignInActivity, ListUserSignInActivity, ListMySessions, RevokeMySession, RevokeMyOtherSessions, RequestPasswordReset, ResetPasswordWithToken, ListAdminUsers, GetAdminUser, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser, DeleteAdminUser, SetUserRequiredAction, ClearUserRequiredAction, ListGroups, GetGroup, CreateGroup, UpdateGroup, DeleteGroup, AddGroupMember, RemoveGroupMember, ListUserGroups]
     owns_invariants: [PasswordHistoryNoReuse, EffectiveRolesComposition, GroupMembershipAuditEmission]
     owns_permissions: [AdminUserRead, AdminUserCreate, AdminUserUpdate, AdminUserDelete, AdminGroupsRead, AdminGroupsWrite]
     owns_objectives: [PiiPurgeAfterDeletion]
@@ -1954,6 +1954,37 @@ models:
     fields:
       activities: { type: "UserSignInActivity[]" }
 
+  SessionEndReason:
+    kind: enum
+    description: |
+      LoginSession 終了の理由 (wi-20)。self_revoke / admin_revoke は本人 / admin の明示的な
+      失効、logout / idle / absolute は自動失効、password_change / mfa_change は資格情報変更に
+      伴う失効。
+    values: [logout, idle, absolute, self_revoke, admin_revoke, password_change, mfa_change, other]
+
+  AccountSession:
+    kind: value_object
+    description: |
+      self-service セッション一覧の 1 件の射影 (wi-20 スライス 2)。secret は持たず、識別子と
+      認証情報のみ。current は呼び出し元の現在のセッションかどうか。started_at は LoginSession の
+      auth_time、expires_at は失効予定時刻。
+    annotations: { component: Authentication }
+    fields:
+      id:         { type: String }
+      current:    { type: Boolean }
+      amr:        { type: "String[]" }
+      acr:        { type: String }
+      started_at: { type: Timestamp }
+      expires_at: { type: Timestamp }
+
+  AccountSessionListResponse:
+    kind: value_object
+    description: |
+      ListMySessions の返り値。開始時刻の降順 (新しい順) で本人の有効なセッションを返す。
+    annotations: { component: Authentication }
+    fields:
+      sessions: { type: "AccountSession[]" }
+
   Group:
     kind: entity
     description: ADR-038 で導入した tenant-scoped ロール束集約。所属 User に roles を一斉付与する。id は不変の生成識別子、name はテナント内で一意な編集可能ラベル。
@@ -2619,6 +2650,21 @@ models:
       sub:        { type: String }
       factorType: { type: MfaFactorType }
 
+  SessionEnded:
+    kind: event
+    description: |
+      LoginSession が終了した (wi-20)。本人 / admin の明示的な失効では actorSub が操作者、
+      reason が self_revoke / admin_revoke になる。OAuth クライアントへ発行済みの refresh
+      token はセッションに 1:1 で紐づかないため本スライスでは失効しない。
+    annotations: { component: Authentication }
+    payload:
+      occurredAt: { type: Timestamp }
+      tenantId:   { type: String, description: "対象 user の所属テナント ID。" }
+      sub:        { type: String }
+      sessionId:  { type: String }
+      actorSub:   { type: String, description: "失効を実行した主体の sub (self は本人)。" }
+      reason:     { type: SessionEndReason }
+
   UserCreated:
     kind: event
     description: 管理者がユーザーを作成した。初期パスワードと password_hash は監査イベントに含めない。
@@ -3212,6 +3258,35 @@ interfaces:
     read_only: true
     bindings:
       - { kind: http, method: GET, path: "/api/admin/users/{sub}/signin_activity" }
+
+  ListMySessions:
+    description: |
+      認証済みユーザーが自身の有効なセッションを取得する (self-service, wi-20)。対象は
+      actor.sub に固定。現在のセッションを current=true でマークし、開始時刻の降順で返す。
+    output:
+      sessions: { type: AccountSessionListResponse }
+    errors: [AccessDeniedError]
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: /api/account/sessions }
+
+  RevokeMySession:
+    description: |
+      認証済みユーザーが自身のセッション 1 件を失効する (self-service, wi-20)。対象が本人の
+      ものでなければ拒否する。失効は LoginSession を物理削除して SSO セッションを終了する。
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [SessionEnded]
+    bindings:
+      - { kind: http, method: POST, path: "/api/account/sessions/{id}/revoke", successful_status_codes: ["204"] }
+
+  RevokeMyOtherSessions:
+    description: |
+      認証済みユーザーが現在のセッションを除く自身の全セッションを失効する (self-service,
+      wi-20)。"他のセッションを全て終了" 操作。
+    errors: [AccessDeniedError]
+    emits: [SessionEnded]
+    bindings:
+      - { kind: http, method: POST, path: /api/account/sessions/revoke_others, successful_status_codes: ["204"] }
 
   RequestPasswordReset:
     description: |

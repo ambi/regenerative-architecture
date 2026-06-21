@@ -408,6 +408,26 @@ func (s *SessionStore) Delete(ctx context.Context, id string) error {
 	return s.Client.Del(ctx, tenantKey(ctx, "session:"+id)).Err()
 }
 
+func (s *SessionStore) ListBySub(ctx context.Context, sub string) ([]*spec.LoginSession, error) {
+	pattern := tenantKey(ctx, "session:*")
+	iter := s.Client.Scan(ctx, 0, pattern, 100).Iterator()
+	out := []*spec.LoginSession{}
+	for iter.Next(ctx) {
+		var session spec.LoginSession
+		if err := getJSON(ctx, s.Client, iter.Val(), &session); err != nil {
+			return nil, err
+		}
+		if session.ID == "" {
+			continue
+		}
+		if session.Sub == sub && !session.AuthenticationPending {
+			copied := session
+			out = append(out, &copied)
+		}
+	}
+	return out, iter.Err()
+}
+
 func (s *SessionStore) DeleteAllForSub(ctx context.Context, sub string) error {
 	pattern := tenantKey(ctx, "session:*")
 	iter := s.Client.Scan(ctx, 0, pattern, 100).Iterator()

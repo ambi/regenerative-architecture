@@ -254,6 +254,18 @@ session_id・client_id 等の付加属性、攻撃時の bucket 集約、retenti
 federation イベントは wi-20 の後続スライスで追加する (ADR-041 / ADR-045 / ADR-046)。
 end-user 向けの履歴 UI は wi-21 の activity ステージで本 API を使って描く。
 
+セッション管理 (wi-20 スライス 2) は本人の有効な LoginSession の一覧と失効を持つ:
+
+- `GET  /api/account/sessions`（現在のセッションを `current=true` でマーク、開始時刻の降順）
+- `POST /api/account/sessions/{id}/revoke`（本人のセッションのみ。他人のものは 404）
+- `POST /api/account/sessions/revoke_others`（現在を除く全セッションを失効 = 他端末からのログアウト）
+
+失効は LoginSession を物理削除して SSO セッションを終了し、`SessionEnded`
+(reason: `self_revoke`) を発火する。OAuth クライアントへ発行済みの refresh token は
+セッションに 1:1 で紐づかないため本スライスでは失効しない (per-session の refresh 失効と、
+admin の全 tenant セッション一覧 UI は後続スライス)。end-user 向けのセッション UI は wi-21 の
+activity ステージで本 API を使って描く。
+
 ## 検証
 
 ```bash

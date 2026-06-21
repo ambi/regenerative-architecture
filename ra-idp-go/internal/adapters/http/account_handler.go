@@ -151,6 +151,8 @@ func (d Deps) writeAccountError(c *echo.Context, err error) error {
 		return writeBrowserError(c, http.StatusUnauthorized, "authentication_required", "認証済みセッションが必要です")
 	case errors.Is(err, authusecases.ErrUserNotFound):
 		return writeBrowserError(c, http.StatusNotFound, "user_not_found", "ユーザーが存在しません")
+	case errors.Is(err, authusecases.ErrSessionNotFound):
+		return writeBrowserError(c, http.StatusNotFound, "session_not_found", "セッションが存在しません")
 	case errors.Is(err, authusecases.ErrAttributeNotEditable):
 		return writeBrowserError(c, http.StatusForbidden, "attribute_not_editable", "この属性は編集できません")
 	case errors.Is(err, authusecases.ErrInvalidAttribute):

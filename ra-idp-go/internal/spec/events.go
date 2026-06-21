@@ -135,6 +135,20 @@ type UserCreated struct {
 func (e *UserCreated) EventType() string     { return "UserCreated" }
 func (e *UserCreated) OccurredAt() time.Time { return e.At }
 
+// SessionEnded は LoginSession が終了した (wi-20)。self / admin の明示的な失効では
+// ActorSub が操作者、reason が self_revoke / admin_revoke になる。
+type SessionEnded struct {
+	At        time.Time        `json:"-"`
+	TenantID  string           `json:"tenantId"`
+	Sub       string           `json:"sub"`
+	SessionID string           `json:"sessionId"`
+	ActorSub  string           `json:"actorSub"`
+	Reason    SessionEndReason `json:"reason"`
+}
+
+func (e *SessionEnded) EventType() string     { return "SessionEnded" }
+func (e *SessionEnded) OccurredAt() time.Time { return e.At }
+
 type UserUpdated struct {
 	At            time.Time `json:"-"`
 	TenantID      string    `json:"tenantId"`

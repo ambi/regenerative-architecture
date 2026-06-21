@@ -162,6 +162,30 @@ func (s ConsentState) Valid() bool {
 	return false
 }
 
+// SessionEndReason は LoginSession 終了の理由 (wi-20)。self_revoke / admin_revoke は
+// 明示的なセッション失効、それ以外は自動失効・ライフサイクル起因。
+type SessionEndReason string
+
+const (
+	SessionEndLogout         SessionEndReason = "logout"
+	SessionEndIdle           SessionEndReason = "idle"
+	SessionEndAbsolute       SessionEndReason = "absolute"
+	SessionEndSelfRevoke     SessionEndReason = "self_revoke"
+	SessionEndAdminRevoke    SessionEndReason = "admin_revoke"
+	SessionEndPasswordChange SessionEndReason = "password_change"
+	SessionEndMfaChange      SessionEndReason = "mfa_change"
+	SessionEndOther          SessionEndReason = "other"
+)
+
+func (r SessionEndReason) Valid() bool {
+	switch r {
+	case SessionEndLogout, SessionEndIdle, SessionEndAbsolute, SessionEndSelfRevoke,
+		SessionEndAdminRevoke, SessionEndPasswordChange, SessionEndMfaChange, SessionEndOther:
+		return true
+	}
+	return false
+}
+
 type DeviceCodeFlowState string
 
 const (

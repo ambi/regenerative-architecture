@@ -1006,6 +1006,23 @@ func (s *SessionStore) Delete(_ context.Context, id string) error {
 	return nil
 }
 
+func (s *SessionStore) ListBySub(_ context.Context, sub string) ([]*spec.LoginSession, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	now := time.Now()
+	out := []*spec.LoginSession{}
+	for id, sess := range s.sessions {
+		if now.After(sess.ExpiresAt) {
+			delete(s.sessions, id)
+			continue
+		}
+		if sess.Sub == sub && !sess.AuthenticationPending {
+			out = append(out, sess)
+		}
+	}
+	return out, nil
+}
+
 func (s *SessionStore) DeleteAllForSub(_ context.Context, sub string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

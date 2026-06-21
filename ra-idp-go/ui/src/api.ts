@@ -17,6 +17,7 @@ import type {
   TotpEnrollmentStart,
   AdminAuditEvent,
   AdminAuditEventsPage,
+  AdminAuthenticationEventsPage,
   AdminTenantAttributesPage,
   AdminClient,
   AdminClientDetailPage,
@@ -425,6 +426,26 @@ export async function loadPageData(): Promise<PageData> {
       actorTenantID: adminAccount!.tenant_id ?? '',
       events: events.events,
     } satisfies AdminAuditEventsPage
+  }
+  if (path === '/admin/authentication_events') {
+    // ADR-045: 既定で直近 24h を表示し、全期間スキャンを避ける。
+    const to = new Date()
+    const from = new Date(to.getTime() - 24 * 60 * 60 * 1000)
+    const events = await listAdminAuthenticationEvents({
+      from: from.toISOString(),
+      to: to.toISOString(),
+      limit: 200,
+    })
+    return {
+      kind: 'admin-authentication-events',
+      csrfToken: adminAccount!.csrf_token,
+      actorUsername: adminAccount!.preferred_username,
+      actorRoles: adminAccount!.roles ?? [],
+      actorTenantID: adminAccount!.tenant_id ?? '',
+      from: from.toISOString(),
+      to: to.toISOString(),
+      events,
+    } satisfies AdminAuthenticationEventsPage
   }
   if (path === '/admin/keys') {
     const keys = await request<AdminKeyListResponse>('/api/admin/keys')
@@ -862,6 +883,34 @@ export async function listAdminAuditEvents(
   if (query.allTenants) params.set('all_tenants', 'true')
   const url =
     params.size > 0 ? `/api/admin/audit_events?${params.toString()}` : '/api/admin/audit_events'
+  return (await request<AdminAuditEventListResponse>(url)).events
+}
+
+export type AdminAuthenticationEventQuery = {
+  // ADR-045: 期間 (from/to) は必須。
+  from: string
+  to: string
+  kind?: 'success' | 'fail' | 'aggregated'
+  sub?: string
+  usernameHash?: string
+  ipTruncated?: string
+  limit?: number
+  allTenants?: boolean
+}
+
+export async function listAdminAuthenticationEvents(
+  query: AdminAuthenticationEventQuery,
+): Promise<AdminAuditEvent[]> {
+  const params = new URLSearchParams()
+  params.set('from', query.from)
+  params.set('to', query.to)
+  if (query.kind) params.set('kind', query.kind)
+  if (query.sub) params.set('sub', query.sub)
+  if (query.usernameHash) params.set('username_hash', query.usernameHash)
+  if (query.ipTruncated) params.set('ip_truncated', query.ipTruncated)
+  if (query.limit !== undefined) params.set('limit', String(query.limit))
+  if (query.allTenants) params.set('all_tenants', 'true')
+  const url = `/api/admin/authentication_events?${params.toString()}`
   return (await request<AdminAuditEventListResponse>(url)).events
 }
 

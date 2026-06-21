@@ -201,6 +201,18 @@ export type AdminAuditEventsPage = {
   events: AdminAuditEvent[]
 }
 
+export type AdminAuthenticationEventsPage = {
+  kind: 'admin-authentication-events'
+  csrfToken: string
+  actorUsername?: string
+  actorRoles: string[]
+  actorTenantID: string
+  // 初期表示の既定期間 (直近 24h)。再検索のフォーム初期値に使う。
+  from: string
+  to: string
+  events: AdminAuditEvent[]
+}
+
 export type AdminKey = {
   kid: string
   alg: string
@@ -528,6 +540,7 @@ export type PageData =
   | AdminClientsPage
   | AdminConsentsPage
   | AdminAuditEventsPage
+  | AdminAuthenticationEventsPage
   | AdminKeysPage
   | AdminTenantsPage
   | AdminGroupsPage

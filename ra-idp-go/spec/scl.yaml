@@ -22,12 +22,12 @@ components:
 
   Authentication:
     description: エンドユーザ (Subject) の identity、credentials、MFA、ログインセッション、パスワードリセット、および管理 API からの User ライフサイクル操作を所有する。
-    owns_models: [User, MfaFactor, MfaFactorType, LoginSession, AuthenticationContext, PasswordResetTokenRecord, BrowserLoginRequest, BrowserTotpRequest, BrowserChangePasswordRequest, BrowserForgotPasswordRequest, BrowserResetPasswordRequest, AdminUserCreateRequest, AdminUserUpdateRequest, AdminRequiredActionRequest, AdminUserListResponse, AdminUserResponse, Group, GroupMember, GroupCreateRequest, GroupUpdateRequest, GroupSummaryResponse, GroupListResponse, GroupMemberResponse, GroupAddMemberRequest, UserGroupsResponse, UserLifecycle, AttributeValue, UserStatus, RequiredAction, AccountProfileResponse, AccountProfileUpdateRequest, AccountSummary, AccountEmailChangeRequest, AccountEmailChangeConfirm, AccountDataExport, AccountMfaFactor, AccountSecurityResponse, TOTPEnrollmentStart, TOTPEnrollmentConfirmRequest, MfaFactorRemoveRequest, UserSignInActivity, UserSignInActivityResponse, SessionEndReason, AccountSession, AccountSessionListResponse, AuthenticationEventBucket, AuthenticationEventBucketListResponse, StepUpMethod, StepUpStartResponse, StepUpCompleteRequest]
+    owns_models: [User, MfaFactor, MfaFactorType, LoginSession, AuthenticationContext, PasswordResetTokenRecord, BrowserLoginRequest, BrowserTotpRequest, BrowserChangePasswordRequest, BrowserForgotPasswordRequest, BrowserResetPasswordRequest, AdminUserCreateRequest, AdminUserUpdateRequest, AdminRequiredActionRequest, AdminUserListResponse, AdminUserResponse, Group, GroupMember, GroupCreateRequest, GroupUpdateRequest, GroupSummaryResponse, GroupListResponse, GroupMemberResponse, GroupAddMemberRequest, UserGroupsResponse, UserLifecycle, AttributeValue, UserStatus, RequiredAction, AccountProfileResponse, AccountProfileUpdateRequest, AccountSummary, AccountEmailChangeRequest, AccountEmailChangeConfirm, AccountDataExport, AccountMfaFactor, AccountSecurityResponse, TOTPEnrollmentStart, TOTPEnrollmentConfirmRequest, MfaFactorRemoveRequest, UserSignInActivity, UserSignInActivityResponse, SessionEndReason, AccountSession, AccountSessionListResponse, AuthenticationEventBucket, AuthenticationEventBucketListResponse, StepUpMethod, StepUpStartResponse, StepUpCompleteRequest, AuthenticationEvent, AuthenticationEventKind, AuthenticationEventQuery, AuthenticationEventListResponse, SessionRecord, AdminSessionListResponse]
     owns_states: [UserLifecycle, GroupLifecycle]
-    owns_events: [UserAuthenticated, AuthenticationFailed, PasswordChanged, LoginThrottled, PasswordResetRequested, EmailSent, EmailChangeRequested, EmailChanged, UserCreated, UserUpdated, UserDisabled, UserEnabled, UserDeleted, UserRequiredActionSet, UserRequiredActionCleared, GroupCreated, GroupUpdated, GroupDeleted, GroupMemberAdded, GroupMemberRemoved, MfaFactorEnrolled, MfaFactorRemoved, SessionEnded, AuthenticationEventAggregated, StepUpRequested, StepUpCompleted]
-    owns_interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, ChangePassword, GetAccountSummary, GetUserProfile, UpdateUserProfile, RequestEmailChange, ConfirmEmailChange, ExportAccountData, GetAccountSecurity, StartTotpEnrollment, ConfirmTotpEnrollment, RemoveTotpFactor, ListMySignInActivity, ListUserSignInActivity, ListAuthenticationEventBuckets, ListMySessions, RevokeMySession, RevokeMyOtherSessions, StartStepUpAuthentication, CompleteStepUpAuthentication, RequestPasswordReset, ResetPasswordWithToken, ListAdminUsers, GetAdminUser, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser, DeleteAdminUser, SetUserRequiredAction, ClearUserRequiredAction, ListGroups, GetGroup, CreateGroup, UpdateGroup, DeleteGroup, AddGroupMember, RemoveGroupMember, ListUserGroups]
+    owns_events: [UserAuthenticated, AuthenticationFailed, PasswordChanged, LoginThrottled, PasswordResetRequested, EmailSent, EmailChangeRequested, EmailChanged, UserCreated, UserUpdated, UserDisabled, UserEnabled, UserDeleted, UserRequiredActionSet, UserRequiredActionCleared, GroupCreated, GroupUpdated, GroupDeleted, GroupMemberAdded, GroupMemberRemoved, MfaFactorEnrolled, MfaFactorRemoved, SessionEnded, AuthenticationEventAggregated, StepUpRequested, StepUpCompleted, AuthenticationStepCompleted, AuthenticationStepFailed, MfaChallengeIssued, MfaChallengeSucceeded, MfaChallengeFailed, BackupCodeConsumed, SessionStarted, SessionRefreshed, FederatedAuthenticated, FederationLinked, FederationUnlinked, SessionImpersonationStarted, SessionImpersonationEnded]
+    owns_interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, ChangePassword, GetAccountSummary, GetUserProfile, UpdateUserProfile, RequestEmailChange, ConfirmEmailChange, ExportAccountData, GetAccountSecurity, StartTotpEnrollment, ConfirmTotpEnrollment, RemoveTotpFactor, ListMySignInActivity, ListUserSignInActivity, ListAuthenticationEventBuckets, ListMySessions, RevokeMySession, RevokeMyOtherSessions, StartStepUpAuthentication, CompleteStepUpAuthentication, RequestPasswordReset, ResetPasswordWithToken, ListAdminUsers, GetAdminUser, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser, DeleteAdminUser, SetUserRequiredAction, ClearUserRequiredAction, ListGroups, GetGroup, CreateGroup, UpdateGroup, DeleteGroup, AddGroupMember, RemoveGroupMember, ListUserGroups, ListAuthenticationEvents, GetAuthenticationEvent, ExportAuthenticationEvents, ListSessions, RevokeSession, RevokeAllSessions]
     owns_invariants: [PasswordHistoryNoReuse, EffectiveRolesComposition, GroupMembershipAuditEmission]
-    owns_permissions: [AdminUserRead, AdminUserCreate, AdminUserUpdate, AdminUserDelete, AdminGroupsRead, AdminGroupsWrite]
+    owns_permissions: [AdminUserRead, AdminUserCreate, AdminUserUpdate, AdminUserDelete, AdminGroupsRead, AdminGroupsWrite, AdminAuthenticationEventsRead, AdminSessionsWrite]
     owns_objectives: [PiiPurgeAfterDeletion]
     depends_on:
       - { component: Tenancy, reason: User と LoginSession はテナント境界内に閉じ、User 管理 API もテナント単位で動く。 }
@@ -2009,6 +2009,96 @@ models:
     fields:
       buckets: { type: "AuthenticationEventBucket[]" }
 
+  AuthenticationEventKind:
+    kind: enum
+    description: |
+      認証イベントの大分類 (wi-44 / ADR-041)。success = 認証/セッション成功系、fail = 失敗系、
+      aggregated = 攻撃時に 5 分窓へ畳み込んだ bucket 行。admin タイムラインで混在表示する。
+    values: [success, fail, aggregated]
+
+  AuthenticationEvent:
+    kind: value_object
+    description: |
+      認証イベント 1 件の admin 表示用射影 (wi-44 / ADR-041)。通常イベント (1 行 = 1 事象) と
+      bucket 集約 (1 行 = 5 分窓) を同一タイムラインに混在させるための統合ビュー。kind が
+      discriminator で、event_type は具体イベント名 (UserAuthenticated / MfaChallengeFailed 等)。
+      PII は ADR-046 に従い truncated / hash のみ (平文 username は失敗イベントで 7 日のみ)。
+      aggregated 行は count / key_hash を持ち、個別サンプルへドリルダウンできる。tenant 境界内。
+    annotations: { component: Authentication }
+    fields:
+      id:                     { type: String }
+      kind:                   { type: AuthenticationEventKind }
+      event_type:             { type: String, description: "具体イベント名 (UserAuthenticated / AuthenticationFailed / MfaChallengeFailed 等)" }
+      occurred_at:            { type: Timestamp }
+      sub:                    { type: String, optional: true }
+      username:               { type: String, optional: true, annotations: { pii: true }, description: "失敗イベントの 7 日以内のみ。以後 null。" }
+      username_hash:          { type: String, optional: true }
+      client_id:              { type: String, optional: true }
+      session_id:             { type: String, optional: true }
+      amr:                    { type: "String[]", optional: true }
+      acr:                    { type: String, optional: true }
+      reason:                 { type: String, optional: true }
+      ip_truncated:           { type: String, optional: true }
+      ip_hash:                { type: String, optional: true }
+      ua_hash:                { type: String, optional: true }
+      country_code:           { type: String, optional: true }
+      device_fingerprint_hash: { type: String, optional: true }
+      risk_score:             { type: Integer, optional: true }
+      key_hash:               { type: String, optional: true, description: "aggregated 行の bucket key (SHA-256 hex)" }
+      count:                  { type: Integer, optional: true, description: "aggregated 行の窓内累計件数" }
+
+  AuthenticationEventQuery:
+    kind: value_object
+    description: |
+      ListAuthenticationEvents / ExportAuthenticationEvents のフィルタ (wi-44)。検索性能の担保の
+      ため from / to の期間絞り込みを必須とする (ADR-045: 全期間スキャンを禁じる)。limit 既定 50 /
+      上限 200。
+    annotations: { component: Authentication }
+    fields:
+      sub:           { type: String, optional: true }
+      username_hash: { type: String, optional: true }
+      ip_truncated:  { type: String, optional: true }
+      kind:          { type: AuthenticationEventKind, optional: true }
+      from:          { type: Timestamp }
+      to:            { type: Timestamp }
+      limit:         { type: Integer, optional: true }
+
+  AuthenticationEventListResponse:
+    kind: value_object
+    description: |
+      ListAuthenticationEvents / ExportAuthenticationEvents の返り値 (wi-44)。occurred_at の降順
+      (新しい順) で返す。
+    annotations: { component: Authentication }
+    fields:
+      events: { type: "AuthenticationEvent[]" }
+
+  SessionRecord:
+    kind: value_object
+    description: |
+      admin 表示用のセッション 1 件の射影 (wi-44)。secret は持たず、識別子と認証情報・由来のみ。
+      started_at は auth_time、expires_at は失効予定時刻、last_seen_at は最終アクティブ時刻。
+      IP は ADR-046 の truncated のみ。tenant 境界内。
+    annotations: { component: Authentication }
+    fields:
+      id:           { type: String }
+      sub:          { type: String }
+      amr:          { type: "String[]" }
+      acr:          { type: String }
+      started_at:   { type: Timestamp }
+      expires_at:   { type: Timestamp }
+      last_seen_at: { type: Timestamp, optional: true }
+      ip_truncated: { type: String, optional: true }
+      ua_hash:      { type: String, optional: true }
+      country_code: { type: String, optional: true }
+
+  AdminSessionListResponse:
+    kind: value_object
+    description: |
+      ListSessions の返り値 (wi-44)。tenant 境界内の有効なセッションを開始時刻の降順で返す。
+    annotations: { component: Authentication }
+    fields:
+      sessions: { type: "SessionRecord[]" }
+
   StepUpMethod:
     kind: enum
     description: |
@@ -2588,23 +2678,47 @@ models:
 
   UserAuthenticated:
     kind: event
-    description: ResourceOwner の認証が成功した。amr は実際に経由した認証手段の一覧 (OIDC Core §2)。
+    description: |
+      ResourceOwner の認証が成功した。amr は実際に経由した認証手段の一覧 (OIDC Core §2)。
+      wi-44 / ADR-041 で産業標準の属性を optional 拡張した (後方互換: 既存 payload は破壊しない)。
+      IP / username / device は ADR-046 の PII ポリシーに従い truncated / hash で持つ。
     annotations: { component: Authentication }
     payload:
-      occurredAt:   { type: Timestamp }
-      tenantId:     { type: String, description: "認証が起きたテナント ID。監査ビューのテナント絞り込みに使う。" }
-      sub:          { type: String }
-      amr:          { type: "String[]", optional: true }
+      occurredAt:             { type: Timestamp }
+      tenantId:               { type: String, description: "認証が起きたテナント ID。監査ビューのテナント絞り込みに使う。" }
+      sub:                    { type: String }
+      amr:                    { type: "String[]", optional: true }
+      sessionId:              { type: String, optional: true, description: "認証で開始した LoginSession の ID。" }
+      clientId:               { type: String, optional: true, description: "認証を起動した OAuth クライアント。" }
+      acr:                    { type: String, optional: true }
+      ipTruncated:            { type: String, optional: true, description: "IPv4 /24・IPv6 /48 に丸めた IP (ADR-046)。" }
+      ipHash:                 { type: String, optional: true, description: "tenant salt 付き IP の SHA-256 hex (ADR-046)。" }
+      uaHash:                 { type: String, optional: true, description: "User-Agent の SHA-256 hex。" }
+      countryCode:            { type: String, optional: true, description: "GeoIP 由来の国コード (未連携時は空)。" }
+      deviceFingerprintHash:  { type: String, optional: true, description: "device fingerprint の SHA-256 hex (raw 非保存)。" }
+      riskScore:              { type: Integer, optional: true, description: "リスクスコア (本 WI ではフィールド確保のみ、値は null)。" }
 
   AuthenticationFailed:
     kind: event
-    description: ResourceOwner の認証が失敗した。レートリミット・不正検知の入力イベント。username は PII として扱う。
+    description: |
+      ResourceOwner の認証が失敗した。レートリミット・不正検知の入力イベント。username は PII として扱う
+      (ADR-046: 失敗イベント限定で平文を 7 日保持し、以後 sweep で粒度を落とす。usernameHash は first-class)。
+      wi-44 / ADR-041 で IP / device / session の optional 属性を後方互換で拡張した。
     annotations: { component: Authentication }
     payload:
-      occurredAt:   { type: Timestamp }
-      tenantId:     { type: String, description: "認証を試みたテナント ID (リクエストパス由来)。" }
-      username:     { type: String, optional: true, annotations: { pii: true } }
-      reason:       { type: String, optional: true }
+      occurredAt:             { type: Timestamp }
+      tenantId:               { type: String, description: "認証を試みたテナント ID (リクエストパス由来)。" }
+      username:               { type: String, optional: true, annotations: { pii: true } }
+      usernameHash:           { type: String, optional: true, description: "tenant salt 付き username (lowercased) の SHA-256 hex (ADR-046)。" }
+      reason:                 { type: String, optional: true }
+      sessionId:              { type: String, optional: true }
+      clientId:               { type: String, optional: true }
+      ipTruncated:            { type: String, optional: true, description: "IPv4 /24・IPv6 /48 に丸めた IP (ADR-046)。" }
+      ipHash:                 { type: String, optional: true, description: "tenant salt 付き IP の SHA-256 hex (ADR-046)。" }
+      uaHash:                 { type: String, optional: true, description: "User-Agent の SHA-256 hex。" }
+      countryCode:            { type: String, optional: true }
+      deviceFingerprintHash:  { type: String, optional: true }
+      riskScore:              { type: Integer, optional: true }
 
   PasswordChanged:
     kind: event
@@ -2646,6 +2760,153 @@ models:
       firstSeen:  { type: Timestamp }
       lastSeen:   { type: Timestamp }
       topKeys:    { type: "String[]", description: "窓内で頻出した keyHash (最大 5 件)" }
+
+  # --- wi-44 / ADR-041: 認証ステップ・MFA・session・federation・impersonation の語彙。
+  # use case / 実 IdP 連携は各専用 WI。本 WI はイベント型とストレージ列のみを用意する。
+  AuthenticationStepCompleted:
+    kind: event
+    description: 多段認証フローの 1 ステップ (password / totp / webauthn 等) が成功した。acr 確定の入力。
+    annotations: { component: Authentication }
+    payload:
+      occurredAt: { type: Timestamp }
+      tenantId:   { type: String }
+      sub:        { type: String }
+      step:       { type: String, description: "password | totp | webauthn | recovery_code 等" }
+      sessionId:  { type: String, optional: true }
+
+  AuthenticationStepFailed:
+    kind: event
+    description: 多段認証フローの 1 ステップが失敗した。usernameHash は ADR-046 の hash。
+    annotations: { component: Authentication }
+    payload:
+      occurredAt:   { type: Timestamp }
+      tenantId:     { type: String }
+      usernameHash: { type: String, optional: true }
+      step:         { type: String }
+      reason:       { type: String, optional: true }
+
+  MfaChallengeIssued:
+    kind: event
+    description: MFA チャレンジ (TOTP / WebAuthn 等) を提示した。
+    annotations: { component: Authentication }
+    payload:
+      occurredAt: { type: Timestamp }
+      tenantId:   { type: String }
+      sub:        { type: String }
+      factorType: { type: MfaFactorType }
+      sessionId:  { type: String, optional: true }
+
+  MfaChallengeSucceeded:
+    kind: event
+    description: MFA チャレンジに成功した。
+    annotations: { component: Authentication }
+    payload:
+      occurredAt: { type: Timestamp }
+      tenantId:   { type: String }
+      sub:        { type: String }
+      factorType: { type: MfaFactorType }
+      sessionId:  { type: String, optional: true }
+
+  MfaChallengeFailed:
+    kind: event
+    description: MFA チャレンジに失敗した。bucket 集約 (kind=mfa_failed) の入力にもなる。
+    annotations: { component: Authentication }
+    payload:
+      occurredAt: { type: Timestamp }
+      tenantId:   { type: String }
+      sub:        { type: String, optional: true }
+      factorType: { type: MfaFactorType }
+      sessionId:  { type: String, optional: true }
+
+  BackupCodeConsumed:
+    kind: event
+    description: バックアップ/リカバリコードを 1 つ消費した (TOTP / WebAuthn 喪失時の復旧)。
+    annotations: { component: Authentication }
+    payload:
+      occurredAt:    { type: Timestamp }
+      tenantId:      { type: String }
+      sub:           { type: String }
+      remainingCount: { type: Integer, optional: true }
+
+  SessionStarted:
+    kind: event
+    description: LoginSession を開始した。session 一覧・調査の起点。
+    annotations: { component: Authentication }
+    payload:
+      occurredAt:  { type: Timestamp }
+      tenantId:    { type: String }
+      sub:         { type: String }
+      sessionId:   { type: String }
+      amr:         { type: "String[]", optional: true }
+      acr:         { type: String, optional: true }
+      ipTruncated: { type: String, optional: true }
+      uaHash:      { type: String, optional: true }
+
+  SessionRefreshed:
+    kind: event
+    description: LoginSession の有効期限を延伸した (アクティブ継続)。
+    annotations: { component: Authentication }
+    payload:
+      occurredAt: { type: Timestamp }
+      tenantId:   { type: String }
+      sub:        { type: String }
+      sessionId:  { type: String }
+
+  FederatedAuthenticated:
+    kind: event
+    description: 外部 IdP 経由の federated login が成功した (adapter 本体は wi-30)。
+    annotations: { component: Authentication }
+    payload:
+      occurredAt: { type: Timestamp }
+      tenantId:   { type: String }
+      sub:        { type: String }
+      provider:   { type: String, description: "外部 IdP 識別子 (例: google / github / saml:acme)" }
+      sessionId:  { type: String, optional: true }
+
+  FederationLinked:
+    kind: event
+    description: ローカル user に外部 IdP の identity を紐付けた (account linking、wi-30)。
+    annotations: { component: Authentication }
+    payload:
+      occurredAt: { type: Timestamp }
+      tenantId:   { type: String }
+      sub:        { type: String }
+      provider:   { type: String }
+
+  FederationUnlinked:
+    kind: event
+    description: ローカル user から外部 IdP の identity を解除した (wi-30)。
+    annotations: { component: Authentication }
+    payload:
+      occurredAt: { type: Timestamp }
+      tenantId:   { type: String }
+      sub:        { type: String }
+      provider:   { type: String }
+
+  SessionImpersonationStarted:
+    kind: event
+    description: |
+      admin が user として操作するセッションを開始した (impersonation)。本人通知を前提とする
+      監査事象で、ADR-045/046 により retention 短縮の対象外。本 WI はフィールドのみ用意し、
+      機能本体の有効化は本人通知 WI 後とする (ADR-041)。
+    annotations: { component: Authentication }
+    payload:
+      occurredAt: { type: Timestamp }
+      tenantId:   { type: String }
+      actorSub:   { type: String, description: "impersonate した admin の sub" }
+      targetSub:  { type: String, description: "対象 user の sub" }
+      sessionId:  { type: String }
+
+  SessionImpersonationEnded:
+    kind: event
+    description: impersonation セッションを終了した。retention 短縮の対象外 (ADR-045)。
+    annotations: { component: Authentication }
+    payload:
+      occurredAt: { type: Timestamp }
+      tenantId:   { type: String }
+      actorSub:   { type: String }
+      targetSub:  { type: String }
+      sessionId:  { type: String }
 
   PasswordResetRequested:
     kind: event
@@ -3370,6 +3631,79 @@ interfaces:
     read_only: true
     bindings:
       - { kind: http, method: GET, path: /api/admin/authentication_event_buckets }
+
+  ListAuthenticationEvents:
+    description: |
+      admin が認証イベントを時系列で検索する (wi-44 / ADR-041)。通常イベントと bucket 集約を
+      occurred_at の降順で混在して返す。所属テナント境界内。検索性能の担保のため from/to の
+      期間絞り込みを必須とする (ADR-045)。sub / username_hash / ip_truncated / kind で絞り込める。
+      limit 既定 50 / 上限 200。permission は AdminAuthenticationEventsRead。admin 検索系は
+      ADR-029 の leaky-bucket で per-actor qps を制限する。
+    input:
+      query: { type: AuthenticationEventQuery }
+    output:
+      events: { type: AuthenticationEventListResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: /api/admin/authentication_events }
+
+  GetAuthenticationEvent:
+    description: |
+      admin が認証イベント 1 件の詳細を取得する (wi-44)。所属テナント境界内。aggregated 行の
+      場合は同 key_hash の個別失敗サンプル (最大 10 件) を併せて返せるようにする。
+      permission は AdminAuthenticationEventsRead。
+    output:
+      event: { type: AuthenticationEvent }
+    errors: [InvalidRequestError, AccessDeniedError]
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: "/api/admin/authentication_events/{id}" }
+
+  ExportAuthenticationEvents:
+    description: |
+      admin が認証イベントを期間指定でエクスポートする (wi-44)。SIEM への streaming は別 WI で、
+      本 interface は 1 回分のエクスポートを返すのみ。期間絞り込み必須 (ADR-045)。
+      permission は AdminAuthenticationEventsRead。
+    input:
+      query: { type: AuthenticationEventQuery }
+    output:
+      events: { type: AuthenticationEventListResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: /api/admin/authentication_events/export }
+
+  ListSessions:
+    description: |
+      admin が所属テナント境界内の有効なセッションを一覧する (wi-44)。開始時刻の降順。secret は
+      返さず識別子と由来のみ。permission は AdminAuthenticationEventsRead。
+    output:
+      sessions: { type: AdminSessionListResponse }
+    errors: [AccessDeniedError]
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: /api/admin/sessions }
+
+  RevokeSession:
+    description: |
+      admin がセッション 1 件を失効する (wi-44)。tenant 境界外のセッションは拒否する。失効は
+      LoginSession を物理削除して SSO セッションを終了し、SessionEnded (reason: admin_revoke) を
+      emit する。permission は AdminSessionsWrite。
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [SessionEnded]
+    bindings:
+      - { kind: http, method: POST, path: "/api/admin/sessions/{id}/revoke", successful_status_codes: ["204"] }
+
+  RevokeAllSessions:
+    description: |
+      admin が対象 user の全セッションを失効する (wi-44)。tenant 境界内に限定。失効は各
+      LoginSession を物理削除し SessionEnded (reason: admin_revoke) を emit する。
+      permission は AdminSessionsWrite。
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [SessionEnded]
+    bindings:
+      - { kind: http, method: POST, path: "/api/admin/users/{sub}/sessions/revoke_all", successful_status_codes: ["204"] }
 
   ListMySessions:
     description: |
@@ -5249,6 +5583,33 @@ permissions:
       and:
         - "system_admin in actor.roles"
         - 'actor.tenant_id == "default"'
+        - "actor.disabled_at == null"
+        - "context.authenticated == true"
+
+  AdminAuthenticationEventsRead:
+    description: |
+      管理者による所属テナントの認証イベント・セッションの読み出し (wi-44)。admin は所属テナントに
+      閉じ、system_admin は default tenant 経路から全テナント横断的に参照できる。検索・詳細・
+      エクスポート・セッション一覧の read 系を一括で覆う。
+    actor: User
+    action: AdminAuthenticationEventsRead
+    resource: AuthenticationEvent
+    allow_when:
+      and:
+        - "(admin in actor.roles) or (system_admin in actor.roles)"
+        - "actor.disabled_at == null"
+        - "context.authenticated == true"
+
+  AdminSessionsWrite:
+    description: |
+      管理者による所属テナント内のセッション失効 (wi-44)。個別失効・対象 user の全失効を覆う。
+      admin は所属テナントに閉じ、tenant 境界外のセッションは失効できない。
+    actor: User
+    action: AdminSessionsWrite
+    resource: SessionRecord
+    allow_when:
+      and:
+        - "(admin in actor.roles) or (system_admin in actor.roles)"
         - "actor.disabled_at == null"
         - "context.authenticated == true"
 

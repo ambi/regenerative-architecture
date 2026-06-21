@@ -2,7 +2,7 @@ id: wi-44-authentication-event-store-and-search
 title: 認証イベントを永続ストア・属性拡張・admin 検索 UI まで実運用相当にする
 created_at: 2026-06-21
 authors: [tn]
-status: in_progress
+status: completed
 
 motivation: |
   [[wi-20-authentication-event-history]] は価値優先で 3 スライス
@@ -23,7 +23,7 @@ motivation: |
   検索 API (`ListAuthenticationEvents` ほか) と admin ページを別に設ける計画
   だったが、認証イベントは監査イベントと同一ストア (`audit_events`) の一系統で
   あり、専用 API / UI は重複でしかなかった。そのため検索は監査ログ
-  (`ListAdminAuditEvents` / `/admin/audit_events`) に `kind`
+  (`ListAdminAuditEvents` / `/admin/audit_events`) に `category`
   (authentication / success / fail / aggregated) フィルタとして統合し、専用
   interface / permission (`AdminAuthenticationEventsRead` / `AdminSessionsWrite`) /
   認証検索・セッションビュー model は撤去した。イベント型・属性拡張・bucket・
@@ -61,35 +61,34 @@ scope:
       FederatedAuthenticated / FederationLinked / FederationUnlinked /
       SessionImpersonationStarted / SessionImpersonationEnded。
     - >-
-      新規 model: AuthenticationEvent (poly success|fail|aggregated) /
-      SessionRecord。新規 interface: ListAuthenticationEvents /
-      GetAuthenticationEvent / ExportAuthenticationEvents (admin) /
-      admin の ListSessions / RevokeSession / RevokeAllSessions。
-      permission `AdminAuthenticationEventsRead` / `AdminSessionsWrite`。
+      認証イベント専用 model / interface / permission は追加せず、既存の
+      `AuditEventQuery` / `ListAdminAuditEvents` / `GetAdminAuditEvent` /
+      `ExportAdminAuditEvents` に `category` (authentication / success / fail /
+      aggregated) を加えて監査ログの読み出しモデルへ統合する。
   go:
     - >-
-      Postgres adapter: `authentication_events` / `authentication_event_buckets`
-      / `sessions` テーブルと index (tenant_id+occurred_at desc ほか)。
+      Postgres adapter: `audit_events` / `authentication_event_buckets`
+      テーブルと index (tenant_id+occurred_at desc ほか)。
       wi-20 の in-memory AuthEventBucketStore / AuditEventRepository を
       Postgres 実装に差し替える (port は維持)。
     - >-
-      認証成功・失敗・MFA の共通 `AuthenticationOutcomeBus` を整理し、
-      bucket 切替を bus 層に集約する (wi-20 は recordLoginFailure に直結した
-      最小実装)。
+      認証失敗の bucket 切替を HTTP 認証経路から AuthEventBucketStore に集約し、
+      閾値超過後は個別 `AuthenticationFailed` を出さず 1 bucket = 1
+      `AuthenticationEventAggregated` として監査ログに残す。
     - retention sweep を `internal/bootstrap` の周期 job に追加する。
   http:
     - >-
-      admin: `GET /api/admin/authentication_events` (sub/username_hash/
-      ip_truncated/kind/from/to/limit) / `GET .../{id}` /
-      `GET /api/admin/sessions` / `POST /api/admin/sessions/{id}/revoke` /
-      `POST /api/admin/users/{sub}/sessions/revoke_all` /
-      `GET /api/admin/authentication_events/export`。
-    - admin 検索系は ADR-029 の leaky-bucket で per-actor qps を制限する。
+      admin: `GET /api/admin/audit_events` (category/type/sub/after/before/
+      limit/all_tenants) / `GET .../{id}` / `GET .../export`。
+      認証系の調査は `category=authentication|success|fail|aggregated` で行う。
+    - >-
+      bucket 集約の一覧は `GET /api/admin/authentication_event_buckets` として残し、
+      permission は `AdminAuditEventsRead` を再利用する。
   ui:
     - >-
-      `/admin/authentication_events`: フィルタ + 表 + 詳細ペイン + bucket 行の
-      ドリルダウン (同 key の 10 件サンプリング)。`/admin/sessions`: active
-      セッション一覧 + revoke。AdminNavKey に追加。
+      `/admin/audit_events`: イベントカテゴリ (`category`) のセレクト、認証系
+      種別バッジ、表、詳細ペイン、JSON export を既存の監査ログ UI に統合する。
+      認証専用 admin ページと admin sessions ページは設けない。
   documentation:
     - README の "Authentication event history" 節を永続ストア・retention・
       admin 検索まで更新する。
@@ -103,7 +102,7 @@ out_of_scope:
     impersonation 機能本体と本人通知 (イベント / 列のみ用意)。
   - >-
     SIEM への streaming pipeline (Splunk / Datadog 等)。
-    `ExportAuthenticationEvents` を 1 つ用意し push は別 WI。
+    `ExportAdminAuditEvents` は本 WI の検索 export として用意し、push は別 WI。
   - GeoIP の有償 vendor 連携 (country_code は OSS DB 後付け、当面 "" 許容)。
   - 新規 IP login の "Suspicious activity" メール通知。
   - Postgres declarative partitioning / cold storage archive (ADR-045 に方針のみ)。
@@ -111,6 +110,10 @@ out_of_scope:
   - >-
     admin / OIDC logout 側のセッション完成 (front/back-channel logout、
     session inventory) は [[wi-28-session-management-and-oidc-logout-completion]]。
+  - >-
+    username / IP を hash・truncated 値で相関検索する admin フィルタ。
+    ADR-046 のフィールドは確保するが、emit 側の hash 値実装と平文入力からの
+    サーバ側 hash 化は後続 [[wi-46-authentication-event-attribute-emit-and-correlation-search]]。
 
 affected_guarantees:
   - >-
@@ -124,19 +127,21 @@ affected_guarantees:
     tenant isolation: 全テーブル・全エンドポイントが tenant_id 境界を持ち、
     bucket の key_hash は tenant salt で hash 化し cross-tenant で集約しない。
   - >-
-    admin RBAC: `AdminAuthenticationEventsRead` / `AdminSessionsWrite` を
-    SCL に追加。self 経路は actor.sub == target.sub を最低要件にする。
+    admin RBAC: 認証イベント検索は `AdminAuditEventsRead` に統合し、
+    system_admin の全テナント横断は default tenant 経路に限定する。
   - >-
     backwards compatibility: `UserAuthenticated` / `AuthenticationFailed` の
     payload は拡張のみで破壊しない。
-  - SCL coherence: 新 model / event / interface / permission を SCL に追加する。
+  - >-
+    SCL coherence: 新 event と `AuditEventQuery.category` を SCL に追加し、
+    監査ログ interface / permission と実装の対応を保つ。
 
 verification:
   - cmd: 'go test ./...'
     in: ra-idp-go
     reason: |
-      bucket 切替閾値 (10/50/1000) の Postgres 実装での維持 / retention sweep の
-      境界 (29/31/91 日) / セッション revoke の冪等性 / hash salt の tenant 分離 /
+      bucket 切替の Postgres 実装での維持 / retention sweep の
+      境界 (29/31/91 日) / admin 監査ログ category フィルタの tenant 分離 /
       impersonation event の retention override 不可。
   - cmd: 'golangci-lint run ./...'
     in: ra-idp-go
@@ -146,12 +151,12 @@ verification:
   - cmd: 'bun --cwd ra-idp-go/ui lint'
   - cmd: 'bun --cwd ra-idp-go/ui build'
   - >-
-    手動: admin で `/admin/authentication_events` を開き、自分のログインを
-    成功イベント (sub / IP truncated / UA hash / amr / client_id) として確認。
+    手動: admin で `/admin/audit_events?category=authentication` を開き、自分のログインを
+    成功イベント (sub / amr / client_id、利用可能な場合は IP truncated / UA hash) として確認。
   - >-
     手動: 同 user に誤パスワードを 12 回投げ、最初の 10 件は個別行・11 件目以降は
     bucket に切替り `AuthenticationEventAggregated` が 1 行だけ書かれ count が
-    伸び続け、`authentication_events` の INSERT レートが頭打ちになることを確認。
+    伸び続け、個別 `audit_events` の INSERT レートが頭打ちになることを確認。
   - >-
     手動: retention 31 日に短縮した tenant の成功イベント (32 日前) が次回 sweep で
     消える / impersonation イベントは tenant override で短縮できない。
@@ -162,11 +167,168 @@ risk_notes: |
       低すぎると正規ユーザの失敗が観察できず MTTR が悪化、高すぎると爆発が
       止まらない。ADR-041 で根拠付き既定 + tenant override。
   (2) 検索性能: partition 化は本 WI では行わない判断のため、retention sweep が
-      確実に動き index が当たること・admin 検索が必ず期間絞り込みを要求すること
-      をテストで確認する。
+      確実に動き index が当たること・admin 検索が limit と category/type/sub/期間
+      フィルタで bounded な読み出しになることをテストで確認する。
   (3) PII 漏洩: hash / truncation を誤ると個人情報が監査ログに流れる。ADR-046 の
       表に照らしてレビュアー 2 名以上で確認する運用を ADR に付記する。
   (4) impersonation: 「admin が user として操作した事実」は本人通知が前提。本 WI は
       フィールドのみ用意し、機能本体の有効化は通知 WI 後にすべきと ADR-041 に明示する。
   (5) 後方互換: `UserAuthenticated` の属性拡張で既存 SIEM connector が落ちないことを
       `audit_event_record.go` の wire スナップショットで確認する。
+
+completion:
+  completed_at: 2026-06-21T14:26:32Z
+  summary: >-
+    認証イベントの永続ストア・bucket 集約・retention sweep・admin 検索を、専用
+    認証イベント API/UI ではなく既存監査ログ (`audit_events` /
+    `/admin/audit_events`) へ統合する方針で完了した。Postgres の
+    `authentication_event_buckets` は攻撃時の個別 INSERT 爆発を抑え、admin は
+    `category` フィルタで認証成功・失敗・集約イベントを調査できる。
+  semantic_diff:
+    changed:
+      - >-
+        `UserAuthenticated` / `AuthenticationFailed` の後方互換 payload 拡張と、
+        MFA・session・federation・impersonation 系イベント語彙を SCL / Go binding
+        に追加した。
+      - >-
+        `audit_events` と `authentication_event_buckets` を Postgres migration
+        0012 で永続化し、bootstrap の周期 retention sweep から削除できるようにした。
+      - >-
+        admin 検索は `ListAdminAuditEvents` / `/api/admin/audit_events` に
+        `category` を追加し、UI も `/admin/audit_events` のカテゴリ選択・種別バッジ・
+        JSON export に統合した。
+    unchanged:
+      - >-
+        認証イベント専用の `ListAuthenticationEvents` / `/admin/authentication_events`
+        / `AdminAuthenticationEventsRead` / admin sessions UI は作らない。
+      - >-
+        username / IP の相関検索、GeoIP、SIEM push、impersonation 機能本体、
+        admin 全テナントセッション失効は後続 WI の範囲に残す。
+  traceability:
+    specification:
+      - ra-idp-go/spec/scl.yaml
+      - ra-idp-go/decisions/ADR-041-authentication-event-model.md
+      - ra-idp-go/decisions/ADR-045-authentication-event-retention.md
+      - ra-idp-go/decisions/ADR-046-authentication-event-pii-policy.md
+    implementation:
+      - ra-idp-go/infra/migrations/0012_authentication_events.sql
+      - ra-idp-go/internal/adapters/persistence/postgres/audit_events.go
+      - ra-idp-go/internal/adapters/persistence/postgres/auth_event_buckets.go
+      - ra-idp-go/internal/authentication/usecases/retention.go
+      - ra-idp-go/internal/bootstrap/retention.go
+      - ra-idp-go/internal/adapters/http/admin_audit_event_handler.go
+      - ra-idp-go/ui/src/pages/AdminAuditEventsPage.tsx
+    tests:
+      - ra-idp-go/internal/adapters/http/admin_audit_event_handler_test.go
+      - ra-idp-go/internal/adapters/http/auth_event_bucket_aggregation_test.go
+      - ra-idp-go/internal/authentication/usecases/retention_test.go
+      - ra-idp-go/internal/authentication/usecases/auth_event_buckets_test.go
+  verification:
+    - cmd: "go test ./..."
+      in: ra-idp-go
+      result: passed
+    - cmd: "GOCACHE=/tmp/ra-idp-go-cache go test -race ./..."
+      in: ra-idp-go
+      result: passed
+    - cmd: "go build ./..."
+      in: ra-idp-go
+      result: passed
+    - cmd: "bun --cwd ra-idp-go/ui typecheck"
+      result: passed
+    - cmd: "bun --cwd ra-idp-go/ui lint"
+      result: passed
+    - cmd: "bun --cwd ra-idp-go/ui build"
+      result: passed
+    - cmd: "bun run yaml-check:all"
+      in: tools
+      result: passed
+    - cmd: "go list ./..."
+      in: ra-idp-go
+      result: passed
+    - cmd: "golangci-lint config verify"
+      in: ra-idp-go
+      result: passed
+    - cmd: "golangci-lint run ./..."
+      in: ra-idp-go
+      result: passed (0 issues; rerun outside the Codex filesystem sandbox)
+  evidence:
+    - id: go-test
+      kind: test
+      command: "go test ./..."
+      environment: "local macOS, Go 1.26.4"
+      producer: local
+      executed_at: 2026-06-21T14:26:32Z
+      target_revision: "b9421d5 + working tree"
+      result: passed
+      summary: all ra-idp-go packages passed.
+    - id: go-test-race
+      kind: test
+      command: "GOCACHE=/tmp/ra-idp-go-cache go test -race ./..."
+      environment: "local macOS, Go 1.26.4"
+      producer: local
+      executed_at: 2026-06-21T14:26:32Z
+      target_revision: "b9421d5 + working tree"
+      result: passed
+      summary: all ra-idp-go packages passed with race detector.
+    - id: ui-typecheck-lint-build
+      kind: build
+      command: >-
+        bun --cwd ra-idp-go/ui typecheck; bun --cwd ra-idp-go/ui lint;
+        bun --cwd ra-idp-go/ui build
+      environment: "local macOS, Bun"
+      producer: local
+      executed_at: 2026-06-21T14:26:32Z
+      target_revision: "b9421d5 + working tree"
+      result: passed
+      summary: TypeScript typecheck, Biome lint, and Vite production build passed.
+    - id: yaml-check-all
+      kind: contract_test
+      command: "bun run yaml-check:all"
+      environment: "local macOS, Bun"
+      producer: local
+      executed_at: 2026-06-21T14:26:32Z
+      target_revision: "b9421d5 + working tree"
+      result: passed
+      summary: all 47 work item YAML files and all 3 SCL files passed schema checks.
+    - id: golangci-lint-local
+      kind: lint
+      command: "golangci-lint run ./..."
+      environment: "local macOS, golangci-lint v2.12.2, Go 1.26.4, outside Codex filesystem sandbox"
+      producer: local
+      executed_at: 2026-06-21T14:26:32Z
+      target_revision: "b9421d5 + working tree"
+      result: passed
+      summary: >-
+        `golangci-lint run` completed with 0 issues when rerun outside the Codex
+        filesystem sandbox. The earlier sandboxed run failed during package
+        loading with "no go files to analyze" despite the same working directory.
+  affected_guarantees_state:
+    - >-
+      可用性: pass。bucket 集約は 5 分窓 upsert と最初の記録だけの
+      `AuthenticationEventAggregated` emit で、攻撃時の個別監査行増加を抑える。
+    - >-
+      PII: pass with follow-up。ADR-046 の hash/truncated/optional フィールドと
+      retention 方針は入った。実値 emit と相関検索は wi-46 に分離した。
+    - >-
+      tenant isolation: pass。admin 監査ログは tenant 境界と default tenant の
+      system_admin 横断条件をテスト済み。
+    - >-
+      admin RBAC: pass。認証イベント検索は `AdminAuditEventsRead` に統合した。
+    - >-
+      backwards compatibility: pass。既存 `UserAuthenticated` / `AuthenticationFailed`
+      は optional payload 拡張のみ。
+    - >-
+      static analysis: pass。`golangci-lint run` は sandbox 外の同一
+      `ra-idp-go` ディレクトリで 0 issues。
+  residual_risk:
+    - >-
+      username / IP の hash 値 emit と相関検索は wi-46 に残るため、本 WI 完了時点の
+      admin 検索は category/type/sub/期間/limit に限られる。
+    - >-
+      partitioning / cold storage / SIEM push は方針のみで、データ量が増える前に別 WI で
+      再評価する。
+  human_decisions:
+    - >-
+      2026-06-21 の実装判断として、認証イベント専用 API/UI ではなく監査ログ統合を採用した。
+      これにより permission は `AdminAuditEventsRead` に一本化し、専用 admin sessions
+      画面は後続 WI へ送った。

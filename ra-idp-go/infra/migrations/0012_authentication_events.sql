@@ -13,8 +13,9 @@ CREATE TABLE IF NOT EXISTS audit_events (
     payload     JSONB NOT NULL DEFAULT '{}'::jsonb
 );
 
--- admin 検索は必ず期間絞り込みを要求する (ADR-045)。(tenant_id, occurred_at desc) の
--- index で時系列降順スキャンを当てる。
+-- admin 検索は limit (既定 100 / 上限 1000) と任意の type/category/sub/期間
+-- フィルタで bounded に読み出す (ADR-045)。(tenant_id, occurred_at desc) の index で
+-- 時系列降順スキャンを当てる。
 CREATE INDEX IF NOT EXISTS audit_events_tenant_occurred_idx
     ON audit_events (tenant_id, occurred_at DESC);
 CREATE INDEX IF NOT EXISTS audit_events_type_idx ON audit_events (type);

@@ -1,5 +1,7 @@
 import {
   IconArrowLeft,
+  IconDotsVertical,
+  IconPencil,
   IconPlus,
   IconRefresh,
   IconTrash,
@@ -26,7 +28,12 @@ import { AdminShell } from '../components/AdminShell'
 import { Alert } from '../components/ui/alert'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
-import { DropdownMenuItem } from '../components/ui/dropdown-menu'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../components/ui/dropdown-menu'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import type {
@@ -99,7 +106,7 @@ export function AdminGroupsPage({
       active="groups"
       actorUsername={actorUsername}
       title="グループ"
-      description="複数のロールをまとめ、所属ユーザーに一括で権限を付与します。"
+      description="複数のロールをまとめ、所属ユーザーに一括で付与します。"
       actions={
         <>
           <Button
@@ -219,6 +226,9 @@ export function AdminGroupDetailPage({
   group: initialGroup,
 }: AdminGroupDetailPageData) {
   const [group, setGroup] = useState(initialGroup)
+  const [editing, setEditing] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
   async function reload(id: string) {
@@ -233,33 +243,100 @@ export function AdminGroupDetailPage({
     }
   }
 
+  async function handleDelete() {
+    setBusy(true)
+    setError('')
+    try {
+      await deleteAdminGroup(csrfToken, group.id)
+      window.location.assign(tenantURL('/admin/groups'))
+    } catch (cause) {
+      setError(
+        cause instanceof AuthenticationAPIError ? cause.message : 'グループを削除できませんでした。',
+      )
+      setBusy(false)
+    }
+  }
+
   return (
-    <AdminShell
-      active="groups"
-      actorUsername={actorUsername}
-      title={group.name}
-      description={group.description || group.id}
-      actions={
-        <a
-          href={tenantURL('/admin/groups')}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
-        >
-          <IconArrowLeft size={16} aria-hidden="true" />
-          グループ一覧
-        </a>
-      }
-    >
-      {error ? <Alert variant="destructive">{error}</Alert> : null}
-      <div className="max-w-3xl">
-        <GroupDetailCard
+    <>
+      <AdminShell
+        active="groups"
+        actorUsername={actorUsername}
+        title={group.name}
+        description={group.description || group.id}
+        actions={
+          <div className="flex items-center gap-2">
+            <a
+              href={tenantURL('/admin/groups')}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+            >
+              <IconArrowLeft size={16} aria-hidden="true" />
+              グループ一覧
+            </a>
+            <Button type="button" disabled={busy} onClick={() => setEditing(true)}>
+              <IconPencil size={16} aria-hidden="true" />
+              編集
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="size-9 px-0"
+                  aria-label="グループ操作"
+                  disabled={busy}
+                >
+                  <IconDotsVertical size={18} aria-hidden="true" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem className="text-red-700" onSelect={() => setConfirmDelete(true)}>
+                  <IconTrash size={17} aria-hidden="true" />
+                  グループを削除
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        }
+      >
+        {error ? <Alert variant="destructive">{error}</Alert> : null}
+        {confirmDelete ? (
+          <Alert variant="destructive" className="flex flex-wrap items-center justify-between gap-2">
+            <span>このグループを削除しますか？所属ユーザーからロールが外れます。</span>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setConfirmDelete(false)} disabled={busy}>
+                取消
+              </Button>
+              <Button variant="destructive" disabled={busy} onClick={() => void handleDelete()}>
+                <IconTrash size={14} aria-hidden="true" />
+                削除を確定
+              </Button>
+            </div>
+          </Alert>
+        ) : null}
+        <div className="max-w-3xl">
+          <GroupDetailCard
+            group={group}
+            csrfToken={csrfToken}
+            busy={busy}
+            showActions={false}
+            onChanged={(id) => void reload(id)}
+            onDeleted={() => window.location.assign(tenantURL('/admin/groups'))}
+          />
+        </div>
+      </AdminShell>
+      {editing ? (
+        <GroupEditorDialog
           group={group}
           csrfToken={csrfToken}
-          busy={false}
-          onChanged={(id) => void reload(id)}
-          onDeleted={() => window.location.assign(tenantURL('/admin/groups'))}
+          onClose={() => setEditing(false)}
+          onSaved={(id) => {
+            setEditing(false)
+            void reload(id)
+          }}
         />
-      </div>
-    </AdminShell>
+      ) : null}
+    </>
   )
 }
 
@@ -268,6 +345,7 @@ function GroupDetailCard({
   csrfToken,
   busy,
   detailHref,
+  showActions = true,
   onChanged,
   onDeleted,
 }: {
@@ -275,6 +353,7 @@ function GroupDetailCard({
   csrfToken: string
   busy: boolean
   detailHref?: string
+  showActions?: boolean
   onChanged: (id: string) => void
   onDeleted: () => void
 }) {
@@ -337,90 +416,88 @@ function GroupDetailCard({
   const addableUsers = allUsers.filter((u) => !memberSubs.has(u.sub))
 
   return (
-    <Card className="p-5">
-      <div>
-        <h2 className="text-base font-semibold text-slate-900">{group.name}</h2>
-        <p className="mt-0.5 font-mono text-xs text-slate-500">{group.id}</p>
-      </div>
-
-      <div className="mt-4">
-        <AdminPaneActions
-          detailHref={detailHref}
-          busy={busy || localBusy}
-          onEdit={() => setEditing(true)}
-          menu={
-            <DropdownMenuItem className="text-red-700" onSelect={() => setConfirmDelete(true)}>
-              <IconTrash size={17} aria-hidden="true" />
-              グループを削除
-            </DropdownMenuItem>
-          }
-        />
-      </div>
-
-      {confirmDelete ? (
-        <Alert variant="destructive" className="mt-3 flex flex-wrap items-center justify-between gap-2">
-          <span>このグループを削除しますか？所属ユーザーからロールが外れます。</span>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setConfirmDelete(false)} disabled={localBusy}>
-              取消
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={busy || localBusy}
-              onClick={() =>
-                void withLocal(async () => {
-                  await deleteAdminGroup(csrfToken, activeGroup.id)
-                  onDeleted()
-                })
-              }
-            >
-              <IconTrash size={14} aria-hidden="true" />
-              削除を確定
-            </Button>
+    <>
+      <Card className="overflow-hidden">
+        <div className="border-b border-slate-200 bg-white p-5">
+          <div className="flex items-start gap-3">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
+              <IconUsersGroup size={22} aria-hidden="true" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <h2 className="truncate text-lg font-semibold text-slate-950">{group.name}</h2>
+              <p className="mt-0.5 truncate font-mono text-sm text-slate-500">{group.id}</p>
+            </div>
           </div>
-        </Alert>
-      ) : null}
 
-      {localError ? <Alert variant="destructive" className="mt-3">{localError}</Alert> : null}
-
-      <dl className="mt-5 grid gap-3 border-t border-slate-100 pt-5">
-        <div>
-          <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">説明</dt>
-          <dd className="mt-1 text-sm text-slate-700">{group.description || '—'}</dd>
+          {showActions ? (
+            <div className="mt-4">
+              <AdminPaneActions
+                detailHref={detailHref}
+                busy={busy || localBusy}
+                onEdit={() => setEditing(true)}
+                menu={
+                  <DropdownMenuItem className="text-red-700" onSelect={() => setConfirmDelete(true)}>
+                    <IconTrash size={17} aria-hidden="true" />
+                    グループを削除
+                  </DropdownMenuItem>
+                }
+              />
+            </div>
+          ) : null}
         </div>
-        <div>
-          <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">ロール</dt>
-          <dd className="mt-1 flex flex-wrap gap-1.5">
-            {group.roles.length > 0 ? (
-              group.roles.map((role) => (
-                <span
-                  key={role}
-                  className="rounded-md bg-slate-100 px-2 py-1 font-mono text-xs text-slate-700"
-                >
-                  {role}
-                </span>
-              ))
-            ) : (
-              <span className="text-sm text-slate-400">なし</span>
-            )}
-          </dd>
-        </div>
-      </dl>
 
-      {editing ? (
-        <GroupEditorDialog
-          group={activeGroup}
-          csrfToken={csrfToken}
-          onClose={() => setEditing(false)}
-          onSaved={(id) => {
-            setEditing(false)
-            onChanged(id)
-          }}
-        />
-      ) : null}
+        {confirmDelete ? (
+          <Alert variant="destructive" className="m-5 flex flex-wrap items-center justify-between gap-2">
+            <span>このグループを削除しますか？所属ユーザーからロールが外れます。</span>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setConfirmDelete(false)} disabled={localBusy}>
+                取消
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={busy || localBusy}
+                onClick={() =>
+                  void withLocal(async () => {
+                    await deleteAdminGroup(csrfToken, activeGroup.id)
+                    onDeleted()
+                  })
+                }
+              >
+                <IconTrash size={14} aria-hidden="true" />
+                削除を確定
+              </Button>
+            </div>
+          </Alert>
+        ) : null}
 
-      <section className="mt-5 border-t border-slate-100 pt-5">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        {localError ? <Alert variant="destructive" className="m-5">{localError}</Alert> : null}
+
+        <dl className="grid gap-4 p-5">
+          <div>
+            <dt className="text-xs font-bold uppercase tracking-normal text-slate-400">説明</dt>
+            <dd className="mt-1 text-sm text-slate-700">{group.description || '—'}</dd>
+          </div>
+          <div>
+            <dt className="text-xs font-bold uppercase tracking-normal text-slate-400">ロール</dt>
+            <dd className="mt-1 flex flex-wrap gap-1.5">
+              {group.roles.length > 0 ? (
+                group.roles.map((role) => (
+                  <span
+                    key={role}
+                    className="rounded-md bg-slate-100 px-2 py-1 font-mono text-xs text-slate-700"
+                  >
+                    {role}
+                  </span>
+                ))
+              ) : (
+                <span className="text-sm text-slate-400">なし</span>
+              )}
+            </dd>
+          </div>
+        </dl>
+
+        <section className="border-t border-slate-100 p-5">
+        <h3 className="text-xs font-bold uppercase tracking-normal text-slate-400">
           メンバー ({members.length})
         </h3>
         <ul className="mt-3 grid gap-2">
@@ -484,8 +561,20 @@ function GroupDetailCard({
             追加
           </Button>
         </div>
-      </section>
-    </Card>
+        </section>
+      </Card>
+      {editing ? (
+        <GroupEditorDialog
+          group={activeGroup}
+          csrfToken={csrfToken}
+          onClose={() => setEditing(false)}
+          onSaved={(id) => {
+            setEditing(false)
+            onChanged(id)
+          }}
+        />
+      ) : null}
+    </>
   )
 }
 
@@ -546,10 +635,13 @@ function GroupEditorDialog({
       aria-labelledby="group-editor-title"
     >
       <button type="button" className="absolute inset-0 cursor-default" aria-label="閉じる" onClick={onClose} />
-      <Card className="relative flex max-h-[88vh] w-full max-w-md flex-col overflow-hidden shadow-2xl">
+      <Card className="relative flex max-h-[88vh] w-full max-w-lg flex-col overflow-hidden shadow-2xl">
         <div className="flex items-start justify-between border-b border-slate-200 px-6 py-5">
           <div>
-            <h2 id="group-editor-title" className="text-xl font-semibold">
+            <p className="text-xs font-bold uppercase tracking-normal text-blue-700">
+              グループ
+            </p>
+            <h2 id="group-editor-title" className="mt-1 text-xl font-semibold">
               グループを編集
             </h2>
             <p className="mt-1 text-sm text-slate-500">{group.name}</p>
@@ -559,9 +651,13 @@ function GroupEditorDialog({
           </Button>
         </div>
         <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
-          <div className="min-h-0 flex-1 overflow-y-auto p-6">
+          <div className="min-h-0 flex-1 overflow-y-auto">
             {error ? <Alert variant="destructive" className="mb-4">{error}</Alert> : null}
-            <div className="grid gap-4">
+            <div className="grid gap-6 p-6">
+              <section className="grid gap-4">
+                <h3 className="text-xs font-bold uppercase tracking-normal text-slate-400">
+                  基本情報
+                </h3>
               <div className="grid gap-1.5">
                 <Label htmlFor="group-editor-name">グループ名</Label>
                 <Input
@@ -580,6 +676,11 @@ function GroupEditorDialog({
                   onChange={(e) => setDescription(e.target.value)}
                 />
               </div>
+              </section>
+              <section className="grid gap-3 border-t border-slate-200 pt-5">
+                <h3 className="text-xs font-bold uppercase tracking-normal text-slate-400">
+                  ロール
+                </h3>
               <div className="grid gap-1.5">
                 <Label htmlFor="group-editor-roles">ロール</Label>
                 <Input
@@ -590,6 +691,7 @@ function GroupEditorDialog({
                 />
                 <p className="text-xs text-slate-500">カンマ区切り。所属ユーザーに一斉付与されます。</p>
               </div>
+              </section>
             </div>
           </div>
           <div className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-6 py-4">

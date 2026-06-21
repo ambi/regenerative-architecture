@@ -1,9 +1,10 @@
 import { type FormEvent, useState } from 'react'
-import { AuthenticationAPIError, tenantURL, updateAccountProfile } from '../api'
-import { attributeLabel } from '../lib/utils'
+import { AuthenticationAPIError, updateAccountProfile } from '../api'
+import { attributeGroupKey, attributeGroupTitle, attributeLabel } from '../lib/utils'
 import { AccountShell } from '../components/AccountShell'
 import { Alert } from '../components/ui/alert'
 import { Button } from '../components/ui/button'
+import { Card } from '../components/ui/card'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import type {
@@ -71,6 +72,7 @@ export function AccountProfilePage({ csrfToken, profile: initial, isAdmin }: Pag
   const [familyName, setFamilyName] = useState(initial.family_name ?? '')
   const [attributes, setAttributes] = useState<AttributeDraft>(draftFromProfile(initial))
   const [saving, setSaving] = useState(false)
+  const [editing, setEditing] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
@@ -94,7 +96,11 @@ export function AccountProfilePage({ csrfToken, profile: initial, isAdmin }: Pag
         attributes: nextAttributes,
       })
       setProfile(next)
+      setName(next.name ?? '')
+      setGivenName(next.given_name ?? '')
+      setFamilyName(next.family_name ?? '')
       setAttributes(draftFromProfile(next))
+      setEditing(false)
       setNotice('プロフィールを更新しました。')
     } catch (cause) {
       setError(
@@ -112,79 +118,104 @@ export function AccountProfilePage({ csrfToken, profile: initial, isAdmin }: Pag
       active="profile"
       username={profile.preferred_username}
       isAdmin={isAdmin}
-      title="個人情報"
-      description="表示名やプロフィール属性を編集できます。"
+      title="アカウント情報"
+      description="登録されているプロフィール情報を確認できます。"
     >
       <div className="grid gap-6">
         {error ? <Alert variant="destructive">{error}</Alert> : null}
         {notice ? <Alert variant="success">{notice}</Alert> : null}
 
-        <dl className="grid grid-cols-2 gap-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-          <ReadField label="メール" value={profile.email ?? '—'} />
-          <ReadField
-            label="メール検証"
-            value={profile.email_verified ? '検証済み' : '未検証'}
-          />
-          <ReadField label="MFA" value={profile.mfa_enrolled ? '登録済み' : '未登録'} />
-          <ReadField label="状態" value={profile.status} />
-        </dl>
-
-        <form onSubmit={handleSave} className="grid gap-4">
-          <div className="grid gap-1.5">
-            <Label htmlFor="name">表示名</Label>
-            <Input id="name" value={name} onChange={(event) => setName(event.target.value)} />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="grid gap-1.5">
-              <Label htmlFor="given-name">名 (given_name)</Label>
-              <Input
-                id="given-name"
-                value={givenName}
-                onChange={(event) => setGivenName(event.target.value)}
-              />
+        <Card className="p-5">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="text-base font-semibold text-slate-900">プロフィール</h2>
+              <p className="mt-1 text-sm text-slate-600">
+                変更が必要な場合だけ編集モードに切り替えてください。
+              </p>
             </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="family-name">姓 (family_name)</Label>
-              <Input
-                id="family-name"
-                value={familyName}
-                onChange={(event) => setFamilyName(event.target.value)}
-              />
-            </div>
+            {!editing ? (
+              <Button type="button" variant="outline" onClick={() => setEditing(true)}>
+                編集
+              </Button>
+            ) : null}
           </div>
 
-          {profile.editable_attributes.length > 0 ? (
-            <fieldset className="grid gap-4 rounded-lg border border-slate-200 p-4">
-              <legend className="px-1 text-sm font-medium text-slate-700">属性</legend>
-              {profile.editable_attributes.map((def) => (
-                <AttributeField
-                  key={def.key}
-                  def={def}
-                  value={attributes[def.key] ?? ''}
-                  onChange={(next) =>
-                    setAttributes((current) => ({ ...current, [def.key]: next }))
-                  }
+          {!editing ? (
+            <>
+              <dl className="mt-5 grid gap-3 sm:grid-cols-2">
+                <ReadField label="表示名" value={profile.name ?? '未設定'} />
+                <ReadField label="名" value={profile.given_name ?? '未設定'} />
+                <ReadField label="姓" value={profile.family_name ?? '未設定'} />
+                <ReadField label="メール" value={profile.email ?? '未設定'} />
+                <ReadField
+                  label="メール確認"
+                  value={profile.email_verified ? '確認済み' : '未確認'}
                 />
-              ))}
-            </fieldset>
-          ) : null}
+                <ReadField label="MFA" value={profile.mfa_enrolled ? '登録済み' : '未登録'} />
+                <ReadField label="状態" value={profile.status} />
+              </dl>
+              <div className="mt-5 grid gap-4">
+                <ProfileAttributeGroups
+                  defs={profile.readable_attributes}
+                  values={profile.attributes}
+                />
+              </div>
+            </>
+          ) : (
+            <form onSubmit={handleSave} className="mt-5 grid gap-4">
+              <div className="grid gap-1.5">
+                <Label htmlFor="name">表示名</Label>
+                <Input id="name" value={name} onChange={(event) => setName(event.target.value)} />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-1.5">
+                  <Label htmlFor="given-name">名 (given_name)</Label>
+                  <Input
+                    id="given-name"
+                    value={givenName}
+                    onChange={(event) => setGivenName(event.target.value)}
+                  />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="family-name">姓 (family_name)</Label>
+                  <Input
+                    id="family-name"
+                    value={familyName}
+                    onChange={(event) => setFamilyName(event.target.value)}
+                  />
+                </div>
+              </div>
 
-          <div>
-            <Button type="submit" disabled={saving}>
-              {saving ? '保存中…' : '保存'}
-            </Button>
-          </div>
-        </form>
+              <EditableAttributeGroups
+                defs={profile.editable_attributes}
+                values={attributes}
+                onChange={(key, next) =>
+                  setAttributes((current) => ({ ...current, [key]: next }))
+                }
+              />
 
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-slate-100 pt-5 text-sm">
-          <span className="text-slate-500">その他の操作:</span>
-          <a
-            href={tenantURL('/account/password')}
-            className="font-medium text-blue-700 hover:underline"
-          >
-            パスワードを変更
-          </a>
-        </div>
+              <div className="flex items-center gap-2">
+                <Button type="submit" disabled={saving}>
+                  {saving ? '保存中…' : '保存'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={saving}
+                  onClick={() => {
+                    setName(profile.name ?? '')
+                    setGivenName(profile.given_name ?? '')
+                    setFamilyName(profile.family_name ?? '')
+                    setAttributes(draftFromProfile(profile))
+                    setEditing(false)
+                  }}
+                >
+                  キャンセル
+                </Button>
+              </div>
+            </form>
+          )}
+        </Card>
       </div>
     </AccountShell>
   )
@@ -192,11 +223,104 @@ export function AccountProfilePage({ csrfToken, profile: initial, isAdmin }: Pag
 
 function ReadField({ label, value }: { label: string; value: string }) {
   return (
-    <div>
+    <div className="rounded-lg border border-slate-200/80 bg-white/70 px-3 py-2.5">
       <dt className="text-xs text-slate-500">{label}</dt>
       <dd className="mt-0.5 text-sm font-medium text-slate-900">{value}</dd>
     </div>
   )
+}
+
+function groupedAttributes(defs: UserAttributeDef[]) {
+  const groups = new Map<ReturnType<typeof attributeGroupKey>, UserAttributeDef[]>()
+  for (const def of defs) {
+    const key = attributeGroupKey(def)
+    groups.set(key, [...(groups.get(key) ?? []), def])
+  }
+  return (['profile', 'organization', 'custom'] as const)
+    .map((key) => ({ key, title: attributeGroupTitle(key), defs: groups.get(key) ?? [] }))
+    .filter((group) => group.defs.length > 0)
+}
+
+function ProfileAttributeGroups({
+  defs,
+  values,
+}: {
+  defs: UserAttributeDef[]
+  values: AccountProfile['attributes']
+}) {
+  const knownKeys = new Set(defs.map((def) => def.key))
+  const readOnlyDefs: UserAttributeDef[] = Object.entries(values)
+    .filter(([key]) => !knownKeys.has(key))
+    .map(([key, value]) => ({
+      key,
+      type: value.type,
+      multi_valued: value.type === 'string_array',
+      required: false,
+      editable_by_user: false,
+      visibility: 'self_readable',
+      pii: false,
+    }))
+  const groups = groupedAttributes([...defs, ...readOnlyDefs])
+  if (groups.length === 0) return null
+  return (
+    <>
+      {groups.map((group) => (
+        <section key={group.key} className="grid gap-2">
+          <h3 className="text-xs font-bold uppercase tracking-normal text-slate-500">
+            {group.title}
+          </h3>
+          <dl className="grid gap-3 sm:grid-cols-2">
+            {group.defs.map((def) => (
+              <ReadField
+                key={def.key}
+                label={attributeLabel(def)}
+                value={values[def.key] ? valueToDisplayText(values[def.key]) : '未設定'}
+              />
+            ))}
+          </dl>
+        </section>
+      ))}
+    </>
+  )
+}
+
+function EditableAttributeGroups({
+  defs,
+  values,
+  onChange,
+}: {
+  defs: UserAttributeDef[]
+  values: AttributeDraft
+  onChange: (key: string, next: string) => void
+}) {
+  const groups = groupedAttributes(defs)
+  if (groups.length === 0) return null
+  return (
+    <div className="grid gap-4 rounded-lg border border-slate-200 p-4">
+      <p className="text-sm font-medium text-slate-700">追加項目</p>
+      {groups.map((group) => (
+        <fieldset key={group.key} className="grid gap-3 border-t border-slate-100 pt-4 first:border-t-0 first:pt-0">
+          <legend className="text-xs font-bold uppercase tracking-normal text-slate-500">
+            {group.title}
+          </legend>
+          {group.defs.map((def) => (
+            <AttributeField
+              key={def.key}
+              def={def}
+              value={values[def.key] ?? ''}
+              onChange={(next) => onChange(def.key, next)}
+            />
+          ))}
+        </fieldset>
+      ))}
+    </div>
+  )
+}
+
+function valueToDisplayText(value: AttributeValue): string {
+  const text = valueToText(value)
+  if (value.type === 'boolean') return text === 'true' ? 'はい' : 'いいえ'
+  return text || '未設定'
 }
 
 function AttributeField({

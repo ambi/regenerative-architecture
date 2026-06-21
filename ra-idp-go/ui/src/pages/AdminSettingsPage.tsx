@@ -1,6 +1,6 @@
 import { IconMail, IconShieldLock, IconTag } from '@tabler/icons-react'
 import { type FormEvent, useState } from 'react'
-import { AuthenticationAPIError, tenantURL, updateAdminSettings } from '../api'
+import { AuthenticationAPIError, updateAdminSettings } from '../api'
 import { AdminShell } from '../components/AdminShell'
 import { Alert } from '../components/ui/alert'
 import { Button } from '../components/ui/button'
@@ -93,8 +93,8 @@ export function AdminSettingsPage({
                 tab.disabled
                   ? 'cursor-not-allowed text-slate-400'
                   : active === tab.key
-                    ? 'bg-blue-50 text-blue-800'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
+                    ? 'bg-slate-950 text-white shadow-sm'
+                    : 'text-slate-600 hover:bg-white hover:text-slate-950 hover:shadow-xs',
               )}
             >
               <tab.icon size={18} stroke={1.8} aria-hidden="true" />
@@ -148,6 +148,7 @@ function GeneralTab({
   onSaved: (next: AdminSettings) => void
 }) {
   const [displayName, setDisplayName] = useState(settings.display_name)
+  const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -169,6 +170,8 @@ function GeneralTab({
       }
       const next = await updateAdminSettings(csrfToken, { display_name: trimmed })
       onSaved(next)
+      setDisplayName(next.display_name)
+      setEditing(false)
       setNotice('表示名を更新しました。')
     } catch (cause) {
       setError(
@@ -184,45 +187,68 @@ function GeneralTab({
   return (
     <Card className="p-6">
       <header>
-        <h2 className="text-base font-semibold text-slate-900">一般</h2>
-        <p className="mt-1 text-sm text-slate-600">テナントの表示名を変更します。</p>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="text-base font-semibold text-slate-900">一般</h2>
+            <p className="mt-1 text-sm text-slate-600">テナントの基本情報を確認できます。</p>
+          </div>
+          {!editing ? (
+            <Button type="button" variant="outline" onClick={() => setEditing(true)}>
+              編集
+            </Button>
+          ) : null}
+        </div>
       </header>
-      <form onSubmit={handleSave} className="mt-5 grid gap-4">
+      <div className="mt-5 grid gap-4">
         {error ? <Alert variant="destructive">{error}</Alert> : null}
         {notice ? <Alert variant="success">{notice}</Alert> : null}
-        <div className="grid gap-1.5">
-          <Label htmlFor="tenant-id">テナント ID</Label>
-          <Input
-            id="tenant-id"
-            value={settings.tenant_id}
-            readOnly
-            aria-readonly="true"
-            className="bg-slate-50 font-mono"
-            tabIndex={-1}
-          />
-        </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="display-name">表示名</Label>
-          <Input
-            id="display-name"
-            value={displayName}
-            onChange={(event) => setDisplayName(event.target.value)}
-            maxLength={200}
-          />
-          <p className="text-xs text-slate-500">管理画面と承諾画面に表示される名前です。</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button type="submit" disabled={saving}>
-            {saving ? '保存中…' : '保存'}
-          </Button>
-          <a
-            href={tenantURL('/admin')}
-            className="text-sm font-medium text-slate-500 hover:text-slate-700"
-          >
-            キャンセル
-          </a>
-        </div>
-      </form>
+        {!editing ? (
+          <dl className="grid gap-3 sm:grid-cols-2">
+            <ReadSetting label="テナント ID" value={settings.tenant_id} mono />
+            <ReadSetting label="表示名" value={settings.display_name} />
+          </dl>
+        ) : (
+          <form onSubmit={handleSave} className="grid gap-4">
+            <div className="grid gap-1.5">
+              <Label htmlFor="tenant-id">テナント ID</Label>
+              <Input
+                id="tenant-id"
+                value={settings.tenant_id}
+                readOnly
+                aria-readonly="true"
+                className="bg-slate-50 font-mono"
+                tabIndex={-1}
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="display-name">表示名</Label>
+              <Input
+                id="display-name"
+                value={displayName}
+                onChange={(event) => setDisplayName(event.target.value)}
+                maxLength={200}
+              />
+              <p className="text-xs text-slate-500">管理画面と承諾画面に表示される名前です。</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button type="submit" disabled={saving}>
+                {saving ? '保存中…' : '保存'}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={saving}
+                onClick={() => {
+                  setDisplayName(settings.display_name)
+                  setEditing(false)
+                }}
+              >
+                キャンセル
+              </Button>
+            </div>
+          </form>
+        )}
+      </div>
     </Card>
   )
 }
@@ -241,6 +267,7 @@ function PasswordPolicyTab({
   const [minLength, setMinLength] = useState(override?.min_length?.toString() ?? '')
   const [maxLength, setMaxLength] = useState(override?.max_length?.toString() ?? '')
   const [historyDepth, setHistoryDepth] = useState(override?.history_depth?.toString() ?? '')
+  const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -262,6 +289,7 @@ function PasswordPolicyTab({
       setMinLength(next.password_policy_override?.min_length?.toString() ?? '')
       setMaxLength(next.password_policy_override?.max_length?.toString() ?? '')
       setHistoryDepth(next.password_policy_override?.history_depth?.toString() ?? '')
+      setEditing(false)
       setNotice('パスワードポリシーを更新しました。')
     } catch (cause) {
       setError(
@@ -277,11 +305,19 @@ function PasswordPolicyTab({
   return (
     <Card className="p-6">
       <header>
-        <h2 className="text-base font-semibold text-slate-900">パスワードポリシー</h2>
-        <p className="mt-1 text-sm text-slate-600">
-          指定したフィールドのみテナント固有の値で上書きします。空欄のフィールドは
-          RA Identity の標準値が適用されます。
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="text-base font-semibold text-slate-900">パスワードポリシー</h2>
+            <p className="mt-1 text-sm text-slate-600">
+              テナントに適用されるパスワード要件を確認できます。
+            </p>
+          </div>
+          {!editing ? (
+            <Button type="button" variant="outline" onClick={() => setEditing(true)}>
+              編集
+            </Button>
+          ) : null}
+        </div>
         <dl className="mt-3 grid grid-cols-3 gap-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-xs">
           <div>
             <dt className="text-slate-500">標準 最小長</dt>
@@ -307,48 +343,93 @@ function PasswordPolicyTab({
           サーバ側で拒否されます。
         </p>
       </header>
-      <form onSubmit={handleSave} className="mt-5 grid gap-4">
+      <div className="mt-5 grid gap-4">
         {error ? <Alert variant="destructive">{error}</Alert> : null}
         {notice ? <Alert variant="success">{notice}</Alert> : null}
-        <div className="grid gap-4 sm:grid-cols-3">
-          <PolicyField
-            id="min-length"
-            label="最小長 (min_length)"
-            value={minLength}
-            onChange={setMinLength}
-            min={defaults.min_length}
-            max={defaults.max_length}
-            placeholder={defaults.min_length.toString()}
-            hint={`${defaults.min_length} 以上`}
-          />
-          <PolicyField
-            id="max-length"
-            label="最大長 (max_length)"
-            value={maxLength}
-            onChange={setMaxLength}
-            min={defaults.min_length}
-            max={defaults.max_length}
-            placeholder={defaults.max_length.toString()}
-            hint={`${defaults.max_length} 以下`}
-          />
-          <PolicyField
-            id="history-depth"
-            label="履歴件数 (history_depth)"
-            value={historyDepth}
-            onChange={setHistoryDepth}
-            min={defaults.history_depth}
-            max={50}
-            placeholder={defaults.history_depth.toString()}
-            hint={`${defaults.history_depth} 以上`}
-          />
-        </div>
-        <div>
-          <Button type="submit" disabled={saving}>
-            {saving ? '保存中…' : '保存'}
-          </Button>
-        </div>
-      </form>
+        {!editing ? (
+          <dl className="grid gap-3 sm:grid-cols-3">
+            <ReadSetting
+              label="最小長"
+              value={`${override?.min_length ?? defaults.min_length} 文字`}
+            />
+            <ReadSetting
+              label="最大長"
+              value={`${override?.max_length ?? defaults.max_length} 文字`}
+            />
+            <ReadSetting
+              label="履歴件数"
+              value={`${override?.history_depth ?? defaults.history_depth} 件`}
+            />
+          </dl>
+        ) : (
+          <form onSubmit={handleSave} className="grid gap-4">
+            <div className="grid gap-4 sm:grid-cols-3">
+              <PolicyField
+                id="min-length"
+                label="最小長 (min_length)"
+                value={minLength}
+                onChange={setMinLength}
+                min={defaults.min_length}
+                max={defaults.max_length}
+                placeholder={defaults.min_length.toString()}
+                hint={`${defaults.min_length} 以上`}
+              />
+              <PolicyField
+                id="max-length"
+                label="最大長 (max_length)"
+                value={maxLength}
+                onChange={setMaxLength}
+                min={defaults.min_length}
+                max={defaults.max_length}
+                placeholder={defaults.max_length.toString()}
+                hint={`${defaults.max_length} 以下`}
+              />
+              <PolicyField
+                id="history-depth"
+                label="履歴件数 (history_depth)"
+                value={historyDepth}
+                onChange={setHistoryDepth}
+                min={defaults.history_depth}
+                max={50}
+                placeholder={defaults.history_depth.toString()}
+                hint={`${defaults.history_depth} 以上`}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Button type="submit" disabled={saving}>
+                {saving ? '保存中…' : '保存'}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={saving}
+                onClick={() => {
+                  setMinLength(settings.password_policy_override?.min_length?.toString() ?? '')
+                  setMaxLength(settings.password_policy_override?.max_length?.toString() ?? '')
+                  setHistoryDepth(
+                    settings.password_policy_override?.history_depth?.toString() ?? '',
+                  )
+                  setEditing(false)
+                }}
+              >
+                キャンセル
+              </Button>
+            </div>
+          </form>
+        )}
+      </div>
     </Card>
+  )
+}
+
+function ReadSetting({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="rounded-lg border border-slate-200/80 bg-white/70 px-3 py-2.5">
+      <dt className="text-xs text-slate-500">{label}</dt>
+      <dd className={cn('mt-0.5 text-sm font-medium text-slate-900', mono && 'font-mono')}>
+        {value}
+      </dd>
+    </div>
   )
 }
 

@@ -52,7 +52,7 @@ func accountUser() *spec.User {
 		Lifecycle:    spec.UserLifecycle{Status: spec.UserStatusActive},
 		Attributes: map[string]spec.AttributeValue{
 			"nickname":   {Type: spec.AttributeTypeString, String: ptrString("davey")},    // claim_exposed
-			"department": {Type: spec.AttributeTypeString, String: ptrString("Platform")}, // admin_readable
+			"department": {Type: spec.AttributeTypeString, String: ptrString("Platform")}, // self_readable
 		},
 		CreatedAt: now, UpdatedAt: now,
 	}
@@ -83,8 +83,11 @@ func TestAccountProfileGetReturnsSelfView(t *testing.T) {
 	if _, ok := body.Attributes["nickname"]; !ok {
 		t.Fatalf("claim_exposed nickname missing from self view: %+v", body.Attributes)
 	}
-	if _, ok := body.Attributes["department"]; ok {
-		t.Fatalf("admin_readable department leaked to self view: %+v", body.Attributes)
+	if v, ok := body.Attributes["department"]; !ok || v.String == nil || *v.String != "Platform" {
+		t.Fatalf("self_readable department missing from self view: %+v", body.Attributes)
+	}
+	if len(body.ReadableAttributes) == 0 {
+		t.Fatalf("readable_attributes should be populated")
 	}
 	if len(body.EditableAttributes) == 0 {
 		t.Fatalf("editable_attributes should be populated")

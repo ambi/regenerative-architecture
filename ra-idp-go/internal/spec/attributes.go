@@ -38,10 +38,11 @@ var builtinDefs = func() []UserAttributeDef {
 		}
 	}
 	// SCIM enterprise:User 拡張相当の組織属性。OIDC claim ではなく admin 管理。
+	// 本人画面では参照できるが、self-service では編集できない。
 	org := func(key string, t AttributeType) UserAttributeDef {
 		return UserAttributeDef{
 			Key: key, Type: t, EditableByUser: false,
-			Visibility: AttrVisibilityAdminReadable, PII: false,
+			Visibility: AttrVisibilitySelfReadable, PII: false,
 		}
 	}
 

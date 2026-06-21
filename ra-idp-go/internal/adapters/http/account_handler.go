@@ -23,6 +23,8 @@ type accountProfileResponse struct {
 	MfaEnrolled       bool                           `json:"mfa_enrolled"`
 	Status            spec.UserStatus                `json:"status"`
 	Attributes        map[string]spec.AttributeValue `json:"attributes"`
+	// ReadableAttributes は self が参照できる属性定義。
+	ReadableAttributes []spec.UserAttributeDef `json:"readable_attributes"`
 	// EditableAttributes は self が編集できる属性定義 (editable_by_user=true)。
 	// UI がフォームを描画するために型・multi_valued 等のメタを併せて返す。
 	EditableAttributes []spec.UserAttributeDef `json:"editable_attributes"`
@@ -57,6 +59,7 @@ func toAccountProfileResponse(user *spec.User, defs []spec.UserAttributeDef) acc
 		Email: user.Email, EmailVerified: user.EmailVerified, MfaEnrolled: user.MfaEnrolled,
 		Status:             user.Lifecycle.EffectiveStatus(),
 		Attributes:         authusecases.SelfReadableAttributes(user.Attributes, defs),
+		ReadableAttributes: authusecases.SelfReadableAttributeDefs(defs),
 		EditableAttributes: authusecases.EditableAttributeDefs(defs),
 	}
 }

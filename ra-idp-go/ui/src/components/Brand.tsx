@@ -16,26 +16,26 @@ export function Brand({ compact = false, inverse = false }: BrandProps) {
     >
       <div
         className={cn(
-          'relative flex size-11 items-center justify-center rounded-xl border shadow-sm',
+          'relative flex size-11 items-center justify-center rounded-lg border shadow-sm',
           inverse
             ? 'border-white/15 bg-white/10 text-white backdrop-blur-sm'
-            : 'border-blue-100 bg-blue-50 text-blue-700',
+            : 'border-slate-200 bg-white text-blue-700 shadow-blue-950/5',
         )}
       >
         <IconFingerprint size={25} stroke={1.7} aria-hidden="true" />
         <span
           className={cn(
-            'absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 bg-emerald-400',
-            inverse ? 'border-[#0d1b36]' : 'border-white',
+            'absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 bg-teal-400',
+            inverse ? 'border-[#0a1020]' : 'border-white',
           )}
         />
       </div>
       <div className="flex flex-col">
-        <span className="text-[1.05rem] font-semibold leading-tight tracking-[-0.01em]">
+        <span className="text-[1.05rem] font-semibold leading-tight tracking-normal">
           RA Identity
         </span>
         {!compact ? (
-          <span className="mt-0.5 text-[0.68rem] font-semibold uppercase tracking-[0.12em] opacity-60">
+          <span className="mt-0.5 text-[0.68rem] font-semibold uppercase tracking-normal opacity-60">
             Identity & Access
           </span>
         ) : null}

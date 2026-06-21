@@ -1,4 +1,4 @@
-import { IconArrowRight, IconInfoCircle, IconServer } from '@tabler/icons-react'
+import { IconArrowRight, IconInfoCircle } from '@tabler/icons-react'
 import { startDemoAuthorization } from '../api'
 import { AuthShell } from '../components/AuthShell'
 import { Button } from '../components/ui/button'
@@ -30,12 +30,9 @@ export function HomePage({ demoEnabled }: HomePageData) {
             <IconArrowRight size={18} aria-hidden="true" />
           </Button>
         ) : (
-          <Button asChild variant="outline" size="lg">
-            <a href="/.well-known/openid-configuration">
-              <IconServer size={18} aria-hidden="true" />
-              プロバイダー情報を確認
-            </a>
-          </Button>
+          <p className="text-sm leading-6 text-slate-600">
+            利用するアプリケーションからログインを開始してください。
+          </p>
         )}
 
         {demoEnabled && (

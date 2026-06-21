@@ -169,6 +169,18 @@ func SelfReadableAttributes(
 	return out
 }
 
+// SelfReadableAttributeDefs は self が読める属性定義を返す。
+func SelfReadableAttributeDefs(defs []spec.UserAttributeDef) []spec.UserAttributeDef {
+	out := []spec.UserAttributeDef{}
+	for _, def := range defs {
+		switch def.Visibility {
+		case spec.AttrVisibilitySelfReadable, spec.AttrVisibilityClaimExposed:
+			out = append(out, def)
+		}
+	}
+	return out
+}
+
 // EditableAttributeDefs は self が編集できる属性定義 (editable_by_user=true) を返す。
 func EditableAttributeDefs(defs []spec.UserAttributeDef) []spec.UserAttributeDef {
 	out := []spec.UserAttributeDef{}

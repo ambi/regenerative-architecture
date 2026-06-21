@@ -88,15 +88,15 @@ func TestUpdateUserProfileRejectsUndefinedAttribute(t *testing.T) {
 	}
 }
 
-func TestGetUserProfileHidesAdminOnlyAttributes(t *testing.T) {
+func TestGetUserProfileShowsReadOnlyOrganizationAttributes(t *testing.T) {
 	ctx, deps, user := accountTestDeps(t)
 	_, defs, err := authusecases.GetUserProfile(ctx, deps, user.Sub)
 	if err != nil {
 		t.Fatal(err)
 	}
-	// department は admin_readable なので self には見えない。
+	// department は本人が参照できるが、self-service では編集できない。
 	self := authusecases.SelfReadableAttributes(user.Attributes, defs)
-	if _, ok := self["department"]; ok {
-		t.Fatalf("admin_readable attribute leaked to self view: %+v", self)
+	if v, ok := self["department"]; !ok || v.String == nil || *v.String != "Platform" {
+		t.Fatalf("self_readable organization attribute missing: %+v", self)
 	}
 }

@@ -1,4 +1,4 @@
-import { IconArrowRight, IconDotsVertical, IconPencil } from '@tabler/icons-react'
+import { IconChevronRight, IconDotsVertical, IconPencil } from '@tabler/icons-react'
 import type { ReactNode } from 'react'
 import { Button } from './ui/button'
 import {
@@ -9,7 +9,7 @@ import {
 
 // AdminPaneActions は一覧画面の右ペイン共通のアクション行 (wi-39)。
 // どのエンティティ (ユーザー / アプリケーション / グループ / ロール) でも
-// 「詳細を開く」(primary) → 「編集」(outline) → その他操作 (⋮ メニュー) の順で
+// 「詳細」→「編集」→ その他操作 (⋮ メニュー) の順で
 // 同じ配置・同じ体裁にそろえる。編集やメニューが無いエンティティでは省略する。
 export function AdminPaneActions({
   detailHref,
@@ -22,16 +22,16 @@ export function AdminPaneActions({
   busy?: boolean
   menu?: ReactNode
 }) {
+  const hasSecondaryAction = Boolean(onEdit || menu)
   return (
     <div className="flex items-center gap-2">
       {detailHref ? (
-        <a
-          href={detailHref}
-          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
-        >
-          詳細を開く
-          <IconArrowRight size={16} aria-hidden="true" />
-        </a>
+        <Button asChild className={hasSecondaryAction ? 'flex-1' : 'min-w-28'}>
+          <a href={detailHref}>
+            詳細
+            <IconChevronRight size={16} aria-hidden="true" />
+          </a>
+        </Button>
       ) : null}
       {onEdit ? (
         <Button

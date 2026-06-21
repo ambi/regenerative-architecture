@@ -36,8 +36,8 @@ export type AccountNavKey =
   | 'data'
 
 const navItems: { key: AccountNavKey; label: string; href: string; icon: typeof IconUser }[] = [
-  { key: 'home', label: 'アカウント概要', href: '/account', icon: IconUserCircle },
-  { key: 'profile', label: '個人情報', href: '/account/profile', icon: IconUser },
+  { key: 'home', label: 'ホーム', href: '/account', icon: IconUserCircle },
+  { key: 'profile', label: 'アカウント情報', href: '/account/profile', icon: IconUser },
   { key: 'emails', label: 'メールアドレス', href: '/account/emails', icon: IconMail },
   { key: 'security', label: 'セキュリティ', href: '/account/security', icon: IconShieldLock },
   { key: 'activity', label: 'アクティビティ', href: '/account/activity', icon: IconHistory },
@@ -63,8 +63,8 @@ export function AccountShell({
   children,
 }: AccountShellProps) {
   return (
-    <div className="min-h-screen bg-[#f5f7fa] text-slate-950">
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
+    <div className="app-surface">
+      <header className="app-header">
         <div className="flex h-16 items-center justify-between px-5 lg:px-7">
           <div className="flex items-center gap-5">
             <a
@@ -74,8 +74,8 @@ export function AccountShell({
             >
               <Brand compact />
             </a>
-            <div className="hidden h-6 w-px bg-slate-200 sm:block" />
-            <span className="hidden items-center gap-2 px-2 py-1.5 text-sm font-medium text-slate-600 sm:flex">
+            <div className="hidden h-6 w-px bg-slate-200/80 sm:block" />
+            <span className="hidden items-center gap-2 rounded-lg border border-slate-200/80 bg-white/70 px-2.5 py-1.5 text-sm font-medium text-slate-600 shadow-xs sm:flex">
               <IconShieldLock size={16} className="text-slate-400" aria-hidden="true" />
               マイページ
             </span>
@@ -84,14 +84,14 @@ export function AccountShell({
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="flex items-center gap-3 rounded-lg px-2 py-1.5 text-left hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600/30"
+                className="flex items-center gap-3 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600/30"
                 aria-label="アカウントメニュー"
               >
                 <div className="hidden text-right sm:block">
                   <p className="text-sm font-semibold text-slate-800">{username}</p>
                   <p className="text-xs text-slate-500">サインイン中</p>
                 </div>
-                <span className="flex size-9 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white">
+                <span className="flex size-9 items-center justify-center rounded-lg bg-slate-950 text-sm font-semibold text-white shadow-sm">
                   {username.slice(0, 1).toUpperCase()}
                 </span>
                 <IconChevronDown size={15} className="text-slate-400" aria-hidden="true" />
@@ -123,17 +123,17 @@ export function AccountShell({
       </header>
 
       <div className="grid min-h-[calc(100vh-4rem)] lg:grid-cols-[248px_minmax(0,1fr)]">
-        <aside className="hidden border-r border-slate-200 bg-white lg:flex lg:flex-col">
+        <aside className="app-sidebar">
           <nav className="flex flex-1 flex-col gap-1 p-4" aria-label="マイページメニュー">
             {navItems.map((item) => (
               <a
                 key={item.key}
                 href={tenantURL(item.href)}
                 className={cn(
-                  'flex h-10 w-full items-center gap-3 rounded-lg px-3 text-left text-sm font-medium',
+                  'flex h-10 w-full items-center gap-3 rounded-lg px-3 text-left text-sm font-medium transition-[background-color,color,box-shadow]',
                   item.key === active
-                    ? 'bg-blue-50 text-blue-800'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
+                    ? 'bg-slate-950 text-white shadow-sm'
+                    : 'text-slate-600 hover:bg-white hover:text-slate-950 hover:shadow-xs',
                 )}
                 aria-current={item.key === active ? 'page' : undefined}
               >
@@ -144,10 +144,10 @@ export function AccountShell({
           </nav>
         </aside>
 
-        <main className="min-w-0 p-6 lg:p-10">
-          <div className="mx-auto flex max-w-[920px] flex-col gap-6">
+        <main className="app-main">
+          <div className="app-content max-w-[920px]">
             <div>
-              <h1 className="text-3xl font-semibold tracking-[-0.03em] text-slate-900">{title}</h1>
+              <h1 className="app-page-title">{title}</h1>
               {description ? (
                 <p className="mt-2 max-w-[70ch] text-sm text-slate-600">{description}</p>
               ) : null}

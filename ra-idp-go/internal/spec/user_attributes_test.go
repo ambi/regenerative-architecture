@@ -99,8 +99,8 @@ func TestBuiltinUserAttributeDefsCoverOIDCAndOrg(t *testing.T) {
 	if d := byKey["phone_number"]; d.OIDCScope == nil || *d.OIDCScope != "phone" {
 		t.Fatal("phone_number must map to phone scope")
 	}
-	if d := byKey["title"]; d.Visibility != AttrVisibilityAdminReadable || d.EditableByUser {
-		t.Fatal("organization title must be admin-managed")
+	if d := byKey["title"]; d.Visibility != AttrVisibilitySelfReadable || d.EditableByUser {
+		t.Fatal("organization title must be self-readable and admin-managed")
 	}
 	// 返却値の変更がカタログ本体に波及しないこと。
 	defs[0].Key = "mutated"
@@ -179,7 +179,7 @@ func TestClaimsForScopesExposesByScope(t *testing.T) {
 	u.Attributes = map[string]AttributeValue{
 		"nickname":     {Type: AttributeTypeString, String: ptr("ally")},
 		"phone_number": {Type: AttributeTypeString, String: ptr("+819012345678")},
-		"title":        {Type: AttributeTypeString, String: ptr("Engineer")}, // admin_readable, never a claim
+		"title":        {Type: AttributeTypeString, String: ptr("Engineer")}, // self_readable, never a claim
 	}
 	defs := BuiltinUserAttributeDefs()
 
@@ -192,7 +192,7 @@ func TestClaimsForScopesExposesByScope(t *testing.T) {
 		t.Fatalf("phone_number exposed without phone scope: %#v", claims)
 	}
 	if _, ok := claims["title"]; ok {
-		t.Fatalf("admin_readable title must never be a claim: %#v", claims)
+		t.Fatalf("self_readable title must never be a claim: %#v", claims)
 	}
 
 	// phone scope を足すと phone_number が出る。

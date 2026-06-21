@@ -42,7 +42,7 @@ export function adminNavItems(active: AdminNavKey): AdminNavItem[] {
     { key: 'dashboard', label: 'ダッシュボード', icon: IconLayoutDashboard, href: tenantURL('/admin'), active: active === 'dashboard' },
     { key: 'users', label: 'ユーザー', icon: IconUsers, href: tenantURL('/admin/users'), active: active === 'users' },
     { key: 'groups', label: 'グループ', icon: IconUsersGroup, href: tenantURL('/admin/groups'), active: active === 'groups' },
-    { key: 'roles', label: 'ロールと権限', icon: IconUserShield, href: tenantURL('/admin/roles'), active: active === 'roles' },
+    { key: 'roles', label: 'ロール', icon: IconUserShield, href: tenantURL('/admin/roles'), active: active === 'roles' },
     { key: 'clients', label: 'アプリケーション', icon: IconKey, href: tenantURL('/admin/clients'), active: active === 'clients' },
     { key: 'consents', label: '同意', icon: IconCheckupList, href: tenantURL('/admin/consents'), active: active === 'consents' },
     { key: 'audit-events', label: '監査ログ', icon: IconActivity, href: tenantURL('/admin/audit_events'), active: active === 'audit-events' },

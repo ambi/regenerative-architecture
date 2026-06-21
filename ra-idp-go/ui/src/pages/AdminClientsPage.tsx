@@ -293,7 +293,7 @@ export function AdminClientsPage({
 }
 
 // ClientPaneView は一覧右の詳細ビュー。同一画面で見比べられるよう主要メタデータを
-// 残しつつ、上部に「詳細を開く / 編集」を置いて専用詳細ページ・編集へすぐ飛べる
+// 残しつつ、上部に「詳細 / 編集」を置いて専用詳細ページ・編集へすぐ飛べる
 // ようにする (wi-39)。全メタデータは詳細ページで確認できる。
 function ClientPaneView({ client, busy, onEdit, onDelete }: { client: AdminClient; busy: boolean; onEdit: () => void; onDelete: () => void }) {
   return (
@@ -507,7 +507,7 @@ export function AdminClientDetailPage({
 function ClientFormDialog({ mode, form, busy, onChange, onClose, onSubmit }: { mode: 'create' | 'edit'; form: ClientForm; busy: boolean; onChange: (form: ClientForm) => void; onClose: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void }) {
   const set = <K extends keyof ClientForm>(key: K, value: ClientForm[K]) => onChange({ ...form, [key]: value })
   return (
-    <Dialog title={mode === 'create' ? 'アプリケーションを追加' : 'メタデータを編集'} onClose={onClose}>
+    <Dialog title={mode === 'create' ? 'アプリケーションを追加' : 'アプリケーションを編集'} onClose={onClose}>
       <form onSubmit={onSubmit}>
         <div className="grid max-h-[70vh] gap-5 overflow-y-auto p-6">
           <Field label="表示名"><Input value={form.client_name} onChange={(event) => set('client_name', event.target.value)} /></Field>

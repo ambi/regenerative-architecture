@@ -12,6 +12,7 @@ import type { AccountEmailsPage as PageProps } from '../types'
 
 export function AccountEmailsPage({ csrfToken, email, emailVerified, isAdmin }: PageProps) {
   const [newEmail, setNewEmail] = useState('')
+  const [editing, setEditing] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [sentTo, setSentTo] = useState('')
@@ -27,6 +28,7 @@ export function AccountEmailsPage({ csrfToken, email, emailVerified, isAdmin }: 
       await guard(() => requestEmailChange(csrfToken, target))
       setSentTo(target)
       setNewEmail('')
+      setEditing(false)
     } catch (cause) {
       if (cause instanceof StepUpCancelledError) return
       setError(
@@ -45,13 +47,13 @@ export function AccountEmailsPage({ csrfToken, email, emailVerified, isAdmin }: 
       username={email ?? 'account'}
       isAdmin={isAdmin}
       title="メールアドレス"
-      description="サインインや通知に使うメールアドレスを変更します。"
+      description="サインインや通知に使うメールアドレスを確認できます。"
     >
       <Card className="flex items-start gap-3 p-5">
         <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
           <IconMail size={20} aria-hidden="true" />
         </span>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="text-xs font-medium text-slate-500">現在のメールアドレス</p>
           <p className="mt-1 truncate text-sm font-semibold text-slate-900">{email ?? '未設定'}</p>
           {email ? (
@@ -69,6 +71,11 @@ export function AccountEmailsPage({ csrfToken, email, emailVerified, isAdmin }: 
             </span>
           ) : null}
         </div>
+        {!editing ? (
+          <Button type="button" variant="outline" onClick={() => setEditing(true)}>
+            変更
+          </Button>
+        ) : null}
       </Card>
 
       {sentTo ? (
@@ -79,31 +86,44 @@ export function AccountEmailsPage({ csrfToken, email, emailVerified, isAdmin }: 
       ) : null}
       {error ? <Alert variant="destructive">{error}</Alert> : null}
 
-      <Card className="p-5">
-        <form onSubmit={handleSubmit} className="grid gap-4">
-          <div className="grid gap-1.5">
-            <Label htmlFor="new-email">新しいメールアドレス</Label>
-            <Input
-              id="new-email"
-              type="email"
-              value={newEmail}
-              required
-              autoComplete="email"
-              placeholder="you@example.com"
-              onChange={(event) => setNewEmail(event.target.value)}
-            />
-            <p className="text-xs text-slate-500">
-              新しいアドレス宛に確認リンクを送ります。リンクを開いて確認するまで、現在の
-              メールアドレスは変わりません。
-            </p>
-          </div>
-          <div>
-            <Button type="submit" disabled={submitting || newEmail.trim().length === 0}>
-              {submitting ? '送信中…' : '確認メールを送信'}
-            </Button>
-          </div>
-        </form>
-      </Card>
+      {editing ? (
+        <Card className="p-5">
+          <form onSubmit={handleSubmit} className="grid gap-4">
+            <div className="grid gap-1.5">
+              <Label htmlFor="new-email">新しいメールアドレス</Label>
+              <Input
+                id="new-email"
+                type="email"
+                value={newEmail}
+                required
+                autoComplete="email"
+                placeholder="you@example.com"
+                onChange={(event) => setNewEmail(event.target.value)}
+              />
+              <p className="text-xs text-slate-500">
+                新しいアドレス宛に確認リンクを送ります。リンクを開いて確認するまで、現在の
+                メールアドレスは変わりません。
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button type="submit" disabled={submitting || newEmail.trim().length === 0}>
+                {submitting ? '送信中…' : '確認メールを送信'}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={submitting}
+                onClick={() => {
+                  setNewEmail('')
+                  setEditing(false)
+                }}
+              >
+                キャンセル
+              </Button>
+            </div>
+          </form>
+        </Card>
+      ) : null}
       {dialog}
     </AccountShell>
   )

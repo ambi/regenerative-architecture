@@ -52,7 +52,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../components/ui/dropdown-menu'
-import { attributeLabel, cn } from '../lib/utils'
+import { attributeGroupKey, attributeGroupTitle, attributeLabel, cn } from '../lib/utils'
 import {
   type AdminGroup,
   type AdminUser,
@@ -62,7 +62,6 @@ import {
   type AttributeValue,
   REQUIRED_ACTIONS,
   requiredActionLabel,
-  type TenantUserAttributeSchema,
   type UserAttributeDef,
 } from '../types'
 
@@ -601,9 +600,14 @@ export function AdminUserDetailPage({
                 値が設定されている属性を区分ごとに表示します。編集は「編集」から行います。
               </p>
               <div className="mt-4 flex flex-col gap-5">
-                <AttributeGroup title="OIDC 標準クレーム" defs={oidcDefs(schema)} user={user} />
-                <AttributeGroup title="組織情報" defs={orgDefs(schema)} user={user} />
-                <AttributeGroup title="カスタム属性" defs={schema.attributes} user={user} />
+                {groupedAttributeDefs(attributeDefs).map((group) => (
+                  <AttributeGroup
+                    key={group.key}
+                    title={group.title}
+                    defs={group.defs}
+                    user={user}
+                  />
+                ))}
               </div>
             </Card>
           </div>
@@ -675,16 +679,6 @@ export function AdminUserDetailPage({
   )
 }
 
-// oidcDefs / orgDefs は組み込みカタログを区分する: OIDC scope を持つものは標準
-// クレーム、持たないものは SCIM 組織属性。tenant custom は schema.attributes 側。
-function oidcDefs(schema: TenantUserAttributeSchema): UserAttributeDef[] {
-  return schema.builtin.filter((def) => Boolean(def.oidc_scope))
-}
-
-function orgDefs(schema: TenantUserAttributeSchema): UserAttributeDef[] {
-  return schema.builtin.filter((def) => !def.oidc_scope)
-}
-
 // AttributeGroup は区分内で「値が設定されている」属性だけを読み取り表示する。
 // 全 def を出すと未設定行で埋もれるため、設定済みのみを示し、無ければその旨を出す。
 function AttributeGroup({
@@ -719,7 +713,7 @@ function AttributeGroup({
 }
 
 // UserDetails は右ペインの詳細ビュー。同一画面で複数ユーザーを見比べられるよう
-// 情報量は厚めに残しつつ、上部に「詳細を開く / 編集」を置いて専用詳細ページや
+// 情報量は厚めに残しつつ、上部に「詳細 / 編集」を置いて専用詳細ページや
 // 編集モーダルへすぐ飛べるようにする (wi-39)。
 function UserDetails({
   user,
@@ -1155,6 +1149,57 @@ function AdminAttributeField({
   )
 }
 
+function groupedAttributeDefs(defs: UserAttributeDef[]) {
+  const groups = new Map<ReturnType<typeof attributeGroupKey>, UserAttributeDef[]>()
+  for (const def of defs) {
+    const key = attributeGroupKey(def)
+    groups.set(key, [...(groups.get(key) ?? []), def])
+  }
+  return (['profile', 'organization', 'custom'] as const)
+    .map((key) => ({ key, title: attributeGroupTitle(key), defs: groups.get(key) ?? [] }))
+    .filter((group) => group.defs.length > 0)
+}
+
+function AdminAttributeEditorGroups({
+  defs,
+  values,
+  onChange,
+}: {
+  defs: UserAttributeDef[]
+  values: Record<string, string>
+  onChange: (key: string, next: string) => void
+}) {
+  const groups = groupedAttributeDefs(defs)
+  if (groups.length === 0) return null
+  return (
+    <section className="grid gap-4 border-t border-slate-200 pt-5">
+      <div>
+        <h3 className="text-xs font-bold uppercase tracking-normal text-slate-400">
+          アカウント情報
+        </h3>
+        <p className="mt-1 text-xs leading-5 text-slate-500">
+          保存時に属性全体が置換されます。
+        </p>
+      </div>
+      {groups.map((group) => (
+        <fieldset key={group.key} className="grid gap-3 rounded-lg border border-slate-200 p-4">
+          <legend className="px-1 text-xs font-bold uppercase tracking-normal text-slate-500">
+            {group.title}
+          </legend>
+          {group.defs.map((def) => (
+            <AdminAttributeField
+              key={def.key}
+              def={def}
+              value={values[def.key] ?? ''}
+              onChange={(next) => onChange(def.key, next)}
+            />
+          ))}
+        </fieldset>
+      ))}
+    </section>
+  )
+}
+
 function UserEditorDialog({
   user,
   attributeDefs,
@@ -1388,28 +1433,13 @@ function UserEditorDialog({
                   複数指定する場合はカンマで区切ります。変更時は保存前に差分を確認します。
                 </p>
               </section>
-              {attributeDefs.length > 0 && (
-                <section className="grid gap-3 border-t border-slate-200 pt-5">
-                  <h3 className="text-xs font-bold uppercase tracking-[0.1em] text-slate-400">
-                    属性
-                  </h3>
-                  <p className="text-xs leading-5 text-slate-500">
-                    OIDC / SCIM / テナントカスタム属性。保存時に属性全体が置換されます。
-                  </p>
-                  <div className="grid gap-3">
-                    {attributeDefs.map((def) => (
-                      <AdminAttributeField
-                        key={def.key}
-                        def={def}
-                        value={attrDraft[def.key] ?? ''}
-                        onChange={(next) =>
-                          setAttrDraft((current) => ({ ...current, [def.key]: next }))
-                        }
-                      />
-                    ))}
-                  </div>
-                </section>
-              )}
+              <AdminAttributeEditorGroups
+                defs={attributeDefs}
+                values={attrDraft}
+                onChange={(key, next) =>
+                  setAttrDraft((current) => ({ ...current, [key]: next }))
+                }
+              />
             </div>
           )}
           </div>

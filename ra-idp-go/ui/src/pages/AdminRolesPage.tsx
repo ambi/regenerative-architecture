@@ -1,8 +1,16 @@
-import { IconArrowLeft, IconChevronRight, IconShieldCheck, IconUsers } from '@tabler/icons-react'
+import {
+  IconArrowLeft,
+  IconChevronRight,
+  IconPencil,
+  IconShieldCheck,
+  IconTrash,
+  IconUsers,
+} from '@tabler/icons-react'
 import { useMemo, useState } from 'react'
 import { tenantURL } from '../api'
 import { AdminPaneActions } from '../components/AdminPaneActions'
 import { AdminShell } from '../components/AdminShell'
+import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
 import { cn } from '../lib/utils'
 import type {
@@ -29,7 +37,7 @@ export function AdminRolesPage({ actorUsername, roles, users }: AdminRolesPageDa
     <AdminShell
       active="roles"
       actorUsername={actorUsername}
-      title="ロールと権限"
+      title="ロール"
       description="管理ロールと、各ロールに許可される操作を確認します。"
     >
       <section className="grid gap-3 sm:grid-cols-2" aria-label="ロール概要">
@@ -50,7 +58,7 @@ export function AdminRolesPage({ actorUsername, roles, users }: AdminRolesPageDa
               <tr>
                 <th className="px-5 py-3.5">ロール</th>
                 <th className="px-5 py-3.5">付与人数</th>
-                <th className="px-5 py-3.5">権限数</th>
+                <th className="px-5 py-3.5">操作数</th>
                 <th className="px-5 py-3.5" />
               </tr>
             </thead>
@@ -85,9 +93,12 @@ export function AdminRolesPage({ actorUsername, roles, users }: AdminRolesPageDa
           {selected ? (
             <div>
               <div className="border-b border-slate-200 bg-white p-4">
-                <AdminPaneActions
-                  detailHref={tenantURL(`/admin/roles/${encodeURIComponent(selected.name)}`)}
-                />
+                <div className="flex flex-wrap items-center gap-2">
+                  <AdminPaneActions
+                    detailHref={tenantURL(`/admin/roles/${encodeURIComponent(selected.name)}`)}
+                  />
+                  <RoleUnavailableActions />
+                </div>
               </div>
               <RoleDetails
                 role={selected}
@@ -106,7 +117,7 @@ export function AdminRolesPage({ actorUsername, roles, users }: AdminRolesPageDa
   )
 }
 
-// AdminRoleDetailPage はロールの全権限と付与ユーザーを扱う専用詳細画面 (wi-39)。
+// AdminRoleDetailPage はロールの全操作と付与ユーザーを扱う専用詳細画面 (wi-39)。
 export function AdminRoleDetailPage({
   actorUsername,
   role,
@@ -120,19 +131,37 @@ export function AdminRoleDetailPage({
       title={role.name}
       description={role.description}
       actions={
-        <a
-          href={tenantURL('/admin/roles')}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
-        >
-          <IconArrowLeft size={16} aria-hidden="true" />
-          ロール一覧
-        </a>
+        <div className="flex items-center gap-2">
+          <a
+            href={tenantURL('/admin/roles')}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+          >
+            <IconArrowLeft size={16} aria-hidden="true" />
+            ロール一覧
+          </a>
+          <RoleUnavailableActions />
+        </div>
       }
     >
       <Card className="overflow-hidden">
         <RoleDetails role={role} count={count} usernames={usernames} />
       </Card>
     </AdminShell>
+  )
+}
+
+function RoleUnavailableActions() {
+  return (
+    <>
+      <Button type="button" variant="outline" disabled title="標準ロールは編集できません">
+        <IconPencil size={16} aria-hidden="true" />
+        編集
+      </Button>
+      <Button type="button" variant="outline" disabled title="標準ロールは削除できません">
+        <IconTrash size={16} aria-hidden="true" />
+        削除
+      </Button>
+    </>
   )
 }
 

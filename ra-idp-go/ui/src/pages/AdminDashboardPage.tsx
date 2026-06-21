@@ -174,18 +174,23 @@ function MetricCard({
   hint?: string
 }) {
   const tones = {
-    blue: 'bg-blue-50 text-blue-700',
-    green: 'bg-emerald-50 text-emerald-700',
-    violet: 'bg-violet-50 text-violet-700',
-    amber: 'bg-amber-50 text-amber-700',
+    blue: 'bg-blue-50 text-blue-700 ring-blue-100',
+    green: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
+    violet: 'bg-indigo-50 text-indigo-700 ring-indigo-100',
+    amber: 'bg-amber-50 text-amber-700 ring-amber-100',
   }
   return (
-    <Card className="flex items-center gap-4 p-4">
-      <span className={cn('flex size-10 items-center justify-center rounded-xl', tones[tone])}>
+    <Card className="group flex items-center gap-4 p-4 transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_22px_58px_-34px_rgb(15_23_42/48%)]">
+      <span
+        className={cn(
+          'flex size-10 items-center justify-center rounded-lg ring-1',
+          tones[tone],
+        )}
+      >
         <Icon size={20} stroke={1.8} aria-hidden="true" />
       </span>
       <div className="min-w-0">
-        <p className="text-2xl font-semibold tracking-tight text-slate-950">{value}</p>
+        <p className="text-2xl font-semibold tracking-normal text-slate-950">{value}</p>
         <p className="truncate text-xs font-medium text-slate-500">{label}</p>
         {hint ? <p className="mt-1 truncate text-[0.68rem] text-slate-400">{hint}</p> : null}
       </div>
@@ -208,9 +213,9 @@ function QuickLink({
     <li>
       <a
         href={href}
-        className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 transition-colors hover:border-blue-200 hover:bg-blue-50/40"
+        className="flex items-start gap-3 rounded-lg border border-slate-200/80 bg-white/70 p-3 transition-[background-color,border-color,box-shadow] hover:border-slate-300 hover:bg-white hover:shadow-xs"
       >
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-700">
           <Icon size={18} stroke={1.8} aria-hidden="true" />
         </span>
         <span className="min-w-0 flex-1">

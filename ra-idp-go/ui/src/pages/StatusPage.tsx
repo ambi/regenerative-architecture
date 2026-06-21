@@ -1,11 +1,11 @@
 import {
-  IconArrowRight,
   IconCheck,
   IconInfoCircle,
   IconLogin,
   IconLogout,
   IconX,
 } from '@tabler/icons-react'
+import { tenantURL } from '../api'
 import { AuthShell } from '../components/AuthShell'
 import { Button } from '../components/ui/button'
 import { cn } from '../lib/utils'
@@ -73,12 +73,16 @@ export function StatusPage({ status }: StatusPageData) {
           <p>{state.note}</p>
         </div>
 
-        <Button asChild variant="outline" className="w-full">
-          <a href="/.well-known/openid-configuration">
-            プロバイダー情報を確認
-            <IconArrowRight size={17} aria-hidden="true" />
-          </a>
-        </Button>
+        {status === 'signed-out' ? (
+          <div className="grid w-full gap-2">
+            <Button asChild className="w-full">
+              <a href={tenantURL('/account')}>マイページにログイン</a>
+            </Button>
+            <Button asChild variant="outline" className="w-full">
+              <a href={tenantURL('/admin')}>管理コンソールにログイン</a>
+            </Button>
+          </div>
+        ) : null}
       </div>
     </AuthShell>
   )

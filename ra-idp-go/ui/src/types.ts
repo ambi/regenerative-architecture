@@ -387,6 +387,7 @@ export type AccountProfile = {
   mfa_enrolled: boolean
   status: string
   attributes: Record<string, AttributeValue>
+  readable_attributes: UserAttributeDef[]
   editable_attributes: UserAttributeDef[]
 }
 

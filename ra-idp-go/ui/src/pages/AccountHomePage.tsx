@@ -1,14 +1,11 @@
 import {
   IconAlertTriangle,
-  IconArrowRight,
   IconClockHour4,
-  IconKey,
   IconShieldCheck,
   IconShieldOff,
   IconUser,
 } from '@tabler/icons-react'
 import type { ReactNode } from 'react'
-import { tenantURL } from '../api'
 import { AccountShell } from '../components/AccountShell'
 import { Card } from '../components/ui/card'
 import { type AccountHomePage as PageProps, requiredActionLabel } from '../types'
@@ -38,7 +35,7 @@ export function AccountHomePage({ summary, isAdmin }: PageProps) {
       username={summary.preferred_username}
       isAdmin={isAdmin}
       title={`こんにちは、${displayName} さん`}
-      description="アカウントの状態を確認し、個人情報やパスワードを管理できます。"
+      description="サインイン状態とセキュリティ状態を確認できます。"
     >
       {summary.required_actions.length > 0 ? (
         <Card className="flex items-start gap-3 border-amber-200 bg-amber-50/70 p-4">
@@ -59,7 +56,7 @@ export function AccountHomePage({ summary, isAdmin }: PageProps) {
         </Card>
       ) : null}
 
-      <section className="grid gap-4 sm:grid-cols-2" aria-label="アカウント概要">
+      <section className="grid gap-4 sm:grid-cols-2" aria-label="アカウント状態">
         <SummaryCard
           icon={summary.mfa_enrolled ? <IconShieldCheck size={20} /> : <IconShieldOff size={20} />}
           tone={summary.mfa_enrolled ? 'ok' : 'warn'}
@@ -80,23 +77,10 @@ export function AccountHomePage({ summary, isAdmin }: PageProps) {
           value={formatDateTime(summary.last_login_at)}
         />
         <SummaryCard
-          icon={<IconKey size={20} />}
+          icon={<IconUser size={20} />}
           tone="neutral"
-          label="パスワード最終変更"
-          value={formatDateTime(summary.password_changed_at)}
-        />
-      </section>
-
-      <section className="grid gap-3 sm:grid-cols-2" aria-label="操作">
-        <ActionLink
-          href={tenantURL('/account/profile')}
-          title="個人情報を編集"
-          description="表示名やプロフィール属性を更新します。"
-        />
-        <ActionLink
-          href={tenantURL('/account/password')}
-          title="パスワードを変更"
-          description="サインインに使うパスワードを変更します。"
+          label="ユーザー名"
+          value={summary.preferred_username}
         />
       </section>
     </AccountShell>
@@ -133,32 +117,5 @@ function SummaryCard({
         {hint ? <p className="mt-0.5 text-xs text-slate-500">{hint}</p> : null}
       </div>
     </Card>
-  )
-}
-
-function ActionLink({
-  href,
-  title,
-  description,
-}: {
-  href: string
-  title: string
-  description: string
-}) {
-  return (
-    <a
-      href={href}
-      className="group flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 transition-colors hover:border-blue-300 hover:bg-blue-50/40"
-    >
-      <div>
-        <p className="text-sm font-semibold text-slate-900">{title}</p>
-        <p className="mt-0.5 text-xs text-slate-500">{description}</p>
-      </div>
-      <IconArrowRight
-        size={18}
-        className="shrink-0 text-slate-400 transition-colors group-hover:text-blue-600"
-        aria-hidden="true"
-      />
-    </a>
   )
 }

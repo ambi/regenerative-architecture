@@ -6,7 +6,6 @@ import (
 	"os"
 
 	"ra-idp-go/internal/adapters/eventsink"
-	"ra-idp-go/internal/adapters/persistence/memory"
 	"ra-idp-go/internal/adapters/persistence/postgres"
 	redisstore "ra-idp-go/internal/adapters/persistence/redis"
 	oauthports "ra-idp-go/internal/oauth2/ports"
@@ -71,8 +70,8 @@ func assemblePostgres(ctx context.Context) (*Dependencies, error) {
 		SessionStore:            &redisstore.SessionStore{Client: redisClient},
 		KeyStore:                keyStore,
 		EventSink:               sink,
-		AuditEventRepo:          memory.NewAuditEventStore(0),
-		AuthEventBucketStore:    memory.NewAuthEventBucketStore(),
+		AuditEventRepo:          &postgres.AuditEventRepository{Pool: pool},
+		AuthEventBucketStore:    &postgres.AuthEventBucketStore{Pool: pool},
 		Close: func() {
 			_ = redisClient.Close()
 			pool.Close()

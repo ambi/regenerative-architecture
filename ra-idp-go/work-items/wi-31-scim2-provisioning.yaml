@@ -34,6 +34,34 @@ scope:
   documentation:
     - README に Okta / Google / Entra ID からの SCIM 設定例を書く。
 
+initial_context:
+  features: [Authentication, Tenancy]
+  scl:
+    components: [Authentication]
+    related_components: [Tenancy]
+    existing_roots: [User, Group, UserLifecycle, GroupLifecycle, AdminUserRead, AdminGroupsRead]
+  decisions:
+    - decisions/ADR-031-admin-user-api-and-rbac.md
+    - decisions/ADR-032-tenant-as-first-class-aggregate.md
+    - decisions/ADR-036-user-deletion-and-anonymization.md
+    - decisions/ADR-038-group-aggregate-and-effective-roles.md
+  source:
+    - internal/authentication/
+    - internal/adapters/http/admin_user_handler.go
+    - internal/adapters/http/admin_group_handler.go
+    - internal/adapters/persistence/memory/groups.go
+    - internal/adapters/persistence/postgres/groups.go
+    - ui/src/features/admin-users/
+    - ui/src/features/admin-groups/
+  tests:
+    - internal/authentication/usecases/admin_users_test.go
+    - internal/authentication/usecases/admin_groups_test.go
+    - internal/adapters/http/admin_user_handler_test.go
+    - internal/adapters/http/admin_group_handler_test.go
+  stop_before_reading:
+    - internal/oauth2/
+    - ui/src/features/admin-clients/
+
 out_of_scope:
   - ra-idp-go が SCIM client として外部アプリへ push provisioning すること。
   - password sync。

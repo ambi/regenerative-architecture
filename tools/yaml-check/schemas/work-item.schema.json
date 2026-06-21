@@ -60,6 +60,18 @@
       "description": "範囲外。",
       "type": "array"
     },
+    "initial_context": {
+      "description": "AI が作業開始時に読むべき最小文脈。SCL 要素、ADR、実装、テスト、読まない範囲を記録する。",
+      "type": "object",
+      "properties": {
+        "features": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "scl": { "type": "object" },
+        "decisions": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "source": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "tests": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "stop_before_reading": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      }
+    },
     "affected_guarantees": {
       "description": "影響する保証義務 (SCL assurance の文脈)。",
       "type": "array"

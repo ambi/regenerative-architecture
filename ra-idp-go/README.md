@@ -340,6 +340,7 @@ ra-idp-go/
 ├── spec/                                    Layer 1: 仕様核 (SCL)
 ├── decisions/                               Layer 2: コンセプション / ADR
 ├── ui/                                      React SPA + Caddy reference configuration
+│   └── src/features/                       UI feature 境界
 ├── cmd/ra-idp-go/main.go               起動
 ├── internal/spec/                      Layer 3: SCL バインディング + 状態機械
 ├── internal/oauth2/                    Layer 3: domain / ports / usecases

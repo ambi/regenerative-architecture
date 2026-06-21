@@ -17,74 +17,116 @@ function namedPage(loader: () => Promise<Record<string, unknown>>, exportName: s
 }
 
 const AccountActivityPage = namedPage(
-  () => import('./pages/AccountActivityPage'),
+  () => import('./features/account/AccountActivityPage'),
   'AccountActivityPage',
 )
 const AccountApplicationsPage = namedPage(
-  () => import('./pages/AccountApplicationsPage'),
+  () => import('./features/account/AccountApplicationsPage'),
   'AccountApplicationsPage',
 )
-const AccountDataPage = namedPage(() => import('./pages/AccountDataPage'), 'AccountDataPage')
-const AccountEmailsPage = namedPage(() => import('./pages/AccountEmailsPage'), 'AccountEmailsPage')
-const AccountHomePage = namedPage(() => import('./pages/AccountHomePage'), 'AccountHomePage')
+const AccountDataPage = namedPage(
+  () => import('./features/account/AccountDataPage'),
+  'AccountDataPage',
+)
+const AccountEmailsPage = namedPage(
+  () => import('./features/account/AccountEmailsPage'),
+  'AccountEmailsPage',
+)
+const AccountHomePage = namedPage(
+  () => import('./features/account/AccountHomePage'),
+  'AccountHomePage',
+)
 const AccountProfilePage = namedPage(
-  () => import('./pages/AccountProfilePage'),
+  () => import('./features/account/AccountProfilePage'),
   'AccountProfilePage',
 )
 const AccountSecurityPage = namedPage(
-  () => import('./pages/AccountSecurityPage'),
+  () => import('./features/account/AccountSecurityPage'),
   'AccountSecurityPage',
 )
 const AdminAuditEventsPage = namedPage(
-  () => import('./pages/AdminAuditEventsPage'),
+  () => import('./features/admin-audit-events/AdminAuditEventsPage'),
   'AdminAuditEventsPage',
 )
 const AdminClientDetailPage = namedPage(
-  () => import('./pages/AdminClientsPage'),
+  () => import('./features/admin-clients/AdminClientsPage'),
   'AdminClientDetailPage',
 )
-const AdminClientsPage = namedPage(() => import('./pages/AdminClientsPage'), 'AdminClientsPage')
-const AdminConsentsPage = namedPage(() => import('./pages/AdminConsentsPage'), 'AdminConsentsPage')
+const AdminClientsPage = namedPage(
+  () => import('./features/admin-clients/AdminClientsPage'),
+  'AdminClientsPage',
+)
+const AdminConsentsPage = namedPage(
+  () => import('./features/admin-consents/AdminConsentsPage'),
+  'AdminConsentsPage',
+)
 const AdminDashboardPage = namedPage(
-  () => import('./pages/AdminDashboardPage'),
+  () => import('./features/admin-dashboard/AdminDashboardPage'),
   'AdminDashboardPage',
 )
 const AdminGroupDetailPage = namedPage(
-  () => import('./pages/AdminGroupsPage'),
+  () => import('./features/admin-groups/AdminGroupsPage'),
   'AdminGroupDetailPage',
 )
-const AdminGroupsPage = namedPage(() => import('./pages/AdminGroupsPage'), 'AdminGroupsPage')
-const AdminKeysPage = namedPage(() => import('./pages/AdminKeysPage'), 'AdminKeysPage')
-const AdminRoleDetailPage = namedPage(() => import('./pages/AdminRolesPage'), 'AdminRoleDetailPage')
-const AdminRolesPage = namedPage(() => import('./pages/AdminRolesPage'), 'AdminRolesPage')
-const AdminSettingsPage = namedPage(() => import('./pages/AdminSettingsPage'), 'AdminSettingsPage')
+const AdminGroupsPage = namedPage(
+  () => import('./features/admin-groups/AdminGroupsPage'),
+  'AdminGroupsPage',
+)
+const AdminKeysPage = namedPage(
+  () => import('./features/admin-keys/AdminKeysPage'),
+  'AdminKeysPage',
+)
+const AdminRoleDetailPage = namedPage(
+  () => import('./features/admin-roles/AdminRolesPage'),
+  'AdminRoleDetailPage',
+)
+const AdminRolesPage = namedPage(
+  () => import('./features/admin-roles/AdminRolesPage'),
+  'AdminRolesPage',
+)
+const AdminSettingsPage = namedPage(
+  () => import('./features/admin-settings/AdminSettingsPage'),
+  'AdminSettingsPage',
+)
 const AdminTenantAttributesPage = namedPage(
-  () => import('./pages/AdminTenantAttributesPage'),
+  () => import('./features/admin-tenants/AdminTenantAttributesPage'),
   'AdminTenantAttributesPage',
 )
-const AdminTenantsPage = namedPage(() => import('./pages/AdminTenantsPage'), 'AdminTenantsPage')
-const AdminUserDetailPage = namedPage(() => import('./pages/AdminUsersPage'), 'AdminUserDetailPage')
-const AdminUsersPage = namedPage(() => import('./pages/AdminUsersPage'), 'AdminUsersPage')
-const CallbackPage = namedPage(() => import('./pages/CallbackPage'), 'CallbackPage')
+const AdminTenantsPage = namedPage(
+  () => import('./features/admin-tenants/AdminTenantsPage'),
+  'AdminTenantsPage',
+)
+const AdminUserDetailPage = namedPage(
+  () => import('./features/admin-users/AdminUsersPage'),
+  'AdminUserDetailPage',
+)
+const AdminUsersPage = namedPage(
+  () => import('./features/admin-users/AdminUsersPage'),
+  'AdminUsersPage',
+)
+const CallbackPage = namedPage(() => import('./features/auth-flow/CallbackPage'), 'CallbackPage')
 const ChangePasswordPage = namedPage(
-  () => import('./pages/ChangePasswordPage'),
+  () => import('./features/account/ChangePasswordPage'),
   'ChangePasswordPage',
 )
-const ConsentPage = namedPage(() => import('./pages/ConsentPage'), 'ConsentPage')
-const DevicePage = namedPage(() => import('./pages/DevicePage'), 'DevicePage')
-const EmailVerifyPage = namedPage(() => import('./pages/EmailVerifyPage'), 'EmailVerifyPage')
+const ConsentPage = namedPage(() => import('./features/auth-flow/ConsentPage'), 'ConsentPage')
+const DevicePage = namedPage(() => import('./features/auth-flow/DevicePage'), 'DevicePage')
+const EmailVerifyPage = namedPage(
+  () => import('./features/auth-flow/EmailVerifyPage'),
+  'EmailVerifyPage',
+)
 const ForgotPasswordPage = namedPage(
-  () => import('./pages/ForgotPasswordPage'),
+  () => import('./features/auth-flow/ForgotPasswordPage'),
   'ForgotPasswordPage',
 )
-const HomePage = namedPage(() => import('./pages/HomePage'), 'HomePage')
-const LoginPage = namedPage(() => import('./pages/LoginPage'), 'LoginPage')
+const HomePage = namedPage(() => import('./features/auth-flow/HomePage'), 'HomePage')
+const LoginPage = namedPage(() => import('./features/auth-flow/LoginPage'), 'LoginPage')
 const ResetPasswordPage = namedPage(
-  () => import('./pages/ResetPasswordPage'),
+  () => import('./features/auth-flow/ResetPasswordPage'),
   'ResetPasswordPage',
 )
-const StatusPage = namedPage(() => import('./pages/StatusPage'), 'StatusPage')
-const TotpPage = namedPage(() => import('./pages/TotpPage'), 'TotpPage')
+const StatusPage = namedPage(() => import('./features/auth-flow/StatusPage'), 'StatusPage')
+const TotpPage = namedPage(() => import('./features/auth-flow/TotpPage'), 'TotpPage')
 
 function routePage(page: ReactNode) {
   return <Suspense fallback={<div className="min-h-screen bg-slate-50" />}>{page}</Suspense>

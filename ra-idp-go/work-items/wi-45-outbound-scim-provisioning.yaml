@@ -73,6 +73,35 @@ scope:
       編集 / 無効化、attribute mapping、割当 group、last sync、エラー履歴、
       個別 job の retry と connector 単位の reconcile。
 
+initial_context:
+  features: [Authentication, Tenancy]
+  scl:
+    components: [Authentication]
+    related_components: [Tenancy]
+    existing_roots: [User, Group, UserLifecycle, GroupLifecycle, UserUpdated, GroupMemberAdded]
+  decisions:
+    - decisions/ADR-031-admin-user-api-and-rbac.md
+    - decisions/ADR-032-tenant-as-first-class-aggregate.md
+    - decisions/ADR-036-user-deletion-and-anonymization.md
+    - decisions/ADR-038-group-aggregate-and-effective-roles.md
+  source:
+    - internal/authentication/
+    - internal/oauth2/ports/event_sink.go
+    - internal/adapters/eventsink/
+    - internal/adapters/http/admin_user_handler.go
+    - internal/adapters/http/admin_group_handler.go
+    - ui/src/features/admin-settings/
+    - ui/src/features/admin-users/
+    - ui/src/features/admin-groups/
+  tests:
+    - internal/authentication/usecases/admin_users_test.go
+    - internal/authentication/usecases/admin_groups_test.go
+    - internal/adapters/http/admin_user_handler_test.go
+    - internal/adapters/http/admin_group_handler_test.go
+  stop_before_reading:
+    - internal/adapters/http/authorize_handler.go
+    - internal/adapters/http/token_handler.go
+
 out_of_scope:
   - inbound SCIM server 機能 (wi-31 が扱う)。
   - 各 SaaS 固有の非標準 provisioning API (SCIM を話さない app 向け connector)。

@@ -342,17 +342,26 @@ ra-idp-go/
 ├── ui/                                      React SPA + Caddy reference configuration
 │   └── src/features/                       UI feature 境界
 ├── cmd/ra-idp-go/main.go               起動
-├── internal/spec/                      Layer 3: SCL バインディング + 状態機械
-├── internal/oauth2/                    Layer 3: domain / ports / usecases
-├── internal/authentication/            Layer 3: パスワードポリシー / セッション
-├── internal/adapters/crypto/           Layer 4: Argon2id, PS256, DPoP, private_key_jwt
-├── internal/adapters/persistence/      Layer 4: memory / PostgreSQL / Redis
-├── internal/adapters/http/             Layer 4: Echo v5
-├── internal/adapters/observability/    Layer 4: OpenTelemetry
-├── internal/adapters/policy/           Layer 4: local / remote AuthZEN
-├── internal/adapters/eventsink/        Layer 4: console / Kafka relay
+├── internal/spec/                      Layer 1 バインディング: SCL 構造体 + 状態機械
+├── internal/tenancy/                   Layer 3: テナント (domain / ports / usecases)
+├── internal/oauth2/                    Layer 3: OAuth2 (domain / ports / usecases)
+├── internal/authentication/            Layer 3: 認証 (domain / ports / usecases)
+├── internal/platform/                  Layer 4: コンテキスト横断アダプタ
+│   ├── crypto/                         Argon2id, PS256, DPoP, private_key_jwt
+│   ├── persistence/                    memory / PostgreSQL / Redis（リソース別ファイル）
+│   ├── http/                           Echo v5（per-context 分割は wi-48）
+│   ├── observability/                  OpenTelemetry
+│   ├── policy/                         local / remote AuthZEN
+│   ├── notification/                   メール送信
+│   └── eventsink/                      console / Kafka relay
+├── internal/bootstrap/                 Layer 5: 配線 (DI / seed / server)
 └── infra/                              migrations / Docker Compose / OTel Collector
 ```
+
+> 構造軸 (ADR-047): 水平の5層に加え、垂直の境界づけられたコンテキスト
+> (`tenancy` / `authentication` / `oauth2`) で分割する (RA §3.6)。Layer 3 は各
+> コンテキストが所有し、コンテキスト横断の Layer 4 アダプタは `internal/platform/`
+> に集約する。
 
 ## 実装ロードマップ
 

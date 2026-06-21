@@ -139,6 +139,8 @@ func Run() error {
 		},
 	})
 
+	startRetentionSweep(ctx, deps, envDuration("RETENTION_SWEEP_INTERVAL", time.Hour))
+
 	log.Printf("ra-idp-go listening on %s (issuer=%s)", addr, issuer)
 	startConfig := echo.StartConfig{Address: addr}
 	if err := startConfig.Start(ctx, e); err != nil && !errors.Is(err, http.ErrServerClosed) {

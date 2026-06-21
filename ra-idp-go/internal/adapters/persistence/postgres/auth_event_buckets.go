@@ -61,6 +61,17 @@ RETURNING count, first_seen, last_seen, (xmax = 0)`,
 	}, nil
 }
 
+// DeleteOlderThan は window_start が before より前の bucket を削除し、削除件数を返す
+// (ADR-045 の保持期間 sweep / 既定 90 日)。idempotent。
+func (s *AuthEventBucketStore) DeleteOlderThan(ctx context.Context, before time.Time) (int64, error) {
+	tag, err := s.Pool.Exec(ctx,
+		"DELETE FROM authentication_event_buckets WHERE window_start < $1", before.UTC())
+	if err != nil {
+		return 0, err
+	}
+	return tag.RowsAffected(), nil
+}
+
 func (s *AuthEventBucketStore) List(
 	ctx context.Context,
 	tenantID string,

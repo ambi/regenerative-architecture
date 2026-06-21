@@ -96,6 +96,21 @@ func (s *AuthEventBucketStore) List(
 	return out, nil
 }
 
+// DeleteOlderThan は windowStart が before より前の bucket を物理削除し、削除件数を返す
+// (ADR-045 の保持期間 sweep / 既定 90 日)。idempotent。
+func (s *AuthEventBucketStore) DeleteOlderThan(_ context.Context, before time.Time) (int64, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var deleted int64
+	for key, bucket := range s.buckets {
+		if bucket.WindowStart.Before(before) {
+			delete(s.buckets, key)
+			deleted++
+		}
+	}
+	return deleted, nil
+}
+
 // evictOldestLocked は bucket 数が上限を超えたら最も古い窓から 1 件落とす。呼び出し前に lock 済み。
 func (s *AuthEventBucketStore) evictOldestLocked() {
 	if len(s.buckets) <= authEventBucketMaxBuckets {

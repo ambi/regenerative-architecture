@@ -44,3 +44,13 @@ type AuditEventRepository interface {
 	// FindByID は ID で 1 件取得。テナント境界フィルタは呼び出し側の責務。
 	FindByID(ctx context.Context, id string) (*AuditEventRecord, error)
 }
+
+// RetentionCutoff は ADR-045 の保持期間 sweep が「どの type をいつより前に消すか」を
+// 表す。Default はそれ以外 (成功 / 一般監査) の cutoff。ByType は type 別の上書き
+// (失敗詳細 30 日など)。Keep に挙げた type は cutoff 対象外 (impersonation など、
+// global cap 未設定時は無期限保持) とする。OccurredAt < cutoff の行を削除する。
+type RetentionCutoff struct {
+	Default time.Time
+	ByType  map[string]time.Time
+	Keep    []string
+}

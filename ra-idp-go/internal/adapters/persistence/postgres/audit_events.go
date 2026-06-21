@@ -116,3 +116,34 @@ func (r *AuditEventRepository) List(ctx context.Context, q ports.AuditEventQuery
 func (r *AuditEventRepository) FindByID(ctx context.Context, id string) (*ports.AuditEventRecord, error) {
 	return scanAuditEvent(r.Pool.QueryRow(ctx, auditEventSelect+" WHERE id=$1", id))
 }
+
+// DeleteOlderThan は ADR-045 の保持期間 sweep。type 別 cutoff を個別 DELETE で消し、
+// それ以外は Default cutoff で消す。Keep / ByType に挙げた type は Default 削除から除外する。
+// (tenant_id, occurred_at) index が当たる。idempotent。
+func (r *AuditEventRepository) DeleteOlderThan(ctx context.Context, cutoff ports.RetentionCutoff) (int64, error) {
+	var deleted int64
+	excluded := make([]string, 0, len(cutoff.ByType)+len(cutoff.Keep))
+	for t := range cutoff.ByType {
+		excluded = append(excluded, t)
+	}
+	excluded = append(excluded, cutoff.Keep...)
+	for t, before := range cutoff.ByType {
+		if before.IsZero() {
+			continue
+		}
+		tag, err := r.Pool.Exec(ctx, "DELETE FROM audit_events WHERE type=$1 AND occurred_at < $2", t, before)
+		if err != nil {
+			return deleted, err
+		}
+		deleted += tag.RowsAffected()
+	}
+	if !cutoff.Default.IsZero() {
+		tag, err := r.Pool.Exec(ctx,
+			"DELETE FROM audit_events WHERE occurred_at < $1 AND type <> ALL($2)", cutoff.Default, excluded)
+		if err != nil {
+			return deleted, err
+		}
+		deleted += tag.RowsAffected()
+	}
+	return deleted, nil
+}

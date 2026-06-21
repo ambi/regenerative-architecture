@@ -87,6 +87,33 @@ func (s *AuditEventStore) FindByID(_ context.Context, id string) (*ports.AuditEv
 	return s.byID[id], nil
 }
 
+// DeleteOlderThan は ADR-045 の保持期間 sweep。type ごとに cutoff より古い行を物理削除し、
+// 削除件数を返す。Keep に挙げた type は削除しない。idempotent で、複数回呼んでも収束する。
+func (s *AuditEventStore) DeleteOlderThan(_ context.Context, cutoff ports.RetentionCutoff) (int64, error) {
+	keep := make(map[string]bool, len(cutoff.Keep))
+	for _, t := range cutoff.Keep {
+		keep[t] = true
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var deleted int64
+	kept := s.events[:0]
+	for _, rec := range s.events {
+		before, ok := cutoff.ByType[rec.Type]
+		if !ok {
+			before = cutoff.Default
+		}
+		if !keep[rec.Type] && !before.IsZero() && rec.OccurredAt.Before(before) {
+			delete(s.byID, rec.ID)
+			deleted++
+			continue
+		}
+		kept = append(kept, rec)
+	}
+	s.events = kept
+	return deleted, nil
+}
+
 func auditEventMatches(rec *ports.AuditEventRecord, q ports.AuditEventQuery) bool {
 	if !q.AllTenants && q.TenantID != "" && rec.TenantID != q.TenantID {
 		return false

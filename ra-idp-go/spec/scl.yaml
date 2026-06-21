@@ -22,10 +22,10 @@ components:
 
   Authentication:
     description: エンドユーザ (Subject) の identity、credentials、MFA、ログインセッション、パスワードリセット、および管理 API からの User ライフサイクル操作を所有する。
-    owns_models: [User, MfaFactor, MfaFactorType, LoginSession, AuthenticationContext, PasswordResetTokenRecord, BrowserLoginRequest, BrowserTotpRequest, BrowserChangePasswordRequest, BrowserForgotPasswordRequest, BrowserResetPasswordRequest, AdminUserCreateRequest, AdminUserUpdateRequest, AdminRequiredActionRequest, AdminUserListResponse, AdminUserResponse, Group, GroupMember, GroupCreateRequest, GroupUpdateRequest, GroupSummaryResponse, GroupListResponse, GroupMemberResponse, GroupAddMemberRequest, UserGroupsResponse, UserLifecycle, AttributeValue, UserStatus, RequiredAction, AccountProfileResponse, AccountProfileUpdateRequest, AccountSummary, AccountEmailChangeRequest, AccountEmailChangeConfirm, AccountDataExport, AccountMfaFactor, AccountSecurityResponse, TOTPEnrollmentStart, TOTPEnrollmentConfirmRequest, MfaFactorRemoveRequest, UserSignInActivity, UserSignInActivityResponse, SessionEndReason, AccountSession, AccountSessionListResponse]
+    owns_models: [User, MfaFactor, MfaFactorType, LoginSession, AuthenticationContext, PasswordResetTokenRecord, BrowserLoginRequest, BrowserTotpRequest, BrowserChangePasswordRequest, BrowserForgotPasswordRequest, BrowserResetPasswordRequest, AdminUserCreateRequest, AdminUserUpdateRequest, AdminRequiredActionRequest, AdminUserListResponse, AdminUserResponse, Group, GroupMember, GroupCreateRequest, GroupUpdateRequest, GroupSummaryResponse, GroupListResponse, GroupMemberResponse, GroupAddMemberRequest, UserGroupsResponse, UserLifecycle, AttributeValue, UserStatus, RequiredAction, AccountProfileResponse, AccountProfileUpdateRequest, AccountSummary, AccountEmailChangeRequest, AccountEmailChangeConfirm, AccountDataExport, AccountMfaFactor, AccountSecurityResponse, TOTPEnrollmentStart, TOTPEnrollmentConfirmRequest, MfaFactorRemoveRequest, UserSignInActivity, UserSignInActivityResponse, SessionEndReason, AccountSession, AccountSessionListResponse, AuthenticationEventBucket, AuthenticationEventBucketListResponse]
     owns_states: [UserLifecycle, GroupLifecycle]
-    owns_events: [UserAuthenticated, AuthenticationFailed, PasswordChanged, LoginThrottled, PasswordResetRequested, EmailSent, EmailChangeRequested, EmailChanged, UserCreated, UserUpdated, UserDisabled, UserEnabled, UserDeleted, UserRequiredActionSet, UserRequiredActionCleared, GroupCreated, GroupUpdated, GroupDeleted, GroupMemberAdded, GroupMemberRemoved, MfaFactorEnrolled, MfaFactorRemoved, SessionEnded]
-    owns_interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, ChangePassword, GetAccountSummary, GetUserProfile, UpdateUserProfile, RequestEmailChange, ConfirmEmailChange, ExportAccountData, GetAccountSecurity, StartTotpEnrollment, ConfirmTotpEnrollment, RemoveTotpFactor, ListMySignInActivity, ListUserSignInActivity, ListMySessions, RevokeMySession, RevokeMyOtherSessions, RequestPasswordReset, ResetPasswordWithToken, ListAdminUsers, GetAdminUser, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser, DeleteAdminUser, SetUserRequiredAction, ClearUserRequiredAction, ListGroups, GetGroup, CreateGroup, UpdateGroup, DeleteGroup, AddGroupMember, RemoveGroupMember, ListUserGroups]
+    owns_events: [UserAuthenticated, AuthenticationFailed, PasswordChanged, LoginThrottled, PasswordResetRequested, EmailSent, EmailChangeRequested, EmailChanged, UserCreated, UserUpdated, UserDisabled, UserEnabled, UserDeleted, UserRequiredActionSet, UserRequiredActionCleared, GroupCreated, GroupUpdated, GroupDeleted, GroupMemberAdded, GroupMemberRemoved, MfaFactorEnrolled, MfaFactorRemoved, SessionEnded, AuthenticationEventAggregated]
+    owns_interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, ChangePassword, GetAccountSummary, GetUserProfile, UpdateUserProfile, RequestEmailChange, ConfirmEmailChange, ExportAccountData, GetAccountSecurity, StartTotpEnrollment, ConfirmTotpEnrollment, RemoveTotpFactor, ListMySignInActivity, ListUserSignInActivity, ListAuthenticationEventBuckets, ListMySessions, RevokeMySession, RevokeMyOtherSessions, RequestPasswordReset, ResetPasswordWithToken, ListAdminUsers, GetAdminUser, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser, DeleteAdminUser, SetUserRequiredAction, ClearUserRequiredAction, ListGroups, GetGroup, CreateGroup, UpdateGroup, DeleteGroup, AddGroupMember, RemoveGroupMember, ListUserGroups]
     owns_invariants: [PasswordHistoryNoReuse, EffectiveRolesComposition, GroupMembershipAuditEmission]
     owns_permissions: [AdminUserRead, AdminUserCreate, AdminUserUpdate, AdminUserDelete, AdminGroupsRead, AdminGroupsWrite]
     owns_objectives: [PiiPurgeAfterDeletion]
@@ -1985,6 +1985,30 @@ models:
     fields:
       sessions: { type: "AccountSession[]" }
 
+  AuthenticationEventBucket:
+    kind: value_object
+    description: |
+      認証イベント集約 (bucket) 1 件の admin 表示用射影 (wi-20 スライス 3)。攻撃時に個別の
+      ログイン失敗を 5 分窓へ集約した結果で、window_start は窓の開始時刻、count はその窓の
+      累計件数、first_seen / last_seen は窓内の初出・最終時刻。key_hash は SHA-256 hex で
+      平文を含まない。tenant 境界内に閉じる。
+    annotations: { component: Authentication }
+    fields:
+      kind:         { type: String, description: "failed_login | throttled | mfa_failed" }
+      key_hash:     { type: String }
+      window_start: { type: Timestamp }
+      count:        { type: Integer }
+      first_seen:   { type: Timestamp }
+      last_seen:    { type: Timestamp }
+
+  AuthenticationEventBucketListResponse:
+    kind: value_object
+    description: |
+      ListAuthenticationEventBuckets の返り値。window_start の降順 (新しい窓が先) で返す。
+    annotations: { component: Authentication }
+    fields:
+      buckets: { type: "AuthenticationEventBucket[]" }
+
   Group:
     kind: entity
     description: ADR-038 で導入した tenant-scoped ロール束集約。所属 User に roles を一斉付与する。id は不変の生成識別子、name はテナント内で一意な編集可能ラベル。
@@ -2574,6 +2598,27 @@ models:
       kind:              { type: String, description: "account または ip" }
       keyHash:           { type: String, description: "username (lowercased) または IP の SHA-256 hex" }
       retryAfterSeconds: { type: Integer }
+
+  AuthenticationEventAggregated:
+    kind: event
+    description: |
+      クレデンシャル試行洪水時に、個別の AuthenticationFailed を 1 行ずつ書かず
+      (tenantId, kind, keyHash, 5 分窓) の bucket に集約したことを表す (wi-20 /
+      ADR-029 の throttle 判定と keyHash を共有する)。1 つの窓につき最初の 1 件だけ
+      emit し、以後の増分は bucket store の count に積む。したがって本 payload の
+      count は emit 時点の値で、実体の件数は ListAuthenticationEventBuckets で観測する。
+      keyHash は SHA-256 hex で平文を audit log に流さない (LoginThrottled と同方針)。
+    annotations: { component: Authentication }
+    payload:
+      occurredAt: { type: Timestamp }
+      tenantId:   { type: String, description: "集約が起きたテナント ID。" }
+      kind:       { type: String, description: "failed_login | throttled | mfa_failed" }
+      bucketKey:  { type: String, description: "kind:keyHash:windowStartUnix の合成キー" }
+      keyHash:    { type: String, description: "username (lowercased) または IP の SHA-256 hex" }
+      count:      { type: Integer, description: "emit 時点の窓内件数 (実体は bucket store で伸び続ける)" }
+      firstSeen:  { type: Timestamp }
+      lastSeen:   { type: Timestamp }
+      topKeys:    { type: "String[]", description: "窓内で頻出した keyHash (最大 5 件)" }
 
   PasswordResetRequested:
     kind: event
@@ -3258,6 +3303,18 @@ interfaces:
     read_only: true
     bindings:
       - { kind: http, method: GET, path: "/api/admin/users/{sub}/signin_activity" }
+
+  ListAuthenticationEventBuckets:
+    description: |
+      admin が認証イベント集約 (bucket) を一覧する (wi-20 スライス 3)。攻撃時に個別行へ
+      落とさず 5 分窓へ集約したログイン失敗などを、所属テナント境界内で window_start の
+      降順に返す。permission は AdminAuditEventsRead を再利用する。limit 既定 50 / 上限 200。
+    output:
+      buckets: { type: AuthenticationEventBucketListResponse }
+    errors: [AccessDeniedError]
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: /api/admin/authentication_event_buckets }
 
   ListMySessions:
     description: |

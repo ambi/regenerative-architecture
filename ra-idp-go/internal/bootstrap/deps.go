@@ -34,6 +34,7 @@ type Dependencies struct {
 	KeyStore                oauthports.KeyStore
 	EventSink               oauthports.EventSink
 	AuditEventRepo          oauthports.AuditEventRepository
+	AuthEventBucketStore    authports.AuthEventBucketStore
 	Close                   func()
 }
 

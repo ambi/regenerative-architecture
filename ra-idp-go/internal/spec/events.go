@@ -54,6 +54,26 @@ type LoginThrottled struct {
 func (e *LoginThrottled) EventType() string     { return "LoginThrottled" }
 func (e *LoginThrottled) OccurredAt() time.Time { return e.At }
 
+// AuthenticationEventAggregated は、攻撃 (クレデンシャル試行洪水) 時に個別の
+// AuthenticationFailed を 1 行ずつ書かず、(tenant, kind, keyHash, 5 分窓) の bucket に
+// 集約したことを表す (wi-20 スライス 3 / ADR-029 の throttle 判定と keyHash を共有する)。
+// 1 つの窓につき最初の 1 件だけ emit し、以後の増分は bucket store の count に積む。
+// よって payload の Count は「emit 時点の値」で、実体は bucket store 側で伸び続ける。
+type AuthenticationEventAggregated struct {
+	At        time.Time `json:"-"`
+	TenantID  string    `json:"tenantId"`
+	Kind      string    `json:"kind"` // failed_login | throttled | mfa_failed
+	BucketKey string    `json:"bucketKey"`
+	KeyHash   string    `json:"keyHash"`
+	Count     int       `json:"count"`
+	FirstSeen time.Time `json:"firstSeen"`
+	LastSeen  time.Time `json:"lastSeen"`
+	TopKeys   []string  `json:"topKeys"`
+}
+
+func (e *AuthenticationEventAggregated) EventType() string     { return "AuthenticationEventAggregated" }
+func (e *AuthenticationEventAggregated) OccurredAt() time.Time { return e.At }
+
 type PasswordChanged struct {
 	At       time.Time `json:"-"`
 	TenantID string    `json:"tenantId"`

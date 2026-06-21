@@ -300,10 +300,14 @@ func (d Deps) handleLoginAPI(c *echo.Context) error {
 		ok, err = d.PasswordHasher.Verify(input.Password, hashToVerify)
 	}
 	if user == nil || err != nil || !ok {
-		if err := d.recordLoginFailure(c, normalizedUsername, clientIP); err != nil {
-			return err
+		aggregated, ferr := d.recordLoginFailure(c, normalizedUsername, clientIP)
+		if ferr != nil {
+			return ferr
 		}
-		d.emitAuthenticationFailure(c, input.Username, "invalid_credentials")
+		// 閾値超過後は AuthenticationEventAggregated に集約し、個別行を出さない (爆発抑制)。
+		if !aggregated {
+			d.emitAuthenticationFailure(c, input.Username, "invalid_credentials")
+		}
 		return writeBrowserError(c, http.StatusUnauthorized, "invalid_credentials", "ユーザー名またはパスワードを確認してください。")
 	}
 	if !user.IsActive() {
@@ -915,11 +919,16 @@ func (d Deps) acquireLoginThrottle(
 	return d.LoginAttemptThrottle.TryAcquire(c.Request().Context(), kind, key, time.Now().UTC())
 }
 
-func (d Deps) recordLoginFailure(c *echo.Context, username, clientIP string) error {
+// recordLoginFailure は失敗を throttle に記録し、閾値超過 (Locked) の key については
+// LoginThrottled を emit したうえで失敗を集約 bucket に積む。集約に切り替わった場合は
+// aggregated=true を返し、呼び出し側は個別の AuthenticationFailed を抑制する
+// (これが攻撃時の行爆発を止める要点 / wi-20 スライス 3)。
+func (d Deps) recordLoginFailure(c *echo.Context, username, clientIP string) (bool, error) {
 	if d.LoginAttemptThrottle == nil {
-		return nil
+		return false, nil
 	}
 	now := time.Now().UTC()
+	aggregated := false
 	for _, attempt := range []struct {
 		kind authports.LoginThrottleKind
 		key  string
@@ -934,18 +943,60 @@ func (d Deps) recordLoginFailure(c *echo.Context, username, clientIP string) err
 			c.Request().Context(), attempt.kind, attempt.key, now,
 		)
 		if err != nil {
-			return err
+			return aggregated, err
 		}
-		if result.Locked && d.Emit != nil {
-			sum := sha256.Sum256([]byte(attempt.key))
+		if !result.Locked {
+			continue
+		}
+		keyHash := hashThrottleKey(attempt.key)
+		if d.Emit != nil {
 			d.Emit(&spec.LoginThrottled{
 				At: now, TenantID: requestTenantID(c), Kind: string(attempt.kind),
-				KeyHash:           hex.EncodeToString(sum[:]),
+				KeyHash:           keyHash,
 				RetryAfterSeconds: result.RetryAfterSeconds,
 			})
 		}
+		if d.recordFailedLoginBucket(c, keyHash, now) {
+			aggregated = true
+		}
 	}
-	return nil
+	return aggregated, nil
+}
+
+func hashThrottleKey(key string) string {
+	sum := sha256.Sum256([]byte(key))
+	return hex.EncodeToString(sum[:])
+}
+
+// recordFailedLoginBucket は閾値超過後の失敗を 5 分窓の bucket に積み、その窓で最初の
+// 記録だったときだけ AuthenticationEventAggregated を 1 件 emit する。bucket store が
+// 無い構成では集約せず false を返し、呼び出し側は従来どおり個別イベントを残す。
+func (d Deps) recordFailedLoginBucket(c *echo.Context, keyHash string, now time.Time) bool {
+	if d.AuthEventBucketStore == nil {
+		return false
+	}
+	result, err := d.AuthEventBucketStore.Record(
+		c.Request().Context(), authports.AuthEventBucketFailedLogin, requestTenantID(c), keyHash, now,
+	)
+	if err != nil {
+		return false
+	}
+	if result.FirstInWindow && d.Emit != nil {
+		bucket := result.Bucket
+		d.Emit(&spec.AuthenticationEventAggregated{
+			At: now, TenantID: bucket.TenantID, Kind: string(bucket.Kind),
+			BucketKey: failedLoginBucketKey(bucket),
+			KeyHash:   bucket.KeyHash, Count: bucket.Count,
+			FirstSeen: bucket.FirstSeen, LastSeen: bucket.LastSeen,
+			TopKeys: []string{bucket.KeyHash},
+		})
+	}
+	return true
+}
+
+func failedLoginBucketKey(bucket authports.AuthEventBucket) string {
+	return string(bucket.Kind) + ":" + bucket.KeyHash + ":" +
+		strconv.FormatInt(bucket.WindowStart.Unix(), 10)
 }
 
 func extractClientIP(request *http.Request, trustedHops int) string {

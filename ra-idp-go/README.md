@@ -267,6 +267,19 @@ end-user 向けの履歴 UI は wi-21 の activity ステージで本 API を使
 admin の全 tenant セッション一覧 UI は後続スライス)。end-user 向けのセッション UI は wi-21 の
 activity ステージ (`/account/activity`) で本 API を使って描く。
 
+失敗ログインの集約 (wi-20 スライス 3) は、クレデンシャル試行洪水時に監査の行が爆発する
+のを防ぐ。per-account / per-IP の throttle が閾値に到達 (ADR-029 の lockout) すると、以後の
+失敗は個別の `AuthenticationFailed` を出さず、`(tenantId, kind, keyHash, 5 分窓)` の bucket へ
+集約する。1 つの窓につき `AuthenticationEventAggregated` を 1 件だけ発火し、以後の増分は
+bucket の `count` に積む。bucket と throttle は同じ `keyHash` (username / IP の SHA-256) を
+共有し、平文は audit に流さない。
+
+- admin: `GET /api/admin/authentication_event_buckets?limit=`（tenant 境界内、新しい窓順。
+  permission は `AdminAuditEventsRead` を再利用。limit 既定 50 / 上限 200）
+
+集約は in-memory store で動く。Postgres テーブル (`authentication_event_buckets`)・retention・
+admin 検索ドリルダウン UI・GeoIP / UA 付加・federation イベントは後続 WI で扱う。
+
 ## 検証
 
 ```bash

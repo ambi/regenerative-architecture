@@ -72,6 +72,7 @@ func assemblePostgres(ctx context.Context) (*Dependencies, error) {
 		KeyStore:                keyStore,
 		EventSink:               sink,
 		AuditEventRepo:          memory.NewAuditEventStore(0),
+		AuthEventBucketStore:    memory.NewAuthEventBucketStore(),
 		Close: func() {
 			_ = redisClient.Close()
 			pool.Close()

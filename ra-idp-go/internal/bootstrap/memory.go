@@ -35,6 +35,7 @@ func assembleMemory() (*Dependencies, error) {
 		KeyStore:                oauthports.KeyStore(keyStore),
 		EventSink:               eventsink.NewConsoleSink(),
 		AuditEventRepo:          memory.NewAuditEventStore(0),
+		AuthEventBucketStore:    memory.NewAuthEventBucketStore(),
 		Close:                   func() {},
 	}, nil
 }

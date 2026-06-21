@@ -38,6 +38,7 @@ type Deps struct {
 	TokenIssuer                oauthports.TokenIssuer
 	TokenIntrospector          oauthports.TokenIntrospector
 	AuditEventRepo             oauthports.AuditEventRepository
+	AuthEventBucketStore       authports.AuthEventBucketStore
 	Authorizer                 oauthports.Authorizer
 	JWKResolver                *crypto.JWKResolver
 	PasswordHasher             authports.PasswordHasher
@@ -143,6 +144,7 @@ func registerTenantRoutes(g *echo.Group, d Deps) {
 	g.DELETE("/api/admin/consents/:sub/:client_id", d.handleRevokeAdminConsent)
 	g.GET("/api/admin/audit_events", d.handleListAdminAuditEvents)
 	g.GET("/api/admin/audit_events/:id", d.handleGetAdminAuditEvent)
+	g.GET("/api/admin/authentication_event_buckets", d.handleListAuthEventBuckets)
 	g.GET("/api/admin/keys", d.handleListAdminKeys)
 	g.GET("/api/admin/keys/:kid", d.handleGetAdminKey)
 	g.POST("/api/admin/keys/rotate", d.handleRotateAdminKey)

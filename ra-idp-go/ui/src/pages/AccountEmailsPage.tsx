@@ -2,6 +2,7 @@ import { IconCircleCheck, IconCircleDashed, IconMail } from '@tabler/icons-react
 import { type FormEvent, useState } from 'react'
 import { AuthenticationAPIError, requestEmailChange } from '../api'
 import { AccountShell } from '../components/AccountShell'
+import { StepUpCancelledError, useStepUpGuard } from '../components/StepUpDialog'
 import { Alert } from '../components/ui/alert'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
@@ -14,6 +15,7 @@ export function AccountEmailsPage({ csrfToken, email, emailVerified, isAdmin }: 
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [sentTo, setSentTo] = useState('')
+  const { guard, dialog } = useStepUpGuard(csrfToken)
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -22,10 +24,11 @@ export function AccountEmailsPage({ csrfToken, email, emailVerified, isAdmin }: 
     setSentTo('')
     const target = newEmail.trim()
     try {
-      await requestEmailChange(csrfToken, target)
+      await guard(() => requestEmailChange(csrfToken, target))
       setSentTo(target)
       setNewEmail('')
     } catch (cause) {
+      if (cause instanceof StepUpCancelledError) return
       setError(
         cause instanceof AuthenticationAPIError
           ? cause.message
@@ -101,6 +104,7 @@ export function AccountEmailsPage({ csrfToken, email, emailVerified, isAdmin }: 
           </div>
         </form>
       </Card>
+      {dialog}
     </AccountShell>
   )
 }

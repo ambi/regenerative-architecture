@@ -993,6 +993,47 @@ export async function revokeOtherAccountSessions(csrfToken: string): Promise<voi
   )
 }
 
+// step-up 再認証 (ADR-043 / wi-43)。高 sensitivity 操作が 403 step_up_required を返したら、
+// start で利用可能な factor を取得し、complete で password / TOTP を提示して再認証する。
+export type StepUpMethod = 'password' | 'totp'
+
+export function isStepUpRequired(cause: unknown): boolean {
+  return cause instanceof AuthenticationAPIError && cause.code === 'step_up_required'
+}
+
+export async function startStepUp(csrfToken: string): Promise<StepUpMethod[]> {
+  const response = await fetch(tenantURL('/api/account/step_up/start'), {
+    method: 'POST',
+    headers: { 'X-CSRF-Token': csrfToken },
+    credentials: 'same-origin',
+    cache: 'no-store',
+  })
+  if (response.ok) {
+    return ((await response.json()) as { methods: StepUpMethod[] }).methods
+  }
+  const body = (await response.json().catch(() => ({}))) as APIError
+  throw new AuthenticationAPIError(body.message ?? '再認証を開始できませんでした。', body.error)
+}
+
+export async function completeStepUp(
+  csrfToken: string,
+  method: StepUpMethod,
+  credential: string,
+): Promise<void> {
+  const payload =
+    method === 'password' ? { method, password: credential } : { method, code: credential }
+  const response = await fetch(tenantURL('/api/account/step_up/complete'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+    body: JSON.stringify(payload),
+    credentials: 'same-origin',
+    cache: 'no-store',
+  })
+  if (response.status === 204) return
+  const body = (await response.json().catch(() => ({}))) as APIError
+  throw new AuthenticationAPIError(body.message ?? '再認証に失敗しました。', body.error)
+}
+
 export async function startTotpEnrollment(csrfToken: string): Promise<TotpEnrollmentStart> {
   const response = await fetch(tenantURL('/api/account/mfa/totp/enroll/start'), {
     method: 'POST',

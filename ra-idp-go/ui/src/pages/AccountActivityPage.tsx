@@ -11,6 +11,7 @@ import {
   revokeOtherAccountSessions,
 } from '../api'
 import { AccountShell } from '../components/AccountShell'
+import { StepUpCancelledError, useStepUpGuard } from '../components/StepUpDialog'
 import { Alert } from '../components/ui/alert'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
@@ -112,6 +113,7 @@ export function AccountActivityPage({
   const [busyId, setBusyId] = useState<string | null>(null)
   const [busyOthers, setBusyOthers] = useState(false)
   const [error, setError] = useState('')
+  const { guard, dialog } = useStepUpGuard(csrfToken)
 
   const otherCount = sessions.filter((session) => !session.current).length
 
@@ -132,9 +134,10 @@ export function AccountActivityPage({
     setBusyOthers(true)
     setError('')
     try {
-      await revokeOtherAccountSessions(csrfToken)
+      await guard(() => revokeOtherAccountSessions(csrfToken))
       setSessions((current) => current.filter((session) => session.current))
     } catch (cause) {
+      if (cause instanceof StepUpCancelledError) return
       setError(errorMessage(cause, '他のセッションを終了できませんでした。'))
     } finally {
       setBusyOthers(false)
@@ -215,6 +218,7 @@ export function AccountActivityPage({
           IP アドレス・デバイス・場所の表示は今後のステージで追加します。
         </p>
       </div>
+      {dialog}
     </AccountShell>
   )
 }

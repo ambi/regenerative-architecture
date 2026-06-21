@@ -2,7 +2,7 @@ id: wi-43-account-portal-step-up-auth
 title: 高 sensitivity な self-service 操作に step-up 再認証を要求する
 created_at: 2026-06-21
 authors: [tn]
-status: pending
+status: completed
 
 motivation: |
   [[wi-21-end-user-account-portal]] は self-service の mutation を CSRF +
@@ -73,3 +73,53 @@ risk_notes: |
   最大のリスクは step-up を必要としない mutation から sensitive 操作へチェーンできて
   しまう抜け道。対象表 (ADR-043) と実ハンドラの一致を SCL annotation で機械照合し、
   テストで網羅する。再認証の recency 判定に使う時刻ソース (auth_time) の取り違えにも注意。
+
+completion:
+  completed_at: 2026-06-21
+  summary: |
+    高 sensitivity な self-service 操作に横断的な step-up 再認証ゲートを 2 スライスで
+    導入した (ADR-043 を起草)。
+      - スライス 1 (backend): recency 判定 `StepUpSatisfied` は
+        `max(auth_time, step_up_at)` が 5 分以内かで通過し、新規ログイン直後は再入力を
+        求めない。対象表 (ChangePassword / RemoveTotpFactor / RequestEmailChange /
+        RevokeMyOtherSessions) の各ハンドラに gate を差し込み、未通過は 401 ではなく
+        403 + `step_up_required`。`POST /api/account/step_up/{start,complete}` で
+        password / TOTP を検証し session の `step_up_at` を刻む。`LoginSession.step_up_at`
+        / `AuthenticationContext.StepUpAt` / `SessionManager.RecordStepUp` を追加。
+        `StepUpRequested` / `StepUpCompleted` を emit。
+      - スライス 2 (SPA): `useStepUpGuard` フックが操作を包み、403 `step_up_required` を
+        受けたら再認証 modal を出し、成立後に元の操作を 1 回だけ再試行する。security /
+        activity / emails / change-password の各ページに適用した。
+    対象表は SCL interface の `step_up: required` 注記と実ゲートを機械照合する
+    (`TestStepUpAnnotatedInterfacesMatchGatedHandlers`)。WebAuthn credential 解除など
+    将来の sensitive 操作は同じ gate に乗せる ([[wi-26-webauthn-passkey-and-recovery-codes]])。
+  verification:
+    - { cmd: 'go test ./...', in: ra-idp-go, result: passed }
+    - { cmd: 'golangci-lint run ./...', in: ra-idp-go, result: passed }
+    - { cmd: 'go build ./...', in: ra-idp-go, result: passed }
+    - { cmd: 'bun --cwd ra-idp-go/ui typecheck', result: passed }
+    - { cmd: 'bun --cwd ra-idp-go/ui lint', result: passed }
+    - { cmd: 'bun --cwd ra-idp-go/ui build', result: passed }
+    - >-
+      自動: stale session が 4 つの対象エンドポイント全てで 403 step_up_required を返す
+      表テスト / step_up/complete (password) で同一セッションの gate が flip する end-to-end /
+      recency 窓 (300 秒境界) / TOTP 経路 / SCL 注記とゲートの機械照合。
+  affected_guarantees_state:
+    - >-
+      CSRF & step-up: 対象表の sensitive mutation は step-up を必須化し、未通過は
+      403 + `step_up_required`。対象表 (ADR-043) と実ハンドラの一致を SCL の
+      `step_up: required` 注記で機械照合 (テストで網羅)。維持。
+    - >-
+      self RBAC: step-up は actor 本人の再認証で、対象 sub を変えない (session の
+      step_up_at に刻むため別端末の cookie でも当該 session に閉じる)。維持。
+    - >-
+      SCL coherence: StartStepUpAuthentication / CompleteStepUpAuthentication interface、
+      StepUpRequested / StepUpCompleted event、StepUp* model を SCL に追加し
+      coherence_test と yaml-check を通過。維持。
+  residual_risk:
+    - >-
+      recency と step_up_at は in-memory / redis session に載るため、session store が
+      揮発する構成では再ログインで step-up もやり直しになる (安全側)。
+    - >-
+      admin 経路の step-up は本 WI の対象外 (end-user self-service に限定)。impersonation
+      など admin 側の sensitive 操作のゲートは別 WI。

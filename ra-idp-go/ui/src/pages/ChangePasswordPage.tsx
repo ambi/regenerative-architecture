@@ -16,6 +16,7 @@ import {
   tenantURL,
 } from '../api'
 import { AuthShell } from '../components/AuthShell'
+import { StepUpCancelledError, useStepUpGuard } from '../components/StepUpDialog'
 import { Alert } from '../components/ui/alert'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -45,22 +46,23 @@ export function ChangePasswordPage({
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const { guard, dialog } = useStepUpGuard(csrfToken)
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const form = new FormData(event.currentTarget)
+    const formEl = event.currentTarget
+    const form = new FormData(formEl)
+    const current = String(form.get('current_password') ?? '')
+    const next = String(form.get('new_password') ?? '')
     setSubmitting(true)
     setError('')
     setSuccess(false)
     try {
-      await changePassword(
-        csrfToken,
-        String(form.get('current_password') ?? ''),
-        String(form.get('new_password') ?? ''),
-      )
+      await guard(() => changePassword(csrfToken, current, next))
       setSuccess(true)
-      event.currentTarget.reset()
+      formEl.reset()
     } catch (cause) {
+      if (cause instanceof StepUpCancelledError) return
       if (cause instanceof PasswordPolicyError) {
         setError(cause.violations.map(violationMessage).join(' ') || cause.message)
       } else if (cause instanceof AuthenticationAPIError) {
@@ -228,6 +230,7 @@ export function ChangePasswordPage({
           </p>
         </div>
       </div>
+      {dialog}
     </AuthShell>
   )
 }

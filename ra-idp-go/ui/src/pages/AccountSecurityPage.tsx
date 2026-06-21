@@ -15,6 +15,7 @@ import {
   tenantURL,
 } from '../api'
 import { AccountShell } from '../components/AccountShell'
+import { StepUpCancelledError, useStepUpGuard } from '../components/StepUpDialog'
 import { Alert } from '../components/ui/alert'
 import { Button } from '../components/ui/button'
 import { Card } from '../components/ui/card'
@@ -39,6 +40,7 @@ export function AccountSecurityPage({ csrfToken, username, isAdmin, security }: 
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const { guard, dialog } = useStepUpGuard(csrfToken)
 
   async function handleStart() {
     setBusy(true)
@@ -77,11 +79,12 @@ export function AccountSecurityPage({ csrfToken, username, isAdmin, security }: 
     setBusy(true)
     setError('')
     try {
-      await removeTotpFactor(csrfToken, removeCode.trim())
+      await guard(() => removeTotpFactor(csrfToken, removeCode.trim()))
       setEnrolled(false)
       setRemoveCode('')
       setNotice('認証アプリを解除しました。')
     } catch (cause) {
+      if (cause instanceof StepUpCancelledError) return
       setError(errorMessage(cause, '認証アプリを解除できませんでした。'))
     } finally {
       setBusy(false)
@@ -260,6 +263,7 @@ export function AccountSecurityPage({ csrfToken, username, isAdmin, security }: 
           二段階認証を有効にすると、パスワードが漏れても認証アプリがなければサインインできません。
         </p>
       </div>
+      {dialog}
     </AccountShell>
   )
 }

@@ -131,11 +131,6 @@ func auditEventMatches(rec *ports.AuditEventRecord, q ports.AuditEventQuery) boo
 			return false
 		}
 	}
-	for key, want := range q.PayloadEquals {
-		if got, _ := rec.Payload[key].(string); got != want {
-			return false
-		}
-	}
 	if !q.After.IsZero() && rec.OccurredAt.Before(q.After) {
 		return false
 	}

@@ -185,16 +185,6 @@ func parseAuditEventQuery(c *echo.Context, actor *spec.User) (oauthports.AuditEv
 	if sub := c.QueryParam("sub"); sub != "" {
 		q.Sub = sub
 	}
-	payloadEquals := map[string]string{}
-	if v := c.QueryParam("username_hash"); v != "" {
-		payloadEquals["usernameHash"] = v
-	}
-	if v := c.QueryParam("ip_truncated"); v != "" {
-		payloadEquals["ipTruncated"] = v
-	}
-	if len(payloadEquals) > 0 {
-		q.PayloadEquals = payloadEquals
-	}
 	if after := c.QueryParam("after"); after != "" {
 		t, err := time.Parse(time.RFC3339, after)
 		if err != nil {

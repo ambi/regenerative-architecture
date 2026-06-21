@@ -846,8 +846,6 @@ export type AdminAuditEventQuery = {
   // kind は認証系イベントの絞り込み (wi-44 統合)。
   kind?: 'authentication' | 'success' | 'fail' | 'aggregated'
   sub?: string
-  usernameHash?: string
-  ipTruncated?: string
   after?: string
   before?: string
   limit?: number
@@ -859,8 +857,6 @@ function auditEventParams(query: AdminAuditEventQuery): URLSearchParams {
   if (query.type) params.set('type', query.type)
   if (query.kind) params.set('kind', query.kind)
   if (query.sub) params.set('sub', query.sub)
-  if (query.usernameHash) params.set('username_hash', query.usernameHash)
-  if (query.ipTruncated) params.set('ip_truncated', query.ipTruncated)
   if (query.after) params.set('after', query.after)
   if (query.before) params.set('before', query.before)
   if (query.limit !== undefined) params.set('limit', String(query.limit))

@@ -298,18 +298,21 @@ bucket の `count` に積む。bucket と throttle は同じ `keyHash` (username
   を Postgres に永続化する (migration 0012)。bucket は upsert 1 回で「窓ごとの件数」と
   「その窓で最初の記録か」を返し、攻撃時も個別 INSERT を出さない (ADR-041)。
 - admin 検索: `GET /api/admin/audit_events`（`type` / `kind`
-  = authentication / success / fail / aggregated / `sub` / `username_hash` / `ip_truncated` /
-  `after` / `before` / `limit`）/ `GET .../{id}` / `GET .../export`。permission は
-  `AdminAuditEventsRead`。認証系の調査は `kind` で絞り込む。
+  = authentication / success / fail / aggregated / `sub` / `after` / `before` / `limit`）/
+  `GET .../{id}` / `GET .../export`。permission は `AdminAuditEventsRead`。認証系の調査は
+  `kind` で絞り込む。
 - 保持期間 sweep (ADR-045): 成功 365 日 / 失敗詳細 30 日 / 集約・MFA・セッション 90 日。
   global cap を上限とし、impersonation は短縮しない。`RETENTION_SWEEP_INTERVAL` の周期 job が
   `occurred_at` の古い行を削除する。
-- admin UI: `/admin/audit_events` に `kind`・`username_hash`・`ip_truncated` のフィルタと
-  種別バッジ・JSON エクスポートを統合した (認証専用ページは設けない)。
+- admin UI: `/admin/audit_events` に認証カテゴリ (`kind`) フィルタ・種別バッジ・JSON
+  エクスポートを統合した (認証専用ページは設けない)。
 
 属性拡張・新規イベント型・bucket・retention は共通基盤として残し、UI/API の切り口だけを
-監査ログに一本化した。admin の全テナント横断セッション一覧 / 失効、GeoIP 連携、SIEM streaming、
-impersonation 機能本体と本人通知は後続 WI で扱う (wi-28 / wi-30 ほか)。
+監査ログに一本化した。username / IP を hash・truncated 値で相関検索する機能は、hash 化 (emit 側)
+の実装後に「平文を入力 → サーバ側で hash 化して検索」する形で別途追加する (現状は ADR-046 の
+フィールド確保のみで値が無いため検索フィルタには出さない)。admin の全テナント横断セッション
+一覧 / 失効、GeoIP 連携、SIEM streaming、impersonation 機能本体と本人通知は後続 WI で扱う
+(wi-28 / wi-30 ほか)。
 
 ## 検証
 

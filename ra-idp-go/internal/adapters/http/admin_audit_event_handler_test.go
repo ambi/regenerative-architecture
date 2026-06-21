@@ -217,28 +217,6 @@ func TestAdminAuditEventsFilterByAuthenticationKind(t *testing.T) {
 	}
 }
 
-func TestAdminAuditEventsFilterByUsernameHash(t *testing.T) {
-	user := auditUser("user_admin", "acme", []string{"admin"})
-	now := time.Now().UTC()
-	wanted := &oauthports.AuditEventRecord{
-		ID: "acme:af:1", TenantID: "acme", Type: "AuthenticationFailed", OccurredAt: now,
-		Payload: map[string]any{"tenantId": "acme", "usernameHash": "wanted"},
-	}
-	other := &oauthports.AuditEventRecord{
-		ID: "acme:af:2", TenantID: "acme", Type: "AuthenticationFailed", OccurredAt: now.Add(-time.Second),
-		Payload: map[string]any{"tenantId": "acme", "usernameHash": "other"},
-	}
-	e := newAuditAdminServer(t, user, []*oauthports.AuditEventRecord{wanted, other})
-	rec := getAdminAuditEvents(e, "/realms/acme/api/admin/audit_events?username_hash=wanted")
-	var body struct {
-		Events []adminAuditEventResponse `json:"events"`
-	}
-	_ = json.Unmarshal(rec.Body.Bytes(), &body)
-	if len(body.Events) != 1 || body.Events[0].Payload["usernameHash"] != "wanted" {
-		t.Fatalf("username_hash filter mismatch: %+v", body.Events)
-	}
-}
-
 func TestAdminAuditEventsExportSetsAttachment(t *testing.T) {
 	user := auditUser("user_admin", "acme", []string{"admin"})
 	now := time.Now().UTC()

@@ -19,6 +19,19 @@ motivation: |
   federation・impersonation の語彙を SCL とストレージに用意する
   (use case / 実 IdP 連携は各専用 WI)。
 
+  **実装上の決定 (2026-06-21): 監査ログへ統合。** 当初は認証イベント専用の
+  検索 API (`ListAuthenticationEvents` ほか) と admin ページを別に設ける計画
+  だったが、認証イベントは監査イベントと同一ストア (`audit_events`) の一系統で
+  あり、専用 API / UI は重複でしかなかった。そのため検索は監査ログ
+  (`ListAdminAuditEvents` / `/admin/audit_events`) に `kind`
+  (authentication / success / fail / aggregated) フィルタとして統合し、専用
+  interface / permission (`AdminAuthenticationEventsRead` / `AdminSessionsWrite`) /
+  認証検索・セッションビュー model は撤去した。イベント型・属性拡張・bucket・
+  retention は共通基盤として残す。username/IP を hash・truncated 値で相関検索
+  する機能は、hash 化 (emit 側) の実装後に「平文を入力 → サーバ側で hash 化して
+  検索」する形で別途追加する (現状はフィールド確保のみで値が無いため UI には
+  出さない)。詳細は ADR-045 / README。
+
 scope:
   decision:
     - >-

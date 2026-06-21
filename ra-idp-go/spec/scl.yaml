@@ -2247,14 +2247,12 @@ models:
       フィールドには含めない。type は SCL events セクションの型名。
     annotations: { component: OAuth2 }
     fields:
-      type:          { type: String, optional: true, description: "完全一致フィルタ。例: AccessTokenIssued" }
-      kind:          { type: String, optional: true, description: "認証系イベントの絞り込み (wi-44)。authentication / success / fail / aggregated。" }
-      sub:           { type: String, optional: true, description: "対象ユーザー sub の完全一致フィルタ。" }
-      username_hash: { type: String, optional: true, description: "認証イベントの usernameHash 相関フィルタ (ADR-046)。" }
-      ip_truncated:  { type: String, optional: true, description: "認証イベントの ipTruncated 相関フィルタ (ADR-046)。" }
-      after:         { type: Timestamp, optional: true, description: "occurred_at がこの時刻以降。" }
-      before:        { type: Timestamp, optional: true, description: "occurred_at がこの時刻以前。" }
-      limit:         { type: Integer, optional: true, description: "返却件数の上限 (default 100, max 1000)。" }
+      type:    { type: String, optional: true, description: "完全一致フィルタ。例: AccessTokenIssued" }
+      kind:    { type: String, optional: true, description: "認証系イベントの絞り込み (wi-44)。authentication / success / fail / aggregated。" }
+      sub:     { type: String, optional: true, description: "対象ユーザー sub の完全一致フィルタ。" }
+      after:   { type: Timestamp, optional: true, description: "occurred_at がこの時刻以降。" }
+      before:  { type: Timestamp, optional: true, description: "occurred_at がこの時刻以前。" }
+      limit:   { type: Integer, optional: true, description: "返却件数の上限 (default 100, max 1000)。" }
 
   AdminAuditEventResponse:
     kind: value_object

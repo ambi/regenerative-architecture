@@ -51,6 +51,12 @@ const KIND_BADGE: Record<EventKind, string> = {
   aggregated: 'bg-amber-50 text-amber-700',
 }
 
+const KIND_LABEL: Record<EventKind, string> = {
+  success: '認証 成功',
+  fail: '認証 失敗',
+  aggregated: '認証 集約',
+}
+
 export function AdminAuditEventsPage({
   actorUsername,
   actorRoles,
@@ -62,8 +68,6 @@ export function AdminAuditEventsPage({
   const [type, setType] = useState('')
   const [kind, setKind] = useState<'' | AdminAuditEventQuery['kind']>('')
   const [sub, setSub] = useState('')
-  const [usernameHash, setUsernameHash] = useState('')
-  const [ipTruncated, setIpTruncated] = useState('')
   const [after, setAfter] = useState('')
   const [before, setBefore] = useState('')
   const [limit, setLimit] = useState('100')
@@ -80,8 +84,6 @@ export function AdminAuditEventsPage({
       type: type.trim() || undefined,
       kind: kind || undefined,
       sub: sub.trim() || undefined,
-      usernameHash: usernameHash.trim() || undefined,
-      ipTruncated: ipTruncated.trim() || undefined,
       after: after.trim() ? new Date(after).toISOString() : undefined,
       before: before.trim() ? new Date(before).toISOString() : undefined,
       limit: Number.isFinite(parsedLimit) ? parsedLimit : undefined,
@@ -122,31 +124,37 @@ export function AdminAuditEventsPage({
       {error ? <Alert variant="destructive">{error}</Alert> : null}
 
       <Card className="p-5">
-        <form onSubmit={handleQuery} className="grid gap-4 lg:grid-cols-4">
-          <Field label="種別 (認証)">
+        <form onSubmit={handleQuery} className="grid gap-4 lg:grid-cols-3">
+          <Field label="認証カテゴリ">
             <select
               value={kind ?? ''}
               onChange={(e) => setKind((e.target.value || '') as '' | AdminAuditEventQuery['kind'])}
               className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm"
             >
-              <option value="">すべて</option>
-              <option value="authentication">認証 (全体)</option>
+              <option value="">指定なし (すべてのイベント)</option>
+              <option value="authentication">認証イベント全体</option>
               <option value="success">認証 成功</option>
               <option value="fail">認証 失敗</option>
-              <option value="aggregated">認証 集約</option>
+              <option value="aggregated">認証 集約 (攻撃時)</option>
             </select>
           </Field>
-          <Field label="Type">
+          <Field label="イベント種別">
             <Input
               value={type}
               onChange={(e) => setType(e.target.value)}
-              placeholder="UserAuthenticated"
+              placeholder="例: UserAuthenticated"
             />
           </Field>
-          <Field label="Sub">
-            <Input value={sub} onChange={(e) => setSub(e.target.value)} placeholder="user_..." />
+          <Field label="対象ユーザー (sub)">
+            <Input value={sub} onChange={(e) => setSub(e.target.value)} placeholder="例: user_..." />
           </Field>
-          <Field label="Limit">
+          <Field label="開始日時">
+            <Input type="datetime-local" value={after} onChange={(e) => setAfter(e.target.value)} />
+          </Field>
+          <Field label="終了日時">
+            <Input type="datetime-local" value={before} onChange={(e) => setBefore(e.target.value)} />
+          </Field>
+          <Field label="最大件数">
             <Input
               type="number"
               min={1}
@@ -155,27 +163,7 @@ export function AdminAuditEventsPage({
               onChange={(e) => setLimit(e.target.value)}
             />
           </Field>
-          <Field label="Username hash">
-            <Input
-              value={usernameHash}
-              onChange={(e) => setUsernameHash(e.target.value)}
-              placeholder="sha256 hex"
-            />
-          </Field>
-          <Field label="IP (truncated)">
-            <Input
-              value={ipTruncated}
-              onChange={(e) => setIpTruncated(e.target.value)}
-              placeholder="203.0.113.0"
-            />
-          </Field>
-          <Field label="From">
-            <Input type="datetime-local" value={after} onChange={(e) => setAfter(e.target.value)} />
-          </Field>
-          <Field label="To">
-            <Input type="datetime-local" value={before} onChange={(e) => setBefore(e.target.value)} />
-          </Field>
-          <div className="flex items-end gap-2 lg:col-span-4">
+          <div className="flex items-end gap-2 lg:col-span-3">
             <Button type="submit" disabled={busy}>
               <IconSearch size={16} aria-hidden="true" />
               絞り込み
@@ -232,7 +220,7 @@ export function AdminAuditEventsPage({
                         <span
                           className={`rounded px-2 py-0.5 text-xs font-medium ${KIND_BADGE[authEventKind(e.type) as EventKind]}`}
                         >
-                          {authEventKind(e.type)}
+                          {KIND_LABEL[authEventKind(e.type) as EventKind]}
                         </span>
                       ) : null}
                       {e.type}

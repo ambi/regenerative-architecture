@@ -32,14 +32,11 @@ type AuditEventQuery struct {
 	Type       string
 	// Types は複数 type のいずれかに一致する行のみを返す (空なら制限なし)。認証イベント
 	// 検索が success/fail/aggregated に対応する type 群へ絞り込むのに使う (wi-44)。
-	Types []string
-	Sub   string
-	// PayloadEquals は payload の string フィールド完全一致フィルタ (usernameHash /
-	// ipTruncated 等)。ADR-046 の hash / truncated 値で相関検索する (wi-44)。
-	PayloadEquals map[string]string
-	After         time.Time
-	Before        time.Time
-	Limit         int
+	Types  []string
+	Sub    string
+	After  time.Time
+	Before time.Time
+	Limit  int
 }
 
 type AuditEventRepository interface {

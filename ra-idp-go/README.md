@@ -376,7 +376,7 @@ ra-idp-go/
 | 領域       | 不足している機能                                                |
 | ---------- | --------------------------------------------------------------- |
 | ユーザー側 | デバイス管理                                                    |
-| 継続評価   | CAEP / Shared Signals Framework によるイベント連動セッション失効 |
+| 継続評価   | CAEP / Shared Signals Framework によるイベント連動セッション失効 (Security Event Token / RFC 8417 を transport)。push / receiver 双方向 |
 
 ### Phase 4 — 管理 / RBAC / マルチテナンシー
 
@@ -413,6 +413,8 @@ directory 連携。
 | トークン       | Token Exchange (RFC 8693)、Resource Indicators (RFC 8707)、pairwise subject identifier |
 | 認証フロー     | CIBA (OpenID CIBA Core 1.0)、Step-up Authentication Challenge Protocol (RFC 9470)      |
 | FAPI / IDA     | FAPI 2.0 conformance suite、OpenID Connect for Identity Assurance                      |
+| 検証可能クレデンシャル | OID4VCI 発行 / OID4VP 検証 (wallet ベース、SD-JWT VC) — [[wi-47-verifiable-credentials-oid4vci-oid4vp]] で work item 化済み |
+| ワークロード ID | SPIFFE / SPIRE 連携、workload identity federation (JWT-SVID / X.509-SVID 発行)、non-human identity 管理 |
 | 仕様追跡       | OAuth 2.0 Security BCP / OAuth 2.1 の継続追従                                          |
 
 ### Phase 8 — 運用 / 可用性 / セキュリティ運用 / コンプライアンス

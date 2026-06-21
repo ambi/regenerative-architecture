@@ -25,6 +25,45 @@ type adminAuditEventResponse struct {
 	Payload    map[string]any `json:"payload"`
 }
 
+// 認証系イベントの kind → 監査 type 群 (wi-44)。監査ログ検索の kind フィルタで、認証の
+// 成功 / 失敗 / 集約や認証イベント全体に絞り込むのに使う。"authentication" は全認証系。
+var authenticationEventKindTypes = map[string][]string{
+	"success": {
+		(&spec.UserAuthenticated{}).EventType(),
+		(&spec.AuthenticationStepCompleted{}).EventType(),
+		(&spec.MfaChallengeIssued{}).EventType(),
+		(&spec.MfaChallengeSucceeded{}).EventType(),
+		(&spec.BackupCodeConsumed{}).EventType(),
+		(&spec.SessionStarted{}).EventType(),
+		(&spec.SessionRefreshed{}).EventType(),
+		(&spec.SessionEnded{}).EventType(),
+		(&spec.FederatedAuthenticated{}).EventType(),
+		(&spec.FederationLinked{}).EventType(),
+		(&spec.FederationUnlinked{}).EventType(),
+		(&spec.SessionImpersonationStarted{}).EventType(),
+		(&spec.SessionImpersonationEnded{}).EventType(),
+	},
+	"fail": {
+		(&spec.AuthenticationFailed{}).EventType(),
+		(&spec.AuthenticationStepFailed{}).EventType(),
+		(&spec.MfaChallengeFailed{}).EventType(),
+	},
+	"aggregated": {
+		(&spec.AuthenticationEventAggregated{}).EventType(),
+		(&spec.LoginThrottled{}).EventType(),
+	},
+}
+
+func init() {
+	all := []string{}
+	for _, k := range []string{"success", "fail", "aggregated"} {
+		all = append(all, authenticationEventKindTypes[k]...)
+	}
+	authenticationEventKindTypes["authentication"] = all
+}
+
+const adminAuditEventExportMaxLimit = 10000
+
 func (d Deps) handleListAdminAuditEvents(c *echo.Context) error {
 	actor, err := d.requireAuditReader(c)
 	if err != nil {
@@ -70,6 +109,31 @@ func (d Deps) handleGetAdminAuditEvent(c *echo.Context) error {
 	return noStoreJSON(c, http.StatusOK, toAdminAuditEventResponse(rec))
 }
 
+func (d Deps) handleExportAdminAuditEvents(c *echo.Context) error {
+	actor, err := d.requireAuditReader(c)
+	if err != nil {
+		return d.writeAdminAccessError(c, err)
+	}
+	query, err := parseAuditEventQuery(c, actor)
+	if err != nil {
+		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", err.Error())
+	}
+	query.Limit = adminAuditEventExportMaxLimit
+	var records []*oauthports.AuditEventRecord
+	if d.AuditEventRepo != nil {
+		records, err = d.AuditEventRepo.List(c.Request().Context(), query)
+		if err != nil {
+			return err
+		}
+	}
+	response := make([]adminAuditEventResponse, len(records))
+	for i, rec := range records {
+		response[i] = toAdminAuditEventResponse(rec)
+	}
+	c.Response().Header().Set("Content-Disposition", "attachment; filename=\"audit_events.json\"")
+	return noStoreJSON(c, http.StatusOK, map[string]any{"events": response})
+}
+
 // requireAuditReader は AdminAuditEventsRead パーミッションを満たすユーザーを返す。
 // admin / system_admin のどちらでも通る。所属テナントの拘束は問わない (実際の
 // テナント絞り込みは List のクエリ生成時に行う)。
@@ -110,8 +174,26 @@ func parseAuditEventQuery(c *echo.Context, actor *spec.User) (oauthports.AuditEv
 	if t := c.QueryParam("type"); t != "" {
 		q.Type = t
 	}
+	// kind は認証系イベントの絞り込み (wi-44 統合: authentication/success/fail/aggregated)。
+	if kind := c.QueryParam("kind"); kind != "" {
+		types, ok := authenticationEventKindTypes[kind]
+		if !ok {
+			return oauthports.AuditEventQuery{}, errors.New("kind は authentication / success / fail / aggregated を指定してください")
+		}
+		q.Types = types
+	}
 	if sub := c.QueryParam("sub"); sub != "" {
 		q.Sub = sub
+	}
+	payloadEquals := map[string]string{}
+	if v := c.QueryParam("username_hash"); v != "" {
+		payloadEquals["usernameHash"] = v
+	}
+	if v := c.QueryParam("ip_truncated"); v != "" {
+		payloadEquals["ipTruncated"] = v
+	}
+	if len(payloadEquals) > 0 {
+		q.PayloadEquals = payloadEquals
 	}
 	if after := c.QueryParam("after"); after != "" {
 		t, err := time.Parse(time.RFC3339, after)

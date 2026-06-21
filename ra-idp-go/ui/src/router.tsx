@@ -39,10 +39,6 @@ const AdminAuditEventsPage = namedPage(
   () => import('./pages/AdminAuditEventsPage'),
   'AdminAuditEventsPage',
 )
-const AdminAuthenticationEventsPage = namedPage(
-  () => import('./pages/AdminAuthenticationEventsPage'),
-  'AdminAuthenticationEventsPage',
-)
 const AdminClientDetailPage = namedPage(
   () => import('./pages/AdminClientsPage'),
   'AdminClientDetailPage',
@@ -254,14 +250,6 @@ export function createAppRouter(data: PageData) {
     component: () =>
       data.kind === 'admin-audit-events' ? routePage(<AdminAuditEventsPage {...data} />) : null,
   })
-  const adminAuthenticationEventsRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/admin/authentication_events',
-    component: () =>
-      data.kind === 'admin-authentication-events'
-        ? routePage(<AdminAuthenticationEventsPage {...data} />)
-        : null,
-  })
   const adminKeysRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/admin/keys',
@@ -329,7 +317,6 @@ export function createAppRouter(data: PageData) {
       adminClientDetailRoute,
       adminConsentsRoute,
       adminAuditEventsRoute,
-      adminAuthenticationEventsRoute,
       adminKeysRoute,
       adminTenantsRoute,
       adminGroupsRoute,

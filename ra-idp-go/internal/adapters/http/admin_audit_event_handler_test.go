@@ -184,3 +184,80 @@ func TestAdminAuditEventsFilterByTypeAndSub(t *testing.T) {
 		t.Fatalf("filter mismatch: %+v", body.Events)
 	}
 }
+
+// wi-44 統合: 監査ログ検索に認証イベントの kind 絞り込みが乗っていることを検証する。
+func TestAdminAuditEventsFilterByAuthenticationKind(t *testing.T) {
+	user := auditUser("user_admin", "acme", []string{"admin"})
+	now := time.Now().UTC()
+	events := []*oauthports.AuditEventRecord{
+		auditEvent("acme", "UserAuthenticated", "alice", now),
+		auditEvent("acme", "AuthenticationFailed", "", now.Add(-time.Second)),
+		auditEvent("acme", "PasswordChanged", "alice", now.Add(-2*time.Second)), // 認証イベント外
+	}
+	e := newAuditAdminServer(t, user, events)
+
+	var body struct {
+		Events []adminAuditEventResponse `json:"events"`
+	}
+	rec := getAdminAuditEvents(e, "/realms/acme/api/admin/audit_events?kind=fail")
+	_ = json.Unmarshal(rec.Body.Bytes(), &body)
+	if len(body.Events) != 1 || body.Events[0].Type != "AuthenticationFailed" {
+		t.Fatalf("kind=fail mismatch: %+v", body.Events)
+	}
+
+	rec = getAdminAuditEvents(e, "/realms/acme/api/admin/audit_events?kind=authentication")
+	_ = json.Unmarshal(rec.Body.Bytes(), &body)
+	if len(body.Events) != 2 {
+		t.Fatalf("kind=authentication must exclude PasswordChanged, got %d: %+v", len(body.Events), body.Events)
+	}
+
+	rec = getAdminAuditEvents(e, "/realms/acme/api/admin/audit_events?kind=bogus")
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("unknown kind must be 400, got %d", rec.Code)
+	}
+}
+
+func TestAdminAuditEventsFilterByUsernameHash(t *testing.T) {
+	user := auditUser("user_admin", "acme", []string{"admin"})
+	now := time.Now().UTC()
+	wanted := &oauthports.AuditEventRecord{
+		ID: "acme:af:1", TenantID: "acme", Type: "AuthenticationFailed", OccurredAt: now,
+		Payload: map[string]any{"tenantId": "acme", "usernameHash": "wanted"},
+	}
+	other := &oauthports.AuditEventRecord{
+		ID: "acme:af:2", TenantID: "acme", Type: "AuthenticationFailed", OccurredAt: now.Add(-time.Second),
+		Payload: map[string]any{"tenantId": "acme", "usernameHash": "other"},
+	}
+	e := newAuditAdminServer(t, user, []*oauthports.AuditEventRecord{wanted, other})
+	rec := getAdminAuditEvents(e, "/realms/acme/api/admin/audit_events?username_hash=wanted")
+	var body struct {
+		Events []adminAuditEventResponse `json:"events"`
+	}
+	_ = json.Unmarshal(rec.Body.Bytes(), &body)
+	if len(body.Events) != 1 || body.Events[0].Payload["usernameHash"] != "wanted" {
+		t.Fatalf("username_hash filter mismatch: %+v", body.Events)
+	}
+}
+
+func TestAdminAuditEventsExportSetsAttachment(t *testing.T) {
+	user := auditUser("user_admin", "acme", []string{"admin"})
+	now := time.Now().UTC()
+	events := []*oauthports.AuditEventRecord{
+		auditEvent("acme", "UserAuthenticated", "alice", now),
+	}
+	e := newAuditAdminServer(t, user, events)
+	rec := getAdminAuditEvents(e, "/realms/acme/api/admin/audit_events/export?kind=authentication")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("export status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	if cd := rec.Header().Get("Content-Disposition"); cd == "" {
+		t.Fatal("export must set Content-Disposition")
+	}
+	var body struct {
+		Events []adminAuditEventResponse `json:"events"`
+	}
+	_ = json.Unmarshal(rec.Body.Bytes(), &body)
+	if len(body.Events) != 1 {
+		t.Fatalf("export must return 1 event, got %d", len(body.Events))
+	}
+}

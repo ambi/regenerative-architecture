@@ -5,7 +5,6 @@ import {
   IconForms,
   IconKey,
   IconLayoutDashboard,
-  IconLogin,
   IconSettings,
   IconShieldLock,
   IconUsersGroup,
@@ -22,7 +21,6 @@ export type AdminNavKey =
   | 'clients'
   | 'consents'
   | 'audit-events'
-  | 'authentication-events'
   | 'keys'
   | 'tenants'
   | 'tenant-attributes'
@@ -48,7 +46,6 @@ export function adminNavItems(active: AdminNavKey): AdminNavItem[] {
     { key: 'clients', label: 'アプリケーション', icon: IconKey, href: tenantURL('/admin/clients'), active: active === 'clients' },
     { key: 'consents', label: '同意', icon: IconCheckupList, href: tenantURL('/admin/consents'), active: active === 'consents' },
     { key: 'audit-events', label: '監査ログ', icon: IconActivity, href: tenantURL('/admin/audit_events'), active: active === 'audit-events' },
-    { key: 'authentication-events', label: '認証イベント', icon: IconLogin, href: tenantURL('/admin/authentication_events'), active: active === 'authentication-events' },
     { key: 'keys', label: '署名鍵', icon: IconShieldLock, href: tenantURL('/admin/keys'), active: active === 'keys' },
   ]
   if (isControlPlane()) {

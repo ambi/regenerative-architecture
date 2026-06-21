@@ -290,21 +290,26 @@ bucket の `count` に積む。bucket と throttle は同じ `keyHash` (username
 永続ストアと admin 検索 (wi-44) は、上記を in-memory から Postgres に載せ替え、admin が
 時系列で調査できる検索を加える (Keycloak の login events / Okta の System Log 相当)。
 
+**認証イベントは監査ログと同一ストア (`audit_events`) の一系統**であり、別テーブル・別 API は
+持たない。認証イベントは「監査ログを認証系の type 群に絞り込んだビュー」として扱う
+(`signin_activity` と同じ grain)。よって調査は監査ログ検索の `kind` フィルタで行う。
+
 - 監査イベントの読み出しモデル (`audit_events`) と bucket 集約 (`authentication_event_buckets`)
   を Postgres に永続化する (migration 0012)。bucket は upsert 1 回で「窓ごとの件数」と
   「その窓で最初の記録か」を返し、攻撃時も個別 INSERT を出さない (ADR-041)。
-- admin 検索: `GET /api/admin/authentication_events`（`from` / `to` 必須、`kind`
-  = success / fail / aggregated、`sub` / `username_hash` / `ip_truncated` / `limit`）/
-  `GET .../{id}` / `GET .../export`。permission は `AdminAuthenticationEventsRead`。
-  ADR-045 に従い**期間絞り込みを必須**とし、全期間スキャンを禁じる。
+- admin 検索: `GET /api/admin/audit_events`（`type` / `kind`
+  = authentication / success / fail / aggregated / `sub` / `username_hash` / `ip_truncated` /
+  `after` / `before` / `limit`）/ `GET .../{id}` / `GET .../export`。permission は
+  `AdminAuditEventsRead`。認証系の調査は `kind` で絞り込む。
 - 保持期間 sweep (ADR-045): 成功 365 日 / 失敗詳細 30 日 / 集約・MFA・セッション 90 日。
   global cap を上限とし、impersonation は短縮しない。`RETENTION_SWEEP_INTERVAL` の周期 job が
   `occurred_at` の古い行を削除する。
-- admin UI: `/admin/authentication_events`（期間・種別・hash でのフィルタ + 一覧 + 詳細ペイン +
-  JSON エクスポート）。
+- admin UI: `/admin/audit_events` に `kind`・`username_hash`・`ip_truncated` のフィルタと
+  種別バッジ・JSON エクスポートを統合した (認証専用ページは設けない)。
 
-admin の全テナント横断セッション一覧 / 失効 UI、GeoIP 連携、SIEM streaming、impersonation
-機能本体と本人通知は後続 WI で扱う (wi-28 / wi-30 ほか)。
+属性拡張・新規イベント型・bucket・retention は共通基盤として残し、UI/API の切り口だけを
+監査ログに一本化した。admin の全テナント横断セッション一覧 / 失効、GeoIP 連携、SIEM streaming、
+impersonation 機能本体と本人通知は後続 WI で扱う (wi-28 / wi-30 ほか)。
 
 ## 検証
 

@@ -37,7 +37,10 @@
 
 5. **partition / cold storage は本 WI では行わない**。declarative partitioning や cold storage
    archive は将来の最適化として方針のみ残し、本 WI は retention sweep + index で運用する。
-   そのため admin 検索は**必ず期間絞り込みを要求**し、全期間スキャンを禁じる (検索性能の担保)。
+   検索性能は **retention sweep による行数抑制 + `(tenant_id, occurred_at)` index + `limit`** で
+   担保する。当初は認証イベント専用検索で期間絞り込みを必須としたが、認証イベントを監査ログ検索
+   (`ListAdminAuditEvents`) に統合した際、監査ログ全体への一律必須は UX を損なうため**期間は任意**
+   とし、`limit` (既定 100 / 上限 1000) と sweep で全期間スキャンの負荷を抑える方針に改めた。
 
 ## 影響
 

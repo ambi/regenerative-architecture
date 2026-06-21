@@ -22,12 +22,12 @@ components:
 
   Authentication:
     description: エンドユーザ (Subject) の identity、credentials、MFA、ログインセッション、パスワードリセット、および管理 API からの User ライフサイクル操作を所有する。
-    owns_models: [User, MfaFactor, MfaFactorType, LoginSession, AuthenticationContext, PasswordResetTokenRecord, BrowserLoginRequest, BrowserTotpRequest, BrowserChangePasswordRequest, BrowserForgotPasswordRequest, BrowserResetPasswordRequest, AdminUserCreateRequest, AdminUserUpdateRequest, AdminRequiredActionRequest, AdminUserListResponse, AdminUserResponse, Group, GroupMember, GroupCreateRequest, GroupUpdateRequest, GroupSummaryResponse, GroupListResponse, GroupMemberResponse, GroupAddMemberRequest, UserGroupsResponse, UserLifecycle, AttributeValue, UserStatus, RequiredAction, AccountProfileResponse, AccountProfileUpdateRequest, AccountSummary, AccountEmailChangeRequest, AccountEmailChangeConfirm, AccountDataExport, AccountMfaFactor, AccountSecurityResponse, TOTPEnrollmentStart, TOTPEnrollmentConfirmRequest, MfaFactorRemoveRequest, UserSignInActivity, UserSignInActivityResponse, SessionEndReason, AccountSession, AccountSessionListResponse, AuthenticationEventBucket, AuthenticationEventBucketListResponse, StepUpMethod, StepUpStartResponse, StepUpCompleteRequest, AuthenticationEvent, AuthenticationEventKind, AuthenticationEventQuery, AuthenticationEventListResponse, SessionRecord, AdminSessionListResponse]
+    owns_models: [User, MfaFactor, MfaFactorType, LoginSession, AuthenticationContext, PasswordResetTokenRecord, BrowserLoginRequest, BrowserTotpRequest, BrowserChangePasswordRequest, BrowserForgotPasswordRequest, BrowserResetPasswordRequest, AdminUserCreateRequest, AdminUserUpdateRequest, AdminRequiredActionRequest, AdminUserListResponse, AdminUserResponse, Group, GroupMember, GroupCreateRequest, GroupUpdateRequest, GroupSummaryResponse, GroupListResponse, GroupMemberResponse, GroupAddMemberRequest, UserGroupsResponse, UserLifecycle, AttributeValue, UserStatus, RequiredAction, AccountProfileResponse, AccountProfileUpdateRequest, AccountSummary, AccountEmailChangeRequest, AccountEmailChangeConfirm, AccountDataExport, AccountMfaFactor, AccountSecurityResponse, TOTPEnrollmentStart, TOTPEnrollmentConfirmRequest, MfaFactorRemoveRequest, UserSignInActivity, UserSignInActivityResponse, SessionEndReason, AccountSession, AccountSessionListResponse, AuthenticationEventBucket, AuthenticationEventBucketListResponse, StepUpMethod, StepUpStartResponse, StepUpCompleteRequest]
     owns_states: [UserLifecycle, GroupLifecycle]
     owns_events: [UserAuthenticated, AuthenticationFailed, PasswordChanged, LoginThrottled, PasswordResetRequested, EmailSent, EmailChangeRequested, EmailChanged, UserCreated, UserUpdated, UserDisabled, UserEnabled, UserDeleted, UserRequiredActionSet, UserRequiredActionCleared, GroupCreated, GroupUpdated, GroupDeleted, GroupMemberAdded, GroupMemberRemoved, MfaFactorEnrolled, MfaFactorRemoved, SessionEnded, AuthenticationEventAggregated, StepUpRequested, StepUpCompleted, AuthenticationStepCompleted, AuthenticationStepFailed, MfaChallengeIssued, MfaChallengeSucceeded, MfaChallengeFailed, BackupCodeConsumed, SessionStarted, SessionRefreshed, FederatedAuthenticated, FederationLinked, FederationUnlinked, SessionImpersonationStarted, SessionImpersonationEnded]
-    owns_interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, ChangePassword, GetAccountSummary, GetUserProfile, UpdateUserProfile, RequestEmailChange, ConfirmEmailChange, ExportAccountData, GetAccountSecurity, StartTotpEnrollment, ConfirmTotpEnrollment, RemoveTotpFactor, ListMySignInActivity, ListUserSignInActivity, ListAuthenticationEventBuckets, ListMySessions, RevokeMySession, RevokeMyOtherSessions, StartStepUpAuthentication, CompleteStepUpAuthentication, RequestPasswordReset, ResetPasswordWithToken, ListAdminUsers, GetAdminUser, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser, DeleteAdminUser, SetUserRequiredAction, ClearUserRequiredAction, ListGroups, GetGroup, CreateGroup, UpdateGroup, DeleteGroup, AddGroupMember, RemoveGroupMember, ListUserGroups, ListAuthenticationEvents, GetAuthenticationEvent, ExportAuthenticationEvents, ListSessions, RevokeSession, RevokeAllSessions]
+    owns_interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, ChangePassword, GetAccountSummary, GetUserProfile, UpdateUserProfile, RequestEmailChange, ConfirmEmailChange, ExportAccountData, GetAccountSecurity, StartTotpEnrollment, ConfirmTotpEnrollment, RemoveTotpFactor, ListMySignInActivity, ListUserSignInActivity, ListAuthenticationEventBuckets, ListMySessions, RevokeMySession, RevokeMyOtherSessions, StartStepUpAuthentication, CompleteStepUpAuthentication, RequestPasswordReset, ResetPasswordWithToken, ListAdminUsers, GetAdminUser, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser, DeleteAdminUser, SetUserRequiredAction, ClearUserRequiredAction, ListGroups, GetGroup, CreateGroup, UpdateGroup, DeleteGroup, AddGroupMember, RemoveGroupMember, ListUserGroups]
     owns_invariants: [PasswordHistoryNoReuse, EffectiveRolesComposition, GroupMembershipAuditEmission]
-    owns_permissions: [AdminUserRead, AdminUserCreate, AdminUserUpdate, AdminUserDelete, AdminGroupsRead, AdminGroupsWrite, AdminAuthenticationEventsRead, AdminSessionsWrite]
+    owns_permissions: [AdminUserRead, AdminUserCreate, AdminUserUpdate, AdminUserDelete, AdminGroupsRead, AdminGroupsWrite]
     owns_objectives: [PiiPurgeAfterDeletion]
     depends_on:
       - { component: Tenancy, reason: User と LoginSession はテナント境界内に閉じ、User 管理 API もテナント単位で動く。 }
@@ -44,7 +44,7 @@ components:
     owns_models: [OAuth2Client, ClientType, TokenEndpointAuthMethod, FapiProfile, ClientRegistrationRequest, AdminClientCreateRequest, AdminClientUpdateRequest, AdminClientResponse, AdminClientCreateResponse, AdminClientListResponse, InvalidClientError, UnauthorizedClientError, AuthorizationRequest, AuthorizeParameters, Consent, ConsentState, AdminConsentResponse, AdminConsentListResponse, AccountConsentResponse, AccountConsentListResponse, AuthorizationCodeRecord, AuthorizationCodeState, AuthorizationCodeRecordState, ResponseType, ResponseMode, CodeChallengeMethod, GrantType, PARRecord, PARRecordState, ParRequest, ParResponse, BrowserConsentRequest, BrowserTransactionResponse, BrowserFlowResponse, EndSessionParameters, DeviceCodeState, DeviceAuthorization, DeviceAuthorizationRequest, DeviceAuthorizationResponse, BrowserDeviceRequest, BrowserDeviceContextResponse, OAuthError, OAuthErrorCode, InvalidRequestError, InvalidScopeError, AccessDeniedError, ExpiredTokenError, SlowDownError, AuthorizationPendingError, ServerError, TokenRequest, TokenResponse, IntrospectionRequest, IntrospectionResponse, RevokeRequest, UserInfoResponse, RefreshTokenRecord, RefreshTokenState, AccessTokenClaims, IdTokenClaims, TokenType, AccessTokenSenderConstraint, SenderConstraintKind, SenderConstraintCnf, RefreshTokenSenderConstraint, Audience, InvalidGrantError, UnsupportedGrantTypeError, InvalidTokenError, InvalidDpopProofError, InsufficientScopeError, SigningKey, SigningKeyState, JWK, JWKS, DiscoveryDocument, SignatureAlgorithm, Uri, AuditEventQuery, AdminAuditEventResponse, AdminAuditEventListResponse, AdminKeyResponse, AdminKeyListResponse, AdminRotateKeyResponse]
     owns_states: [AuthorizationCodeFlow, AuthorizationCodeRecordLifecycle, ConsentLifecycle, PARRecordLifecycle, DeviceCodeFlow, RefreshTokenLifecycle, SigningKeyLifecycle]
     owns_events: [ClientRegistered, AdminClientCreated, AdminClientUpdated, AdminClientDeleted, AuthorizationCodeIssued, AuthorizationCodeRedeemed, ConsentGranted, ConsentRevoked, PARStored, DeviceAuthorizationRequested, DeviceAuthorizationApproved, DeviceAuthorizationDenied, AccessTokenIssued, RefreshTokenIssued, RefreshTokenRotated, TokenRevoked, TokenIntrospected, RefreshTokenReuseDetected, SigningKeyRotated]
-    owns_interfaces: [RegisterClient, ListAdminClients, GetAdminClient, CreateAdminClient, UpdateAdminClient, DeleteAdminClient, Authorize, GetBrowserTransaction, SubmitBrowserConsent, PushAuthorizationRequest, DeviceAuthorization, GetBrowserDeviceContext, SubmitBrowserDevice, EndSession, ListAdminConsents, GetAdminConsent, RevokeAdminConsent, ListMyConsents, RevokeMyConsent, Token, Introspect, Revoke, UserInfo, PostUserInfo, GetJwks, GetOpenidConfiguration, GetOauthAuthorizationServer, Health, ListAdminAuditEvents, GetAdminAuditEvent, ListAdminKeys, GetAdminKey, RotateAdminKey]
+    owns_interfaces: [RegisterClient, ListAdminClients, GetAdminClient, CreateAdminClient, UpdateAdminClient, DeleteAdminClient, Authorize, GetBrowserTransaction, SubmitBrowserConsent, PushAuthorizationRequest, DeviceAuthorization, GetBrowserDeviceContext, SubmitBrowserDevice, EndSession, ListAdminConsents, GetAdminConsent, RevokeAdminConsent, ListMyConsents, RevokeMyConsent, Token, Introspect, Revoke, UserInfo, PostUserInfo, GetJwks, GetOpenidConfiguration, GetOauthAuthorizationServer, Health, ListAdminAuditEvents, ExportAdminAuditEvents, GetAdminAuditEvent, ListAdminKeys, GetAdminKey, RotateAdminKey]
     owns_invariants: [ClientAuthFailureUniformity, PkceRoundTrip, AuthCodeStateSafety, DeviceCodeStateSafety, AuthorizationCodeSingleUse, ParRequestUriSingleUse, AuthorizationCodeTtl, AuthorizationCodeEventuallyResolves, DeviceCodeEventuallyResolves, RedirectUriExactMatch, PkceMandatory, AccessTokenIssuedOnlyAfterConsent, RefreshFamilyTransitiveRevoke, RefreshRotationParentInvariants, DpopJtiUniquenessWithinWindow, TokenHashOneWay, RefreshTokenAbsoluteTtl, AllAccessTokensCarryAudience, SigningKeyMaxAge]
     owns_permissions: [AdminClientsManage, AuthorizeInitiate, AdminConsentsManage, TokenGrantAuthorizationCode, TokenGrantRefresh, TokenGrantClientCredentials, TokenGrantDeviceCode, TokenIntrospect, TokenRevoke, UserInfoRead, AdminAuditEventsRead, AdminKeysRead, AdminKeysRotate]
     owns_objectives: [RegisterLatency, RegisterErrorRate, ClientAuthFailureRateLimit, AuthorizeLatency, ParLatency, DeviceAuthorizationLatency, AuthorizeErrorRate, ParErrorRate, DeviceAuthorizationErrorRate, AuthorizeThroughput, AuthorizationCodeLifetime, ParRequestUriLifetime, DeviceCodeLifetime, UserCodeLifetime, DeviceCodePollingDefaultInterval, ConsentRecordsRetention, AuthorizationCodeRedemptionFailureRateLimit, TokenLatency, IntrospectLatency, RevokeLatency, UserInfoLatency, TokenErrorRate, IntrospectErrorRate, RevokeErrorRate, UserInfoErrorRate, TokenEndpointAvailability, TokenThroughput, IntrospectThroughput, AccessTokenLifetime, IdTokenLifetime, RefreshTokenLifetime, RefreshTokenAbsoluteLifetime, DpopProofClockSkewPast, DpopProofClockSkewFuture, DpopJtiReplayWindow, DpopNonceLifetime, RefreshReuseAlertWindow, JwksLatency, DiscoveryLatency, JwksErrorRate, DiscoveryErrorRate, OverallAvailability, SigningKeyMinJwksOverlap, SigningKeyArchiveRetention, AuditLogRetention]
@@ -2009,96 +2009,6 @@ models:
     fields:
       buckets: { type: "AuthenticationEventBucket[]" }
 
-  AuthenticationEventKind:
-    kind: enum
-    description: |
-      認証イベントの大分類 (wi-44 / ADR-041)。success = 認証/セッション成功系、fail = 失敗系、
-      aggregated = 攻撃時に 5 分窓へ畳み込んだ bucket 行。admin タイムラインで混在表示する。
-    values: [success, fail, aggregated]
-
-  AuthenticationEvent:
-    kind: value_object
-    description: |
-      認証イベント 1 件の admin 表示用射影 (wi-44 / ADR-041)。通常イベント (1 行 = 1 事象) と
-      bucket 集約 (1 行 = 5 分窓) を同一タイムラインに混在させるための統合ビュー。kind が
-      discriminator で、event_type は具体イベント名 (UserAuthenticated / MfaChallengeFailed 等)。
-      PII は ADR-046 に従い truncated / hash のみ (平文 username は失敗イベントで 7 日のみ)。
-      aggregated 行は count / key_hash を持ち、個別サンプルへドリルダウンできる。tenant 境界内。
-    annotations: { component: Authentication }
-    fields:
-      id:                     { type: String }
-      kind:                   { type: AuthenticationEventKind }
-      event_type:             { type: String, description: "具体イベント名 (UserAuthenticated / AuthenticationFailed / MfaChallengeFailed 等)" }
-      occurred_at:            { type: Timestamp }
-      sub:                    { type: String, optional: true }
-      username:               { type: String, optional: true, annotations: { pii: true }, description: "失敗イベントの 7 日以内のみ。以後 null。" }
-      username_hash:          { type: String, optional: true }
-      client_id:              { type: String, optional: true }
-      session_id:             { type: String, optional: true }
-      amr:                    { type: "String[]", optional: true }
-      acr:                    { type: String, optional: true }
-      reason:                 { type: String, optional: true }
-      ip_truncated:           { type: String, optional: true }
-      ip_hash:                { type: String, optional: true }
-      ua_hash:                { type: String, optional: true }
-      country_code:           { type: String, optional: true }
-      device_fingerprint_hash: { type: String, optional: true }
-      risk_score:             { type: Integer, optional: true }
-      key_hash:               { type: String, optional: true, description: "aggregated 行の bucket key (SHA-256 hex)" }
-      count:                  { type: Integer, optional: true, description: "aggregated 行の窓内累計件数" }
-
-  AuthenticationEventQuery:
-    kind: value_object
-    description: |
-      ListAuthenticationEvents / ExportAuthenticationEvents のフィルタ (wi-44)。検索性能の担保の
-      ため from / to の期間絞り込みを必須とする (ADR-045: 全期間スキャンを禁じる)。limit 既定 50 /
-      上限 200。
-    annotations: { component: Authentication }
-    fields:
-      sub:           { type: String, optional: true }
-      username_hash: { type: String, optional: true }
-      ip_truncated:  { type: String, optional: true }
-      kind:          { type: AuthenticationEventKind, optional: true }
-      from:          { type: Timestamp }
-      to:            { type: Timestamp }
-      limit:         { type: Integer, optional: true }
-
-  AuthenticationEventListResponse:
-    kind: value_object
-    description: |
-      ListAuthenticationEvents / ExportAuthenticationEvents の返り値 (wi-44)。occurred_at の降順
-      (新しい順) で返す。
-    annotations: { component: Authentication }
-    fields:
-      events: { type: "AuthenticationEvent[]" }
-
-  SessionRecord:
-    kind: value_object
-    description: |
-      admin 表示用のセッション 1 件の射影 (wi-44)。secret は持たず、識別子と認証情報・由来のみ。
-      started_at は auth_time、expires_at は失効予定時刻、last_seen_at は最終アクティブ時刻。
-      IP は ADR-046 の truncated のみ。tenant 境界内。
-    annotations: { component: Authentication }
-    fields:
-      id:           { type: String }
-      sub:          { type: String }
-      amr:          { type: "String[]" }
-      acr:          { type: String }
-      started_at:   { type: Timestamp }
-      expires_at:   { type: Timestamp }
-      last_seen_at: { type: Timestamp, optional: true }
-      ip_truncated: { type: String, optional: true }
-      ua_hash:      { type: String, optional: true }
-      country_code: { type: String, optional: true }
-
-  AdminSessionListResponse:
-    kind: value_object
-    description: |
-      ListSessions の返り値 (wi-44)。tenant 境界内の有効なセッションを開始時刻の降順で返す。
-    annotations: { component: Authentication }
-    fields:
-      sessions: { type: "SessionRecord[]" }
-
   StepUpMethod:
     kind: enum
     description: |
@@ -2337,11 +2247,14 @@ models:
       フィールドには含めない。type は SCL events セクションの型名。
     annotations: { component: OAuth2 }
     fields:
-      type:    { type: String, optional: true, description: "完全一致フィルタ。例: AccessTokenIssued" }
-      sub:     { type: String, optional: true, description: "対象ユーザー sub の完全一致フィルタ。" }
-      after:   { type: Timestamp, optional: true, description: "occurred_at がこの時刻以降。" }
-      before:  { type: Timestamp, optional: true, description: "occurred_at がこの時刻以前。" }
-      limit:   { type: Integer, optional: true, description: "返却件数の上限 (default 100, max 1000)。" }
+      type:          { type: String, optional: true, description: "完全一致フィルタ。例: AccessTokenIssued" }
+      kind:          { type: String, optional: true, description: "認証系イベントの絞り込み (wi-44)。authentication / success / fail / aggregated。" }
+      sub:           { type: String, optional: true, description: "対象ユーザー sub の完全一致フィルタ。" }
+      username_hash: { type: String, optional: true, description: "認証イベントの usernameHash 相関フィルタ (ADR-046)。" }
+      ip_truncated:  { type: String, optional: true, description: "認証イベントの ipTruncated 相関フィルタ (ADR-046)。" }
+      after:         { type: Timestamp, optional: true, description: "occurred_at がこの時刻以降。" }
+      before:        { type: Timestamp, optional: true, description: "occurred_at がこの時刻以前。" }
+      limit:         { type: Integer, optional: true, description: "返却件数の上限 (default 100, max 1000)。" }
 
   AdminAuditEventResponse:
     kind: value_object
@@ -3632,79 +3545,6 @@ interfaces:
     bindings:
       - { kind: http, method: GET, path: /api/admin/authentication_event_buckets }
 
-  ListAuthenticationEvents:
-    description: |
-      admin が認証イベントを時系列で検索する (wi-44 / ADR-041)。通常イベントと bucket 集約を
-      occurred_at の降順で混在して返す。所属テナント境界内。検索性能の担保のため from/to の
-      期間絞り込みを必須とする (ADR-045)。sub / username_hash / ip_truncated / kind で絞り込める。
-      limit 既定 50 / 上限 200。permission は AdminAuthenticationEventsRead。admin 検索系は
-      ADR-029 の leaky-bucket で per-actor qps を制限する。
-    input:
-      query: { type: AuthenticationEventQuery }
-    output:
-      events: { type: AuthenticationEventListResponse }
-    errors: [InvalidRequestError, AccessDeniedError]
-    read_only: true
-    bindings:
-      - { kind: http, method: GET, path: /api/admin/authentication_events }
-
-  GetAuthenticationEvent:
-    description: |
-      admin が認証イベント 1 件の詳細を取得する (wi-44)。所属テナント境界内。aggregated 行の
-      場合は同 key_hash の個別失敗サンプル (最大 10 件) を併せて返せるようにする。
-      permission は AdminAuthenticationEventsRead。
-    output:
-      event: { type: AuthenticationEvent }
-    errors: [InvalidRequestError, AccessDeniedError]
-    read_only: true
-    bindings:
-      - { kind: http, method: GET, path: "/api/admin/authentication_events/{id}" }
-
-  ExportAuthenticationEvents:
-    description: |
-      admin が認証イベントを期間指定でエクスポートする (wi-44)。SIEM への streaming は別 WI で、
-      本 interface は 1 回分のエクスポートを返すのみ。期間絞り込み必須 (ADR-045)。
-      permission は AdminAuthenticationEventsRead。
-    input:
-      query: { type: AuthenticationEventQuery }
-    output:
-      events: { type: AuthenticationEventListResponse }
-    errors: [InvalidRequestError, AccessDeniedError]
-    read_only: true
-    bindings:
-      - { kind: http, method: GET, path: /api/admin/authentication_events/export }
-
-  ListSessions:
-    description: |
-      admin が所属テナント境界内の有効なセッションを一覧する (wi-44)。開始時刻の降順。secret は
-      返さず識別子と由来のみ。permission は AdminAuthenticationEventsRead。
-    output:
-      sessions: { type: AdminSessionListResponse }
-    errors: [AccessDeniedError]
-    read_only: true
-    bindings:
-      - { kind: http, method: GET, path: /api/admin/sessions }
-
-  RevokeSession:
-    description: |
-      admin がセッション 1 件を失効する (wi-44)。tenant 境界外のセッションは拒否する。失効は
-      LoginSession を物理削除して SSO セッションを終了し、SessionEnded (reason: admin_revoke) を
-      emit する。permission は AdminSessionsWrite。
-    errors: [InvalidRequestError, AccessDeniedError]
-    emits: [SessionEnded]
-    bindings:
-      - { kind: http, method: POST, path: "/api/admin/sessions/{id}/revoke", successful_status_codes: ["204"] }
-
-  RevokeAllSessions:
-    description: |
-      admin が対象 user の全セッションを失効する (wi-44)。tenant 境界内に限定。失効は各
-      LoginSession を物理削除し SessionEnded (reason: admin_revoke) を emit する。
-      permission は AdminSessionsWrite。
-    errors: [InvalidRequestError, AccessDeniedError]
-    emits: [SessionEnded]
-    bindings:
-      - { kind: http, method: POST, path: "/api/admin/users/{sub}/sessions/revoke_all", successful_status_codes: ["204"] }
-
   ListMySessions:
     description: |
       認証済みユーザーが自身の有効なセッションを取得する (self-service, wi-20)。対象は
@@ -4258,7 +4098,10 @@ interfaces:
     description: |
       管理者が所属テナントの監査用 DomainEvent を時系列降順で取得する。SOC / コンプライアンス
       用途を想定し、ページング (after / before / limit) と type / sub による絞り込みを提供する。
-      system_admin であれば default tenant 経路から全テナント横断、admin は所属テナント内に閉じる。
+      認証イベント (ログイン成功 / 失敗 / MFA / セッション / 集約) も同一ストアに属し、kind
+      (authentication / success / fail / aggregated) や username_hash / ip_truncated で絞り込んで
+      セキュリティ調査に使える (wi-44 で認証イベント専用ビューを本検索に統合)。system_admin で
+      あれば default tenant 経路から全テナント横断、admin は所属テナント内に閉じる。
     input:
       query: { type: AuditEventQuery }
     output:
@@ -4267,6 +4110,20 @@ interfaces:
     read_only: true
     bindings:
       - { kind: http, method: GET, path: /api/admin/audit_events }
+
+  ExportAdminAuditEvents:
+    description: |
+      管理者が監査イベント (認証イベントを含む) を期間 / フィルタ指定でエクスポートする (wi-44)。
+      SIEM への streaming は別 WI で、本 interface は 1 回分のダウンロードを返すのみ。
+      フィルタは ListAdminAuditEvents と同じ AuditEventQuery。permission は AdminAuditEventsRead。
+    input:
+      query: { type: AuditEventQuery }
+    output:
+      response: { type: AdminAuditEventListResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: /api/admin/audit_events/export }
 
   GetAdminAuditEvent:
     description: 管理者が監査イベント 1 件を ID で取得する。別テナントのイベントは未存在として扱う。
@@ -5583,33 +5440,6 @@ permissions:
       and:
         - "system_admin in actor.roles"
         - 'actor.tenant_id == "default"'
-        - "actor.disabled_at == null"
-        - "context.authenticated == true"
-
-  AdminAuthenticationEventsRead:
-    description: |
-      管理者による所属テナントの認証イベント・セッションの読み出し (wi-44)。admin は所属テナントに
-      閉じ、system_admin は default tenant 経路から全テナント横断的に参照できる。検索・詳細・
-      エクスポート・セッション一覧の read 系を一括で覆う。
-    actor: User
-    action: AdminAuthenticationEventsRead
-    resource: AuthenticationEvent
-    allow_when:
-      and:
-        - "(admin in actor.roles) or (system_admin in actor.roles)"
-        - "actor.disabled_at == null"
-        - "context.authenticated == true"
-
-  AdminSessionsWrite:
-    description: |
-      管理者による所属テナント内のセッション失効 (wi-44)。個別失効・対象 user の全失効を覆う。
-      admin は所属テナントに閉じ、tenant 境界外のセッションは失効できない。
-    actor: User
-    action: AdminSessionsWrite
-    resource: SessionRecord
-    allow_when:
-      and:
-        - "(admin in actor.roles) or (system_admin in actor.roles)"
         - "actor.disabled_at == null"
         - "context.authenticated == true"
 

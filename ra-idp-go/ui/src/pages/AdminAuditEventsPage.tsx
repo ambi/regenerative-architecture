@@ -1,7 +1,8 @@
-import { IconRefresh, IconSearch } from '@tabler/icons-react'
+import { IconDownload, IconRefresh, IconSearch } from '@tabler/icons-react'
 import { type FormEvent, useState } from 'react'
 import {
   type AdminAuditEventQuery,
+  adminAuditEventsExportURL,
   AuthenticationAPIError,
   listAdminAuditEvents,
 } from '../api'
@@ -15,6 +16,41 @@ import type { AdminAuditEvent, AdminAuditEventsPage as AdminAuditEventsPageData 
 
 const DEFAULT_TENANT_ID = 'default'
 
+type EventKind = 'success' | 'fail' | 'aggregated'
+
+const FAIL_TYPES = new Set(['AuthenticationFailed', 'AuthenticationStepFailed', 'MfaChallengeFailed'])
+const AGGREGATED_TYPES = new Set(['AuthenticationEventAggregated', 'LoginThrottled'])
+const AUTH_TYPES = new Set([
+  'UserAuthenticated',
+  'AuthenticationStepCompleted',
+  'MfaChallengeIssued',
+  'MfaChallengeSucceeded',
+  'BackupCodeConsumed',
+  'SessionStarted',
+  'SessionRefreshed',
+  'SessionEnded',
+  'FederatedAuthenticated',
+  'FederationLinked',
+  'FederationUnlinked',
+  'SessionImpersonationStarted',
+  'SessionImpersonationEnded',
+  ...FAIL_TYPES,
+  ...AGGREGATED_TYPES,
+])
+
+function authEventKind(type: string): EventKind | null {
+  if (!AUTH_TYPES.has(type)) return null
+  if (FAIL_TYPES.has(type)) return 'fail'
+  if (AGGREGATED_TYPES.has(type)) return 'aggregated'
+  return 'success'
+}
+
+const KIND_BADGE: Record<EventKind, string> = {
+  success: 'bg-emerald-50 text-emerald-700',
+  fail: 'bg-rose-50 text-rose-700',
+  aggregated: 'bg-amber-50 text-amber-700',
+}
+
 export function AdminAuditEventsPage({
   actorUsername,
   actorRoles,
@@ -24,7 +60,10 @@ export function AdminAuditEventsPage({
   const [events, setEvents] = useState(initial)
   const [selected, setSelected] = useState<AdminAuditEvent | null>(initial[0] ?? null)
   const [type, setType] = useState('')
+  const [kind, setKind] = useState<'' | AdminAuditEventQuery['kind']>('')
   const [sub, setSub] = useState('')
+  const [usernameHash, setUsernameHash] = useState('')
+  const [ipTruncated, setIpTruncated] = useState('')
   const [after, setAfter] = useState('')
   const [before, setBefore] = useState('')
   const [limit, setLimit] = useState('100')
@@ -35,21 +74,27 @@ export function AdminAuditEventsPage({
   const canCrossTenant =
     actorRoles.includes('system_admin') && actorTenantID === DEFAULT_TENANT_ID
 
+  function buildQuery(): AdminAuditEventQuery {
+    const parsedLimit = limit.trim() ? Number.parseInt(limit, 10) : undefined
+    return {
+      type: type.trim() || undefined,
+      kind: kind || undefined,
+      sub: sub.trim() || undefined,
+      usernameHash: usernameHash.trim() || undefined,
+      ipTruncated: ipTruncated.trim() || undefined,
+      after: after.trim() ? new Date(after).toISOString() : undefined,
+      before: before.trim() ? new Date(before).toISOString() : undefined,
+      limit: Number.isFinite(parsedLimit) ? parsedLimit : undefined,
+      allTenants: canCrossTenant && allTenants,
+    }
+  }
+
   async function handleQuery(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setBusy(true)
     setError('')
     try {
-      const parsedLimit = limit.trim() ? Number.parseInt(limit, 10) : undefined
-      const q: AdminAuditEventQuery = {
-        type: type.trim() || undefined,
-        sub: sub.trim() || undefined,
-        after: after.trim() ? new Date(after).toISOString() : undefined,
-        before: before.trim() ? new Date(before).toISOString() : undefined,
-        limit: Number.isFinite(parsedLimit) ? parsedLimit : undefined,
-        allTenants: canCrossTenant && allTenants,
-      }
-      const next = await listAdminAuditEvents(q)
+      const next = await listAdminAuditEvents(buildQuery())
       setEvents(next)
       setSelected(next[0] ?? null)
     } catch (cause) {
@@ -63,6 +108,10 @@ export function AdminAuditEventsPage({
     }
   }
 
+  function handleExport() {
+    window.open(adminAuditEventsExportURL(buildQuery()), '_blank')
+  }
+
   return (
     <AdminShell
       active="audit-events"
@@ -73,7 +122,20 @@ export function AdminAuditEventsPage({
       {error ? <Alert variant="destructive">{error}</Alert> : null}
 
       <Card className="p-5">
-        <form onSubmit={handleQuery} className="grid gap-4 lg:grid-cols-[repeat(5,minmax(0,1fr))_auto]">
+        <form onSubmit={handleQuery} className="grid gap-4 lg:grid-cols-4">
+          <Field label="種別 (認証)">
+            <select
+              value={kind ?? ''}
+              onChange={(e) => setKind((e.target.value || '') as '' | AdminAuditEventQuery['kind'])}
+              className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm"
+            >
+              <option value="">すべて</option>
+              <option value="authentication">認証 (全体)</option>
+              <option value="success">認証 成功</option>
+              <option value="fail">認証 失敗</option>
+              <option value="aggregated">認証 集約</option>
+            </select>
+          </Field>
           <Field label="Type">
             <Input
               value={type}
@@ -84,12 +146,6 @@ export function AdminAuditEventsPage({
           <Field label="Sub">
             <Input value={sub} onChange={(e) => setSub(e.target.value)} placeholder="user_..." />
           </Field>
-          <Field label="From">
-            <Input type="datetime-local" value={after} onChange={(e) => setAfter(e.target.value)} />
-          </Field>
-          <Field label="To">
-            <Input type="datetime-local" value={before} onChange={(e) => setBefore(e.target.value)} />
-          </Field>
           <Field label="Limit">
             <Input
               type="number"
@@ -99,10 +155,34 @@ export function AdminAuditEventsPage({
               onChange={(e) => setLimit(e.target.value)}
             />
           </Field>
-          <div className="flex items-end">
-            <Button type="submit" disabled={busy} className="w-full lg:w-auto">
+          <Field label="Username hash">
+            <Input
+              value={usernameHash}
+              onChange={(e) => setUsernameHash(e.target.value)}
+              placeholder="sha256 hex"
+            />
+          </Field>
+          <Field label="IP (truncated)">
+            <Input
+              value={ipTruncated}
+              onChange={(e) => setIpTruncated(e.target.value)}
+              placeholder="203.0.113.0"
+            />
+          </Field>
+          <Field label="From">
+            <Input type="datetime-local" value={after} onChange={(e) => setAfter(e.target.value)} />
+          </Field>
+          <Field label="To">
+            <Input type="datetime-local" value={before} onChange={(e) => setBefore(e.target.value)} />
+          </Field>
+          <div className="flex items-end gap-2 lg:col-span-4">
+            <Button type="submit" disabled={busy}>
               <IconSearch size={16} aria-hidden="true" />
               絞り込み
+            </Button>
+            <Button type="button" variant="ghost" onClick={handleExport} disabled={busy}>
+              <IconDownload size={16} aria-hidden="true" />
+              エクスポート
             </Button>
           </div>
         </form>
@@ -146,7 +226,18 @@ export function AdminAuditEventsPage({
                   }`}
                 >
                   <td className="px-4 py-3 font-mono text-xs">{formatDate(e.occurred_at)}</td>
-                  <td className="px-4 py-3">{e.type}</td>
+                  <td className="px-4 py-3">
+                    <span className="inline-flex items-center gap-2">
+                      {authEventKind(e.type) ? (
+                        <span
+                          className={`rounded px-2 py-0.5 text-xs font-medium ${KIND_BADGE[authEventKind(e.type) as EventKind]}`}
+                        >
+                          {authEventKind(e.type)}
+                        </span>
+                      ) : null}
+                      {e.type}
+                    </span>
+                  </td>
                   <td className="px-4 py-3 font-mono text-xs">{e.tenant_id}</td>
                 </tr>
               ))}

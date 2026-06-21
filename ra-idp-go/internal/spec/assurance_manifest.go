@@ -18,7 +18,7 @@ var AssuranceManifest = map[string][]AssuranceVerification{
 	},
 	"AuthorizationPolicyTests": {
 		{File: "ra-idp-go/internal/oauth2/usecases/exchange_code_test.go", Check: "TestExchangeCodePKCEFailureDoesNotConsumeCode"},
-		{File: "ra-idp-go/internal/adapters/http/authorize_handler_test.go", Check: "TestAuthorize"},
+		{File: "ra-idp-go/internal/platform/http/authorize_handler_test.go", Check: "TestAuthorize"},
 	},
 	"RefreshRotationPropertyTests": {
 		{File: "ra-idp-go/internal/oauth2/usecases/exchange_code_test.go", Check: "TestExchangeCodeReplayRevokesRefreshFamily"},
@@ -31,7 +31,7 @@ var AssuranceManifest = map[string][]AssuranceVerification{
 		{File: "ra-idp-go/internal/tenancy/usecases/manage_tenants_test.go", Check: "TestTenantLifecycle"},
 	},
 	"TenantHttpBoundaryTests": {
-		{File: "ra-idp-go/internal/adapters/http/admin_client_handler_test.go", Check: "TestAdminClientCannotCrossTenantBoundary"},
+		{File: "ra-idp-go/internal/platform/http/admin_client_handler_test.go", Check: "TestAdminClientCannotCrossTenantBoundary"},
 	},
 	"TenantOAuthBoundaryTests": {
 		{File: "ra-idp-go/internal/oauth2/usecases/tenant_isolation_test.go", Check: "TestAuthorizationCodeCannotCrossTenantBoundary"},

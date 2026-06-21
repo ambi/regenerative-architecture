@@ -11,9 +11,9 @@ import (
 	"syscall"
 	"time"
 
-	httpadapter "ra-idp-go/internal/adapters/http"
 	authusecases "ra-idp-go/internal/authentication/usecases"
 	"ra-idp-go/internal/platform/crypto"
+	httpadapter "ra-idp-go/internal/platform/http"
 	"ra-idp-go/internal/platform/observability"
 	"ra-idp-go/internal/platform/persistence/memory"
 	"ra-idp-go/internal/platform/policy"

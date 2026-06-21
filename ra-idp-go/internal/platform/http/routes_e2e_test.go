@@ -15,10 +15,10 @@ import (
 	"testing"
 	"time"
 
-	httpadapter "ra-idp-go/internal/adapters/http"
 	authusecases "ra-idp-go/internal/authentication/usecases"
 	"ra-idp-go/internal/oauth2/domain"
 	"ra-idp-go/internal/platform/crypto"
+	httpadapter "ra-idp-go/internal/platform/http"
 	"ra-idp-go/internal/platform/persistence/memory"
 	"ra-idp-go/internal/spec"
 

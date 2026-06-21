@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	httpadapter "ra-idp-go/internal/adapters/http"
 	authusecases "ra-idp-go/internal/authentication/usecases"
+	httpadapter "ra-idp-go/internal/platform/http"
 	"ra-idp-go/internal/platform/persistence/memory"
 	"ra-idp-go/internal/spec"
 

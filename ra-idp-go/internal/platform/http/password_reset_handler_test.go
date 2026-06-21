@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	httpadapter "ra-idp-go/internal/adapters/http"
 	"ra-idp-go/internal/platform/crypto"
+	httpadapter "ra-idp-go/internal/platform/http"
 	"ra-idp-go/internal/platform/notification"
 	"ra-idp-go/internal/platform/persistence/memory"
 	"ra-idp-go/internal/platform/policy"

@@ -537,8 +537,8 @@ table.fields tbody tr:last-child td { border-bottom: none; }
       </a>
       <a class="overview-tile" href="#tab=work-items">
         <div class="overview-tile-label">Work Items</div>
-        <div class="overview-tile-num">36</div>
-        <div class="overview-tile-hint">0 in progress · 17 pending · 19 done</div>
+        <div class="overview-tile-num">37</div>
+        <div class="overview-tile-hint">0 in progress · 17 pending · 20 done</div>
       </a>
     </div>
   </section></div>
@@ -16987,7 +16987,7 @@ self 経路に出さないことをテストで担保する。</li>
       <div class="eyebrow">Work Items</div>
       <h1>Work items</h1>
     </header>
-    <div class="stats"><span class="stat"><span class="stat-num">17</span><span class="stat-label">pending</span></span><span class="stat"><span class="stat-num">19</span><span class="stat-label">completed</span></span></div>
+    <div class="stats"><span class="stat"><span class="stat-num">17</span><span class="stat-label">pending</span></span><span class="stat"><span class="stat-num">20</span><span class="stat-label">completed</span></span></div>
   </section>
   <section id="ch-index">
     <h2>Index</h2>
@@ -17124,6 +17124,12 @@ self 経路に出さないことをテストで担保する。</li>
         <span class="badge badge-status-done">completed</span>
         <span class="badge badge-risk-medium">medium</span>
         <span class="chip chip-has-cr">completion</span>
+      </a><a class="ch-index-row" href="#wi-40-totp-enrollment-qr-code">
+        <code class="ch-id">wi-40-totp-enrollment-qr-code</code>
+        <span class="ch-title">認証アプリ登録時に otpauth URI の QR コードを表示する</span>
+        <span class="badge badge-status-done">completed</span>
+        <span class="badge badge-risk-low">low</span>
+        <span class="chip chip-has-cr">completion</span>
       </a><a class="ch-index-row" href="#wi-4-component-alignment">
         <code class="ch-id">wi-4-component-alignment</code>
         <span class="ch-title">ra-idp-go の package 構成と scl.yaml components の整合性を取る</span>
@@ -17211,7 +17217,7 @@ self 経路に出さないことをテストで担保する。</li>
       </a></div>
   </section>
   <section id="ch-details">
-    <h2>Details <span class="count">36</span></h2>
+    <h2>Details <span class="count">37</span></h2>
     <div class="cards"><article class="card change" id="wi-34-http-request-cancellation-policy">
     <header>
       <h3>HTTP request cancellation policy を定義し、mutation の整合性とログ分類を整理する</h3>
@@ -19059,6 +19065,53 @@ AdminTenantsPage の 4 ページを追加し、admin console を全 6 領域
 </div></li><li><div class="md"><p>既存 AdminUsersPage / AdminClientsPage の UI ロジック改修は navigation 関連のみに限定した。RoleEditorDialog 等の挙動は未変更。</p>
 </div></li><li><div class="md"><p>多言語化や全面 a11y 見直しは行っていない。</p>
 </div></li><li><div class="md"><p>audit event payload は raw JSON 表示で確定した。field 単位の構造化 表示は今後の課題。</p>
+</div></li></ul></details>
+  </div>
+  </article><article class="card change" id="wi-40-totp-enrollment-qr-code">
+    <header>
+      <h3>認証アプリ登録時に otpauth URI の QR コードを表示する</h3>
+      <span class="chip chip-hint">wi-40-totp-enrollment-qr-code</span>
+      <span class="badge badge-has-cr">has completion</span>
+    </header>
+    <div class="work-item">
+    <header class="wi-header">
+      <h4>認証アプリ登録時に otpauth URI の QR コードを表示する</h4>
+      <div class="wi-meta"><span class="badge badge-status-done">completed</span> <span class="badge badge-risk-low">risk: low</span> <span class="chip chip-hint">created 2026-06-21</span> <span class="chip chip-hint">authors: tn</span></div>
+    </header>
+    <details class="change-block" open><summary>Motivation</summary><div class="md"><p>[[wi-21-end-user-account-portal]] の security ステージで TOTP の self-service
+登録を追加したが、<code>/account/security</code> の登録画面は otpauth URI とセットアップ
+キーを文字列で提示するだけで、認証アプリへの登録は手動入力に頼る。実運用の
+IdP (Keycloak / Okta / Google) はいずれも QR コードを第一手段として提示し、
+手動キーは「スキャンできない場合」のフォールバックに置く。QR を出すことで
+スマートフォンの認証アプリへワンスキャンで登録でき、手入力由来の enroll
+失敗を減らせる。</p>
+</div></details><details class="change-block"><summary>Scope</summary><div class="scope-group"><h4>decision</h4><ul class="change-list"><li><div class="md"><p>QR は <strong>クライアント側で生成</strong>する。otpauth URI と secret は既に TOTPEnrollmentStart でブラウザに返っており、サーバで画像化しても新たな secret 露出面を増やすだけなので、サーバ側エンドポイントや Go 依存は 追加しない。SPA に小さな QR ライブラリ (<code>qrcode.react</code>、MIT、型同梱、 ランタイム依存は react のみ) を 1 つ加え、<code>enrollment.otpauth_uri</code> を SVG として描画する。SVG は CSP 親和的で高 DPI / 印刷でも崩れない。</p>
+</div></li></ul></div><div class="scope-group"><h4>scl</h4><p class="muted">(empty)</p></div><div class="scope-group"><h4>go</h4><p class="muted">(empty)</p></div><div class="scope-group"><h4>ui</h4><ul class="change-list"><li><div class="md"><p>AccountSecurityPage の登録ステップに QR (SVG) を追加し、セットアップキーと otpauth URI 文字列は「スキャンできない場合」のフォールバックとして残す。</p>
+</div></li><li><div class="md"><p>QR の図形には代替テキストを与え、視覚に頼れない利用者にはセットアップキー 手動入力の導線を維持する (アクセシビリティの後退を起こさない)。</p>
+</div></li></ul></div><div class="scope-group"><h4>documentation</h4><ul class="change-list"><li><div class="md"><p>README の End-user account portal セクションのセキュリティ項に QR 表示を追記。</p>
+</div></li></ul></div></details><details class="change-block"><summary>Out of scope</summary><ul class="change-list"><li><div class="md"><p>サーバ側 QR 生成 / 画像エンドポイント。</p>
+</div></li><li><div class="md"><p>WebAuthn / SMS OTP / step-up auth (wi-21 後続ステージのまま)。</p>
+</div></li><li><div class="md"><p>QR のロゴ埋め込み・ブランドカラー化。</p>
+</div></li></ul></details><details class="change-block"><summary>Affected guarantees</summary><ul class="change-list"><li><div class="md"><p>secret 露出面: QR は既にブラウザにある otpauth URI から生成し、サーバへ secret を送り返さない。表示は登録ステップ中のみで、確定/キャンセル後は破棄する。</p>
+</div></li><li><div class="md"><p>アクセシビリティ: QR をスキャンできない利用者向けにセットアップキー手動入力を 併置し、登録手段の後退を起こさない。</p>
+</div></li></ul></details><details class="change-block"><summary>Verification</summary><ul class="change-list"><li><code>bun --cwd ra-idp-go/ui typecheck</code></li><li><code>bun --cwd ra-idp-go/ui lint</code></li><li><code>bun --cwd ra-idp-go/ui build</code></li><li><div class="md"><p>手動: /account/security で「認証アプリを設定」→ QR が表示され、認証アプリで スキャンするとアカウントが追加される。表示された 6 桁コードで登録を完了でき、 ログアウト→再ログインで TOTP チャレンジを通過できる。</p>
+</div></li><li><div class="md"><p>手動: QR を使わずセットアップキー手動入力でも従来どおり登録できる (フォールバック維持)。</p>
+</div></li></ul></details><details class="change-block"><summary>Risk notes</summary><div class="md"><p>UI 表示のみの追加で contract / Go / 永続化に変更はない。リスクは新規 npm 依存
+追加に伴うサプライチェーンのみで、<code>qrcode.react</code> は MIT・広く使われる小さな
+依存。secret は既存挙動と同じくクライアント側に閉じる。</p>
+</div></details>
+  </div>
+    <div class="completion-record">
+    <header class="cr-header">
+      <h4>Completion</h4>
+      <div class="cr-meta"><span class="badge badge-status-done">completed</span> <span class="chip chip-hint">completed 2026-06-21</span></div>
+    </header>
+    <details class="change-block" open><summary>Summary</summary><div class="md"><p>AccountSecurityPage の TOTP 登録ステップに qrcode.react の QRCodeSVG で
+otpauth URI の QR を表示。セットアップキー / otpauth URI 文字列はスキャン
+できない場合のフォールバックとして併置。SCL / Go / 永続化は無変更で、
+contract (/api/account/mfa/totp/enroll/*) も不変。</p>
+</div></details><details class="change-block"><summary>Verification results</summary><ul class="change-list"><li><code>bun --cwd ra-idp-go/ui typecheck</code> <span class="muted">→ passed</span></li><li><code>bun --cwd ra-idp-go/ui lint</code> <span class="muted">→ passed</span></li><li><code>bun --cwd ra-idp-go/ui build</code> <span class="muted">→ passed</span></li></ul></details><details class="change-block"><summary>Guarantees state</summary><ul class="change-list"><li><div class="md"><p>secret 露出面: QR はクライアント側生成のままで、サーバへ secret を送らない。 後退なし。</p>
+</div></li><li><div class="md"><p>アクセシビリティ: セットアップキー手動入力を QR と併置。登録手段の後退なし。</p>
 </div></li></ul></details>
   </div>
   </article><article class="card change" id="wi-4-component-alignment">

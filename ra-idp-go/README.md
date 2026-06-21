@@ -218,10 +218,12 @@ end-user 向けの「マイページ」を `/account` 配下に持つ (ADR-042 /
   方式 / EmailSender)。確認時に `email_verified=true` とし、`verify_email` の required
   action があれば自動解除する。
 - **セキュリティ** (`/account/security`): パスワード変更 (`/account/password`) への導線と、
-  認証アプリ (TOTP) の self-service 登録・解除。登録は確認コード、解除は有効な TOTP コードに
-  よる所持証明を要求する (`POST /api/account/mfa/totp/enroll/start` |
-  `…/enroll/confirm` | `…/remove`)。登録で `mfa_enrolled=true`、解除で false に戻す。
-  WebAuthn / SMS OTP と step-up auth (ADR-043) は後続ステージ。
+  認証アプリ (TOTP) の self-service 登録・解除。登録時は otpauth URI を QR コード (クライアント
+  側生成の SVG) で提示し、スキャンできない場合のセットアップキー手動入力を併置する (wi-40)。
+  登録は確認コード、解除は有効な TOTP コードによる所持証明を要求する
+  (`POST /api/account/mfa/totp/enroll/start` | `…/enroll/confirm` | `…/remove`)。登録で
+  `mfa_enrolled=true`、解除で false に戻す。WebAuthn / SMS OTP と step-up auth (ADR-043) は
+  後続ステージ。
 - **接続済みアプリ** (`/account/applications`): アクセスを許可した OAuth クライアント
   (active な Consent) の一覧と、個別の取り消し。取り消すと次回その client の認可で
   consent が再要求される (admin の Consent 取り消しと同じ論理撤回 + `ConsentRevoked`)。

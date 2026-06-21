@@ -5,6 +5,7 @@ import {
   IconKey,
   IconShieldLock,
 } from '@tabler/icons-react'
+import { QRCodeSVG } from 'qrcode.react'
 import { type FormEvent, useState } from 'react'
 import {
   AuthenticationAPIError,
@@ -152,20 +153,39 @@ export function AccountSecurityPage({ csrfToken, username, isAdmin, security }: 
 
         {!enrolled && enrollment ? (
           <form onSubmit={handleConfirm} className="grid gap-4 border-t border-slate-100 pt-4">
-            <div className="grid gap-1.5">
-              <p className="text-sm text-slate-700">
-                認証アプリに次のキーを手動で登録するか、セットアップ用の URI を読み込んでください。
+            <div className="flex flex-col items-center gap-3 border-b border-slate-100 pb-4">
+              <p className="text-center text-sm text-slate-700">
+                認証アプリ (Google Authenticator など) で、この QR コードをスキャンしてください。
               </p>
-              <Label htmlFor="totp-secret">セットアップキー</Label>
-              <Input
-                id="totp-secret"
-                readOnly
-                value={enrollment.secret}
-                className="font-mono tracking-wider"
-                onFocus={(event) => event.target.select()}
-              />
-              <p className="break-all text-xs text-slate-500">{enrollment.otpauth_uri}</p>
+              <div className="rounded-xl border border-slate-200 bg-white p-3">
+                <QRCodeSVG
+                  value={enrollment.otpauth_uri}
+                  size={176}
+                  level="M"
+                  marginSize={0}
+                  title="認証アプリ登録用の QR コード"
+                />
+              </div>
             </div>
+            <details className="rounded-lg bg-slate-50 px-3.5 py-3 text-sm text-slate-600">
+              <summary className="cursor-pointer font-medium text-slate-700">
+                QR コードをスキャンできない場合
+              </summary>
+              <div className="mt-3 grid gap-1.5">
+                <Label htmlFor="totp-secret">セットアップキー</Label>
+                <Input
+                  id="totp-secret"
+                  readOnly
+                  value={enrollment.secret}
+                  className="font-mono tracking-wider"
+                  onFocus={(event) => event.target.select()}
+                />
+                <p className="mt-1 text-xs text-slate-500">
+                  認証アプリに手動でこのキーを入力してください (時間ベース / 6 桁 / 30 秒)。
+                </p>
+                <p className="mt-2 break-all text-xs text-slate-400">{enrollment.otpauth_uri}</p>
+              </div>
+            </details>
             <div className="grid gap-1.5">
               <Label htmlFor="totp-code">認証アプリに表示された 6 桁コード</Label>
               <Input

@@ -485,11 +485,22 @@ export type AccountSignInActivity = {
   amr: string[]
 }
 
+export type AccountSession = {
+  id: string
+  current: boolean
+  amr: string[]
+  acr: string
+  started_at: string
+  expires_at: string
+}
+
 export type AccountActivityPage = {
   kind: 'account-activity'
+  csrfToken: string
   username: string
   isAdmin: boolean
   activities: AccountSignInActivity[]
+  sessions: AccountSession[]
 }
 
 export type AdminTenantAttributesPage = {

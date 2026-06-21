@@ -10,6 +10,7 @@ import type {
   AccountProfilePage,
   AccountSecurity,
   AccountSecurityPage,
+  AccountSession,
   AccountSignInActivity,
   AccountSummary,
   EmailVerifyPage,
@@ -270,12 +271,14 @@ export async function loadPageData(): Promise<PageData> {
   }
   if (path === '/account/activity') {
     const account = accountContext!
-    const activities = await getSignInActivity()
+    const [activities, sessions] = await Promise.all([getSignInActivity(), listAccountSessions()])
     return {
       kind: 'account-activity',
+      csrfToken: account.csrf_token,
       username: account.preferred_username ?? 'account',
       isAdmin: hasAdminRole(account.roles),
       activities,
+      sessions,
     } satisfies AccountActivityPage
   }
   if (path === '/account/password') {
@@ -954,6 +957,40 @@ export async function getAccountSecurity(): Promise<AccountSecurity> {
 export async function getSignInActivity(): Promise<AccountSignInActivity[]> {
   return (await request<{ activities: AccountSignInActivity[] }>('/api/account/signin_activity'))
     .activities
+}
+
+export async function listAccountSessions(): Promise<AccountSession[]> {
+  return (await request<{ sessions: AccountSession[] }>('/api/account/sessions')).sessions
+}
+
+export async function revokeAccountSession(csrfToken: string, id: string): Promise<void> {
+  const response = await fetch(
+    tenantURL(`/api/account/sessions/${encodeURIComponent(id)}/revoke`),
+    {
+      method: 'POST',
+      headers: { 'X-CSRF-Token': csrfToken },
+      credentials: 'same-origin',
+      cache: 'no-store',
+    },
+  )
+  if (response.status === 204) return
+  const body = (await response.json().catch(() => ({}))) as APIError
+  throw new AuthenticationAPIError(body.message ?? 'セッションを終了できませんでした。', body.error)
+}
+
+export async function revokeOtherAccountSessions(csrfToken: string): Promise<void> {
+  const response = await fetch(tenantURL('/api/account/sessions/revoke_others'), {
+    method: 'POST',
+    headers: { 'X-CSRF-Token': csrfToken },
+    credentials: 'same-origin',
+    cache: 'no-store',
+  })
+  if (response.status === 204) return
+  const body = (await response.json().catch(() => ({}))) as APIError
+  throw new AuthenticationAPIError(
+    body.message ?? '他のセッションを終了できませんでした。',
+    body.error,
+  )
 }
 
 export async function startTotpEnrollment(csrfToken: string): Promise<TotpEnrollmentStart> {

@@ -2,6 +2,7 @@ import {
   IconApps,
   IconChevronDown,
   IconDatabaseCog,
+  IconHistory,
   IconLogout,
   IconMail,
   IconShieldLock,
@@ -30,6 +31,7 @@ export type AccountNavKey =
   | 'profile'
   | 'emails'
   | 'security'
+  | 'activity'
   | 'applications'
   | 'data'
 
@@ -38,6 +40,7 @@ const navItems: { key: AccountNavKey; label: string; href: string; icon: typeof 
   { key: 'profile', label: '個人情報', href: '/account/profile', icon: IconUser },
   { key: 'emails', label: 'メールアドレス', href: '/account/emails', icon: IconMail },
   { key: 'security', label: 'セキュリティ', href: '/account/security', icon: IconShieldLock },
+  { key: 'activity', label: 'アクティビティ', href: '/account/activity', icon: IconHistory },
   { key: 'applications', label: '接続済みアプリ', href: '/account/applications', icon: IconApps },
   { key: 'data', label: 'データとプライバシー', href: '/account/data', icon: IconDatabaseCog },
 ]

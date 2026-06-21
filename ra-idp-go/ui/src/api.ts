@@ -5,10 +5,12 @@ import type {
   AccountDataPage,
   AccountEmailsPage,
   AccountHomePage,
+  AccountActivityPage,
   AccountProfile,
   AccountProfilePage,
   AccountSecurity,
   AccountSecurityPage,
+  AccountSignInActivity,
   AccountSummary,
   EmailVerifyPage,
   TotpEnrollmentStart,
@@ -265,6 +267,16 @@ export async function loadPageData(): Promise<PageData> {
       isAdmin: hasAdminRole(account.roles),
       security,
     } satisfies AccountSecurityPage
+  }
+  if (path === '/account/activity') {
+    const account = accountContext!
+    const activities = await getSignInActivity()
+    return {
+      kind: 'account-activity',
+      username: account.preferred_username ?? 'account',
+      isAdmin: hasAdminRole(account.roles),
+      activities,
+    } satisfies AccountActivityPage
   }
   if (path === '/account/password') {
     const data = accountContext!
@@ -937,6 +949,11 @@ export async function revokeAccountConsent(csrfToken: string, clientId: string):
 
 export async function getAccountSecurity(): Promise<AccountSecurity> {
   return request<AccountSecurity>('/api/account/security')
+}
+
+export async function getSignInActivity(): Promise<AccountSignInActivity[]> {
+  return (await request<{ activities: AccountSignInActivity[] }>('/api/account/signin_activity'))
+    .activities
 }
 
 export async function startTotpEnrollment(csrfToken: string): Promise<TotpEnrollmentStart> {

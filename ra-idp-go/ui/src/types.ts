@@ -480,6 +480,18 @@ export type AccountSecurityPage = {
   security: AccountSecurity
 }
 
+export type AccountSignInActivity = {
+  occurred_at: string
+  amr: string[]
+}
+
+export type AccountActivityPage = {
+  kind: 'account-activity'
+  username: string
+  isAdmin: boolean
+  activities: AccountSignInActivity[]
+}
+
 export type AdminTenantAttributesPage = {
   kind: 'admin-tenant-attributes'
   csrfToken: string
@@ -520,6 +532,7 @@ export type PageData =
   | AccountApplicationsPage
   | AccountDataPage
   | AccountSecurityPage
+  | AccountActivityPage
 
 export type BrowserFlowResponse = {
   next?: string

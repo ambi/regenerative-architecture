@@ -224,6 +224,9 @@ end-user 向けの「マイページ」を `/account` 配下に持つ (ADR-042 /
   (`POST /api/account/mfa/totp/enroll/start` | `…/enroll/confirm` | `…/remove`)。登録で
   `mfa_enrolled=true`、解除で false に戻す。WebAuthn / SMS OTP と step-up auth (ADR-043) は
   後続ステージ。
+- **アクティビティ** (`/account/activity`): 直近のサインイン履歴 (日時 + 認証手段 `amr`) を
+  新しい順に表示 (`GET /api/account/signin_activity`、wi-20 スライス 1 の API)。IP / デバイス /
+  場所の表示と、有効なセッションの一覧・終了は後続ステージ (wi-20 のセッション API 後)。
 - **接続済みアプリ** (`/account/applications`): アクセスを許可した OAuth クライアント
   (active な Consent) の一覧と、個別の取り消し。取り消すと次回その client の認可で
   consent が再要求される (admin の Consent 取り消しと同じ論理撤回 + `ConsentRevoked`)。
@@ -234,9 +237,9 @@ end-user 向けの「マイページ」を `/account` 配下に持つ (ADR-042 /
 
 self が変更できるのは表示名 / 編集可能属性 / メールアドレス / パスワード / 認証アプリ (TOTP) /
 接続済みアプリの取り消しのみ。`roles` / `status` / 組織属性 / `editable_by_user=false` の属性は
-admin 専用 (ADR-042)。secondary/recovery email・WebAuthn/SMS の MFA・step-up auth・セッション
-管理は wi-21 の後続ステージで追加する。アカウントの削除 / 退会は self-service では提供せず、
-ライフサイクルは admin 経路 (ADR-036) で管理する。
+admin 専用 (ADR-042)。secondary/recovery email・WebAuthn/SMS の MFA・step-up auth・有効な
+セッションの一覧と終了は wi-21 の後続ステージで追加する。アカウントの削除 / 退会は self-service
+では提供せず、ライフサイクルは admin 経路 (ADR-036) で管理する。
 
 ### Authentication event history (サインイン履歴)
 

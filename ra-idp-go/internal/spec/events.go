@@ -155,6 +155,31 @@ type UserCreated struct {
 func (e *UserCreated) EventType() string     { return "UserCreated" }
 func (e *UserCreated) OccurredAt() time.Time { return e.At }
 
+// StepUpRequested は本人が高 sensitivity 操作のための step-up 再認証を開始した
+// (ADR-043 / wi-43)。利用可能な factor の提示要求であり、まだ再認証は成立していない。
+type StepUpRequested struct {
+	At        time.Time `json:"-"`
+	TenantID  string    `json:"tenantId"`
+	Sub       string    `json:"sub"`
+	SessionID string    `json:"sessionId"`
+}
+
+func (e *StepUpRequested) EventType() string     { return "StepUpRequested" }
+func (e *StepUpRequested) OccurredAt() time.Time { return e.At }
+
+// StepUpCompleted は step-up 再認証が成立した (ADR-043 / wi-43)。method は再認証に
+// 使った factor (password | totp)。これ以降 recency 窓内は sensitive 操作を許可する。
+type StepUpCompleted struct {
+	At        time.Time `json:"-"`
+	TenantID  string    `json:"tenantId"`
+	Sub       string    `json:"sub"`
+	SessionID string    `json:"sessionId"`
+	Method    string    `json:"method"`
+}
+
+func (e *StepUpCompleted) EventType() string     { return "StepUpCompleted" }
+func (e *StepUpCompleted) OccurredAt() time.Time { return e.At }
+
 // SessionEnded は LoginSession が終了した (wi-20)。self / admin の明示的な失効では
 // ActorSub が操作者、reason が self_revoke / admin_revoke になる。
 type SessionEnded struct {

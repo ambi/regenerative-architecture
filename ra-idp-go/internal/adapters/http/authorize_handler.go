@@ -493,6 +493,10 @@ func (d Deps) handleChangePasswordAPI(c *echo.Context) error {
 	if authn == nil || authn.AuthenticationPending {
 		return writeBrowserError(c, http.StatusUnauthorized, "authentication_required", "認証済みセッションが必要です")
 	}
+	// パスワード変更は高 sensitivity 操作。step-up 再認証を要求する (ADR-043)。
+	if !authusecases.StepUpSatisfied(authn, time.Now().UTC()) {
+		return writeBrowserError(c, http.StatusForbidden, "step_up_required", "この操作には再認証が必要です")
+	}
 	var input changePasswordAPIRequest
 	if err := decodeJSON(c.Request(), &input); err != nil {
 		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")

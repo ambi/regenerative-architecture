@@ -22,10 +22,10 @@ components:
 
   Authentication:
     description: エンドユーザ (Subject) の identity、credentials、MFA、ログインセッション、パスワードリセット、および管理 API からの User ライフサイクル操作を所有する。
-    owns_models: [User, MfaFactor, MfaFactorType, LoginSession, AuthenticationContext, PasswordResetTokenRecord, BrowserLoginRequest, BrowserTotpRequest, BrowserChangePasswordRequest, BrowserForgotPasswordRequest, BrowserResetPasswordRequest, AdminUserCreateRequest, AdminUserUpdateRequest, AdminRequiredActionRequest, AdminUserListResponse, AdminUserResponse, Group, GroupMember, GroupCreateRequest, GroupUpdateRequest, GroupSummaryResponse, GroupListResponse, GroupMemberResponse, GroupAddMemberRequest, UserGroupsResponse, UserLifecycle, AttributeValue, UserStatus, RequiredAction, AccountProfileResponse, AccountProfileUpdateRequest, AccountSummary, AccountEmailChangeRequest, AccountEmailChangeConfirm, AccountDataExport, AccountMfaFactor, AccountSecurityResponse, TOTPEnrollmentStart, TOTPEnrollmentConfirmRequest, MfaFactorRemoveRequest, UserSignInActivity, UserSignInActivityResponse, SessionEndReason, AccountSession, AccountSessionListResponse, AuthenticationEventBucket, AuthenticationEventBucketListResponse]
+    owns_models: [User, MfaFactor, MfaFactorType, LoginSession, AuthenticationContext, PasswordResetTokenRecord, BrowserLoginRequest, BrowserTotpRequest, BrowserChangePasswordRequest, BrowserForgotPasswordRequest, BrowserResetPasswordRequest, AdminUserCreateRequest, AdminUserUpdateRequest, AdminRequiredActionRequest, AdminUserListResponse, AdminUserResponse, Group, GroupMember, GroupCreateRequest, GroupUpdateRequest, GroupSummaryResponse, GroupListResponse, GroupMemberResponse, GroupAddMemberRequest, UserGroupsResponse, UserLifecycle, AttributeValue, UserStatus, RequiredAction, AccountProfileResponse, AccountProfileUpdateRequest, AccountSummary, AccountEmailChangeRequest, AccountEmailChangeConfirm, AccountDataExport, AccountMfaFactor, AccountSecurityResponse, TOTPEnrollmentStart, TOTPEnrollmentConfirmRequest, MfaFactorRemoveRequest, UserSignInActivity, UserSignInActivityResponse, SessionEndReason, AccountSession, AccountSessionListResponse, AuthenticationEventBucket, AuthenticationEventBucketListResponse, StepUpMethod, StepUpStartResponse, StepUpCompleteRequest]
     owns_states: [UserLifecycle, GroupLifecycle]
-    owns_events: [UserAuthenticated, AuthenticationFailed, PasswordChanged, LoginThrottled, PasswordResetRequested, EmailSent, EmailChangeRequested, EmailChanged, UserCreated, UserUpdated, UserDisabled, UserEnabled, UserDeleted, UserRequiredActionSet, UserRequiredActionCleared, GroupCreated, GroupUpdated, GroupDeleted, GroupMemberAdded, GroupMemberRemoved, MfaFactorEnrolled, MfaFactorRemoved, SessionEnded, AuthenticationEventAggregated]
-    owns_interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, ChangePassword, GetAccountSummary, GetUserProfile, UpdateUserProfile, RequestEmailChange, ConfirmEmailChange, ExportAccountData, GetAccountSecurity, StartTotpEnrollment, ConfirmTotpEnrollment, RemoveTotpFactor, ListMySignInActivity, ListUserSignInActivity, ListAuthenticationEventBuckets, ListMySessions, RevokeMySession, RevokeMyOtherSessions, RequestPasswordReset, ResetPasswordWithToken, ListAdminUsers, GetAdminUser, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser, DeleteAdminUser, SetUserRequiredAction, ClearUserRequiredAction, ListGroups, GetGroup, CreateGroup, UpdateGroup, DeleteGroup, AddGroupMember, RemoveGroupMember, ListUserGroups]
+    owns_events: [UserAuthenticated, AuthenticationFailed, PasswordChanged, LoginThrottled, PasswordResetRequested, EmailSent, EmailChangeRequested, EmailChanged, UserCreated, UserUpdated, UserDisabled, UserEnabled, UserDeleted, UserRequiredActionSet, UserRequiredActionCleared, GroupCreated, GroupUpdated, GroupDeleted, GroupMemberAdded, GroupMemberRemoved, MfaFactorEnrolled, MfaFactorRemoved, SessionEnded, AuthenticationEventAggregated, StepUpRequested, StepUpCompleted]
+    owns_interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, ChangePassword, GetAccountSummary, GetUserProfile, UpdateUserProfile, RequestEmailChange, ConfirmEmailChange, ExportAccountData, GetAccountSecurity, StartTotpEnrollment, ConfirmTotpEnrollment, RemoveTotpFactor, ListMySignInActivity, ListUserSignInActivity, ListAuthenticationEventBuckets, ListMySessions, RevokeMySession, RevokeMyOtherSessions, StartStepUpAuthentication, CompleteStepUpAuthentication, RequestPasswordReset, ResetPasswordWithToken, ListAdminUsers, GetAdminUser, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser, DeleteAdminUser, SetUserRequiredAction, ClearUserRequiredAction, ListGroups, GetGroup, CreateGroup, UpdateGroup, DeleteGroup, AddGroupMember, RemoveGroupMember, ListUserGroups]
     owns_invariants: [PasswordHistoryNoReuse, EffectiveRolesComposition, GroupMembershipAuditEmission]
     owns_permissions: [AdminUserRead, AdminUserCreate, AdminUserUpdate, AdminUserDelete, AdminGroupsRead, AdminGroupsWrite]
     owns_objectives: [PiiPurgeAfterDeletion]
@@ -2009,6 +2009,33 @@ models:
     fields:
       buckets: { type: "AuthenticationEventBucket[]" }
 
+  StepUpMethod:
+    kind: enum
+    description: |
+      step-up 再認証に使える factor (ADR-043)。password は常時、totp は enrolled 時のみ
+      利用できる。
+    values: [password, totp]
+
+  StepUpStartResponse:
+    kind: value_object
+    description: |
+      StartStepUpAuthentication の返り値。利用可能な再認証 method の一覧 (UI が再認証
+      modal に出す選択肢)。
+    annotations: { component: Authentication }
+    fields:
+      methods: { type: "StepUpMethod[]" }
+
+  StepUpCompleteRequest:
+    kind: value_object
+    description: |
+      CompleteStepUpAuthentication の入力。method に応じて password または code を使う。
+      検証材料は audit / log に残さない。
+    annotations: { component: Authentication }
+    fields:
+      method:   { type: StepUpMethod }
+      password: { type: String, optional: true, annotations: { pii: true } }
+      code:     { type: String, optional: true }
+
   Group:
     kind: entity
     description: ADR-038 で導入した tenant-scoped ロール束集約。所属 User に roles を一斉付与する。id は不変の生成識別子、name はテナント内で一意な編集可能ラベル。
@@ -2710,6 +2737,31 @@ models:
       actorSub:   { type: String, description: "失効を実行した主体の sub (self は本人)。" }
       reason:     { type: SessionEndReason }
 
+  StepUpRequested:
+    kind: event
+    description: |
+      本人が高 sensitivity 操作のための step-up 再認証を開始した (ADR-043 / wi-43)。
+      利用可能な factor の提示要求であり、まだ再認証は成立していない。
+    annotations: { component: Authentication }
+    payload:
+      occurredAt: { type: Timestamp }
+      tenantId:   { type: String, description: "本人の所属テナント ID。" }
+      sub:        { type: String }
+      sessionId:  { type: String }
+
+  StepUpCompleted:
+    kind: event
+    description: |
+      step-up 再認証が成立した (ADR-043 / wi-43)。method は再認証に使った factor
+      (password | totp)。検証材料 (パスワード / コード) は payload に含めない。
+    annotations: { component: Authentication }
+    payload:
+      occurredAt: { type: Timestamp }
+      tenantId:   { type: String, description: "本人の所属テナント ID。" }
+      sub:        { type: String }
+      sessionId:  { type: String }
+      method:     { type: String, description: "password | totp" }
+
   UserCreated:
     kind: event
     description: 管理者がユーザーを作成した。初期パスワードと password_hash は監査イベントに含めない。
@@ -3160,6 +3212,7 @@ interfaces:
       request: { type: BrowserChangePasswordRequest }
     errors: [InvalidRequestError, AccessDeniedError]
     emits: [PasswordChanged]
+    annotations: { step_up: required }
     bindings:
       - { kind: http, method: POST, path: /api/auth/change_password, request_body: json }
 
@@ -3212,6 +3265,7 @@ interfaces:
       request: { type: AccountEmailChangeRequest }
     errors: [InvalidRequestError, AccessDeniedError]
     emits: [EmailChangeRequested, EmailSent]
+    annotations: { step_up: required }
     bindings:
       - { kind: http, method: POST, path: /api/account/email/change_request, request_form: body }
 
@@ -3278,6 +3332,7 @@ interfaces:
       request: { type: MfaFactorRemoveRequest }
     errors: [InvalidRequestError, AccessDeniedError]
     emits: [MfaFactorRemoved]
+    annotations: { step_up: required }
     bindings:
       - { kind: http, method: POST, path: /api/account/mfa/totp/remove, request_form: body }
 
@@ -3342,8 +3397,33 @@ interfaces:
       wi-20)。"他のセッションを全て終了" 操作。
     errors: [AccessDeniedError]
     emits: [SessionEnded]
+    annotations: { step_up: required }
     bindings:
       - { kind: http, method: POST, path: /api/account/sessions/revoke_others, successful_status_codes: ["204"] }
+
+  StartStepUpAuthentication:
+    description: |
+      高 sensitivity 操作の前段として step-up 再認証を開始する (self-service, ADR-043 /
+      wi-43)。actor 本人のセッションに固定し、利用可能な factor (password 常時 / totp は
+      enrolled 時) を返す。本 interface 自体には step-up を要求しない (再認証の入口のため)。
+    output:
+      methods: { type: StepUpStartResponse }
+    errors: [AccessDeniedError]
+    emits: [StepUpRequested]
+    bindings:
+      - { kind: http, method: POST, path: /api/account/step_up/start, request_form: body }
+
+  CompleteStepUpAuthentication:
+    description: |
+      提示された factor (password または totp コード) を検証し、成立すればセッションに
+      step_up_at を刻む (ADR-043 / wi-43)。以降 recency 窓 (5 分) 内は step_up: required の
+      操作を許可する。検証失敗は AccessDeniedError。
+    input:
+      request: { type: StepUpCompleteRequest }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [StepUpCompleted]
+    bindings:
+      - { kind: http, method: POST, path: /api/account/step_up/complete, request_form: body }
 
   RequestPasswordReset:
     description: |

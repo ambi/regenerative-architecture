@@ -11,6 +11,9 @@ type AuthenticationContext struct {
 	ACR                   string
 	SessionID             string
 	AuthenticationPending bool
+	// StepUpAt は直近の step-up 再認証時刻 (Unix 秒、未実施は 0)。高 sensitivity 操作の
+	// recency gate (ADR-043) が AuthTime と合わせて評価する。
+	StepUpAt int64
 }
 
 type AuthenticationContextResolver interface {

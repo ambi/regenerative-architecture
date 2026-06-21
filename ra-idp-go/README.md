@@ -222,8 +222,7 @@ end-user 向けの「マイページ」を `/account` 配下に持つ (ADR-042 /
   側生成の SVG) で提示し、スキャンできない場合のセットアップキー手動入力を併置する (wi-40)。
   登録は確認コード、解除は有効な TOTP コードによる所持証明を要求する
   (`POST /api/account/mfa/totp/enroll/start` | `…/enroll/confirm` | `…/remove`)。登録で
-  `mfa_enrolled=true`、解除で false に戻す。WebAuthn / SMS OTP と step-up auth (ADR-043) は
-  後続ステージ。
+  `mfa_enrolled=true`、解除で false に戻す。WebAuthn / SMS OTP は後続ステージ (wi-26)。
 - **アクティビティ** (`/account/activity`): 有効なセッションの一覧 (現在のセッションを明示) と
   個別の「終了」/「他のセッションを終了」、および直近のサインイン履歴 (日時 + 認証手段 `amr`) を
   新しい順に表示 (`GET /api/account/sessions` + `GET /api/account/signin_activity`)。IP /
@@ -238,9 +237,18 @@ end-user 向けの「マイページ」を `/account` 配下に持つ (ADR-042 /
 
 self が変更できるのは表示名 / 編集可能属性 / メールアドレス / パスワード / 認証アプリ (TOTP) /
 接続済みアプリの取り消しのみ。`roles` / `status` / 組織属性 / `editable_by_user=false` の属性は
-admin 専用 (ADR-042)。secondary/recovery email・WebAuthn/SMS の MFA・step-up auth は wi-21 の
-後続ステージで追加する。アカウントの削除 / 退会は self-service では提供せず、ライフサイクルは
-admin 経路 (ADR-036) で管理する。
+admin 専用 (ADR-042)。secondary/recovery email・WebAuthn/SMS の MFA は wi-21 の後続ステージで
+追加する。アカウントの削除 / 退会は self-service では提供せず、ライフサイクルは admin 経路
+(ADR-036) で管理する。
+
+**step-up 再認証 (ADR-043 / wi-43)**: セッション乗っ取り時の被害を抑えるため、高 sensitivity な
+操作 (パスワード変更 / MFA factor の解除 / primary email 変更 / 全セッション失効) は「直近 5 分
+以内に password または MFA で再認証済み」であることを要求する。判定の時刻ソースは
+`max(auth_time, step_up_at)` で、新規ログイン直後はそのまま step-up 済みとして扱う。未通過は
+401 ではなく **403 + `step_up_required`** で返し、UI が再認証 modal を出して成功後に元の操作を
+再試行する。再認証は `POST /api/account/step_up/start` (利用可能な factor を取得) →
+`…/step_up/complete` (`{ method: "password"|"totp", … }`) で、成立すると session の `step_up_at`
+を刻む。対象操作の表は SCL interface の `step_up: required` 注記と機械照合する。
 
 ### Authentication event history (サインイン履歴)
 

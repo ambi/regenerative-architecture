@@ -417,6 +417,9 @@ type LoginSession struct {
 	ACR                   string    `json:"acr"`
 	AuthenticationPending bool      `json:"authentication_pending"`
 	ExpiresAt             time.Time `json:"expires_at"`
+	// StepUpAt は直近で password / MFA による step-up 再認証が成立した時刻 (Unix 秒、
+	// 未実施は 0)。高 sensitivity な self-service 操作の recency 判定に使う (ADR-043)。
+	StepUpAt int64 `json:"step_up_at,omitempty"`
 }
 
 func (s LoginSession) Validate() error {

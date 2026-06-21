@@ -100,6 +100,39 @@ func (m *SessionManager) CompleteFactor(
 		ACR:                   sess.ACR,
 		SessionID:             sess.ID,
 		AuthenticationPending: sess.AuthenticationPending,
+		StepUpAt:              sess.StepUpAt,
+	}, nil
+}
+
+// RecordStepUp は session に step-up 再認証の成立時刻を刻む (ADR-043)。pending な
+// session や別テナントの session には作用させない。成立後の AuthenticationContext を返す。
+func (m *SessionManager) RecordStepUp(
+	ctx context.Context,
+	sessionID string,
+	now time.Time,
+) (*domain.AuthenticationContext, error) {
+	if now.IsZero() {
+		now = time.Now().UTC()
+	}
+	sess, err := m.Store.Find(ctx, sessionID)
+	if err != nil || sess == nil {
+		return nil, err
+	}
+	if sess.TenantID != tenancy.TenantID(ctx) || sess.AuthenticationPending {
+		return nil, nil
+	}
+	sess.StepUpAt = now.Unix()
+	if err := m.Store.Save(ctx, sess); err != nil {
+		return nil, err
+	}
+	return &domain.AuthenticationContext{
+		Sub:                   sess.Sub,
+		AuthTime:              sess.AuthTime,
+		AMR:                   slices.Clone(sess.AMR),
+		ACR:                   sess.ACR,
+		SessionID:             sess.ID,
+		AuthenticationPending: sess.AuthenticationPending,
+		StepUpAt:              sess.StepUpAt,
 	}, nil
 }
 
@@ -125,6 +158,7 @@ func (m *SessionManager) Resolve(ctx context.Context, headers domain.Headers) (*
 		ACR:                   sess.ACR,
 		SessionID:             sess.ID,
 		AuthenticationPending: sess.AuthenticationPending,
+		StepUpAt:              sess.StepUpAt,
 	}, nil
 }
 

@@ -88,6 +88,8 @@ func registerTenantRoutes(g *echo.Group, d Deps) {
 	g.GET("/api/account/consents", d.handleListAccountConsents)
 	g.POST("/api/account/consents/:client_id/revoke", d.handleRevokeAccountConsent)
 	g.GET("/api/account/data_export", d.handleExportAccountData)
+	g.POST("/api/account/step_up/start", d.handleStartStepUp)
+	g.POST("/api/account/step_up/complete", d.handleCompleteStepUp)
 	g.GET("/api/account/security", d.handleGetAccountSecurity)
 	g.POST("/api/account/mfa/totp/enroll/start", d.handleStartTotpEnrollment)
 	g.POST("/api/account/mfa/totp/enroll/confirm", d.handleConfirmTotpEnrollment)

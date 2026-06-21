@@ -149,6 +149,8 @@ func (d Deps) writeAccountError(c *echo.Context, err error) error {
 	switch {
 	case errors.Is(err, errAdminAuthenticationRequired):
 		return writeBrowserError(c, http.StatusUnauthorized, "authentication_required", "認証済みセッションが必要です")
+	case errors.Is(err, authusecases.ErrStepUpRequired):
+		return writeBrowserError(c, http.StatusForbidden, "step_up_required", "この操作には再認証が必要です")
 	case errors.Is(err, authusecases.ErrUserNotFound):
 		return writeBrowserError(c, http.StatusNotFound, "user_not_found", "ユーザーが存在しません")
 	case errors.Is(err, authusecases.ErrSessionNotFound):

@@ -1,6 +1,6 @@
 // /api/account/security — エンドユーザー自身のセキュリティ概要と MFA (TOTP) の
 // self-service 登録・解除 (wi-21 / ADR-042)。登録は確認コード、解除は有効な TOTP コードに
-// よる所持証明を要求する。step-up auth (ADR-043) は本ステージでは未導入。
+// よる所持証明に加え、step-up 再認証 (ADR-043) を要求する。
 package http
 
 import (
@@ -124,7 +124,8 @@ func (d Deps) handleRemoveTotpFactor(c *echo.Context) error {
 	if err := d.verifyBrowserRequest(c); err != nil {
 		return err
 	}
-	sub, err := d.requireAuthenticatedSub(c)
+	// MFA factor の解除は高 sensitivity 操作。step-up 再認証を要求する (ADR-043)。
+	sub, err := d.requireStepUpSub(c)
 	if err != nil {
 		return d.writeAccountError(c, err)
 	}

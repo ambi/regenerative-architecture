@@ -34,7 +34,8 @@ func (d Deps) handleRequestEmailChange(c *echo.Context) error {
 	if err := d.verifyBrowserRequest(c); err != nil {
 		return err
 	}
-	sub, err := d.requireAuthenticatedSub(c)
+	// primary email の変更は高 sensitivity 操作。step-up 再認証を要求する (ADR-043)。
+	sub, err := d.requireStepUpSub(c)
 	if err != nil {
 		return d.writeAccountError(c, err)
 	}

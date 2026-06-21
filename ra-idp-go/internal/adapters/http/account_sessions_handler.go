@@ -94,7 +94,8 @@ func (d Deps) handleRevokeOtherAccountSessions(c *echo.Context) error {
 	if err := d.verifyBrowserRequest(c); err != nil {
 		return err
 	}
-	sub, sessionID, err := d.requireAuthenticatedSession(c)
+	// 他の全セッションの失効は高 sensitivity 操作。step-up 再認証を要求する (ADR-043)。
+	sub, sessionID, err := d.requireStepUpSession(c)
 	if err != nil {
 		return d.writeAccountError(c, err)
 	}

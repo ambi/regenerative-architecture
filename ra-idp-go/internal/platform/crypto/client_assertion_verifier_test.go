@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"ra-idp-go/internal/adapters/persistence/memory"
+	"ra-idp-go/internal/platform/persistence/memory"
 )
 
 func signClientAssertion(

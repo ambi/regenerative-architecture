@@ -12,9 +12,9 @@ import (
 	"time"
 
 	httpadapter "ra-idp-go/internal/adapters/http"
-	"ra-idp-go/internal/adapters/persistence/memory"
 	"ra-idp-go/internal/platform/crypto"
 	"ra-idp-go/internal/platform/notification"
+	"ra-idp-go/internal/platform/persistence/memory"
 	"ra-idp-go/internal/platform/policy"
 	"ra-idp-go/internal/spec"
 

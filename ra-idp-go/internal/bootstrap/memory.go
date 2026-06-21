@@ -1,10 +1,10 @@
 package bootstrap
 
 import (
-	"ra-idp-go/internal/adapters/persistence/memory"
 	oauthports "ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/platform/crypto"
 	"ra-idp-go/internal/platform/eventsink"
+	"ra-idp-go/internal/platform/persistence/memory"
 )
 
 func assembleMemory() (*Dependencies, error) {

@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"ra-idp-go/internal/adapters/persistence/memory"
 	authports "ra-idp-go/internal/authentication/ports"
 	"ra-idp-go/internal/authentication/usecases"
+	"ra-idp-go/internal/platform/persistence/memory"
 )
 
 func TestListAuthEventBucketsProjectsAndScopesByTenant(t *testing.T) {

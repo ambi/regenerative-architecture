@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	"ra-idp-go/internal/adapters/persistence/memory"
 	authports "ra-idp-go/internal/authentication/ports"
+	"ra-idp-go/internal/platform/persistence/memory"
 	"ra-idp-go/internal/spec"
 
 	"github.com/labstack/echo/v5"

@@ -87,10 +87,10 @@ type adminRoleInterfaceResponse struct {
 func (d Deps) handleListAdminRolePolicies(c *echo.Context) error {
 	actor, err := d.resolveAdminActor(c)
 	if err != nil {
-		return d.writeAdminAccessError(c, err)
+		return d.WriteAdminAccessError(c, err)
 	}
 	if !slices.Contains(actor.Roles, "admin") && !slices.Contains(actor.Roles, "system_admin") {
-		return d.writeAdminAccessError(c, errAdminAccessDenied)
+		return d.WriteAdminAccessError(c, core.ErrAdminAccessDenied)
 	}
 	roles, err := usecases.ListRolePolicies(
 		d.SCL,
@@ -104,7 +104,7 @@ func (d Deps) handleListAdminRolePolicies(c *echo.Context) error {
 	for i, role := range roles {
 		response[i] = toAdminRolePolicyResponse(role)
 	}
-	return noStoreJSON(c, http.StatusOK, map[string]any{"roles": response})
+	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"roles": response})
 }
 
 func toAdminRolePolicyResponse(role usecases.RolePolicy) adminRolePolicyResponse {

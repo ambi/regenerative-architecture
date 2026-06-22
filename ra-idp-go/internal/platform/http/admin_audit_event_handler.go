@@ -12,6 +12,7 @@ import (
 	"time"
 
 	oauthports "ra-idp-go/internal/oauth2/ports"
+	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/spec"
 
 	"github.com/labstack/echo/v5"
@@ -125,14 +126,14 @@ const adminAuditEventExportMaxLimit = 10000
 func (d Deps) handleListAdminAuditEvents(c *echo.Context) error {
 	actor, err := d.requireAuditReader(c)
 	if err != nil {
-		return d.writeAdminAccessError(c, err)
+		return d.WriteAdminAccessError(c, err)
 	}
 	if d.AuditEventRepo == nil {
-		return noStoreJSON(c, http.StatusOK, map[string]any{"events": []adminAuditEventResponse{}})
+		return core.NoStoreJSON(c, http.StatusOK, map[string]any{"events": []adminAuditEventResponse{}})
 	}
 	query, err := parseAuditEventQuery(c, actor)
 	if err != nil {
-		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", err.Error())
+		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", err.Error())
 	}
 	records, err := d.AuditEventRepo.List(c.Request().Context(), query)
 	if err != nil {
@@ -142,39 +143,39 @@ func (d Deps) handleListAdminAuditEvents(c *echo.Context) error {
 	for i, rec := range records {
 		response[i] = toAdminAuditEventResponse(rec)
 	}
-	return noStoreJSON(c, http.StatusOK, map[string]any{"events": response})
+	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"events": response})
 }
 
 func (d Deps) handleGetAdminAuditEvent(c *echo.Context) error {
 	actor, err := d.requireAuditReader(c)
 	if err != nil {
-		return d.writeAdminAccessError(c, err)
+		return d.WriteAdminAccessError(c, err)
 	}
 	if d.AuditEventRepo == nil {
-		return writeBrowserError(c, http.StatusNotFound, "event_not_found", "監査イベントが存在しません")
+		return core.WriteBrowserError(c, http.StatusNotFound, "event_not_found", "監査イベントが存在しません")
 	}
 	rec, err := d.AuditEventRepo.FindByID(c.Request().Context(), c.Param("id"))
 	if err != nil {
 		return err
 	}
 	if rec == nil {
-		return writeBrowserError(c, http.StatusNotFound, "event_not_found", "監査イベントが存在しません")
+		return core.WriteBrowserError(c, http.StatusNotFound, "event_not_found", "監査イベントが存在しません")
 	}
 	if !auditEventVisibleTo(rec, actor) {
 		// 別テナントのイベントは存在を隠す。
-		return writeBrowserError(c, http.StatusNotFound, "event_not_found", "監査イベントが存在しません")
+		return core.WriteBrowserError(c, http.StatusNotFound, "event_not_found", "監査イベントが存在しません")
 	}
-	return noStoreJSON(c, http.StatusOK, toAdminAuditEventResponse(rec))
+	return core.NoStoreJSON(c, http.StatusOK, toAdminAuditEventResponse(rec))
 }
 
 func (d Deps) handleExportAdminAuditEvents(c *echo.Context) error {
 	actor, err := d.requireAuditReader(c)
 	if err != nil {
-		return d.writeAdminAccessError(c, err)
+		return d.WriteAdminAccessError(c, err)
 	}
 	query, err := parseAuditEventQuery(c, actor)
 	if err != nil {
-		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", err.Error())
+		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", err.Error())
 	}
 	query.Limit = adminAuditEventExportMaxLimit
 	var records []*oauthports.AuditEventRecord
@@ -189,30 +190,30 @@ func (d Deps) handleExportAdminAuditEvents(c *echo.Context) error {
 		response[i] = toAdminAuditEventResponse(rec)
 	}
 	c.Response().Header().Set("Content-Disposition", "attachment; filename=\"audit_events.json\"")
-	return noStoreJSON(c, http.StatusOK, map[string]any{"events": response})
+	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"events": response})
 }
 
 // requireAuditReader は AdminAuditEventsRead パーミッションを満たすユーザーを返す。
 // admin / system_admin のどちらでも通る。所属テナントの拘束は問わない (実際の
 // テナント絞り込みは List のクエリ生成時に行う)。
 func (d Deps) requireAuditReader(c *echo.Context) (*spec.User, error) {
-	authn, err := d.resolveAuthentication(c)
+	authn, err := d.ResolveAuthentication(c)
 	if err != nil {
 		return nil, err
 	}
 	if authn == nil || authn.AuthenticationPending {
-		return nil, errAdminAuthenticationRequired
+		return nil, core.ErrAdminAuthenticationRequired
 	}
 	user, err := d.UserRepo.FindBySub(c.Request().Context(), authn.Sub)
 	if err != nil {
 		return nil, err
 	}
 	if user == nil || !user.IsActive() {
-		return nil, errAdminAccessDenied
+		return nil, core.ErrAdminAccessDenied
 	}
-	actor := d.withEffectiveRoles(c.Request().Context(), user)
+	actor := d.WithEffectiveRoles(c.Request().Context(), user)
 	if !slices.Contains(actor.Roles, "admin") && !slices.Contains(actor.Roles, "system_admin") {
-		return nil, errAdminAccessDenied
+		return nil, core.ErrAdminAccessDenied
 	}
 	return actor, nil
 }

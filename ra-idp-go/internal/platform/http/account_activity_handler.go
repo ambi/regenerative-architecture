@@ -54,13 +54,13 @@ func (d Deps) handleListSignInActivity(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return noStoreJSON(c, http.StatusOK, map[string]any{"activities": toSignInActivityResponses(items)})
+	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"activities": toSignInActivityResponses(items)})
 }
 
 func (d Deps) handleGetUserSignInActivity(c *echo.Context) error {
-	actor, err := d.requireAdmin(c)
+	actor, err := d.RequireAdmin(c)
 	if err != nil {
-		return d.writeAdminAccessError(c, err)
+		return d.WriteAdminAccessError(c, err)
 	}
 	limit := parseLimitParam(c, authusecases.SignInActivityDefaultLimit)
 	items, err := authusecases.ListSignInActivity(
@@ -69,5 +69,5 @@ func (d Deps) handleGetUserSignInActivity(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return noStoreJSON(c, http.StatusOK, map[string]any{"activities": toSignInActivityResponses(items)})
+	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"activities": toSignInActivityResponses(items)})
 }

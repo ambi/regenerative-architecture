@@ -10,6 +10,7 @@ import (
 	"time"
 
 	authusecases "ra-idp-go/internal/authentication/usecases"
+	"ra-idp-go/internal/platform/http/core"
 
 	"github.com/labstack/echo/v5"
 )
@@ -26,7 +27,7 @@ type authEventBucketResponse struct {
 func (d Deps) handleListAuthEventBuckets(c *echo.Context) error {
 	actor, err := d.requireAuditReader(c)
 	if err != nil {
-		return d.writeAdminAccessError(c, err)
+		return d.WriteAdminAccessError(c, err)
 	}
 	limit := parseLimitParam(c, authusecases.AuthEventBucketDefaultLimit)
 	buckets, err := authusecases.ListAuthEventBuckets(
@@ -46,5 +47,5 @@ func (d Deps) handleListAuthEventBuckets(c *echo.Context) error {
 			LastSeen:    bucket.LastSeen,
 		}
 	}
-	return noStoreJSON(c, http.StatusOK, map[string]any{"buckets": response})
+	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"buckets": response})
 }

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	oauthusecases "ra-idp-go/internal/oauth2/usecases"
+	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/spec"
 
 	"github.com/labstack/echo/v5"
@@ -41,11 +42,11 @@ func (d Deps) handleListAccountConsents(c *echo.Context) error {
 	for i, consent := range consents {
 		response[i] = toAccountConsentResponse(consent)
 	}
-	return noStoreJSON(c, http.StatusOK, map[string]any{"consents": response})
+	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"consents": response})
 }
 
 func (d Deps) handleRevokeAccountConsent(c *echo.Context) error {
-	if err := d.verifyBrowserRequest(c); err != nil {
+	if err := d.VerifyBrowserRequest(c); err != nil {
 		return err
 	}
 	sub, err := d.requireAuthenticatedSub(c)

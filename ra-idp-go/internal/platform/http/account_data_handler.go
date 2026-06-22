@@ -9,6 +9,7 @@ import (
 
 	authusecases "ra-idp-go/internal/authentication/usecases"
 	oauthusecases "ra-idp-go/internal/oauth2/usecases"
+	"ra-idp-go/internal/platform/http/core"
 
 	"github.com/labstack/echo/v5"
 )
@@ -36,7 +37,7 @@ func (d Deps) handleExportAccountData(c *echo.Context) error {
 	for i, consent := range consents {
 		consentResponses[i] = toAccountConsentResponse(consent)
 	}
-	return noStoreJSON(c, http.StatusOK, accountDataExport{
+	return core.NoStoreJSON(c, http.StatusOK, accountDataExport{
 		ExportedAt: time.Now().UTC(),
 		Profile:    toAccountProfileResponse(user, defs),
 		Consents:   consentResponses,

@@ -11,6 +11,7 @@ import (
 
 	authdomain "ra-idp-go/internal/authentication/domain"
 	authusecases "ra-idp-go/internal/authentication/usecases"
+	"ra-idp-go/internal/platform/http/core"
 
 	"github.com/labstack/echo/v5"
 )
@@ -45,12 +46,12 @@ func (d Deps) requireStepUpSub(c *echo.Context) (string, error) {
 // requireStepUpSession は requireStepUpSub と同じゲートに加え、現在の sessionID を返す
 // (revoke_others のように除外対象の session を要するハンドラ用)。
 func (d Deps) requireStepUpSession(c *echo.Context) (sub, sessionID string, err error) {
-	authn, err := d.resolveAuthentication(c)
+	authn, err := d.ResolveAuthentication(c)
 	if err != nil {
 		return "", "", err
 	}
 	if authn == nil || authn.AuthenticationPending {
-		return "", "", errAdminAuthenticationRequired
+		return "", "", core.ErrAdminAuthenticationRequired
 	}
 	if !authusecases.StepUpSatisfied(authn, time.Now().UTC()) {
 		return "", "", authusecases.ErrStepUpRequired
@@ -59,7 +60,7 @@ func (d Deps) requireStepUpSession(c *echo.Context) (sub, sessionID string, err 
 }
 
 func (d Deps) handleStartStepUp(c *echo.Context) error {
-	if err := d.verifyBrowserRequest(c); err != nil {
+	if err := d.VerifyBrowserRequest(c); err != nil {
 		return err
 	}
 	authn, err := d.requireAuthenticatedAuthn(c)
@@ -74,11 +75,11 @@ func (d Deps) handleStartStepUp(c *echo.Context) error {
 	for i, m := range methods {
 		out[i] = string(m)
 	}
-	return noStoreJSON(c, http.StatusOK, stepUpStartResponse{Methods: out})
+	return core.NoStoreJSON(c, http.StatusOK, stepUpStartResponse{Methods: out})
 }
 
 func (d Deps) handleCompleteStepUp(c *echo.Context) error {
-	if err := d.verifyBrowserRequest(c); err != nil {
+	if err := d.VerifyBrowserRequest(c); err != nil {
 		return err
 	}
 	authn, err := d.requireAuthenticatedAuthn(c)
@@ -86,8 +87,8 @@ func (d Deps) handleCompleteStepUp(c *echo.Context) error {
 		return d.writeAccountError(c, err)
 	}
 	var input stepUpCompleteRequest
-	if err := decodeJSON(c.Request(), &input); err != nil {
-		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := core.DecodeJSON(c.Request(), &input); err != nil {
+		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	if err := authusecases.CompleteStepUp(c.Request().Context(), d.stepUpDeps(), authusecases.CompleteStepUpInput{
 		Sub:       authn.Sub,
@@ -106,12 +107,12 @@ func (d Deps) handleCompleteStepUp(c *echo.Context) error {
 // requireAuthenticatedAuthn は認証済み (pending でない) セッションの AuthenticationContext を
 // 返す。step-up start / complete は step-up gate 自体を掛けない (再認証の入口のため)。
 func (d Deps) requireAuthenticatedAuthn(c *echo.Context) (*authdomain.AuthenticationContext, error) {
-	authn, err := d.resolveAuthentication(c)
+	authn, err := d.ResolveAuthentication(c)
 	if err != nil {
 		return nil, err
 	}
 	if authn == nil || authn.AuthenticationPending {
-		return nil, errAdminAuthenticationRequired
+		return nil, core.ErrAdminAuthenticationRequired
 	}
 	return authn, nil
 }
@@ -119,9 +120,9 @@ func (d Deps) requireAuthenticatedAuthn(c *echo.Context) (*authdomain.Authentica
 func (d Deps) writeStepUpError(c *echo.Context, err error) error {
 	switch {
 	case errors.Is(err, authusecases.ErrStepUpFailed):
-		return writeBrowserError(c, http.StatusForbidden, "step_up_failed", "再認証に失敗しました。入力を確認してください。")
+		return core.WriteBrowserError(c, http.StatusForbidden, "step_up_failed", "再認証に失敗しました。入力を確認してください。")
 	case errors.Is(err, authusecases.ErrStepUpUnsupportedMethod):
-		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "この再認証方法は利用できません。")
+		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "この再認証方法は利用できません。")
 	default:
 		return d.writeAccountError(c, err)
 	}

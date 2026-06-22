@@ -13,11 +13,6 @@ import (
 	"github.com/labstack/echo/v5"
 )
 
-var (
-	errAdminAuthenticationRequired = errors.New("admin authentication required")
-	errAdminAccessDenied           = errors.New("admin access denied")
-)
-
 type adminUserCreateRequest struct {
 	PreferredUsername string   `json:"preferred_username"`
 	Password          string   `json:"password"`
@@ -68,8 +63,8 @@ type adminRequiredActionRequest struct {
 }
 
 func (d Deps) handleListAdminUsers(c *echo.Context) error {
-	if _, err := d.requireAdmin(c); err != nil {
-		return d.writeAdminAccessError(c, err)
+	if _, err := d.RequireAdmin(c); err != nil {
+		return d.WriteAdminAccessError(c, err)
 	}
 	users, err := d.UserRepo.FindAll(c.Request().Context(), core.RequestTenantID(c))
 	if err != nil {
@@ -79,37 +74,37 @@ func (d Deps) handleListAdminUsers(c *echo.Context) error {
 	for i, user := range users {
 		response[i] = toAdminUserResponse(user)
 	}
-	return noStoreJSON(c, http.StatusOK, map[string]any{"users": response})
+	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"users": response})
 }
 
 func (d Deps) handleGetAdminUser(c *echo.Context) error {
-	if _, err := d.requireAdmin(c); err != nil {
-		return d.writeAdminAccessError(c, err)
+	if _, err := d.RequireAdmin(c); err != nil {
+		return d.WriteAdminAccessError(c, err)
 	}
 	user, err := d.UserRepo.FindBySub(c.Request().Context(), c.Param("sub"))
 	if err != nil {
 		return err
 	}
 	if user == nil {
-		return writeBrowserError(c, http.StatusNotFound, "user_not_found", "ユーザーが存在しません")
+		return core.WriteBrowserError(c, http.StatusNotFound, "user_not_found", "ユーザーが存在しません")
 	}
 	if user.TenantID != core.RequestTenantID(c) {
-		return writeBrowserError(c, http.StatusNotFound, "user_not_found", "ユーザーが存在しません")
+		return core.WriteBrowserError(c, http.StatusNotFound, "user_not_found", "ユーザーが存在しません")
 	}
-	return noStoreJSON(c, http.StatusOK, toAdminUserResponse(user))
+	return core.NoStoreJSON(c, http.StatusOK, toAdminUserResponse(user))
 }
 
 func (d Deps) handleCreateAdminUser(c *echo.Context) error {
-	if err := d.verifyBrowserRequest(c); err != nil {
+	if err := d.VerifyBrowserRequest(c); err != nil {
 		return err
 	}
-	actor, err := d.requireAdmin(c)
+	actor, err := d.RequireAdmin(c)
 	if err != nil {
-		return d.writeAdminAccessError(c, err)
+		return d.WriteAdminAccessError(c, err)
 	}
 	var input adminUserCreateRequest
-	if err := decodeJSON(c.Request(), &input); err != nil {
-		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := core.DecodeJSON(c.Request(), &input); err != nil {
+		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	user, err := authusecases.CreateUser(
 		c.Request().Context(),
@@ -123,20 +118,20 @@ func (d Deps) handleCreateAdminUser(c *echo.Context) error {
 	if err != nil {
 		return d.writeAdminUserError(c, err)
 	}
-	return noStoreJSON(c, http.StatusCreated, toAdminUserResponse(user))
+	return core.NoStoreJSON(c, http.StatusCreated, toAdminUserResponse(user))
 }
 
 func (d Deps) handleUpdateAdminUser(c *echo.Context) error {
-	if err := d.verifyBrowserRequest(c); err != nil {
+	if err := d.VerifyBrowserRequest(c); err != nil {
 		return err
 	}
-	actor, err := d.requireAdmin(c)
+	actor, err := d.RequireAdmin(c)
 	if err != nil {
-		return d.writeAdminAccessError(c, err)
+		return d.WriteAdminAccessError(c, err)
 	}
 	var input adminUserUpdateRequest
-	if err := decodeJSON(c.Request(), &input); err != nil {
-		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := core.DecodeJSON(c.Request(), &input); err != nil {
+		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	user, err := authusecases.UpdateUser(
 		c.Request().Context(),
@@ -152,7 +147,7 @@ func (d Deps) handleUpdateAdminUser(c *echo.Context) error {
 	if err != nil {
 		return d.writeAdminUserError(c, err)
 	}
-	return noStoreJSON(c, http.StatusOK, toAdminUserResponse(user))
+	return core.NoStoreJSON(c, http.StatusOK, toAdminUserResponse(user))
 }
 
 func (d Deps) handleDisableAdminUser(c *echo.Context) error {
@@ -164,17 +159,17 @@ func (d Deps) handleEnableAdminUser(c *echo.Context) error {
 }
 
 func (d Deps) handleDeleteAdminUser(c *echo.Context) error {
-	if err := d.verifyBrowserRequest(c); err != nil {
+	if err := d.VerifyBrowserRequest(c); err != nil {
 		return err
 	}
-	actor, err := d.requireAdmin(c)
+	actor, err := d.RequireAdmin(c)
 	if err != nil {
-		return d.writeAdminAccessError(c, err)
+		return d.WriteAdminAccessError(c, err)
 	}
 	var input adminUserDeleteRequest
 	if c.Request().ContentLength > 0 {
-		if err := decodeJSON(c.Request(), &input); err != nil {
-			return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+		if err := core.DecodeJSON(c.Request(), &input); err != nil {
+			return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 		}
 	}
 	err = authusecases.DeleteUser(c.Request().Context(), d.adminUserDeps(), authusecases.DeleteUserInput{
@@ -188,12 +183,12 @@ func (d Deps) handleDeleteAdminUser(c *echo.Context) error {
 }
 
 func (d Deps) handleSetAdminUserDisabled(c *echo.Context, disabled bool) error {
-	if err := d.verifyBrowserRequest(c); err != nil {
+	if err := d.VerifyBrowserRequest(c); err != nil {
 		return err
 	}
-	actor, err := d.requireAdmin(c)
+	actor, err := d.RequireAdmin(c)
 	if err != nil {
-		return d.writeAdminAccessError(c, err)
+		return d.WriteAdminAccessError(c, err)
 	}
 	_, err = authusecases.SetUserDisabled(
 		c.Request().Context(), d.adminUserDeps(), actor.Sub, c.Param("sub"), disabled, time.Now().UTC(),
@@ -203,35 +198,6 @@ func (d Deps) handleSetAdminUserDisabled(c *echo.Context, disabled bool) error {
 	}
 	c.Response().Header().Set("Cache-Control", "no-store")
 	return c.NoContent(http.StatusNoContent)
-}
-
-func (d Deps) requireAdmin(c *echo.Context) (*spec.User, error) {
-	authn, err := d.resolveAuthentication(c)
-	if err != nil {
-		return nil, err
-	}
-	if authn == nil || authn.AuthenticationPending {
-		return nil, errAdminAuthenticationRequired
-	}
-	user, err := d.UserRepo.FindBySub(c.Request().Context(), authn.Sub)
-	if err != nil {
-		return nil, err
-	}
-	if user == nil || user.TenantID != core.RequestTenantID(c) || !user.IsActive() ||
-		!slices.Contains(d.effectiveRoles(c.Request().Context(), user), "admin") {
-		return nil, errAdminAccessDenied
-	}
-	return user, nil
-}
-
-func (d Deps) writeAdminAccessError(c *echo.Context, err error) error {
-	if errors.Is(err, errAdminAuthenticationRequired) {
-		return writeBrowserError(c, http.StatusUnauthorized, "authentication_required", "認証済みセッションが必要です")
-	}
-	if errors.Is(err, errAdminAccessDenied) {
-		return writeBrowserError(c, http.StatusForbidden, "access_denied", "管理者権限が必要です")
-	}
-	return err
 }
 
 func (d Deps) adminUserDeps() authusecases.AdminUserDeps {
@@ -251,17 +217,17 @@ func (d Deps) adminUserDeps() authusecases.AdminUserDeps {
 func (d Deps) writeAdminUserError(c *echo.Context, err error) error {
 	switch {
 	case errors.Is(err, authusecases.ErrUserNotFound):
-		return writeBrowserError(c, http.StatusNotFound, "user_not_found", "ユーザーが存在しません")
+		return core.WriteBrowserError(c, http.StatusNotFound, "user_not_found", "ユーザーが存在しません")
 	case errors.Is(err, authusecases.ErrUsernameConflict):
-		return writeBrowserError(c, http.StatusConflict, "username_conflict", "ユーザー名は既に使用されています")
+		return core.WriteBrowserError(c, http.StatusConflict, "username_conflict", "ユーザー名は既に使用されています")
 	case errors.Is(err, authusecases.ErrInvalidRole):
-		return writeBrowserError(c, http.StatusBadRequest, "invalid_role", "roleが不正です")
+		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_role", "roleが不正です")
 	case errors.Is(err, authusecases.ErrSelfDeleteForbidden):
-		return writeBrowserError(c, http.StatusBadRequest, "self_delete_forbidden", "管理者は自身を削除できません")
+		return core.WriteBrowserError(c, http.StatusBadRequest, "self_delete_forbidden", "管理者は自身を削除できません")
 	case errors.Is(err, authusecases.ErrInvalidAttribute):
-		return writeBrowserError(c, http.StatusBadRequest, "invalid_attribute", "属性がスキーマに適合していません")
+		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_attribute", "属性がスキーマに適合していません")
 	case errors.Is(err, authusecases.ErrInvalidRequiredAction):
-		return writeBrowserError(c, http.StatusBadRequest, "invalid_required_action", "required action が不正です")
+		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_required_action", "required action が不正です")
 	default:
 		var policyErr *authusecases.PasswordPolicyError
 		if errors.As(err, &policyErr) {
@@ -269,7 +235,7 @@ func (d Deps) writeAdminUserError(c *echo.Context, err error) error {
 			for i, violation := range policyErr.Violations {
 				violations[i] = string(violation)
 			}
-			return noStoreJSON(c, http.StatusBadRequest, map[string]any{
+			return core.NoStoreJSON(c, http.StatusBadRequest, map[string]any{
 				"error": "password_policy", "message": "パスワードがセキュリティ要件を満たしていません。",
 				"violations": violations,
 			})
@@ -298,16 +264,16 @@ func toAdminUserResponse(user *spec.User) adminUserResponse {
 }
 
 func (d Deps) handleSetUserRequiredAction(c *echo.Context) error {
-	if err := d.verifyBrowserRequest(c); err != nil {
+	if err := d.VerifyBrowserRequest(c); err != nil {
 		return err
 	}
-	actor, err := d.requireAdmin(c)
+	actor, err := d.RequireAdmin(c)
 	if err != nil {
-		return d.writeAdminAccessError(c, err)
+		return d.WriteAdminAccessError(c, err)
 	}
 	var input adminRequiredActionRequest
-	if err := decodeJSON(c.Request(), &input); err != nil {
-		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := core.DecodeJSON(c.Request(), &input); err != nil {
+		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	user, err := authusecases.SetUserRequiredAction(
 		c.Request().Context(), d.adminUserDeps(), actor.Sub, c.Param("sub"),
@@ -316,16 +282,16 @@ func (d Deps) handleSetUserRequiredAction(c *echo.Context) error {
 	if err != nil {
 		return d.writeAdminUserError(c, err)
 	}
-	return noStoreJSON(c, http.StatusOK, toAdminUserResponse(user))
+	return core.NoStoreJSON(c, http.StatusOK, toAdminUserResponse(user))
 }
 
 func (d Deps) handleClearUserRequiredAction(c *echo.Context) error {
-	if err := d.verifyBrowserRequest(c); err != nil {
+	if err := d.VerifyBrowserRequest(c); err != nil {
 		return err
 	}
-	actor, err := d.requireAdmin(c)
+	actor, err := d.RequireAdmin(c)
 	if err != nil {
-		return d.writeAdminAccessError(c, err)
+		return d.WriteAdminAccessError(c, err)
 	}
 	user, err := authusecases.ClearUserRequiredAction(
 		c.Request().Context(), d.adminUserDeps(), actor.Sub, c.Param("sub"),
@@ -334,5 +300,5 @@ func (d Deps) handleClearUserRequiredAction(c *echo.Context) error {
 	if err != nil {
 		return d.writeAdminUserError(c, err)
 	}
-	return noStoreJSON(c, http.StatusOK, toAdminUserResponse(user))
+	return core.NoStoreJSON(c, http.StatusOK, toAdminUserResponse(user))
 }

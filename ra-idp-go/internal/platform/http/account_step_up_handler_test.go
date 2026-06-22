@@ -102,7 +102,7 @@ func postAccount(e *echo.Echo, path, sessionID string, body any) *httptest.Respo
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Origin", "http://idp.test")
 	req.Header.Set("X-CSRF-Token", "csrf-token-value")
-	req.AddCookie(&http.Cookie{Name: csrfCookie, Value: "csrf-token-value"})
+	req.AddCookie(&http.Cookie{Name: core.CSRFCookie, Value: "csrf-token-value"})
 	if sessionID != "" {
 		req.AddCookie(&http.Cookie{Name: authusecases.SessionCookie, Value: sessionID})
 	}

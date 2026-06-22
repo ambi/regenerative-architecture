@@ -2,14 +2,9 @@
 package http
 
 import (
-	"crypto/rand"
 	"crypto/sha256"
-	"crypto/subtle"
-	"encoding/base64"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"net/url"
 	"path"
@@ -31,8 +26,6 @@ import (
 
 const (
 	authorizationTransactionCookie = "ra_idp_transaction"
-	csrfCookie                     = "ra_idp_csrf"
-	csrfHeader                     = "X-CSRF-Token"
 )
 
 type browserFlowResponse struct {
@@ -177,50 +170,50 @@ func (d Deps) handleTransaction(c *echo.Context) error {
 	if err != nil {
 		if returnTo := c.QueryParam("return_to"); returnTo != "" {
 			if !validAdminReturnTo(c, returnTo) {
-				return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "return_to が不正です")
+				return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "return_to が不正です")
 			}
-			csrf, csrfErr := d.ensureCSRFCookie(c)
+			csrf, csrfErr := d.EnsureCSRFCookie(c)
 			if csrfErr != nil {
 				return csrfErr
 			}
-			authn, _ := d.resolveAuthentication(c)
+			authn, _ := d.ResolveAuthentication(c)
 			if authn != nil && authn.AuthenticationPending {
-				return noStoreJSON(c, http.StatusOK, transactionResponse{Kind: "totp", CSRFToken: csrf})
+				return core.NoStoreJSON(c, http.StatusOK, transactionResponse{Kind: "totp", CSRFToken: csrf})
 			}
-			return noStoreJSON(c, http.StatusOK, transactionResponse{Kind: "login", CSRFToken: csrf})
+			return core.NoStoreJSON(c, http.StatusOK, transactionResponse{Kind: "login", CSRFToken: csrf})
 		}
-		return writeBrowserError(c, http.StatusUnauthorized, "transaction_unavailable", err.Error())
+		return core.WriteBrowserError(c, http.StatusUnauthorized, "transaction_unavailable", err.Error())
 	}
-	csrf, err := d.ensureCSRFCookie(c)
+	csrf, err := d.EnsureCSRFCookie(c)
 	if err != nil {
 		return err
 	}
 	if req.Sub == nil {
-		authn, _ := d.resolveAuthentication(c)
+		authn, _ := d.ResolveAuthentication(c)
 		if authn != nil && authn.AuthenticationPending {
-			return noStoreJSON(c, http.StatusOK, transactionResponse{Kind: "totp", CSRFToken: csrf})
+			return core.NoStoreJSON(c, http.StatusOK, transactionResponse{Kind: "totp", CSRFToken: csrf})
 		}
-		return noStoreJSON(c, http.StatusOK, transactionResponse{Kind: "login", CSRFToken: csrf})
+		return core.NoStoreJSON(c, http.StatusOK, transactionResponse{Kind: "login", CSRFToken: csrf})
 	}
-	authn, _ := d.resolveAuthentication(c)
+	authn, _ := d.ResolveAuthentication(c)
 	if authn != nil && authn.AuthenticationPending {
-		return noStoreJSON(c, http.StatusOK, transactionResponse{Kind: "totp", CSRFToken: csrf})
+		return core.NoStoreJSON(c, http.StatusOK, transactionResponse{Kind: "totp", CSRFToken: csrf})
 	}
 	if authn == nil || authn.Sub != *req.Sub {
-		return writeBrowserError(c, http.StatusUnauthorized, "authentication_required", "認証セッションが一致しません")
+		return core.WriteBrowserError(c, http.StatusUnauthorized, "authentication_required", "認証セッションが一致しません")
 	}
 	client, err := d.ClientRepo.FindByID(c.Request().Context(), core.RequestTenantID(c), req.ClientID)
 	if err != nil {
 		return err
 	}
 	if client == nil {
-		return writeBrowserError(c, http.StatusBadRequest, "invalid_transaction", "クライアントが存在しません")
+		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_transaction", "クライアントが存在しません")
 	}
 	name := client.ClientID
 	if client.ClientName != nil {
 		name = *client.ClientName
 	}
-	return noStoreJSON(c, http.StatusOK, transactionResponse{
+	return core.NoStoreJSON(c, http.StatusOK, transactionResponse{
 		Kind: "consent", CSRFToken: csrf, ClientName: name, Scopes: strings.Fields(req.Scope),
 	})
 }
@@ -229,14 +222,14 @@ func (d Deps) handleTransaction(c *echo.Context) error {
 // /account/password 等の認証必須画面で X-CSRF-Token を構築するためのコンテキストを返す。
 // OAuth 認可トランザクションは要求しない (handleTransaction との分岐点)。
 func (d Deps) handleAccountContext(c *echo.Context) error {
-	authn, err := d.resolveAuthentication(c)
+	authn, err := d.ResolveAuthentication(c)
 	if err != nil {
 		return err
 	}
 	if authn == nil || authn.AuthenticationPending {
-		return writeBrowserError(c, http.StatusUnauthorized, "authentication_required", "認証済みセッションが必要です")
+		return core.WriteBrowserError(c, http.StatusUnauthorized, "authentication_required", "認証済みセッションが必要です")
 	}
-	csrf, err := d.ensureCSRFCookie(c)
+	csrf, err := d.EnsureCSRFCookie(c)
 	if err != nil {
 		return err
 	}
@@ -246,31 +239,31 @@ func (d Deps) handleAccountContext(c *echo.Context) error {
 			resp.PreferredUsername = user.PreferredUsername
 			resp.TenantID = user.TenantID
 			// グループ由来ロールを含む有効ロールを返す (ADR-038)。
-			resp.Roles = d.effectiveRoles(c.Request().Context(), user)
+			resp.Roles = d.EffectiveRoles(c.Request().Context(), user)
 		}
 	}
-	return noStoreJSON(c, http.StatusOK, resp)
+	return core.NoStoreJSON(c, http.StatusOK, resp)
 }
 
 func (d Deps) handleLoginAPI(c *echo.Context) error {
-	if err := d.verifyBrowserRequest(c); err != nil {
+	if err := d.VerifyBrowserRequest(c); err != nil {
 		return err
 	}
 	var input loginAPIRequest
-	if err := decodeJSON(c.Request(), &input); err != nil {
-		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := core.DecodeJSON(c.Request(), &input); err != nil {
+		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	if strings.TrimSpace(input.Username) == "" || input.Password == "" {
-		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "ユーザー名とパスワードが必要です")
+		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "ユーザー名とパスワードが必要です")
 	}
 	req, transactionErr := d.transactionRequest(c)
 	directAdminLogin := transactionErr != nil && input.ReturnTo != ""
 	if directAdminLogin {
 		if !validAdminReturnTo(c, input.ReturnTo) {
-			return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "return_to が不正です")
+			return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "return_to が不正です")
 		}
 	} else if transactionErr != nil {
-		return writeBrowserError(c, http.StatusUnauthorized, "transaction_unavailable", transactionErr.Error())
+		return core.WriteBrowserError(c, http.StatusUnauthorized, "transaction_unavailable", transactionErr.Error())
 	}
 
 	normalizedUsername := strings.ToLower(input.Username)
@@ -309,14 +302,14 @@ func (d Deps) handleLoginAPI(c *echo.Context) error {
 		if !aggregated {
 			d.emitAuthenticationFailure(c, input.Username, "invalid_credentials")
 		}
-		return writeBrowserError(c, http.StatusUnauthorized, "invalid_credentials", "ユーザー名またはパスワードを確認してください。")
+		return core.WriteBrowserError(c, http.StatusUnauthorized, "invalid_credentials", "ユーザー名またはパスワードを確認してください。")
 	}
 	if !user.IsActive() {
 		d.emitAuthenticationFailure(c, input.Username, "account_disabled")
-		return writeBrowserError(c, http.StatusUnauthorized, "invalid_credentials", "ユーザー名またはパスワードを確認してください。")
+		return core.WriteBrowserError(c, http.StatusUnauthorized, "invalid_credentials", "ユーザー名またはパスワードを確認してください。")
 	}
 	if result := authusecases.ValidatePassword(input.Password); !result.OK {
-		return writeBrowserError(c, http.StatusUnauthorized, "password_policy", "パスワードがセキュリティ要件を満たしていません。")
+		return core.WriteBrowserError(c, http.StatusUnauthorized, "password_policy", "パスワードがセキュリティ要件を満たしていません。")
 	}
 	if d.LoginAttemptThrottle != nil {
 		if err := d.LoginAttemptThrottle.RecordSuccess(
@@ -346,7 +339,7 @@ func (d Deps) handleLoginAPI(c *echo.Context) error {
 		if directAdminLogin {
 			next += "?return_to=" + url.QueryEscape(input.ReturnTo)
 		}
-		return noStoreJSON(c, http.StatusOK, browserFlowResponse{Next: next})
+		return core.NoStoreJSON(c, http.StatusOK, browserFlowResponse{Next: next})
 	}
 	// full authentication 完了 (pwd-only)。last_login_at 記録 + required action gate。
 	gateNext, err := d.recordLoginAndRequiredAction(c, user, authTime)
@@ -354,10 +347,10 @@ func (d Deps) handleLoginAPI(c *echo.Context) error {
 		return err
 	}
 	if gateNext != "" {
-		return noStoreJSON(c, http.StatusOK, browserFlowResponse{Next: gateNext})
+		return core.NoStoreJSON(c, http.StatusOK, browserFlowResponse{Next: gateNext})
 	}
 	if directAdminLogin {
-		return noStoreJSON(c, http.StatusOK, browserFlowResponse{RedirectTo: input.ReturnTo})
+		return core.NoStoreJSON(c, http.StatusOK, browserFlowResponse{RedirectTo: input.ReturnTo})
 	}
 	if err := d.RequestStore.AttachAuthentication(
 		c.Request().Context(), req.ID, user.Sub, authn.AuthTime, authn.AMR, authn.ACR,
@@ -367,7 +360,7 @@ func (d Deps) handleLoginAPI(c *echo.Context) error {
 	req.Sub, req.AuthTime = &user.Sub, &authn.AuthTime
 	client, err := d.ClientRepo.FindByID(c.Request().Context(), core.RequestTenantID(c), req.ClientID)
 	if err != nil || client == nil {
-		return writeBrowserError(c, http.StatusBadRequest, "invalid_transaction", "クライアントが存在しません")
+		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_transaction", "クライアントが存在しません")
 	}
 	next, err := d.completeAfterAuthn(c, req, client, authn)
 	if err != nil {
@@ -398,30 +391,30 @@ func (d Deps) recordLoginAndRequiredAction(c *echo.Context, user *spec.User, now
 
 func (d Deps) handleTOTPAPI(c *echo.Context) error {
 	if d.MfaFactorRepo == nil {
-		return writeBrowserError(c, http.StatusServiceUnavailable, "mfa_unavailable", "MFA factor store is unavailable")
+		return core.WriteBrowserError(c, http.StatusServiceUnavailable, "mfa_unavailable", "MFA factor store is unavailable")
 	}
-	if err := d.verifyBrowserRequest(c); err != nil {
+	if err := d.VerifyBrowserRequest(c); err != nil {
 		return err
 	}
-	authn, _ := d.resolveAuthentication(c)
+	authn, _ := d.ResolveAuthentication(c)
 	if authn == nil || authn.SessionID == "" {
-		return writeBrowserError(c, http.StatusUnauthorized, "authentication_required", "TOTP検証セッションがありません")
+		return core.WriteBrowserError(c, http.StatusUnauthorized, "authentication_required", "TOTP検証セッションがありません")
 	}
 	if containsString(authn.AMR, "otp") && !authn.AuthenticationPending {
-		return writeBrowserError(c, http.StatusForbidden, "access_denied", "TOTPは既に検証済みです")
+		return core.WriteBrowserError(c, http.StatusForbidden, "access_denied", "TOTPは既に検証済みです")
 	}
 	var input totpAPIRequest
-	if err := decodeJSON(c.Request(), &input); err != nil {
-		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := core.DecodeJSON(c.Request(), &input); err != nil {
+		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	req, transactionErr := d.transactionRequest(c)
 	directAdminLogin := transactionErr != nil && input.ReturnTo != ""
 	if directAdminLogin {
 		if !validAdminReturnTo(c, input.ReturnTo) {
-			return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "return_to が不正です")
+			return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "return_to が不正です")
 		}
 	} else if transactionErr != nil {
-		return writeBrowserError(c, http.StatusUnauthorized, "transaction_unavailable", transactionErr.Error())
+		return core.WriteBrowserError(c, http.StatusUnauthorized, "transaction_unavailable", transactionErr.Error())
 	}
 	result, err := authusecases.VerifyTOTPFactor(
 		c.Request().Context(),
@@ -435,14 +428,14 @@ func (d Deps) handleTOTPAPI(c *echo.Context) error {
 	}
 	if !result.OK {
 		d.emitAuthenticationFailure(c, authn.Sub, result.Reason)
-		return writeBrowserError(c, http.StatusUnauthorized, "invalid_totp", "TOTPコードを確認してください。")
+		return core.WriteBrowserError(c, http.StatusUnauthorized, "invalid_totp", "TOTPコードを確認してください。")
 	}
 	completed, err := d.SessionManager.CompleteFactor(c.Request().Context(), authn.SessionID, []string{"otp"})
 	if err != nil {
 		return err
 	}
 	if completed == nil {
-		return writeBrowserError(c, http.StatusUnauthorized, "authentication_required", "セッションが失効しました")
+		return core.WriteBrowserError(c, http.StatusUnauthorized, "authentication_required", "セッションが失効しました")
 	}
 	d.setSessionCookie(c, completed.SessionID)
 	if d.Emit != nil {
@@ -457,11 +450,11 @@ func (d Deps) handleTOTPAPI(c *echo.Context) error {
 			return err
 		}
 		if gateNext != "" {
-			return noStoreJSON(c, http.StatusOK, browserFlowResponse{Next: gateNext})
+			return core.NoStoreJSON(c, http.StatusOK, browserFlowResponse{Next: gateNext})
 		}
 	}
 	if directAdminLogin {
-		return noStoreJSON(c, http.StatusOK, browserFlowResponse{RedirectTo: input.ReturnTo})
+		return core.NoStoreJSON(c, http.StatusOK, browserFlowResponse{RedirectTo: input.ReturnTo})
 	}
 	if err := d.RequestStore.AttachAuthentication(
 		c.Request().Context(), req.ID, completed.Sub, completed.AuthTime, completed.AMR, completed.ACR,
@@ -471,7 +464,7 @@ func (d Deps) handleTOTPAPI(c *echo.Context) error {
 	req.Sub, req.AuthTime, req.AMR, req.ACR = &completed.Sub, &completed.AuthTime, completed.AMR, &completed.ACR
 	client, err := d.ClientRepo.FindByID(c.Request().Context(), core.RequestTenantID(c), req.ClientID)
 	if err != nil || client == nil {
-		return writeBrowserError(c, http.StatusBadRequest, "invalid_transaction", "クライアントが存在しません")
+		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_transaction", "クライアントが存在しません")
 	}
 	next, err := d.completeAfterAuthn(c, req, client, completed)
 	if err != nil {
@@ -484,26 +477,26 @@ func (d Deps) handleTOTPAPI(c *echo.Context) error {
 }
 
 func (d Deps) handleChangePasswordAPI(c *echo.Context) error {
-	if err := d.verifyBrowserRequest(c); err != nil {
+	if err := d.VerifyBrowserRequest(c); err != nil {
 		return err
 	}
-	authn, err := d.resolveAuthentication(c)
+	authn, err := d.ResolveAuthentication(c)
 	if err != nil {
 		return err
 	}
 	if authn == nil || authn.AuthenticationPending {
-		return writeBrowserError(c, http.StatusUnauthorized, "authentication_required", "認証済みセッションが必要です")
+		return core.WriteBrowserError(c, http.StatusUnauthorized, "authentication_required", "認証済みセッションが必要です")
 	}
 	// パスワード変更は高 sensitivity 操作。step-up 再認証を要求する (ADR-043)。
 	if !authusecases.StepUpSatisfied(authn, time.Now().UTC()) {
-		return writeBrowserError(c, http.StatusForbidden, "step_up_required", "この操作には再認証が必要です")
+		return core.WriteBrowserError(c, http.StatusForbidden, "step_up_required", "この操作には再認証が必要です")
 	}
 	var input changePasswordAPIRequest
-	if err := decodeJSON(c.Request(), &input); err != nil {
-		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := core.DecodeJSON(c.Request(), &input); err != nil {
+		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	if input.CurrentPassword == "" || input.NewPassword == "" {
-		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "現在と新しいパスワードが必要です")
+		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "現在と新しいパスワードが必要です")
 	}
 
 	snap := d.resolvePasswordPolicy(c.Request().Context())
@@ -524,11 +517,11 @@ func (d Deps) handleChangePasswordAPI(c *echo.Context) error {
 		c.Response().Header().Set("Cache-Control", "no-store")
 		return c.NoContent(http.StatusNoContent)
 	case errors.Is(err, authusecases.ErrUserNotFound):
-		return writeBrowserError(c, http.StatusUnauthorized, "authentication_required", "認証済みセッションが無効です")
+		return core.WriteBrowserError(c, http.StatusUnauthorized, "authentication_required", "認証済みセッションが無効です")
 	case errors.Is(err, authusecases.ErrCurrentPasswordMismatch):
-		return writeBrowserError(c, http.StatusForbidden, "access_denied", "現在のパスワードが一致しません")
+		return core.WriteBrowserError(c, http.StatusForbidden, "access_denied", "現在のパスワードが一致しません")
 	case errors.Is(err, authusecases.ErrPasswordReused):
-		return writeBrowserError(c, http.StatusBadRequest, "password_reuse", "新しいパスワードは最近使用したものを再利用できません")
+		return core.WriteBrowserError(c, http.StatusBadRequest, "password_reuse", "新しいパスワードは最近使用したものを再利用できません")
 	default:
 		var policyErr *authusecases.PasswordPolicyError
 		if errors.As(err, &policyErr) {
@@ -536,7 +529,7 @@ func (d Deps) handleChangePasswordAPI(c *echo.Context) error {
 			for i, v := range policyErr.Violations {
 				violations[i] = string(v)
 			}
-			return noStoreJSON(c, http.StatusBadRequest, map[string]any{
+			return core.NoStoreJSON(c, http.StatusBadRequest, map[string]any{
 				"error":      "password_policy",
 				"message":    "パスワードがセキュリティ要件を満たしていません。",
 				"violations": violations,
@@ -547,25 +540,25 @@ func (d Deps) handleChangePasswordAPI(c *echo.Context) error {
 }
 
 func (d Deps) handleConsentAPI(c *echo.Context) error {
-	if err := d.verifyBrowserRequest(c); err != nil {
+	if err := d.VerifyBrowserRequest(c); err != nil {
 		return err
 	}
 	req, err := d.transactionRequest(c)
 	if err != nil {
-		return writeBrowserError(c, http.StatusUnauthorized, "transaction_unavailable", err.Error())
+		return core.WriteBrowserError(c, http.StatusUnauthorized, "transaction_unavailable", err.Error())
 	}
-	authn, _ := d.resolveAuthentication(c)
+	authn, _ := d.ResolveAuthentication(c)
 	if authn == nil || req.Sub == nil || authn.Sub != *req.Sub {
-		return writeBrowserError(c, http.StatusUnauthorized, "authentication_required", "認証セッションが一致しません")
+		return core.WriteBrowserError(c, http.StatusUnauthorized, "authentication_required", "認証セッションが一致しません")
 	}
 	var input consentAPIRequest
-	if err := decodeJSON(c.Request(), &input); err != nil {
-		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := core.DecodeJSON(c.Request(), &input); err != nil {
+		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	if input.Action != "allow" {
 		_ = d.RequestStore.UpdateState(c.Request().Context(), req.ID, spec.AuthFlowRejected)
 		d.clearTransactionCookie(c)
-		return noStoreJSON(c, http.StatusOK, browserFlowResponse{RedirectTo: authorizationErrorURL(req, core.RequestIssuer(c, d.Issuer), "access_denied", "")})
+		return core.NoStoreJSON(c, http.StatusOK, browserFlowResponse{RedirectTo: authorizationErrorURL(req, core.RequestIssuer(c, d.Issuer), "access_denied", "")})
 	}
 
 	scopes := strings.Fields(req.Scope)
@@ -587,7 +580,7 @@ func (d Deps) handleConsentAPI(c *echo.Context) error {
 		return err
 	}
 	d.clearTransactionCookie(c)
-	return noStoreJSON(c, http.StatusOK, browserFlowResponse{RedirectTo: redirectTo})
+	return core.NoStoreJSON(c, http.StatusOK, browserFlowResponse{RedirectTo: redirectTo})
 }
 
 type authorizationNext struct {
@@ -721,9 +714,9 @@ func redirectAuthorizationNext(c *echo.Context, next authorizationNext) error {
 
 func writeAuthorizationNext(c *echo.Context, next authorizationNext) error {
 	if next.RedirectTo != "" {
-		return noStoreJSON(c, http.StatusOK, browserFlowResponse{RedirectTo: next.RedirectTo})
+		return core.NoStoreJSON(c, http.StatusOK, browserFlowResponse{RedirectTo: next.RedirectTo})
 	}
-	return noStoreJSON(c, http.StatusOK, browserFlowResponse{Next: next.Path})
+	return core.NoStoreJSON(c, http.StatusOK, browserFlowResponse{Next: next.Path})
 }
 
 func (d Deps) handleEndSession(c *echo.Context) error {
@@ -808,71 +801,10 @@ func validAdminReturnTo(c *echo.Context, returnTo string) bool {
 	return parsed.Path == adminRoot || strings.HasPrefix(parsed.Path, adminRoot+"/")
 }
 
-func (d Deps) resolveAuthentication(c *echo.Context) (*authdomain.AuthenticationContext, error) {
-	if d.AuthnResolver == nil {
-		return nil, nil
-	}
-	authn, err := d.AuthnResolver.Resolve(
-		c.Request().Context(),
-		authdomain.HTTPHeadersAdapter{H: c.Request().Header},
-	)
-	if err != nil || authn == nil || d.UserRepo == nil {
-		return authn, err
-	}
-	user, err := d.UserRepo.FindBySub(c.Request().Context(), authn.Sub)
-	if err != nil {
-		return nil, err
-	}
-	if user == nil || !user.IsActive() {
-		if d.SessionManager != nil && authn.SessionID != "" {
-			_ = d.SessionManager.Store.Delete(c.Request().Context(), authn.SessionID)
-		}
-		return nil, nil
-	}
-	// cookie path 分離が破られた場合に備え、リクエスト先のテナントと User の所属テナントが
-	// 一致しないセッションは未認証扱い (defense-in-depth)。
-	if user.TenantID != core.RequestTenantID(c) {
-		return nil, nil
-	}
-	return authn, nil
-}
-
-func (d Deps) verifyBrowserRequest(c *echo.Context) error {
-	origin := c.Request().Header.Get("Origin")
-	issuer, err := url.Parse(d.Issuer)
-	if err != nil || origin == "" || origin != issuer.Scheme+"://"+issuer.Host {
-		return writeBrowserError(c, http.StatusForbidden, "invalid_origin", "Originが一致しません")
-	}
-	cookie, err := c.Cookie(csrfCookie)
-	header := c.Request().Header.Get(csrfHeader)
-	if err != nil || cookie.Value == "" || header == "" ||
-		len(cookie.Value) != len(header) ||
-		subtle.ConstantTimeCompare([]byte(cookie.Value), []byte(header)) != 1 {
-		return writeBrowserError(c, http.StatusForbidden, "csrf_failed", "CSRF検証に失敗しました")
-	}
-	return nil
-}
-
-func (d Deps) ensureCSRFCookie(c *echo.Context) (string, error) {
-	if cookie, err := c.Cookie(csrfCookie); err == nil && cookie.Value != "" {
-		return cookie.Value, nil
-	}
-	value, err := randomToken(32)
-	if err != nil {
-		return "", err
-	}
-	c.SetCookie(&http.Cookie{ //nolint:gosec // Secure is enabled for HTTPS issuers; local HTTP development intentionally disables it.
-		Name: csrfCookie, Value: value, Path: core.TenantCookiePath(c),
-		Secure: d.secureCookies(), HttpOnly: false, SameSite: http.SameSiteStrictMode,
-		MaxAge: 600,
-	})
-	return value, nil
-}
-
 func (d Deps) setTransactionCookie(c *echo.Context, requestID string) {
 	c.SetCookie(&http.Cookie{ //nolint:gosec // Secure is enabled for HTTPS issuers; local HTTP development intentionally disables it.
 		Name: authorizationTransactionCookie, Value: requestID, Path: core.TenantCookiePath(c),
-		Secure: d.secureCookies(), HttpOnly: true, SameSite: http.SameSiteLaxMode,
+		Secure: d.SecureCookies(), HttpOnly: true, SameSite: http.SameSiteLaxMode,
 		MaxAge: 600,
 	})
 }
@@ -880,7 +812,7 @@ func (d Deps) setTransactionCookie(c *echo.Context, requestID string) {
 func (d Deps) clearTransactionCookie(c *echo.Context) {
 	c.SetCookie(&http.Cookie{ //nolint:gosec // Secure is enabled for HTTPS issuers; local HTTP development intentionally disables it.
 		Name: authorizationTransactionCookie, Path: core.TenantCookiePath(c),
-		Secure: d.secureCookies(), HttpOnly: true, SameSite: http.SameSiteLaxMode,
+		Secure: d.SecureCookies(), HttpOnly: true, SameSite: http.SameSiteLaxMode,
 		MaxAge: -1,
 	})
 }
@@ -888,7 +820,7 @@ func (d Deps) clearTransactionCookie(c *echo.Context) {
 func (d Deps) setSessionCookie(c *echo.Context, sessionID string) {
 	c.SetCookie(&http.Cookie{ //nolint:gosec // Secure is enabled for HTTPS issuers; local HTTP development intentionally disables it.
 		Name: authusecases.SessionCookie, Value: sessionID, Path: core.TenantCookiePath(c),
-		Secure: d.secureCookies(), HttpOnly: true, SameSite: http.SameSiteLaxMode,
+		Secure: d.SecureCookies(), HttpOnly: true, SameSite: http.SameSiteLaxMode,
 		MaxAge: authusecases.SessionTTLSeconds,
 	})
 }
@@ -896,13 +828,9 @@ func (d Deps) setSessionCookie(c *echo.Context, sessionID string) {
 func (d Deps) clearSessionCookie(c *echo.Context) {
 	c.SetCookie(&http.Cookie{ //nolint:gosec // Secure is enabled for HTTPS issuers; local HTTP development intentionally disables it.
 		Name: authusecases.SessionCookie, Path: core.TenantCookiePath(c),
-		Secure: d.secureCookies(), HttpOnly: true, SameSite: http.SameSiteLaxMode,
+		Secure: d.SecureCookies(), HttpOnly: true, SameSite: http.SameSiteLaxMode,
 		MaxAge: -1,
 	})
-}
-
-func (d Deps) secureCookies() bool {
-	return strings.HasPrefix(d.Issuer, "https://")
 }
 
 func (d Deps) emitAuthenticationFailure(c *echo.Context, username, reason string) {
@@ -1024,30 +952,7 @@ func extractClientIP(request *http.Request, trustedHops int) string {
 
 func writeLoginThrottled(c *echo.Context, retryAfterSeconds int) error {
 	c.Response().Header().Set("Retry-After", strconv.Itoa(retryAfterSeconds))
-	return noStoreJSON(c, http.StatusTooManyRequests, map[string]any{
+	return core.NoStoreJSON(c, http.StatusTooManyRequests, map[string]any{
 		"error": "too_many_requests", "retry_after_seconds": retryAfterSeconds,
 	})
-}
-
-func decodeJSON(request *http.Request, destination any) error {
-	decoder := json.NewDecoder(io.LimitReader(request.Body, 64<<10))
-	decoder.DisallowUnknownFields()
-	return decoder.Decode(destination)
-}
-
-func randomToken(size int) (string, error) {
-	value := make([]byte, size)
-	if _, err := rand.Read(value); err != nil {
-		return "", err
-	}
-	return base64.RawURLEncoding.EncodeToString(value), nil
-}
-
-func noStoreJSON(c *echo.Context, status int, body any) error {
-	c.Response().Header().Set("Cache-Control", "no-store")
-	return c.JSON(status, body)
-}
-
-func writeBrowserError(c *echo.Context, status int, code, message string) error {
-	return noStoreJSON(c, status, map[string]string{"error": code, "message": message})
 }

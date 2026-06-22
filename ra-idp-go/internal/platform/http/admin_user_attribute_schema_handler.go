@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/spec"
 	tenantusecases "ra-idp-go/internal/tenancy/usecases"
 
@@ -38,33 +39,33 @@ func toUserAttributeSchemaResponse(schema *spec.TenantUserAttributeSchema) userA
 func (d Deps) handleGetUserAttributeSchema(c *echo.Context) error {
 	actor, err := d.requireTenantAdmin(c)
 	if err != nil {
-		return d.writeAdminAccessError(c, err)
+		return d.WriteAdminAccessError(c, err)
 	}
 	schema, err := tenantusecases.GetUserAttributeSchema(c.Request().Context(), d.AttrSchemaRepo, actor.TenantID)
 	if err != nil {
 		return err
 	}
-	return noStoreJSON(c, http.StatusOK, toUserAttributeSchemaResponse(schema))
+	return core.NoStoreJSON(c, http.StatusOK, toUserAttributeSchemaResponse(schema))
 }
 
 func (d Deps) handleUpdateUserAttributeSchema(c *echo.Context) error {
-	if err := d.verifyBrowserRequest(c); err != nil {
+	if err := d.VerifyBrowserRequest(c); err != nil {
 		return err
 	}
 	actor, err := d.requireTenantAdmin(c)
 	if err != nil {
-		return d.writeAdminAccessError(c, err)
+		return d.WriteAdminAccessError(c, err)
 	}
 	var input userAttributeSchemaUpdateRequest
-	if err := decodeJSON(c.Request(), &input); err != nil {
-		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := core.DecodeJSON(c.Request(), &input); err != nil {
+		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	schema, err := tenantusecases.UpdateUserAttributeSchema(
 		c.Request().Context(), d.AttrSchemaRepo, actor.TenantID, input.Attributes, time.Now().UTC(),
 	)
 	if err != nil {
 		if errors.Is(err, tenantusecases.ErrInvalidUserAttributeSchema) {
-			return writeBrowserError(c, http.StatusBadRequest, "invalid_attribute_schema", "属性定義が不正です")
+			return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_attribute_schema", "属性定義が不正です")
 		}
 		return err
 	}
@@ -77,5 +78,5 @@ func (d Deps) handleUpdateUserAttributeSchema(c *echo.Context) error {
 			At: time.Now().UTC(), ActorSub: actor.Sub, TenantID: actor.TenantID, AttributeKeys: keys,
 		})
 	}
-	return noStoreJSON(c, http.StatusOK, toUserAttributeSchemaResponse(schema))
+	return core.NoStoreJSON(c, http.StatusOK, toUserAttributeSchemaResponse(schema))
 }

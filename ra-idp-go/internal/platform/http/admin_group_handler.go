@@ -8,6 +8,7 @@ import (
 	"time"
 
 	authusecases "ra-idp-go/internal/authentication/usecases"
+	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/spec"
 
 	"github.com/labstack/echo/v5"
@@ -50,8 +51,8 @@ type userGroupsResponse struct {
 }
 
 func (d Deps) handleListGroups(c *echo.Context) error {
-	if _, err := d.requireAdmin(c); err != nil {
-		return d.writeAdminAccessError(c, err)
+	if _, err := d.RequireAdmin(c); err != nil {
+		return d.WriteAdminAccessError(c, err)
 	}
 	views, err := authusecases.ListGroups(c.Request().Context(), d.adminGroupDeps())
 	if err != nil {
@@ -61,34 +62,34 @@ func (d Deps) handleListGroups(c *echo.Context) error {
 	for i, view := range views {
 		groups[i] = toGroupSummaryResponse(view.Group, view.MemberCount)
 	}
-	return noStoreJSON(c, http.StatusOK, map[string]any{"groups": groups})
+	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"groups": groups})
 }
 
 func (d Deps) handleGetGroup(c *echo.Context) error {
-	if _, err := d.requireAdmin(c); err != nil {
-		return d.writeAdminAccessError(c, err)
+	if _, err := d.RequireAdmin(c); err != nil {
+		return d.WriteAdminAccessError(c, err)
 	}
 	group, members, err := authusecases.GetGroup(c.Request().Context(), d.adminGroupDeps(), c.Param("group_id"))
 	if err != nil {
 		return d.writeAdminGroupError(c, err)
 	}
-	return noStoreJSON(c, http.StatusOK, map[string]any{
+	return core.NoStoreJSON(c, http.StatusOK, map[string]any{
 		"group":   toGroupSummaryResponse(group, len(members)),
 		"members": d.toGroupMemberResponses(c.Request().Context(), members),
 	})
 }
 
 func (d Deps) handleCreateGroup(c *echo.Context) error {
-	if err := d.verifyBrowserRequest(c); err != nil {
+	if err := d.VerifyBrowserRequest(c); err != nil {
 		return err
 	}
-	actor, err := d.requireAdmin(c)
+	actor, err := d.RequireAdmin(c)
 	if err != nil {
-		return d.writeAdminAccessError(c, err)
+		return d.WriteAdminAccessError(c, err)
 	}
 	var input groupCreateRequest
-	if err := decodeJSON(c.Request(), &input); err != nil {
-		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := core.DecodeJSON(c.Request(), &input); err != nil {
+		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	group, err := authusecases.CreateGroup(c.Request().Context(), d.adminGroupDeps(), authusecases.CreateGroupInput{
 		ActorSub: actor.Sub, Name: input.Name, Description: input.Description, Roles: input.Roles, Now: time.Now().UTC(),
@@ -96,20 +97,20 @@ func (d Deps) handleCreateGroup(c *echo.Context) error {
 	if err != nil {
 		return d.writeAdminGroupError(c, err)
 	}
-	return noStoreJSON(c, http.StatusCreated, toGroupSummaryResponse(group, 0))
+	return core.NoStoreJSON(c, http.StatusCreated, toGroupSummaryResponse(group, 0))
 }
 
 func (d Deps) handleUpdateGroup(c *echo.Context) error {
-	if err := d.verifyBrowserRequest(c); err != nil {
+	if err := d.VerifyBrowserRequest(c); err != nil {
 		return err
 	}
-	actor, err := d.requireAdmin(c)
+	actor, err := d.RequireAdmin(c)
 	if err != nil {
-		return d.writeAdminAccessError(c, err)
+		return d.WriteAdminAccessError(c, err)
 	}
 	var input groupUpdateRequest
-	if err := decodeJSON(c.Request(), &input); err != nil {
-		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := core.DecodeJSON(c.Request(), &input); err != nil {
+		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	group, err := authusecases.UpdateGroup(c.Request().Context(), d.adminGroupDeps(), authusecases.UpdateGroupInput{
 		ActorSub: actor.Sub, ID: c.Param("group_id"),
@@ -122,16 +123,16 @@ func (d Deps) handleUpdateGroup(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return noStoreJSON(c, http.StatusOK, toGroupSummaryResponse(group, count))
+	return core.NoStoreJSON(c, http.StatusOK, toGroupSummaryResponse(group, count))
 }
 
 func (d Deps) handleDeleteGroup(c *echo.Context) error {
-	if err := d.verifyBrowserRequest(c); err != nil {
+	if err := d.VerifyBrowserRequest(c); err != nil {
 		return err
 	}
-	actor, err := d.requireAdmin(c)
+	actor, err := d.RequireAdmin(c)
 	if err != nil {
-		return d.writeAdminAccessError(c, err)
+		return d.WriteAdminAccessError(c, err)
 	}
 	if err := authusecases.DeleteGroup(c.Request().Context(), d.adminGroupDeps(), actor.Sub, c.Param("group_id"), time.Now().UTC()); err != nil {
 		return d.writeAdminGroupError(c, err)
@@ -141,12 +142,12 @@ func (d Deps) handleDeleteGroup(c *echo.Context) error {
 }
 
 func (d Deps) handleAddGroupMember(c *echo.Context) error {
-	if err := d.verifyBrowserRequest(c); err != nil {
+	if err := d.VerifyBrowserRequest(c); err != nil {
 		return err
 	}
-	actor, err := d.requireAdmin(c)
+	actor, err := d.RequireAdmin(c)
 	if err != nil {
-		return d.writeAdminAccessError(c, err)
+		return d.WriteAdminAccessError(c, err)
 	}
 	if err := authusecases.AddMember(c.Request().Context(), d.adminGroupDeps(), actor.Sub, c.Param("group_id"), c.Param("user_sub"), time.Now().UTC()); err != nil {
 		return d.writeAdminGroupError(c, err)
@@ -156,12 +157,12 @@ func (d Deps) handleAddGroupMember(c *echo.Context) error {
 }
 
 func (d Deps) handleRemoveGroupMember(c *echo.Context) error {
-	if err := d.verifyBrowserRequest(c); err != nil {
+	if err := d.VerifyBrowserRequest(c); err != nil {
 		return err
 	}
-	actor, err := d.requireAdmin(c)
+	actor, err := d.RequireAdmin(c)
 	if err != nil {
-		return d.writeAdminAccessError(c, err)
+		return d.WriteAdminAccessError(c, err)
 	}
 	if err := authusecases.RemoveMember(c.Request().Context(), d.adminGroupDeps(), actor.Sub, c.Param("group_id"), c.Param("user_sub"), time.Now().UTC()); err != nil {
 		return d.writeAdminGroupError(c, err)
@@ -171,8 +172,8 @@ func (d Deps) handleRemoveGroupMember(c *echo.Context) error {
 }
 
 func (d Deps) handleListUserGroups(c *echo.Context) error {
-	if _, err := d.requireAdmin(c); err != nil {
-		return d.writeAdminAccessError(c, err)
+	if _, err := d.RequireAdmin(c); err != nil {
+		return d.WriteAdminAccessError(c, err)
 	}
 	view, err := authusecases.UserGroups(c.Request().Context(), d.adminGroupDeps(), c.Param("sub"))
 	if err != nil {
@@ -186,7 +187,7 @@ func (d Deps) handleListUserGroups(c *echo.Context) error {
 		}
 		groups[i] = toGroupSummaryResponse(group, count)
 	}
-	return noStoreJSON(c, http.StatusOK, userGroupsResponse{
+	return core.NoStoreJSON(c, http.StatusOK, userGroupsResponse{
 		Groups:         groups,
 		DirectRoles:    view.DirectRoles,
 		GroupRoles:     view.GroupRoles,
@@ -221,15 +222,15 @@ func toGroupSummaryResponse(group *spec.Group, memberCount int) groupSummaryResp
 func (d Deps) writeAdminGroupError(c *echo.Context, err error) error {
 	switch {
 	case errors.Is(err, authusecases.ErrGroupNotFound):
-		return writeBrowserError(c, http.StatusNotFound, "group_not_found", "グループが存在しません")
+		return core.WriteBrowserError(c, http.StatusNotFound, "group_not_found", "グループが存在しません")
 	case errors.Is(err, authusecases.ErrUserNotFound):
-		return writeBrowserError(c, http.StatusNotFound, "user_not_found", "ユーザーが存在しません")
+		return core.WriteBrowserError(c, http.StatusNotFound, "user_not_found", "ユーザーが存在しません")
 	case errors.Is(err, authusecases.ErrGroupNameConflict):
-		return writeBrowserError(c, http.StatusConflict, "group_name_conflict", "グループ名は既に使用されています")
+		return core.WriteBrowserError(c, http.StatusConflict, "group_name_conflict", "グループ名は既に使用されています")
 	case errors.Is(err, authusecases.ErrGroupNameEmpty):
-		return writeBrowserError(c, http.StatusBadRequest, "group_name_required", "グループ名は必須です")
+		return core.WriteBrowserError(c, http.StatusBadRequest, "group_name_required", "グループ名は必須です")
 	case errors.Is(err, authusecases.ErrInvalidRole):
-		return writeBrowserError(c, http.StatusBadRequest, "invalid_role", "roleが不正です")
+		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_role", "roleが不正です")
 	default:
 		return err
 	}
@@ -237,22 +238,7 @@ func (d Deps) writeAdminGroupError(c *echo.Context, err error) error {
 
 // effectiveRoles は actor の有効ロール (user.roles ∪ 所属 group.roles) を返す (ADR-038)。
 // GroupRepo 未配線時は user.roles をそのまま返し、後方互換を保つ。
-func (d Deps) effectiveRoles(ctx context.Context, user *spec.User) []string {
-	if d.GroupRepo == nil {
-		return user.Roles
-	}
-	groups, err := d.GroupRepo.ListGroupsByUser(ctx, user.TenantID, user.Sub)
-	if err != nil {
-		return user.Roles
-	}
-	return spec.EffectiveRoles(user.Roles, groups)
-}
 
 // withEffectiveRoles は user のコピーに有効ロールを載せて返す (ADR-038)。
 // admin actor を解決する各経路 (settings / role policy / key / audit) が
 // グループ由来ロールを一貫して評価できるようにする。
-func (d Deps) withEffectiveRoles(ctx context.Context, user *spec.User) *spec.User {
-	clone := *user
-	clone.Roles = d.effectiveRoles(ctx, user)
-	return &clone
-}

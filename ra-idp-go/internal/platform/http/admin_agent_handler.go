@@ -7,6 +7,7 @@ import (
 	"time"
 
 	authusecases "ra-idp-go/internal/authentication/usecases"
+	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/spec"
 
 	"github.com/labstack/echo/v5"
@@ -49,8 +50,8 @@ type agentSummaryResponse struct {
 }
 
 func (d Deps) handleListAgents(c *echo.Context) error {
-	if _, err := d.requireAdmin(c); err != nil {
-		return d.writeAdminAccessError(c, err)
+	if _, err := d.RequireAdmin(c); err != nil {
+		return d.WriteAdminAccessError(c, err)
 	}
 	views, err := authusecases.ListAgents(c.Request().Context(), d.adminAgentDeps())
 	if err != nil {
@@ -60,31 +61,31 @@ func (d Deps) handleListAgents(c *echo.Context) error {
 	for i, view := range views {
 		agents[i] = toAgentSummaryResponse(view.Agent, view.ClientIDs)
 	}
-	return noStoreJSON(c, http.StatusOK, map[string]any{"agents": agents})
+	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"agents": agents})
 }
 
 func (d Deps) handleGetAgent(c *echo.Context) error {
-	if _, err := d.requireAdmin(c); err != nil {
-		return d.writeAdminAccessError(c, err)
+	if _, err := d.RequireAdmin(c); err != nil {
+		return d.WriteAdminAccessError(c, err)
 	}
 	view, err := authusecases.GetAgent(c.Request().Context(), d.adminAgentDeps(), c.Param("agent_id"))
 	if err != nil {
 		return d.writeAdminAgentError(c, err)
 	}
-	return noStoreJSON(c, http.StatusOK, toAgentSummaryResponse(view.Agent, view.ClientIDs))
+	return core.NoStoreJSON(c, http.StatusOK, toAgentSummaryResponse(view.Agent, view.ClientIDs))
 }
 
 func (d Deps) handleRegisterAgent(c *echo.Context) error {
-	if err := d.verifyBrowserRequest(c); err != nil {
+	if err := d.VerifyBrowserRequest(c); err != nil {
 		return err
 	}
-	actor, err := d.requireAdmin(c)
+	actor, err := d.RequireAdmin(c)
 	if err != nil {
-		return d.writeAdminAccessError(c, err)
+		return d.WriteAdminAccessError(c, err)
 	}
 	var input agentRegisterRequest
-	if err := decodeJSON(c.Request(), &input); err != nil {
-		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := core.DecodeJSON(c.Request(), &input); err != nil {
+		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	ownerSub := ""
 	if input.OwnerSub != nil {
@@ -97,20 +98,20 @@ func (d Deps) handleRegisterAgent(c *echo.Context) error {
 	if err != nil {
 		return d.writeAdminAgentError(c, err)
 	}
-	return noStoreJSON(c, http.StatusCreated, toAgentSummaryResponse(agent, []string{}))
+	return core.NoStoreJSON(c, http.StatusCreated, toAgentSummaryResponse(agent, []string{}))
 }
 
 func (d Deps) handleUpdateAgent(c *echo.Context) error {
-	if err := d.verifyBrowserRequest(c); err != nil {
+	if err := d.VerifyBrowserRequest(c); err != nil {
 		return err
 	}
-	actor, err := d.requireAdmin(c)
+	actor, err := d.RequireAdmin(c)
 	if err != nil {
-		return d.writeAdminAccessError(c, err)
+		return d.WriteAdminAccessError(c, err)
 	}
 	var input agentUpdateRequest
-	if err := decodeJSON(c.Request(), &input); err != nil {
-		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := core.DecodeJSON(c.Request(), &input); err != nil {
+		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	agentID := c.Param("agent_id")
 	if _, err := authusecases.UpdateAgent(c.Request().Context(), d.adminAgentDeps(), authusecases.UpdateAgentInput{
@@ -124,7 +125,7 @@ func (d Deps) handleUpdateAgent(c *echo.Context) error {
 	if err != nil {
 		return d.writeAdminAgentError(c, err)
 	}
-	return noStoreJSON(c, http.StatusOK, toAgentSummaryResponse(view.Agent, view.ClientIDs))
+	return core.NoStoreJSON(c, http.StatusOK, toAgentSummaryResponse(view.Agent, view.ClientIDs))
 }
 
 func (d Deps) handleDisableAgent(c *echo.Context) error {
@@ -155,16 +156,16 @@ func (d Deps) handleDeleteAgent(c *echo.Context) error {
 }
 
 func (d Deps) handleBindAgentCredential(c *echo.Context) error {
-	if err := d.verifyBrowserRequest(c); err != nil {
+	if err := d.VerifyBrowserRequest(c); err != nil {
 		return err
 	}
-	actor, err := d.requireAdmin(c)
+	actor, err := d.RequireAdmin(c)
 	if err != nil {
-		return d.writeAdminAccessError(c, err)
+		return d.WriteAdminAccessError(c, err)
 	}
 	var input agentCredentialBindRequest
-	if err := decodeJSON(c.Request(), &input); err != nil {
-		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := core.DecodeJSON(c.Request(), &input); err != nil {
+		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	if err := authusecases.BindCredential(c.Request().Context(), d.adminAgentDeps(), actor.Sub, c.Param("agent_id"), input.ClientID, time.Now().UTC()); err != nil {
 		return d.writeAdminAgentError(c, err)
@@ -174,12 +175,12 @@ func (d Deps) handleBindAgentCredential(c *echo.Context) error {
 }
 
 func (d Deps) handleUnbindAgentCredential(c *echo.Context) error {
-	if err := d.verifyBrowserRequest(c); err != nil {
+	if err := d.VerifyBrowserRequest(c); err != nil {
 		return err
 	}
-	actor, err := d.requireAdmin(c)
+	actor, err := d.RequireAdmin(c)
 	if err != nil {
-		return d.writeAdminAccessError(c, err)
+		return d.WriteAdminAccessError(c, err)
 	}
 	if err := authusecases.UnbindCredential(c.Request().Context(), d.adminAgentDeps(), actor.Sub, c.Param("agent_id"), c.Param("client_id"), time.Now().UTC()); err != nil {
 		return d.writeAdminAgentError(c, err)
@@ -191,12 +192,12 @@ func (d Deps) handleUnbindAgentCredential(c *echo.Context) error {
 // changeAgentStatus は disable / enable / kill / delete の共通処理 (verify + admin gate
 // + 204)。
 func (d Deps) changeAgentStatus(c *echo.Context, action func(actorSub, id string) error) error {
-	if err := d.verifyBrowserRequest(c); err != nil {
+	if err := d.VerifyBrowserRequest(c); err != nil {
 		return err
 	}
-	actor, err := d.requireAdmin(c)
+	actor, err := d.RequireAdmin(c)
 	if err != nil {
-		return d.writeAdminAccessError(c, err)
+		return d.WriteAdminAccessError(c, err)
 	}
 	if err := action(actor.Sub, c.Param("agent_id")); err != nil {
 		return d.writeAdminAgentError(c, err)
@@ -225,23 +226,23 @@ func toAgentSummaryResponse(agent *spec.Agent, clientIDs []string) agentSummaryR
 func (d Deps) writeAdminAgentError(c *echo.Context, err error) error {
 	switch {
 	case errors.Is(err, authusecases.ErrAgentNotFound):
-		return writeBrowserError(c, http.StatusNotFound, "agent_not_found", "エージェントが存在しません")
+		return core.WriteBrowserError(c, http.StatusNotFound, "agent_not_found", "エージェントが存在しません")
 	case errors.Is(err, authusecases.ErrAgentClientNotFound):
-		return writeBrowserError(c, http.StatusNotFound, "client_not_found", "クライアントが存在しません")
+		return core.WriteBrowserError(c, http.StatusNotFound, "client_not_found", "クライアントが存在しません")
 	case errors.Is(err, authusecases.ErrAgentNameConflict):
-		return writeBrowserError(c, http.StatusConflict, "agent_name_conflict", "エージェント名は既に使用されています")
+		return core.WriteBrowserError(c, http.StatusConflict, "agent_name_conflict", "エージェント名は既に使用されています")
 	case errors.Is(err, authusecases.ErrAgentNameEmpty):
-		return writeBrowserError(c, http.StatusBadRequest, "agent_name_required", "エージェント名は必須です")
+		return core.WriteBrowserError(c, http.StatusBadRequest, "agent_name_required", "エージェント名は必須です")
 	case errors.Is(err, authusecases.ErrAgentOwnerRequired):
-		return writeBrowserError(c, http.StatusBadRequest, "agent_owner_required", "所有者は必須です")
+		return core.WriteBrowserError(c, http.StatusBadRequest, "agent_owner_required", "所有者は必須です")
 	case errors.Is(err, authusecases.ErrAgentOwnerNotFound):
-		return writeBrowserError(c, http.StatusBadRequest, "agent_owner_not_found", "所有者ユーザーが存在しません")
+		return core.WriteBrowserError(c, http.StatusBadRequest, "agent_owner_not_found", "所有者ユーザーが存在しません")
 	case errors.Is(err, authusecases.ErrAgentKilled):
-		return writeBrowserError(c, http.StatusConflict, "agent_killed", "緊急停止済みのエージェントは変更できません")
+		return core.WriteBrowserError(c, http.StatusConflict, "agent_killed", "緊急停止済みのエージェントは変更できません")
 	case errors.Is(err, authusecases.ErrAgentClientBound):
-		return writeBrowserError(c, http.StatusConflict, "agent_client_already_bound", "クライアントは別のエージェントに束縛済みです")
+		return core.WriteBrowserError(c, http.StatusConflict, "agent_client_already_bound", "クライアントは別のエージェントに束縛済みです")
 	case errors.Is(err, authusecases.ErrInvalidRole):
-		return writeBrowserError(c, http.StatusBadRequest, "invalid_role", "roleが不正です")
+		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_role", "roleが不正です")
 	default:
 		return err
 	}

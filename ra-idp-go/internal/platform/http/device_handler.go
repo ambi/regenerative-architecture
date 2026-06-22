@@ -41,33 +41,33 @@ func (d Deps) handleDeviceAuthorization(c *echo.Context) error {
 }
 
 func (d Deps) handleDeviceContext(c *echo.Context) error {
-	csrf, err := d.ensureCSRFCookie(c)
+	csrf, err := d.EnsureCSRFCookie(c)
 	if err != nil {
 		return err
 	}
 	userCode := strings.ToUpper(strings.TrimSpace(c.QueryParam("user_code")))
-	return noStoreJSON(c, http.StatusOK, map[string]string{
+	return core.NoStoreJSON(c, http.StatusOK, map[string]string{
 		"kind": "device", "user_code": userCode, "csrf_token": csrf,
 	})
 }
 
 func (d Deps) handleDeviceAPI(c *echo.Context) error {
-	if err := d.verifyBrowserRequest(c); err != nil {
+	if err := d.VerifyBrowserRequest(c); err != nil {
 		return err
 	}
 	var input deviceAPIRequest
-	if err := decodeJSON(c.Request(), &input); err != nil {
-		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := core.DecodeJSON(c.Request(), &input); err != nil {
+		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	if strings.TrimSpace(input.UserCode) == "" {
-		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "デバイスコードが必要です")
+		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "デバイスコードが必要です")
 	}
 	authn, _ := d.AuthnResolver.Resolve(
 		c.Request().Context(),
 		authdomain.HTTPHeadersAdapter{H: c.Request().Header},
 	)
 	if authn == nil {
-		return writeBrowserError(c, http.StatusUnauthorized, "authentication_required", "ログインが必要です")
+		return core.WriteBrowserError(c, http.StatusUnauthorized, "authentication_required", "ログインが必要です")
 	}
 	if input.Action == "deny" {
 		if err := usecases.DenyUserCode(
@@ -79,7 +79,7 @@ func (d Deps) handleDeviceAPI(c *echo.Context) error {
 		); err != nil {
 			return writeOAuthError(c, err)
 		}
-		return noStoreJSON(c, http.StatusOK, browserFlowResponse{Next: "/status?state=denied"})
+		return core.NoStoreJSON(c, http.StatusOK, browserFlowResponse{Next: "/status?state=denied"})
 	}
 	if err := usecases.ApproveUserCode(
 		c.Request().Context(),
@@ -90,5 +90,5 @@ func (d Deps) handleDeviceAPI(c *echo.Context) error {
 	); err != nil {
 		return writeOAuthError(c, err)
 	}
-	return noStoreJSON(c, http.StatusOK, browserFlowResponse{Next: "/status?state=approved"})
+	return core.NoStoreJSON(c, http.StatusOK, browserFlowResponse{Next: "/status?state=approved"})
 }

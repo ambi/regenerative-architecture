@@ -57,20 +57,20 @@ type resetPasswordAPIRequest struct {
 }
 
 func (d Deps) handlePasswordResetContext(c *echo.Context) error {
-	csrf, err := d.ensureCSRFCookie(c)
+	csrf, err := d.EnsureCSRFCookie(c)
 	if err != nil {
 		return err
 	}
-	return noStoreJSON(c, http.StatusOK, map[string]string{"csrf_token": csrf})
+	return core.NoStoreJSON(c, http.StatusOK, map[string]string{"csrf_token": csrf})
 }
 
 func (d Deps) handleForgotPasswordAPI(c *echo.Context) error {
-	if err := d.verifyBrowserRequest(c); err != nil {
+	if err := d.VerifyBrowserRequest(c); err != nil {
 		return err
 	}
 	var input forgotPasswordAPIRequest
-	if err := decodeJSON(c.Request(), &input); err != nil {
-		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := core.DecodeJSON(c.Request(), &input); err != nil {
+		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	ttl := time.Duration(authusecases.PasswordResetTokenTTLSeconds) * time.Second
 	if d.SCL != nil {
@@ -94,15 +94,15 @@ func (d Deps) handleForgotPasswordAPI(c *echo.Context) error {
 }
 
 func (d Deps) handleResetPasswordAPI(c *echo.Context) error {
-	if err := d.verifyBrowserRequest(c); err != nil {
+	if err := d.VerifyBrowserRequest(c); err != nil {
 		return err
 	}
 	var input resetPasswordAPIRequest
-	if err := decodeJSON(c.Request(), &input); err != nil {
-		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := core.DecodeJSON(c.Request(), &input); err != nil {
+		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	if strings.TrimSpace(input.Token) == "" || input.NewPassword == "" {
-		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "tokenと新しいパスワードが必要です")
+		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "tokenと新しいパスワードが必要です")
 	}
 	snap := d.resolvePasswordPolicy(c.Request().Context())
 	_, err := authusecases.ResetPasswordWithToken(
@@ -119,11 +119,11 @@ func (d Deps) handleResetPasswordAPI(c *echo.Context) error {
 	)
 	switch {
 	case err == nil:
-		return noStoreJSON(c, http.StatusOK, map[string]string{"status": "ok"})
+		return core.NoStoreJSON(c, http.StatusOK, map[string]string{"status": "ok"})
 	case errors.Is(err, authusecases.ErrInvalidResetToken):
-		return writeBrowserError(c, http.StatusGone, "invalid_reset_token", "リセットリンクが無効か期限切れです")
+		return core.WriteBrowserError(c, http.StatusGone, "invalid_reset_token", "リセットリンクが無効か期限切れです")
 	case errors.Is(err, authusecases.ErrPasswordReused):
-		return writeBrowserError(c, http.StatusBadRequest, "password_reuse", "直近に使ったパスワードは再利用できません")
+		return core.WriteBrowserError(c, http.StatusBadRequest, "password_reuse", "直近に使ったパスワードは再利用できません")
 	default:
 		var policyErr *authusecases.PasswordPolicyError
 		if errors.As(err, &policyErr) {
@@ -131,7 +131,7 @@ func (d Deps) handleResetPasswordAPI(c *echo.Context) error {
 			for i, violation := range policyErr.Violations {
 				violations[i] = string(violation)
 			}
-			return noStoreJSON(c, http.StatusBadRequest, map[string]any{
+			return core.NoStoreJSON(c, http.StatusBadRequest, map[string]any{
 				"error": "password_policy", "message": "パスワードがセキュリティ要件を満たしていません。",
 				"violations": violations,
 			})

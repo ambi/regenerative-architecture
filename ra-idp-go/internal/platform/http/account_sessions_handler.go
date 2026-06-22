@@ -9,6 +9,7 @@ import (
 
 	authports "ra-idp-go/internal/authentication/ports"
 	authusecases "ra-idp-go/internal/authentication/usecases"
+	"ra-idp-go/internal/platform/http/core"
 
 	"github.com/labstack/echo/v5"
 )
@@ -47,12 +48,12 @@ func (d Deps) accountSessionDeps() authusecases.SessionDeps {
 // requireAuthenticatedSession は認証済み (pending でない) セッションの sub と sessionID を
 // 返す。sessionID は "現在のセッション" の判定と revoke_others の除外に使う。
 func (d Deps) requireAuthenticatedSession(c *echo.Context) (sub, sessionID string, err error) {
-	authn, err := d.resolveAuthentication(c)
+	authn, err := d.ResolveAuthentication(c)
 	if err != nil {
 		return "", "", err
 	}
 	if authn == nil || authn.AuthenticationPending {
-		return "", "", errAdminAuthenticationRequired
+		return "", "", core.ErrAdminAuthenticationRequired
 	}
 	return authn.Sub, authn.SessionID, nil
 }
@@ -70,11 +71,11 @@ func (d Deps) handleListAccountSessions(c *echo.Context) error {
 	for i, view := range views {
 		sessions[i] = toAccountSessionResponse(view)
 	}
-	return noStoreJSON(c, http.StatusOK, map[string]any{"sessions": sessions})
+	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"sessions": sessions})
 }
 
 func (d Deps) handleRevokeAccountSession(c *echo.Context) error {
-	if err := d.verifyBrowserRequest(c); err != nil {
+	if err := d.VerifyBrowserRequest(c); err != nil {
 		return err
 	}
 	sub, _, err := d.requireAuthenticatedSession(c)
@@ -91,7 +92,7 @@ func (d Deps) handleRevokeAccountSession(c *echo.Context) error {
 }
 
 func (d Deps) handleRevokeOtherAccountSessions(c *echo.Context) error {
-	if err := d.verifyBrowserRequest(c); err != nil {
+	if err := d.VerifyBrowserRequest(c); err != nil {
 		return err
 	}
 	// 他の全セッションの失効は高 sensitivity 操作。step-up 再認証を要求する (ADR-043)。

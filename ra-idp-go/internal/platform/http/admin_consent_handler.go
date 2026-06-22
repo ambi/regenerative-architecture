@@ -7,6 +7,7 @@ import (
 	"time"
 
 	oauthusecases "ra-idp-go/internal/oauth2/usecases"
+	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/spec"
 
 	"github.com/labstack/echo/v5"
@@ -24,8 +25,8 @@ type adminConsentResponse struct {
 }
 
 func (d Deps) handleListAdminConsents(c *echo.Context) error {
-	if _, err := d.requireAdmin(c); err != nil {
-		return d.writeAdminAccessError(c, err)
+	if _, err := d.RequireAdmin(c); err != nil {
+		return d.WriteAdminAccessError(c, err)
 	}
 	consents, err := oauthusecases.ListConsents(c.Request().Context(), d.adminConsentDeps())
 	if err != nil {
@@ -35,12 +36,12 @@ func (d Deps) handleListAdminConsents(c *echo.Context) error {
 	for i, consent := range consents {
 		response[i] = toAdminConsentResponse(consent)
 	}
-	return noStoreJSON(c, http.StatusOK, map[string]any{"consents": response})
+	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"consents": response})
 }
 
 func (d Deps) handleGetAdminConsent(c *echo.Context) error {
-	if _, err := d.requireAdmin(c); err != nil {
-		return d.writeAdminAccessError(c, err)
+	if _, err := d.RequireAdmin(c); err != nil {
+		return d.WriteAdminAccessError(c, err)
 	}
 	consent, err := oauthusecases.GetConsent(
 		c.Request().Context(), d.adminConsentDeps(), c.Param("sub"), c.Param("client_id"),
@@ -48,16 +49,16 @@ func (d Deps) handleGetAdminConsent(c *echo.Context) error {
 	if err != nil {
 		return d.writeAdminConsentError(c, err)
 	}
-	return noStoreJSON(c, http.StatusOK, toAdminConsentResponse(consent))
+	return core.NoStoreJSON(c, http.StatusOK, toAdminConsentResponse(consent))
 }
 
 func (d Deps) handleRevokeAdminConsent(c *echo.Context) error {
-	if err := d.verifyBrowserRequest(c); err != nil {
+	if err := d.VerifyBrowserRequest(c); err != nil {
 		return err
 	}
-	actor, err := d.requireAdmin(c)
+	actor, err := d.RequireAdmin(c)
 	if err != nil {
-		return d.writeAdminAccessError(c, err)
+		return d.WriteAdminAccessError(c, err)
 	}
 	if err := oauthusecases.RevokeConsent(
 		c.Request().Context(), d.adminConsentDeps(), actor.Sub,
@@ -75,7 +76,7 @@ func (d Deps) adminConsentDeps() oauthusecases.ConsentDeps {
 
 func (d Deps) writeAdminConsentError(c *echo.Context, err error) error {
 	if errors.Is(err, oauthusecases.ErrConsentNotFound) {
-		return writeBrowserError(c, http.StatusNotFound, "consent_not_found", "同意記録が存在しません")
+		return core.WriteBrowserError(c, http.StatusNotFound, "consent_not_found", "同意記録が存在しません")
 	}
 	return err
 }

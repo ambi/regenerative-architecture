@@ -7,6 +7,7 @@ import (
 	"time"
 
 	authusecases "ra-idp-go/internal/authentication/usecases"
+	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/spec"
 
 	"github.com/labstack/echo/v5"
@@ -94,7 +95,7 @@ func (d Deps) handleGetAccountSummary(c *echo.Context) error {
 	if err != nil {
 		return d.writeAccountError(c, err)
 	}
-	return noStoreJSON(c, http.StatusOK, toAccountSummaryResponse(user))
+	return core.NoStoreJSON(c, http.StatusOK, toAccountSummaryResponse(user))
 }
 
 func (d Deps) handleGetAccountProfile(c *echo.Context) error {
@@ -106,11 +107,11 @@ func (d Deps) handleGetAccountProfile(c *echo.Context) error {
 	if err != nil {
 		return d.writeAccountError(c, err)
 	}
-	return noStoreJSON(c, http.StatusOK, toAccountProfileResponse(user, defs))
+	return core.NoStoreJSON(c, http.StatusOK, toAccountProfileResponse(user, defs))
 }
 
 func (d Deps) handleUpdateAccountProfile(c *echo.Context) error {
-	if err := d.verifyBrowserRequest(c); err != nil {
+	if err := d.VerifyBrowserRequest(c); err != nil {
 		return err
 	}
 	sub, err := d.requireAuthenticatedSub(c)
@@ -118,8 +119,8 @@ func (d Deps) handleUpdateAccountProfile(c *echo.Context) error {
 		return d.writeAccountError(c, err)
 	}
 	var input accountProfileUpdateRequest
-	if err := decodeJSON(c.Request(), &input); err != nil {
-		return writeBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := core.DecodeJSON(c.Request(), &input); err != nil {
+		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	user, defs, err := authusecases.UpdateUserProfile(c.Request().Context(), d.accountProfileDeps(),
 		authusecases.UpdateUserProfileInput{
@@ -129,18 +130,18 @@ func (d Deps) handleUpdateAccountProfile(c *echo.Context) error {
 	if err != nil {
 		return d.writeAccountError(c, err)
 	}
-	return noStoreJSON(c, http.StatusOK, toAccountProfileResponse(user, defs))
+	return core.NoStoreJSON(c, http.StatusOK, toAccountProfileResponse(user, defs))
 }
 
 // requireAuthenticatedSub は認証済み (pending でない) セッションの sub を返す。
 // self-service では actor == target なので sub をそのまま操作対象に使う。
 func (d Deps) requireAuthenticatedSub(c *echo.Context) (string, error) {
-	authn, err := d.resolveAuthentication(c)
+	authn, err := d.ResolveAuthentication(c)
 	if err != nil {
 		return "", err
 	}
 	if authn == nil || authn.AuthenticationPending {
-		return "", errAdminAuthenticationRequired
+		return "", core.ErrAdminAuthenticationRequired
 	}
 	return authn.Sub, nil
 }
@@ -150,18 +151,18 @@ func (d Deps) writeAccountError(c *echo.Context, err error) error {
 		return result
 	}
 	switch {
-	case errors.Is(err, errAdminAuthenticationRequired):
-		return writeBrowserError(c, http.StatusUnauthorized, "authentication_required", "認証済みセッションが必要です")
+	case errors.Is(err, core.ErrAdminAuthenticationRequired):
+		return core.WriteBrowserError(c, http.StatusUnauthorized, "authentication_required", "認証済みセッションが必要です")
 	case errors.Is(err, authusecases.ErrStepUpRequired):
-		return writeBrowserError(c, http.StatusForbidden, "step_up_required", "この操作には再認証が必要です")
+		return core.WriteBrowserError(c, http.StatusForbidden, "step_up_required", "この操作には再認証が必要です")
 	case errors.Is(err, authusecases.ErrUserNotFound):
-		return writeBrowserError(c, http.StatusNotFound, "user_not_found", "ユーザーが存在しません")
+		return core.WriteBrowserError(c, http.StatusNotFound, "user_not_found", "ユーザーが存在しません")
 	case errors.Is(err, authusecases.ErrSessionNotFound):
-		return writeBrowserError(c, http.StatusNotFound, "session_not_found", "セッションが存在しません")
+		return core.WriteBrowserError(c, http.StatusNotFound, "session_not_found", "セッションが存在しません")
 	case errors.Is(err, authusecases.ErrAttributeNotEditable):
-		return writeBrowserError(c, http.StatusForbidden, "attribute_not_editable", "この属性は編集できません")
+		return core.WriteBrowserError(c, http.StatusForbidden, "attribute_not_editable", "この属性は編集できません")
 	case errors.Is(err, authusecases.ErrInvalidAttribute):
-		return writeBrowserError(c, http.StatusBadRequest, "invalid_attribute", "属性がスキーマに適合していません")
+		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_attribute", "属性がスキーマに適合していません")
 	default:
 		return err
 	}

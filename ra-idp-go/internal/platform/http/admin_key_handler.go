@@ -32,10 +32,10 @@ type adminRotateKeyResponse struct {
 
 func (d Deps) handleListAdminKeys(c *echo.Context) error {
 	if err := d.requireKeyReader(c); err != nil {
-		return d.writeAdminAccessError(c, err)
+		return d.WriteAdminAccessError(c, err)
 	}
 	if d.KeyStore == nil {
-		return noStoreJSON(c, http.StatusOK, map[string]any{"keys": []adminKeyResponse{}})
+		return core.NoStoreJSON(c, http.StatusOK, map[string]any{"keys": []adminKeyResponse{}})
 	}
 	keys, err := d.KeyStore.GetAllKeys(c.Request().Context())
 	if err != nil {
@@ -45,35 +45,35 @@ func (d Deps) handleListAdminKeys(c *echo.Context) error {
 	for i, k := range keys {
 		out[i] = toAdminKeyResponse(k)
 	}
-	return noStoreJSON(c, http.StatusOK, map[string]any{"keys": out})
+	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"keys": out})
 }
 
 func (d Deps) handleGetAdminKey(c *echo.Context) error {
 	if err := d.requireKeyReader(c); err != nil {
-		return d.writeAdminAccessError(c, err)
+		return d.WriteAdminAccessError(c, err)
 	}
 	if d.KeyStore == nil {
-		return writeBrowserError(c, http.StatusNotFound, "key_not_found", "署名鍵が存在しません")
+		return core.WriteBrowserError(c, http.StatusNotFound, "key_not_found", "署名鍵が存在しません")
 	}
 	key, err := d.KeyStore.FindByKID(c.Request().Context(), c.Param("kid"))
 	if err != nil {
 		return err
 	}
 	if key == nil {
-		return writeBrowserError(c, http.StatusNotFound, "key_not_found", "署名鍵が存在しません")
+		return core.WriteBrowserError(c, http.StatusNotFound, "key_not_found", "署名鍵が存在しません")
 	}
-	return noStoreJSON(c, http.StatusOK, toAdminKeyResponse(key))
+	return core.NoStoreJSON(c, http.StatusOK, toAdminKeyResponse(key))
 }
 
 func (d Deps) handleRotateAdminKey(c *echo.Context) error {
-	if err := d.verifyBrowserRequest(c); err != nil {
+	if err := d.VerifyBrowserRequest(c); err != nil {
 		return err
 	}
 	if _, err := d.requireKeyRotator(c); err != nil {
-		return d.writeAdminAccessError(c, err)
+		return d.WriteAdminAccessError(c, err)
 	}
 	if d.KeyStore == nil {
-		return writeBrowserError(c, http.StatusServiceUnavailable, "key_store_unavailable", "署名鍵ストアが構成されていません")
+		return core.WriteBrowserError(c, http.StatusServiceUnavailable, "key_store_unavailable", "署名鍵ストアが構成されていません")
 	}
 	prev, _ := d.KeyStore.GetActiveKey(c.Request().Context())
 	next, err := usecases.RotateSigningKey(c.Request().Context(), usecases.RotateSigningKeyDeps{
@@ -89,7 +89,7 @@ func (d Deps) handleRotateAdminKey(c *echo.Context) error {
 		previous.Active = false
 		resp.Previous = &previous
 	}
-	return noStoreJSON(c, http.StatusOK, resp)
+	return core.NoStoreJSON(c, http.StatusOK, resp)
 }
 
 // requireKeyReader は AdminKeysRead を満たす actor か検証する。
@@ -100,7 +100,7 @@ func (d Deps) requireKeyReader(c *echo.Context) error {
 		return err
 	}
 	if !slices.Contains(actor.Roles, "admin") && !slices.Contains(actor.Roles, "system_admin") {
-		return errAdminAccessDenied
+		return core.ErrAdminAccessDenied
 	}
 	return nil
 }
@@ -114,33 +114,33 @@ func (d Deps) requireKeyRotator(c *echo.Context) (*spec.User, error) {
 		return nil, err
 	}
 	if !slices.Contains(actor.Roles, "system_admin") {
-		return nil, errAdminAccessDenied
+		return nil, core.ErrAdminAccessDenied
 	}
 	if core.RequestTenantID(c) != spec.DefaultTenantID {
-		return nil, errAdminAccessDenied
+		return nil, core.ErrAdminAccessDenied
 	}
 	if actor.TenantID != spec.DefaultTenantID {
-		return nil, errAdminAccessDenied
+		return nil, core.ErrAdminAccessDenied
 	}
 	return actor, nil
 }
 
 func (d Deps) resolveAdminActor(c *echo.Context) (*spec.User, error) {
-	authn, err := d.resolveAuthentication(c)
+	authn, err := d.ResolveAuthentication(c)
 	if err != nil {
 		return nil, err
 	}
 	if authn == nil || authn.AuthenticationPending {
-		return nil, errAdminAuthenticationRequired
+		return nil, core.ErrAdminAuthenticationRequired
 	}
 	user, err := d.UserRepo.FindBySub(c.Request().Context(), authn.Sub)
 	if err != nil {
 		return nil, err
 	}
 	if user == nil || !user.IsActive() {
-		return nil, errAdminAccessDenied
+		return nil, core.ErrAdminAccessDenied
 	}
-	return d.withEffectiveRoles(c.Request().Context(), user), nil
+	return d.WithEffectiveRoles(c.Request().Context(), user), nil
 }
 
 func toAdminKeyResponse(k *ports.SigningKey) adminKeyResponse {

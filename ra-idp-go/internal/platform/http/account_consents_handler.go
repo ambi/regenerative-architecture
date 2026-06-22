@@ -34,7 +34,7 @@ func (d Deps) handleListAccountConsents(c *echo.Context) error {
 	if err != nil {
 		return d.writeAccountError(c, err)
 	}
-	consents, err := oauthusecases.ListConsentsForSub(c.Request().Context(), d.adminConsentDeps(), sub)
+	consents, err := oauthusecases.ListConsentsForSub(c.Request().Context(), d.ConsentDeps(), sub)
 	if err != nil {
 		return err
 	}
@@ -55,9 +55,9 @@ func (d Deps) handleRevokeAccountConsent(c *echo.Context) error {
 	}
 	// actor も target も自分の sub に固定する。URL の client_id 以外は信用しない。
 	if err := oauthusecases.RevokeConsent(
-		c.Request().Context(), d.adminConsentDeps(), sub, sub, c.Param("client_id"), time.Now().UTC(),
+		c.Request().Context(), d.ConsentDeps(), sub, sub, c.Param("client_id"), time.Now().UTC(),
 	); err != nil {
-		return d.writeAdminConsentError(c, err)
+		return d.WriteConsentError(c, err)
 	}
 	c.Response().Header().Set("Cache-Control", "no-store")
 	return c.NoContent(http.StatusNoContent)

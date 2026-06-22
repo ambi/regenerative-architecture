@@ -18,7 +18,7 @@ import (
 	"github.com/labstack/echo/v5"
 )
 
-type adminAuditEventResponse struct {
+type AdminAuditEventResponse struct {
 	ID         string         `json:"id"`
 	TenantID   string         `json:"tenant_id"`
 	Type       string         `json:"type"`
@@ -124,12 +124,12 @@ func init() {
 const adminAuditEventExportMaxLimit = 10000
 
 func (d Deps) handleListAdminAuditEvents(c *echo.Context) error {
-	actor, err := d.requireAuditReader(c)
+	actor, err := d.RequireAuditReader(c)
 	if err != nil {
 		return d.WriteAdminAccessError(c, err)
 	}
 	if d.AuditEventRepo == nil {
-		return core.NoStoreJSON(c, http.StatusOK, map[string]any{"events": []adminAuditEventResponse{}})
+		return core.NoStoreJSON(c, http.StatusOK, map[string]any{"events": []AdminAuditEventResponse{}})
 	}
 	query, err := parseAuditEventQuery(c, actor)
 	if err != nil {
@@ -139,7 +139,7 @@ func (d Deps) handleListAdminAuditEvents(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	response := make([]adminAuditEventResponse, len(records))
+	response := make([]AdminAuditEventResponse, len(records))
 	for i, rec := range records {
 		response[i] = toAdminAuditEventResponse(rec)
 	}
@@ -147,7 +147,7 @@ func (d Deps) handleListAdminAuditEvents(c *echo.Context) error {
 }
 
 func (d Deps) handleGetAdminAuditEvent(c *echo.Context) error {
-	actor, err := d.requireAuditReader(c)
+	actor, err := d.RequireAuditReader(c)
 	if err != nil {
 		return d.WriteAdminAccessError(c, err)
 	}
@@ -169,7 +169,7 @@ func (d Deps) handleGetAdminAuditEvent(c *echo.Context) error {
 }
 
 func (d Deps) handleExportAdminAuditEvents(c *echo.Context) error {
-	actor, err := d.requireAuditReader(c)
+	actor, err := d.RequireAuditReader(c)
 	if err != nil {
 		return d.WriteAdminAccessError(c, err)
 	}
@@ -185,7 +185,7 @@ func (d Deps) handleExportAdminAuditEvents(c *echo.Context) error {
 			return err
 		}
 	}
-	response := make([]adminAuditEventResponse, len(records))
+	response := make([]AdminAuditEventResponse, len(records))
 	for i, rec := range records {
 		response[i] = toAdminAuditEventResponse(rec)
 	}
@@ -196,27 +196,6 @@ func (d Deps) handleExportAdminAuditEvents(c *echo.Context) error {
 // requireAuditReader は AdminAuditEventsRead パーミッションを満たすユーザーを返す。
 // admin / system_admin のどちらでも通る。所属テナントの拘束は問わない (実際の
 // テナント絞り込みは List のクエリ生成時に行う)。
-func (d Deps) requireAuditReader(c *echo.Context) (*spec.User, error) {
-	authn, err := d.ResolveAuthentication(c)
-	if err != nil {
-		return nil, err
-	}
-	if authn == nil || authn.AuthenticationPending {
-		return nil, core.ErrAdminAuthenticationRequired
-	}
-	user, err := d.UserRepo.FindBySub(c.Request().Context(), authn.Sub)
-	if err != nil {
-		return nil, err
-	}
-	if user == nil || !user.IsActive() {
-		return nil, core.ErrAdminAccessDenied
-	}
-	actor := d.WithEffectiveRoles(c.Request().Context(), user)
-	if !slices.Contains(actor.Roles, "admin") && !slices.Contains(actor.Roles, "system_admin") {
-		return nil, core.ErrAdminAccessDenied
-	}
-	return actor, nil
-}
 
 func parseAuditEventQuery(c *echo.Context, actor *spec.User) (oauthports.AuditEventQuery, error) {
 	q := oauthports.AuditEventQuery{
@@ -277,8 +256,8 @@ func auditEventVisibleTo(rec *oauthports.AuditEventRecord, actor *spec.User) boo
 	return rec.TenantID == actor.TenantID
 }
 
-func toAdminAuditEventResponse(rec *oauthports.AuditEventRecord) adminAuditEventResponse {
-	return adminAuditEventResponse{
+func toAdminAuditEventResponse(rec *oauthports.AuditEventRecord) AdminAuditEventResponse {
+	return AdminAuditEventResponse{
 		ID:         rec.ID,
 		TenantID:   rec.TenantID,
 		Type:       rec.Type,

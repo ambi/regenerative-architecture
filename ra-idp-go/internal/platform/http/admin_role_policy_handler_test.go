@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	oauth2http "ra-idp-go/internal/oauth2/adapters/http"
+
 	"ra-idp-go/internal/spec"
 )
 
@@ -92,10 +94,10 @@ func getAdminRolePolicies(e interface {
 	return rec
 }
 
-func decodeAdminRolePolicies(t *testing.T, rec *httptest.ResponseRecorder) []adminRolePolicyResponse {
+func decodeAdminRolePolicies(t *testing.T, rec *httptest.ResponseRecorder) []oauth2http.AdminRolePolicyResponse {
 	t.Helper()
 	var body struct {
-		Roles []adminRolePolicyResponse `json:"roles"`
+		Roles []oauth2http.AdminRolePolicyResponse `json:"roles"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatal(err)
@@ -103,7 +105,7 @@ func decodeAdminRolePolicies(t *testing.T, rec *httptest.ResponseRecorder) []adm
 	return body.Roles
 }
 
-func hasAdminRolePermission(roles []adminRolePolicyResponse, roleName, permissionName string) bool {
+func hasAdminRolePermission(roles []oauth2http.AdminRolePolicyResponse, roleName, permissionName string) bool {
 	for _, role := range roles {
 		if role.Name != roleName {
 			continue

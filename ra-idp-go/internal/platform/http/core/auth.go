@@ -101,6 +101,30 @@ func (d Deps) ResolveAdminActor(c *echo.Context) (*spec.User, error) {
 	return d.WithEffectiveRoles(c.Request().Context(), user), nil
 }
 
+// RequireAuditReader は admin または system_admin ロールを持つ認証済みユーザを要求する。
+// 監査イベントの閲覧と、そこから派生する認証イベントバケット閲覧が共有する。
+func (d Deps) RequireAuditReader(c *echo.Context) (*spec.User, error) {
+	authn, err := d.ResolveAuthentication(c)
+	if err != nil {
+		return nil, err
+	}
+	if authn == nil || authn.AuthenticationPending {
+		return nil, ErrAdminAuthenticationRequired
+	}
+	user, err := d.UserRepo.FindBySub(c.Request().Context(), authn.Sub)
+	if err != nil {
+		return nil, err
+	}
+	if user == nil || !user.IsActive() {
+		return nil, ErrAdminAccessDenied
+	}
+	actor := d.WithEffectiveRoles(c.Request().Context(), user)
+	if !slices.Contains(actor.Roles, "admin") && !slices.Contains(actor.Roles, "system_admin") {
+		return nil, ErrAdminAccessDenied
+	}
+	return actor, nil
+}
+
 // EffectiveRoles は User の直接ロールにグループ由来ロールを合成して返す (ADR-038)。
 func (d Deps) EffectiveRoles(ctx context.Context, user *spec.User) []string {
 	if d.GroupRepo == nil {

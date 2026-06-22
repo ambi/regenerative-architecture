@@ -7,6 +7,7 @@
 package http
 
 import (
+	oauth2http "ra-idp-go/internal/oauth2/adapters/http"
 	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/spec"
 	tenancyhttp "ra-idp-go/internal/tenancy/adapters/http"
@@ -32,10 +33,7 @@ func Register(e *echo.Echo, cd core.Deps) {
 }
 
 func registerTenantRoutes(g *echo.Group, d Deps) {
-	g.GET("/authorize", d.handleAuthorize)
-	g.GET("/end_session", d.handleEndSession)
-	g.POST("/end_session", d.handleEndSession)
-	g.GET("/api/auth/transaction", d.handleTransaction)
+	oauth2http.RegisterRoutes(g, d.Deps)
 	g.GET("/api/auth/account", d.handleAccountContext)
 	g.GET("/api/account/summary", d.handleGetAccountSummary)
 	g.GET("/api/account/profile", d.handleGetAccountProfile)
@@ -56,26 +54,10 @@ func registerTenantRoutes(g *echo.Group, d Deps) {
 	g.GET("/api/account/sessions", d.handleListAccountSessions)
 	g.POST("/api/account/sessions/:id/revoke", d.handleRevokeAccountSession)
 	g.POST("/api/account/sessions/revoke_others", d.handleRevokeOtherAccountSessions)
-	g.POST("/api/auth/login", d.handleLoginAPI)
 	g.POST("/api/auth/change_password", d.handleChangePasswordAPI)
 	g.GET("/api/auth/password_reset_context", d.handlePasswordResetContext)
 	g.POST("/api/auth/forgot_password", d.handleForgotPasswordAPI)
 	g.POST("/api/auth/reset_password", d.handleResetPasswordAPI)
-	g.POST("/api/auth/consent", d.handleConsentAPI)
-	g.POST("/api/auth/totp", d.handleTOTPAPI)
-	g.GET("/api/auth/device", d.handleDeviceContext)
-	g.POST("/api/auth/device", d.handleDeviceAPI)
-	g.POST("/token", d.handleToken)
-	g.POST("/revoke", d.handleRevoke)
-	g.POST("/introspect", d.handleIntrospect)
-	g.GET("/userinfo", d.handleUserInfo)
-	g.POST("/userinfo", d.handleUserInfo)
-	g.POST("/register", d.handleRegisterClient)
-	g.POST("/par", d.handlePAR)
-	g.POST("/device_authorization", d.handleDeviceAuthorization)
-	g.GET("/.well-known/openid-configuration", d.handleDiscovery)
-	g.GET("/.well-known/oauth-authorization-server", d.handleDiscovery)
-	g.GET("/jwks", d.handleJWKS)
 	g.GET("/api/admin/users", d.handleListAdminUsers)
 	g.GET("/api/admin/users/:sub", d.handleGetAdminUser)
 	g.POST("/api/admin/users", d.handleCreateAdminUser)
@@ -104,21 +86,6 @@ func registerTenantRoutes(g *echo.Group, d Deps) {
 	g.DELETE("/api/admin/agents/:agent_id", d.handleDeleteAgent)
 	g.POST("/api/admin/agents/:agent_id/credentials", d.handleBindAgentCredential)
 	g.DELETE("/api/admin/agents/:agent_id/credentials/:client_id", d.handleUnbindAgentCredential)
-	g.GET("/api/admin/clients", d.handleListAdminClients)
-	g.GET("/api/admin/clients/:client_id", d.handleGetAdminClient)
-	g.POST("/api/admin/clients", d.handleCreateAdminClient)
-	g.PATCH("/api/admin/clients/:client_id", d.handleUpdateAdminClient)
-	g.DELETE("/api/admin/clients/:client_id", d.handleDeleteAdminClient)
-	g.GET("/api/admin/consents", d.handleListAdminConsents)
-	g.GET("/api/admin/consents/:sub/:client_id", d.handleGetAdminConsent)
-	g.DELETE("/api/admin/consents/:sub/:client_id", d.handleRevokeAdminConsent)
-	g.GET("/api/admin/audit_events", d.handleListAdminAuditEvents)
-	g.GET("/api/admin/audit_events/export", d.handleExportAdminAuditEvents)
-	g.GET("/api/admin/audit_events/:id", d.handleGetAdminAuditEvent)
 	g.GET("/api/admin/authentication_event_buckets", d.handleListAuthEventBuckets)
-	g.GET("/api/admin/keys", d.handleListAdminKeys)
-	g.GET("/api/admin/keys/:kid", d.handleGetAdminKey)
-	g.POST("/api/admin/keys/rotate", d.handleRotateAdminKey)
-	g.GET("/api/admin/policy/roles", d.handleListAdminRolePolicies)
 	tenancyhttp.RegisterRoutes(g, d.Deps)
 }

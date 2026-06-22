@@ -64,7 +64,7 @@ func permissionDescription(name, raw string) string {
 	return sanitizeAdminCopy(raw)
 }
 
-type adminRolePolicyResponse struct {
+type AdminRolePolicyResponse struct {
 	Name        string                        `json:"name"`
 	Description string                        `json:"description"`
 	Aliases     []string                      `json:"aliases"`
@@ -100,14 +100,14 @@ func (d Deps) handleListAdminRolePolicies(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	response := make([]adminRolePolicyResponse, len(roles))
+	response := make([]AdminRolePolicyResponse, len(roles))
 	for i, role := range roles {
 		response[i] = toAdminRolePolicyResponse(role)
 	}
 	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"roles": response})
 }
 
-func toAdminRolePolicyResponse(role usecases.RolePolicy) adminRolePolicyResponse {
+func toAdminRolePolicyResponse(role usecases.RolePolicy) AdminRolePolicyResponse {
 	permissions := make([]adminRolePermissionResponse, len(role.Permissions))
 	for i, permission := range role.Permissions {
 		interfaces := make([]adminRoleInterfaceResponse, len(permission.Interfaces))
@@ -119,7 +119,7 @@ func toAdminRolePolicyResponse(role usecases.RolePolicy) adminRolePolicyResponse
 			Description: permissionDescription(permission.Name, permission.Description), Interfaces: interfaces,
 		}
 	}
-	return adminRolePolicyResponse{
+	return AdminRolePolicyResponse{
 		Name: role.Name, Description: roleDescription(role.Name, role.Description), Aliases: slices.Clone(role.Aliases),
 		Permissions: permissions,
 	}

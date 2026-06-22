@@ -29,7 +29,7 @@ func (d Deps) handleExportAccountData(c *echo.Context) error {
 	if err != nil {
 		return d.writeAccountError(c, err)
 	}
-	consents, err := oauthusecases.ListConsentsForSub(c.Request().Context(), d.adminConsentDeps(), sub)
+	consents, err := oauthusecases.ListConsentsForSub(c.Request().Context(), d.ConsentDeps(), sub)
 	if err != nil {
 		return err
 	}

@@ -17,7 +17,7 @@ import (
 	"github.com/labstack/echo/v5"
 )
 
-type adminKeyResponse struct {
+type AdminKeyResponse struct {
 	Kid       string         `json:"kid"`
 	Alg       string         `json:"alg"`
 	Active    bool           `json:"active"`
@@ -25,9 +25,9 @@ type adminKeyResponse struct {
 	PublicJWK map[string]any `json:"public_jwk"`
 }
 
-type adminRotateKeyResponse struct {
-	Next     adminKeyResponse  `json:"next"`
-	Previous *adminKeyResponse `json:"previous,omitempty"`
+type AdminRotateKeyResponse struct {
+	Next     AdminKeyResponse  `json:"next"`
+	Previous *AdminKeyResponse `json:"previous,omitempty"`
 }
 
 func (d Deps) handleListAdminKeys(c *echo.Context) error {
@@ -35,13 +35,13 @@ func (d Deps) handleListAdminKeys(c *echo.Context) error {
 		return d.WriteAdminAccessError(c, err)
 	}
 	if d.KeyStore == nil {
-		return core.NoStoreJSON(c, http.StatusOK, map[string]any{"keys": []adminKeyResponse{}})
+		return core.NoStoreJSON(c, http.StatusOK, map[string]any{"keys": []AdminKeyResponse{}})
 	}
 	keys, err := d.KeyStore.GetAllKeys(c.Request().Context())
 	if err != nil {
 		return err
 	}
-	out := make([]adminKeyResponse, len(keys))
+	out := make([]AdminKeyResponse, len(keys))
 	for i, k := range keys {
 		out[i] = toAdminKeyResponse(k)
 	}
@@ -83,7 +83,7 @@ func (d Deps) handleRotateAdminKey(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	resp := adminRotateKeyResponse{Next: toAdminKeyResponse(next)}
+	resp := AdminRotateKeyResponse{Next: toAdminKeyResponse(next)}
 	if prev != nil {
 		previous := toAdminKeyResponse(prev)
 		previous.Active = false
@@ -125,8 +125,8 @@ func (d Deps) requireKeyRotator(c *echo.Context) (*spec.User, error) {
 	return actor, nil
 }
 
-func toAdminKeyResponse(k *ports.SigningKey) adminKeyResponse {
-	return adminKeyResponse{
+func toAdminKeyResponse(k *ports.SigningKey) AdminKeyResponse {
+	return AdminKeyResponse{
 		Kid:       k.Kid,
 		Alg:       string(k.Alg),
 		Active:    k.Active,

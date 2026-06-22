@@ -15,6 +15,7 @@ import (
 	"time"
 
 	authdomain "ra-idp-go/internal/authentication/domain"
+	oauth2http "ra-idp-go/internal/oauth2/adapters/http"
 	oauthports "ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/platform/persistence/memory"
@@ -96,7 +97,7 @@ func TestAdminAuditEventsScopesToOwnTenant(t *testing.T) {
 		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
 	}
 	var body struct {
-		Events []adminAuditEventResponse `json:"events"`
+		Events []oauth2http.AdminAuditEventResponse `json:"events"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("decode: %v", err)
@@ -125,7 +126,7 @@ func TestAdminAuditEventsAllTenantsRequiresSystemAdminOnDefaultTenant(t *testing
 		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
 	}
 	var body struct {
-		Events []adminAuditEventResponse `json:"events"`
+		Events []oauth2http.AdminAuditEventResponse `json:"events"`
 	}
 	_ = json.Unmarshal(rec.Body.Bytes(), &body)
 	if len(body.Events) != 1 || body.Events[0].TenantID != "acme" {
@@ -146,7 +147,7 @@ func TestAdminAuditEventsAllTenantsHonoredForSystemAdminAtDefault(t *testing.T) 
 		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
 	}
 	var body struct {
-		Events []adminAuditEventResponse `json:"events"`
+		Events []oauth2http.AdminAuditEventResponse `json:"events"`
 	}
 	_ = json.Unmarshal(rec.Body.Bytes(), &body)
 	if len(body.Events) != 2 {
@@ -176,7 +177,7 @@ func TestAdminAuditEventsFilterByTypeAndSub(t *testing.T) {
 	e := newAuditAdminServer(t, user, events)
 	rec := getAdminAuditEvents(e, "/realms/acme/api/admin/audit_events?type=UserAuthenticated&sub=alice")
 	var body struct {
-		Events []adminAuditEventResponse `json:"events"`
+		Events []oauth2http.AdminAuditEventResponse `json:"events"`
 	}
 	_ = json.Unmarshal(rec.Body.Bytes(), &body)
 	if len(body.Events) != 1 ||
@@ -199,7 +200,7 @@ func TestAdminAuditEventsFilterByCategory(t *testing.T) {
 	e := newAuditAdminServer(t, user, events)
 
 	var body struct {
-		Events []adminAuditEventResponse `json:"events"`
+		Events []oauth2http.AdminAuditEventResponse `json:"events"`
 	}
 	rec := getAdminAuditEvents(e, "/realms/acme/api/admin/audit_events?category=fail")
 	_ = json.Unmarshal(rec.Body.Bytes(), &body)
@@ -242,7 +243,7 @@ func TestAdminAuditEventsExportSetsAttachment(t *testing.T) {
 		t.Fatal("export must set Content-Disposition")
 	}
 	var body struct {
-		Events []adminAuditEventResponse `json:"events"`
+		Events []oauth2http.AdminAuditEventResponse `json:"events"`
 	}
 	_ = json.Unmarshal(rec.Body.Bytes(), &body)
 	if len(body.Events) != 1 {

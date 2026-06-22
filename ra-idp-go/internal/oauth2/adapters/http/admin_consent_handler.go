@@ -1,7 +1,6 @@
 package http
 
 import (
-	"errors"
 	"net/http"
 	"slices"
 	"time"
@@ -28,7 +27,7 @@ func (d Deps) handleListAdminConsents(c *echo.Context) error {
 	if _, err := d.RequireAdmin(c); err != nil {
 		return d.WriteAdminAccessError(c, err)
 	}
-	consents, err := oauthusecases.ListConsents(c.Request().Context(), d.adminConsentDeps())
+	consents, err := oauthusecases.ListConsents(c.Request().Context(), d.ConsentDeps())
 	if err != nil {
 		return err
 	}
@@ -44,10 +43,10 @@ func (d Deps) handleGetAdminConsent(c *echo.Context) error {
 		return d.WriteAdminAccessError(c, err)
 	}
 	consent, err := oauthusecases.GetConsent(
-		c.Request().Context(), d.adminConsentDeps(), c.Param("sub"), c.Param("client_id"),
+		c.Request().Context(), d.ConsentDeps(), c.Param("sub"), c.Param("client_id"),
 	)
 	if err != nil {
-		return d.writeAdminConsentError(c, err)
+		return d.WriteConsentError(c, err)
 	}
 	return core.NoStoreJSON(c, http.StatusOK, toAdminConsentResponse(consent))
 }
@@ -61,24 +60,13 @@ func (d Deps) handleRevokeAdminConsent(c *echo.Context) error {
 		return d.WriteAdminAccessError(c, err)
 	}
 	if err := oauthusecases.RevokeConsent(
-		c.Request().Context(), d.adminConsentDeps(), actor.Sub,
+		c.Request().Context(), d.ConsentDeps(), actor.Sub,
 		c.Param("sub"), c.Param("client_id"), time.Now().UTC(),
 	); err != nil {
-		return d.writeAdminConsentError(c, err)
+		return d.WriteConsentError(c, err)
 	}
 	c.Response().Header().Set("Cache-Control", "no-store")
 	return c.NoContent(http.StatusNoContent)
-}
-
-func (d Deps) adminConsentDeps() oauthusecases.ConsentDeps {
-	return oauthusecases.ConsentDeps{ConsentRepo: d.ConsentRepo, Emit: d.Emit}
-}
-
-func (d Deps) writeAdminConsentError(c *echo.Context, err error) error {
-	if errors.Is(err, oauthusecases.ErrConsentNotFound) {
-		return core.WriteBrowserError(c, http.StatusNotFound, "consent_not_found", "同意記録が存在しません")
-	}
-	return err
 }
 
 func toAdminConsentResponse(consent *spec.Consent) adminConsentResponse {

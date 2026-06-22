@@ -10,11 +10,15 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
@@ -294,11 +298,33 @@ func TestUserInfoMTLSBoundRequiresMatchingThumbprint(t *testing.T) {
 	e := newUserInfoServer(t, intro, nil)
 	req := httptest.NewRequest(http.MethodGet, "/userinfo", http.NoBody)
 	req.Header.Set("Authorization", "Bearer atoken")
-	req.Header.Set(clientCertHeader, clientCertificateHeader(t, "client"))
+	req.Header.Set("X-Client-Certificate", clientCertificateHeader(t, "client"))
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	if rec.Code == http.StatusOK ||
 		!bytes.Contains(rec.Body.Bytes(), []byte(`"error":"invalid_token"`)) {
 		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
 	}
+}
+
+// clientCertificateHeader はテスト用の自己署名証明書を PEM/URL エンコードして返す。
+// router 経由の mTLS 検証テストで X-Client-Certificate ヘッダーに用いる。
+func clientCertificateHeader(t *testing.T, commonName string) string {
+	t.Helper()
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: commonName},
+		NotBefore:    time.Now().Add(-time.Minute),
+		NotAfter:     time.Now().Add(time.Hour),
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return url.QueryEscape(string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})))
 }

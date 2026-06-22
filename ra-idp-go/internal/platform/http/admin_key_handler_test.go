@@ -15,6 +15,7 @@ import (
 	"time"
 
 	authdomain "ra-idp-go/internal/authentication/domain"
+	oauth2http "ra-idp-go/internal/oauth2/adapters/http"
 	"ra-idp-go/internal/platform/crypto"
 	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/platform/persistence/memory"
@@ -124,7 +125,7 @@ func TestAdminKeysListReturnsAllKeys(t *testing.T) {
 		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
 	}
 	var body struct {
-		Keys []adminKeyResponse `json:"keys"`
+		Keys []oauth2http.AdminKeyResponse `json:"keys"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("decode: %v", err)
@@ -190,7 +191,7 @@ func TestAdminKeysRotateSucceedsAndEmitsEvent(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
 	}
-	var body adminRotateKeyResponse
+	var body oauth2http.AdminRotateKeyResponse
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatalf("decode: %v", err)
 	}

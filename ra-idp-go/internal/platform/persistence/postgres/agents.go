@@ -101,7 +101,7 @@ func (r *AgentRepository) AddBinding(ctx context.Context, binding *spec.AgentCre
 	tag, err := r.Pool.Exec(ctx, `
 INSERT INTO agent_credential_bindings (agent_id,client_id,tenant_id,created_at)
 VALUES ($1,$2,$3,$4)
-ON CONFLICT (agent_id,client_id) DO NOTHING`,
+ON CONFLICT DO NOTHING`,
 		binding.AgentID, binding.ClientID, binding.TenantID, binding.CreatedAt)
 	if err != nil {
 		return false, err

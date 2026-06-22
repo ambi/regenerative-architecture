@@ -62,6 +62,10 @@ type AuthZContext struct {
 	ParUsed           bool                    `json:"parUsed,omitempty"`
 	Authenticated     bool                    `json:"authenticated,omitempty"`
 	Now               time.Time               `json:"now,omitempty"`
+	ActorSub          string                  `json:"actorSub,omitempty"`
+	SubjectSub        string                  `json:"subjectSub,omitempty"`
+	Audience          string                  `json:"audience,omitempty"`
+	DelegationDepth   int                     `json:"delegationDepth,omitempty"`
 }
 
 type AuthZProofOfPossession struct {
@@ -158,7 +162,7 @@ var actionRules = map[string][]string{
 	},
 	ActionTokenGrantClientCredentials: {"client_is_confidential", "client_must_declare_grant"},
 	ActionTokenGrantDeviceCode:        {"device_code_approved", "device_code_not_expired"},
-	ActionTokenGrantTokenExchange:     {"client_must_declare_grant"},
+	ActionTokenGrantTokenExchange:     {"client_must_declare_grant", "scope_subset_of_client_scope", "token_exchange_resource_present"},
 	ActionTokenIntrospect:             {"caller_is_authenticated_client"},
 	ActionTokenRevoke:                 {"caller_owns_token"},
 	ActionUserInfoRead:                {"token_has_openid_scope", "token_active"},
@@ -254,6 +258,9 @@ var ruleEvaluators = map[string]ruleEvaluator{
 			}
 		}
 		return true
+	},
+	"token_exchange_resource_present": func(r AuthZRequest) bool {
+		return r.Action == ActionTokenGrantTokenExchange && r.Resource.ID != "" && r.Context.Audience == r.Resource.ID
 	},
 	"pkce_present":         func(r AuthZRequest) bool { return r.Resource.Properties.CodeChallenge != "" },
 	"par_required_if_fapi": func(r AuthZRequest) bool { return !r.Subject.Properties.RequirePAR || r.Context.ParUsed },

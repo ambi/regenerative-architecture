@@ -201,7 +201,7 @@ func (d Deps) handleToken(c *echo.Context) error {
 	case "urn:ietf:params:oauth:grant-type:token-exchange":
 		res, err := usecases.ExchangeToken(ctx, usecases.ExchangeTokenDeps{
 			ClientRepo: d.ClientRepo, Introspector: d.TokenIntrospector,
-			TokenIssuer: d.TokenIssuer, Emit: d.Emit,
+			TokenIssuer: d.TokenIssuer, Authorizer: d.Authorizer, Emit: d.Emit,
 		}, usecases.ExchangeTokenInput{
 			ClientID:           clientStub.ID,
 			SubjectToken:       c.Request().PostFormValue("subject_token"),

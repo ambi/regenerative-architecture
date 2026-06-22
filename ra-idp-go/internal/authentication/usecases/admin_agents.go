@@ -29,13 +29,16 @@ var (
 	ErrAgentNameConflict   = errors.New("agent name already exists")
 	ErrAgentNameEmpty      = errors.New("agent name is required")
 	ErrAgentOwnerRequired  = errors.New("agent owner is required")
+	ErrAgentOwnerNotFound  = errors.New("agent owner not found")
 	ErrAgentKilled         = errors.New("agent is killed and cannot be modified")
 	ErrAgentClientNotFound = errors.New("client not found")
+	ErrAgentClientBound    = errors.New("client is already bound to another agent")
 )
 
 type AdminAgentDeps struct {
 	AgentRepo  authports.AgentRepository
 	ClientRepo oauthports.ClientRepository
+	UserRepo   oauthports.UserRepository
 	Emit       func(spec.DomainEvent)
 }
 
@@ -105,6 +108,9 @@ func RegisterAgent(ctx context.Context, deps AdminAgentDeps, in RegisterAgentInp
 	}
 	if owner == "" {
 		return nil, ErrAgentOwnerRequired
+	}
+	if err := ensureAgentOwner(ctx, deps, tenantID, owner); err != nil {
+		return nil, err
 	}
 	roles, err := normalizeRoles(in.Roles)
 	if err != nil {
@@ -190,6 +196,9 @@ func UpdateAgent(ctx context.Context, deps AdminAgentDeps, in UpdateAgentInput) 
 			return nil, ErrAgentOwnerRequired
 		}
 		if owner != agent.OwnerSub {
+			if err := ensureAgentOwner(ctx, deps, tenantID, owner); err != nil {
+				return nil, err
+			}
 			updated.OwnerSub = owner
 			changed = append(changed, "owner_sub")
 			ownerChanged = true
@@ -305,6 +314,9 @@ func DeleteAgent(ctx context.Context, deps AdminAgentDeps, actorSub, id string, 
 	if agent == nil {
 		return ErrAgentNotFound
 	}
+	if agent.Status == spec.AgentStatusKilled {
+		return ErrAgentKilled
+	}
 	now = normalizedNow(now)
 	if err := deps.AgentRepo.Delete(ctx, tenantID, id); err != nil {
 		return err
@@ -340,6 +352,13 @@ func BindCredential(ctx context.Context, deps AdminAgentDeps, actorSub, agentID,
 			return ErrAgentClientNotFound
 		}
 	}
+	existing, err := deps.AgentRepo.FindByClientID(ctx, tenantID, clientID)
+	if err != nil {
+		return err
+	}
+	if existing != nil && existing.ID != agentID {
+		return ErrAgentClientBound
+	}
 	now = normalizedNow(now)
 	added, err := deps.AgentRepo.AddBinding(ctx, &spec.AgentCredentialBinding{
 		AgentID: agentID, ClientID: clientID, TenantID: tenantID, CreatedAt: now,
@@ -347,10 +366,33 @@ func BindCredential(ctx context.Context, deps AdminAgentDeps, actorSub, agentID,
 	if err != nil {
 		return err
 	}
+	if !added {
+		existing, err := deps.AgentRepo.FindByClientID(ctx, tenantID, clientID)
+		if err != nil {
+			return err
+		}
+		if existing != nil && existing.ID != agentID {
+			return ErrAgentClientBound
+		}
+	}
 	if added {
 		adminEmit(deps.Emit, &spec.AgentCredentialBound{
 			At: now, TenantID: tenantID, ActorSub: actorSub, AgentID: agentID, ClientID: clientID,
 		})
+	}
+	return nil
+}
+
+func ensureAgentOwner(ctx context.Context, deps AdminAgentDeps, tenantID, ownerSub string) error {
+	if deps.UserRepo == nil {
+		return ErrAgentOwnerNotFound
+	}
+	user, err := deps.UserRepo.FindBySub(ctx, ownerSub)
+	if err != nil {
+		return err
+	}
+	if user == nil || user.TenantID != tenantID || !user.IsActive() {
+		return ErrAgentOwnerNotFound
 	}
 	return nil
 }

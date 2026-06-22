@@ -206,7 +206,7 @@ func (d Deps) changeAgentStatus(c *echo.Context, action func(actorSub, id string
 }
 
 func (d Deps) adminAgentDeps() authusecases.AdminAgentDeps {
-	return authusecases.AdminAgentDeps{AgentRepo: d.AgentRepo, ClientRepo: d.ClientRepo, Emit: d.Emit}
+	return authusecases.AdminAgentDeps{AgentRepo: d.AgentRepo, ClientRepo: d.ClientRepo, UserRepo: d.UserRepo, Emit: d.Emit}
 }
 
 func toAgentSummaryResponse(agent *spec.Agent, clientIDs []string) agentSummaryResponse {
@@ -234,8 +234,12 @@ func (d Deps) writeAdminAgentError(c *echo.Context, err error) error {
 		return writeBrowserError(c, http.StatusBadRequest, "agent_name_required", "エージェント名は必須です")
 	case errors.Is(err, authusecases.ErrAgentOwnerRequired):
 		return writeBrowserError(c, http.StatusBadRequest, "agent_owner_required", "所有者は必須です")
+	case errors.Is(err, authusecases.ErrAgentOwnerNotFound):
+		return writeBrowserError(c, http.StatusBadRequest, "agent_owner_not_found", "所有者ユーザーが存在しません")
 	case errors.Is(err, authusecases.ErrAgentKilled):
 		return writeBrowserError(c, http.StatusConflict, "agent_killed", "緊急停止済みのエージェントは変更できません")
+	case errors.Is(err, authusecases.ErrAgentClientBound):
+		return writeBrowserError(c, http.StatusConflict, "agent_client_already_bound", "クライアントは別のエージェントに束縛済みです")
 	case errors.Is(err, authusecases.ErrInvalidRole):
 		return writeBrowserError(c, http.StatusBadRequest, "invalid_role", "roleが不正です")
 	default:

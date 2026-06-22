@@ -17,6 +17,7 @@ package usecases
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"time"
 
@@ -57,6 +58,7 @@ type ExchangeTokenDeps struct {
 	ClientRepo   ports.ClientRepository
 	Introspector ports.TokenIntrospector
 	TokenIssuer  ports.TokenIssuer
+	Authorizer   ports.Authorizer
 	Emit         func(spec.DomainEvent)
 }
 
@@ -80,6 +82,9 @@ func ExchangeToken(ctx context.Context, deps ExchangeTokenDeps, in ExchangeToken
 		return reject("", NewOAuthError("invalid_request", "resource は 1 個のみ指定できます (1 token = 1 resource)"))
 	}
 	resource := resources[0]
+	if in.RequestedTokenType != "" && in.RequestedTokenType != tokenTypeAccessTokenURN {
+		return reject("", NewOAuthError("invalid_request", "未対応の requested_token_type です"))
+	}
 
 	// --- subject_token (必須) ---
 	if in.SubjectToken == "" {
@@ -159,6 +164,13 @@ func ExchangeToken(ctx context.Context, deps ExchangeTokenDeps, in ExchangeToken
 	if client == nil {
 		return reject(currentActorSub, NewOAuthError("invalid_client", "未知の client_id"))
 	}
+	d, err := evaluateTokenExchangePolicy(ctx, deps.Authorizer, client, currentActorSub, subject.Sub, resource, grantedScopes, depth, now)
+	if err != nil {
+		return nil, err
+	}
+	if !d.Permit {
+		return reject(currentActorSub, NewOAuthError("invalid_grant", "token exchange 拒否: "+strings.Join(d.Reasons, ", ")))
+	}
 
 	// --- sender constraint (DPoP / mTLS) ---
 	var sc *spec.SenderConstraint
@@ -198,6 +210,46 @@ func ExchangeToken(ctx context.Context, deps ExchangeTokenDeps, in ExchangeToken
 		ExpiresIn:       deps.TokenIssuer.AccessTokenTTLSeconds(),
 		Scope:           strings.Join(grantedScopes, " "),
 	}, nil
+}
+
+func evaluateTokenExchangePolicy(
+	ctx context.Context,
+	authorizer ports.Authorizer,
+	client *spec.Client,
+	actorSub, subjectSub, resource string,
+	scopes []string,
+	delegationDepth int,
+	now time.Time,
+) (spec.AuthZResponse, error) {
+	req := spec.AuthZRequest{
+		Subject: spec.AuthZSubject{
+			Type: "Client",
+			ID:   client.ClientID,
+			Properties: spec.AuthZSubjectProps{
+				ClientType: client.ClientType,
+				GrantTypes: slices.Clone(client.GrantTypes),
+				Scopes:     strings.Fields(client.Scope),
+				TenantID:   client.TenantID,
+			},
+		},
+		Action: spec.ActionTokenGrantTokenExchange,
+		Resource: spec.AuthZResource{
+			Type: "TokenExchange",
+			ID:   resource,
+			Properties: spec.AuthZResourceProps{
+				Scopes:   slices.Clone(scopes),
+				TenantID: client.TenantID,
+			},
+		},
+		Context: spec.AuthZContext{
+			ActorSub: actorSub, SubjectSub: subjectSub, Audience: resource,
+			DelegationDepth: delegationDepth, Now: now,
+		},
+	}
+	if authorizer == nil {
+		return spec.Evaluate(req), nil
+	}
+	return authorizer.Authorize(ctx, req)
 }
 
 // actDepth は act claim の入れ子の深さを数える。最も外側の act を 1 とする。

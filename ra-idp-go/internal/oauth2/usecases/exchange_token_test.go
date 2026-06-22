@@ -10,6 +10,15 @@ import (
 	"ra-idp-go/internal/spec"
 )
 
+type denyAuthorizer struct {
+	last spec.AuthZRequest
+}
+
+func (d *denyAuthorizer) Authorize(_ context.Context, req spec.AuthZRequest) (spec.AuthZResponse, error) {
+	d.last = req
+	return spec.AuthZResponse{Permit: false, Reasons: []string{"test_policy_denied"}}, nil
+}
+
 // recordingIssuer は SignAccessToken の入力を記録するスタブ。
 type recordingIssuer struct {
 	lastInput ports.AccessTokenInput
@@ -212,6 +221,51 @@ func TestExchangeTokenRequiresSingleResource(t *testing.T) {
 				t.Fatalf("resource=%v が拒否されませんでした", resource)
 			}
 		})
+	}
+}
+
+func TestExchangeTokenRejectsUnsupportedRequestedTokenType(t *testing.T) {
+	issuer := &recordingIssuer{}
+	deps := newExchangeTokenDeps(t, issuer, map[string]*ports.IntrospectionResult{
+		"subj": {Active: true, Sub: "user-1", Scope: "read"},
+	})
+	_, err := ExchangeToken(context.Background(), deps, ExchangeTokenInput{
+		ClientID: "client", SubjectToken: "subj", Resource: []string{"https://api.example"},
+		RequestedTokenType: "urn:ietf:params:oauth:token-type:refresh_token",
+	}, time.Now().UTC())
+	if err == nil {
+		t.Fatal("unsupported requested_token_type が拒否されませんでした")
+	}
+	if issuer.calls != 0 {
+		t.Fatal("拒否されたのにトークンが発行されました")
+	}
+}
+
+func TestExchangeTokenUsesAuthorizerPolicyGate(t *testing.T) {
+	issuer := &recordingIssuer{}
+	authorizer := &denyAuthorizer{}
+	deps := newExchangeTokenDeps(t, issuer, map[string]*ports.IntrospectionResult{
+		"subj": {Active: true, Sub: "user-1", Scope: "read"},
+	})
+	deps.Authorizer = authorizer
+	_, err := ExchangeToken(context.Background(), deps, ExchangeTokenInput{
+		ClientID: "client", SubjectToken: "subj", Resource: []string{"https://api.example"}, Scope: "read",
+	}, time.Now().UTC())
+	if err == nil {
+		t.Fatal("policy denial が拒否されませんでした")
+	}
+	if issuer.calls != 0 {
+		t.Fatal("policy denial 後にトークンが発行されました")
+	}
+	if authorizer.last.Action != spec.ActionTokenGrantTokenExchange {
+		t.Fatalf("action=%q", authorizer.last.Action)
+	}
+	if authorizer.last.Context.ActorSub != "client" || authorizer.last.Context.SubjectSub != "user-1" ||
+		authorizer.last.Context.Audience != "https://api.example" {
+		t.Fatalf("policy context=%+v", authorizer.last.Context)
+	}
+	if got := authorizer.last.Resource.Properties.Scopes; len(got) != 1 || got[0] != "read" {
+		t.Fatalf("policy scopes=%v", got)
 	}
 }
 

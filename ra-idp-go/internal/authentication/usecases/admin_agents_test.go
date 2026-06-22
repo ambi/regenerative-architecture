@@ -16,6 +16,7 @@ import (
 func newAgentDeps(t *testing.T) (authusecases.AdminAgentDeps, *[]spec.DomainEvent) {
 	t.Helper()
 	clientRepo := memory.NewClientRepository()
+	userRepo := memory.NewUserRepository()
 	now := time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC)
 	_ = clientRepo.Save(context.Background(), &spec.Client{
 		TenantID: "default", ClientID: "svc_client", ClientType: spec.ClientConfidential,
@@ -24,10 +25,19 @@ func newAgentDeps(t *testing.T) (authusecases.AdminAgentDeps, *[]spec.DomainEven
 		TokenEndpointAuthMethod:  spec.AuthMethodClientSecretBasic,
 		IDTokenSignedResponseAlg: spec.SigAlgPS256, FapiProfile: spec.FapiNone, CreatedAt: now,
 	})
+	userRepo.Seed(&spec.User{
+		Sub: "operator", TenantID: "default", PreferredUsername: "operator",
+		PasswordHash: "hash", CreatedAt: now, UpdatedAt: now,
+	})
+	userRepo.Seed(&spec.User{
+		Sub: "user_new", TenantID: "default", PreferredUsername: "user-new",
+		PasswordHash: "hash", CreatedAt: now, UpdatedAt: now,
+	})
 	events := &[]spec.DomainEvent{}
 	deps := authusecases.AdminAgentDeps{
 		AgentRepo:  memory.NewAgentRepository(),
 		ClientRepo: clientRepo,
+		UserRepo:   userRepo,
 		Emit:       func(e spec.DomainEvent) { *events = append(*events, e) },
 	}
 	return deps, events
@@ -188,6 +198,28 @@ func TestUpdateAgentOwnerChangeEmitsOwnerChanged(t *testing.T) {
 	}
 }
 
+func TestRegisterAndUpdateAgentRejectUnknownOwner(t *testing.T) {
+	ctx := defaultTenantCtx()
+	deps, _ := newAgentDeps(t)
+	now := time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC)
+	if _, err := authusecases.RegisterAgent(ctx, deps, authusecases.RegisterAgentInput{
+		ActorSub: "operator", Name: "deploy-bot", OwnerSub: "ghost", Now: now,
+	}); !errors.Is(err, authusecases.ErrAgentOwnerNotFound) {
+		t.Fatalf("expected ErrAgentOwnerNotFound on register, got %v", err)
+	}
+	agent, err := authusecases.RegisterAgent(ctx, deps, authusecases.RegisterAgentInput{
+		ActorSub: "operator", Name: "deploy-bot", Now: now,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := authusecases.UpdateAgent(ctx, deps, authusecases.UpdateAgentInput{
+		ActorSub: "operator", ID: agent.ID, OwnerSub: ptr("ghost"), Now: now,
+	}); !errors.Is(err, authusecases.ErrAgentOwnerNotFound) {
+		t.Fatalf("expected ErrAgentOwnerNotFound on update, got %v", err)
+	}
+}
+
 func TestBindUnbindCredentialAndFindByClientID(t *testing.T) {
 	ctx := defaultTenantCtx()
 	deps, events := newAgentDeps(t)
@@ -244,6 +276,30 @@ func TestBindUnbindCredentialAndFindByClientID(t *testing.T) {
 	}
 }
 
+func TestBindCredentialRejectsClientAlreadyBoundToAnotherAgent(t *testing.T) {
+	ctx := defaultTenantCtx()
+	deps, _ := newAgentDeps(t)
+	now := time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC)
+	first, err := authusecases.RegisterAgent(ctx, deps, authusecases.RegisterAgentInput{
+		ActorSub: "operator", Name: "deploy-bot", Now: now,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := authusecases.RegisterAgent(ctx, deps, authusecases.RegisterAgentInput{
+		ActorSub: "operator", Name: "report-bot", Now: now,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := authusecases.BindCredential(ctx, deps, "operator", first.ID, "svc_client", now); err != nil {
+		t.Fatal(err)
+	}
+	if err := authusecases.BindCredential(ctx, deps, "operator", second.ID, "svc_client", now); !errors.Is(err, authusecases.ErrAgentClientBound) {
+		t.Fatalf("expected ErrAgentClientBound, got %v", err)
+	}
+}
+
 func TestDeleteAgentEmitsAgentDeleted(t *testing.T) {
 	ctx := defaultTenantCtx()
 	deps, events := newAgentDeps(t)
@@ -263,6 +319,31 @@ func TestDeleteAgentEmitsAgentDeleted(t *testing.T) {
 	}
 	if !slices.Equal(agentEventTypes(*events), []string{"AgentDeleted"}) {
 		t.Fatalf("events = %v", agentEventTypes(*events))
+	}
+}
+
+func TestDeleteKilledAgentIsRejected(t *testing.T) {
+	ctx := defaultTenantCtx()
+	deps, _ := newAgentDeps(t)
+	now := time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC)
+	agent, err := authusecases.RegisterAgent(ctx, deps, authusecases.RegisterAgentInput{
+		ActorSub: "operator", Name: "deploy-bot", Now: now,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := authusecases.KillAgent(ctx, deps, "operator", agent.ID, now); err != nil {
+		t.Fatal(err)
+	}
+	if err := authusecases.DeleteAgent(ctx, deps, "operator", agent.ID, now); !errors.Is(err, authusecases.ErrAgentKilled) {
+		t.Fatalf("expected ErrAgentKilled, got %v", err)
+	}
+	found, err := authusecases.GetAgent(ctx, deps, agent.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if found.Agent.Status != spec.AgentStatusKilled {
+		t.Fatalf("agent was deleted or changed: %+v", found.Agent)
 	}
 }
 

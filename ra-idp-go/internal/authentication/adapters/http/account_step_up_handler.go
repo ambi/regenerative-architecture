@@ -16,7 +16,7 @@ import (
 	"github.com/labstack/echo/v5"
 )
 
-type stepUpStartResponse struct {
+type StepUpStartResponse struct {
 	Methods []string `json:"methods"`
 }
 
@@ -75,7 +75,7 @@ func (d Deps) handleStartStepUp(c *echo.Context) error {
 	for i, m := range methods {
 		out[i] = string(m)
 	}
-	return core.NoStoreJSON(c, http.StatusOK, stepUpStartResponse{Methods: out})
+	return core.NoStoreJSON(c, http.StatusOK, StepUpStartResponse{Methods: out})
 }
 
 func (d Deps) handleCompleteStepUp(c *echo.Context) error {

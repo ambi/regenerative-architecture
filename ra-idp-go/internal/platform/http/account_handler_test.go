@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	authhttp "ra-idp-go/internal/authentication/adapters/http"
 	authdomain "ra-idp-go/internal/authentication/domain"
 	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/platform/persistence/memory"
@@ -77,7 +78,7 @@ func TestAccountProfileGetReturnsSelfView(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
 	}
-	var body accountProfileResponse
+	var body authhttp.AccountProfileResponse
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatal(err)
 	}
@@ -143,7 +144,7 @@ func TestAccountProfilePatchUpdatesEditableAttribute(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
 	}
-	var body accountProfileResponse
+	var body authhttp.AccountProfileResponse
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatal(err)
 	}

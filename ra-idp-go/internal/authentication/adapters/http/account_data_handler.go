@@ -16,7 +16,7 @@ import (
 
 type accountDataExport struct {
 	ExportedAt time.Time                `json:"exported_at"`
-	Profile    accountProfileResponse   `json:"profile"`
+	Profile    AccountProfileResponse   `json:"profile"`
 	Consents   []accountConsentResponse `json:"consents"`
 }
 

@@ -13,7 +13,7 @@ import (
 	"github.com/labstack/echo/v5"
 )
 
-type accountProfileResponse struct {
+type AccountProfileResponse struct {
 	Sub               string                         `json:"sub"`
 	PreferredUsername string                         `json:"preferred_username"`
 	Name              *string                        `json:"name,omitempty"`
@@ -53,8 +53,8 @@ type accountProfileUpdateRequest struct {
 	Attributes *map[string]spec.AttributeValue `json:"attributes"`
 }
 
-func toAccountProfileResponse(user *spec.User, defs []spec.UserAttributeDef) accountProfileResponse {
-	return accountProfileResponse{
+func toAccountProfileResponse(user *spec.User, defs []spec.UserAttributeDef) AccountProfileResponse {
+	return AccountProfileResponse{
 		Sub: user.Sub, PreferredUsername: user.PreferredUsername,
 		Name: user.Name, GivenName: user.GivenName, FamilyName: user.FamilyName,
 		Email: user.Email, EmailVerified: user.EmailVerified, MfaEnrolled: user.MfaEnrolled,

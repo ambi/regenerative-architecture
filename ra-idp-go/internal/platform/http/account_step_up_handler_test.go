@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	authhttp "ra-idp-go/internal/authentication/adapters/http"
 	authusecases "ra-idp-go/internal/authentication/usecases"
 	"ra-idp-go/internal/platform/crypto"
 	"ra-idp-go/internal/platform/http/core"
@@ -203,7 +204,7 @@ func TestStepUpStartReturnsAvailableMethods(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
 	}
-	var body stepUpStartResponse
+	var body authhttp.StepUpStartResponse
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatal(err)
 	}

@@ -18,6 +18,7 @@ var eventTopics = map[string]string{
 	"AuthorizationCodeRedeemed": "oauth2.authorization-code.v1", "AccessTokenIssued": "oauth2.token.v1",
 	"RefreshTokenIssued": "oauth2.token.v1", "RefreshTokenRotated": "oauth2.token.v1",
 	"TokenRevoked": "oauth2.token.v1", "TokenIntrospected": "oauth2.token.v1",
+	"TokenExchanged": "oauth2.token.v1", "TokenExchangeRejected": "oauth2.token.v1",
 	"RefreshTokenReuseDetected": "oauth2.security-incident.v1", "SigningKeyRotated": "oauth2.key-management.v1",
 	"PARStored": "oauth2.par.v1", "DeviceAuthorizationRequested": "oauth2.device-authorization.v1",
 	"DeviceAuthorizationApproved": "oauth2.device-authorization.v1", "DeviceAuthorizationDenied": "oauth2.device-authorization.v1",
@@ -28,6 +29,10 @@ var eventTopics = map[string]string{
 	"AdminClientDeleted": "oauth2.administration.v1",
 	"GroupCreated":       "iam.groups.v1", "GroupUpdated": "iam.groups.v1", "GroupDeleted": "iam.groups.v1",
 	"GroupMemberAdded": "iam.groups.v1", "GroupMemberRemoved": "iam.groups.v1",
+	"AgentRegistered": "iam.agents.v1", "AgentUpdated": "iam.agents.v1", "AgentDisabled": "iam.agents.v1",
+	"AgentEnabled": "iam.agents.v1", "AgentKilled": "iam.agents.v1", "AgentDeleted": "iam.agents.v1",
+	"AgentOwnerChanged": "iam.agents.v1", "AgentCredentialBound": "iam.agents.v1",
+	"AgentCredentialUnbound": "iam.agents.v1",
 }
 
 // OutboxEventSink はドメインイベントを outbox テーブルへ書き出す EventSink 実装。

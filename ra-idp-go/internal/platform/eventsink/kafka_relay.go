@@ -138,12 +138,23 @@ func partitionKey(eventType string, payload []byte) string {
 		"RefreshTokenRotated":          {"FamilyID", "familyId"},
 		"TokenRevoked":                 {"TokenID", "tokenId"},
 		"TokenIntrospected":            {"RSClientID", "rsClientId"},
+		"TokenExchanged":               {"SubjectSub", "subjectSub"},
+		"TokenExchangeRejected":        {"ActorSub", "actorSub"},
 		"RefreshTokenReuseDetected":    {"FamilyID", "familyId"},
 		"SigningKeyRotated":            {"NewKID", "newKid"},
 		"PARStored":                    {"ClientID", "clientId"},
 		"DeviceAuthorizationRequested": {"ClientID", "clientId"},
 		"DeviceAuthorizationApproved":  {"ClientID", "clientId"},
 		"DeviceAuthorizationDenied":    {"ClientID", "clientId"},
+		"AgentRegistered":              {"AgentID", "agentId"},
+		"AgentUpdated":                 {"AgentID", "agentId"},
+		"AgentDisabled":                {"AgentID", "agentId"},
+		"AgentEnabled":                 {"AgentID", "agentId"},
+		"AgentKilled":                  {"AgentID", "agentId"},
+		"AgentDeleted":                 {"AgentID", "agentId"},
+		"AgentOwnerChanged":            {"AgentID", "agentId"},
+		"AgentCredentialBound":         {"AgentID", "agentId"},
+		"AgentCredentialUnbound":       {"AgentID", "agentId"},
 	}
 	for _, field := range fields[eventType] {
 		if v, ok := value[field]; ok {

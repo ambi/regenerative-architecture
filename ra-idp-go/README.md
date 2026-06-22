@@ -441,3 +441,30 @@ directory 連携。
 | 領域       | 不足している機能                                                               |
 | ---------- | ------------------------------------------------------------------------------ |
 | 開発者向け | SDK、クライアント設定テンプレート、well-known docs、エラー診断・トラブルシュート |
+
+### Phase 10 — AI Agent 向け ID / 認証 / 認可
+
+Okta / Auth0・Microsoft Entra Agent ID・Google・Ping Identity・Keycloak の動向を踏まえ、AI
+エージェント (非人間 ID / NHI) を第一級プリンシパルとして扱うための機能を work item 化した。
+土台 (エージェント ID → 委譲) から積み上げ、利用シナリオ別に「ユーザー代行アクセス」「自律
+ワークロード」「MCP / ツール連携」「ガバナンス / 統制」を満たす。Phase 7 に汎用機能として
+挙げていた Token Exchange / RAR / CIBA / workload identity は、本フェーズで AI エージェント
+観点に具体化した work item へ集約する。
+
+| 領域 (利用シナリオ)      | 機能 / work item                                                                                                                       |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| エージェント ID (土台)   | 非人間プリンシパル・所有者・kill-switch — [[wi-49-agent-identity-first-class-principal]]                                                |
+| ユーザー代行アクセス     | Token Exchange (RFC 8693) 委譲・actor チェーン — [[wi-50-token-exchange-delegation-actor-chain]]                                        |
+| ユーザー代行アクセス     | Rich Authorization Requests (RFC 9396) で権限を束縛 — [[wi-51-rich-authorization-requests-agent-scopes]]                                |
+| ユーザー代行アクセス     | CIBA による human-in-the-loop 承認 — [[wi-52-ciba-async-human-approval]]                                                                |
+| ユーザー代行アクセス     | 関係ベース細粒度認可 (ReBAC / FGA) — [[wi-53-rebac-fine-grained-authorization]]                                                         |
+| 自律ワークロード         | workload identity federation (SPIFFE 互換) — [[wi-54-workload-identity-federation-spiffe]]                                             |
+| MCP / ツール連携         | Token Vault / federated connections — [[wi-55-token-vault-federated-connections]]                                                      |
+| MCP / ツール連携         | MCP 認可サーバー (OAuth 2.1 / RFC 9728 / 8707) — [[wi-56-mcp-authorization-server]]                                                     |
+| MCP / ツール連携         | Cross-App Access (Identity Assertion Grant) — [[wi-57-cross-app-access-identity-assertion-grant]]                                      |
+| ガバナンス / 統制        | 継続的アクセス評価 (CAEP / SSF) と即時失効 — [[wi-58-continuous-access-evaluation-agent-revocation]]                                    |
+| ガバナンス / 統制        | ガードレール・委譲チェーン監査・インベントリ — [[wi-59-agent-governance-guardrails-audit-inventory]]                                    |
+
+> 依存順: wi-49 (土台) → wi-50 (委譲) → wi-51 / wi-52 / wi-53 (代行の細粒度・承認・データ認可) →
+> wi-54 (自律ワークロード) → wi-55 / wi-56 → wi-57 (連携) → wi-58 / wi-59 (統制)。Transaction Tokens
+> (Txn-Tokens draft) による内部サービス間の文脈伝播は wi-50 / wi-54 の out_of_scope に将来項目として記録した。

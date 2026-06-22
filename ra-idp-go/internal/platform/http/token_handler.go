@@ -1,4 +1,4 @@
-// /token (4 grant types) + /revoke + /introspect
+// /token (5 grant types) + /revoke + /introspect
 package http
 
 import (
@@ -131,9 +131,24 @@ func (d Deps) handleToken(c *echo.Context) error {
 		} else if clientStub.MTLSThumbprintS256 != "" {
 			sc = &spec.SenderConstraint{Type: spec.SenderConstraintMTLS, X5TS256: clientStub.MTLSThumbprintS256}
 		}
+		// ADR-048: client に Agent が束縛されている場合、Active 以外 (Disabled / Killed)
+		// なら新規トークンを発行しない (fail-closed)。束縛があれば agent_id を token に載せる。
+		var agentID string
+		if d.AgentRepo != nil {
+			agent, err := d.AgentRepo.FindByClientID(ctx, requestTenantID(c), client.ClientID)
+			if err != nil {
+				return writeOAuthError(c, err)
+			}
+			if agent != nil {
+				if !agent.IsActive() {
+					return writeOAuthError(c, usecases.NewOAuthError("invalid_client", "agent is disabled or killed"))
+				}
+				agentID = agent.ID
+			}
+		}
 		token, jti, err := d.TokenIssuer.SignAccessToken(ctx, oauthports.AccessTokenInput{
 			Client: client, Sub: client.ClientID, Scopes: scopes,
-			SenderConstraint: sc, AuthTime: now.Unix(),
+			SenderConstraint: sc, AuthTime: now.Unix(), AgentID: agentID,
 		})
 		if err != nil {
 			return writeOAuthError(c, err)
@@ -182,6 +197,33 @@ func (d Deps) handleToken(c *echo.Context) error {
 			body["id_token"] = res.IDToken
 		}
 		return c.JSON(http.StatusOK, body)
+
+	case "urn:ietf:params:oauth:grant-type:token-exchange":
+		res, err := usecases.ExchangeToken(ctx, usecases.ExchangeTokenDeps{
+			ClientRepo: d.ClientRepo, Introspector: d.TokenIntrospector,
+			TokenIssuer: d.TokenIssuer, Emit: d.Emit,
+		}, usecases.ExchangeTokenInput{
+			ClientID:           clientStub.ID,
+			SubjectToken:       c.Request().PostFormValue("subject_token"),
+			SubjectTokenType:   c.Request().PostFormValue("subject_token_type"),
+			ActorToken:         c.Request().PostFormValue("actor_token"),
+			ActorTokenType:     c.Request().PostFormValue("actor_token_type"),
+			Resource:           c.Request().PostForm["resource"],
+			Scope:              c.Request().PostFormValue("scope"),
+			RequestedTokenType: c.Request().PostFormValue("requested_token_type"),
+			ProofJKT:           dpopJKT,
+			ProofX5TS256:       clientStub.MTLSThumbprintS256,
+		}, now)
+		if err != nil {
+			return writeOAuthError(c, err)
+		}
+		return c.JSON(http.StatusOK, map[string]any{
+			"access_token":      res.AccessToken,
+			"issued_token_type": res.IssuedTokenType,
+			"token_type":        res.TokenType,
+			"expires_in":        res.ExpiresIn,
+			"scope":             res.Scope,
+		})
 	}
 	return writeOAuthError(c, usecases.NewOAuthError("unsupported_grant_type", "未対応 grant_type: "+grantType))
 }

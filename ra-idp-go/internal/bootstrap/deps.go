@@ -17,6 +17,7 @@ type Dependencies struct {
 	AttrSchemaRepo          tenantports.TenantUserAttributeSchemaRepository
 	UserRepo                oauthports.UserRepository
 	GroupRepo               authports.GroupRepository
+	AgentRepo               authports.AgentRepository
 	MfaFactorRepo           authports.MfaFactorRepository
 	PasswordHistoryRepo     authports.PasswordHistoryRepository
 	PasswordResetTokenStore authports.PasswordResetTokenStore

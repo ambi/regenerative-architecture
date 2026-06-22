@@ -21,11 +21,13 @@ type IntrospectionResponse struct {
 	Scope     string            `json:"scope,omitempty"`
 	ClientID  string            `json:"client_id,omitempty"`
 	Sub       string            `json:"sub,omitempty"`
+	Aud       []string          `json:"aud,omitempty"`
 	TokenType string            `json:"token_type,omitempty"`
 	Exp       int64             `json:"exp,omitempty"`
 	Iat       int64             `json:"iat,omitempty"`
 	JTI       string            `json:"jti,omitempty"`
 	CNF       map[string]string `json:"cnf,omitempty"`
+	Act       map[string]any    `json:"act,omitempty"`
 }
 
 type IntrospectDeps struct {
@@ -94,10 +96,12 @@ func IntrospectToken(ctx context.Context, deps IntrospectDeps, in IntrospectInpu
 		Scope:     r.Scope,
 		ClientID:  r.ClientID,
 		Sub:       r.Sub,
+		Aud:       r.Aud,
 		TokenType: r.TokenType,
 		Exp:       r.Exp,
 		Iat:       r.Iat,
 		JTI:       r.JTI,
+		Act:       r.Act,
 	}
 	if r.SenderConstraint != nil {
 		resp.CNF = map[string]string{}

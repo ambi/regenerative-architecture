@@ -87,6 +87,7 @@ const (
 	ActionTokenGrantRefresh           = "token:grant_refresh"
 	ActionTokenGrantClientCredentials = "token:grant_client_credentials"
 	ActionTokenGrantDeviceCode        = "token:grant_device_code"
+	ActionTokenGrantTokenExchange     = "token:grant_token_exchange"
 	ActionTokenIntrospect             = "token:introspect"
 	ActionTokenRevoke                 = "token:revoke"
 	ActionUserInfoRead                = "userinfo:read"
@@ -105,6 +106,7 @@ const (
 	ActionAdminKeysRotate             = "admin:keys_rotate"
 	ActionAdminGroupsRead             = "admin:groups_read"
 	ActionAdminGroupsWrite            = "admin:groups_write"
+	ActionAdminAgentsManage           = "admin:agents_manage"
 )
 
 // PascalCase (SCL permissions のキー) → AuthZ action 名。
@@ -113,6 +115,7 @@ var actionNameMapping = map[string]string{
 	"TokenGrantRefresh":           ActionTokenGrantRefresh,
 	"TokenGrantClientCredentials": ActionTokenGrantClientCredentials,
 	"TokenGrantDeviceCode":        ActionTokenGrantDeviceCode,
+	"TokenGrantTokenExchange":     ActionTokenGrantTokenExchange,
 	"TokenIntrospect":             ActionTokenIntrospect,
 	"TokenRevoke":                 ActionTokenRevoke,
 	"UserInfoRead":                ActionUserInfoRead,
@@ -131,6 +134,7 @@ var actionNameMapping = map[string]string{
 	"AdminKeysRotate":             ActionAdminKeysRotate,
 	"AdminGroupsRead":             ActionAdminGroupsRead,
 	"AdminGroupsWrite":            ActionAdminGroupsWrite,
+	"AdminAgentsManage":           ActionAdminAgentsManage,
 }
 
 func ActionNameForPermission(permissionName string) (string, bool) {
@@ -154,6 +158,7 @@ var actionRules = map[string][]string{
 	},
 	ActionTokenGrantClientCredentials: {"client_is_confidential", "client_must_declare_grant"},
 	ActionTokenGrantDeviceCode:        {"device_code_approved", "device_code_not_expired"},
+	ActionTokenGrantTokenExchange:     {"client_must_declare_grant"},
 	ActionTokenIntrospect:             {"caller_is_authenticated_client"},
 	ActionTokenRevoke:                 {"caller_owns_token"},
 	ActionUserInfoRead:                {"token_has_openid_scope", "token_active"},
@@ -198,6 +203,9 @@ var actionRules = map[string][]string{
 		"actor_is_admin", "actor_is_active", "actor_is_authenticated", "actor_and_resource_share_tenant",
 	},
 	ActionAdminGroupsWrite: {
+		"actor_is_admin", "actor_is_active", "actor_is_authenticated", "actor_and_resource_share_tenant",
+	},
+	ActionAdminAgentsManage: {
 		"actor_is_admin", "actor_is_active", "actor_is_authenticated", "actor_and_resource_share_tenant",
 	},
 }
@@ -287,6 +295,8 @@ func grantFromAction(a string) GrantType {
 		return GrantClientCredentials
 	case ActionTokenGrantDeviceCode:
 		return GrantDeviceCode
+	case ActionTokenGrantTokenExchange:
+		return GrantTokenExchange
 	}
 	return ""
 }

@@ -121,7 +121,7 @@ func Run() error {
 		AuditEventRepo:       deps.AuditEventRepo,
 		AuthEventBucketStore: deps.AuthEventBucketStore,
 		Authorizer:           authorizer, JWKResolver: jwkResolver,
-		PasswordHasher: hasher, GroupRepo: deps.GroupRepo, MfaFactorRepo: deps.MfaFactorRepo, PasswordHistoryRepo: deps.PasswordHistoryRepo,
+		PasswordHasher: hasher, GroupRepo: deps.GroupRepo, AgentRepo: deps.AgentRepo, MfaFactorRepo: deps.MfaFactorRepo, PasswordHistoryRepo: deps.PasswordHistoryRepo,
 		PasswordResetTokenStore: deps.PasswordResetTokenStore,
 		EmailChangeTokenStore:   deps.EmailChangeTokenStore,
 		EmailSender:             emailSender,

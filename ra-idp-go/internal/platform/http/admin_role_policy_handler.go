@@ -46,6 +46,7 @@ var permissionDescriptionCopy = map[string]string{
 	"AdminKeysRotate":      "署名鍵を更新（ローテーション）します。",
 	"AdminGroupsRead":      "グループの一覧と詳細を閲覧します。",
 	"AdminGroupsWrite":     "グループの作成・更新・削除とメンバー管理を行います。",
+	"AdminAgentsManage":    "AI エージェント (非人間 identity) の登録・更新・無効化・kill・削除と資格情報束縛を行います。",
 }
 
 func roleDescription(name, raw string) string {

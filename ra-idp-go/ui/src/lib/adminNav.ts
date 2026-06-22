@@ -5,6 +5,7 @@ import {
   IconForms,
   IconKey,
   IconLayoutDashboard,
+  IconRobot,
   IconSettings,
   IconShieldLock,
   IconUsersGroup,
@@ -17,6 +18,7 @@ export type AdminNavKey =
   | 'dashboard'
   | 'users'
   | 'groups'
+  | 'agents'
   | 'roles'
   | 'clients'
   | 'consents'
@@ -42,6 +44,7 @@ export function adminNavItems(active: AdminNavKey): AdminNavItem[] {
     { key: 'dashboard', label: 'ダッシュボード', icon: IconLayoutDashboard, href: tenantURL('/admin'), active: active === 'dashboard' },
     { key: 'users', label: 'ユーザー', icon: IconUsers, href: tenantURL('/admin/users'), active: active === 'users' },
     { key: 'groups', label: 'グループ', icon: IconUsersGroup, href: tenantURL('/admin/groups'), active: active === 'groups' },
+    { key: 'agents', label: 'エージェント', icon: IconRobot, href: tenantURL('/admin/agents'), active: active === 'agents' },
     { key: 'roles', label: 'ロール', icon: IconUserShield, href: tenantURL('/admin/roles'), active: active === 'roles' },
     { key: 'clients', label: 'アプリケーション', icon: IconKey, href: tenantURL('/admin/clients'), active: active === 'clients' },
     { key: 'consents', label: '同意', icon: IconCheckupList, href: tenantURL('/admin/consents'), active: active === 'consents' },

@@ -26,11 +26,12 @@ const (
 	GrantRefreshToken      GrantType = "refresh_token"
 	GrantClientCredentials GrantType = "client_credentials"
 	GrantDeviceCode        GrantType = "urn:ietf:params:oauth:grant-type:device_code"
+	GrantTokenExchange     GrantType = "urn:ietf:params:oauth:grant-type:token-exchange"
 )
 
 func (g GrantType) Valid() bool {
 	switch g {
-	case GrantAuthorizationCode, GrantRefreshToken, GrantClientCredentials, GrantDeviceCode:
+	case GrantAuthorizationCode, GrantRefreshToken, GrantClientCredentials, GrantDeviceCode, GrantTokenExchange:
 		return true
 	}
 	return false
@@ -233,6 +234,36 @@ const (
 
 func (s TenantStatus) Valid() bool {
 	return s == TenantStatusActive || s == TenantStatusDisabled
+}
+
+// AgentStatus は Agent の運用状態 (ADR-048)。Active 通常稼働 / Disabled 可逆な運用停止 /
+// Killed 緊急停止 (一方向終端)。Active 以外は新規トークンを発行しない (fail-closed)。
+type AgentStatus string
+
+const (
+	AgentStatusActive   AgentStatus = "active"
+	AgentStatusDisabled AgentStatus = "disabled"
+	AgentStatusKilled   AgentStatus = "killed"
+)
+
+func (s AgentStatus) Valid() bool {
+	switch s {
+	case AgentStatusActive, AgentStatusDisabled, AgentStatusKilled:
+		return true
+	}
+	return false
+}
+
+// AgentKind は Agent の自律性区分 (ADR-048)。Autonomous 自律実行 / Supervised 監督下実行。
+type AgentKind string
+
+const (
+	AgentKindAutonomous AgentKind = "autonomous"
+	AgentKindSupervised AgentKind = "supervised"
+)
+
+func (k AgentKind) Valid() bool {
+	return k == AgentKindAutonomous || k == AgentKindSupervised
 }
 
 // ===============================================================

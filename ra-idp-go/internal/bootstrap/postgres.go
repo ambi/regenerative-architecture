@@ -54,6 +54,7 @@ func assemblePostgres(ctx context.Context) (*Dependencies, error) {
 		ClientRepo:              &postgres.ClientRepository{Pool: pool},
 		UserRepo:                &postgres.UserRepository{Pool: pool},
 		GroupRepo:               &postgres.GroupRepository{Pool: pool},
+		AgentRepo:               &postgres.AgentRepository{Pool: pool},
 		MfaFactorRepo:           &postgres.MfaFactorRepository{Pool: pool},
 		PasswordHistoryRepo:     &postgres.PasswordHistoryRepository{Pool: pool},
 		PasswordResetTokenStore: &postgres.PasswordResetTokenStore{Pool: pool},

@@ -1,0 +1,70 @@
+id: wi-51-rich-authorization-requests-agent-scopes
+title: Rich Authorization Requests (RFC 9396) でエージェント権限を細粒度に束縛する
+created_at: 2026-06-22
+status: pending
+authors: [tn]
+
+motivation: |
+  エージェントへの権限付与は粗い OAuth scope (例: `payments`) では危険で、
+  「口座 X から最大 $100 まで送金」「この 3 文書のみ閲覧」のように対象・上限・
+  条件を構造的に束縛したい。これを表現する標準が Rich Authorization Requests
+  (RFC 9396) の `authorization_details` で、最小権限 (least privilege) と
+  ダウンスコープを構造化 JSON で要求・同意・トークン反映できる。
+
+  ra-idp-go は scope ベースの同意までで、構造化された細粒度権限を持たない。本 WI は
+  /authorize と /par、および token-exchange
+  ([[wi-50-token-exchange-delegation-actor-chain]]) で `authorization_details` を
+  受理・検証・同意・トークンへ反映し、エージェントが「必要な分だけ」を要求できる
+  ようにする。これにより人間の関与 (CIBA、[[wi-52-ciba-async-human-approval]]) や
+  ガバナンス ([[wi-59-agent-governance-guardrails-audit-inventory]]) と組み合わせた
+  「上限つき委譲」が成立する。
+
+scope:
+  decision:
+    - >-
+      新規 ADR [[ADR-050]]: 対応する authorization_details type の定義方法 (tenant ごとに登録可能な
+      type スキーマ)、同意 UI での提示方法、token への反映と検証点 (resource server が
+      何を信頼するか)、token-exchange 時の details ダウンスコープ規則を確定する。
+  scl:
+    - >-
+      新規 model: AuthorizationDetail / AuthorizationDetailType / AuthorizationDetailsSchema。
+      AuthorizationRequest / Consent / AccessTokenClaims に authorization_details を追加する。
+    - 新規 event: AuthorizationDetailsRequested / AuthorizationDetailsConsented / AuthorizationDetailsRejected。
+    - 新規 permission: AdminAuthorizationDetailTypesManage。
+  go:
+    - >-
+      authorization_details の構文・登録済み type 適合・ダウンスコープ (要求は
+      同意済みの部分集合か) を Zog schema で fail-closed に検証する。
+    - token-exchange で交換後 details を元 details の部分集合に限定する。
+  http:
+    - /authorize・/par・/token が authorization_details を受理し、discovery に対応 type を広告する。
+  ui:
+    - end-user 同意 UI で authorization_details を人間が読める形で提示する。
+
+out_of_scope:
+  - 個別業務ドメインの type スキーマ (口座・送金等) の網羅的定義。
+  - resource server 側の details 解釈実装 (ra-idp は発行と検証点の提供まで)。
+
+affected_guarantees:
+  - 最小権限: エージェントは authorization_details で対象・上限を束縛した token しか得られない。
+  - 同意の一致: token の details は user が同意した範囲の部分集合に限る (fail-closed)。
+  - ダウンスコープ: 交換後トークンの details は元 token を超えない。
+  - 監査: details の要求・同意・拒否を監査イベントに残す。
+
+verification:
+  - cmd: 'go test ./...'
+    in: ra-idp-go
+    reason: details の構文検証、type 適合、同意との部分集合判定、交換時ダウンスコープの境界。
+  - cmd: 'golangci-lint run ./...'
+    in: ra-idp-go
+  - cmd: 'go build ./...'
+    in: ra-idp-go
+  - cmd: 'bun --cwd ra-idp-go/ui typecheck'
+  - cmd: 'bun --cwd ra-idp-go/ui build'
+  - '手動: authorization_details つきで認可 → 同意 UI で内容確認 → token に反映 → 同意外の details 要求が拒否されることを確認する。'
+
+risk: medium
+risk_notes: |
+  authorization_details は自由度が高く、検証が緩いと過大な権限付与や同意逸脱を招く。
+  受理する type を事前登録スキーマに限定し、同意との部分集合判定・交換時のダウンスコープを
+  fail-closed で強制する。粗い scope との重複は ADR で優先順位を定める。

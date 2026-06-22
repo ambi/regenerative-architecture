@@ -1,0 +1,70 @@
+id: wi-54-workload-identity-federation-spiffe
+title: エージェントランタイム向け workload identity federation (SPIFFE 互換)
+created_at: 2026-06-22
+status: pending
+authors: [tn]
+
+motivation: |
+  自律エージェントは人間の介在なしにコンテナ / 関数 / VM 上で起動し、行動するため、
+  長期シークレットを埋め込まない非人間 ID のブートストラップが要る。現代の基盤は
+  実行環境の attestation (k8s ServiceAccount token、クラウドの instance identity、
+  SPIFFE/SPIRE の SVID) を信頼の起点とし、それを IdP の token と federation で交換する。
+  Google Cloud の Workload Identity Federation や SPIFFE/SPIRE (CNCF) がこの代表で、
+  static key を持たないエージェントランタイムの ID を実現する。
+
+  ra-idp-go は client_credentials を持つが、外部 attestation を信頼の起点にした
+  federation を持たない。本 WI は外部 workload token (OIDC 互換の JWT-SVID /
+  k8s SA token / クラウド federation token) を検証し、
+  [[wi-50-token-exchange-delegation-actor-chain]] の token-exchange 経由で
+  [[wi-49-agent-identity-first-class-principal]] のエージェントに紐づく ra-idp token に
+  交換する経路を実装する。これにより「自律ワークロード」シナリオのエージェントが
+  シークレットレスで資格情報を得られる。
+
+scope:
+  decision:
+    - >-
+      新規 ADR [[ADR-053]]: 信頼する attestation 種別 (OIDC JWT を起点、X.509-SVID は将来)、
+      trust domain / issuer の登録方法、外部 subject から ra-idp principal (Agent /
+      client) への mapping 規則、token-exchange (RFC 8693) を交換機構に使う前提、
+      鍵・issuer の検証点を確定する。
+  scl:
+    - >-
+      新規 model: WorkloadIdentityProvider / TrustDomain / AttestationClaim /
+      SubjectMapping。subject_token_type に workload 系を追加する。
+    - 新規 event: WorkloadIdentityProviderConfigured / WorkloadTokenExchanged / WorkloadAttestationRejected。
+    - 新規 interface: 管理用の federation provider CRUD。permission AdminWorkloadIdentityManage。
+  go:
+    - >-
+      外部 issuer の JWKS 取得・検証、attestation claim の検証、subject mapping、
+      ra-idp token への交換を fail-closed で実装する。
+    - 短命トークン既定 (long-lived 資格情報を発行しない)。
+  http:
+    - federation provider 管理 API。token-exchange への workload subject 受理。
+
+out_of_scope:
+  - SPIRE server / agent の同梱・運用 (ra-idp は relying party / federation 側)。
+  - X.509-SVID (mTLS) ベースの bootstrap (まず JWT、X.509 は将来)。
+  - Transaction Tokens による内部サービス間伝播 (将来 WI、Txn-Tokens draft)。
+
+affected_guarantees:
+  - シークレットレス: エージェントランタイムは long-lived key なしで attestation から token を得る。
+  - 信頼の検証: 登録済み trust domain / issuer の検証を通った attestation のみ受理する (fail-closed)。
+  - 短命性: 発行トークンは短命で、workload の継続稼働は再 attestation を要する。
+  - tenant isolation: federation provider と subject mapping は tenant-scoped。
+
+verification:
+  - cmd: 'go test ./...'
+    in: ra-idp-go
+    reason: 外部 JWT 検証、未登録 issuer / 改竄 attestation の拒否、subject mapping、短命 TTL の境界。
+  - cmd: 'golangci-lint run ./...'
+    in: ra-idp-go
+  - cmd: 'go build ./...'
+    in: ra-idp-go
+  - '手動: mock workload issuer の token を提示 → ra-idp token に交換 → 未登録 issuer は拒否されることを確認する。'
+
+risk: high
+risk_notes: |
+  外部 attestation を信頼の起点にするため、issuer / 鍵 / audience / 有効期限の検証を
+  誤ると任意のワークロードがエージェント資格情報を得られてしまう。登録済み trust domain に
+  限定し、JWKS・issuer・audience・exp をすべて満たす場合のみ交換する (fail-closed)。
+  発行は短命に限定し long-lived 資格情報を作らない。

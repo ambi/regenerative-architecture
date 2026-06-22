@@ -49,16 +49,29 @@ func (s *JWTSigner) SignAccessToken(ctx context.Context, in ports.AccessTokenInp
 	}
 	now := nowUnix()
 	issuer := tenancy.Issuer(ctx, s.Issuer)
+	// aud は AllAccessTokensCarryAudience 不変条件により常に 1 個以上。
+	// Audiences が指定されていればそれを使い (RFC 8707 / RFC 8693)、なければ
+	// 従来どおり client_id を単一 audience とする。
+	var aud any = in.Client.ClientID
+	switch {
+	case len(in.Audiences) == 1:
+		aud = in.Audiences[0]
+	case len(in.Audiences) > 1:
+		aud = in.Audiences
+	}
 	claims := map[string]any{
 		"iss":       issuer,
 		"sub":       in.Sub,
-		"aud":       in.Client.ClientID,
+		"aud":       aud,
 		"client_id": in.Client.ClientID,
 		"scope":     strings.Join(in.Scopes, " "),
 		"jti":       jti,
 		"iat":       now,
 		"exp":       now + accessTokenTTLSeconds,
 		"auth_time": in.AuthTime,
+	}
+	if in.Act != nil {
+		claims["act"] = in.Act
 	}
 	if in.SenderConstraint != nil {
 		cnf := map[string]string{}
@@ -75,6 +88,12 @@ func (s *JWTSigner) SignAccessToken(ctx context.Context, in ports.AccessTokenInp
 	}
 	if in.ACR != "" {
 		claims["acr"] = in.ACR
+	}
+	// ADR-048: client_credentials トークンが Agent に束縛されているとき、principal を
+	// 非人間 identity として識別できるよう agent_id / principal_type を付与する。
+	if in.AgentID != "" {
+		claims["agent_id"] = in.AgentID
+		claims["principal_type"] = "agent"
 	}
 	tok, err := signPS256(key, map[string]string{"typ": "at+jwt"}, claims)
 	if err != nil {
@@ -186,7 +205,36 @@ func (s *JWTSigner) IntrospectAccessToken(ctx context.Context, token string) (*p
 			res.SenderConstraint = sc
 		}
 	}
+	res.Aud = normalizeAudience(payload["aud"])
+	if act, ok := payload["act"].(map[string]any); ok {
+		res.Act = act
+	}
+	if mayAct, ok := payload["may_act"].(map[string]any); ok {
+		res.MayAct = mayAct
+	}
 	return res, nil
+}
+
+// normalizeAudience は JWT の aud claim (単一文字列 / 文字列配列) を []string に正規化する。
+func normalizeAudience(v any) []string {
+	switch typed := v.(type) {
+	case string:
+		if typed == "" {
+			return nil
+		}
+		return []string{typed}
+	case []any:
+		out := make([]string, 0, len(typed))
+		for _, item := range typed {
+			if s, ok := item.(string); ok && s != "" {
+				out = append(out, s)
+			}
+		}
+		return out
+	case []string:
+		return typed
+	}
+	return nil
 }
 
 // =====================================================================

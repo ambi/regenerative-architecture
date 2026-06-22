@@ -1,4 +1,5 @@
 import type {
+  AdminAgent,
   AdminAuditEvent,
   AdminClient,
   AdminConsent,
@@ -385,4 +386,90 @@ export async function removeAdminGroupMember(
 
 export async function getAdminUserGroups(sub: string): Promise<AdminUserGroups> {
   return request(`/api/admin/users/${encodeURIComponent(sub)}/groups`)
+}
+
+export async function listAdminAgents(): Promise<AdminAgent[]> {
+  return (await request<{ agents: AdminAgent[] }>('/api/admin/agents')).agents
+}
+
+export async function getAdminAgent(id: string): Promise<AdminAgent> {
+  return request<AdminAgent>(`/api/admin/agents/${encodeURIComponent(id)}`)
+}
+
+export type RegisterAdminAgentInput = {
+  name: string
+  description?: string
+  kind?: AdminAgent['kind']
+  owner_sub?: string
+  roles?: string[]
+}
+
+export type UpdateAdminAgentInput = {
+  name?: string
+  description?: string
+  kind?: AdminAgent['kind']
+  owner_sub?: string
+  roles?: string[]
+}
+
+export async function registerAdminAgent(
+  csrfToken: string,
+  input: RegisterAdminAgentInput,
+): Promise<AdminAgent> {
+  return request('/api/admin/agents', adminRequest(csrfToken, 'POST', input))
+}
+
+export async function updateAdminAgent(
+  csrfToken: string,
+  id: string,
+  input: UpdateAdminAgentInput,
+): Promise<AdminAgent> {
+  return request(
+    `/api/admin/agents/${encodeURIComponent(id)}`,
+    adminRequest(csrfToken, 'PATCH', input),
+  )
+}
+
+export async function disableAdminAgent(csrfToken: string, id: string): Promise<void> {
+  await request(
+    `/api/admin/agents/${encodeURIComponent(id)}/disable`,
+    adminRequest(csrfToken, 'POST'),
+  )
+}
+
+export async function enableAdminAgent(csrfToken: string, id: string): Promise<void> {
+  await request(
+    `/api/admin/agents/${encodeURIComponent(id)}/enable`,
+    adminRequest(csrfToken, 'POST'),
+  )
+}
+
+export async function killAdminAgent(csrfToken: string, id: string): Promise<void> {
+  await request(`/api/admin/agents/${encodeURIComponent(id)}/kill`, adminRequest(csrfToken, 'POST'))
+}
+
+export async function deleteAdminAgent(csrfToken: string, id: string): Promise<void> {
+  await request(`/api/admin/agents/${encodeURIComponent(id)}`, adminRequest(csrfToken, 'DELETE'))
+}
+
+export async function bindAdminAgentCredential(
+  csrfToken: string,
+  agentID: string,
+  clientID: string,
+): Promise<void> {
+  await request(
+    `/api/admin/agents/${encodeURIComponent(agentID)}/credentials`,
+    adminRequest(csrfToken, 'POST', { client_id: clientID }),
+  )
+}
+
+export async function unbindAdminAgentCredential(
+  csrfToken: string,
+  agentID: string,
+  clientID: string,
+): Promise<void> {
+  await request(
+    `/api/admin/agents/${encodeURIComponent(agentID)}/credentials/${encodeURIComponent(clientID)}`,
+    adminRequest(csrfToken, 'DELETE'),
+  )
 }

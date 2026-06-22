@@ -128,6 +128,31 @@ var groupMemberSchema = z.Struct(z.Shape{
 	"AddedAt": z.Time().Required(),
 })
 
+var agentSchema = z.Struct(z.Shape{
+	"ID":          z.String().Min(1).Max(64).Required(),
+	"TenantID":    z.String().Min(1).Required(),
+	"Name":        z.String().Min(1).Max(100).Required(),
+	"Description": z.Ptr(z.String().Max(500)),
+	"Kind": z.StringLike[AgentKind]().TestFunc(
+		func(value *AgentKind, _ z.Ctx) bool { return value.Valid() },
+		z.Message("agent kind is not in enum"),
+	).Required(),
+	"OwnerSub": z.String().Min(1).Required(),
+	"Status": z.StringLike[AgentStatus]().TestFunc(
+		func(value *AgentStatus, _ z.Ctx) bool { return value.Valid() },
+		z.Message("agent status is not in enum"),
+	).Required(),
+	"Roles":     z.Slice(z.String().Min(1)),
+	"CreatedAt": z.Time().Required(),
+})
+
+var agentCredentialBindingSchema = z.Struct(z.Shape{
+	"AgentID":   z.String().Min(1).Required(),
+	"ClientID":  z.String().Min(1).Required(),
+	"TenantID":  z.String().Min(1).Required(),
+	"CreatedAt": z.Time().Required(),
+})
+
 var mfaFactorSchema = z.Struct(z.Shape{
 	"Sub": z.String().Required(),
 	"Type": z.StringLike[MfaFactorType]().TestFunc(

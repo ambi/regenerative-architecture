@@ -72,6 +72,14 @@ const AdminGroupsPage = namedPage(
   () => import('./features/admin-groups/AdminGroupsPage'),
   'AdminGroupsPage',
 )
+const AdminAgentDetailPage = namedPage(
+  () => import('./features/admin-agents/AdminAgentsPage'),
+  'AdminAgentDetailPage',
+)
+const AdminAgentsPage = namedPage(
+  () => import('./features/admin-agents/AdminAgentsPage'),
+  'AdminAgentsPage',
+)
 const AdminKeysPage = namedPage(
   () => import('./features/admin-keys/AdminKeysPage'),
   'AdminKeysPage',
@@ -315,6 +323,18 @@ export function createAppRouter(data: PageData) {
     component: () =>
       data.kind === 'admin-group-detail' ? routePage(<AdminGroupDetailPage {...data} />) : null,
   })
+  const adminAgentsRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/admin/agents',
+    component: () =>
+      data.kind === 'admin-agents' ? routePage(<AdminAgentsPage {...data} />) : null,
+  })
+  const adminAgentDetailRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/admin/agents/$agentId',
+    component: () =>
+      data.kind === 'admin-agent-detail' ? routePage(<AdminAgentDetailPage {...data} />) : null,
+  })
   const adminSettingsRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/admin/settings',
@@ -363,6 +383,8 @@ export function createAppRouter(data: PageData) {
       adminTenantsRoute,
       adminGroupsRoute,
       adminGroupDetailRoute,
+      adminAgentsRoute,
+      adminAgentDetailRoute,
       adminSettingsRoute,
       adminTenantAttributesRoute,
     ]),

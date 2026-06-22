@@ -249,6 +249,36 @@ export type AdminGroupsPage = {
   groups: AdminGroup[]
 }
 
+export type AdminAgent = {
+  id: string
+  tenant_id: string
+  name: string
+  description?: string
+  kind: 'autonomous' | 'supervised'
+  owner_sub: string
+  status: 'active' | 'disabled' | 'killed'
+  roles: string[]
+  client_ids: string[]
+  created_at: string
+  updated_at?: string
+  disabled_at?: string
+  killed_at?: string
+}
+
+export type AdminAgentsPage = {
+  kind: 'admin-agents'
+  csrfToken: string
+  actorUsername?: string
+  agents: AdminAgent[]
+}
+
+export type AdminAgentDetailPage = {
+  kind: 'admin-agent-detail'
+  csrfToken: string
+  actorUsername?: string
+  agent: AdminAgent
+}
+
 export type AdminTenant = {
   id: string
   display_name: string
@@ -532,6 +562,8 @@ export type PageData =
   | AdminTenantsPage
   | AdminGroupsPage
   | AdminGroupDetailPage
+  | AdminAgentsPage
+  | AdminAgentDetailPage
   | AdminRolesPage
   | AdminRoleDetailPage
   | AdminClientDetailPage

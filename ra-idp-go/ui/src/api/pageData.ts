@@ -7,6 +7,9 @@ import type {
   AccountProfile,
   AccountProfilePage,
   AccountSecurityPage,
+  AdminAgent,
+  AdminAgentDetailPage,
+  AdminAgentsPage,
   AdminAuditEvent,
   AdminAuditEventsPage,
   AdminClient,
@@ -52,7 +55,13 @@ import {
   listAccountConsents,
   listAccountSessions,
 } from './account'
-import { getAdminClient, getAdminGroup, getAdminUser, listAdminAuditEvents } from './admin'
+import {
+  getAdminAgent,
+  getAdminClient,
+  getAdminGroup,
+  getAdminUser,
+  listAdminAuditEvents,
+} from './admin'
 import {
   AuthenticationAPIError,
   request,
@@ -418,6 +427,26 @@ export async function loadPageData(): Promise<PageData> {
       actorUsername: adminAccount!.preferred_username,
       group,
     } satisfies AdminGroupDetailPage
+  }
+  if (path === '/admin/agents') {
+    const agents = await request<{ agents: AdminAgent[] }>('/api/admin/agents')
+    return {
+      kind: 'admin-agents',
+      csrfToken: adminAccount!.csrf_token,
+      actorUsername: adminAccount!.preferred_username,
+      agents: agents.agents,
+    } satisfies AdminAgentsPage
+  }
+  const agentDetailMatch = path.match(/^\/admin\/agents\/([^/]+)$/)
+  if (agentDetailMatch) {
+    const id = decodeURIComponent(agentDetailMatch[1])
+    const agent = await getAdminAgent(id)
+    return {
+      kind: 'admin-agent-detail',
+      csrfToken: adminAccount!.csrf_token,
+      actorUsername: adminAccount!.preferred_username,
+      agent,
+    } satisfies AdminAgentDetailPage
   }
   if (path === '/forgot_password' || path === '/reset_password') {
     const data = await request<PasswordResetContextResponse>('/api/auth/password_reset_context')

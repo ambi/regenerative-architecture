@@ -1,0 +1,140 @@
+id: wi-50-token-exchange-delegation-actor-chain
+title: Token Exchange (RFC 8693) によるエージェントの委譲・代行と actor チェーン
+created_at: 2026-06-22
+status: completed
+authors: [tn]
+
+motivation: |
+  AI エージェントの中核ユースケースは「ユーザーに代わって (on-behalf-of) API や
+  データへアクセスする」ことである。これを安全に表現する標準が OAuth 2.0 Token
+  Exchange (RFC 8693) で、subject token を別の token に交換し、`act` (actor) /
+  `may_act` claim で「エージェント A がユーザー B を代行している」関係と、さらに
+  サブエージェントへ連鎖する委譲チェーンを表現できる。委譲 (delegation) と
+  なりすまし (impersonation) を区別し、交換後トークンの送信先 (audience) を
+  Resource Indicators (RFC 8707) で特定リソース / ツールに限定することで、横取りや
+  リソース間の再利用 (token の取り違え) を防ぐ。
+
+  ra-idp-go は既に DPoP・sender constraint・cnf を持ち、impersonation セッション
+  イベント (SessionImpersonationStarted/Ended) の素地もある。本 WI は
+  [[wi-49-agent-identity-first-class-principal]] の Agent を actor 主体として、
+  /token に urn:ietf:params:oauth:grant-type:token-exchange を実装し、actor チェーンと
+  audience 限定を一級の保証として導入する。これは後続の RAR
+  ([[wi-51-rich-authorization-requests-agent-scopes]])・Cross-App Access
+  ([[wi-57-cross-app-access-identity-assertion-grant]])・workload federation
+  ([[wi-54-workload-identity-federation-spiffe]]) すべての交換基盤となる。
+
+scope:
+  decision:
+    - >-
+      新規 ADR [[ADR-049]]: delegation と impersonation の区別と既定方針 (delegation を基本、
+      impersonation は明示許可時のみ)、`act` のネスト方法と最大委譲深さ、`may_act`
+      による委譲許可の事前宣言、subject_token_type / requested_token_type の対応、
+      Resource Indicators (RFC 8707) による audience 限定の必須化を確定する。
+  scl:
+    - >-
+      新規 model: TokenExchangeRequest / TokenExchangeResponse / ActorClaim (act) /
+      MayActClaim。AccessTokenClaims / IdTokenClaims に `act` (ネスト可) と
+      `may_act`、audience 限定を追加する。新規 GrantType: TokenExchange。
+    - 新規 event: TokenExchanged / DelegationChainExtended / TokenExchangeRejected。
+    - >-
+      新規 permission: TokenGrantTokenExchange。AuthZEN ポリシーに「この client /
+      agent が要求した actor・audience の交換を許可するか」を追加する。
+  go:
+    - >-
+      /token の token-exchange grant: subject / actor token の検証、delegation 時の
+      `act` 連鎖構築、impersonation の明示許可確認、audience (resource) 限定、
+      最大委譲深さの強制を fail-closed で実装する。
+    - introspection / userinfo が `act` チェーンを表示できるよう拡張する。
+  http:
+    - /token の token-exchange grant、discovery への grant_types / resource 反映。
+
+out_of_scope:
+  - RAR (authorization_details) による細粒度スコープ ([[wi-51-rich-authorization-requests-agent-scopes]])。
+  - 内部マイクロサービス間の Transaction Tokens (将来 WI、Txn-Tokens draft)。
+  - 外部 IdP のアサーションを起点にした Cross-App Access ([[wi-57-cross-app-access-identity-assertion-grant]])。
+
+affected_guarantees:
+  - 委譲の追跡性: 交換後トークンは `act` チェーンで user → agent → subagent の代行関係を保持する。
+  - audience 限定: 交換後トークンは要求された resource にのみ有効で、別リソースでは弾く (fail-closed)。
+  - 委譲制御: ポリシーや `may_act` で許可されていない actor・深さの交換は拒否する。
+  - 監査: 各交換と委譲チェーンの伸長を監査イベントに残す。
+
+verification:
+  - cmd: 'go test ./...'
+    in: ra-idp-go
+    reason: >-
+      delegation / impersonation の区別、`act` ネスト構築、audience 限定 (別 resource
+      で拒否)、最大深さ超過の拒否、`may_act` 未許可の拒否の境界。
+  - cmd: 'golangci-lint run ./...'
+    in: ra-idp-go
+  - cmd: 'go build ./...'
+    in: ra-idp-go
+  - '手動: エージェントがユーザーの token を on-behalf-of で交換 → audience 限定の確認 → サブエージェントへ再交換し act が連鎖することを確認する。'
+
+risk: high
+risk_notes: |
+  Token Exchange は委譲・なりすましを扱うため、誤実装は権限昇格や横展開に直結する。
+  既定を delegation とし、impersonation は明示許可時のみ。audience 限定 (RFC 8707) を
+  必須にして交換後トークンの再利用を断つ。`act` の最大深さを設け、`may_act` /
+  AuthZEN ポリシーを満たす交換のみ成功させる (すべて fail-closed)。
+
+completion:
+  completed_at: 2026-06-22
+  summary: |
+    ADR-049 に基づき、OAuth 2.0 Token Exchange (RFC 8693) を spec-first で実装した。
+    /token に grant_type=urn:ietf:params:oauth:grant-type:token-exchange を追加し、
+    subject_token / actor_token を自己発行トークンとして検証 (署名・active)、委譲のみ
+    (delegation only) で結果トークンの sub を subject の sub に保ち、現在アクター
+    (actor_token.sub または認証済み client_id) を最外 act とし subject_token の既存 act を
+    内側にネストする。委任の最大深さ (既定 3) を超える交換と、subject_token の may_act に
+    反するアクターは拒否する (fail-closed)。Resource Indicators (RFC 8707, constrained) を
+    必須・単一とし発行トークン aud=[resource] に限定、scope は subject_token の部分集合に
+    downscope する。refresh token は発行しない。発行時は DPoP/mTLS の sender constraint を
+    引き継ぐ。`AccessTokenClaims` / introspection に act / aud を、署名・検証経路に
+    act/may_act/array-aud を追加し、TokenGrantTokenExchange 権限と TokenExchanged /
+    TokenExchangeRejected イベントを導入した。
+  semantic_diff:
+    before:
+      grants: authorization_code / refresh_token / client_credentials / device_code のみ。委譲・代行を表現できない。
+      token_claims: act / may_act なし。aud は client_id のみ、resource パラメータ未処理。
+    after:
+      grants: token-exchange を追加。user→agent→subagent の代行を act チェーンで表現。
+      token_claims: act (ネスト可) / may_act に対応。token-exchange は aud=[resource] に限定。
+  verification:
+    - cmd: 'go build ./...'
+      in: ra-idp-go
+      result: ok
+    - cmd: 'go test ./...'
+      in: ra-idp-go
+      result: ok, no failures (act チェーン構築/ネスト・最大深さ・inactive subject・may_act・scope downscope・single-resource・no-refresh の use case テストと、自己発行トークンを発行→交換し aud==[resource]/act/issued_token_type を確認する e2e を含む)
+    - cmd: 'golangci-lint run ./...'
+      in: ra-idp-go
+      result: ok, 0 issues
+    - cmd: 'bun run yaml-check:scl'
+      in: tools
+      result: ok
+    - cmd: 'bun run yaml-check:work-items'
+      in: tools
+      result: ok
+  affected_guarantees_state:
+    - 委譲の追跡性: pass。delegation only で常に act を積み、subject_token の既存 act をネストして user→actor の連鎖を保持する。
+    - audience 限定: pass。resource 必須・単一で aud=[resource]、scope は subject の部分集合に downscope する。
+    - 委譲制御: pass。may_act 不一致と最大深さ超過を fail-closed で拒否。grant 宣言は token_handler の中央ゲート (client.GrantTypes 未宣言なら unauthorized_client) で強制する。
+    - 監査: pass。TokenExchanged (actorSub/subjectSub/audience/delegationDepth) と TokenExchangeRejected を outbox (oauth2.token.v1) へ emit する。
+  residual_risk:
+    - subject_token / actor_token は自己発行トークンのみ検証する。外部 IdP / workload attestation 起点の交換は対象外 (wi-54 / wi-57 で扱う)。
+    - impersonation (act 省略 / sub 差し替え) は未実装。delegation only。明示許可つき impersonation は将来。
+    - Resource Indicators は constrained (trust-on-first-use、単一 resource)。resource-server 登録モデルは未導入 (wi-56 MCP と合わせて検討)。
+    - 最大委譲深さは定数 (既定 3)。TenantSettings による override は将来。
+    - ADR-049 の DelegationChainExtended イベントは TokenExchanged.delegationDepth に畳み込み、独立イベントとしては発行しない。
+  traceability:
+    spec: spec/scl.yaml (GrantType.TokenExchange / TokenGrantTokenExchange / AccessTokenClaims.act・may_act / IntrospectionResponse.act・aud / TokenExchanged / TokenExchangeRejected)
+    domain: internal/spec/{enums,policy,events}.go
+    crypto: internal/adapters/crypto/jwt_signer.go (act/array-aud の署名と aud/act/may_act の抽出)
+    ports: internal/oauth2/ports/{token_issuer,token_introspector}.go
+    usecase: internal/oauth2/usecases/exchange_token.go (+ _test.go), introspect_token.go
+    http: internal/adapters/http/token_handler.go (token-exchange case) + token_exchange_handler_test.go
+  human_decisions:
+    - 第一増分は delegation only・自己発行トークンのみ・constrained RFC 8707 に絞り、impersonation / 外部トークン / resource-server 登録は後続 WI に委ねる。
+    - grant 宣言の強制は既存の中央ゲート (token_handler の client.GrantTypes チェック) を踏襲し、AuthZEN には actionRules を登録するに留める。
+    - DelegationChainExtended は TokenExchanged.delegationDepth に統合する。

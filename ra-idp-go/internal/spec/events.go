@@ -430,6 +430,101 @@ type UserDeleted struct {
 func (e *UserDeleted) EventType() string     { return "UserDeleted" }
 func (e *UserDeleted) OccurredAt() time.Time { return e.At }
 
+type AgentRegistered struct {
+	At       time.Time `json:"-"`
+	TenantID string    `json:"tenantId"`
+	ActorSub string    `json:"actorSub"`
+	AgentID  string    `json:"agentId"`
+}
+
+func (e *AgentRegistered) EventType() string     { return "AgentRegistered" }
+func (e *AgentRegistered) OccurredAt() time.Time { return e.At }
+
+type AgentUpdated struct {
+	At            time.Time `json:"-"`
+	TenantID      string    `json:"tenantId"`
+	ActorSub      string    `json:"actorSub"`
+	AgentID       string    `json:"agentId"`
+	ChangedFields []string  `json:"changedFields"`
+}
+
+func (e *AgentUpdated) EventType() string     { return "AgentUpdated" }
+func (e *AgentUpdated) OccurredAt() time.Time { return e.At }
+
+type AgentDisabled struct {
+	At       time.Time `json:"-"`
+	TenantID string    `json:"tenantId"`
+	ActorSub string    `json:"actorSub"`
+	AgentID  string    `json:"agentId"`
+}
+
+func (e *AgentDisabled) EventType() string     { return "AgentDisabled" }
+func (e *AgentDisabled) OccurredAt() time.Time { return e.At }
+
+type AgentEnabled struct {
+	At       time.Time `json:"-"`
+	TenantID string    `json:"tenantId"`
+	ActorSub string    `json:"actorSub"`
+	AgentID  string    `json:"agentId"`
+}
+
+func (e *AgentEnabled) EventType() string     { return "AgentEnabled" }
+func (e *AgentEnabled) OccurredAt() time.Time { return e.At }
+
+type AgentKilled struct {
+	At       time.Time `json:"-"`
+	TenantID string    `json:"tenantId"`
+	ActorSub string    `json:"actorSub"`
+	AgentID  string    `json:"agentId"`
+}
+
+func (e *AgentKilled) EventType() string     { return "AgentKilled" }
+func (e *AgentKilled) OccurredAt() time.Time { return e.At }
+
+type AgentDeleted struct {
+	At       time.Time `json:"-"`
+	TenantID string    `json:"tenantId"`
+	ActorSub string    `json:"actorSub"`
+	AgentID  string    `json:"agentId"`
+}
+
+func (e *AgentDeleted) EventType() string     { return "AgentDeleted" }
+func (e *AgentDeleted) OccurredAt() time.Time { return e.At }
+
+type AgentOwnerChanged struct {
+	At               time.Time `json:"-"`
+	TenantID         string    `json:"tenantId"`
+	ActorSub         string    `json:"actorSub"`
+	AgentID          string    `json:"agentId"`
+	PreviousOwnerSub string    `json:"previousOwnerSub"`
+	NewOwnerSub      string    `json:"newOwnerSub"`
+}
+
+func (e *AgentOwnerChanged) EventType() string     { return "AgentOwnerChanged" }
+func (e *AgentOwnerChanged) OccurredAt() time.Time { return e.At }
+
+type AgentCredentialBound struct {
+	At       time.Time `json:"-"`
+	TenantID string    `json:"tenantId"`
+	ActorSub string    `json:"actorSub"`
+	AgentID  string    `json:"agentId"`
+	ClientID string    `json:"clientId"`
+}
+
+func (e *AgentCredentialBound) EventType() string     { return "AgentCredentialBound" }
+func (e *AgentCredentialBound) OccurredAt() time.Time { return e.At }
+
+type AgentCredentialUnbound struct {
+	At       time.Time `json:"-"`
+	TenantID string    `json:"tenantId"`
+	ActorSub string    `json:"actorSub"`
+	AgentID  string    `json:"agentId"`
+	ClientID string    `json:"clientId"`
+}
+
+func (e *AgentCredentialUnbound) EventType() string     { return "AgentCredentialUnbound" }
+func (e *AgentCredentialUnbound) OccurredAt() time.Time { return e.At }
+
 type AdminClientCreated struct {
 	At       time.Time `json:"-"`
 	TenantID string    `json:"tenantId"`
@@ -563,6 +658,28 @@ type TokenIntrospected struct {
 
 func (e *TokenIntrospected) EventType() string     { return "TokenIntrospected" }
 func (e *TokenIntrospected) OccurredAt() time.Time { return e.At }
+
+type TokenExchanged struct {
+	At              time.Time `json:"-"`
+	TenantID        string    `json:"tenantId"`
+	ActorSub        string    `json:"actorSub"`
+	SubjectSub      string    `json:"subjectSub"`
+	Audience        string    `json:"audience"`
+	DelegationDepth int       `json:"delegationDepth"`
+}
+
+func (e *TokenExchanged) EventType() string     { return "TokenExchanged" }
+func (e *TokenExchanged) OccurredAt() time.Time { return e.At }
+
+type TokenExchangeRejected struct {
+	At       time.Time `json:"-"`
+	TenantID string    `json:"tenantId"`
+	ActorSub string    `json:"actorSub,omitempty"`
+	Reason   string    `json:"reason"`
+}
+
+func (e *TokenExchangeRejected) EventType() string     { return "TokenExchangeRejected" }
+func (e *TokenExchangeRejected) OccurredAt() time.Time { return e.At }
 
 type RefreshTokenReuseDetected struct {
 	At       time.Time `json:"-"`

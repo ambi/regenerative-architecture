@@ -102,6 +102,60 @@ func TestTOTPPolicyMatchesSCL(t *testing.T) {
 	}
 }
 
+func TestAgentStatusMatchesSCL(t *testing.T) {
+	s, err := spec.LoadSCL()
+	if err != nil {
+		t.Fatalf("load scl: %v", err)
+	}
+	got, err := s.EnumWireValues("AgentStatus")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		string(spec.AgentStatusActive),
+		string(spec.AgentStatusDisabled),
+		string(spec.AgentStatusKilled),
+	}
+	if !slices.Equal(got, want) {
+		t.Fatalf("SCL AgentStatus=%v, Go=%v", got, want)
+	}
+}
+
+func TestAgentKindMatchesSCL(t *testing.T) {
+	s, err := spec.LoadSCL()
+	if err != nil {
+		t.Fatalf("load scl: %v", err)
+	}
+	got, err := s.EnumWireValues("AgentKind")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		string(spec.AgentKindAutonomous),
+		string(spec.AgentKindSupervised),
+	}
+	if !slices.Equal(got, want) {
+		t.Fatalf("SCL AgentKind=%v, Go=%v", got, want)
+	}
+}
+
+func TestGrantTypeTokenExchangeMatchesSCL(t *testing.T) {
+	s, err := spec.LoadSCL()
+	if err != nil {
+		t.Fatalf("load scl: %v", err)
+	}
+	got, err := s.EnumWireValues("GrantType")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(got, string(spec.GrantTokenExchange)) {
+		t.Fatalf("SCL GrantType=%v は Go の GrantTokenExchange=%q を含みません", got, spec.GrantTokenExchange)
+	}
+	if !spec.GrantTokenExchange.Valid() {
+		t.Fatal("GrantTokenExchange.Valid() が false です")
+	}
+}
+
 func TestLoginThrottlePolicyLoadsFromSCL(t *testing.T) {
 	s, err := spec.LoadSCL()
 	if err != nil {

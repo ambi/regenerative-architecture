@@ -22,12 +22,12 @@ components:
 
   Authentication:
     description: エンドユーザ (Subject) の identity、credentials、MFA、ログインセッション、パスワードリセット、および管理 API からの User ライフサイクル操作を所有する。
-    owns_models: [User, MfaFactor, MfaFactorType, LoginSession, AuthenticationContext, PasswordResetTokenRecord, BrowserLoginRequest, BrowserTotpRequest, BrowserChangePasswordRequest, BrowserForgotPasswordRequest, BrowserResetPasswordRequest, AdminUserCreateRequest, AdminUserUpdateRequest, AdminRequiredActionRequest, AdminUserListResponse, AdminUserResponse, Group, GroupMember, GroupCreateRequest, GroupUpdateRequest, GroupSummaryResponse, GroupListResponse, GroupMemberResponse, GroupAddMemberRequest, UserGroupsResponse, UserLifecycle, AttributeValue, UserStatus, RequiredAction, AccountProfileResponse, AccountProfileUpdateRequest, AccountSummary, AccountEmailChangeRequest, AccountEmailChangeConfirm, AccountDataExport, AccountMfaFactor, AccountSecurityResponse, TOTPEnrollmentStart, TOTPEnrollmentConfirmRequest, MfaFactorRemoveRequest, UserSignInActivity, UserSignInActivityResponse, SessionEndReason, AccountSession, AccountSessionListResponse, AuthenticationEventBucket, AuthenticationEventBucketListResponse, StepUpMethod, StepUpStartResponse, StepUpCompleteRequest]
-    owns_states: [UserLifecycle, GroupLifecycle]
-    owns_events: [UserAuthenticated, AuthenticationFailed, PasswordChanged, LoginThrottled, PasswordResetRequested, EmailSent, EmailChangeRequested, EmailChanged, UserCreated, UserUpdated, UserDisabled, UserEnabled, UserDeleted, UserRequiredActionSet, UserRequiredActionCleared, GroupCreated, GroupUpdated, GroupDeleted, GroupMemberAdded, GroupMemberRemoved, MfaFactorEnrolled, MfaFactorRemoved, SessionEnded, AuthenticationEventAggregated, StepUpRequested, StepUpCompleted, AuthenticationStepCompleted, AuthenticationStepFailed, MfaChallengeIssued, MfaChallengeSucceeded, MfaChallengeFailed, BackupCodeConsumed, SessionStarted, SessionRefreshed, FederatedAuthenticated, FederationLinked, FederationUnlinked, SessionImpersonationStarted, SessionImpersonationEnded]
-    owns_interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, ChangePassword, GetAccountSummary, GetUserProfile, UpdateUserProfile, RequestEmailChange, ConfirmEmailChange, ExportAccountData, GetAccountSecurity, StartTotpEnrollment, ConfirmTotpEnrollment, RemoveTotpFactor, ListMySignInActivity, ListUserSignInActivity, ListAuthenticationEventBuckets, ListMySessions, RevokeMySession, RevokeMyOtherSessions, StartStepUpAuthentication, CompleteStepUpAuthentication, RequestPasswordReset, ResetPasswordWithToken, ListAdminUsers, GetAdminUser, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser, DeleteAdminUser, SetUserRequiredAction, ClearUserRequiredAction, ListGroups, GetGroup, CreateGroup, UpdateGroup, DeleteGroup, AddGroupMember, RemoveGroupMember, ListUserGroups]
+    owns_models: [User, MfaFactor, MfaFactorType, LoginSession, AuthenticationContext, PasswordResetTokenRecord, BrowserLoginRequest, BrowserTotpRequest, BrowserChangePasswordRequest, BrowserForgotPasswordRequest, BrowserResetPasswordRequest, AdminUserCreateRequest, AdminUserUpdateRequest, AdminRequiredActionRequest, AdminUserListResponse, AdminUserResponse, Group, GroupMember, GroupCreateRequest, GroupUpdateRequest, GroupSummaryResponse, GroupListResponse, GroupMemberResponse, GroupAddMemberRequest, UserGroupsResponse, UserLifecycle, AttributeValue, UserStatus, RequiredAction, AccountProfileResponse, AccountProfileUpdateRequest, AccountSummary, AccountEmailChangeRequest, AccountEmailChangeConfirm, AccountDataExport, AccountMfaFactor, AccountSecurityResponse, TOTPEnrollmentStart, TOTPEnrollmentConfirmRequest, MfaFactorRemoveRequest, UserSignInActivity, UserSignInActivityResponse, SessionEndReason, AccountSession, AccountSessionListResponse, AuthenticationEventBucket, AuthenticationEventBucketListResponse, StepUpMethod, StepUpStartResponse, StepUpCompleteRequest, AgentStatus, AgentKind, Agent, AgentCredentialBinding, AgentRegisterRequest, AgentUpdateRequest, AgentCredentialBindRequest, AgentSummaryResponse, AgentListResponse]
+    owns_states: [UserLifecycle, GroupLifecycle, AgentLifecycle]
+    owns_events: [UserAuthenticated, AuthenticationFailed, PasswordChanged, LoginThrottled, PasswordResetRequested, EmailSent, EmailChangeRequested, EmailChanged, UserCreated, UserUpdated, UserDisabled, UserEnabled, UserDeleted, UserRequiredActionSet, UserRequiredActionCleared, GroupCreated, GroupUpdated, GroupDeleted, GroupMemberAdded, GroupMemberRemoved, MfaFactorEnrolled, MfaFactorRemoved, SessionEnded, AuthenticationEventAggregated, StepUpRequested, StepUpCompleted, AuthenticationStepCompleted, AuthenticationStepFailed, MfaChallengeIssued, MfaChallengeSucceeded, MfaChallengeFailed, BackupCodeConsumed, SessionStarted, SessionRefreshed, FederatedAuthenticated, FederationLinked, FederationUnlinked, SessionImpersonationStarted, SessionImpersonationEnded, AgentRegistered, AgentUpdated, AgentDisabled, AgentEnabled, AgentKilled, AgentDeleted, AgentOwnerChanged, AgentCredentialBound, AgentCredentialUnbound]
+    owns_interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, ChangePassword, GetAccountSummary, GetUserProfile, UpdateUserProfile, RequestEmailChange, ConfirmEmailChange, ExportAccountData, GetAccountSecurity, StartTotpEnrollment, ConfirmTotpEnrollment, RemoveTotpFactor, ListMySignInActivity, ListUserSignInActivity, ListAuthenticationEventBuckets, ListMySessions, RevokeMySession, RevokeMyOtherSessions, StartStepUpAuthentication, CompleteStepUpAuthentication, RequestPasswordReset, ResetPasswordWithToken, ListAdminUsers, GetAdminUser, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser, DeleteAdminUser, SetUserRequiredAction, ClearUserRequiredAction, ListGroups, GetGroup, CreateGroup, UpdateGroup, DeleteGroup, AddGroupMember, RemoveGroupMember, ListUserGroups, ListAgents, GetAgent, RegisterAgent, UpdateAgent, DisableAgent, EnableAgent, KillAgent, DeleteAgent, BindAgentCredential, UnbindAgentCredential]
     owns_invariants: [PasswordHistoryNoReuse, EffectiveRolesComposition, GroupMembershipAuditEmission]
-    owns_permissions: [AdminUserRead, AdminUserCreate, AdminUserUpdate, AdminUserDelete, AdminGroupsRead, AdminGroupsWrite]
+    owns_permissions: [AdminUserRead, AdminUserCreate, AdminUserUpdate, AdminUserDelete, AdminGroupsRead, AdminGroupsWrite, AdminAgentsManage]
     owns_objectives: [PiiPurgeAfterDeletion]
     depends_on:
       - { component: Tenancy, reason: User と LoginSession はテナント境界内に閉じ、User 管理 API もテナント単位で動く。 }
@@ -43,10 +43,10 @@ components:
       を本コンポーネントに集約する。
     owns_models: [OAuth2Client, ClientType, TokenEndpointAuthMethod, FapiProfile, ClientRegistrationRequest, AdminClientCreateRequest, AdminClientUpdateRequest, AdminClientResponse, AdminClientCreateResponse, AdminClientListResponse, InvalidClientError, UnauthorizedClientError, AuthorizationRequest, AuthorizeParameters, Consent, ConsentState, AdminConsentResponse, AdminConsentListResponse, AccountConsentResponse, AccountConsentListResponse, AuthorizationCodeRecord, AuthorizationCodeState, AuthorizationCodeRecordState, ResponseType, ResponseMode, CodeChallengeMethod, GrantType, PARRecord, PARRecordState, ParRequest, ParResponse, BrowserConsentRequest, BrowserTransactionResponse, BrowserFlowResponse, EndSessionParameters, DeviceCodeState, DeviceAuthorization, DeviceAuthorizationRequest, DeviceAuthorizationResponse, BrowserDeviceRequest, BrowserDeviceContextResponse, OAuthError, OAuthErrorCode, InvalidRequestError, InvalidScopeError, AccessDeniedError, ExpiredTokenError, SlowDownError, AuthorizationPendingError, ServerError, TokenRequest, TokenResponse, IntrospectionRequest, IntrospectionResponse, RevokeRequest, UserInfoResponse, RefreshTokenRecord, RefreshTokenState, AccessTokenClaims, IdTokenClaims, TokenType, AccessTokenSenderConstraint, SenderConstraintKind, SenderConstraintCnf, RefreshTokenSenderConstraint, Audience, InvalidGrantError, UnsupportedGrantTypeError, InvalidTokenError, InvalidDpopProofError, InsufficientScopeError, SigningKey, SigningKeyState, JWK, JWKS, DiscoveryDocument, SignatureAlgorithm, Uri, AuditEventQuery, AdminAuditEventResponse, AdminAuditEventListResponse, AdminKeyResponse, AdminKeyListResponse, AdminRotateKeyResponse]
     owns_states: [AuthorizationCodeFlow, AuthorizationCodeRecordLifecycle, ConsentLifecycle, PARRecordLifecycle, DeviceCodeFlow, RefreshTokenLifecycle, SigningKeyLifecycle]
-    owns_events: [ClientRegistered, AdminClientCreated, AdminClientUpdated, AdminClientDeleted, AuthorizationCodeIssued, AuthorizationCodeRedeemed, ConsentGranted, ConsentRevoked, PARStored, DeviceAuthorizationRequested, DeviceAuthorizationApproved, DeviceAuthorizationDenied, AccessTokenIssued, RefreshTokenIssued, RefreshTokenRotated, TokenRevoked, TokenIntrospected, RefreshTokenReuseDetected, SigningKeyRotated]
+    owns_events: [ClientRegistered, AdminClientCreated, AdminClientUpdated, AdminClientDeleted, AuthorizationCodeIssued, AuthorizationCodeRedeemed, ConsentGranted, ConsentRevoked, PARStored, DeviceAuthorizationRequested, DeviceAuthorizationApproved, DeviceAuthorizationDenied, AccessTokenIssued, RefreshTokenIssued, RefreshTokenRotated, TokenRevoked, TokenIntrospected, TokenExchanged, TokenExchangeRejected, RefreshTokenReuseDetected, SigningKeyRotated]
     owns_interfaces: [RegisterClient, ListAdminClients, GetAdminClient, CreateAdminClient, UpdateAdminClient, DeleteAdminClient, Authorize, GetBrowserTransaction, SubmitBrowserConsent, PushAuthorizationRequest, DeviceAuthorization, GetBrowserDeviceContext, SubmitBrowserDevice, EndSession, ListAdminConsents, GetAdminConsent, RevokeAdminConsent, ListMyConsents, RevokeMyConsent, Token, Introspect, Revoke, UserInfo, PostUserInfo, GetJwks, GetOpenidConfiguration, GetOauthAuthorizationServer, Health, ListAdminAuditEvents, ExportAdminAuditEvents, GetAdminAuditEvent, ListAdminKeys, GetAdminKey, RotateAdminKey]
     owns_invariants: [ClientAuthFailureUniformity, PkceRoundTrip, AuthCodeStateSafety, DeviceCodeStateSafety, AuthorizationCodeSingleUse, ParRequestUriSingleUse, AuthorizationCodeTtl, AuthorizationCodeEventuallyResolves, DeviceCodeEventuallyResolves, RedirectUriExactMatch, PkceMandatory, AccessTokenIssuedOnlyAfterConsent, RefreshFamilyTransitiveRevoke, RefreshRotationParentInvariants, DpopJtiUniquenessWithinWindow, TokenHashOneWay, RefreshTokenAbsoluteTtl, AllAccessTokensCarryAudience, SigningKeyMaxAge]
-    owns_permissions: [AdminClientsManage, AuthorizeInitiate, AdminConsentsManage, TokenGrantAuthorizationCode, TokenGrantRefresh, TokenGrantClientCredentials, TokenGrantDeviceCode, TokenIntrospect, TokenRevoke, UserInfoRead, AdminAuditEventsRead, AdminKeysRead, AdminKeysRotate]
+    owns_permissions: [AdminClientsManage, AuthorizeInitiate, AdminConsentsManage, TokenGrantAuthorizationCode, TokenGrantRefresh, TokenGrantClientCredentials, TokenGrantDeviceCode, TokenGrantTokenExchange, TokenIntrospect, TokenRevoke, UserInfoRead, AdminAuditEventsRead, AdminKeysRead, AdminKeysRotate]
     owns_objectives: [RegisterLatency, RegisterErrorRate, ClientAuthFailureRateLimit, AuthorizeLatency, ParLatency, DeviceAuthorizationLatency, AuthorizeErrorRate, ParErrorRate, DeviceAuthorizationErrorRate, AuthorizeThroughput, AuthorizationCodeLifetime, ParRequestUriLifetime, DeviceCodeLifetime, UserCodeLifetime, DeviceCodePollingDefaultInterval, ConsentRecordsRetention, AuthorizationCodeRedemptionFailureRateLimit, TokenLatency, IntrospectLatency, RevokeLatency, UserInfoLatency, TokenErrorRate, IntrospectErrorRate, RevokeErrorRate, UserInfoErrorRate, TokenEndpointAvailability, TokenThroughput, IntrospectThroughput, AccessTokenLifetime, IdTokenLifetime, RefreshTokenLifetime, RefreshTokenAbsoluteLifetime, DpopProofClockSkewPast, DpopProofClockSkewFuture, DpopJtiReplayWindow, DpopNonceLifetime, RefreshReuseAlertWindow, JwksLatency, DiscoveryLatency, JwksErrorRate, DiscoveryErrorRate, OverallAvailability, SigningKeyMinJwksOverlap, SigningKeyArchiveRetention, AuditLogRetention]
     depends_on:
       - { component: Tenancy,        reason: クライアント・コード・トークン・鍵・監査はテナント境界内に閉じる。 }
@@ -707,6 +707,9 @@ vocabulary:
   DeviceCode:
     definition: 入力制約のあるデバイス向けのデバイス認可グラント (RFC 8628)。grant_type は URN。
     aliases: ["urn:ietf:params:oauth:grant-type:device_code", device_code, デバイスコード]
+  TokenExchange:
+    definition: 既存トークンを別トークンに交換するトークン交換グラント (RFC 8693)。本アプリは自己発行トークンの委任 (delegation) のみを扱い、subject_token / actor_token は本 IdP が発行したものに限る。grant_type は URN。
+    aliases: ["urn:ietf:params:oauth:grant-type:token-exchange", token-exchange, トークン交換]
 
   # ---------- トークン ----------
   AccessToken:
@@ -798,6 +801,12 @@ vocabulary:
   EffectiveRoles:
     definition: 認可判断で用いる User の有効ロール集合。user.roles と所属 Group の roles の和集合 (ADR-038)。admin RBAC ゲートと /account 自己コンテキストで参照する。
     aliases: [effective roles, 有効ロール]
+  Agent:
+    definition: ADR-048 で導入した tenant-scoped な非人間 (non-human) identity principal。自身の資格情報は持たず、AgentCredentialBinding で既存 OAuth2Client に束縛してトークンを得る。owner (所有者 User の sub) は必須。
+    aliases: [agent, エージェント, AI agent, non-human identity]
+    not_to_confuse_with:
+      - { term: User, reason: User は人間 identity。Agent は非人間 identity で owner User を必須に持つ。 }
+      - { term: OAuth2Client, reason: OAuth2Client はアプリ登録 (資格情報の器)、Agent は identity principal。Agent は Client を束縛して稼働するが Client そのものではない。 }
   Tenant:
     definition: ADR-032 で導入した独立した認可境界。Client / User / Consent / 鍵 / ポリシーがこの境界に閉じる。URL 上は Realm という別名で表現される (ADR-033)。
     aliases: [tenant, テナント, Realm, realm]
@@ -1065,6 +1074,26 @@ vocabulary:
     definition: Disabled の対象を Active に戻す。Tenant では `/realms/default/admin/tenants/{id}/enable` から発火。
     aliases: [enable]
 
+  # ---------- Agent のライフサイクル状態・イベント (ADR-048) ----------
+  Killed:
+    definition: Agent の緊急停止 (kill-switch) による一方向終端状態 (ADR-048)。Killed からは復帰できず、新規トークンを一切発行しない (fail-closed)。
+    aliases: [killed]
+  DisableAgent:
+    definition: Agent を Active から Disabled に遷移させる可逆な運用停止 (ADR-048)。`/api/admin/agents/{agent_id}/disable` から発火。
+    aliases: [disable agent]
+  EnableAgent:
+    definition: Disabled の Agent を Active に戻す (ADR-048)。`/api/admin/agents/{agent_id}/enable` から発火。
+    aliases: [enable agent]
+  KillAgent:
+    definition: Agent を Killed (一方向終端) に遷移させる緊急停止 (ADR-048)。`/api/admin/agents/{agent_id}/kill` から発火し、以後復帰不能。
+    aliases: [kill agent]
+  Autonomous:
+    definition: Agent が人間の都度承認なしに自律実行する区分 (ADR-048)。
+    aliases: [autonomous]
+  Supervised:
+    definition: Agent が人間の監督下で実行する区分 (ADR-048)。
+    aliases: [supervised]
+
   # ---------- 用語として使わないもの ----------
   Implicit:
     definition: implicit grant は RFC 9700 §2.1.2 により参照実装から除外する。
@@ -1090,8 +1119,8 @@ models:
 
   GrantType:
     kind: enum
-    description: トークン発行の方式。本アプリがサポートする 4 種を列挙する。各値の意味は vocabulary を参照。
-    values: [AuthorizationCode, RefreshToken, ClientCredentials, DeviceCode]
+    description: トークン発行の方式。本アプリがサポートする 5 種を列挙する。各値の意味は vocabulary を参照。
+    values: [AuthorizationCode, RefreshToken, ClientCredentials, DeviceCode, TokenExchange]
 
   TokenEndpointAuthMethod:
     kind: enum
@@ -1222,6 +1251,17 @@ models:
     kind: enum
     description: 属性の開示範囲 (ADR-040)。ClaimExposed のみ UserInfo / ID Token に出せる。
     values: [Private, SelfReadable, AdminReadable, ClaimExposed]
+
+  # ---------- Agent の列挙 (wi-49 / ADR-048) ----------
+  AgentStatus:
+    kind: enum
+    description: Agent の運用状態 (ADR-048)。Active は通常稼働、Disabled は可逆な運用停止、Killed は緊急停止 (一方向終端)。Active 以外は新規トークンを発行しない (fail-closed)。
+    values: [Active, Disabled, Killed]
+
+  AgentKind:
+    kind: enum
+    description: Agent の自律性区分 (ADR-048)。Autonomous は自律実行、Supervised は人間の監督下で実行する。
+    values: [Autonomous, Supervised]
 
   # ---------- 永続エンティティ ----------
   Tenant:
@@ -1550,6 +1590,8 @@ models:
       acr:        { type: String, optional: true }
       amr:        { type: "String[]", optional: true }
       cnf:        { type: SenderConstraintCnf, optional: true }
+      act:        { type: JSON, optional: true, description: "RFC 8693 §4.1 actor claim。委任の現在アクターを表す。subject_token に act があれば入れ子で連結される。" }
+      may_act:    { type: JSON, optional: true, description: "RFC 8693 §4.4 may_act claim。許可された委任先アクターを表す。" }
 
   IdTokenClaims:
     kind: value_object
@@ -2128,6 +2170,91 @@ models:
       group_roles:     { type: "String[]", description: "所属グループ由来ロールの union。" }
       effective_roles: { type: "String[]", description: "direct_roles ∪ group_roles。" }
 
+  Agent:
+    kind: entity
+    description: ADR-048 で導入した tenant-scoped な非人間 (non-human) identity principal。自身の資格情報は持たず、AgentCredentialBinding で既存 OAuth2Client に束縛してトークンを得る。owner は必須。
+    identity: id
+    annotations: { component: Authentication }
+    fields:
+      id:          { type: String, constraints: [non_empty, { max_length: 64 }], description: "生成識別子 agent_<uuid>。不変。" }
+      tenant_id:   { type: String, default: "default", description: "所属テナント ID (ADR-032 / ADR-034)。cross-tenant 参照は禁止。" }
+      name:        { type: String, constraints: [non_empty, { max_length: 100 }], description: "テナント内で一意な表示名。", annotations: { pii: true } }
+      description: { type: String, optional: true, constraints: [{ max_length: 500 }], description: "用途 purpose。" }
+      kind:        { type: AgentKind, default: Supervised }
+      owner_sub:   { type: String, constraints: [non_empty], description: "所有者 User の sub。必須 (ADR-048)。" }
+      status:      { type: AgentStatus, default: Active }
+      roles:       { type: "String[]", description: "Agent に付与するロール束。" }
+      created_at:  { type: Timestamp }
+      updated_at:  { type: Timestamp, optional: true }
+      disabled_at: { type: Timestamp, optional: true }
+      killed_at:   { type: Timestamp, optional: true, description: "一方向終端 (kill) 時刻。" }
+
+  AgentCredentialBinding:
+    kind: entity
+    description: Agent と OAuth2Client の束縛関係 (ADR-048)。agent_id × client_id で一意。Agent は束縛した Client の資格情報を用いてトークンを得る。
+    identity: [agent_id, client_id]
+    annotations: { component: Authentication }
+    fields:
+      agent_id:   { type: String }
+      client_id:  { type: String }
+      tenant_id:  { type: String, default: "default" }
+      created_at: { type: Timestamp }
+
+  AgentRegisterRequest:
+    kind: value_object
+    description: 管理者が Agent を登録する JSON リクエスト (ADR-048)。owner_sub 省略時は actor を所有者とする。
+    annotations: { component: Authentication }
+    fields:
+      name:        { type: String, constraints: [non_empty, { max_length: 100 }], annotations: { pii: true } }
+      description: { type: String, optional: true, constraints: [{ max_length: 500 }] }
+      kind:        { type: AgentKind, optional: true }
+      owner_sub:   { type: String, optional: true, description: "省略時は actor の sub を所有者とする。" }
+      roles:       { type: "String[]", optional: true }
+
+  AgentUpdateRequest:
+    kind: value_object
+    description: 管理者が Agent の name / description / kind / owner_sub / roles を更新する JSON リクエスト (ADR-048)。省略フィールドは現状維持。owner_sub の変更は所有権移転。
+    annotations: { component: Authentication }
+    fields:
+      name:        { type: String, optional: true, constraints: [non_empty, { max_length: 100 }], annotations: { pii: true } }
+      description: { type: String, optional: true, constraints: [{ max_length: 500 }] }
+      kind:        { type: AgentKind, optional: true }
+      owner_sub:   { type: String, optional: true, description: "変更は所有権移転 (AgentOwnerChanged)。" }
+      roles:       { type: "String[]", optional: true }
+
+  AgentCredentialBindRequest:
+    kind: value_object
+    description: Agent に OAuth2Client を束縛する JSON リクエスト (ADR-048)。
+    annotations: { component: Authentication }
+    fields:
+      client_id: { type: String, constraints: [non_empty] }
+
+  AgentSummaryResponse:
+    kind: value_object
+    description: Agent 表現。管理 UI の一覧と詳細で同じ表現を返す (ADR-048)。
+    annotations: { component: Authentication }
+    fields:
+      id:          { type: String }
+      tenant_id:   { type: String }
+      name:        { type: String, annotations: { pii: true } }
+      description: { type: String, optional: true }
+      kind:        { type: AgentKind }
+      owner_sub:   { type: String }
+      status:      { type: AgentStatus }
+      roles:       { type: "String[]" }
+      client_ids:  { type: "String[]", description: "束縛済み OAuth2Client id。" }
+      created_at:  { type: Timestamp }
+      updated_at:  { type: Timestamp, optional: true }
+      disabled_at: { type: Timestamp, optional: true }
+      killed_at:   { type: Timestamp, optional: true }
+
+  AgentListResponse:
+    kind: value_object
+    description: 管理 API の Agent 一覧 (ADR-048)。
+    annotations: { component: Authentication }
+    fields:
+      agents: { type: "AgentSummaryResponse[]" }
+
   AdminClientCreateRequest:
     kind: value_object
     description: 管理者が所属テナントに OAuth client を作成する。生成された client_secret は作成応答で一度だけ返す。
@@ -2346,11 +2473,13 @@ models:
       scope:        { type: String, optional: true }
       client_id:    { type: String, optional: true }
       sub:          { type: String, optional: true }
+      aud:          { type: Audience, optional: true }
       exp:          { type: Integer, optional: true }
       iat:          { type: Integer, optional: true }
       token_type:   { type: String, optional: true }
       jti:          { type: String, optional: true }
       cnf:          { type: SenderConstraintCnf, optional: true }
+      act:          { type: JSON, optional: true, description: "RFC 8693 §4.1 actor claim。委任トークンの場合に現在アクターとアクター連鎖を返す。" }
 
   RevokeRequest:
     kind: value_object
@@ -3061,6 +3190,101 @@ models:
       groupId:    { type: String }
       userSub:    { type: String }
 
+  AgentRegistered:
+    kind: event
+    description: 管理者が Agent を登録した (ADR-048)。
+    annotations: { component: Authentication }
+    payload:
+      occurredAt: { type: Timestamp }
+      tenantId:   { type: String, description: "Agent が属するテナント ID。" }
+      actorSub:   { type: String }
+      agentId:    { type: String }
+
+  AgentUpdated:
+    kind: event
+    description: 管理者が Agent の name / description / kind / roles を更新した (ADR-048)。
+    annotations: { component: Authentication }
+    payload:
+      occurredAt:    { type: Timestamp }
+      tenantId:      { type: String, description: "Agent が属するテナント ID。" }
+      actorSub:      { type: String }
+      agentId:       { type: String }
+      changedFields: { type: "String[]" }
+
+  AgentDisabled:
+    kind: event
+    description: 管理者が Agent を可逆に運用停止した (ADR-048)。
+    annotations: { component: Authentication }
+    payload:
+      occurredAt: { type: Timestamp }
+      tenantId:   { type: String, description: "Agent が属するテナント ID。" }
+      actorSub:   { type: String }
+      agentId:    { type: String }
+
+  AgentEnabled:
+    kind: event
+    description: 管理者が運用停止中の Agent を再稼働した (ADR-048)。
+    annotations: { component: Authentication }
+    payload:
+      occurredAt: { type: Timestamp }
+      tenantId:   { type: String, description: "Agent が属するテナント ID。" }
+      actorSub:   { type: String }
+      agentId:    { type: String }
+
+  AgentKilled:
+    kind: event
+    description: 管理者が Agent を緊急停止した (一方向終端) (ADR-048)。以後復帰不能。
+    annotations: { component: Authentication }
+    payload:
+      occurredAt: { type: Timestamp }
+      tenantId:   { type: String, description: "Agent が属するテナント ID。" }
+      actorSub:   { type: String }
+      agentId:    { type: String }
+
+  AgentDeleted:
+    kind: event
+    description: 管理者が Agent を削除した (ADR-048)。束縛は cascade で解除される。
+    annotations: { component: Authentication }
+    payload:
+      occurredAt: { type: Timestamp }
+      tenantId:   { type: String, description: "Agent が属するテナント ID。" }
+      actorSub:   { type: String }
+      agentId:    { type: String }
+
+  AgentOwnerChanged:
+    kind: event
+    description: 管理者が Agent の所有者 (owner_sub) を移転した (ADR-048)。
+    annotations: { component: Authentication }
+    payload:
+      occurredAt:        { type: Timestamp }
+      tenantId:          { type: String, description: "Agent が属するテナント ID。" }
+      actorSub:          { type: String }
+      agentId:           { type: String }
+      previousOwnerSub:  { type: String }
+      newOwnerSub:       { type: String }
+
+  AgentCredentialBound:
+    kind: event
+    description: 管理者が Agent に OAuth2Client を束縛した (ADR-048)。
+    annotations: { component: Authentication }
+    payload:
+      occurredAt: { type: Timestamp }
+      tenantId:   { type: String, description: "Agent が属するテナント ID。" }
+      actorSub:   { type: String }
+      agentId:    { type: String }
+      clientId:   { type: String }
+
+  AgentCredentialUnbound:
+    kind: event
+    description: 管理者が Agent から OAuth2Client の束縛を解除した (ADR-048)。
+    annotations: { component: Authentication }
+    payload:
+      occurredAt: { type: Timestamp }
+      tenantId:   { type: String, description: "Agent が属するテナント ID。" }
+      actorSub:   { type: String }
+      agentId:    { type: String }
+      clientId:   { type: String }
+
   AdminClientCreated:
     kind: event
     description: 管理者が所属テナントに OAuth client を作成した。秘密情報は含めない。
@@ -3232,6 +3456,26 @@ models:
       rsClientId:   { type: String }
       tokenId:      { type: String }
       active:       { type: Boolean }
+
+  TokenExchanged:
+    kind: event
+    description: "RFC 8693 — トークン交換による委任トークンを発行した。delegationDepth は発行トークンの act 入れ子の深さ (ADR-049 の DelegationChainExtended はこのフィールドへ折り畳んだ)。"
+    payload:
+      occurredAt:       { type: Timestamp }
+      tenantId:         { type: String, description: "トークン交換が起きたテナント ID。" }
+      actorSub:         { type: String, description: "発行トークンの現在アクター (act.sub)。" }
+      subjectSub:       { type: String, description: "発行トークンの subject (sub)。subject_token の sub を維持する。" }
+      audience:         { type: String, description: "resource パラメータ由来の発行トークン aud。" }
+      delegationDepth:  { type: Integer, description: "発行トークンの act 入れ子の深さ。" }
+
+  TokenExchangeRejected:
+    kind: event
+    description: "RFC 8693 — トークン交換要求をポリシー違反・検証失敗により拒否した (fail-closed)。"
+    payload:
+      occurredAt:   { type: Timestamp }
+      tenantId:     { type: String, description: "トークン交換が拒否されたテナント ID。" }
+      actorSub:     { type: String, optional: true, description: "拒否時に判明している現在アクター。不明な場合は空。" }
+      reason:       { type: String, description: "拒否理由 (OAuth error code 等)。" }
 
   RefreshTokenReuseDetected:
     kind: event
@@ -3665,6 +3909,7 @@ interfaces:
       - "リフレッシュトークン {refresh_token} を交換する"
       - "device_code {device_code} を交換する"
       - "client_credentials で scope {scope} のトークンを取得する"
+      - "subject_token {subject_token} を resource {resource} 向けに交換する"
     input:
       request: { type: TokenRequest }
     output:
@@ -3686,6 +3931,8 @@ interfaces:
       - RefreshTokenRotated
       - RefreshTokenReuseDetected
       - AuthorizationCodeRedeemed
+      - TokenExchanged
+      - TokenExchangeRejected
     bindings:
       - kind: http
         method: POST
@@ -3986,6 +4233,105 @@ interfaces:
     read_only: true
     bindings:
       - { kind: http, method: GET, path: "/api/admin/users/{sub}/groups" }
+
+  ListAgents:
+    description: 管理者が所属テナントの Agent を一覧する (ADR-048)。
+    output:
+      response: { type: AgentListResponse }
+    errors: [AccessDeniedError]
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: /api/admin/agents }
+
+  GetAgent:
+    description: 管理者が単一 Agent を取得する。別テナントの Agent は未存在として扱う (ADR-048)。
+    input:
+      agent_id: { type: String }
+    output:
+      response: { type: AgentSummaryResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: "/api/admin/agents/{agent_id}" }
+
+  RegisterAgent:
+    description: 管理者が所属テナントに Agent を登録する。name はテナント内で一意、owner_sub 省略時は actor を所有者とする (ADR-048)。
+    input:
+      request: { type: AgentRegisterRequest }
+    output:
+      response: { type: AgentSummaryResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [AgentRegistered]
+    bindings:
+      - { kind: http, method: POST, path: /api/admin/agents, request_form: body, successful_status_codes: ["201"] }
+
+  UpdateAgent:
+    description: 管理者が Agent の name / description / kind / owner_sub / roles を更新する (ADR-048)。owner_sub の変更は所有権移転。
+    input:
+      agent_id: { type: String }
+      request:  { type: AgentUpdateRequest }
+    output:
+      response: { type: AgentSummaryResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [AgentUpdated, AgentOwnerChanged]
+    bindings:
+      - { kind: http, method: PATCH, path: "/api/admin/agents/{agent_id}", request_form: body }
+
+  DisableAgent:
+    description: 管理者が Agent を可逆に運用停止する (ADR-048)。
+    input:
+      agent_id: { type: String }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [AgentDisabled]
+    bindings:
+      - { kind: http, method: POST, path: "/api/admin/agents/{agent_id}/disable", successful_status_codes: ["204"] }
+
+  EnableAgent:
+    description: 管理者が運用停止中の Agent を再稼働する (ADR-048)。
+    input:
+      agent_id: { type: String }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [AgentEnabled]
+    bindings:
+      - { kind: http, method: POST, path: "/api/admin/agents/{agent_id}/enable", successful_status_codes: ["204"] }
+
+  KillAgent:
+    description: 管理者が Agent を緊急停止する (一方向終端、復帰不能) (ADR-048)。
+    input:
+      agent_id: { type: String }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [AgentKilled]
+    bindings:
+      - { kind: http, method: POST, path: "/api/admin/agents/{agent_id}/kill", successful_status_codes: ["204"] }
+
+  DeleteAgent:
+    description: 管理者が Agent を削除する。束縛は cascade で解除する (ADR-048)。
+    input:
+      agent_id: { type: String }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [AgentDeleted]
+    bindings:
+      - { kind: http, method: DELETE, path: "/api/admin/agents/{agent_id}", successful_status_codes: ["204"] }
+
+  BindAgentCredential:
+    description: 管理者が Agent に OAuth2Client を束縛する (ADR-048)。
+    input:
+      agent_id: { type: String }
+      request:  { type: AgentCredentialBindRequest }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [AgentCredentialBound]
+    bindings:
+      - { kind: http, method: POST, path: "/api/admin/agents/{agent_id}/credentials", request_form: body, successful_status_codes: ["204"] }
+
+  UnbindAgentCredential:
+    description: 管理者が Agent から OAuth2Client の束縛を解除する (ADR-048)。
+    input:
+      agent_id:  { type: String }
+      client_id: { type: String }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [AgentCredentialUnbound]
+    bindings:
+      - { kind: http, method: DELETE, path: "/api/admin/agents/{agent_id}/credentials/{client_id}", successful_status_codes: ["204"] }
 
   ListAdminClients:
     description: 管理者が所属テナントの client を一覧する。
@@ -4423,6 +4769,20 @@ states:
     initial: Active
     terminal: []
     transitions: []
+
+  AgentLifecycle:
+    description: |
+      Agent aggregate のライフサイクル (ADR-048)。Active が通常稼働、Disable で
+      復活可能な運用停止、Kill で一方向終端 (緊急停止) となる。Killed は終端で
+      復元できず、Active 以外は新規トークンを発行しない (fail-closed)。
+    target: Agent
+    initial: Active
+    terminal: [Killed]
+    transitions:
+      - { from: Active,   event: DisableAgent, to: Disabled }
+      - { from: Disabled, event: EnableAgent,  to: Active }
+      - { from: Active,   event: KillAgent,    to: Killed }
+      - { from: Disabled, event: KillAgent,    to: Killed }
 
 
 # =================================================================
@@ -5224,6 +5584,15 @@ permissions:
         - "resource.state == Approved"
         - "now() < resource.expires_at"
 
+  TokenGrantTokenExchange:
+    description: トークン交換 (RFC 8693) による委任トークン発行
+    actor: Client
+    action: TokenGrantTokenExchange
+    resource: AccessTokenClaims
+    allow_when:
+      and:
+        - "TokenExchange in actor.grant_types"
+
   TokenIntrospect:
     description: /introspect の呼び出し
     actor: Client
@@ -5326,6 +5695,18 @@ permissions:
     actor: User
     action: AdminGroupsWrite
     resource: Group
+    allow_when:
+      and:
+        - "admin in actor.roles"
+        - "actor.disabled_at == null"
+        - "context.authenticated == true"
+        - "actor.tenant_id == resource.tenant_id"
+
+  AdminAgentsManage:
+    description: Agent の一覧・登録・更新・無効化・再稼働・緊急停止・削除と資格情報束縛操作 (ADR-048)。
+    actor: User
+    action: AdminAgentsManage
+    resource: Agent
     allow_when:
       and:
         - "admin in actor.roles"

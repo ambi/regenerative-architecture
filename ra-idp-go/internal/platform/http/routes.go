@@ -43,6 +43,7 @@ type Deps struct {
 	JWKResolver                *crypto.JWKResolver
 	PasswordHasher             authports.PasswordHasher
 	GroupRepo                  authports.GroupRepository
+	AgentRepo                  authports.AgentRepository
 	MfaFactorRepo              authports.MfaFactorRepository
 	PasswordHistoryRepo        authports.PasswordHistoryRepository
 	PasswordResetTokenStore    authports.PasswordResetTokenStore
@@ -136,6 +137,16 @@ func registerTenantRoutes(g *echo.Group, d Deps) {
 	g.DELETE("/api/admin/groups/:group_id", d.handleDeleteGroup)
 	g.POST("/api/admin/groups/:group_id/members/:user_sub", d.handleAddGroupMember)
 	g.DELETE("/api/admin/groups/:group_id/members/:user_sub", d.handleRemoveGroupMember)
+	g.GET("/api/admin/agents", d.handleListAgents)
+	g.GET("/api/admin/agents/:agent_id", d.handleGetAgent)
+	g.POST("/api/admin/agents", d.handleRegisterAgent)
+	g.PATCH("/api/admin/agents/:agent_id", d.handleUpdateAgent)
+	g.POST("/api/admin/agents/:agent_id/disable", d.handleDisableAgent)
+	g.POST("/api/admin/agents/:agent_id/enable", d.handleEnableAgent)
+	g.POST("/api/admin/agents/:agent_id/kill", d.handleKillAgent)
+	g.DELETE("/api/admin/agents/:agent_id", d.handleDeleteAgent)
+	g.POST("/api/admin/agents/:agent_id/credentials", d.handleBindAgentCredential)
+	g.DELETE("/api/admin/agents/:agent_id/credentials/:client_id", d.handleUnbindAgentCredential)
 	g.GET("/api/admin/clients", d.handleListAdminClients)
 	g.GET("/api/admin/clients/:client_id", d.handleGetAdminClient)
 	g.POST("/api/admin/clients", d.handleCreateAdminClient)

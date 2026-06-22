@@ -17,6 +17,11 @@ type IntrospectionResult struct {
 	Iat              int64
 	TokenType        string
 	SenderConstraint *spec.SenderConstraint
+	// Aud / Act / MayAct は RFC 8693 トークン交換のために検証済みペイロードから抽出する。
+	// Aud は単一文字列でも配列でも常に []string に正規化する。
+	Aud    []string
+	Act    map[string]any
+	MayAct map[string]any
 }
 
 type TokenIntrospector interface {

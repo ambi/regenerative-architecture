@@ -343,13 +343,13 @@ ra-idp-go/
 │   └── src/features/                       UI feature 境界
 ├── cmd/ra-idp-go/main.go               起動
 ├── internal/spec/                      Layer 1 バインディング: SCL 構造体 + 状態機械
-├── internal/tenancy/                   Layer 3: テナント (domain / ports / usecases)
-├── internal/oauth2/                    Layer 3: OAuth2 (domain / ports / usecases)
-├── internal/authentication/            Layer 3: 認証 (domain / ports / usecases)
+├── internal/tenancy/                   Layer 3+4: テナント (domain / ports / usecases / adapters/http)
+├── internal/oauth2/                    Layer 3+4: OAuth2 (domain / ports / usecases / adapters/http)
+├── internal/authentication/            Layer 3+4: 認証 (domain / ports / usecases / adapters/http)
 ├── internal/platform/                  Layer 4: コンテキスト横断アダプタ
 │   ├── crypto/                         Argon2id, PS256, DPoP, private_key_jwt
 │   ├── persistence/                    memory / PostgreSQL / Redis（リソース別ファイル）
-│   ├── http/                           Echo v5（per-context 分割は wi-48）
+│   ├── http/                           Echo v5 router + core（各 context の adapters/http を集約）
 │   ├── observability/                  OpenTelemetry
 │   ├── policy/                         local / remote AuthZEN
 │   ├── notification/                   メール送信
@@ -359,9 +359,12 @@ ra-idp-go/
 ```
 
 > 構造軸 (ADR-047): 水平の5層に加え、垂直の境界づけられたコンテキスト
-> (`tenancy` / `authentication` / `oauth2`) で分割する (RA §3.6)。Layer 3 は各
-> コンテキストが所有し、コンテキスト横断の Layer 4 アダプタは `internal/platform/`
-> に集約する。
+> (`tenancy` / `authentication` / `oauth2`) で分割する (RA §3.6)。Layer 3 と HTTP
+> アダプタ (`adapters/http`) は各コンテキストが所有し、HTTP の共有基盤
+> (依存集約 `core.Deps`・テナント解決 middleware・横断ヘルパ) は
+> `internal/platform/http/core` に、コンテキスト横断のその他 Layer 4 アダプタは
+> `internal/platform/` に集約する。`internal/platform/http` は各コンテキストの
+> `RegisterRoutes` を束ねる router (wi-48)。
 
 ## 実装ロードマップ
 

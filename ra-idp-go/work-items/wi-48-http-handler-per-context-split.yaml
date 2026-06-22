@@ -2,7 +2,7 @@ id: wi-48-http-handler-per-context-split
 title: HTTP ハンドラをコンテキスト別パッケージへ分割し共有 core を抽出する
 created_at: 2026-06-22
 authors: [tn]
-status: pending
+status: completed
 
 motivation: |
   ADR-047 で Layer 4 アダプタをコンテキスト所有へ寄せ、横断インフラを
@@ -102,3 +102,59 @@ risk_notes: |
       公開 API 経由へ書き換える。移行漏れでカバレッジが落ちないよう確認する。
   (4) 段階性: context 単位 (oauth2 → tenancy → authentication、依存の浅い順) に
       小さくコミットし、各コミットを build/test グリーンに保つ。
+
+completion:
+  completed_at: 2026-06-23
+  summary: |
+    http アダプタを per-context パッケージへ分割した。共有基盤 (依存集約 Deps・
+    HealthInfo・テナント解決 middleware・横断ヘルパ) を `internal/platform/http/core`
+    に集約し、各コンテキストは `internal/<context>/adapters/http` で自身のハンドラを
+    所有する。`internal/platform/http` は各コンテキストの RegisterRoutes を束ねる
+    router (+ /health) に縮約した。依存方向は core ← 各 context http ← router の一方向。
+    ハンドラは承認方針どおり「core.Deps を埋め込む薄いラッパ (type Deps struct{ *core.Deps })」
+    のメソッドのまま移し、ルーティング登録とハンドラ本体はほぼ無改変とした
+    (受け渡し方式の判断記録)。挙動・パス・メソッド・middleware は不変。
+  deviations:
+    - >-
+      受け渡し方式: WI 記載の「core.Deps を受け取る自由関数化」ではなく、ユーザ承認の
+      薄いラッパ型を採用 (160メソッド+約100ルートの機械変換と回帰リスクを回避。到達点の
+      構造目標と非循環依存は同一)。固有フィールドを持たないため per-context Deps 分解
+      (out_of_scope) には当たらない。
+    - >-
+      authflow の帰属: login/totp/consent は handleAuthorize 等と認可トランザクション
+      内部ヘルパ (transactionRequest/completeAfterAuthn/issueCodeURL/transaction cookie)
+      を共有する一体モジュールのため、ユーザ承認のうえ oauth2 に同居させた。core 肥大を
+      避けるため handleAccountContext / handleChangePasswordAPI のみ authentication へ
+      振り分けた。
+    - >-
+      core の構成: 実使用のクロスコンテキスト解析に基づき、WI の初期見積より広く
+      ResolveAuthentication・admin 認可クラスタ (RequireAdmin/EffectiveRoles/
+      ResolveAdminActor/RequireAuditReader/ErrAdmin* 等)・CSRF ペア・汎用レスポンス
+      ヘルパ (NoStoreJSON/WriteBrowserError/DecodeJSON)・ConsentDeps/WriteConsentError を
+      core に置いた (2+ コンテキストが使用する最小集合に限定)。
+    - >-
+      段階順: 最小・最独立の tenancy を pilot として先行し、その後 oauth2 →
+      authentication の順で移送した (WI の oauth2 → tenancy → authentication から変更)。
+    - >-
+      テスト移行: 各コンテキストの白box テストはコンテキストへ移し、Register 経由の
+      結合テストは router に残してアサート用の応答 DTO を export した (commit 5 一括では
+      なく各コンテキスト移送と同コミットで実施し、各コミットを green に保った)。
+  verification:
+    - { cmd: 'go build ./...', in: ra-idp-go, result: passed }
+    - { cmd: 'go test ./...', in: ra-idp-go, result: passed }
+    - { cmd: 'golangci-lint run ./internal/...', in: ra-idp-go, result: passed }
+    - { cmd: 'bun run yaml-check:all', in: tools, result: passed }
+    - >-
+      手動: go run ./cmd/ra-idp-go (PERSISTENCE=memory) 起動で /health 200・discovery の
+      endpoint がテナント込みで正常。authorize → login → consent → token → userinfo の
+      全フローは routes_e2e_test.go (Register 経由・demo client/alice seed) が網羅し passed。
+  affected_guarantees_state:
+    - >-
+      挙動不変: 全エンドポイントのパス・メソッド・middleware は router の RegisterRoutes
+      委譲で同一。routes_e2e_test.go の全フロー網羅が分割後も passed。後退なし。
+    - >-
+      非循環依存: core(依存なし) ← 各 context adapters/http ← platform/http(router) の
+      一方向を維持。context 間の http 依存は無し (go build で担保)。
+    - >-
+      テスト網羅: ハンドラ単位のテストは所有コンテキストまたは router に保持し、移行漏れ
+      なし。go test ./... 全 green。

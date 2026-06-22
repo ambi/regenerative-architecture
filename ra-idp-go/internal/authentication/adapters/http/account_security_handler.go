@@ -9,6 +9,7 @@ import (
 	"time"
 
 	authusecases "ra-idp-go/internal/authentication/usecases"
+	idmusecases "ra-idp-go/internal/identitymanagement/usecases"
 	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/spec"
 
@@ -55,7 +56,7 @@ func (d Deps) handleGetAccountSecurity(c *echo.Context) error {
 	if err != nil {
 		return d.writeAccountError(c, err)
 	}
-	user, _, err := authusecases.GetUserProfile(c.Request().Context(), d.accountProfileDeps(), sub)
+	user, _, err := idmusecases.GetUserProfile(c.Request().Context(), d.accountProfileDeps(), sub)
 	if err != nil {
 		return d.writeAccountError(c, err)
 	}

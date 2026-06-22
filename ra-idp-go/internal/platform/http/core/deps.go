@@ -10,6 +10,7 @@ import (
 	authdomain "ra-idp-go/internal/authentication/domain"
 	authports "ra-idp-go/internal/authentication/ports"
 	authusecases "ra-idp-go/internal/authentication/usecases"
+	idmports "ra-idp-go/internal/identitymanagement/ports"
 	oauthports "ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/platform/crypto"
 	"ra-idp-go/internal/spec"
@@ -42,8 +43,8 @@ type Deps struct {
 	Authorizer                 oauthports.Authorizer
 	JWKResolver                *crypto.JWKResolver
 	PasswordHasher             authports.PasswordHasher
-	GroupRepo                  authports.GroupRepository
-	AgentRepo                  authports.AgentRepository
+	GroupRepo                  idmports.GroupRepository
+	AgentRepo                  idmports.AgentRepository
 	MfaFactorRepo              authports.MfaFactorRepository
 	PasswordHistoryRepo        authports.PasswordHistoryRepository
 	PasswordResetTokenStore    authports.PasswordResetTokenStore

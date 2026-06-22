@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	authports "ra-idp-go/internal/authentication/ports"
+	idmports "ra-idp-go/internal/identitymanagement/ports"
 	oauthports "ra-idp-go/internal/oauth2/ports"
 	tenantports "ra-idp-go/internal/tenancy/ports"
 )
@@ -16,8 +17,8 @@ type Dependencies struct {
 	TenantRepo              tenantports.TenantRepository
 	AttrSchemaRepo          tenantports.TenantUserAttributeSchemaRepository
 	UserRepo                oauthports.UserRepository
-	GroupRepo               authports.GroupRepository
-	AgentRepo               authports.AgentRepository
+	GroupRepo               idmports.GroupRepository
+	AgentRepo               idmports.AgentRepository
 	MfaFactorRepo           authports.MfaFactorRepository
 	PasswordHistoryRepo     authports.PasswordHistoryRepository
 	PasswordResetTokenStore authports.PasswordResetTokenStore

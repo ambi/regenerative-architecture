@@ -7,6 +7,7 @@ import (
 
 	authports "ra-idp-go/internal/authentication/ports"
 	authusecases "ra-idp-go/internal/authentication/usecases"
+	idmports "ra-idp-go/internal/identitymanagement/ports"
 	oauthdomain "ra-idp-go/internal/oauth2/domain"
 	oauthports "ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/spec"
@@ -20,7 +21,7 @@ func seedDemoData(
 	users oauthports.UserRepository,
 	mfaFactors authports.MfaFactorRepository,
 	passwordHistory authports.PasswordHistoryRepository,
-	groups authports.GroupRepository,
+	groups idmports.GroupRepository,
 	hasher authports.PasswordHasher,
 ) error {
 	secretHash := oauthdomain.HashClientSecret(envDefault("DEMO_CLIENT_SECRET", "demo-client-secret"))
@@ -82,7 +83,7 @@ func seedDemoData(
 // engineering に所属させる。再起動時に重複しないよう ID は固定し、Save は id 上の
 // upsert、AddMember は冪等 (no-op on conflict) を利用する。これにより demo.sh で
 // グループ由来ロール (engineering → catalog:read) を確認できる。
-func seedDemoGroups(ctx context.Context, groups authports.GroupRepository, now time.Time) error {
+func seedDemoGroups(ctx context.Context, groups idmports.GroupRepository, now time.Time) error {
 	engineeringDesc := "プロダクト開発チーム"
 	supportDesc := "カスタマーサポートチーム"
 	demoGroups := []*spec.Group{

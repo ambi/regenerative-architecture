@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"ra-idp-go/internal/oauth2/usecases"
+	"ra-idp-go/internal/platform/http/core"
 
 	"github.com/labstack/echo/v5"
 )
@@ -13,7 +14,7 @@ func (d Deps) handleDiscovery(c *echo.Context) error {
 	if d.SCL == nil {
 		return writeOAuthError(c, usecases.NewOAuthError("server_error", "SCL not loaded"))
 	}
-	doc, err := d.SCL.BuildDiscoveryDocument(requestIssuer(c, d.Issuer))
+	doc, err := d.SCL.BuildDiscoveryDocument(core.RequestIssuer(c, d.Issuer))
 	if err != nil {
 		return writeOAuthError(c, err)
 	}

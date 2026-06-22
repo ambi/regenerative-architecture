@@ -9,6 +9,7 @@ import (
 
 	authusecases "ra-idp-go/internal/authentication/usecases"
 	httpadapter "ra-idp-go/internal/platform/http"
+	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/platform/persistence/memory"
 	"ra-idp-go/internal/spec"
 
@@ -29,7 +30,7 @@ func newAdminGroupHandler(t *testing.T) (*echo.Echo, *memory.GroupRepository) {
 		Roles: []string{}, CreatedAt: now, UpdatedAt: now,
 	})
 	e := echo.New()
-	httpadapter.Register(e, httpadapter.Deps{
+	httpadapter.Register(e, core.Deps{
 		Issuer: "http://idp.test", UserRepo: userRepo, GroupRepo: groupRepo,
 		AuthnResolver: authusecases.DemoHeaderResolver{},
 	})

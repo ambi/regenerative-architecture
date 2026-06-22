@@ -19,6 +19,7 @@ import (
 	"ra-idp-go/internal/oauth2/domain"
 	"ra-idp-go/internal/platform/crypto"
 	httpadapter "ra-idp-go/internal/platform/http"
+	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/platform/persistence/memory"
 	"ra-idp-go/internal/spec"
 
@@ -84,7 +85,7 @@ func newServerWithUserAccess(t *testing.T) (*httptest.Server, *memory.UserReposi
 	tokenIssuer := crypto.NewJWTSigner("http://test", keyStore)
 	sessionManager := authusecases.NewSessionManager(memory.NewSessionStore())
 	e := echo.New()
-	httpadapter.Register(e, httpadapter.Deps{
+	httpadapter.Register(e, core.Deps{
 		Issuer:     "http://test",
 		ClientRepo: clientRepo, UserRepo: userRepo, ConsentRepo: memory.NewConsentRepository(),
 		MfaFactorRepo: mfaFactorRepo, PasswordHistoryRepo: passwordHistoryRepo,
@@ -152,7 +153,7 @@ func newServerWithTOTP(t *testing.T, totpSecret string) *httptest.Server {
 	tokenIssuer := crypto.NewJWTSigner("http://test", keyStore)
 	sessionManager := authusecases.NewSessionManager(memory.NewSessionStore())
 	e := echo.New()
-	httpadapter.Register(e, httpadapter.Deps{
+	httpadapter.Register(e, core.Deps{
 		Issuer:     "http://test",
 		ClientRepo: clientRepo, UserRepo: userRepo, ConsentRepo: memory.NewConsentRepository(),
 		MfaFactorRepo: mfaFactorRepo, PasswordHistoryRepo: passwordHistoryRepo,

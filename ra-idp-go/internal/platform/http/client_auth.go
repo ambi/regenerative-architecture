@@ -12,6 +12,7 @@ import (
 	oauthdomain "ra-idp-go/internal/oauth2/domain"
 	"ra-idp-go/internal/oauth2/usecases"
 	"ra-idp-go/internal/platform/crypto"
+	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/spec"
 
 	"github.com/labstack/echo/v5"
@@ -56,7 +57,7 @@ func (d Deps) authenticateTokenClient(c *echo.Context) (authedClient, error) {
 			return authedClient{}, usecases.NewOAuthError("invalid_request", "client_assertion が必要です")
 		}
 		clientID := c.Request().PostFormValue("client_id")
-		client, err := d.ClientRepo.FindByID(c.Request().Context(), requestTenantID(c), clientID)
+		client, err := d.ClientRepo.FindByID(c.Request().Context(), core.RequestTenantID(c), clientID)
 		if err != nil || client == nil || client.TokenEndpointAuthMethod != spec.AuthMethodPrivateKeyJwt {
 			return authedClient{}, invalidClientError()
 		}
@@ -66,9 +67,9 @@ func (d Deps) authenticateTokenClient(c *echo.Context) (authedClient, error) {
 		}
 		_, err = crypto.VerifyClientAssertion(
 			c.Request().Context(), a, clientID,
-			acceptableClientAssertionAudiences(requestIssuer(c, d.Issuer), c.Request()),
+			acceptableClientAssertionAudiences(core.RequestIssuer(c, d.Issuer), c.Request()),
 			func(ctx context.Context, cid string) ([]map[string]any, error) {
-				cl, err := d.ClientRepo.FindByID(ctx, requestTenantID(c), cid)
+				cl, err := d.ClientRepo.FindByID(ctx, core.RequestTenantID(c), cid)
 				if err != nil {
 					return nil, err
 				}
@@ -88,7 +89,7 @@ func (d Deps) authenticateTokenClient(c *echo.Context) (authedClient, error) {
 	// 2. tls_client_auth
 	if hasCertificate {
 		clientID := c.Request().PostFormValue("client_id")
-		client, err := d.ClientRepo.FindByID(c.Request().Context(), requestTenantID(c), clientID)
+		client, err := d.ClientRepo.FindByID(c.Request().Context(), core.RequestTenantID(c), clientID)
 		if err != nil || client == nil ||
 			client.TokenEndpointAuthMethod != spec.AuthMethodTlsClientAuth ||
 			client.TlsClientAuthSubjectDN == nil {
@@ -130,7 +131,7 @@ func (d Deps) authenticateTokenClient(c *echo.Context) (authedClient, error) {
 	default:
 		clientID = c.Request().PostFormValue("client_id")
 	}
-	client, err := d.ClientRepo.FindByID(c.Request().Context(), requestTenantID(c), clientID)
+	client, err := d.ClientRepo.FindByID(c.Request().Context(), core.RequestTenantID(c), clientID)
 	if err != nil || client == nil {
 		if method != spec.AuthMethodNone {
 			oauthdomain.VerifyClientSecret(secret, dummyClientSecretHash)

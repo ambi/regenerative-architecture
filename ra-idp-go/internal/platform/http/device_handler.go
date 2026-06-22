@@ -8,6 +8,7 @@ import (
 
 	authdomain "ra-idp-go/internal/authentication/domain"
 	"ra-idp-go/internal/oauth2/usecases"
+	"ra-idp-go/internal/platform/http/core"
 
 	"github.com/labstack/echo/v5"
 )
@@ -19,7 +20,7 @@ type deviceAPIRequest struct {
 
 func (d Deps) handleDeviceAuthorization(c *echo.Context) error {
 	if err := c.Request().ParseForm(); err != nil {
-		return c.JSON(http.StatusBadRequest, oauthErrorBody("invalid_request", "form parse"))
+		return c.JSON(http.StatusBadRequest, core.OAuthErrorBody("invalid_request", "form parse"))
 	}
 	client, err := d.authenticateTokenClient(c)
 	if err != nil {
@@ -31,7 +32,7 @@ func (d Deps) handleDeviceAuthorization(c *echo.Context) error {
 	}
 	res, err := usecases.RequestDeviceAuthorization(c.Request().Context(), usecases.DeviceAuthorizationDeps{
 		ClientRepo: d.ClientRepo, DeviceCodeStore: d.DeviceCodeStore,
-		BaseVerification: requestIssuer(c, d.Issuer) + "/device", Emit: d.Emit,
+		BaseVerification: core.RequestIssuer(c, d.Issuer) + "/device", Emit: d.Emit,
 	}, in, time.Now().UTC())
 	if err != nil {
 		return writeOAuthError(c, err)

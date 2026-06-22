@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/platform/persistence/memory"
 	"ra-idp-go/internal/spec"
 
@@ -38,7 +39,7 @@ func newEndSessionServer(t *testing.T) *echo.Echo {
 		CreatedAt:                time.Now().UTC(),
 	})
 	e := echo.New()
-	Register(e, Deps{
+	Register(e, core.Deps{
 		Issuer:     "http://test",
 		ClientRepo: clientRepo,
 	})

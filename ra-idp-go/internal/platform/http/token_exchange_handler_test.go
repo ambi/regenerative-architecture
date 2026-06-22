@@ -13,6 +13,7 @@ import (
 	"ra-idp-go/internal/oauth2/domain"
 	"ra-idp-go/internal/platform/crypto"
 	httpadapter "ra-idp-go/internal/platform/http"
+	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/platform/persistence/memory"
 	"ra-idp-go/internal/spec"
 
@@ -46,7 +47,7 @@ func newTokenExchangeServer(t *testing.T) string {
 	}
 	tokenIssuer := crypto.NewJWTSigner("http://test", keyStore)
 	e := echo.New()
-	httpadapter.Register(e, httpadapter.Deps{
+	httpadapter.Register(e, core.Deps{
 		Issuer:       "http://test",
 		ClientRepo:   clientRepo,
 		UserRepo:     memory.NewUserRepository(),

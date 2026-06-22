@@ -11,6 +11,7 @@ import (
 
 	authusecases "ra-idp-go/internal/authentication/usecases"
 	httpadapter "ra-idp-go/internal/platform/http"
+	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/platform/persistence/memory"
 	"ra-idp-go/internal/spec"
 
@@ -150,7 +151,7 @@ func newAdminClientHandler(
 	})
 	events := []spec.DomainEvent{}
 	e := echo.New()
-	httpadapter.Register(e, httpadapter.Deps{
+	httpadapter.Register(e, core.Deps{
 		Issuer: "http://idp.test", ClientRepo: clients, UserRepo: users,
 		AuthnResolver: authusecases.DemoHeaderResolver{},
 		Emit: func(event spec.DomainEvent) {

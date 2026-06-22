@@ -14,6 +14,7 @@ import (
 	authusecases "ra-idp-go/internal/authentication/usecases"
 	"ra-idp-go/internal/platform/crypto"
 	httpadapter "ra-idp-go/internal/platform/http"
+	httpcore "ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/platform/observability"
 	"ra-idp-go/internal/platform/persistence/memory"
 	"ra-idp-go/internal/platform/policy"
@@ -107,7 +108,7 @@ func Run() error {
 			}
 		}
 	}
-	httpadapter.Register(e, httpadapter.Deps{
+	httpadapter.Register(e, httpcore.Deps{
 		Issuer: issuer, SCL: sclDoc,
 		TenantRepo:       deps.TenantRepo,
 		AttrSchemaRepo:   deps.AttrSchemaRepo,
@@ -131,7 +132,7 @@ func Run() error {
 		SentinelPasswordHash:    sentinelPasswordHash,
 		SessionManager:          sessionManager, AuthnResolver: sessionManager,
 		Emit: emit,
-		HealthInfo: httpadapter.HealthInfo{
+		HealthInfo: httpcore.HealthInfo{
 			Persistence:   runtime.Persistence,
 			EventSink:     runtime.EventSink,
 			Observability: runtime.Observability,

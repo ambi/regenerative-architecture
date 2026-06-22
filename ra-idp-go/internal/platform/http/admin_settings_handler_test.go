@@ -15,6 +15,7 @@ import (
 	"time"
 
 	authdomain "ra-idp-go/internal/authentication/domain"
+	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/platform/persistence/memory"
 	"ra-idp-go/internal/spec"
 
@@ -42,7 +43,7 @@ func newSettingsServer(t *testing.T, actor *spec.User, tenants ...*spec.Tenant) 
 	events := make([]spec.DomainEvent, 0)
 	emit := func(e spec.DomainEvent) { events = append(events, e) }
 	e := echo.New()
-	Register(e, Deps{
+	Register(e, core.Deps{
 		Issuer: "http://idp.test", SCL: spec.MustLoadSCL(), UserRepo: userRepo,
 		TenantRepo:    tenantRepo,
 		AuthnResolver: resolver, Emit: emit,

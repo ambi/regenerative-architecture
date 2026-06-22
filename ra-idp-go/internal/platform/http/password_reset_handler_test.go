@@ -13,6 +13,7 @@ import (
 
 	"ra-idp-go/internal/platform/crypto"
 	httpadapter "ra-idp-go/internal/platform/http"
+	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/platform/notification"
 	"ra-idp-go/internal/platform/persistence/memory"
 	"ra-idp-go/internal/platform/policy"
@@ -96,7 +97,7 @@ func newPasswordResetHandler(
 		t.Fatal(err)
 	}
 	e := echo.New()
-	httpadapter.Register(e, httpadapter.Deps{
+	httpadapter.Register(e, core.Deps{
 		Issuer: "http://idp.test", UserRepo: userRepo, PasswordHasher: hasher,
 		PasswordHistoryRepo: historyRepo, PasswordResetTokenStore: tokenStore,
 		EmailSender: sender, BreachedPasswordChecker: policy.NoopBreachedPasswordChecker{},

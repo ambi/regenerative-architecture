@@ -8,6 +8,7 @@ import (
 	"time"
 
 	authusecases "ra-idp-go/internal/authentication/usecases"
+	"ra-idp-go/internal/platform/http/core"
 
 	"github.com/labstack/echo/v5"
 )
@@ -45,7 +46,7 @@ func (d Deps) handleRequestEmailChange(c *echo.Context) error {
 	}
 	err = authusecases.RequestEmailChange(c.Request().Context(), authusecases.RequestEmailChangeDeps{
 		UserRepo: d.UserRepo, TokenStore: d.EmailChangeTokenStore,
-		EmailSender: d.EmailSender, Emit: d.Emit, Issuer: requestIssuer(c, d.Issuer),
+		EmailSender: d.EmailSender, Emit: d.Emit, Issuer: core.RequestIssuer(c, d.Issuer),
 	}, authusecases.RequestEmailChangeInput{Sub: sub, NewEmail: input.NewEmail, Now: time.Now().UTC()})
 	if err != nil {
 		return d.writeEmailChangeError(c, err)

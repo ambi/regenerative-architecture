@@ -16,6 +16,7 @@ import (
 
 	authdomain "ra-idp-go/internal/authentication/domain"
 	"ra-idp-go/internal/oauth2/domain"
+	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/platform/persistence/memory"
 	"ra-idp-go/internal/spec"
 
@@ -65,7 +66,7 @@ func newAuthorizeTestServer(t *testing.T, authn *authdomain.AuthenticationContex
 		_ = consentRepo.Save(context.Background(), consent)
 	}
 	e := echo.New()
-	deps := Deps{
+	deps := core.Deps{
 		Issuer:       "http://test",
 		ClientRepo:   clientRepo,
 		UserRepo:     userRepo,

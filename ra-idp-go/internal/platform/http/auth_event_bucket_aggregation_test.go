@@ -15,6 +15,7 @@ import (
 	"time"
 
 	authports "ra-idp-go/internal/authentication/ports"
+	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/platform/persistence/memory"
 	"ra-idp-go/internal/spec"
 
@@ -51,14 +52,14 @@ func countEventType(events []spec.DomainEvent, typ string) int {
 
 // driveRecordLoginFailure は echo route 経由で recordLoginFailure を回数分呼び、
 // 最後の aggregated 値を返す (account key だけ渡し IP は空にして 1 key に固定する)。
-func driveRecordLoginFailure(t *testing.T, d Deps, username string, times int) (bool, []spec.DomainEvent) {
+func driveRecordLoginFailure(t *testing.T, d core.Deps, username string, times int) (bool, []spec.DomainEvent) {
 	t.Helper()
 	var emitted []spec.DomainEvent
 	d.Emit = func(e spec.DomainEvent) { emitted = append(emitted, e) }
 	e := echo.New()
 	lastAggregated := false
 	e.POST("/x", func(c *echo.Context) error {
-		agg, err := d.recordLoginFailure(c, username, "")
+		agg, err := (Deps{&d}).recordLoginFailure(c, username, "")
 		lastAggregated = agg
 		return err
 	})
@@ -74,7 +75,7 @@ func driveRecordLoginFailure(t *testing.T, d Deps, username string, times int) (
 }
 
 func TestRecordLoginFailureAggregatesWhenLocked(t *testing.T) {
-	d := Deps{
+	d := core.Deps{
 		LoginAttemptThrottle: fakeLockedThrottle{},
 		AuthEventBucketStore: memory.NewAuthEventBucketStore(),
 	}
@@ -96,7 +97,7 @@ func TestRecordLoginFailureAggregatesWhenLocked(t *testing.T) {
 }
 
 func TestRecordLoginFailureWithoutBucketStoreDoesNotAggregate(t *testing.T) {
-	d := Deps{LoginAttemptThrottle: fakeLockedThrottle{}}
+	d := core.Deps{LoginAttemptThrottle: fakeLockedThrottle{}}
 	aggregated, emitted := driveRecordLoginFailure(t, d, "alice", 2)
 	if aggregated {
 		t.Fatalf("expected aggregated=false without bucket store")

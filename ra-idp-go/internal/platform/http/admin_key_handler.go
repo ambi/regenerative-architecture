@@ -11,6 +11,7 @@ import (
 
 	"ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/oauth2/usecases"
+	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/spec"
 
 	"github.com/labstack/echo/v5"
@@ -115,7 +116,7 @@ func (d Deps) requireKeyRotator(c *echo.Context) (*spec.User, error) {
 	if !slices.Contains(actor.Roles, "system_admin") {
 		return nil, errAdminAccessDenied
 	}
-	if requestTenantID(c) != spec.DefaultTenantID {
+	if core.RequestTenantID(c) != spec.DefaultTenantID {
 		return nil, errAdminAccessDenied
 	}
 	if actor.TenantID != spec.DefaultTenantID {

@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/spec"
 
 	"github.com/labstack/echo/v5"
@@ -13,7 +14,7 @@ import (
 
 func TestDiscoveryRoutesIncludeRFC8414Alias(t *testing.T) {
 	e := echo.New()
-	Register(e, Deps{Issuer: "https://idp.example", SCL: spec.MustLoadSCL()})
+	Register(e, core.Deps{Issuer: "https://idp.example", SCL: spec.MustLoadSCL()})
 
 	for _, path := range []string{
 		"/.well-known/openid-configuration",

@@ -18,6 +18,7 @@ import (
 
 	authusecases "ra-idp-go/internal/authentication/usecases"
 	"ra-idp-go/internal/platform/crypto"
+	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/platform/persistence/memory"
 	"ra-idp-go/internal/spec"
 
@@ -65,7 +66,7 @@ func newStepUpServer(t *testing.T) (*echo.Echo, *memory.SessionStore, *[]spec.Do
 	var events []spec.DomainEvent
 
 	e := echo.New()
-	Register(e, Deps{
+	Register(e, core.Deps{
 		Issuer: "http://idp.test", SCL: spec.MustLoadSCL(),
 		UserRepo: userRepo, TenantRepo: tenantRepo,
 		AttrSchemaRepo:        memory.NewTenantUserAttributeSchemaRepository(),

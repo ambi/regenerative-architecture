@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"ra-idp-go/internal/oauth2/domain"
+	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/platform/persistence/memory"
 	"ra-idp-go/internal/spec"
 
@@ -45,7 +46,7 @@ func newPARTestServer(t *testing.T) *echo.Echo {
 		CreatedAt:               time.Now().UTC(),
 	})
 	e := echo.New()
-	Register(e, Deps{
+	Register(e, core.Deps{
 		Issuer:       "http://test",
 		ClientRepo:   clientRepo,
 		PARStore:     memory.NewPARStore(),
@@ -117,7 +118,7 @@ func TestPushAuthorizationRequestRoundTripsToAuthorize(t *testing.T) {
 
 func TestPushAuthorizationRequestRejectsCrossTenantConsumption(t *testing.T) {
 	// PAR record を tenant=acme で保存して、/authorize は default tenant (bare 経路) に
-	// 投げる。handleAuthorize は consumed.TenantID != requestTenantID(c) を理由に拒否する。
+	// 投げる。handleAuthorize は consumed.TenantID != core.RequestTenantID(c) を理由に拒否する。
 	store := memory.NewPARStore()
 	// 別テナントの PAR レコードを直接 store に保存。
 	rec := &spec.PARRecord{
@@ -151,7 +152,7 @@ func TestPushAuthorizationRequestRejectsCrossTenantConsumption(t *testing.T) {
 		TokenEndpointAuthMethod: spec.AuthMethodClientSecretBasic, Scope: "openid",
 		CreatedAt: time.Now().UTC(),
 	})
-	Register(e, Deps{
+	Register(e, core.Deps{
 		Issuer:       "http://test",
 		ClientRepo:   clientRepo,
 		PARStore:     store,

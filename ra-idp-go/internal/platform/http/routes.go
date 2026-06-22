@@ -1,70 +1,31 @@
-// Package http: Echo v5 を用いた HTTP アダプタ。
+// Package http: Echo v5 を用いた HTTP アダプタの router。
 // TS adapters/http/* に対応。
 //
-// 各エンドポイントは責務ごとに *_handler.go へ分割している。
-// このファイルでは依存集約 (Deps) とルーティング登録 (Register) のみを定義する。
+// 依存集約 (core.Deps) とテナント解決 middleware は core パッケージが持ち、
+// 各エンドポイントのハンドラは責務ごとに *_handler.go へ分割している。
+// このファイルではルーティング登録 (Register) のみを定義する。
 package http
 
 import (
-	authdomain "ra-idp-go/internal/authentication/domain"
-	authports "ra-idp-go/internal/authentication/ports"
-	authusecases "ra-idp-go/internal/authentication/usecases"
-	oauthports "ra-idp-go/internal/oauth2/ports"
-	"ra-idp-go/internal/platform/crypto"
+	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/spec"
-	tenantports "ra-idp-go/internal/tenancy/ports"
 
 	"github.com/labstack/echo/v5"
 )
 
+// Deps は core.Deps を埋め込む薄いラッパ。ハンドラを所有コンテキストの
+// メソッドとして保持するためのキャリアで、固有のフィールドは持たない。
 type Deps struct {
-	Issuer                     string
-	SCL                        *spec.SCL
-	TenantRepo                 tenantports.TenantRepository
-	AttrSchemaRepo             tenantports.TenantUserAttributeSchemaRepository
-	LegacyBareIssuer           bool
-	ClientRepo                 oauthports.ClientRepository
-	UserRepo                   oauthports.UserRepository
-	ConsentRepo                oauthports.ConsentRepository
-	RequestStore               oauthports.AuthorizationRequestStore
-	CodeStore                  oauthports.AuthorizationCodeStore
-	PARStore                   oauthports.PARStore
-	RefreshStore               oauthports.RefreshTokenStore
-	DeviceCodeStore            oauthports.DeviceCodeStore
-	DpopReplayStore            oauthports.DpopReplayStore
-	ClientAssertionReplayStore oauthports.ClientAssertionReplayStore
-	AccessTokenDenylist        oauthports.AccessTokenDenylist
-	KeyStore                   oauthports.KeyStore
-	TokenIssuer                oauthports.TokenIssuer
-	TokenIntrospector          oauthports.TokenIntrospector
-	AuditEventRepo             oauthports.AuditEventRepository
-	AuthEventBucketStore       authports.AuthEventBucketStore
-	Authorizer                 oauthports.Authorizer
-	JWKResolver                *crypto.JWKResolver
-	PasswordHasher             authports.PasswordHasher
-	GroupRepo                  authports.GroupRepository
-	AgentRepo                  authports.AgentRepository
-	MfaFactorRepo              authports.MfaFactorRepository
-	PasswordHistoryRepo        authports.PasswordHistoryRepository
-	PasswordResetTokenStore    authports.PasswordResetTokenStore
-	EmailChangeTokenStore      authports.EmailChangeTokenStore
-	EmailSender                authports.EmailSender
-	BreachedPasswordChecker    authports.BreachedPasswordChecker
-	LoginAttemptThrottle       authports.LoginAttemptThrottle
-	TrustedForwardedHops       int
-	SentinelPasswordHash       string
-	SessionManager             *authusecases.SessionManager
-	AuthnResolver              authdomain.AuthenticationContextResolver
-	Emit                       func(spec.DomainEvent)
-	HealthInfo                 HealthInfo
+	*core.Deps
 }
 
-func Register(e *echo.Echo, d Deps) {
-	registerTenantRoutes(e.Group("", d.resolveDefaultTenant), d)
-	registerTenantRoutes(e.Group("/realms/:tenant_id", d.resolvePathTenant), d)
+func Register(e *echo.Echo, cd core.Deps) {
+	d := Deps{&cd}
+	registerTenantRoutes(e.Group("", d.ResolveDefaultTenant), d)
+	registerTenantRoutes(e.Group("/realms/:tenant_id", d.ResolvePathTenant), d)
 	// テナント CRUD は default control-plane tenant のセッションでのみ操作するため
 	// `/realms/default/admin/tenants` 配下に置き、cookie path と一致させる (ADR-032)。
-	controlPlane := e.Group("/realms/"+spec.DefaultTenantID, d.resolveControlPlaneTenant)
+	controlPlane := e.Group("/realms/"+spec.DefaultTenantID, d.ResolveControlPlaneTenant)
 	controlPlane.GET("/admin/tenants", d.handleListTenants)
 	controlPlane.GET("/admin/tenants/:tenant_id", d.handleGetTenant)
 	controlPlane.POST("/admin/tenants", d.handleCreateTenant)

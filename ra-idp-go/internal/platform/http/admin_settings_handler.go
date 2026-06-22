@@ -5,6 +5,7 @@ import (
 	"slices"
 	"time"
 
+	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/spec"
 	tenantusecases "ra-idp-go/internal/tenancy/usecases"
 
@@ -19,7 +20,7 @@ func (d Deps) requireTenantAdmin(c *echo.Context) (*spec.User, error) {
 	if err != nil {
 		return nil, err
 	}
-	if actor.TenantID != requestTenantID(c) {
+	if actor.TenantID != core.RequestTenantID(c) {
 		return nil, errAdminAccessDenied
 	}
 	if !slices.Contains(actor.Roles, "admin") && !slices.Contains(actor.Roles, "system_admin") {

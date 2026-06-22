@@ -9,6 +9,7 @@ import (
 	"time"
 
 	authdomain "ra-idp-go/internal/authentication/domain"
+	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/platform/persistence/memory"
 	"ra-idp-go/internal/spec"
 
@@ -34,7 +35,7 @@ func TestRealmDiscoveryUsesTenantIssuer(t *testing.T) {
 		t.Fatal(err)
 	}
 	e := echo.New()
-	Register(e, Deps{Issuer: "https://idp.example", SCL: spec.MustLoadSCL(), TenantRepo: tenants})
+	Register(e, core.Deps{Issuer: "https://idp.example", SCL: spec.MustLoadSCL(), TenantRepo: tenants})
 
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/realms/acme/.well-known/openid-configuration", http.NoBody))
@@ -65,7 +66,7 @@ func TestBareRouteUsesDefaultAndDisabledTenantIsRejected(t *testing.T) {
 		}
 	}
 	e := echo.New()
-	Register(e, Deps{Issuer: "https://idp.example", SCL: spec.MustLoadSCL(), TenantRepo: tenants})
+	Register(e, core.Deps{Issuer: "https://idp.example", SCL: spec.MustLoadSCL(), TenantRepo: tenants})
 
 	bare := httptest.NewRecorder()
 	e.ServeHTTP(bare, httptest.NewRequest(http.MethodGet, "/.well-known/openid-configuration", http.NoBody))
@@ -107,7 +108,7 @@ func TestTenantAdminRequiresSystemAdmin(t *testing.T) {
 	})
 	resolver := &fixedAuthnResolver{sub: "ops"}
 	e := echo.New()
-	Register(e, Deps{TenantRepo: tenants, UserRepo: users, AuthnResolver: resolver})
+	Register(e, core.Deps{TenantRepo: tenants, UserRepo: users, AuthnResolver: resolver})
 
 	allowed := httptest.NewRecorder()
 	e.ServeHTTP(allowed, httptest.NewRequest(http.MethodGet, "/realms/default/admin/tenants", http.NoBody))
@@ -143,7 +144,7 @@ func TestCrossTenantSessionRejectsSystemAdmin(t *testing.T) {
 	})
 	resolver := &fixedAuthnResolver{sub: "acme-admin"}
 	e := echo.New()
-	Register(e, Deps{TenantRepo: tenants, UserRepo: users, AuthnResolver: resolver})
+	Register(e, core.Deps{TenantRepo: tenants, UserRepo: users, AuthnResolver: resolver})
 
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/realms/default/admin/tenants", http.NoBody))

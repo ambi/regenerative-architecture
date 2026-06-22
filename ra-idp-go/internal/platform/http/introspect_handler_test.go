@@ -14,6 +14,7 @@ import (
 
 	"ra-idp-go/internal/oauth2/domain"
 	oauthports "ra-idp-go/internal/oauth2/ports"
+	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/platform/persistence/memory"
 	"ra-idp-go/internal/spec"
 
@@ -38,7 +39,7 @@ func newIntrospectServer(intro *fakeIntrospector, denylist *fakeDenylist) *echo.
 		FapiProfile: spec.FapiNone, CreatedAt: time.Now().UTC(),
 	})
 	e := echo.New()
-	deps := Deps{
+	deps := core.Deps{
 		Issuer:            "http://test",
 		ClientRepo:        clientRepo,
 		TokenIntrospector: intro,

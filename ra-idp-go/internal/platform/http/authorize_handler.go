@@ -23,6 +23,7 @@ import (
 	authusecases "ra-idp-go/internal/authentication/usecases"
 	oauthdomain "ra-idp-go/internal/oauth2/domain"
 	"ra-idp-go/internal/oauth2/usecases"
+	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/spec"
 
 	"github.com/labstack/echo/v5"
@@ -85,7 +86,7 @@ func (d Deps) handleAuthorize(c *echo.Context) error {
 		if consumed == nil {
 			return writeOAuthError(c, usecases.NewOAuthError("invalid_request_uri", "request_uri 無効または使用済み"))
 		}
-		if consumed.TenantID != requestTenantID(c) {
+		if consumed.TenantID != core.RequestTenantID(c) {
 			return writeOAuthError(c, usecases.NewOAuthError("invalid_request_uri", "request_uri 無効または使用済み"))
 		}
 		if cid := q.Get("client_id"); cid != "" && cid != consumed.ClientID {
@@ -129,7 +130,7 @@ func (d Deps) handleAuthorize(c *echo.Context) error {
 				if in.Prompt == "none" {
 					return writeOAuthError(c, usecases.NewOAuthError("login_required", "追加factor検証が必要です"))
 				}
-				return c.Redirect(http.StatusSeeOther, tenantRoute(c, "/totp"))
+				return c.Redirect(http.StatusSeeOther, core.TenantRoute(c, "/totp"))
 			}
 			policy := oauthdomain.ParsePrompt(out.Request)
 			needsStepUp := out.Request.ACRValues != nil &&
@@ -151,9 +152,9 @@ func (d Deps) handleAuthorize(c *echo.Context) error {
 						return err
 					}
 					d.setSessionCookie(c, pending.SessionID)
-					return c.Redirect(http.StatusSeeOther, tenantRoute(c, "/totp"))
+					return c.Redirect(http.StatusSeeOther, core.TenantRoute(c, "/totp"))
 				}
-				return c.Redirect(http.StatusSeeOther, tenantRoute(c, "/login"))
+				return c.Redirect(http.StatusSeeOther, core.TenantRoute(c, "/login"))
 			}
 			next, err := d.completeAfterAuthn(c, out.Request, out.Client, authn)
 			if err != nil {
@@ -168,7 +169,7 @@ func (d Deps) handleAuthorize(c *echo.Context) error {
 	if out.Request.Prompt != nil && *out.Request.Prompt == "none" {
 		return writeOAuthError(c, usecases.NewOAuthError("login_required", "prompt=none では再認証不可"))
 	}
-	return c.Redirect(http.StatusSeeOther, tenantRoute(c, "/login"))
+	return c.Redirect(http.StatusSeeOther, core.TenantRoute(c, "/login"))
 }
 
 func (d Deps) handleTransaction(c *echo.Context) error {
@@ -208,7 +209,7 @@ func (d Deps) handleTransaction(c *echo.Context) error {
 	if authn == nil || authn.Sub != *req.Sub {
 		return writeBrowserError(c, http.StatusUnauthorized, "authentication_required", "認証セッションが一致しません")
 	}
-	client, err := d.ClientRepo.FindByID(c.Request().Context(), requestTenantID(c), req.ClientID)
+	client, err := d.ClientRepo.FindByID(c.Request().Context(), core.RequestTenantID(c), req.ClientID)
 	if err != nil {
 		return err
 	}
@@ -287,7 +288,7 @@ func (d Deps) handleLoginAPI(c *echo.Context) error {
 		}
 	}
 
-	user, err := d.UserRepo.FindByUsername(c.Request().Context(), requestTenantID(c), input.Username)
+	user, err := d.UserRepo.FindByUsername(c.Request().Context(), core.RequestTenantID(c), input.Username)
 	if err != nil {
 		return err
 	}
@@ -341,7 +342,7 @@ func (d Deps) handleLoginAPI(c *echo.Context) error {
 		d.Emit(&spec.UserAuthenticated{At: authTime, TenantID: user.TenantID, Sub: user.Sub, AMR: []string{"pwd"}})
 	}
 	if user.MfaEnrolled {
-		next := tenantRoute(c, "/totp")
+		next := core.TenantRoute(c, "/totp")
 		if directAdminLogin {
 			next += "?return_to=" + url.QueryEscape(input.ReturnTo)
 		}
@@ -364,7 +365,7 @@ func (d Deps) handleLoginAPI(c *echo.Context) error {
 		return writeOAuthError(c, err)
 	}
 	req.Sub, req.AuthTime = &user.Sub, &authn.AuthTime
-	client, err := d.ClientRepo.FindByID(c.Request().Context(), requestTenantID(c), req.ClientID)
+	client, err := d.ClientRepo.FindByID(c.Request().Context(), core.RequestTenantID(c), req.ClientID)
 	if err != nil || client == nil {
 		return writeBrowserError(c, http.StatusBadRequest, "invalid_transaction", "クライアントが存在しません")
 	}
@@ -390,7 +391,7 @@ func (d Deps) recordLoginAndRequiredAction(c *echo.Context, user *spec.User, now
 	}
 	*user = updated
 	if slices.Contains(updated.Lifecycle.RequiredActions, spec.RequiredActionUpdatePassword) {
-		return tenantRoute(c, "/change_password"), nil
+		return core.TenantRoute(c, "/change_password"), nil
 	}
 	return "", nil
 }
@@ -468,7 +469,7 @@ func (d Deps) handleTOTPAPI(c *echo.Context) error {
 		return writeOAuthError(c, err)
 	}
 	req.Sub, req.AuthTime, req.AMR, req.ACR = &completed.Sub, &completed.AuthTime, completed.AMR, &completed.ACR
-	client, err := d.ClientRepo.FindByID(c.Request().Context(), requestTenantID(c), req.ClientID)
+	client, err := d.ClientRepo.FindByID(c.Request().Context(), core.RequestTenantID(c), req.ClientID)
 	if err != nil || client == nil {
 		return writeBrowserError(c, http.StatusBadRequest, "invalid_transaction", "クライアントが存在しません")
 	}
@@ -564,21 +565,21 @@ func (d Deps) handleConsentAPI(c *echo.Context) error {
 	if input.Action != "allow" {
 		_ = d.RequestStore.UpdateState(c.Request().Context(), req.ID, spec.AuthFlowRejected)
 		d.clearTransactionCookie(c)
-		return noStoreJSON(c, http.StatusOK, browserFlowResponse{RedirectTo: authorizationErrorURL(req, requestIssuer(c, d.Issuer), "access_denied", "")})
+		return noStoreJSON(c, http.StatusOK, browserFlowResponse{RedirectTo: authorizationErrorURL(req, core.RequestIssuer(c, d.Issuer), "access_denied", "")})
 	}
 
 	scopes := strings.Fields(req.Scope)
 	if d.ConsentRepo != nil {
 		now := time.Now().UTC()
 		if err := d.ConsentRepo.Save(c.Request().Context(), &spec.Consent{
-			TenantID: requestTenantID(c), Sub: authn.Sub, ClientID: req.ClientID,
+			TenantID: core.RequestTenantID(c), Sub: authn.Sub, ClientID: req.ClientID,
 			Scopes: scopes, State: spec.ConsentGranted,
 			GrantedAt: now, ExpiresAt: now.Add(365 * 24 * time.Hour),
 		}); err != nil {
 			return err
 		}
 		if d.Emit != nil {
-			d.Emit(&spec.ConsentGrantedEvent{At: now, TenantID: requestTenantID(c), Sub: authn.Sub, ClientID: req.ClientID, Scopes: scopes})
+			d.Emit(&spec.ConsentGrantedEvent{At: now, TenantID: core.RequestTenantID(c), Sub: authn.Sub, ClientID: req.ClientID, Scopes: scopes})
 		}
 	}
 	redirectTo, err := d.issueCodeURL(c, req, authn.Sub, time.Unix(authn.AuthTime, 0))
@@ -601,11 +602,11 @@ func (d Deps) completeAfterAuthn(
 	authn *authdomain.AuthenticationContext,
 ) (authorizationNext, error) {
 	if authn.AuthenticationPending {
-		return authorizationNext{Path: tenantRoute(c, "/totp")}, nil
+		return authorizationNext{Path: core.TenantRoute(c, "/totp")}, nil
 	}
 	if d.ConsentRepo != nil {
 		consent, _ := d.ConsentRepo.Find(
-			c.Request().Context(), requestTenantID(c), authn.Sub, client.ClientID,
+			c.Request().Context(), core.RequestTenantID(c), authn.Sub, client.ClientID,
 		)
 		covered := consent != nil &&
 			consent.State == spec.ConsentGranted &&
@@ -629,7 +630,7 @@ func (d Deps) completeAfterAuthn(
 				return authorizationNext{}, err
 			}
 			req.Sub, req.AuthTime = &authn.Sub, &authn.AuthTime
-			return authorizationNext{Path: tenantRoute(c, "/consent")}, nil
+			return authorizationNext{Path: core.TenantRoute(c, "/consent")}, nil
 		}
 	}
 	redirectTo, err := d.issueCodeURL(c, req, authn.Sub, time.Unix(authn.AuthTime, 0))
@@ -650,7 +651,7 @@ func (d Deps) issueCodeURL(
 	sub string,
 	authTime time.Time,
 ) (string, error) {
-	iss := requestIssuer(c, d.Issuer)
+	iss := core.RequestIssuer(c, d.Issuer)
 	out, err := usecases.CompleteLogin(c.Request().Context(), usecases.CompleteLoginDeps{
 		RequestStore: d.RequestStore,
 		CodeStore:    d.CodeStore,
@@ -670,7 +671,7 @@ func (d Deps) issueCodeURL(
 	}
 	if d.Emit != nil {
 		d.Emit(&spec.AuthorizationCodeIssued{
-			At: time.Now().UTC(), TenantID: requestTenantID(c), ClientID: req.ClientID, Sub: sub,
+			At: time.Now().UTC(), TenantID: core.RequestTenantID(c), ClientID: req.ClientID, Sub: sub,
 			Scopes: out.Code.Scopes, CodeChallengeMethod: req.CodeChallengeMethod,
 		})
 	}
@@ -744,7 +745,7 @@ func (d Deps) handleEndSession(c *echo.Context) error {
 	if clientID == "" {
 		return writeOAuthError(c, usecases.NewOAuthError("invalid_request", "client_id が必要"))
 	}
-	client, err := d.ClientRepo.FindByID(c.Request().Context(), requestTenantID(c), clientID)
+	client, err := d.ClientRepo.FindByID(c.Request().Context(), core.RequestTenantID(c), clientID)
 	if err != nil {
 		return writeOAuthError(c, err)
 	}
@@ -785,7 +786,7 @@ func (d Deps) transactionRequest(c *echo.Context) (*spec.AuthorizationRequest, e
 	if err != nil {
 		return nil, err
 	}
-	if req == nil || req.TenantID != requestTenantID(c) ||
+	if req == nil || req.TenantID != core.RequestTenantID(c) ||
 		time.Now().After(req.ExpiresAt) || req.State != spec.AuthFlowReceived {
 		return nil, errors.New("認可トランザクションが無効または期限切れです")
 	}
@@ -803,7 +804,7 @@ func validAdminReturnTo(c *echo.Context, returnTo string) bool {
 	if path.Clean(parsed.Path) != parsed.Path {
 		return false
 	}
-	adminRoot := tenantRoute(c, "/admin")
+	adminRoot := core.TenantRoute(c, "/admin")
 	return parsed.Path == adminRoot || strings.HasPrefix(parsed.Path, adminRoot+"/")
 }
 
@@ -830,7 +831,7 @@ func (d Deps) resolveAuthentication(c *echo.Context) (*authdomain.Authentication
 	}
 	// cookie path 分離が破られた場合に備え、リクエスト先のテナントと User の所属テナントが
 	// 一致しないセッションは未認証扱い (defense-in-depth)。
-	if user.TenantID != requestTenantID(c) {
+	if user.TenantID != core.RequestTenantID(c) {
 		return nil, nil
 	}
 	return authn, nil
@@ -861,7 +862,7 @@ func (d Deps) ensureCSRFCookie(c *echo.Context) (string, error) {
 		return "", err
 	}
 	c.SetCookie(&http.Cookie{ //nolint:gosec // Secure is enabled for HTTPS issuers; local HTTP development intentionally disables it.
-		Name: csrfCookie, Value: value, Path: tenantCookiePath(c),
+		Name: csrfCookie, Value: value, Path: core.TenantCookiePath(c),
 		Secure: d.secureCookies(), HttpOnly: false, SameSite: http.SameSiteStrictMode,
 		MaxAge: 600,
 	})
@@ -870,7 +871,7 @@ func (d Deps) ensureCSRFCookie(c *echo.Context) (string, error) {
 
 func (d Deps) setTransactionCookie(c *echo.Context, requestID string) {
 	c.SetCookie(&http.Cookie{ //nolint:gosec // Secure is enabled for HTTPS issuers; local HTTP development intentionally disables it.
-		Name: authorizationTransactionCookie, Value: requestID, Path: tenantCookiePath(c),
+		Name: authorizationTransactionCookie, Value: requestID, Path: core.TenantCookiePath(c),
 		Secure: d.secureCookies(), HttpOnly: true, SameSite: http.SameSiteLaxMode,
 		MaxAge: 600,
 	})
@@ -878,7 +879,7 @@ func (d Deps) setTransactionCookie(c *echo.Context, requestID string) {
 
 func (d Deps) clearTransactionCookie(c *echo.Context) {
 	c.SetCookie(&http.Cookie{ //nolint:gosec // Secure is enabled for HTTPS issuers; local HTTP development intentionally disables it.
-		Name: authorizationTransactionCookie, Path: tenantCookiePath(c),
+		Name: authorizationTransactionCookie, Path: core.TenantCookiePath(c),
 		Secure: d.secureCookies(), HttpOnly: true, SameSite: http.SameSiteLaxMode,
 		MaxAge: -1,
 	})
@@ -886,7 +887,7 @@ func (d Deps) clearTransactionCookie(c *echo.Context) {
 
 func (d Deps) setSessionCookie(c *echo.Context, sessionID string) {
 	c.SetCookie(&http.Cookie{ //nolint:gosec // Secure is enabled for HTTPS issuers; local HTTP development intentionally disables it.
-		Name: authusecases.SessionCookie, Value: sessionID, Path: tenantCookiePath(c),
+		Name: authusecases.SessionCookie, Value: sessionID, Path: core.TenantCookiePath(c),
 		Secure: d.secureCookies(), HttpOnly: true, SameSite: http.SameSiteLaxMode,
 		MaxAge: authusecases.SessionTTLSeconds,
 	})
@@ -894,7 +895,7 @@ func (d Deps) setSessionCookie(c *echo.Context, sessionID string) {
 
 func (d Deps) clearSessionCookie(c *echo.Context) {
 	c.SetCookie(&http.Cookie{ //nolint:gosec // Secure is enabled for HTTPS issuers; local HTTP development intentionally disables it.
-		Name: authusecases.SessionCookie, Path: tenantCookiePath(c),
+		Name: authusecases.SessionCookie, Path: core.TenantCookiePath(c),
 		Secure: d.secureCookies(), HttpOnly: true, SameSite: http.SameSiteLaxMode,
 		MaxAge: -1,
 	})
@@ -907,7 +908,7 @@ func (d Deps) secureCookies() bool {
 func (d Deps) emitAuthenticationFailure(c *echo.Context, username, reason string) {
 	if d.Emit != nil {
 		d.Emit(&spec.AuthenticationFailed{
-			At: time.Now().UTC(), TenantID: requestTenantID(c), Username: username, Reason: reason,
+			At: time.Now().UTC(), TenantID: core.RequestTenantID(c), Username: username, Reason: reason,
 		})
 	}
 }
@@ -955,7 +956,7 @@ func (d Deps) recordLoginFailure(c *echo.Context, username, clientIP string) (bo
 		keyHash := hashThrottleKey(attempt.key)
 		if d.Emit != nil {
 			d.Emit(&spec.LoginThrottled{
-				At: now, TenantID: requestTenantID(c), Kind: string(attempt.kind),
+				At: now, TenantID: core.RequestTenantID(c), Kind: string(attempt.kind),
 				KeyHash:           keyHash,
 				RetryAfterSeconds: result.RetryAfterSeconds,
 			})
@@ -980,7 +981,7 @@ func (d Deps) recordFailedLoginBucket(c *echo.Context, keyHash string, now time.
 		return false
 	}
 	result, err := d.AuthEventBucketStore.Record(
-		c.Request().Context(), authports.AuthEventBucketFailedLogin, requestTenantID(c), keyHash, now,
+		c.Request().Context(), authports.AuthEventBucketFailedLogin, core.RequestTenantID(c), keyHash, now,
 	)
 	if err != nil {
 		return false

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	authusecases "ra-idp-go/internal/authentication/usecases"
+	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/spec"
 
 	"github.com/labstack/echo/v5"
@@ -70,7 +71,7 @@ func (d Deps) handleListAdminUsers(c *echo.Context) error {
 	if _, err := d.requireAdmin(c); err != nil {
 		return d.writeAdminAccessError(c, err)
 	}
-	users, err := d.UserRepo.FindAll(c.Request().Context(), requestTenantID(c))
+	users, err := d.UserRepo.FindAll(c.Request().Context(), core.RequestTenantID(c))
 	if err != nil {
 		return err
 	}
@@ -92,7 +93,7 @@ func (d Deps) handleGetAdminUser(c *echo.Context) error {
 	if user == nil {
 		return writeBrowserError(c, http.StatusNotFound, "user_not_found", "ユーザーが存在しません")
 	}
-	if user.TenantID != requestTenantID(c) {
+	if user.TenantID != core.RequestTenantID(c) {
 		return writeBrowserError(c, http.StatusNotFound, "user_not_found", "ユーザーが存在しません")
 	}
 	return noStoreJSON(c, http.StatusOK, toAdminUserResponse(user))
@@ -216,7 +217,7 @@ func (d Deps) requireAdmin(c *echo.Context) (*spec.User, error) {
 	if err != nil {
 		return nil, err
 	}
-	if user == nil || user.TenantID != requestTenantID(c) || !user.IsActive() ||
+	if user == nil || user.TenantID != core.RequestTenantID(c) || !user.IsActive() ||
 		!slices.Contains(d.effectiveRoles(c.Request().Context(), user), "admin") {
 		return nil, errAdminAccessDenied
 	}

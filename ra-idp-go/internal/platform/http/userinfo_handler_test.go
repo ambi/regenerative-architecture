@@ -19,6 +19,7 @@ import (
 	"time"
 
 	oauthports "ra-idp-go/internal/oauth2/ports"
+	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/platform/persistence/memory"
 	"ra-idp-go/internal/spec"
 
@@ -87,7 +88,7 @@ func TestUserInfoDPoPBoundRequiresMatchingProof(t *testing.T) {
 	}}
 
 	e := echo.New()
-	Register(e, Deps{
+	Register(e, core.Deps{
 		Issuer:            "http://test",
 		UserRepo:          userRepo,
 		TokenIntrospector: intro,
@@ -158,7 +159,7 @@ func TestUserInfoDPoPHTUUsesTenantPrefix(t *testing.T) {
 	tenantRepo := newSingleTenantRepo()
 
 	e := echo.New()
-	Register(e, Deps{
+	Register(e, core.Deps{
 		Issuer:            "http://test",
 		TenantRepo:        tenantRepo,
 		UserRepo:          userRepo,
@@ -234,7 +235,7 @@ func newUserInfoServer(t *testing.T, intro *fakeIntrospector, denylist *fakeDeny
 		TenantID: spec.DefaultTenantID, CreatedAt: now, UpdatedAt: now,
 	})
 	e := echo.New()
-	deps := Deps{
+	deps := core.Deps{
 		Issuer:            "http://test",
 		UserRepo:          userRepo,
 		TokenIntrospector: intro,

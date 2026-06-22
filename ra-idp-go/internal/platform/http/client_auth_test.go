@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"ra-idp-go/internal/oauth2/domain"
+	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/platform/persistence/memory"
 	"ra-idp-go/internal/spec"
 
@@ -55,13 +56,13 @@ func clientAuthServer(method spec.TokenEndpointAuthMethod) *echo.Echo {
 		FapiProfile:              spec.FapiNone,
 		CreatedAt:                time.Now(),
 	})
-	deps := Deps{Issuer: "https://idp.example", ClientRepo: repo}
+	deps := core.Deps{Issuer: "https://idp.example", ClientRepo: repo}
 	e := echo.New()
 	e.POST("/test", func(c *echo.Context) error {
 		if err := c.Request().ParseForm(); err != nil {
 			return err
 		}
-		client, err := deps.authenticateTokenClient(c)
+		client, err := (Deps{&deps}).authenticateTokenClient(c)
 		if err != nil {
 			return writeOAuthError(c, err)
 		}
@@ -215,7 +216,7 @@ func TestPrivateKeyJWTAuthentication(t *testing.T) {
 		FapiProfile:              spec.FapiNone,
 		CreatedAt:                time.Now(),
 	})
-	deps := Deps{
+	deps := core.Deps{
 		Issuer: "https://idp.example", ClientRepo: repo,
 		ClientAssertionReplayStore: memory.NewClientAssertionReplayStore(),
 	}
@@ -224,7 +225,7 @@ func TestPrivateKeyJWTAuthentication(t *testing.T) {
 		if err := c.Request().ParseForm(); err != nil {
 			return err
 		}
-		client, err := deps.authenticateTokenClient(c)
+		client, err := (Deps{&deps}).authenticateTokenClient(c)
 		if err != nil {
 			return writeOAuthError(c, err)
 		}

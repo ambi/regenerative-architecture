@@ -12,6 +12,7 @@ import (
 	"time"
 
 	authdomain "ra-idp-go/internal/authentication/domain"
+	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/platform/persistence/memory"
 	"ra-idp-go/internal/spec"
 
@@ -35,7 +36,7 @@ func newAccountServer(t *testing.T, user *spec.User) *echo.Echo {
 		}
 	}
 	e := echo.New()
-	Register(e, Deps{
+	Register(e, core.Deps{
 		Issuer: "http://idp.test", SCL: spec.MustLoadSCL(), UserRepo: userRepo,
 		TenantRepo: tenantRepo, AttrSchemaRepo: memory.NewTenantUserAttributeSchemaRepository(),
 		AuthnResolver: resolver, Emit: func(spec.DomainEvent) {},

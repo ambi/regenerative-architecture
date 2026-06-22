@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"ra-idp-go/internal/oauth2/usecases"
+	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/spec"
 
 	"github.com/labstack/echo/v5"
@@ -94,7 +95,7 @@ func (d Deps) handleListAdminRolePolicies(c *echo.Context) error {
 	roles, err := usecases.ListRolePolicies(
 		d.SCL,
 		actor.Roles,
-		requestTenantID(c) == spec.DefaultTenantID && actor.TenantID == spec.DefaultTenantID,
+		core.RequestTenantID(c) == spec.DefaultTenantID && actor.TenantID == spec.DefaultTenantID,
 	)
 	if err != nil {
 		return err

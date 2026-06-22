@@ -8,6 +8,7 @@ import (
 	"time"
 
 	authusecases "ra-idp-go/internal/authentication/usecases"
+	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/spec"
 	"ra-idp-go/internal/tenancy"
 
@@ -82,7 +83,7 @@ func (d Deps) handleForgotPasswordAPI(c *echo.Context) error {
 		authusecases.RequestPasswordResetDeps{
 			UserRepo: d.UserRepo, TokenStore: d.PasswordResetTokenStore,
 			EmailSender: d.EmailSender, Emit: d.Emit,
-			Issuer: requestIssuer(c, d.Issuer), TokenTTL: ttl,
+			Issuer: core.RequestIssuer(c, d.Issuer), TokenTTL: ttl,
 		},
 		authusecases.RequestPasswordResetInput{Email: input.Email, Now: time.Now().UTC()},
 	); err != nil {

@@ -13,6 +13,7 @@ import (
 	authusecases "ra-idp-go/internal/authentication/usecases"
 	"ra-idp-go/internal/platform/crypto"
 	httpadapter "ra-idp-go/internal/platform/http"
+	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/platform/persistence/memory"
 	"ra-idp-go/internal/spec"
 
@@ -242,7 +243,7 @@ func TestDisabledUserCannotLogIn(t *testing.T) {
 		t.Fatal(err)
 	}
 	e := echo.New()
-	httpadapter.Register(e, httpadapter.Deps{
+	httpadapter.Register(e, core.Deps{
 		Issuer: "http://idp.test", UserRepo: repo, RequestStore: requestStore,
 		PasswordHasher: hasher,
 	})
@@ -287,7 +288,7 @@ func newAdminUserHandler(
 		repo.Seed(user)
 	}
 	e := echo.New()
-	httpadapter.Register(e, httpadapter.Deps{
+	httpadapter.Register(e, core.Deps{
 		Issuer: "http://idp.test", UserRepo: repo, PasswordHasher: hasher,
 		PasswordHistoryRepo: history, AuthnResolver: authusecases.DemoHeaderResolver{},
 	})

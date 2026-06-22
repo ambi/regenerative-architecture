@@ -9,6 +9,7 @@ import (
 	"time"
 
 	authusecases "ra-idp-go/internal/authentication/usecases"
+	"ra-idp-go/internal/platform/http/core"
 
 	"github.com/labstack/echo/v5"
 )
@@ -48,7 +49,7 @@ func (d Deps) handleListSignInActivity(c *echo.Context) error {
 	}
 	limit := parseLimitParam(c, authusecases.SignInActivityDefaultLimit)
 	items, err := authusecases.ListSignInActivity(
-		c.Request().Context(), d.AuditEventRepo, requestTenantID(c), sub, limit,
+		c.Request().Context(), d.AuditEventRepo, core.RequestTenantID(c), sub, limit,
 	)
 	if err != nil {
 		return err

@@ -16,6 +16,7 @@ import (
 
 	authdomain "ra-idp-go/internal/authentication/domain"
 	"ra-idp-go/internal/platform/crypto"
+	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/platform/persistence/memory"
 	"ra-idp-go/internal/spec"
 
@@ -41,7 +42,7 @@ func newKeyAdminServer(t *testing.T, actor *spec.User) (*echo.Echo, *crypto.InMe
 	events := make([]spec.DomainEvent, 0)
 	emit := func(e spec.DomainEvent) { events = append(events, e) }
 	e := echo.New()
-	Register(e, Deps{
+	Register(e, core.Deps{
 		Issuer: "http://idp.test", SCL: spec.MustLoadSCL(), UserRepo: userRepo,
 		KeyStore: keyStore, AuthnResolver: resolver,
 		TenantRepo: newSingleTenantRepo(),
@@ -166,7 +167,7 @@ func TestAdminKeysRotateRejectsPlainAdmin(t *testing.T) {
 func TestAdminKeysRotateRejectsSystemAdminOutsideDefaultPath(t *testing.T) {
 	// system_admin (TenantID=default) が /realms/acme/.../rotate に到達した場合、
 	// 二段の防御で reject される:
-	//   1. resolveAuthentication が user.TenantID != requestTenantID(=acme) で
+	//   1. resolveAuthentication が user.TenantID != core.RequestTenantID(=acme) で
 	//      セッションを未認証扱いし 401 を返す (defense-in-depth)
 	//   2. もし 1 を抜けても requireKeyRotator が requestTenantID != default で 403
 	// 期待される挙動は (1) が先に発火するため 401。

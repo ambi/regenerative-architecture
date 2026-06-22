@@ -16,6 +16,7 @@ import (
 
 	authdomain "ra-idp-go/internal/authentication/domain"
 	oauthports "ra-idp-go/internal/oauth2/ports"
+	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/platform/persistence/memory"
 	"ra-idp-go/internal/spec"
 
@@ -39,7 +40,7 @@ func newAuditAdminServer(t *testing.T, actor *spec.User, events []*oauthports.Au
 		}
 	}
 	e := echo.New()
-	Register(e, Deps{
+	Register(e, core.Deps{
 		Issuer: "http://test", UserRepo: userRepo,
 		AuditEventRepo: auditStore, AuthnResolver: resolver,
 		TenantRepo: newSingleTenantRepo(),

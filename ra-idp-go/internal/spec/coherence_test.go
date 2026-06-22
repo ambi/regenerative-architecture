@@ -205,7 +205,7 @@ func TestCurrentSCLLoadsAllNormativeSections(t *testing.T) {
 		name string
 		size int
 	}{
-		{"components", len(s.Components)},
+		{"bounded_contexts", len(s.BoundedContexts)},
 		{"standards", len(s.Standards)},
 		{"vocabulary", len(s.Vocabulary)},
 		{"models", len(s.Models)},

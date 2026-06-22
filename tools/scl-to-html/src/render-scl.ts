@@ -21,7 +21,7 @@ import {
 import {
   type AssuranceObligation,
   type Binding,
-  type Component,
+  type BoundedContext,
   type EvidenceRequirement,
   type Field,
   type Interface,
@@ -54,7 +54,7 @@ const referenceAnchor = (section: string, name: string): string | undefined => {
     objectives: 'obj',
     standards: 'std',
     assurance: 'assurance',
-    components: 'comp',
+    bounded_contexts: 'bc',
   }
   const prefix = prefixes[section]
   return prefix ? `#${prefix}-${slug(name)}` : undefined
@@ -221,9 +221,9 @@ const renderStandards = (standards: Record<string, Standard>): string => {
   )
 }
 
-// ─── section: components ───────────────────────────────────────────
+// ─── section: bounded_contexts ─────────────────────────────────────
 
-const OWNS_ORDER: Array<[keyof Component, string]> = [
+const OWNS_ORDER: Array<[keyof BoundedContext, string]> = [
   ['owns_models', 'models'],
   ['owns_states', 'states'],
   ['owns_events', 'events'],
@@ -233,7 +233,7 @@ const OWNS_ORDER: Array<[keyof Component, string]> = [
   ['owns_objectives', 'objectives'],
 ]
 
-const renderComponent = (name: string, c: Component): string => {
+const renderBoundedContext = (name: string, c: BoundedContext): string => {
   const desc = c.description ? `<p class="desc">${esc(c.description)}</p>` : ''
   const refs: Record<string, string[]> = {}
   for (const [key, label] of OWNS_ORDER) {
@@ -242,8 +242,8 @@ const renderComponent = (name: string, c: Component): string => {
   }
   const deps = (c.depends_on ?? [])
     .map((d) => {
-      const ref = d.component
-        ? link(`#comp-${slug(d.component)}`, d.component, 'ref')
+      const ref = d.bounded_context
+        ? link(`#bc-${slug(d.bounded_context)}`, d.bounded_context, 'ref')
         : '<span class="muted">?</span>'
       return `<li>${ref}${d.reason ? ` <span class="muted">— ${esc(d.reason)}</span>` : ''}</li>`
     })
@@ -252,7 +252,7 @@ const renderComponent = (name: string, c: Component): string => {
     ? `<div class="io"><div class="label">Depends on</div><ul class="vlist">${deps}</ul></div>`
     : ''
   const ann = renderAnnotations(c.annotations)
-  return `<article class="card" id="comp-${esc(slug(name))}">
+  return `<article class="card" id="bc-${esc(slug(name))}">
     <header><h3>${esc(name)}</h3></header>
     ${desc}
     ${renderNamedReferences(refs)}
@@ -261,16 +261,16 @@ const renderComponent = (name: string, c: Component): string => {
   </article>`
 }
 
-const renderComponents = (components: Record<string, Component>): string => {
-  const cards = Object.entries(components)
-    .map(([n, c]) => renderComponent(n, c))
+const renderBoundedContexts = (boundedContexts: Record<string, BoundedContext>): string => {
+  const cards = Object.entries(boundedContexts)
+    .map(([n, c]) => renderBoundedContext(n, c))
     .join('\n')
   return wrapSection(
-    'components',
-    'Components',
-    '単一ドキュメント内のモジュール分割 (DDD のサブドメイン)。所有関係と依存方向を宣言する。',
+    'bounded_contexts',
+    'Bounded Contexts',
+    'DDD の bounded context。所有関係と依存方向を宣言する。',
     `<div class="cards">${cards}</div>`,
-    Object.keys(components).length,
+    Object.keys(boundedContexts).length,
   )
 }
 
@@ -1032,7 +1032,7 @@ const wrapSection = (
 
 export const SECTION_TITLES: Record<SectionKind, string> = {
   standards: 'Standards',
-  components: 'Components',
+  bounded_contexts: 'Bounded Contexts',
   vocabulary: 'Vocabulary',
   models: 'Models',
   interfaces: 'Interfaces',
@@ -1049,8 +1049,8 @@ const renderOneSection = (k: SectionKind, scl: SclDocument): string => {
   switch (k) {
     case 'standards':
       return scl.standards ? renderStandards(scl.standards) : ''
-    case 'components':
-      return scl.components ? renderComponents(scl.components) : ''
+    case 'bounded_contexts':
+      return scl.bounded_contexts ? renderBoundedContexts(scl.bounded_contexts) : ''
     case 'vocabulary':
       return scl.vocabulary ? renderVocab(scl.vocabulary) : ''
     case 'models':

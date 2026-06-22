@@ -1,7 +1,7 @@
 package usecases
 
 // 管理者向け Group ライフサイクル操作と user-group membership (ADR-038)。
-// SCL Authentication component が所有する admin インターフェース群:
+// SCL IdentityManagement bounded context が所有する admin インターフェース群:
 // ListGroups / GetGroup / CreateGroup / UpdateGroup / DeleteGroup /
 // AddGroupMember / RemoveGroupMember / ListUserGroups。
 //

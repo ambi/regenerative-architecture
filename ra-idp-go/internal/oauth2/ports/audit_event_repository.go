@@ -1,7 +1,7 @@
 package ports
 
-// AuditEventRepository は管理 API 用の DomainEvent 読み出し境界 (SCL Trust
-// component: ListAdminAuditEvents / GetAdminAuditEvent)。EventSink が
+// AuditEventRepository は管理 API 用の DomainEvent 読み出し境界 (SCL OAuth2
+// bounded context: ListAdminAuditEvents / GetAdminAuditEvent)。EventSink が
 // fire-and-forget の側に対して、本 port は時系列降順検索とテナント境界フィルタを提供する。
 //
 // 本実装は監査保管 (SCL objectives.AuditLogRetention 7y) ではなく、

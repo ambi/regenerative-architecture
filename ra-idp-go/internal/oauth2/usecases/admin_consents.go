@@ -1,7 +1,7 @@
 package usecases
 
 // 管理者向け Consent 操作 (List / Get / Revoke)。
-// SCL OAuth2 component の admin インターフェース群:
+// SCL OAuth2 bounded context の admin インターフェース群:
 // ListAdminConsents / GetAdminConsent / RevokeAdminConsent。
 
 import (

@@ -42,7 +42,7 @@ vocabulary:
 
   Section:
     definition: |
-      SCL の論理単位。standards / components / vocabulary / models /
+      SCL の論理単位。standards / bounded_contexts / vocabulary / models /
       interfaces / states / invariants / scenarios / permissions /
       objectives / assurance / user_experience の 12 種。
 
@@ -50,7 +50,7 @@ vocabulary:
     definition: |
       ある宣言が他の宣言を名前で参照する関係。interfaces.errors /
       interfaces.emits、scenarios の自然文ステップに引用された既知の名前、
-      assurance.derived_from、components.depends_on などが該当する。
+      assurance.derived_from、bounded_contexts.depends_on などが該当する。
     aliases: [xref]
 
   Render:
@@ -70,7 +70,7 @@ models:
     kind: enum
     values:
       - standards
-      - components
+      - bounded_contexts
       - vocabulary
       - models
       - interfaces
@@ -94,7 +94,7 @@ models:
       spec_version:    { type: String, constraints: [non_empty] }
       annotations:     { type: Map, optional: true }
       standards:       { type: Map, optional: true }
-      components:      { type: Map, optional: true }
+      bounded_contexts:      { type: Map, optional: true }
       vocabulary:      { type: Map, optional: true }
       models:          { type: Map, optional: true }
       interfaces:      { type: Map, optional: true }

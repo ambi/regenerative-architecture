@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://regenerative-architecture/schemas/work-item.json",
   "title": "Work Item",
-  "description": "ra.md §4.2.1 / CLAUDE.md で規定されるワークアイテム正本。<component>/work-items/<id>.yaml に置き、完了時は completion を同じファイルに追記する。",
+  "description": "ra.md §4.2.1 / CLAUDE.md で規定されるワークアイテム正本。<bounded-context>/work-items/<id>.yaml に置き、完了時は completion を同じファイルに追記する。",
   "type": "object",
   "required": [
     "id",

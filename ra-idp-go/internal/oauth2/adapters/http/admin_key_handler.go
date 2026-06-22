@@ -1,6 +1,6 @@
 package http
 
-// SCL interfaces: ListAdminKeys / GetAdminKey / RotateAdminKey (component: Trust)。
+// SCL interfaces: ListAdminKeys / GetAdminKey / RotateAdminKey (bounded_context: OAuth2)。
 // SCL permissions: AdminKeysRead は admin / system_admin、AdminKeysRotate は
 // default tenant の system_admin のみ。Rotate は SigningKeyRotated を emit する。
 

@@ -1,7 +1,7 @@
 package usecases
 
 // 管理者向け User ライフサイクル操作 (Create / Update / Disable / Enable)。
-// SCL の Authentication component が所有する admin インターフェース群:
+// SCL の IdentityManagement bounded context が所有する admin インターフェース群:
 // CreateAdminUser / UpdateAdminUser / DisableAdminUser / EnableAdminUser。
 
 import (

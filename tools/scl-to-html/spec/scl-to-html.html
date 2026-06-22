@@ -608,7 +608,7 @@ work_item.completion に含める。Work Items タブの 1 カード。
 <article class="vocab-entry" id="vocab-section">
       <div class="vocab-name"><code class="name">Section</code></div>
       <div class="vocab-body">
-        <p class="def">SCL の論理単位。standards / components / vocabulary / models /
+        <p class="def">SCL の論理単位。standards / bounded_contexts / vocabulary / models /
 interfaces / states / invariants / scenarios / permissions /
 objectives / assurance / user_experience の 12 種。
 </p>
@@ -622,7 +622,7 @@ objectives / assurance / user_experience の 12 種。
       <div class="vocab-body">
         <p class="def">ある宣言が他の宣言を名前で参照する関係。interfaces.errors /
 interfaces.emits、scenarios の自然文ステップに引用された既知の名前、
-assurance.derived_from、components.depends_on などが該当する。
+assurance.derived_from、bounded_contexts.depends_on などが該当する。
 </p>
         <div class="aliases"><span class="aliases-label">aliases</span> <span class="chip chip-alias">xref</span></div>
 
@@ -675,7 +675,7 @@ assurance.derived_from、components.depends_on などが該当する。
     <td><span class="muted">—</span></td>
     <td></td>
   </tr><tr>
-    <td><code class="name">components</code></td>
+    <td><code class="name">bounded_contexts</code></td>
     <td><code class="type">Map</code></td>
     <td><span class="badge badge-optional">optional</span></td>
     <td><span class="muted">—</span></td>
@@ -870,7 +870,7 @@ assurance.derived_from、components.depends_on などが該当する。
     <header><h3>SectionKind</h3><span class="badge badge-kind-enum">enum</span></header>
 
 
-    <div class="enum-vals"><span class="chip chip-enum">standards</span> <span class="chip chip-enum">components</span> <span class="chip chip-enum">vocabulary</span> <span class="chip chip-enum">models</span> <span class="chip chip-enum">interfaces</span> <span class="chip chip-enum">states</span> <span class="chip chip-enum">invariants</span> <span class="chip chip-enum">scenarios</span> <span class="chip chip-enum">permissions</span> <span class="chip chip-enum">objectives</span> <span class="chip chip-enum">assurance</span> <span class="chip chip-enum">user_experience</span></div>
+    <div class="enum-vals"><span class="chip chip-enum">standards</span> <span class="chip chip-enum">bounded_contexts</span> <span class="chip chip-enum">vocabulary</span> <span class="chip chip-enum">models</span> <span class="chip chip-enum">interfaces</span> <span class="chip chip-enum">states</span> <span class="chip chip-enum">invariants</span> <span class="chip chip-enum">scenarios</span> <span class="chip chip-enum">permissions</span> <span class="chip chip-enum">objectives</span> <span class="chip chip-enum">assurance</span> <span class="chip chip-enum">user_experience</span></div>
   </article>
 <article class="card" id="model-decisionkind">
     <header><h3>DecisionKind</h3><span class="badge badge-kind-enum">enum</span></header>

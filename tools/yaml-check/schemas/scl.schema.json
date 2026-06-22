@@ -13,9 +13,9 @@
       "type": "object",
       "additionalProperties": { "$ref": "#/$defs/Standard" }
     },
-    "components": {
+    "bounded_contexts": {
       "type": "object",
-      "additionalProperties": { "$ref": "#/$defs/Component" }
+      "additionalProperties": { "$ref": "#/$defs/BoundedContext" }
     },
     "vocabulary": {
       "type": "object",
@@ -123,7 +123,7 @@
       }
     },
 
-    "Component": {
+    "BoundedContext": {
       "type": "object",
       "required": ["description"],
       "properties": {
@@ -139,9 +139,9 @@
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["component", "reason"],
+            "required": ["bounded_context", "reason"],
             "properties": {
-              "component": { "type": "string", "minLength": 1 },
+              "bounded_context": { "type": "string", "minLength": 1 },
               "reason": { "type": "string", "minLength": 1 }
             }
           }

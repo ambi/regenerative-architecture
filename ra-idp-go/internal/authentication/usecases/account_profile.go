@@ -1,7 +1,7 @@
 package usecases
 
 // エンドユーザ自身によるプロフィール参照・編集 (self-service)。
-// SCL の Authentication component が所有する self インターフェース:
+// SCL の IdentityManagement bounded context が所有する self インターフェース:
 // GetUserProfile / UpdateUserProfile。actor.sub == target.sub を前提とし、
 // 編集できるのは editable_by_user=true の属性と表示名のみ (status / roles /
 // organization は admin 専用、ADR-040 の affected_guarantees)。

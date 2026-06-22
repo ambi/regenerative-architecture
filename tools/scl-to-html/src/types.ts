@@ -10,7 +10,7 @@
 
 export const SECTION_KINDS = [
   'standards',
-  'components',
+  'bounded_contexts',
   'vocabulary',
   'models',
   'interfaces',
@@ -30,7 +30,7 @@ export interface SclDocument {
   spec_version: string
   annotations?: Record<string, unknown>
   standards?: Record<string, Standard>
-  components?: Record<string, Component>
+  bounded_contexts?: Record<string, BoundedContext>
   vocabulary?: Record<string, Vocabulary>
   models?: Record<string, Model>
   interfaces?: Record<string, Interface>
@@ -43,7 +43,7 @@ export interface SclDocument {
   user_experience?: UserExperience
 }
 
-export interface Component {
+export interface BoundedContext {
   description?: string
   owns_models?: string[]
   owns_states?: string[]
@@ -52,7 +52,7 @@ export interface Component {
   owns_invariants?: string[]
   owns_permissions?: string[]
   owns_objectives?: string[]
-  depends_on?: Array<{ component?: string; reason?: string }>
+  depends_on?: Array<{ bounded_context?: string; reason?: string }>
   annotations?: Record<string, unknown>
 }
 

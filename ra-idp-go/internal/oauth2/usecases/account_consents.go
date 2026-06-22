@@ -1,7 +1,7 @@
 package usecases
 
 // エンドユーザー自身の Consent 操作 (self-service, wi-21)。
-// SCL Authentication component の self インターフェース ListMyConsents / RevokeMyConsent。
+// SCL OAuth2 bounded context の self インターフェース ListMyConsents / RevokeMyConsent。
 // 取り消しは admin の RevokeConsent と同じく Consent レコードの論理撤回 + ConsentRevoked
 // イベントで、actor.sub == target.sub に固定する。
 

@@ -1,6 +1,6 @@
 package http
 
-// SCL interfaces: ListAdminAuditEvents / GetAdminAuditEvent (component: Trust)。
+// SCL interfaces: ListAdminAuditEvents / GetAdminAuditEvent (bounded_context: OAuth2)。
 // SCL permission: AdminAuditEventsRead — admin は所属テナント内、system_admin は
 // default tenant 経路から全テナント横断で参照できる。書き込み経路は定義しない。
 

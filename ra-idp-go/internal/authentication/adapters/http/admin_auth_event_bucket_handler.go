@@ -1,6 +1,6 @@
 package http
 
-// SCL interface: ListAuthenticationEventBuckets (component: Authentication)。
+// SCL interface: ListAuthenticationEventBuckets (bounded_context: Authentication)。
 // SCL permission: AdminAuditEventsRead を再利用する (集約も監査可視化の一部)。
 // 攻撃時にログイン失敗を個別行へ落とさず集約した bucket を、所属テナント境界内で
 // 新しい窓順に返す (wi-20 スライス 3)。書き込み経路は定義しない。

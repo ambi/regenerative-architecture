@@ -12,7 +12,7 @@ func (s *SCL) ValidateCoherence() error {
 	if s.SpecVersion == "" {
 		return fmt.Errorf("spec_version is required")
 	}
-	if err := s.validateComponents(); err != nil {
+	if err := s.validateBoundedContexts(); err != nil {
 		return err
 	}
 	if err := s.validateModels(); err != nil {
@@ -91,29 +91,29 @@ func (s *SCL) validFieldType(fieldType string) bool {
 	return ok
 }
 
-func (s *SCL) validateComponents() error {
+func (s *SCL) validateBoundedContexts() error {
 	owners := map[string]string{}
-	for name, component := range s.Components {
-		if component.Description == "" {
-			return fmt.Errorf("component %s: description is required", name)
+	for name, boundedContext := range s.BoundedContexts {
+		if boundedContext.Description == "" {
+			return fmt.Errorf("bounded context %s: description is required", name)
 		}
 		owned := []struct {
 			section string
 			names   []string
 			values  map[string]struct{}
 		}{
-			{"models", component.OwnsModels, keysOf(s.Models)},
-			{"states", component.OwnsStates, keysOf(s.States)},
-			{"events", component.OwnsEvents, eventModelKeys(s.Models)},
-			{"interfaces", component.OwnsInterfaces, keysOf(s.Interfaces)},
-			{"invariants", component.OwnsInvariants, keysOf(s.Invariants)},
-			{"permissions", component.OwnsPermissions, keysOf(s.Permissions)},
-			{"objectives", component.OwnsObjectives, keysOf(s.Objectives)},
+			{"models", boundedContext.OwnsModels, keysOf(s.Models)},
+			{"states", boundedContext.OwnsStates, keysOf(s.States)},
+			{"events", boundedContext.OwnsEvents, eventModelKeys(s.Models)},
+			{"interfaces", boundedContext.OwnsInterfaces, keysOf(s.Interfaces)},
+			{"invariants", boundedContext.OwnsInvariants, keysOf(s.Invariants)},
+			{"permissions", boundedContext.OwnsPermissions, keysOf(s.Permissions)},
+			{"objectives", boundedContext.OwnsObjectives, keysOf(s.Objectives)},
 		}
 		for _, group := range owned {
 			for _, item := range group.names {
 				if _, ok := group.values[item]; !ok {
-					return fmt.Errorf("component %s: owns_%s references unknown %s", name, group.section, item)
+					return fmt.Errorf("bounded context %s: owns_%s references unknown %s", name, group.section, item)
 				}
 				key := group.section + ":" + item
 				if previous, ok := owners[key]; ok {
@@ -122,19 +122,19 @@ func (s *SCL) validateComponents() error {
 				owners[key] = name
 			}
 		}
-		for _, dependency := range component.DependsOn {
-			if _, ok := s.Components[dependency.Component]; !ok {
-				return fmt.Errorf("component %s: depends_on references unknown component %s", name, dependency.Component)
+		for _, dependency := range boundedContext.DependsOn {
+			if _, ok := s.BoundedContexts[dependency.BoundedContext]; !ok {
+				return fmt.Errorf("bounded context %s: depends_on references unknown bounded context %s", name, dependency.BoundedContext)
 			}
 			if dependency.Reason == "" {
-				return fmt.Errorf("component %s: dependency on %s requires reason", name, dependency.Component)
+				return fmt.Errorf("bounded context %s: dependency on %s requires reason", name, dependency.BoundedContext)
 			}
 		}
 	}
-	return validateComponentCycles(s.Components)
+	return validateBoundedContextCycles(s.BoundedContexts)
 }
 
-func validateComponentCycles(components map[string]Component) error {
+func validateBoundedContextCycles(boundedContexts map[string]BoundedContext) error {
 	const (
 		unvisited = iota
 		visiting
@@ -145,20 +145,20 @@ func validateComponentCycles(components map[string]Component) error {
 	visit = func(name string) error {
 		switch state[name] {
 		case visiting:
-			return fmt.Errorf("component dependency cycle includes %s", name)
+			return fmt.Errorf("bounded context dependency cycle includes %s", name)
 		case visited:
 			return nil
 		}
 		state[name] = visiting
-		for _, dependency := range components[name].DependsOn {
-			if err := visit(dependency.Component); err != nil {
+		for _, dependency := range boundedContexts[name].DependsOn {
+			if err := visit(dependency.BoundedContext); err != nil {
 				return err
 			}
 		}
 		state[name] = visited
 		return nil
 	}
-	for name := range components {
+	for name := range boundedContexts {
 		if err := visit(name); err != nil {
 			return err
 		}

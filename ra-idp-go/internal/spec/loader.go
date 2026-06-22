@@ -14,39 +14,39 @@ import (
 )
 
 type SCL struct {
-	System         string                  `yaml:"system"`
-	SpecVersion    string                  `yaml:"spec_version"`
-	Components     map[string]Component    `yaml:"components"`
-	Standards      map[string]Standard     `yaml:"standards"`
-	Vocabulary     map[string]Vocabulary   `yaml:"vocabulary"`
-	Models         map[string]Model        `yaml:"models"`
-	Interfaces     map[string]Interface    `yaml:"interfaces"`
-	States         map[string]StateMachine `yaml:"states"`
-	Invariants     map[string]Invariant    `yaml:"invariants"`
-	Scenarios      map[string]Scenario     `yaml:"scenarios"`
-	Permissions    map[string]Permission   `yaml:"permissions"`
-	Objectives     map[string]Objective    `yaml:"objectives"`
-	Assurance      map[string]Assurance    `yaml:"assurance"`
-	UserExperience UserExperience          `yaml:"user_experience"`
-	Annotations    map[string]any          `yaml:"annotations"`
+	System          string                    `yaml:"system"`
+	SpecVersion     string                    `yaml:"spec_version"`
+	BoundedContexts map[string]BoundedContext `yaml:"bounded_contexts"`
+	Standards       map[string]Standard       `yaml:"standards"`
+	Vocabulary      map[string]Vocabulary     `yaml:"vocabulary"`
+	Models          map[string]Model          `yaml:"models"`
+	Interfaces      map[string]Interface      `yaml:"interfaces"`
+	States          map[string]StateMachine   `yaml:"states"`
+	Invariants      map[string]Invariant      `yaml:"invariants"`
+	Scenarios       map[string]Scenario       `yaml:"scenarios"`
+	Permissions     map[string]Permission     `yaml:"permissions"`
+	Objectives      map[string]Objective      `yaml:"objectives"`
+	Assurance       map[string]Assurance      `yaml:"assurance"`
+	UserExperience  UserExperience            `yaml:"user_experience"`
+	Annotations     map[string]any            `yaml:"annotations"`
 }
 
-type Component struct {
-	Description     string                `yaml:"description"`
-	OwnsModels      []string              `yaml:"owns_models"`
-	OwnsStates      []string              `yaml:"owns_states"`
-	OwnsEvents      []string              `yaml:"owns_events"`
-	OwnsInterfaces  []string              `yaml:"owns_interfaces"`
-	OwnsInvariants  []string              `yaml:"owns_invariants"`
-	OwnsPermissions []string              `yaml:"owns_permissions"`
-	OwnsObjectives  []string              `yaml:"owns_objectives"`
-	DependsOn       []ComponentDependency `yaml:"depends_on"`
-	Annotations     map[string]any        `yaml:"annotations"`
+type BoundedContext struct {
+	Description     string                     `yaml:"description"`
+	OwnsModels      []string                   `yaml:"owns_models"`
+	OwnsStates      []string                   `yaml:"owns_states"`
+	OwnsEvents      []string                   `yaml:"owns_events"`
+	OwnsInterfaces  []string                   `yaml:"owns_interfaces"`
+	OwnsInvariants  []string                   `yaml:"owns_invariants"`
+	OwnsPermissions []string                   `yaml:"owns_permissions"`
+	OwnsObjectives  []string                   `yaml:"owns_objectives"`
+	DependsOn       []BoundedContextDependency `yaml:"depends_on"`
+	Annotations     map[string]any             `yaml:"annotations"`
 }
 
-type ComponentDependency struct {
-	Component string `yaml:"component"`
-	Reason    string `yaml:"reason"`
+type BoundedContextDependency struct {
+	BoundedContext string `yaml:"bounded_context"`
+	Reason         string `yaml:"reason"`
 }
 
 type Standard struct {

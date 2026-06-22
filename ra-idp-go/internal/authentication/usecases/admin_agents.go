@@ -1,7 +1,7 @@
 package usecases
 
 // 管理者向け Agent ライフサイクル操作と OAuth2Client 資格情報束縛 (ADR-048)。
-// SCL Authentication component が所有する admin インターフェース群:
+// SCL IdentityManagement bounded context が所有する admin インターフェース群:
 // ListAgents / GetAgent / RegisterAgent / UpdateAgent / DisableAgent /
 // EnableAgent / KillAgent / DeleteAgent / BindAgentCredential /
 // UnbindAgentCredential。

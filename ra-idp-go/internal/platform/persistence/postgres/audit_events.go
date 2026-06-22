@@ -1,6 +1,6 @@
 package postgres
 
-// AuditEventRepository は AuditEventRepository (SCL Trust component) を PostgreSQL に
+// AuditEventRepository は AuditEventRepository (SCL OAuth2 bounded context) を PostgreSQL に
 // 永続化する読み出しモデル。in-memory 実装 (memory.AuditEventStore) と同じ port 契約を
 // 満たし、admin の時系列調査 / 本人サインイン履歴 / wi-44 の認証イベント検索が共有する。
 // 付加属性 (ip_truncated / ip_hash / session_id 等) は payload JSONB に載るため、本テーブルは

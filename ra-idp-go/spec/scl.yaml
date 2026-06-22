@@ -10,7 +10,7 @@
 system: ra-idp
 spec_version: "1.2"
 
-components:
+bounded_contexts:
 
   Tenancy:
     description: テナント (Realm) 集約、ライフサイクル、HTTP リクエストからのテナント解決、テナント管理 API を所有する。テナントは ra-idp のあらゆる集約に共通する境界文脈。
@@ -20,17 +20,27 @@ components:
     owns_interfaces: [ResolveTenant, ListTenants, GetTenant, CreateTenant, UpdateTenant, DisableTenant, EnableTenant, GetAdminSettings, UpdateAdminSettings]
     owns_permissions: [AdminTenantsManage, AdminSettingsRead, AdminSettingsUpdate]
 
-  Authentication:
-    description: エンドユーザ (Subject) の identity、credentials、MFA、ログインセッション、パスワードリセット、および管理 API からの User ライフサイクル操作を所有する。
-    owns_models: [User, MfaFactor, MfaFactorType, LoginSession, AuthenticationContext, PasswordResetTokenRecord, BrowserLoginRequest, BrowserTotpRequest, BrowserChangePasswordRequest, BrowserForgotPasswordRequest, BrowserResetPasswordRequest, AdminUserCreateRequest, AdminUserUpdateRequest, AdminRequiredActionRequest, AdminUserListResponse, AdminUserResponse, Group, GroupMember, GroupCreateRequest, GroupUpdateRequest, GroupSummaryResponse, GroupListResponse, GroupMemberResponse, GroupAddMemberRequest, UserGroupsResponse, UserLifecycle, AttributeValue, UserStatus, RequiredAction, AccountProfileResponse, AccountProfileUpdateRequest, AccountSummary, AccountEmailChangeRequest, AccountEmailChangeConfirm, AccountDataExport, AccountMfaFactor, AccountSecurityResponse, TOTPEnrollmentStart, TOTPEnrollmentConfirmRequest, MfaFactorRemoveRequest, UserSignInActivity, UserSignInActivityResponse, SessionEndReason, AccountSession, AccountSessionListResponse, AuthenticationEventBucket, AuthenticationEventBucketListResponse, StepUpMethod, StepUpStartResponse, StepUpCompleteRequest, AgentStatus, AgentKind, Agent, AgentCredentialBinding, AgentRegisterRequest, AgentUpdateRequest, AgentCredentialBindRequest, AgentSummaryResponse, AgentListResponse]
+  IdentityManagement:
+    description: 人間 User、Group、非人間 Agent という identity principal と、そのプロフィール、ロール、ライフサイクル、管理 API、自己管理 API を所有する。資格情報検証、MFA、ログインセッションは Authentication に分離する。
+    owns_models: [User, AdminUserCreateRequest, AdminUserUpdateRequest, AdminRequiredActionRequest, AdminUserListResponse, AdminUserResponse, Group, GroupMember, GroupCreateRequest, GroupUpdateRequest, GroupSummaryResponse, GroupListResponse, GroupMemberResponse, GroupAddMemberRequest, UserGroupsResponse, UserLifecycle, AttributeValue, UserStatus, RequiredAction, AccountProfileResponse, AccountProfileUpdateRequest, AccountSummary, AccountEmailChangeRequest, AccountEmailChangeConfirm, AccountDataExport, AgentStatus, AgentKind, Agent, AgentCredentialBinding, AgentRegisterRequest, AgentUpdateRequest, AgentCredentialBindRequest, AgentSummaryResponse, AgentListResponse]
     owns_states: [UserLifecycle, GroupLifecycle, AgentLifecycle]
-    owns_events: [UserAuthenticated, AuthenticationFailed, PasswordChanged, LoginThrottled, PasswordResetRequested, EmailSent, EmailChangeRequested, EmailChanged, UserCreated, UserUpdated, UserDisabled, UserEnabled, UserDeleted, UserRequiredActionSet, UserRequiredActionCleared, GroupCreated, GroupUpdated, GroupDeleted, GroupMemberAdded, GroupMemberRemoved, MfaFactorEnrolled, MfaFactorRemoved, SessionEnded, AuthenticationEventAggregated, StepUpRequested, StepUpCompleted, AuthenticationStepCompleted, AuthenticationStepFailed, MfaChallengeIssued, MfaChallengeSucceeded, MfaChallengeFailed, BackupCodeConsumed, SessionStarted, SessionRefreshed, FederatedAuthenticated, FederationLinked, FederationUnlinked, SessionImpersonationStarted, SessionImpersonationEnded, AgentRegistered, AgentUpdated, AgentDisabled, AgentEnabled, AgentKilled, AgentDeleted, AgentOwnerChanged, AgentCredentialBound, AgentCredentialUnbound]
-    owns_interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, ChangePassword, GetAccountSummary, GetUserProfile, UpdateUserProfile, RequestEmailChange, ConfirmEmailChange, ExportAccountData, GetAccountSecurity, StartTotpEnrollment, ConfirmTotpEnrollment, RemoveTotpFactor, ListMySignInActivity, ListUserSignInActivity, ListAuthenticationEventBuckets, ListMySessions, RevokeMySession, RevokeMyOtherSessions, StartStepUpAuthentication, CompleteStepUpAuthentication, RequestPasswordReset, ResetPasswordWithToken, ListAdminUsers, GetAdminUser, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser, DeleteAdminUser, SetUserRequiredAction, ClearUserRequiredAction, ListGroups, GetGroup, CreateGroup, UpdateGroup, DeleteGroup, AddGroupMember, RemoveGroupMember, ListUserGroups, ListAgents, GetAgent, RegisterAgent, UpdateAgent, DisableAgent, EnableAgent, KillAgent, DeleteAgent, BindAgentCredential, UnbindAgentCredential]
-    owns_invariants: [PasswordHistoryNoReuse, EffectiveRolesComposition, GroupMembershipAuditEmission]
+    owns_events: [EmailChangeRequested, EmailChanged, UserCreated, UserUpdated, UserDisabled, UserEnabled, UserDeleted, UserRequiredActionSet, UserRequiredActionCleared, GroupCreated, GroupUpdated, GroupDeleted, GroupMemberAdded, GroupMemberRemoved, FederationLinked, FederationUnlinked, AgentRegistered, AgentUpdated, AgentDisabled, AgentEnabled, AgentKilled, AgentDeleted, AgentOwnerChanged, AgentCredentialBound, AgentCredentialUnbound]
+    owns_interfaces: [GetAccountSummary, GetUserProfile, UpdateUserProfile, RequestEmailChange, ConfirmEmailChange, ExportAccountData, ListAdminUsers, GetAdminUser, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser, DeleteAdminUser, SetUserRequiredAction, ClearUserRequiredAction, ListGroups, GetGroup, CreateGroup, UpdateGroup, DeleteGroup, AddGroupMember, RemoveGroupMember, ListUserGroups, ListAgents, GetAgent, RegisterAgent, UpdateAgent, DisableAgent, EnableAgent, KillAgent, DeleteAgent, BindAgentCredential, UnbindAgentCredential]
+    owns_invariants: [EffectiveRolesComposition, GroupMembershipAuditEmission]
     owns_permissions: [AdminUserRead, AdminUserCreate, AdminUserUpdate, AdminUserDelete, AdminGroupsRead, AdminGroupsWrite, AdminAgentsManage]
+    depends_on:
+      - { bounded_context: Tenancy, reason: identity principal と管理 API はテナント境界内に閉じる。 }
+
+  Authentication:
+    description: エンドユーザ (Subject) の資格情報検証、MFA、ログインセッション、パスワード変更・リセット、step-up、認証イベントを所有する。User / Group / Agent の identity ライフサイクルは IdentityManagement が所有する。
+    owns_models: [MfaFactor, MfaFactorType, LoginSession, AuthenticationContext, PasswordResetTokenRecord, BrowserLoginRequest, BrowserTotpRequest, BrowserChangePasswordRequest, BrowserForgotPasswordRequest, BrowserResetPasswordRequest, AccountMfaFactor, AccountSecurityResponse, TOTPEnrollmentStart, TOTPEnrollmentConfirmRequest, MfaFactorRemoveRequest, UserSignInActivity, UserSignInActivityResponse, SessionEndReason, AccountSession, AccountSessionListResponse, AuthenticationEventBucket, AuthenticationEventBucketListResponse, StepUpMethod, StepUpStartResponse, StepUpCompleteRequest]
+    owns_events: [UserAuthenticated, AuthenticationFailed, PasswordChanged, LoginThrottled, PasswordResetRequested, EmailSent, MfaFactorEnrolled, MfaFactorRemoved, SessionEnded, AuthenticationEventAggregated, StepUpRequested, StepUpCompleted, AuthenticationStepCompleted, AuthenticationStepFailed, MfaChallengeIssued, MfaChallengeSucceeded, MfaChallengeFailed, BackupCodeConsumed, SessionStarted, SessionRefreshed, FederatedAuthenticated, SessionImpersonationStarted, SessionImpersonationEnded]
+    owns_interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, ChangePassword, GetAccountSecurity, StartTotpEnrollment, ConfirmTotpEnrollment, RemoveTotpFactor, ListMySignInActivity, ListUserSignInActivity, ListAuthenticationEventBuckets, ListMySessions, RevokeMySession, RevokeMyOtherSessions, StartStepUpAuthentication, CompleteStepUpAuthentication, RequestPasswordReset, ResetPasswordWithToken]
+    owns_invariants: [PasswordHistoryNoReuse]
     owns_objectives: [PiiPurgeAfterDeletion]
     depends_on:
-      - { component: Tenancy, reason: User と LoginSession はテナント境界内に閉じ、User 管理 API もテナント単位で動く。 }
+      - { bounded_context: Tenancy, reason: LoginSession と認証イベントはテナント境界内に閉じる。 }
+      - { bounded_context: IdentityManagement, reason: 認証は User の状態、required actions、MFA 登録状態、Agent 所有者などの identity 情報を参照する。 }
 
   OAuth2:
     description: |
@@ -40,7 +50,7 @@ components:
       トークン発行とライフサイクル (AccessToken / RefreshToken / ID Token /
       Introspect / Revoke / UserInfo / proof-of-possession)、信頼基盤 (署名鍵 /
       JWKS / Discovery / Authorization Server Metadata / 健全性報告 / 監査保管)
-      を本コンポーネントに集約する。
+      を本 bounded context に集約する。
     owns_models: [OAuth2Client, ClientType, TokenEndpointAuthMethod, FapiProfile, ClientRegistrationRequest, AdminClientCreateRequest, AdminClientUpdateRequest, AdminClientResponse, AdminClientCreateResponse, AdminClientListResponse, InvalidClientError, UnauthorizedClientError, AuthorizationRequest, AuthorizeParameters, Consent, ConsentState, AdminConsentResponse, AdminConsentListResponse, AccountConsentResponse, AccountConsentListResponse, AuthorizationCodeRecord, AuthorizationCodeState, AuthorizationCodeRecordState, ResponseType, ResponseMode, CodeChallengeMethod, GrantType, PARRecord, PARRecordState, ParRequest, ParResponse, BrowserConsentRequest, BrowserTransactionResponse, BrowserFlowResponse, EndSessionParameters, DeviceCodeState, DeviceAuthorization, DeviceAuthorizationRequest, DeviceAuthorizationResponse, BrowserDeviceRequest, BrowserDeviceContextResponse, OAuthError, OAuthErrorCode, InvalidRequestError, InvalidScopeError, AccessDeniedError, ExpiredTokenError, SlowDownError, AuthorizationPendingError, ServerError, TokenRequest, TokenResponse, IntrospectionRequest, IntrospectionResponse, RevokeRequest, UserInfoResponse, RefreshTokenRecord, RefreshTokenState, AccessTokenClaims, IdTokenClaims, TokenType, AccessTokenSenderConstraint, SenderConstraintKind, SenderConstraintCnf, RefreshTokenSenderConstraint, Audience, InvalidGrantError, UnsupportedGrantTypeError, InvalidTokenError, InvalidDpopProofError, InsufficientScopeError, SigningKey, SigningKeyState, JWK, JWKS, DiscoveryDocument, SignatureAlgorithm, Uri, AuditEventQuery, AdminAuditEventResponse, AdminAuditEventListResponse, AdminKeyResponse, AdminKeyListResponse, AdminRotateKeyResponse]
     owns_states: [AuthorizationCodeFlow, AuthorizationCodeRecordLifecycle, ConsentLifecycle, PARRecordLifecycle, DeviceCodeFlow, RefreshTokenLifecycle, SigningKeyLifecycle]
     owns_events: [ClientRegistered, AdminClientCreated, AdminClientUpdated, AdminClientDeleted, AuthorizationCodeIssued, AuthorizationCodeRedeemed, ConsentGranted, ConsentRevoked, PARStored, DeviceAuthorizationRequested, DeviceAuthorizationApproved, DeviceAuthorizationDenied, AccessTokenIssued, RefreshTokenIssued, RefreshTokenRotated, TokenRevoked, TokenIntrospected, TokenExchanged, TokenExchangeRejected, RefreshTokenReuseDetected, SigningKeyRotated]
@@ -49,8 +59,9 @@ components:
     owns_permissions: [AdminClientsManage, AuthorizeInitiate, AdminConsentsManage, TokenGrantAuthorizationCode, TokenGrantRefresh, TokenGrantClientCredentials, TokenGrantDeviceCode, TokenGrantTokenExchange, TokenIntrospect, TokenRevoke, UserInfoRead, AdminAuditEventsRead, AdminKeysRead, AdminKeysRotate]
     owns_objectives: [RegisterLatency, RegisterErrorRate, ClientAuthFailureRateLimit, AuthorizeLatency, ParLatency, DeviceAuthorizationLatency, AuthorizeErrorRate, ParErrorRate, DeviceAuthorizationErrorRate, AuthorizeThroughput, AuthorizationCodeLifetime, ParRequestUriLifetime, DeviceCodeLifetime, UserCodeLifetime, DeviceCodePollingDefaultInterval, ConsentRecordsRetention, AuthorizationCodeRedemptionFailureRateLimit, TokenLatency, IntrospectLatency, RevokeLatency, UserInfoLatency, TokenErrorRate, IntrospectErrorRate, RevokeErrorRate, UserInfoErrorRate, TokenEndpointAvailability, TokenThroughput, IntrospectThroughput, AccessTokenLifetime, IdTokenLifetime, RefreshTokenLifetime, RefreshTokenAbsoluteLifetime, DpopProofClockSkewPast, DpopProofClockSkewFuture, DpopJtiReplayWindow, DpopNonceLifetime, RefreshReuseAlertWindow, JwksLatency, DiscoveryLatency, JwksErrorRate, DiscoveryErrorRate, OverallAvailability, SigningKeyMinJwksOverlap, SigningKeyArchiveRetention, AuditLogRetention]
     depends_on:
-      - { component: Tenancy,        reason: クライアント・コード・トークン・鍵・監査はテナント境界内に閉じる。 }
-      - { component: Authentication, reason: Authorize は AuthenticationContext を Authentication から解決する。 }
+      - { bounded_context: Tenancy,        reason: クライアント・コード・トークン・鍵・監査はテナント境界内に閉じる。 }
+      - { bounded_context: Authentication, reason: Authorize は AuthenticationContext を Authentication から解決する。 }
+      - { bounded_context: IdentityManagement, reason: UserInfo / ID Token claim と Agent client_credentials は identity principal 情報を参照する。 }
 
 # =================================================================
 # 0. standards — 適用する外部標準と規範要件
@@ -1268,7 +1279,7 @@ models:
     kind: entity
     description: ADR-032 で導入したテナント (realm) 集約。Client / User / Consent / ポリシー / ブランディングはこの境界に閉じる。`default` テナントは起動時に自動作成され、削除・無効化とも不可。
     identity: id
-    annotations: { component: Tenancy }
+    annotations: { bounded_context: Tenancy }
     fields:
       id:                       { type: String, constraints: [non_empty, { max_length: 63 }, { pattern: "^[a-z0-9][a-z0-9-]{0,62}$" }], description: "URL-safe slug。予約語 admin は禁止。" }
       display_name:             { type: String, constraints: [non_empty, { max_length: 200 }], annotations: { pii: true } }
@@ -1285,7 +1296,7 @@ models:
       objectives.PasswordPolicy をテナント解決ポートで差し替えるためのスキーマ。
       省略フィールドは global default を継承し、change_password / reset_password の
       評価経路ではテナント値が global より厳しい方向にのみ働く想定。
-    annotations: { component: Tenancy }
+    annotations: { bounded_context: Tenancy }
     fields:
       min_length:    { type: Integer, optional: true, description: "下限長 (≥ global default を推奨)" }
       max_length:    { type: Integer, optional: true, description: "上限長" }
@@ -1384,7 +1395,7 @@ models:
     kind: entity
     description: tenant 単位の custom 属性定義集合 (ADR-040)。組み込み属性はコード (BuiltinUserAttributeDefs) が持ち、本集合は tenant 固有分のみ。tenant aggregate には埋め込まず独立 aggregate として持ち、tenant 削除時に cascade する。
     identity: tenant_id
-    annotations: { component: Tenancy }
+    annotations: { bounded_context: Tenancy }
     fields:
       tenant_id:  { type: String, default: "default", description: "所属テナント ID (ADR-034)。" }
       attributes: { type: "UserAttributeDef[]", description: "key が一意で組み込み属性と衝突しない定義の並び。" }
@@ -1406,7 +1417,7 @@ models:
     kind: entity
     description: ブラウザログインセッション。Cookie には不透明な session id のみを置き、sub と auth_time はサーバー側ストアに保持する。amr / acr もここに残し、後続の /authorize で step-up 判定に使う。authentication_pending=true は追加 factor 検証を待っている中間状態で、/authorize 完了経路はそのセッションを未認証扱いとし対応する factor challenge に誘導する。
     identity: id
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     fields:
       id:                      { type: UUID }
       sub:                     { type: String }
@@ -1418,7 +1429,7 @@ models:
 
   AuthenticationContext:
     kind: value_object
-    description: Authentication component が OAuth2/OIDC component に渡す認証結果。OAuth2/OIDC は password、UserRepository、session cookie の詳細を参照しない。
+    description: Authentication bounded context が OAuth2/OIDC bounded context に渡す認証結果。OAuth2/OIDC は password、UserRepository、session cookie の詳細を参照しない。
     fields:
       sub:         { type: String }
       auth_time:   { type: Integer }
@@ -1463,7 +1474,7 @@ models:
     kind: entity
     description: フロー追跡用のサーバー内部中間ステート。
     identity: id
-    annotations: { component: OAuth2 }
+    annotations: { bounded_context: OAuth2 }
     fields:
       id:                       { type: UUID }
       tenant_id:                { type: String, default: "default", description: "所属テナント ID (ADR-034)。" }
@@ -1703,7 +1714,7 @@ models:
       objectives.PasswordPolicy の現行値。テナント設定 UI が「テナント上書きが
       無いときに実際に適用される値」をユーザに具体数字で示せるよう、API レスポンスに
       埋め込む。同時に override がこの値より弱い場合の reject 閾値でもある。
-    annotations: { component: Tenancy }
+    annotations: { bounded_context: Tenancy }
     fields:
       min_length:    { type: Integer, description: "objectives.PasswordPolicy.min_length。" }
       max_length:    { type: Integer, description: "objectives.PasswordPolicy.max_length。" }
@@ -1715,7 +1726,7 @@ models:
       `/api/admin/settings` の返り値。テナント本体ではなく管理 UI 向けの projection で、
       tenant_id / display_name / password_policy_override に加え、UI 表示と weaker
       policy gating に使う objectives 標準値を併せて返す。
-    annotations: { component: Tenancy }
+    annotations: { bounded_context: Tenancy }
     fields:
       tenant_id:                { type: String }
       display_name:             { type: String, annotations: { pii: true } }
@@ -1728,7 +1739,7 @@ models:
       `/api/admin/tenant/user_attribute_schema` の返り値。tenant 固有の custom 属性定義
       (attributes) に加え、参照用にコードが持つ組み込みカタログ (builtin) を併せて返し、
       UI が key 衝突を避けつつ全属性を一覧できるようにする (ADR-040)。
-    annotations: { component: Tenancy }
+    annotations: { bounded_context: Tenancy }
     fields:
       tenant_id:  { type: String }
       attributes: { type: "UserAttributeDef[]", description: "tenant が編集可能な custom 定義。" }
@@ -1738,14 +1749,14 @@ models:
   TenantUserAttributeSchemaUpdateRequest:
     kind: value_object
     description: tenant の custom 属性定義を全置換する JSON リクエスト (ADR-040)。組み込み属性との key 衝突・重複 key は use case 側で拒否する。
-    annotations: { component: Tenancy }
+    annotations: { bounded_context: Tenancy }
     fields:
       attributes: { type: "UserAttributeDef[]", description: "新しい custom 定義一覧。空配列で全削除。" }
 
   TenantCreateRequest:
     kind: value_object
     description: 管理者が新規テナントを登録する JSON リクエスト (ADR-032)。`id` は URL-safe slug。
-    annotations: { component: Tenancy }
+    annotations: { bounded_context: Tenancy }
     fields:
       id:           { type: String, constraints: [non_empty, { max_length: 63 }, { pattern: "^[a-z0-9][a-z0-9-]{0,62}$" }] }
       display_name: { type: String, constraints: [non_empty, { max_length: 200 }], annotations: { pii: true } }
@@ -1753,7 +1764,7 @@ models:
   TenantUpdateRequest:
     kind: value_object
     description: 管理者がテナントの表示名 / パスワードポリシー上書きを更新する JSON リクエスト (ADR-032)。`id` と status は変更しない。status 変更は disable/enable 専用 endpoint を経由。
-    annotations: { component: Tenancy }
+    annotations: { bounded_context: Tenancy }
     fields:
       display_name:             { type: String, optional: true, constraints: [non_empty, { max_length: 200 }], annotations: { pii: true } }
       password_policy_override: { type: PasswordPolicyOverride, optional: true, description: "省略時は既存値を維持。null を渡したい場合は明示する。" }
@@ -1761,7 +1772,7 @@ models:
   TenantSummaryResponse:
     kind: value_object
     description: テナント表現。管理 UI の一覧と詳細で同じ表現を返す (ADR-032)。
-    annotations: { component: Tenancy }
+    annotations: { bounded_context: Tenancy }
     fields:
       id:                       { type: String }
       display_name:             { type: String, annotations: { pii: true } }
@@ -1774,14 +1785,14 @@ models:
   TenantListResponse:
     kind: value_object
     description: 管理 API のテナント一覧 (ADR-032)。
-    annotations: { component: Tenancy }
+    annotations: { bounded_context: Tenancy }
     fields:
       tenants: { type: "TenantSummaryResponse[]" }
 
   AdminUserCreateRequest:
     kind: value_object
     description: 管理者がユーザーを作成する JSON リクエスト。初期パスワードには PasswordPolicy objective を適用する。
-    annotations: { component: Administration }
+    annotations: { bounded_context: IdentityManagement }
     fields:
       preferred_username: { type: String, constraints: [non_empty, { max_length: 100 }], annotations: { pii: true } }
       password:           { type: String, annotations: { sensitive: true } }
@@ -1793,7 +1804,7 @@ models:
   AdminUserUpdateRequest:
     kind: value_object
     description: 管理者がユーザーの可変プロフィールとロールを更新する JSON リクエスト。sub と password_hash は変更しない。
-    annotations: { component: Administration }
+    annotations: { bounded_context: IdentityManagement }
     fields:
       preferred_username: { type: String, optional: true, constraints: [non_empty, { max_length: 100 }], annotations: { pii: true } }
       name:               { type: String, optional: true, annotations: { pii: true } }
@@ -1804,14 +1815,14 @@ models:
   AdminUserListResponse:
     kind: value_object
     description: 管理 API のユーザー一覧。
-    annotations: { component: Administration }
+    annotations: { bounded_context: IdentityManagement }
     fields:
       users: { type: "AdminUserResponse[]" }
 
   AdminUserResponse:
     kind: value_object
     description: 管理 API が返すユーザー表現。password_hash は契約上含めない。
-    annotations: { component: Administration }
+    annotations: { bounded_context: IdentityManagement }
     fields:
       sub:                { type: String }
       tenant_id:          { type: String, description: "所属テナント ID (ADR-032)。" }
@@ -1831,7 +1842,7 @@ models:
   AdminRequiredActionRequest:
     kind: value_object
     description: SetUserRequiredAction の JSON リクエスト (wi-19)。action は RequiredAction enum の wire 値。
-    annotations: { component: Administration }
+    annotations: { bounded_context: IdentityManagement }
     fields:
       action: { type: RequiredAction }
 
@@ -1842,7 +1853,7 @@ models:
       projection。attributes は self が読める分 (self_readable / claim_exposed) のみ、
       editable_attributes は editable_by_user=true の定義一覧で、UI のフォーム描画に使う
       (ADR-040 / wi-19)。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: IdentityManagement }
     fields:
       sub:                 { type: String }
       preferred_username:  { type: String, annotations: { pii: true } }
@@ -1862,7 +1873,7 @@ models:
       self-service プロフィール更新リクエスト。表示名と editable_by_user=true の属性
       のみを受け付ける。attributes は key 単位の merge (指定 key のみ upsert、未指定は
       現状維持) で、admin 管理属性 (status / roles / organization) は対象外 (ADR-040)。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: IdentityManagement }
     fields:
       name:        { type: String, optional: true, annotations: { pii: true } }
       given_name:  { type: String, optional: true, annotations: { pii: true } }
@@ -1876,7 +1887,7 @@ models:
       ユーザ自身のアカウント概要で、admin shell 用の AccountContext (/api/auth/account)
       とは別契約。roles は含めず、最終ログイン・パスワード変更日時・MFA 状態・未対応の
       required actions を portal home の summary card 用に返す (wi-21 / ADR-042)。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: IdentityManagement }
     fields:
       sub:                 { type: String }
       preferred_username:  { type: String, annotations: { pii: true } }
@@ -1894,7 +1905,7 @@ models:
     description: |
       primary email 変更の起票リクエスト (self-service, wi-21)。新アドレスへ確認リンクを
       送るだけで、User.email の反映は確認完了 (ConfirmEmailChange) まで起きない。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: IdentityManagement }
     fields:
       new_email: { type: String, constraints: [{ format: email }], annotations: { pii: true } }
 
@@ -1903,7 +1914,7 @@ models:
     description: |
       新アドレスへ送ったワンタイムリンクの確認リクエスト (self-service, wi-21)。token が
       新アドレス所有の証左なので認証済みセッションは要求しない (reset password と同方針)。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: IdentityManagement }
     fields:
       token: { type: String, constraints: [non_empty] }
 
@@ -1913,7 +1924,7 @@ models:
       end-user 自身の個人データエクスポート (GDPR 第15条 right of access, wi-21)。本ステージは
       同期生成で、現状 API から得られる profile と接続済みアプリ (consents) をまとめる。
       sign-in activity / sessions の同梱は wi-20 / wi-28 後に追加する。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: IdentityManagement }
     fields:
       exported_at: { type: Timestamp }
       profile:     { type: AccountProfileResponse }
@@ -1924,7 +1935,7 @@ models:
     description: |
       self-service セキュリティ画面で提示する MFA factor 1 件の射影 (wi-21)。secret は
       返さず、種別・ラベル・作成/最終利用時刻のみ。現状 TOTP のみ。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     fields:
       type:         { type: MfaFactorType }
       label:        { type: String, optional: true }
@@ -1937,7 +1948,7 @@ models:
       `/api/account/security` の返り値 (end-user account portal のセキュリティ概要, wi-21)。
       パスワード変更日時と MFA (TOTP) の登録状態をまとめる。step-up auth (ADR-043) は本
       ステージでは未導入。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     fields:
       password_changed_at: { type: Timestamp, optional: true }
       totp_enrolled:       { type: Boolean }
@@ -1949,7 +1960,7 @@ models:
       TOTP 登録開始の返り値 (self-service, wi-21)。secret はクライアントが確認まで保持し、
       otpauth_uri は QR / 手動登録のために提示する。secret は確認 (ConfirmTotpEnrollment) で
       送り返されるまで永続化しない。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     fields:
       secret:       { type: String, annotations: { sensitive: true } }
       otpauth_uri:  { type: String, annotations: { sensitive: true } }
@@ -1961,7 +1972,7 @@ models:
     description: |
       TOTP 登録確認リクエスト (self-service, wi-21)。secret は開始時の値、code はその secret
       から生成した現在のコード (所持証明)。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     fields:
       secret: { type: String, constraints: [non_empty], annotations: { sensitive: true } }
       code:   { type: String, constraints: [non_empty] }
@@ -1971,7 +1982,7 @@ models:
     description: |
       MFA factor 解除リクエスト (self-service, wi-21)。code は所持証明としての現在の TOTP
       コード。解除は本人 + 所持証明を要求する。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     fields:
       code: { type: String, constraints: [non_empty] }
 
@@ -1982,7 +1993,7 @@ models:
       イベントストア (UserAuthenticated) から導出するため、保持する属性は発生時刻と
       認証手段 (amr) のみ。IP / UA / sessionId / clientId の付加は後続スライス (ADR-041) で
       イベント側を拡張してから足す。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     fields:
       occurred_at: { type: Timestamp }
       amr:         { type: "String[]" }
@@ -1992,7 +2003,7 @@ models:
     description: |
       ListMySignInActivity / ListUserSignInActivity の返り値。発生時刻の降順 (新しい順) で
       直近 N 件を返す。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     fields:
       activities: { type: "UserSignInActivity[]" }
 
@@ -2010,7 +2021,7 @@ models:
       self-service セッション一覧の 1 件の射影 (wi-20 スライス 2)。secret は持たず、識別子と
       認証情報のみ。current は呼び出し元の現在のセッションかどうか。started_at は LoginSession の
       auth_time、expires_at は失効予定時刻。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     fields:
       id:         { type: String }
       current:    { type: Boolean }
@@ -2023,7 +2034,7 @@ models:
     kind: value_object
     description: |
       ListMySessions の返り値。開始時刻の降順 (新しい順) で本人の有効なセッションを返す。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     fields:
       sessions: { type: "AccountSession[]" }
 
@@ -2034,7 +2045,7 @@ models:
       ログイン失敗を 5 分窓へ集約した結果で、window_start は窓の開始時刻、count はその窓の
       累計件数、first_seen / last_seen は窓内の初出・最終時刻。key_hash は SHA-256 hex で
       平文を含まない。tenant 境界内に閉じる。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     fields:
       kind:         { type: String, description: "failed_login | throttled | mfa_failed" }
       key_hash:     { type: String }
@@ -2047,7 +2058,7 @@ models:
     kind: value_object
     description: |
       ListAuthenticationEventBuckets の返り値。window_start の降順 (新しい窓が先) で返す。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     fields:
       buckets: { type: "AuthenticationEventBucket[]" }
 
@@ -2063,7 +2074,7 @@ models:
     description: |
       StartStepUpAuthentication の返り値。利用可能な再認証 method の一覧 (UI が再認証
       modal に出す選択肢)。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     fields:
       methods: { type: "StepUpMethod[]" }
 
@@ -2072,7 +2083,7 @@ models:
     description: |
       CompleteStepUpAuthentication の入力。method に応じて password または code を使う。
       検証材料は audit / log に残さない。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     fields:
       method:   { type: StepUpMethod }
       password: { type: String, optional: true, annotations: { pii: true } }
@@ -2082,7 +2093,7 @@ models:
     kind: entity
     description: ADR-038 で導入した tenant-scoped ロール束集約。所属 User に roles を一斉付与する。id は不変の生成識別子、name はテナント内で一意な編集可能ラベル。
     identity: id
-    annotations: { component: Authentication }
+    annotations: { bounded_context: IdentityManagement }
     fields:
       id:          { type: String, constraints: [non_empty, { max_length: 64 }], description: "生成識別子 group_<uuid>。不変。" }
       tenant_id:   { type: String, default: "default", description: "所属テナント ID (ADR-032 / ADR-034)。cross-tenant 参照は禁止。" }
@@ -2096,7 +2107,7 @@ models:
     kind: entity
     description: User と Group の所属関係 (ADR-038)。group_id × user_sub で一意。
     identity: [group_id, user_sub]
-    annotations: { component: Authentication }
+    annotations: { bounded_context: IdentityManagement }
     fields:
       group_id: { type: String }
       user_sub: { type: String }
@@ -2105,7 +2116,7 @@ models:
   GroupCreateRequest:
     kind: value_object
     description: 管理者がグループを作成する JSON リクエスト (ADR-038)。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: IdentityManagement }
     fields:
       name:        { type: String, constraints: [non_empty, { max_length: 100 }], annotations: { pii: true } }
       description: { type: String, optional: true, constraints: [{ max_length: 500 }] }
@@ -2114,7 +2125,7 @@ models:
   GroupUpdateRequest:
     kind: value_object
     description: 管理者がグループの name / description / roles を更新する JSON リクエスト (ADR-038)。省略フィールドは現状維持。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: IdentityManagement }
     fields:
       name:        { type: String, optional: true, constraints: [non_empty, { max_length: 100 }], annotations: { pii: true } }
       description: { type: String, optional: true, constraints: [{ max_length: 500 }] }
@@ -2123,7 +2134,7 @@ models:
   GroupSummaryResponse:
     kind: value_object
     description: グループ表現。管理 UI の一覧と詳細で同じ表現を返す (ADR-038)。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: IdentityManagement }
     fields:
       id:           { type: String }
       tenant_id:    { type: String }
@@ -2137,14 +2148,14 @@ models:
   GroupListResponse:
     kind: value_object
     description: 管理 API のグループ一覧 (ADR-038)。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: IdentityManagement }
     fields:
       groups: { type: "GroupSummaryResponse[]" }
 
   GroupMemberResponse:
     kind: value_object
     description: グループ所属メンバー表現 (ADR-038)。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: IdentityManagement }
     fields:
       user_sub:           { type: String }
       preferred_username: { type: String, annotations: { pii: true } }
@@ -2153,7 +2164,7 @@ models:
   GroupAddMemberRequest:
     kind: value_object
     description: User 詳細画面など group_id を body で指定して所属させる際の任意リクエスト (ADR-038)。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: IdentityManagement }
     fields:
       group_id: { type: String }
 
@@ -2163,7 +2174,7 @@ models:
       指定 User の所属グループと有効ロール内訳 (ADR-038)。明示ロール (user.roles) と
       グループ由来ロール、その union を分けて返し、管理 UI が effective roles を
       理解しやすくする。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: IdentityManagement }
     fields:
       groups:          { type: "GroupSummaryResponse[]" }
       direct_roles:    { type: "String[]", description: "user.roles。" }
@@ -2174,7 +2185,7 @@ models:
     kind: entity
     description: ADR-048 で導入した tenant-scoped な非人間 (non-human) identity principal。自身の資格情報は持たず、AgentCredentialBinding で既存 OAuth2Client に束縛してトークンを得る。owner は必須。
     identity: id
-    annotations: { component: Authentication }
+    annotations: { bounded_context: IdentityManagement }
     fields:
       id:          { type: String, constraints: [non_empty, { max_length: 64 }], description: "生成識別子 agent_<uuid>。不変。" }
       tenant_id:   { type: String, default: "default", description: "所属テナント ID (ADR-032 / ADR-034)。cross-tenant 参照は禁止。" }
@@ -2193,7 +2204,7 @@ models:
     kind: entity
     description: Agent と OAuth2Client の束縛関係 (ADR-048)。agent_id × client_id で一意。Agent は束縛した Client の資格情報を用いてトークンを得る。
     identity: [agent_id, client_id]
-    annotations: { component: Authentication }
+    annotations: { bounded_context: IdentityManagement }
     fields:
       agent_id:   { type: String }
       client_id:  { type: String }
@@ -2203,7 +2214,7 @@ models:
   AgentRegisterRequest:
     kind: value_object
     description: 管理者が Agent を登録する JSON リクエスト (ADR-048)。owner_sub 省略時は actor を所有者とする。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: IdentityManagement }
     fields:
       name:        { type: String, constraints: [non_empty, { max_length: 100 }], annotations: { pii: true } }
       description: { type: String, optional: true, constraints: [{ max_length: 500 }] }
@@ -2214,7 +2225,7 @@ models:
   AgentUpdateRequest:
     kind: value_object
     description: 管理者が Agent の name / description / kind / owner_sub / roles を更新する JSON リクエスト (ADR-048)。省略フィールドは現状維持。owner_sub の変更は所有権移転。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: IdentityManagement }
     fields:
       name:        { type: String, optional: true, constraints: [non_empty, { max_length: 100 }], annotations: { pii: true } }
       description: { type: String, optional: true, constraints: [{ max_length: 500 }] }
@@ -2225,14 +2236,14 @@ models:
   AgentCredentialBindRequest:
     kind: value_object
     description: Agent に OAuth2Client を束縛する JSON リクエスト (ADR-048)。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: IdentityManagement }
     fields:
       client_id: { type: String, constraints: [non_empty] }
 
   AgentSummaryResponse:
     kind: value_object
     description: Agent 表現。管理 UI の一覧と詳細で同じ表現を返す (ADR-048)。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: IdentityManagement }
     fields:
       id:          { type: String }
       tenant_id:   { type: String }
@@ -2251,14 +2262,14 @@ models:
   AgentListResponse:
     kind: value_object
     description: 管理 API の Agent 一覧 (ADR-048)。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: IdentityManagement }
     fields:
       agents: { type: "AgentSummaryResponse[]" }
 
   AdminClientCreateRequest:
     kind: value_object
     description: 管理者が所属テナントに OAuth client を作成する。生成された client_secret は作成応答で一度だけ返す。
-    annotations: { component: Administration }
+    annotations: { bounded_context: OAuth2 }
     fields:
       redirect_uris:                  { type: "Uri[]", constraints: [non_empty] }
       client_name:                    { type: String, optional: true, constraints: [{ max_length: 200 }] }
@@ -2277,7 +2288,7 @@ models:
   AdminClientUpdateRequest:
     kind: value_object
     description: 管理者が client metadata を更新する。client_id、認証方式、秘密情報は変更せず、secret rotation は独立 endpoint で扱う。
-    annotations: { component: Administration }
+    annotations: { bounded_context: OAuth2 }
     fields:
       client_name:                    { type: String, optional: true, constraints: [{ max_length: 200 }] }
       redirect_uris:                  { type: "Uri[]", optional: true, constraints: [non_empty] }
@@ -2290,7 +2301,7 @@ models:
   AdminClientResponse:
     kind: value_object
     description: 管理 API の client 表現。client_secret と client_secret_hash は契約上含めない。
-    annotations: { component: Administration }
+    annotations: { bounded_context: OAuth2 }
     fields:
       tenant_id:                              { type: String }
       client_id:                              { type: String }
@@ -2313,7 +2324,7 @@ models:
   AdminClientCreateResponse:
     kind: value_object
     description: client 作成応答。client_secret は生成された場合に限り一度だけ返す。
-    annotations: { component: Administration }
+    annotations: { bounded_context: OAuth2 }
     fields:
       client:        { type: AdminClientResponse }
       client_secret: { type: String, optional: true, annotations: { sensitive: true } }
@@ -2321,14 +2332,14 @@ models:
   AdminClientListResponse:
     kind: value_object
     description: 所属テナント内の client 一覧。
-    annotations: { component: Administration }
+    annotations: { bounded_context: OAuth2 }
     fields:
       clients: { type: "AdminClientResponse[]" }
 
   AdminConsentResponse:
     kind: value_object
     description: 管理 API が返す所属テナント内の Consent 表現。
-    annotations: { component: Administration }
+    annotations: { bounded_context: OAuth2 }
     fields:
       tenant_id:  { type: String }
       sub:        { type: String }
@@ -2342,7 +2353,7 @@ models:
   AdminConsentListResponse:
     kind: value_object
     description: 所属テナント内の Consent 一覧。
-    annotations: { component: Administration }
+    annotations: { bounded_context: OAuth2 }
     fields:
       consents: { type: "AdminConsentResponse[]" }
 
@@ -2352,7 +2363,7 @@ models:
       end-user の account portal が返す「接続済みアプリ」1 件 (self-service, wi-21)。
       自分の sub に固定されるため sub / tenant_id は出さない。client_id・付与 scope・
       付与/失効日時のみを表示用に返す。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     fields:
       client_id:  { type: String }
       scopes:     { type: "String[]" }
@@ -2363,7 +2374,7 @@ models:
   AccountConsentListResponse:
     kind: value_object
     description: end-user 自身の接続済みアプリ (active な Consent) 一覧 (self-service, wi-21)。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     fields:
       consents: { type: "AccountConsentResponse[]" }
 
@@ -2372,7 +2383,7 @@ models:
     description: |
       ListAdminAuditEvents のクエリパラメータ。tenant_id は context から付与されるため
       フィールドには含めない。type は SCL events セクションの型名。
-    annotations: { component: OAuth2 }
+    annotations: { bounded_context: OAuth2 }
     fields:
       type:     { type: String, optional: true, description: "type 完全一致フィルタ (機械向け低レベル)。例: AccessTokenIssued" }
       category: { type: String, optional: true, description: "イベントカテゴリ絞り込み (wi-44)。authentication / success / fail / aggregated / user / group / client / consent / token / tenant / key。" }
@@ -2386,7 +2397,7 @@ models:
     description: |
       管理者向けに公開する DomainEvent。payload は構造化 JSON。
       返却時に PII フィールド (email / IP 等) は EventSink 側で redact 済み前提。
-    annotations: { component: OAuth2 }
+    annotations: { bounded_context: OAuth2 }
     fields:
       id:          { type: String,    description: "ストア側で割り当てたイベント ID (UUIDv4)。" }
       tenant_id:   { type: String,    description: "イベントが帰属するテナント ID。" }
@@ -2397,7 +2408,7 @@ models:
   AdminAuditEventListResponse:
     kind: value_object
     description: 監査イベントの検索結果。
-    annotations: { component: OAuth2 }
+    annotations: { bounded_context: OAuth2 }
     fields:
       events:        { type: "AdminAuditEventResponse[]" }
       next_after:    { type: Timestamp, optional: true, description: "ページング継続用カーソル。" }
@@ -2408,7 +2419,7 @@ models:
       管理者向けに公開する署名鍵のメタデータ。秘密鍵は当然返さず、JWKS と
       同じ公開鍵 JWK のみを含める。鍵の状態 (active / verifying) と作成時刻で
       ローテーション可否を判断できる粒度を提供する。
-    annotations: { component: OAuth2 }
+    annotations: { bounded_context: OAuth2 }
     fields:
       kid:        { type: String,    description: "JWK Key ID。JWKS で配布されるものと同一。" }
       alg:        { type: SignatureAlgorithm, description: "署名アルゴリズム (現状 PS256 のみ)。" }
@@ -2419,14 +2430,14 @@ models:
   AdminKeyListResponse:
     kind: value_object
     description: 全署名鍵の一覧。active が複数同時に存在することは無い (rotateInternal で旧鍵は非 active 化)。
-    annotations: { component: OAuth2 }
+    annotations: { bounded_context: OAuth2 }
     fields:
       keys: { type: "AdminKeyResponse[]" }
 
   AdminRotateKeyResponse:
     kind: value_object
     description: 鍵ローテーションの結果。新しい active 鍵と直前の active 鍵 (verifying へ降りた) の kid を返す。
-    annotations: { component: OAuth2 }
+    annotations: { bounded_context: OAuth2 }
     fields:
       next:     { type: AdminKeyResponse, description: "新しい active 署名鍵。" }
       previous: { type: AdminKeyResponse, optional: true, description: "直前まで active だった鍵 (初回ローテーション時は無し)。" }
@@ -2542,7 +2553,7 @@ models:
   BrowserLoginRequest:
     kind: value_object
     description: SPA が POST /api/auth/login に送る JSON。通常は authorization request id を HttpOnly transaction cookie から解決する。管理画面への直接ログインでは同一 realm の /admin 配下だけを return_to に指定できる。CSRF は X-CSRF-Token header から解決する。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     fields:
       username:      { type: String }
       password:      { type: String, annotations: { sensitive: true } }
@@ -2551,14 +2562,14 @@ models:
   BrowserConsentRequest:
     kind: value_object
     description: SPA が POST /api/auth/consent に送る同意判断。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     fields:
       action:        { type: String, description: allow または deny。 }
 
   BrowserDeviceRequest:
     kind: value_object
     description: SPA が POST /api/auth/device に送る device user_code の承認判断。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     fields:
       user_code:     { type: String }
       action:        { type: String, description: allow または deny。 }
@@ -2566,7 +2577,7 @@ models:
   BrowserTotpRequest:
     kind: value_object
     description: Browser client が POST /api/auth/totp に送る TOTP コード。authorization request id は HttpOnly transaction cookie、CSRF は X-CSRF-Token header から解決する。他 factor (WebAuthn 等) はHTTP形が大きく異なるため、別endpointと別value objectとして独立に定義する。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     fields:
       code:          { type: String, description: Authenticator アプリが生成した数字コード (TotpPolicy の digits 桁)。, annotations: { sensitive: true } }
       return_to:     { type: String, optional: true, description: 管理画面への直接ログインを継続する場合の同一 realm 内遷移先。 }
@@ -2574,7 +2585,7 @@ models:
   BrowserChangePasswordRequest:
     kind: value_object
     description: SPA が POST /api/auth/change_password に送る JSON。認証済みセッション cookie が sub を解決し、CSRF は X-CSRF-Token header で検証する。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     fields:
       current_password: { type: String, annotations: { sensitive: true } }
       new_password:     { type: String, annotations: { sensitive: true } }
@@ -2582,14 +2593,14 @@ models:
   BrowserForgotPasswordRequest:
     kind: value_object
     description: SPA が POST /api/auth/forgot_password に送る JSON。未認証経路。anti-enumeration のため email 存在有無に関わらず常に 204 を返す (ADR-030)。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     fields:
       email:        { type: String, annotations: { pii: true } }
 
   BrowserResetPasswordRequest:
     kind: value_object
     description: SPA が POST /api/auth/reset_password に送る JSON。email リンクに含まれた単発消費 token と新パスワードを受ける (ADR-030)。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     fields:
       token:        { type: String, annotations: { sensitive: true } }
       new_password: { type: String, annotations: { sensitive: true } }
@@ -2602,7 +2613,7 @@ models:
       token は base64url の 32 バイト乱数で、保存時は SHA-256 hash のみ。
       期限切れ / consume 済みの行は GC するが、INSERT 時に同 sub の未消費を
       失効させる軽い掃除も行う。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     fields:
       sub:          { type: String }
       token_hash:   { type: String, annotations: { sensitive: true } }
@@ -2722,7 +2733,7 @@ models:
       ResourceOwner の認証が成功した。amr は実際に経由した認証手段の一覧 (OIDC Core §2)。
       wi-44 / ADR-041 で産業標準の属性を optional 拡張した (後方互換: 既存 payload は破壊しない)。
       IP / username / device は ADR-046 の PII ポリシーに従い truncated / hash で持つ。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     payload:
       occurredAt:             { type: Timestamp }
       tenantId:               { type: String, description: "認証が起きたテナント ID。監査ビューのテナント絞り込みに使う。" }
@@ -2744,7 +2755,7 @@ models:
       ResourceOwner の認証が失敗した。レートリミット・不正検知の入力イベント。username は PII として扱う
       (ADR-046: 失敗イベント限定で平文を 7 日保持し、以後 sweep で粒度を落とす。usernameHash は first-class)。
       wi-44 / ADR-041 で IP / device / session の optional 属性を後方互換で拡張した。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     payload:
       occurredAt:             { type: Timestamp }
       tenantId:               { type: String, description: "認証を試みたテナント ID (リクエストパス由来)。" }
@@ -2763,7 +2774,7 @@ models:
   PasswordChanged:
     kind: event
     description: ResourceOwner が /api/auth/change_password で自身のパスワードを変更した。change-password 監査と通知の起点。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     payload:
       occurredAt:   { type: Timestamp }
       tenantId:     { type: String, description: "対象 user の所属テナント ID。" }
@@ -2772,7 +2783,7 @@ models:
   LoginThrottled:
     kind: event
     description: ログイン試行が per-account / per-IP のスロットリング閾値に到達してロックされた (ADR-029)。SIEM の credential stuffing / brute-force 検知の入力イベント。keyHash は username / IP の SHA-256 で、平文を audit log に流さない。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     payload:
       occurredAt:        { type: Timestamp }
       tenantId:          { type: String, description: "スロットリングが起きたテナント ID (リクエストパス由来)。" }
@@ -2789,7 +2800,7 @@ models:
       emit し、以後の増分は bucket store の count に積む。したがって本 payload の
       count は emit 時点の値で、実体の件数は ListAuthenticationEventBuckets で観測する。
       keyHash は SHA-256 hex で平文を audit log に流さない (LoginThrottled と同方針)。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     payload:
       occurredAt: { type: Timestamp }
       tenantId:   { type: String, description: "集約が起きたテナント ID。" }
@@ -2806,7 +2817,7 @@ models:
   AuthenticationStepCompleted:
     kind: event
     description: 多段認証フローの 1 ステップ (password / totp / webauthn 等) が成功した。acr 確定の入力。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     payload:
       occurredAt: { type: Timestamp }
       tenantId:   { type: String }
@@ -2817,7 +2828,7 @@ models:
   AuthenticationStepFailed:
     kind: event
     description: 多段認証フローの 1 ステップが失敗した。usernameHash は ADR-046 の hash。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     payload:
       occurredAt:   { type: Timestamp }
       tenantId:     { type: String }
@@ -2828,7 +2839,7 @@ models:
   MfaChallengeIssued:
     kind: event
     description: MFA チャレンジ (TOTP / WebAuthn 等) を提示した。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     payload:
       occurredAt: { type: Timestamp }
       tenantId:   { type: String }
@@ -2839,7 +2850,7 @@ models:
   MfaChallengeSucceeded:
     kind: event
     description: MFA チャレンジに成功した。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     payload:
       occurredAt: { type: Timestamp }
       tenantId:   { type: String }
@@ -2850,7 +2861,7 @@ models:
   MfaChallengeFailed:
     kind: event
     description: MFA チャレンジに失敗した。bucket 集約 (kind=mfa_failed) の入力にもなる。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     payload:
       occurredAt: { type: Timestamp }
       tenantId:   { type: String }
@@ -2861,7 +2872,7 @@ models:
   BackupCodeConsumed:
     kind: event
     description: バックアップ/リカバリコードを 1 つ消費した (TOTP / WebAuthn 喪失時の復旧)。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     payload:
       occurredAt:    { type: Timestamp }
       tenantId:      { type: String }
@@ -2871,7 +2882,7 @@ models:
   SessionStarted:
     kind: event
     description: LoginSession を開始した。session 一覧・調査の起点。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     payload:
       occurredAt:  { type: Timestamp }
       tenantId:    { type: String }
@@ -2885,7 +2896,7 @@ models:
   SessionRefreshed:
     kind: event
     description: LoginSession の有効期限を延伸した (アクティブ継続)。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     payload:
       occurredAt: { type: Timestamp }
       tenantId:   { type: String }
@@ -2895,7 +2906,7 @@ models:
   FederatedAuthenticated:
     kind: event
     description: 外部 IdP 経由の federated login が成功した (adapter 本体は wi-30)。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     payload:
       occurredAt: { type: Timestamp }
       tenantId:   { type: String }
@@ -2906,7 +2917,7 @@ models:
   FederationLinked:
     kind: event
     description: ローカル user に外部 IdP の identity を紐付けた (account linking、wi-30)。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: IdentityManagement }
     payload:
       occurredAt: { type: Timestamp }
       tenantId:   { type: String }
@@ -2916,7 +2927,7 @@ models:
   FederationUnlinked:
     kind: event
     description: ローカル user から外部 IdP の identity を解除した (wi-30)。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: IdentityManagement }
     payload:
       occurredAt: { type: Timestamp }
       tenantId:   { type: String }
@@ -2929,7 +2940,7 @@ models:
       admin が user として操作するセッションを開始した (impersonation)。本人通知を前提とする
       監査事象で、ADR-045/046 により retention 短縮の対象外。本 WI はフィールドのみ用意し、
       機能本体の有効化は本人通知 WI 後とする (ADR-041)。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     payload:
       occurredAt: { type: Timestamp }
       tenantId:   { type: String }
@@ -2940,7 +2951,7 @@ models:
   SessionImpersonationEnded:
     kind: event
     description: impersonation セッションを終了した。retention 短縮の対象外 (ADR-045)。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     payload:
       occurredAt: { type: Timestamp }
       tenantId:   { type: String }
@@ -2955,7 +2966,7 @@ models:
       「リクエストが届いた」ことのみ記録し、発行有無 (verified email を持つ
       user が存在したか) は別途 EmailSent イベントで観測する (ADR-030)。
       emailHash は SHA-256 で、平文を audit log に流さない。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     payload:
       occurredAt: { type: Timestamp }
       tenantId:   { type: String, description: "リセットを要求したテナント ID (リクエストパス由来)。" }
@@ -2967,7 +2978,7 @@ models:
       EmailSender port 経由でメールを送信した。fail-open の port なので
       送信失敗時も use case 層には伝播しないが、本イベントの有無で
       SIEM 側からは観測できる (ADR-030)。to は SHA-256 hash で記録する。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     payload:
       occurredAt: { type: Timestamp }
       toHash:     { type: String, description: "宛先 email の SHA-256 hex" }
@@ -2980,7 +2991,7 @@ models:
       end-user が primary email の変更を起票し、新アドレスへ確認リンクを送った
       (self-service, wi-21)。実際の email 反映は ConfirmEmailChange まで起きない。
       newEmailHash は SHA-256 で、平文を audit log に流さない。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: IdentityManagement }
     payload:
       occurredAt:   { type: Timestamp }
       tenantId:     { type: String, description: "対象 user の所属テナント ID。" }
@@ -2993,7 +3004,7 @@ models:
       新アドレスへ送ったワンタイムリンクの確認が完了し、primary email を確定した
       (self-service, wi-21)。email_verified=true に更新し、verify_email の
       required action があれば自動解除する。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: IdentityManagement }
     payload:
       occurredAt: { type: Timestamp }
       tenantId:   { type: String, description: "対象 user の所属テナント ID。" }
@@ -3004,7 +3015,7 @@ models:
     description: |
       本人が self-service で MFA factor (現状 TOTP) を登録した (wi-21)。secret は audit に
       流さず種別だけを残す。User.mfa_enrolled を true にする。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     payload:
       occurredAt: { type: Timestamp }
       tenantId:   { type: String, description: "対象 user の所属テナント ID。" }
@@ -3016,7 +3027,7 @@ models:
     description: |
       本人が self-service で MFA factor を解除した (wi-21)。解除は有効な TOTP コードによる
       所持証明を伴う。User.mfa_enrolled を false に戻す。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     payload:
       occurredAt: { type: Timestamp }
       tenantId:   { type: String, description: "対象 user の所属テナント ID。" }
@@ -3029,7 +3040,7 @@ models:
       LoginSession が終了した (wi-20)。本人 / admin の明示的な失効では actorSub が操作者、
       reason が self_revoke / admin_revoke になる。OAuth クライアントへ発行済みの refresh
       token はセッションに 1:1 で紐づかないため本スライスでは失効しない。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     payload:
       occurredAt: { type: Timestamp }
       tenantId:   { type: String, description: "対象 user の所属テナント ID。" }
@@ -3043,7 +3054,7 @@ models:
     description: |
       本人が高 sensitivity 操作のための step-up 再認証を開始した (ADR-043 / wi-43)。
       利用可能な factor の提示要求であり、まだ再認証は成立していない。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     payload:
       occurredAt: { type: Timestamp }
       tenantId:   { type: String, description: "本人の所属テナント ID。" }
@@ -3055,7 +3066,7 @@ models:
     description: |
       step-up 再認証が成立した (ADR-043 / wi-43)。method は再認証に使った factor
       (password | totp)。検証材料 (パスワード / コード) は payload に含めない。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: Authentication }
     payload:
       occurredAt: { type: Timestamp }
       tenantId:   { type: String, description: "本人の所属テナント ID。" }
@@ -3066,7 +3077,7 @@ models:
   UserCreated:
     kind: event
     description: 管理者がユーザーを作成した。初期パスワードと password_hash は監査イベントに含めない。
-    annotations: { component: Administration }
+    annotations: { bounded_context: IdentityManagement }
     payload:
       occurredAt: { type: Timestamp }
       tenantId:   { type: String, description: "操作対象テナント ID。actor / target と一致する。" }
@@ -3076,7 +3087,7 @@ models:
   UserUpdated:
     kind: event
     description: 管理者がユーザーのプロフィールまたは roles を更新した。
-    annotations: { component: Administration }
+    annotations: { bounded_context: IdentityManagement }
     payload:
       occurredAt:    { type: Timestamp }
       tenantId:      { type: String, description: "操作対象テナント ID。actor / target と一致する。" }
@@ -3087,7 +3098,7 @@ models:
   UserDisabled:
     kind: event
     description: 管理者がユーザーを無効化した。対象ユーザーの新規ログインと既存セッション利用を拒否する。
-    annotations: { component: Administration }
+    annotations: { bounded_context: IdentityManagement }
     payload:
       occurredAt: { type: Timestamp }
       tenantId:   { type: String, description: "操作対象テナント ID。actor / target と一致する。" }
@@ -3097,7 +3108,7 @@ models:
   UserEnabled:
     kind: event
     description: 管理者が無効化済みユーザーを再有効化した。
-    annotations: { component: Administration }
+    annotations: { bounded_context: IdentityManagement }
     payload:
       occurredAt: { type: Timestamp }
       tenantId:   { type: String, description: "操作対象テナント ID。actor / target と一致する。" }
@@ -3107,7 +3118,7 @@ models:
   UserDeleted:
     kind: event
     description: 管理者がユーザーを Delete (ADR-036) した。PII は anonymize 済みで、関連 aggregate は cascade 削除されている。reason は admin が任意に残せる自由記述。
-    annotations: { component: Administration }
+    annotations: { bounded_context: IdentityManagement }
     payload:
       occurredAt: { type: Timestamp }
       tenantId:   { type: String, description: "操作対象テナント ID。actor / target と一致する。" }
@@ -3118,7 +3129,7 @@ models:
   UserRequiredActionSet:
     kind: event
     description: 管理者が次回ログイン時の強制アクション (RequiredAction) を付与した (wi-19)。action は enum 値で、監査に平文で残しても安全。
-    annotations: { component: Administration }
+    annotations: { bounded_context: IdentityManagement }
     payload:
       occurredAt: { type: Timestamp }
       tenantId:   { type: String, description: "操作対象テナント ID。actor / target と一致する。" }
@@ -3129,7 +3140,7 @@ models:
   UserRequiredActionCleared:
     kind: event
     description: 強制アクションが解除された (wi-19)。admin の明示解除のほか、本人がパスワードを変更した結果 update_password が自動解除される場合も発火し、その際 actorSub は対象本人の sub になる。
-    annotations: { component: Administration }
+    annotations: { bounded_context: IdentityManagement }
     payload:
       occurredAt: { type: Timestamp }
       tenantId:   { type: String, description: "操作対象テナント ID。actor / target と一致する。" }
@@ -3140,7 +3151,7 @@ models:
   GroupCreated:
     kind: event
     description: 管理者がグループを作成した (ADR-038)。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: IdentityManagement }
     payload:
       occurredAt: { type: Timestamp }
       tenantId:   { type: String, description: "グループが属するテナント ID。" }
@@ -3150,7 +3161,7 @@ models:
   GroupUpdated:
     kind: event
     description: 管理者がグループの name / description / roles を更新した (ADR-038)。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: IdentityManagement }
     payload:
       occurredAt:    { type: Timestamp }
       tenantId:      { type: String, description: "グループが属するテナント ID。" }
@@ -3161,7 +3172,7 @@ models:
   GroupDeleted:
     kind: event
     description: 管理者がグループを削除した (ADR-038)。所属 membership は cascade で解除され、各々 GroupMemberRemoved を伴う。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: IdentityManagement }
     payload:
       occurredAt: { type: Timestamp }
       tenantId:   { type: String, description: "グループが属するテナント ID。" }
@@ -3171,7 +3182,7 @@ models:
   GroupMemberAdded:
     kind: event
     description: 管理者が User をグループに所属させた (ADR-038)。既に所属済みの場合は emit されない (冪等)。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: IdentityManagement }
     payload:
       occurredAt: { type: Timestamp }
       tenantId:   { type: String, description: "グループが属するテナント ID。" }
@@ -3182,7 +3193,7 @@ models:
   GroupMemberRemoved:
     kind: event
     description: 管理者が User をグループから外した、またはグループ削除に伴い解除された (ADR-038)。所属していない場合は emit されない (冪等)。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: IdentityManagement }
     payload:
       occurredAt: { type: Timestamp }
       tenantId:   { type: String, description: "グループが属するテナント ID。" }
@@ -3193,7 +3204,7 @@ models:
   AgentRegistered:
     kind: event
     description: 管理者が Agent を登録した (ADR-048)。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: IdentityManagement }
     payload:
       occurredAt: { type: Timestamp }
       tenantId:   { type: String, description: "Agent が属するテナント ID。" }
@@ -3203,7 +3214,7 @@ models:
   AgentUpdated:
     kind: event
     description: 管理者が Agent の name / description / kind / roles を更新した (ADR-048)。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: IdentityManagement }
     payload:
       occurredAt:    { type: Timestamp }
       tenantId:      { type: String, description: "Agent が属するテナント ID。" }
@@ -3214,7 +3225,7 @@ models:
   AgentDisabled:
     kind: event
     description: 管理者が Agent を可逆に運用停止した (ADR-048)。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: IdentityManagement }
     payload:
       occurredAt: { type: Timestamp }
       tenantId:   { type: String, description: "Agent が属するテナント ID。" }
@@ -3224,7 +3235,7 @@ models:
   AgentEnabled:
     kind: event
     description: 管理者が運用停止中の Agent を再稼働した (ADR-048)。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: IdentityManagement }
     payload:
       occurredAt: { type: Timestamp }
       tenantId:   { type: String, description: "Agent が属するテナント ID。" }
@@ -3234,7 +3245,7 @@ models:
   AgentKilled:
     kind: event
     description: 管理者が Agent を緊急停止した (一方向終端) (ADR-048)。以後復帰不能。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: IdentityManagement }
     payload:
       occurredAt: { type: Timestamp }
       tenantId:   { type: String, description: "Agent が属するテナント ID。" }
@@ -3244,7 +3255,7 @@ models:
   AgentDeleted:
     kind: event
     description: 管理者が Agent を削除した (ADR-048)。束縛は cascade で解除される。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: IdentityManagement }
     payload:
       occurredAt: { type: Timestamp }
       tenantId:   { type: String, description: "Agent が属するテナント ID。" }
@@ -3254,7 +3265,7 @@ models:
   AgentOwnerChanged:
     kind: event
     description: 管理者が Agent の所有者 (owner_sub) を移転した (ADR-048)。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: IdentityManagement }
     payload:
       occurredAt:        { type: Timestamp }
       tenantId:          { type: String, description: "Agent が属するテナント ID。" }
@@ -3266,7 +3277,7 @@ models:
   AgentCredentialBound:
     kind: event
     description: 管理者が Agent に OAuth2Client を束縛した (ADR-048)。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: IdentityManagement }
     payload:
       occurredAt: { type: Timestamp }
       tenantId:   { type: String, description: "Agent が属するテナント ID。" }
@@ -3277,7 +3288,7 @@ models:
   AgentCredentialUnbound:
     kind: event
     description: 管理者が Agent から OAuth2Client の束縛を解除した (ADR-048)。
-    annotations: { component: Authentication }
+    annotations: { bounded_context: IdentityManagement }
     payload:
       occurredAt: { type: Timestamp }
       tenantId:   { type: String, description: "Agent が属するテナント ID。" }
@@ -3288,7 +3299,7 @@ models:
   AdminClientCreated:
     kind: event
     description: 管理者が所属テナントに OAuth client を作成した。秘密情報は含めない。
-    annotations: { component: Administration }
+    annotations: { bounded_context: OAuth2 }
     payload:
       occurredAt: { type: Timestamp }
       tenantId:   { type: String, description: "クライアントが属するテナント ID。actor と一致する。" }
@@ -3298,7 +3309,7 @@ models:
   AdminClientUpdated:
     kind: event
     description: 管理者が OAuth client metadata を更新した。
-    annotations: { component: Administration }
+    annotations: { bounded_context: OAuth2 }
     payload:
       occurredAt:    { type: Timestamp }
       tenantId:      { type: String, description: "クライアントが属するテナント ID。actor と一致する。" }
@@ -3309,7 +3320,7 @@ models:
   AdminClientDeleted:
     kind: event
     description: 管理者が所属テナントから OAuth client を削除した。
-    annotations: { component: Administration }
+    annotations: { bounded_context: OAuth2 }
     payload:
       occurredAt: { type: Timestamp }
       tenantId:   { type: String, description: "クライアントが属するテナント ID。actor と一致する。" }
@@ -3319,7 +3330,7 @@ models:
   TenantCreated:
     kind: event
     description: system_admin が新規テナントを作成した (ADR-032)。
-    annotations: { component: Tenancy }
+    annotations: { bounded_context: Tenancy }
     payload:
       occurredAt: { type: Timestamp }
       actorSub:   { type: String }
@@ -3328,7 +3339,7 @@ models:
   TenantUpdated:
     kind: event
     description: system_admin がテナントの表示名を更新した (ADR-032)。
-    annotations: { component: Tenancy }
+    annotations: { bounded_context: Tenancy }
     payload:
       occurredAt:    { type: Timestamp }
       actorSub:      { type: String }
@@ -3338,7 +3349,7 @@ models:
   TenantUserAttributeSchemaUpdated:
     kind: event
     description: テナント内 admin が custom 属性定義 (TenantUserAttributeSchema) を更新した (ADR-040)。値は持たず、変更後の custom 属性 key 一覧のみを記録する。
-    annotations: { component: Tenancy }
+    annotations: { bounded_context: Tenancy }
     payload:
       occurredAt:    { type: Timestamp }
       actorSub:      { type: String }
@@ -3348,7 +3359,7 @@ models:
   TenantDisabled:
     kind: event
     description: system_admin がテナントを無効化した。当該テナントのすべてのプロトコルルートは invalid_request で拒否される (ADR-032)。
-    annotations: { component: Tenancy }
+    annotations: { bounded_context: Tenancy }
     payload:
       occurredAt: { type: Timestamp }
       actorSub:   { type: String }
@@ -3357,7 +3368,7 @@ models:
   TenantEnabled:
     kind: event
     description: system_admin が無効化済みテナントを再有効化した (ADR-032)。
-    annotations: { component: Tenancy }
+    annotations: { bounded_context: Tenancy }
     payload:
       occurredAt: { type: Timestamp }
       actorSub:   { type: String }
@@ -3879,7 +3890,7 @@ interfaces:
       - { kind: http, method: GET, path: /api/auth/device }
 
   EndSession:
-    description: RP-Initiated Logout endpoint (OIDC RP-Initiated Logout 1.0)。redirect 検証は OAuth2/OIDC component が行い、session revocation は Authentication component の SessionManager に委譲する。
+    description: RP-Initiated Logout endpoint (OIDC RP-Initiated Logout 1.0)。redirect 検証は OAuth2/OIDC bounded context が行い、session revocation は Authentication bounded context の SessionManager に委譲する。
     steps:
       - "{client_id} として post_logout_redirect_uri {post_logout_redirect_uri} でログアウトする"
     input:

@@ -1,4 +1,4 @@
-// Authentication component の境界。OAuth2/OIDC ユースケースはこの context を消費するだけで、
+// Authentication bounded context の境界。OAuth2/OIDC ユースケースはこの context を消費するだけで、
 // password 検証・user lookup・session cookie の詳細には踏み込まない。
 package domain
 

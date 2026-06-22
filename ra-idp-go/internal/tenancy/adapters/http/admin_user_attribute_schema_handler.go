@@ -12,7 +12,7 @@ import (
 	"github.com/labstack/echo/v5"
 )
 
-type userAttributeSchemaResponse struct {
+type UserAttributeSchemaResponse struct {
 	TenantID   string                  `json:"tenant_id"`
 	Attributes []spec.UserAttributeDef `json:"attributes"`
 	Builtin    []spec.UserAttributeDef `json:"builtin"`
@@ -23,12 +23,12 @@ type userAttributeSchemaUpdateRequest struct {
 	Attributes []spec.UserAttributeDef `json:"attributes"`
 }
 
-func toUserAttributeSchemaResponse(schema *spec.TenantUserAttributeSchema) userAttributeSchemaResponse {
+func toUserAttributeSchemaResponse(schema *spec.TenantUserAttributeSchema) UserAttributeSchemaResponse {
 	attributes := schema.Attributes
 	if attributes == nil {
 		attributes = []spec.UserAttributeDef{}
 	}
-	return userAttributeSchemaResponse{
+	return UserAttributeSchemaResponse{
 		TenantID:   schema.TenantID,
 		Attributes: attributes,
 		Builtin:    spec.BuiltinUserAttributeDefs(),

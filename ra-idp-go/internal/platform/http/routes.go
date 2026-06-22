@@ -9,6 +9,7 @@ package http
 import (
 	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/spec"
+	tenancyhttp "ra-idp-go/internal/tenancy/adapters/http"
 
 	"github.com/labstack/echo/v5"
 )
@@ -26,12 +27,7 @@ func Register(e *echo.Echo, cd core.Deps) {
 	// テナント CRUD は default control-plane tenant のセッションでのみ操作するため
 	// `/realms/default/admin/tenants` 配下に置き、cookie path と一致させる (ADR-032)。
 	controlPlane := e.Group("/realms/"+spec.DefaultTenantID, d.ResolveControlPlaneTenant)
-	controlPlane.GET("/admin/tenants", d.handleListTenants)
-	controlPlane.GET("/admin/tenants/:tenant_id", d.handleGetTenant)
-	controlPlane.POST("/admin/tenants", d.handleCreateTenant)
-	controlPlane.PATCH("/admin/tenants/:tenant_id", d.handleUpdateTenant)
-	controlPlane.POST("/admin/tenants/:tenant_id/disable", d.handleDisableTenant)
-	controlPlane.POST("/admin/tenants/:tenant_id/enable", d.handleEnableTenant)
+	tenancyhttp.RegisterControlPlaneRoutes(controlPlane, d.Deps)
 	e.GET("/health", d.handleHealth)
 }
 
@@ -124,8 +120,5 @@ func registerTenantRoutes(g *echo.Group, d Deps) {
 	g.GET("/api/admin/keys/:kid", d.handleGetAdminKey)
 	g.POST("/api/admin/keys/rotate", d.handleRotateAdminKey)
 	g.GET("/api/admin/policy/roles", d.handleListAdminRolePolicies)
-	g.GET("/api/admin/settings", d.handleGetAdminSettings)
-	g.PATCH("/api/admin/settings", d.handleUpdateAdminSettings)
-	g.GET("/api/admin/tenant/user_attribute_schema", d.handleGetUserAttributeSchema)
-	g.PUT("/api/admin/tenant/user_attribute_schema", d.handleUpdateUserAttributeSchema)
+	tenancyhttp.RegisterRoutes(g, d.Deps)
 }

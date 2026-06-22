@@ -85,7 +85,7 @@ type adminRoleInterfaceResponse struct {
 }
 
 func (d Deps) handleListAdminRolePolicies(c *echo.Context) error {
-	actor, err := d.resolveAdminActor(c)
+	actor, err := d.ResolveAdminActor(c)
 	if err != nil {
 		return d.WriteAdminAccessError(c, err)
 	}

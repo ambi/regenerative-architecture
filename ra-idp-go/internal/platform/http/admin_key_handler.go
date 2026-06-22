@@ -95,7 +95,7 @@ func (d Deps) handleRotateAdminKey(c *echo.Context) error {
 // requireKeyReader は AdminKeysRead を満たす actor か検証する。
 // admin / system_admin のどちらでも通る。テナント制約は無し (鍵は global)。
 func (d Deps) requireKeyReader(c *echo.Context) error {
-	actor, err := d.resolveAdminActor(c)
+	actor, err := d.ResolveAdminActor(c)
 	if err != nil {
 		return err
 	}
@@ -109,7 +109,7 @@ func (d Deps) requireKeyReader(c *echo.Context) error {
 // system_admin かつ default tenant 経路のみ。Rotate 失敗は IdP 全体のトークン
 // 発行を停止させるため最も狭いゲートを掛ける。
 func (d Deps) requireKeyRotator(c *echo.Context) (*spec.User, error) {
-	actor, err := d.resolveAdminActor(c)
+	actor, err := d.ResolveAdminActor(c)
 	if err != nil {
 		return nil, err
 	}
@@ -123,24 +123,6 @@ func (d Deps) requireKeyRotator(c *echo.Context) (*spec.User, error) {
 		return nil, core.ErrAdminAccessDenied
 	}
 	return actor, nil
-}
-
-func (d Deps) resolveAdminActor(c *echo.Context) (*spec.User, error) {
-	authn, err := d.ResolveAuthentication(c)
-	if err != nil {
-		return nil, err
-	}
-	if authn == nil || authn.AuthenticationPending {
-		return nil, core.ErrAdminAuthenticationRequired
-	}
-	user, err := d.UserRepo.FindBySub(c.Request().Context(), authn.Sub)
-	if err != nil {
-		return nil, err
-	}
-	if user == nil || !user.IsActive() {
-		return nil, core.ErrAdminAccessDenied
-	}
-	return d.WithEffectiveRoles(c.Request().Context(), user), nil
 }
 
 func toAdminKeyResponse(k *ports.SigningKey) adminKeyResponse {

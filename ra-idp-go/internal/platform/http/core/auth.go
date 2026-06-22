@@ -80,6 +80,27 @@ func (d Deps) WriteAdminAccessError(c *echo.Context, err error) error {
 	return err
 }
 
+// ResolveAdminActor は認証済みかつ有効なユーザを、グループ由来ロールを合成した
+// 形で返す。ロール別の細かな認可判定 (key reader / settings admin など) を呼び出し側に
+// 委ねる管理系ハンドラが、actor の解決だけを共有するために使う。
+func (d Deps) ResolveAdminActor(c *echo.Context) (*spec.User, error) {
+	authn, err := d.ResolveAuthentication(c)
+	if err != nil {
+		return nil, err
+	}
+	if authn == nil || authn.AuthenticationPending {
+		return nil, ErrAdminAuthenticationRequired
+	}
+	user, err := d.UserRepo.FindBySub(c.Request().Context(), authn.Sub)
+	if err != nil {
+		return nil, err
+	}
+	if user == nil || !user.IsActive() {
+		return nil, ErrAdminAccessDenied
+	}
+	return d.WithEffectiveRoles(c.Request().Context(), user), nil
+}
+
 // EffectiveRoles は User の直接ロールにグループ由来ロールを合成して返す (ADR-038)。
 func (d Deps) EffectiveRoles(ctx context.Context, user *spec.User) []string {
 	if d.GroupRepo == nil {

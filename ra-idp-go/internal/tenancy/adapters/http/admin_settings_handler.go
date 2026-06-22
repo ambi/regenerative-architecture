@@ -16,7 +16,7 @@ import (
 // いずれかが actor.tenant_id に居る場合にだけ通す。AdminSettings* permissions の
 // allow_when と一致する。
 func (d Deps) requireTenantAdmin(c *echo.Context) (*spec.User, error) {
-	actor, err := d.resolveAdminActor(c)
+	actor, err := d.ResolveAdminActor(c)
 	if err != nil {
 		return nil, err
 	}
@@ -29,7 +29,7 @@ func (d Deps) requireTenantAdmin(c *echo.Context) (*spec.User, error) {
 	return actor, nil
 }
 
-type adminSettingsResponse struct {
+type AdminSettingsResponse struct {
 	TenantID               string                       `json:"tenant_id"`
 	DisplayName            string                       `json:"display_name"`
 	PasswordPolicyOverride *spec.PasswordPolicyOverride `json:"password_policy_override,omitempty"`
@@ -96,9 +96,9 @@ func (d Deps) handleUpdateAdminSettings(c *echo.Context) error {
 	return core.NoStoreJSON(c, http.StatusOK, d.toAdminSettingsResponse(tenant))
 }
 
-func (d Deps) toAdminSettingsResponse(t *spec.Tenant) adminSettingsResponse {
+func (d Deps) toAdminSettingsResponse(t *spec.Tenant) AdminSettingsResponse {
 	floor := d.tenantPolicyFloor()
-	return adminSettingsResponse{
+	return AdminSettingsResponse{
 		TenantID:               t.ID,
 		DisplayName:            t.DisplayName,
 		PasswordPolicyOverride: t.PasswordPolicyOverride,

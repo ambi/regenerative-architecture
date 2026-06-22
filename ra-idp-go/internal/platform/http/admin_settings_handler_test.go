@@ -18,6 +18,7 @@ import (
 	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/platform/persistence/memory"
 	"ra-idp-go/internal/spec"
+	tenancyhttp "ra-idp-go/internal/tenancy/adapters/http"
 
 	"github.com/labstack/echo/v5"
 )
@@ -85,7 +86,7 @@ func TestAdminSettingsGetReturnsCurrentTenant(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
 	}
-	var body adminSettingsResponse
+	var body tenancyhttp.AdminSettingsResponse
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
 		t.Fatal(err)
 	}

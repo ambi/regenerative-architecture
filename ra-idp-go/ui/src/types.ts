@@ -174,6 +174,31 @@ export type AdminClientsPage = {
   clients: AdminClient[]
 }
 
+export type AuthorizationDetailFieldRule = {
+  name: string
+  semantics: 'set' | 'at_most' | 'enum' | 'exact'
+  required?: boolean
+  allowed?: string[]
+}
+
+export type AuthorizationDetailType = {
+  tenant_id: string
+  type: string
+  description?: string
+  schema: { rules: AuthorizationDetailFieldRule[] }
+  display_template: string
+  state: 'Enabled' | 'Disabled'
+  created_at: string
+  updated_at: string
+}
+
+export type AdminAuthorizationDetailTypesPage = {
+  kind: 'admin-authz-detail-types'
+  csrfToken: string
+  actorUsername?: string
+  types: AuthorizationDetailType[]
+}
+
 export type AdminConsent = {
   tenant_id: string
   sub: string
@@ -564,6 +589,7 @@ export type PageData =
   | AdminUsersPage
   | AdminUserDetailPage
   | AdminClientsPage
+  | AdminAuthorizationDetailTypesPage
   | AdminConsentsPage
   | AdminAuditEventsPage
   | AdminKeysPage

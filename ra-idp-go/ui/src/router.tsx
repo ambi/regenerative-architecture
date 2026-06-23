@@ -60,6 +60,10 @@ const AdminConsentsPage = namedPage(
   () => import('./features/admin-consents/AdminConsentsPage'),
   'AdminConsentsPage',
 )
+const AdminAuthorizationDetailTypesPage = namedPage(
+  () => import('./features/admin-authz-detail-types/AdminAuthorizationDetailTypesPage'),
+  'AdminAuthorizationDetailTypesPage',
+)
 const AdminDashboardPage = namedPage(
   () => import('./features/admin-dashboard/AdminDashboardPage'),
   'AdminDashboardPage',
@@ -214,7 +218,9 @@ export function createAppRouter(data: PageData) {
     getParentRoute: () => rootRoute,
     path: '/account/applications',
     component: () =>
-      data.kind === 'account-applications' ? routePage(<AccountApplicationsPage {...data} />) : null,
+      data.kind === 'account-applications'
+        ? routePage(<AccountApplicationsPage {...data} />)
+        : null,
   })
   const accountDataRoute = createRoute({
     getParentRoute: () => rootRoute,
@@ -255,8 +261,7 @@ export function createAppRouter(data: PageData) {
   const adminUsersRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/admin/users',
-    component: () =>
-      data.kind === 'admin-users' ? routePage(<AdminUsersPage {...data} />) : null,
+    component: () => (data.kind === 'admin-users' ? routePage(<AdminUsersPage {...data} />) : null),
   })
   const adminUserDetailRoute = createRoute({
     getParentRoute: () => rootRoute,
@@ -267,8 +272,7 @@ export function createAppRouter(data: PageData) {
   const adminRolesRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/admin/roles',
-    component: () =>
-      data.kind === 'admin-roles' ? routePage(<AdminRolesPage {...data} />) : null,
+    component: () => (data.kind === 'admin-roles' ? routePage(<AdminRolesPage {...data} />) : null),
   })
   const adminRoleDetailRoute = createRoute({
     getParentRoute: () => rootRoute,
@@ -293,6 +297,14 @@ export function createAppRouter(data: PageData) {
     path: '/admin/consents',
     component: () =>
       data.kind === 'admin-consents' ? routePage(<AdminConsentsPage {...data} />) : null,
+  })
+  const adminAuthzDetailTypesRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/admin/authorization-detail-types',
+    component: () =>
+      data.kind === 'admin-authz-detail-types'
+        ? routePage(<AdminAuthorizationDetailTypesPage {...data} />)
+        : null,
   })
   const adminAuditEventsRoute = createRoute({
     getParentRoute: () => rootRoute,
@@ -376,6 +388,7 @@ export function createAppRouter(data: PageData) {
       adminRolesRoute,
       adminRoleDetailRoute,
       adminClientsRoute,
+      adminAuthzDetailTypesRoute,
       adminClientDetailRoute,
       adminConsentsRoute,
       adminAuditEventsRoute,

@@ -14,6 +14,7 @@ import type {
   AdminAuditEventsPage,
   AdminClient,
   AdminClientDetailPage,
+  AdminAuthorizationDetailTypesPage,
   AdminClientsPage,
   AdminConsent,
   AdminConsentsPage,
@@ -62,6 +63,7 @@ import {
   getAdminGroup,
   getAdminUser,
   listAdminAuditEvents,
+  listAuthorizationDetailTypes,
 } from './admin'
 import {
   AuthenticationAPIError,
@@ -336,6 +338,15 @@ export async function loadPageData(): Promise<PageData> {
       actorUsername: adminAccount!.preferred_username,
       clients: clients.clients,
     } satisfies AdminClientsPage
+  }
+  if (path === '/admin/authorization-detail-types') {
+    const types = await listAuthorizationDetailTypes()
+    return {
+      kind: 'admin-authz-detail-types',
+      csrfToken: adminAccount!.csrf_token,
+      actorUsername: adminAccount!.preferred_username,
+      types,
+    } satisfies AdminAuthorizationDetailTypesPage
   }
   const clientDetailMatch = path.match(/^\/admin\/clients\/([^/]+)$/)
   if (clientDetailMatch) {

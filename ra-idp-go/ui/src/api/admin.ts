@@ -10,6 +10,7 @@ import type {
   AdminTenant,
   AdminUser,
   AdminUserGroups,
+  AuthorizationDetailType,
   TenantUserAttributeSchema,
   UserAttributeDef,
 } from '../types'
@@ -167,6 +168,49 @@ export async function updateAdminClient(
 export async function deleteAdminClient(csrfToken: string, clientID: string): Promise<void> {
   await request(
     `/api/admin/clients/${encodeURIComponent(clientID)}`,
+    adminRequest(csrfToken, 'DELETE'),
+  )
+}
+
+// authorization_details type (RFC 9396 / ADR-050) の管理 API クライアント。
+export type AuthorizationDetailTypeInput = {
+  type?: string
+  description?: string
+  display_template: string
+  state?: AuthorizationDetailType['state']
+  schema: AuthorizationDetailType['schema']
+}
+
+export async function listAuthorizationDetailTypes(): Promise<AuthorizationDetailType[]> {
+  return (
+    await request<{ types: AuthorizationDetailType[] }>('/api/admin/authorization-detail-types')
+  ).types
+}
+
+export async function createAuthorizationDetailType(
+  csrfToken: string,
+  input: AuthorizationDetailTypeInput,
+): Promise<AuthorizationDetailType> {
+  return request('/api/admin/authorization-detail-types', adminRequest(csrfToken, 'POST', input))
+}
+
+export async function updateAuthorizationDetailType(
+  csrfToken: string,
+  detailType: string,
+  input: AuthorizationDetailTypeInput,
+): Promise<AuthorizationDetailType> {
+  return request(
+    `/api/admin/authorization-detail-types/${encodeURIComponent(detailType)}`,
+    adminRequest(csrfToken, 'PATCH', input),
+  )
+}
+
+export async function deleteAuthorizationDetailType(
+  csrfToken: string,
+  detailType: string,
+): Promise<void> {
+  await request(
+    `/api/admin/authorization-detail-types/${encodeURIComponent(detailType)}`,
     adminRequest(csrfToken, 'DELETE'),
   )
 }

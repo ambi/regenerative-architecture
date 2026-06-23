@@ -24,6 +24,7 @@ type Dependencies struct {
 	PasswordResetTokenStore authports.PasswordResetTokenStore
 	EmailChangeTokenStore   authports.EmailChangeTokenStore
 	ConsentRepo             oauthports.ConsentRepository
+	AuthzDetailTypeRepo     oauthports.AuthorizationDetailTypeRepository
 	RequestStore            oauthports.AuthorizationRequestStore
 	CodeStore               oauthports.AuthorizationCodeStore
 	PARStore                oauthports.PARStore

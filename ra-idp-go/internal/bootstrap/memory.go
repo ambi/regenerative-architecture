@@ -24,6 +24,7 @@ func assembleMemory() (*Dependencies, error) {
 		PasswordResetTokenStore: memory.NewPasswordResetTokenStore(),
 		EmailChangeTokenStore:   memory.NewEmailChangeTokenStore(),
 		ConsentRepo:             memory.NewConsentRepository(),
+		AuthzDetailTypeRepo:     memory.NewAuthorizationDetailTypeRepository(),
 		RequestStore:            memory.NewAuthorizationRequestStore(),
 		CodeStore:               memory.NewAuthorizationCodeStore(),
 		PARStore:                memory.NewPARStore(),

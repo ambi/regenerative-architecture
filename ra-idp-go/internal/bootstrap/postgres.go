@@ -60,6 +60,7 @@ func assemblePostgres(ctx context.Context) (*Dependencies, error) {
 		PasswordResetTokenStore: &postgres.PasswordResetTokenStore{Pool: pool},
 		EmailChangeTokenStore:   &postgres.EmailChangeTokenStore{Pool: pool},
 		ConsentRepo:             &postgres.ConsentRepository{Pool: pool},
+		AuthzDetailTypeRepo:     &postgres.AuthorizationDetailTypeRepository{Pool: pool},
 		RequestStore:            &redisstore.AuthorizationRequestStore{Client: redisClient},
 		CodeStore:               &redisstore.AuthorizationCodeStore{Client: redisClient},
 		PARStore:                &redisstore.PARStore{Client: redisClient},

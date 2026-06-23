@@ -22,6 +22,7 @@ func seedDemoData(
 	mfaFactors authports.MfaFactorRepository,
 	passwordHistory authports.PasswordHistoryRepository,
 	groups idmports.GroupRepository,
+	authzDetailTypes oauthports.AuthorizationDetailTypeRepository,
 	hasher authports.PasswordHasher,
 ) error {
 	secretHash := oauthdomain.HashClientSecret(envDefault("DEMO_CLIENT_SECRET", "demo-client-secret"))
@@ -70,12 +71,40 @@ func seedDemoData(
 	if err := seedDemoGroups(ctx, groups, now); err != nil {
 		return err
 	}
+	if err := seedDemoAuthorizationDetailTypes(ctx, authzDetailTypes, now); err != nil {
+		return err
+	}
 	if totpSecret == "" {
 		return nil
 	}
 	label := "Demo TOTP"
 	return mfaFactors.Save(ctx, &spec.MfaFactor{
 		Sub: "user_alice", Type: spec.MfaFactorTOTP, Secret: &totpSecret, Label: &label, CreatedAt: now,
+	})
+}
+
+// seedDemoAuthorizationDetailTypes は RFC 9396 のサンプル type を 1 件投入する (ADR-050)。
+// payment_initiation は actions を集合包含、creditorAccount を enum、instructedAmount を
+// 上限 (単調減少) として扱い、エージェントに「口座 X へ最大 N まで」を束縛させる例。
+func seedDemoAuthorizationDetailTypes(ctx context.Context, types oauthports.AuthorizationDetailTypeRepository, now time.Time) error {
+	if types == nil {
+		return nil
+	}
+	return types.Save(ctx, &spec.AuthorizationDetailType{
+		TenantID:    spec.DefaultTenantID,
+		Type:        "payment_initiation",
+		Description: "口座から指定上限までの送金開始 (RFC 9396 例)",
+		Schema: spec.AuthorizationDetailsSchema{
+			Rules: []spec.AuthorizationDetailFieldRule{
+				{Name: "actions", Semantics: spec.DetailFieldSet, Required: true, Allowed: []string{"initiate", "status", "cancel"}},
+				{Name: "creditorAccount", Semantics: spec.DetailFieldEnum, Required: true},
+				{Name: "instructedAmount", Semantics: spec.DetailFieldAtMost, Required: true},
+			},
+		},
+		DisplayTemplate: "口座 {creditorAccount} に対して {actions} を、最大 {instructedAmount} まで",
+		State:           spec.DetailTypeEnabled,
+		CreatedAt:       now,
+		UpdatedAt:       now,
 	})
 }
 

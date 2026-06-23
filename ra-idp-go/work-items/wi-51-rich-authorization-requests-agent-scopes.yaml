@@ -1,7 +1,7 @@
 id: wi-51-rich-authorization-requests-agent-scopes
 title: Rich Authorization Requests (RFC 9396) でエージェント権限を細粒度に束縛する
 created_at: 2026-06-22
-status: pending
+status: completed
 authors: [tn]
 
 motivation: |
@@ -68,3 +68,72 @@ risk_notes: |
   authorization_details は自由度が高く、検証が緩いと過大な権限付与や同意逸脱を招く。
   受理する type を事前登録スキーマに限定し、同意との部分集合判定・交換時のダウンスコープを
   fail-closed で強制する。粗い scope との重複は ADR で優先順位を定める。
+
+completion:
+  completed_at: 2026-06-24
+  summary: |
+    ADR-050 に基づき RFC 9396 Rich Authorization Requests を spec-first で実装した。
+    テナントが事前登録した AuthorizationDetailType の検証スキーマ (フィールドごとに
+    set / at_most / enum / exact の半順序) に対し、各 authorization_details を
+    構文・必須・許可値・未登録フィールド拒否で fail-closed に検証する (ValidateAgainstType)。
+    /authorize・/par・/token で受理し、検証済み詳細を AuthorizationRequest → 同意 Consent →
+    AuthorizationCodeRecord → access token の authorization_details claim まで貫通させる。
+    構造化詳細があるときは粗い scope の過去同意で自動スキップせず明示同意を必須とする。
+    token-exchange (RFC 8693) では要求詳細を subject_token の詳細の部分集合に限定し
+    (DetailsSubsetOf)、詳細なしの交換は元の詳細を保持のみ・決して拡張しない。introspection は
+    検証済み JWT から詳細を抽出して返し (RS の検証点)、discovery は Enabled な type を
+    authorization_details_types_supported として広告する。type 定義は新 permission
+    AdminAuthorizationDetailTypesManage 配下の admin API / 管理 UI で CRUD でき、同意画面は
+    登録 type の表示テンプレートで詳細を人間可読に提示する。
+  slices:
+    - spec + model — scl.yaml に AuthorizationDetail / AuthorizationDetailType /
+      AuthorizationDetailsSchema / AuthorizationDetailFieldRule、各エンティティ・トークンへの
+      authorization_details (optional)、events 3 種、discovery フィールドを追加。internal/spec を
+      Zog 検証込みでミラー。ADR-050 を採用へ。
+    - domain — ValidateAgainstType / DetailsSubsetOf (fail-closed 検証・ダウンスコープ半順序)。
+    - registry — port + memory/postgres adapter (schema は JSONB) + 0015 migration + DI 配線 +
+      サンプル payment_initiation seed。
+    - pipeline — /authorize・/par が受理・検証し request→consent→code→token claim へ貫通。
+    - exchange/discovery/introspect — token-exchange の詳細ダウンスコープ、discovery 広告、
+      introspection 反映。
+    - admin API + UI — AdminAuthorizationDetailTypesManage 配下の CRUD と管理画面。
+    - consent UI — 表示テンプレートで詳細を人間可読に提示。
+  verification:
+    - cmd: 'go build ./...'
+      in: ra-idp-go
+      result: ok
+    - cmd: 'go test ./...'
+      in: ra-idp-go
+      result: ok, no failures (検証の拒否境界・同意との部分集合・交換ダウンスコープ・token claim・admin API の各テストを含む)
+    - cmd: 'golangci-lint run ./...'
+      in: ra-idp-go
+      result: ok, 0 issues
+    - cmd: 'bun --cwd ra-idp-go/ui typecheck'
+      result: ok
+    - cmd: 'bun --cwd ra-idp-go/ui build'
+      result: ok
+    - cmd: 'bun run yaml-check:scl'
+      in: tools
+      result: ok
+  affected_guarantees_state:
+    - 最小権限: pass。エージェントは登録 type の検証スキーマで対象・上限を束縛した詳細しか得られず、未登録 type・スキーマ不適合は拒否する。
+    - 同意の一致: pass。発行トークンの詳細は同意済み詳細に基づき、構造化詳細があるときは明示同意を必須化して過去 scope 同意での自動承認を許さない。
+    - ダウンスコープ: pass。token-exchange は要求詳細を subject_token の部分集合に限定し、詳細なしの交換は保持のみで拡張しない。
+    - 監査: pass。AuthorizationDetailsRequested / Consented / Rejected を emit する。
+  residual_risk:
+    - 個別業務ドメインの type スキーマ (送金・文書アクセス等) は網羅的に定義せず、サンプル payment_initiation のみ seed する (out_of_scope どおり)。
+    - resource server 側の詳細解釈は実装しない。ra-idp は発行と検証点 (JWT claim / introspection) の提供まで。
+    - token claim はアプリ固有の shape (type + 標準フィールド + fields マップ) で署名する。RFC 9396 の型固有フィールドをトップレベルへ平坦化する相互運用は将来。
+    - 詳細の発行・交換許可判定は use case 層の fail-closed 強制で担保し、AuthZEN authorize() には admin 管理 permission のみ登録する (発行時の subset 判定はドメイン不変条件として実装)。
+  traceability:
+    spec: spec/scl.yaml (AuthorizationDetail / AuthorizationDetailType / AuthorizationDetailsSchema / AuthorizationDetailFieldRule / *.authorization_details / AuthorizationDetails{Requested,Consented,Rejected} / AdminAuthorizationDetailTypesManage / DiscoveryDocument.authorization_details_types_supported / 管理 interface 5 種)
+    domain: internal/spec/{schemas,enums,events,policy,validation}.go, internal/oauth2/domain/authorization_details.go (+ _test.go)
+    registry: internal/oauth2/ports/authorization_detail_type_repository.go, internal/platform/persistence/{memory,postgres}/authorization_detail_types.go, infra/migrations/0015_authorization_detail_types.sql
+    usecase: internal/oauth2/usecases/{authorization_details,authorize,complete_login,exchange_code,exchange_token,introspect_token,push_authorization_request}.go (+ _test.go)
+    crypto: internal/platform/crypto/jwt_signer.go (authorization_details claim の署名・抽出)
+    http: internal/oauth2/adapters/http/{authorize_handler,par_handler,token_handler,discovery_handler,admin_authorization_detail_type_handler}.go (+ _test.go)
+    ui: ra-idp-go/ui/src/features/auth-flow/ConsentPage.tsx, ra-idp-go/ui/src/features/admin-authz-detail-types/AdminAuthorizationDetailTypesPage.tsx
+  human_decisions:
+    - admin の type 管理は API だけでなく管理画面まで提供する (ユーザー指示)。
+    - 各層をスライス単位でコミットし、spec↔impl coherence が常に green になるよう permission/interface は admin API スライスでまとめて導入した。
+    - 同意 UI に加え admin UI も含めるため、UI スコープを WI 記載 (同意 UI) から拡張した。

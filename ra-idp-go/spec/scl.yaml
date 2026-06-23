@@ -51,9 +51,9 @@ bounded_contexts:
       Introspect / Revoke / UserInfo / proof-of-possession)、信頼基盤 (署名鍵 /
       JWKS / Discovery / Authorization Server Metadata / 健全性報告 / 監査保管)
       を本 bounded context に集約する。
-    owns_models: [OAuth2Client, ClientType, TokenEndpointAuthMethod, FapiProfile, ClientRegistrationRequest, AdminClientCreateRequest, AdminClientUpdateRequest, AdminClientResponse, AdminClientCreateResponse, AdminClientListResponse, InvalidClientError, UnauthorizedClientError, AuthorizationRequest, AuthorizeParameters, Consent, ConsentState, AdminConsentResponse, AdminConsentListResponse, AccountConsentResponse, AccountConsentListResponse, AuthorizationCodeRecord, AuthorizationCodeState, AuthorizationCodeRecordState, ResponseType, ResponseMode, CodeChallengeMethod, GrantType, PARRecord, PARRecordState, ParRequest, ParResponse, BrowserConsentRequest, BrowserTransactionResponse, BrowserFlowResponse, EndSessionParameters, DeviceCodeState, DeviceAuthorization, DeviceAuthorizationRequest, DeviceAuthorizationResponse, BrowserDeviceRequest, BrowserDeviceContextResponse, OAuthError, OAuthErrorCode, InvalidRequestError, InvalidScopeError, AccessDeniedError, ExpiredTokenError, SlowDownError, AuthorizationPendingError, ServerError, TokenRequest, TokenResponse, IntrospectionRequest, IntrospectionResponse, RevokeRequest, UserInfoResponse, RefreshTokenRecord, RefreshTokenState, AccessTokenClaims, IdTokenClaims, TokenType, AccessTokenSenderConstraint, SenderConstraintKind, SenderConstraintCnf, RefreshTokenSenderConstraint, Audience, InvalidGrantError, UnsupportedGrantTypeError, InvalidTokenError, InvalidDpopProofError, InsufficientScopeError, SigningKey, SigningKeyState, JWK, JWKS, DiscoveryDocument, SignatureAlgorithm, Uri, AuditEventQuery, AdminAuditEventResponse, AdminAuditEventListResponse, AdminKeyResponse, AdminKeyListResponse, AdminRotateKeyResponse]
+    owns_models: [OAuth2Client, ClientType, TokenEndpointAuthMethod, FapiProfile, ClientRegistrationRequest, AdminClientCreateRequest, AdminClientUpdateRequest, AdminClientResponse, AdminClientCreateResponse, AdminClientListResponse, InvalidClientError, UnauthorizedClientError, AuthorizationRequest, AuthorizeParameters, Consent, ConsentState, AuthorizationDetail, AuthorizationDetailFieldRule, AuthorizationDetailFieldSemantics, AuthorizationDetailsSchema, AuthorizationDetailType, AuthorizationDetailTypeState, AdminConsentResponse, AdminConsentListResponse, AccountConsentResponse, AccountConsentListResponse, AuthorizationCodeRecord, AuthorizationCodeState, AuthorizationCodeRecordState, ResponseType, ResponseMode, CodeChallengeMethod, GrantType, PARRecord, PARRecordState, ParRequest, ParResponse, BrowserConsentRequest, BrowserTransactionResponse, BrowserFlowResponse, EndSessionParameters, DeviceCodeState, DeviceAuthorization, DeviceAuthorizationRequest, DeviceAuthorizationResponse, BrowserDeviceRequest, BrowserDeviceContextResponse, OAuthError, OAuthErrorCode, InvalidRequestError, InvalidScopeError, AccessDeniedError, ExpiredTokenError, SlowDownError, AuthorizationPendingError, ServerError, TokenRequest, TokenResponse, IntrospectionRequest, IntrospectionResponse, RevokeRequest, UserInfoResponse, RefreshTokenRecord, RefreshTokenState, AccessTokenClaims, IdTokenClaims, TokenType, AccessTokenSenderConstraint, SenderConstraintKind, SenderConstraintCnf, RefreshTokenSenderConstraint, Audience, InvalidGrantError, UnsupportedGrantTypeError, InvalidTokenError, InvalidDpopProofError, InsufficientScopeError, SigningKey, SigningKeyState, JWK, JWKS, DiscoveryDocument, SignatureAlgorithm, Uri, AuditEventQuery, AdminAuditEventResponse, AdminAuditEventListResponse, AdminKeyResponse, AdminKeyListResponse, AdminRotateKeyResponse]
     owns_states: [AuthorizationCodeFlow, AuthorizationCodeRecordLifecycle, ConsentLifecycle, PARRecordLifecycle, DeviceCodeFlow, RefreshTokenLifecycle, SigningKeyLifecycle]
-    owns_events: [ClientRegistered, AdminClientCreated, AdminClientUpdated, AdminClientDeleted, AuthorizationCodeIssued, AuthorizationCodeRedeemed, ConsentGranted, ConsentRevoked, PARStored, DeviceAuthorizationRequested, DeviceAuthorizationApproved, DeviceAuthorizationDenied, AccessTokenIssued, RefreshTokenIssued, RefreshTokenRotated, TokenRevoked, TokenIntrospected, TokenExchanged, TokenExchangeRejected, RefreshTokenReuseDetected, SigningKeyRotated]
+    owns_events: [ClientRegistered, AdminClientCreated, AdminClientUpdated, AdminClientDeleted, AuthorizationCodeIssued, AuthorizationCodeRedeemed, ConsentGranted, ConsentRevoked, PARStored, DeviceAuthorizationRequested, DeviceAuthorizationApproved, DeviceAuthorizationDenied, AccessTokenIssued, RefreshTokenIssued, RefreshTokenRotated, TokenRevoked, TokenIntrospected, TokenExchanged, TokenExchangeRejected, RefreshTokenReuseDetected, SigningKeyRotated, AuthorizationDetailsRequested, AuthorizationDetailsConsented, AuthorizationDetailsRejected]
     owns_interfaces: [RegisterClient, ListAdminClients, GetAdminClient, CreateAdminClient, UpdateAdminClient, DeleteAdminClient, Authorize, GetBrowserTransaction, SubmitBrowserConsent, PushAuthorizationRequest, DeviceAuthorization, GetBrowserDeviceContext, SubmitBrowserDevice, EndSession, ListAdminConsents, GetAdminConsent, RevokeAdminConsent, ListMyConsents, RevokeMyConsent, Token, Introspect, Revoke, UserInfo, PostUserInfo, GetJwks, GetOpenidConfiguration, GetOauthAuthorizationServer, Health, ListAdminAuditEvents, ExportAdminAuditEvents, GetAdminAuditEvent, ListAdminKeys, GetAdminKey, RotateAdminKey]
     owns_invariants: [ClientAuthFailureUniformity, PkceRoundTrip, AuthCodeStateSafety, DeviceCodeStateSafety, AuthorizationCodeSingleUse, ParRequestUriSingleUse, AuthorizationCodeTtl, AuthorizationCodeEventuallyResolves, DeviceCodeEventuallyResolves, RedirectUriExactMatch, PkceMandatory, AccessTokenIssuedOnlyAfterConsent, RefreshFamilyTransitiveRevoke, RefreshRotationParentInvariants, DpopJtiUniquenessWithinWindow, TokenHashOneWay, RefreshTokenAbsoluteTtl, AllAccessTokensCarryAudience, SigningKeyMaxAge]
     owns_permissions: [AdminClientsManage, AuthorizeInitiate, AdminConsentsManage, TokenGrantAuthorizationCode, TokenGrantRefresh, TokenGrantClientCredentials, TokenGrantDeviceCode, TokenGrantTokenExchange, TokenIntrospect, TokenRevoke, UserInfoRead, AdminAuditEventsRead, AdminKeysRead, AdminKeysRotate]
@@ -721,6 +721,9 @@ vocabulary:
   TokenExchange:
     definition: 既存トークンを別トークンに交換するトークン交換グラント (RFC 8693)。本アプリは自己発行トークンの委任 (delegation) のみを扱い、subject_token / actor_token は本 IdP が発行したものに限る。grant_type は URN。
     aliases: ["urn:ietf:params:oauth:grant-type:token-exchange", token-exchange, トークン交換]
+  AuthorizationDetails:
+    definition: 構造化された細粒度の権限要求 (RFC 9396)。type で識別される JSON オブジェクトの配列として、対象・操作・上限・条件を表し、/authorize・/par・/token で要求・同意・トークン反映する。本アプリは受理する type をテナント登録スキーマに限定し fail-closed に検証する (ADR-050)。
+    aliases: [authorization_details, RAR, "Rich Authorization Requests", リッチ認可リクエスト]
 
   # ---------- トークン ----------
   AccessToken:
@@ -1213,6 +1216,19 @@ models:
     description: PARRecordLifecycle 状態機械の取りうる状態列挙。Stored から /authorize での参照で Used、期限切れで Expired。
     values: [Stored, Used, Expired]
 
+  AuthorizationDetailFieldSemantics:
+    kind: enum
+    description: >-
+      authorization_details の登録スキーマで各フィールドが担うダウンスコープ半順序 (ADR-050)。
+      set は集合包含 (要求 ⊆ 同意/元)、at_most は単調減少 (要求 ≤ 同意/元)、enum は許可列挙からの完全一致、
+      exact は不透明値の完全一致。判定不能はすべて拒否側へ倒す (fail-closed)。
+    values: [set, at_most, enum, exact]
+
+  AuthorizationDetailTypeState:
+    kind: enum
+    description: AuthorizationDetailType の運用状態列挙。Enabled のみ受理対象、Disabled は新規要求を拒否する (既存トークンは失効まで有効)。
+    values: [Enabled, Disabled]
+
   SigningKeyState:
     kind: enum
     description: SigningKeyLifecycle 状態機械の取りうる状態列挙。Active が現行署名鍵、Verifying は JWKS に残るが署名はしない、Retired は JWKS から除去済、Archived は監査保管。
@@ -1450,6 +1466,58 @@ models:
       granted_at:   { type: Timestamp }
       expires_at:   { type: Timestamp, description: 通常 granted_at + 365 日 }
       revoked_at:   { type: Timestamp, optional: true, description: state == Revoked になった時刻（監査）。 }
+      authorization_details: { type: "AuthorizationDetail[]", optional: true, description: "RFC 9396 — ユーザーが同意した構造化詳細。発行・交換時の部分集合判定の基準 (ADR-050)。" }
+
+  # ---------- Rich Authorization Requests (RFC 9396 / ADR-050) ----------
+  AuthorizationDetail:
+    kind: value_object
+    description: >-
+      RFC 9396 authorization_details の 1 要素。type で識別される構造化された細粒度権限を表す。
+      要求・同意・トークン反映を通じて一貫して扱い、登録済み AuthorizationDetailType に対し
+      fail-closed に検証する (ADR-050)。
+    fields:
+      type:        { type: String, constraints: [non_empty], description: "登録済み AuthorizationDetailType の識別子 (例: payment_initiation)。" }
+      locations:   { type: "String[]", optional: true, description: "RFC 9396 — 詳細が向く resource server の URI 群。" }
+      actions:     { type: "String[]", optional: true, description: "RFC 9396 — 対象に対して許可する操作群。" }
+      datatypes:   { type: "String[]", optional: true, description: "RFC 9396 — アクセスするデータ種別群。" }
+      identifier:  { type: String, optional: true, description: "RFC 9396 — 対象リソースの識別子。" }
+      privileges:  { type: "String[]", optional: true, description: "RFC 9396 — 対象に対する権限レベル群。" }
+      fields:      { type: "Map<String, JSON>", optional: true, description: "type 固有の構造化フィールド (例: instructedAmount, creditorAccount)。登録スキーマで意味論を束縛する。" }
+
+  AuthorizationDetailFieldRule:
+    kind: value_object
+    description: AuthorizationDetailsSchema の 1 フィールド規則。ダウンスコープ半順序と許可値を定義する (ADR-050)。
+    fields:
+      name:        { type: String, constraints: [non_empty], description: "対象フィールド名。標準フィールド (actions 等) または fields マップ内のキー。" }
+      semantics:   { type: AuthorizationDetailFieldSemantics, description: "部分集合判定に使う半順序。" }
+      required:    { type: Boolean, default: false, description: "true のとき詳細にこのフィールドが必須。" }
+      allowed:     { type: "String[]", optional: true, description: "semantics が set / enum のとき許可される値の閉集合 (空なら無制限)。" }
+
+  AuthorizationDetailsSchema:
+    kind: value_object
+    description: >-
+      ある type の構造的スキーマ。受理するフィールドと各フィールドのダウンスコープ半順序を列挙する。
+      未登録フィールド・スキーマ不適合・許可外値はすべて拒否する (fail-closed, ADR-050)。
+    fields:
+      rules:       { type: "AuthorizationDetailFieldRule[]", constraints: [non_empty], description: "フィールド規則の集合。" }
+
+  AuthorizationDetailType:
+    kind: entity
+    description: >-
+      テナントが登録する authorization_details の type 定義。type 識別子・検証スキーマ・同意 UI の
+      表示テンプレートを束ねる。Enabled な type のみ受理する (ADR-050)。管理は
+      AdminAuthorizationDetailTypesManage で保護する。
+    identity: [tenant_id, type]
+    annotations: { bounded_context: OAuth2 }
+    fields:
+      tenant_id:        { type: String, default: "default", description: "所属テナント ID (ADR-034)。" }
+      type:             { type: String, constraints: [non_empty], description: "authorization_details の type 識別子。" }
+      description:      { type: String, optional: true }
+      schema:           { type: AuthorizationDetailsSchema }
+      display_template: { type: String, description: "同意 UI で詳細を人間可読に提示するテンプレート (例: '{identifier} へ最大 {fields.instructedAmount} まで')。" }
+      state:            { type: AuthorizationDetailTypeState, default: Enabled }
+      created_at:       { type: Timestamp }
+      updated_at:       { type: Timestamp }
 
   RefreshTokenRecord:
     kind: entity
@@ -1495,6 +1563,7 @@ models:
       amr:                      { type: "String[]", optional: true, description: 認証成功時のメソッド列。advance(authenticate_user) で AuthenticationContext から伝搬。 }
       acr:                      { type: String, optional: true, description: amr から AuthenticationContextPolicy に従って導出した URN。 }
       acr_values:               { type: String, optional: true, description: クライアントが /authorize に与えた acr_values パラメータ (RFC 8176)。step-up 判定に使う。 }
+      authorization_details:    { type: "AuthorizationDetail[]", optional: true, description: "RFC 9396 — クライアントが要求した構造化詳細。検証済み・登録 type 適合済みのものを保持する (ADR-050)。" }
       created_at:               { type: Timestamp }
       expires_at:               { type: Timestamp }
 
@@ -1516,6 +1585,7 @@ models:
       auth_time:                  { type: Integer }
       amr:                        { type: "String[]", optional: true, description: 認可リクエストから引き継いだ認証メソッド列。id_token / access_token に emit する。 }
       acr:                        { type: String, optional: true, description: 認可リクエストから引き継いだ ACR URN。id_token / access_token に emit する。 }
+      authorization_details:      { type: "AuthorizationDetail[]", optional: true, description: "RFC 9396 — 同意済み構造化詳細。交換で発行トークンへ反映する (ADR-050)。" }
       state:                      { type: AuthorizationCodeRecordState }
       issued_at:                  { type: Timestamp }
       expires_at:                 { type: Timestamp }
@@ -1603,6 +1673,7 @@ models:
       cnf:        { type: SenderConstraintCnf, optional: true }
       act:        { type: JSON, optional: true, description: "RFC 8693 §4.1 actor claim。委任の現在アクターを表す。subject_token に act があれば入れ子で連結される。" }
       may_act:    { type: JSON, optional: true, description: "RFC 8693 §4.4 may_act claim。許可された委任先アクターを表す。" }
+      authorization_details: { type: "AuthorizationDetail[]", optional: true, description: "RFC 9396 — トークンに束縛された構造化詳細。RS の検証点 (ADR-050)。optional で後方互換 (ADR-012)。" }
 
   IdTokenClaims:
     kind: value_object
@@ -1686,6 +1757,7 @@ models:
       claims_supported:                              { type: "String[]", optional: true, default: [sub, iss, aud, exp, iat, auth_time, nonce, acr, amr, azp, name, given_name, family_name, preferred_username, email, email_verified, updated_at] }
       acr_values_supported:                          { type: "String[]", optional: true, default: ["urn:ra-idp:acr:pwd", "urn:ra-idp:acr:mfa"] }
       ui_locales_supported:                          { type: "String[]", optional: true, default: [en, ja] }
+      authorization_details_types_supported:         { type: "String[]", optional: true, description: "RFC 9396 — 当テナントで受理する authorization_details の type 一覧 (Enabled な AuthorizationDetailType から導出, ADR-050)。" }
 
   # ---------- リクエスト/レスポンス値オブジェクト ----------
   ClientRegistrationRequest:
@@ -3393,6 +3465,38 @@ models:
       actorSub:     { type: String, optional: true, description: "管理 API からの撤回時の Administrator sub。ResourceOwner 自身の撤回では省略可。" }
       sub:          { type: String }
       clientId:     { type: String }
+
+  AuthorizationDetailsRequested:
+    kind: event
+    description: "RFC 9396 — クライアントが /authorize・/par・/token で authorization_details を要求し、登録 type 適合検証を通過した (ADR-050)。"
+    annotations: { bounded_context: OAuth2 }
+    payload:
+      occurredAt:   { type: Timestamp }
+      tenantId:     { type: String }
+      clientId:     { type: String }
+      sub:          { type: String, optional: true, description: "要求時点で確定していれば principal の sub。" }
+      detailTypes:  { type: "String[]", description: "要求された詳細の type 一覧。" }
+
+  AuthorizationDetailsConsented:
+    kind: event
+    description: "RFC 9396 — ResourceOwner が提示された authorization_details に同意した。発行・交換の部分集合判定の基準となる (ADR-050)。"
+    annotations: { bounded_context: OAuth2 }
+    payload:
+      occurredAt:   { type: Timestamp }
+      tenantId:     { type: String }
+      sub:          { type: String }
+      clientId:     { type: String }
+      detailTypes:  { type: "String[]" }
+
+  AuthorizationDetailsRejected:
+    kind: event
+    description: "RFC 9396 — authorization_details の構文不正・未登録 type・スキーマ不適合・同意逸脱・ダウンスコープ超過により要求を拒否した (fail-closed, ADR-050)。"
+    annotations: { bounded_context: OAuth2 }
+    payload:
+      occurredAt:   { type: Timestamp }
+      tenantId:     { type: String }
+      clientId:     { type: String }
+      reason:       { type: String, description: "拒否理由 (invalid_authorization_details 等)。" }
 
   AuthorizationCodeIssued:
     kind: event

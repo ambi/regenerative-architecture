@@ -163,6 +163,41 @@ func (s ConsentState) Valid() bool {
 	return false
 }
 
+// AuthorizationDetailFieldSemantics は authorization_details の登録スキーマで
+// 各フィールドが担うダウンスコープ半順序を表す (RFC 9396 / ADR-050)。
+type AuthorizationDetailFieldSemantics string
+
+const (
+	DetailFieldSet    AuthorizationDetailFieldSemantics = "set"     // 集合包含: 要求 ⊆ 同意/元
+	DetailFieldAtMost AuthorizationDetailFieldSemantics = "at_most" // 単調減少: 要求 ≤ 同意/元
+	DetailFieldEnum   AuthorizationDetailFieldSemantics = "enum"    // 許可列挙からの完全一致
+	DetailFieldExact  AuthorizationDetailFieldSemantics = "exact"   // 不透明値の完全一致
+)
+
+func (s AuthorizationDetailFieldSemantics) Valid() bool {
+	switch s {
+	case DetailFieldSet, DetailFieldAtMost, DetailFieldEnum, DetailFieldExact:
+		return true
+	}
+	return false
+}
+
+// AuthorizationDetailTypeState は登録 type の運用状態を表す (ADR-050)。
+type AuthorizationDetailTypeState string
+
+const (
+	DetailTypeEnabled  AuthorizationDetailTypeState = "Enabled"
+	DetailTypeDisabled AuthorizationDetailTypeState = "Disabled"
+)
+
+func (s AuthorizationDetailTypeState) Valid() bool {
+	switch s {
+	case DetailTypeEnabled, DetailTypeDisabled:
+		return true
+	}
+	return false
+}
+
 // SessionEndReason は LoginSession 終了の理由 (wi-20)。self_revoke / admin_revoke は
 // 明示的なセッション失効、それ以外は自動失効・ライフサイクル起因。
 type SessionEndReason string

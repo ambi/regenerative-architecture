@@ -329,14 +329,62 @@ func (m MfaFactor) Validate() error {
 // ===============================================================
 
 type Consent struct {
-	TenantID  string       `json:"tenant_id"`
-	Sub       string       `json:"sub"`
-	ClientID  string       `json:"client_id"`
-	Scopes    []string     `json:"scopes"`
-	State     ConsentState `json:"state"`
-	GrantedAt time.Time    `json:"granted_at"`
-	ExpiresAt time.Time    `json:"expires_at"`
-	RevokedAt *time.Time   `json:"revoked_at,omitempty"`
+	TenantID             string                `json:"tenant_id"`
+	Sub                  string                `json:"sub"`
+	ClientID             string                `json:"client_id"`
+	Scopes               []string              `json:"scopes"`
+	State                ConsentState          `json:"state"`
+	GrantedAt            time.Time             `json:"granted_at"`
+	ExpiresAt            time.Time             `json:"expires_at"`
+	RevokedAt            *time.Time            `json:"revoked_at,omitempty"`
+	AuthorizationDetails []AuthorizationDetail `json:"authorization_details,omitempty"`
+}
+
+// ===============================================================
+// Rich Authorization Requests (RFC 9396 / ADR-050)
+// ===============================================================
+
+// AuthorizationDetail は RFC 9396 authorization_details の 1 要素。type で識別される
+// 構造化された細粒度権限を表し、登録済み AuthorizationDetailType に対し fail-closed に検証する。
+type AuthorizationDetail struct {
+	Type       string         `json:"type"`
+	Locations  []string       `json:"locations,omitempty"`
+	Actions    []string       `json:"actions,omitempty"`
+	Datatypes  []string       `json:"datatypes,omitempty"`
+	Identifier string         `json:"identifier,omitempty"`
+	Privileges []string       `json:"privileges,omitempty"`
+	Fields     map[string]any `json:"fields,omitempty"`
+}
+
+// AuthorizationDetailFieldRule は登録スキーマの 1 フィールド規則。ダウンスコープ半順序と
+// 許可値を定義する。
+type AuthorizationDetailFieldRule struct {
+	Name      string                            `json:"name"`
+	Semantics AuthorizationDetailFieldSemantics `json:"semantics"`
+	Required  bool                              `json:"required"`
+	Allowed   []string                          `json:"allowed,omitempty"`
+}
+
+// AuthorizationDetailsSchema はある type の構造的スキーマ。受理するフィールドと
+// 各フィールドの半順序を列挙する。
+type AuthorizationDetailsSchema struct {
+	Rules []AuthorizationDetailFieldRule `json:"rules"`
+}
+
+// AuthorizationDetailType はテナントが登録する authorization_details の type 定義 (ADR-050)。
+type AuthorizationDetailType struct {
+	TenantID        string                       `json:"tenant_id"`
+	Type            string                       `json:"type"`
+	Description     string                       `json:"description,omitempty"`
+	Schema          AuthorizationDetailsSchema   `json:"schema"`
+	DisplayTemplate string                       `json:"display_template"`
+	State           AuthorizationDetailTypeState `json:"state"`
+	CreatedAt       time.Time                    `json:"created_at"`
+	UpdatedAt       time.Time                    `json:"updated_at"`
+}
+
+func (t AuthorizationDetailType) Validate() error {
+	return validate(authorizationDetailTypeSchema, &t)
 }
 
 func (c Consent) Validate() error {
@@ -348,27 +396,28 @@ func (c Consent) Validate() error {
 // ===============================================================
 
 type AuthorizationRequest struct {
-	ID                  string                     `json:"id"`
-	TenantID            string                     `json:"tenant_id"`
-	State               AuthorizationCodeFlowState `json:"state"`
-	ClientID            string                     `json:"client_id"`
-	RedirectURI         string                     `json:"redirect_uri"`
-	ResponseType        ResponseType               `json:"response_type"`
-	Scope               string                     `json:"scope"`
-	StateParam          *string                    `json:"state_param,omitempty"`
-	Nonce               *string                    `json:"nonce,omitempty"`
-	CodeChallenge       string                     `json:"code_challenge"`
-	CodeChallengeMethod CodeChallengeMethod        `json:"code_challenge_method"`
-	Prompt              *string                    `json:"prompt,omitempty"`
-	MaxAge              *int                       `json:"max_age,omitempty"`
-	ParRequestURI       *string                    `json:"par_request_uri,omitempty"`
-	Sub                 *string                    `json:"sub,omitempty"`
-	AuthTime            *int64                     `json:"auth_time,omitempty"`
-	AMR                 []string                   `json:"amr,omitempty"`
-	ACR                 *string                    `json:"acr,omitempty"`
-	ACRValues           *string                    `json:"acr_values,omitempty"`
-	CreatedAt           time.Time                  `json:"created_at"`
-	ExpiresAt           time.Time                  `json:"expires_at"`
+	ID                   string                     `json:"id"`
+	TenantID             string                     `json:"tenant_id"`
+	State                AuthorizationCodeFlowState `json:"state"`
+	ClientID             string                     `json:"client_id"`
+	RedirectURI          string                     `json:"redirect_uri"`
+	ResponseType         ResponseType               `json:"response_type"`
+	Scope                string                     `json:"scope"`
+	StateParam           *string                    `json:"state_param,omitempty"`
+	Nonce                *string                    `json:"nonce,omitempty"`
+	CodeChallenge        string                     `json:"code_challenge"`
+	CodeChallengeMethod  CodeChallengeMethod        `json:"code_challenge_method"`
+	Prompt               *string                    `json:"prompt,omitempty"`
+	MaxAge               *int                       `json:"max_age,omitempty"`
+	ParRequestURI        *string                    `json:"par_request_uri,omitempty"`
+	Sub                  *string                    `json:"sub,omitempty"`
+	AuthTime             *int64                     `json:"auth_time,omitempty"`
+	AMR                  []string                   `json:"amr,omitempty"`
+	ACR                  *string                    `json:"acr,omitempty"`
+	ACRValues            *string                    `json:"acr_values,omitempty"`
+	AuthorizationDetails []AuthorizationDetail      `json:"authorization_details,omitempty"`
+	CreatedAt            time.Time                  `json:"created_at"`
+	ExpiresAt            time.Time                  `json:"expires_at"`
 }
 
 func (a AuthorizationRequest) Validate() error {
@@ -393,6 +442,7 @@ type AuthorizationCodeRecord struct {
 	AuthTime               int64                        `json:"auth_time"`
 	AMR                    []string                     `json:"amr,omitempty"`
 	ACR                    *string                      `json:"acr,omitempty"`
+	AuthorizationDetails   []AuthorizationDetail        `json:"authorization_details,omitempty"`
 	State                  AuthorizationCodeRecordState `json:"state"`
 	IssuedAt               time.Time                    `json:"issued_at"`
 	ExpiresAt              time.Time                    `json:"expires_at"`
@@ -519,19 +569,20 @@ func (d DeviceAuthorization) Validate() error {
 // ===============================================================
 
 type AccessTokenClaims struct {
-	Issuer   string            `json:"iss"`
-	Subject  string            `json:"sub"`
-	Audience any               `json:"aud"`
-	ClientID string            `json:"client_id"`
-	Scope    string            `json:"scope"`
-	Exp      int64             `json:"exp"`
-	Iat      int64             `json:"iat"`
-	Nbf      int64             `json:"nbf,omitempty"`
-	JTI      string            `json:"jti"`
-	AuthTime int64             `json:"auth_time,omitempty"`
-	ACR      string            `json:"acr,omitempty"`
-	AMR      []string          `json:"amr,omitempty"`
-	CNF      map[string]string `json:"cnf,omitempty"`
+	Issuer               string                `json:"iss"`
+	Subject              string                `json:"sub"`
+	Audience             any                   `json:"aud"`
+	ClientID             string                `json:"client_id"`
+	Scope                string                `json:"scope"`
+	Exp                  int64                 `json:"exp"`
+	Iat                  int64                 `json:"iat"`
+	Nbf                  int64                 `json:"nbf,omitempty"`
+	JTI                  string                `json:"jti"`
+	AuthTime             int64                 `json:"auth_time,omitempty"`
+	ACR                  string                `json:"acr,omitempty"`
+	AMR                  []string              `json:"amr,omitempty"`
+	CNF                  map[string]string     `json:"cnf,omitempty"`
+	AuthorizationDetails []AuthorizationDetail `json:"authorization_details,omitempty"`
 }
 
 type IDTokenClaims struct {

@@ -578,6 +578,44 @@ type ConsentRevokedEvent struct {
 func (e *ConsentRevokedEvent) EventType() string     { return "ConsentRevoked" }
 func (e *ConsentRevokedEvent) OccurredAt() time.Time { return e.At }
 
+// AuthorizationDetailsRequested はクライアントが authorization_details を要求し、
+// 登録 type 適合検証を通過したことを表す (RFC 9396 / ADR-050)。
+type AuthorizationDetailsRequested struct {
+	At          time.Time `json:"-"`
+	TenantID    string    `json:"tenantId"`
+	ClientID    string    `json:"clientId"`
+	Sub         string    `json:"sub,omitempty"`
+	DetailTypes []string  `json:"detailTypes"`
+}
+
+func (e *AuthorizationDetailsRequested) EventType() string     { return "AuthorizationDetailsRequested" }
+func (e *AuthorizationDetailsRequested) OccurredAt() time.Time { return e.At }
+
+// AuthorizationDetailsConsented は ResourceOwner が提示された authorization_details に
+// 同意したことを表す。発行・交換の部分集合判定の基準となる (ADR-050)。
+type AuthorizationDetailsConsented struct {
+	At          time.Time `json:"-"`
+	TenantID    string    `json:"tenantId"`
+	Sub         string    `json:"sub"`
+	ClientID    string    `json:"clientId"`
+	DetailTypes []string  `json:"detailTypes"`
+}
+
+func (e *AuthorizationDetailsConsented) EventType() string     { return "AuthorizationDetailsConsented" }
+func (e *AuthorizationDetailsConsented) OccurredAt() time.Time { return e.At }
+
+// AuthorizationDetailsRejected は authorization_details の検証・同意・ダウンスコープ
+// 違反により要求を拒否したことを表す (fail-closed, ADR-050)。
+type AuthorizationDetailsRejected struct {
+	At       time.Time `json:"-"`
+	TenantID string    `json:"tenantId"`
+	ClientID string    `json:"clientId"`
+	Reason   string    `json:"reason"`
+}
+
+func (e *AuthorizationDetailsRejected) EventType() string     { return "AuthorizationDetailsRejected" }
+func (e *AuthorizationDetailsRejected) OccurredAt() time.Time { return e.At }
+
 type AuthorizationCodeIssued struct {
 	At                  time.Time           `json:"-"`
 	TenantID            string              `json:"tenantId"`

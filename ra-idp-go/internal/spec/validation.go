@@ -153,6 +153,27 @@ var agentCredentialBindingSchema = z.Struct(z.Shape{
 	"CreatedAt": z.Time().Required(),
 })
 
+var authorizationDetailTypeSchema = z.Struct(z.Shape{
+	"TenantID":        z.String().Min(1).Required(),
+	"Type":            z.String().Min(1).Required(),
+	"DisplayTemplate": z.String().Min(1).Required(),
+	"State": z.StringLike[AuthorizationDetailTypeState]().TestFunc(
+		func(value *AuthorizationDetailTypeState, _ z.Ctx) bool { return value.Valid() },
+		z.Message("authorization detail type state is not in enum"),
+	).Required(),
+	"Schema": z.Struct(z.Shape{
+		"Rules": z.Slice(z.Struct(z.Shape{
+			"Name": z.String().Min(1).Required(),
+			"Semantics": z.StringLike[AuthorizationDetailFieldSemantics]().TestFunc(
+				func(value *AuthorizationDetailFieldSemantics, _ z.Ctx) bool { return value.Valid() },
+				z.Message("authorization detail field semantics is not in enum"),
+			).Required(),
+		})).Min(1).Required(),
+	}),
+	"CreatedAt": z.Time().Required(),
+	"UpdatedAt": z.Time().Required(),
+})
+
 var mfaFactorSchema = z.Struct(z.Shape{
 	"Sub": z.String().Required(),
 	"Type": z.StringLike[MfaFactorType]().TestFunc(

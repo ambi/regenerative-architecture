@@ -2,8 +2,7 @@
 
 ## ステータス
 
-提案 (draft)。[[wi-51-rich-authorization-requests-agent-scopes]] の意思決定を先行して起草する。
-wi-51 の実装着手とともに「採用」へ移す。[[ADR-048]] (エージェント一級プリンシパル)・
+採用。[[wi-51-rich-authorization-requests-agent-scopes]] の実装に伴い「採用」へ移した。[[ADR-048]] (エージェント一級プリンシパル)・
 [[ADR-049]] (token exchange によるダウンスコープ)・[[ADR-007]] (同意モデル)・
 [[ADR-010]] (AuthZEN ポリシー)・[[ADR-012]] (opaque / JWT access token) を前提に、
 AI エージェントへ「必要な分だけ」を付与するための **構造化された最小権限要求の安全境界** を確定する。

@@ -15,11 +15,19 @@ export type TotpPage = {
   returnTo?: string
 }
 
+export type ConsentDetailView = {
+  type: string
+  description?: string
+  summary: string
+  lines?: string[]
+}
+
 export type ConsentPage = {
   kind: 'consent'
   csrfToken: string
   clientName: string
   scopes: string[]
+  authorizationDetails?: ConsentDetailView[]
 }
 
 export type DevicePage = {

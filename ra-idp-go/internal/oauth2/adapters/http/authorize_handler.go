@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"path"
@@ -34,10 +35,19 @@ type browserFlowResponse struct {
 }
 
 type transactionResponse struct {
-	Kind       string   `json:"kind"`
-	CSRFToken  string   `json:"csrf_token"`
-	ClientName string   `json:"client_name,omitempty"`
-	Scopes     []string `json:"scopes,omitempty"`
+	Kind                 string              `json:"kind"`
+	CSRFToken            string              `json:"csrf_token"`
+	ClientName           string              `json:"client_name,omitempty"`
+	Scopes               []string            `json:"scopes,omitempty"`
+	AuthorizationDetails []consentDetailView `json:"authorization_details,omitempty"`
+}
+
+// consentDetailView は同意画面に提示する authorization_details の人間可読表現 (ADR-050)。
+type consentDetailView struct {
+	Type        string   `json:"type"`
+	Description string   `json:"description,omitempty"`
+	Summary     string   `json:"summary"`
+	Lines       []string `json:"lines,omitempty"`
 }
 
 type loginAPIRequest struct {
@@ -214,7 +224,94 @@ func (d Deps) handleTransaction(c *echo.Context) error {
 	}
 	return core.NoStoreJSON(c, http.StatusOK, transactionResponse{
 		Kind: "consent", CSRFToken: csrf, ClientName: name, Scopes: strings.Fields(req.Scope),
+		AuthorizationDetails: d.renderConsentDetails(c, req.AuthorizationDetails),
 	})
+}
+
+// renderConsentDetails は authorization_details を登録 type の表示テンプレートで
+// 人間可読に整形する。テンプレートの {field} を detail の値で置換し、テンプレートが
+// 無い/未登録 type のときはフィールドを 1 行ずつ列挙する (ADR-050)。
+func (d Deps) renderConsentDetails(c *echo.Context, details []spec.AuthorizationDetail) []consentDetailView {
+	if len(details) == 0 {
+		return nil
+	}
+	tenantID := core.RequestTenantID(c)
+	views := make([]consentDetailView, 0, len(details))
+	for _, detail := range details {
+		view := consentDetailView{Type: detail.Type, Lines: detailValueLines(detail)}
+		if d.AuthzDetailTypeRepo != nil {
+			if t, err := d.AuthzDetailTypeRepo.FindByType(c.Request().Context(), tenantID, detail.Type); err == nil && t != nil {
+				view.Description = t.Description
+				view.Summary = fillDisplayTemplate(t.DisplayTemplate, detail)
+			}
+		}
+		if view.Summary == "" {
+			view.Summary = strings.Join(view.Lines, " / ")
+		}
+		views = append(views, view)
+	}
+	return views
+}
+
+// detailValueLines は detail の各フィールドを "name: value" 形式で列挙する。
+func detailValueLines(detail spec.AuthorizationDetail) []string {
+	lines := []string{}
+	add := func(name string, values []string) {
+		if len(values) > 0 {
+			lines = append(lines, name+": "+strings.Join(values, ", "))
+		}
+	}
+	add("actions", detail.Actions)
+	add("locations", detail.Locations)
+	add("datatypes", detail.Datatypes)
+	add("privileges", detail.Privileges)
+	if detail.Identifier != "" {
+		lines = append(lines, "identifier: "+detail.Identifier)
+	}
+	for k, v := range detail.Fields {
+		lines = append(lines, fmt.Sprintf("%s: %v", k, v))
+	}
+	return lines
+}
+
+// fillDisplayTemplate は表示テンプレート中の {field} を detail の値で置換する。
+func fillDisplayTemplate(template string, detail spec.AuthorizationDetail) string {
+	if template == "" {
+		return ""
+	}
+	replace := func(name string) string {
+		switch name {
+		case "actions":
+			return strings.Join(detail.Actions, ", ")
+		case "locations":
+			return strings.Join(detail.Locations, ", ")
+		case "datatypes":
+			return strings.Join(detail.Datatypes, ", ")
+		case "privileges":
+			return strings.Join(detail.Privileges, ", ")
+		case "identifier":
+			return detail.Identifier
+		}
+		if v, ok := detail.Fields[name]; ok {
+			return fmt.Sprintf("%v", v)
+		}
+		return "{" + name + "}"
+	}
+	out := template
+	for {
+		start := strings.IndexByte(out, '{')
+		if start < 0 {
+			break
+		}
+		end := strings.IndexByte(out[start:], '}')
+		if end < 0 {
+			break
+		}
+		end += start
+		name := out[start+1 : end]
+		out = out[:start] + replace(name) + out[end+1:]
+	}
+	return out
 }
 
 func (d Deps) handleLoginAPI(c *echo.Context) error {

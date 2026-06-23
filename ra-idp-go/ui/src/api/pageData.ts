@@ -36,6 +36,7 @@ import type {
   AdminUsersPage,
   CallbackPage,
   ChangePasswordPage,
+  ConsentDetailView,
   ConsentPage,
   DevicePage,
   EmailVerifyPage,
@@ -76,6 +77,7 @@ type TransactionResponse = {
   csrf_token: string
   client_name?: string
   scopes?: string[]
+  authorization_details?: ConsentDetailView[]
 }
 type DeviceResponse = { kind: 'device'; csrf_token: string; user_code: string }
 type AccountContextResponse = {
@@ -479,6 +481,7 @@ export async function loadPageData(): Promise<PageData> {
       csrfToken: data.csrf_token,
       clientName: data.client_name ?? '',
       scopes: data.scopes ?? [],
+      authorizationDetails: data.authorization_details ?? [],
     } satisfies ConsentPage
   }
   if (data.kind === 'totp') {
@@ -492,4 +495,3 @@ export async function loadPageData(): Promise<PageData> {
   }
   return { kind: 'login', csrfToken: data.csrf_token, returnTo } satisfies LoginPage
 }
-

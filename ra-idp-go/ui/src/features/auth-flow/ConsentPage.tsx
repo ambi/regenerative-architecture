@@ -35,7 +35,12 @@ const scopeDetails: Record<string, { label: string; description: string; icon: t
   },
 }
 
-export function ConsentPage({ csrfToken, clientName, scopes }: ConsentPageData) {
+export function ConsentPage({
+  csrfToken,
+  clientName,
+  scopes,
+  authorizationDetails = [],
+}: ConsentPageData) {
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -110,6 +115,46 @@ export function ConsentPage({ csrfToken, clientName, scopes }: ConsentPageData) 
             </div>
           </div>
         </Card>
+
+        {authorizationDetails.length > 0 ? (
+          <Card className="overflow-hidden border-blue-200/70">
+            <div className="border-b border-slate-200 bg-blue-50/50 p-4">
+              <p className="text-xs font-bold uppercase tracking-[0.09em] text-blue-700">
+                細粒度の権限
+              </p>
+              <p className="mt-0.5 text-xs leading-5 text-slate-500">
+                以下の対象・上限に限定して許可します。
+              </p>
+            </div>
+            <div className="divide-y divide-slate-100 p-4">
+              {authorizationDetails.map((detail) => (
+                <div
+                  key={`${detail.type}-${detail.summary}`}
+                  className="flex items-start gap-3 py-3 first:pt-1 last:pb-1"
+                >
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-700">
+                    <IconShieldCheck size={18} aria-hidden="true" />
+                  </div>
+                  <div className="min-w-0 pt-0.5">
+                    <p className="text-sm font-semibold text-slate-900">
+                      {detail.description || detail.type}
+                    </p>
+                    <p className="mt-0.5 text-xs leading-5 text-slate-700">{detail.summary}</p>
+                    {detail.lines && detail.lines.length > 0 ? (
+                      <ul className="mt-1.5 flex flex-col gap-0.5 text-[0.7rem] leading-5 text-slate-500">
+                        {detail.lines.map((line) => (
+                          <li key={line} className="font-mono">
+                            {line}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        ) : null}
 
         <div className="flex gap-3 rounded-xl border border-amber-200/80 bg-amber-50/70 p-3.5 text-xs leading-5 text-amber-950">
           <IconClock className="mt-0.5 shrink-0 text-amber-700" size={17} aria-hidden="true" />

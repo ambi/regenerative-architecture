@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"ra-idp-go/internal/oauth2/domain"
 	"ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/spec"
 	"ra-idp-go/internal/tenancy"
@@ -34,32 +35,35 @@ const (
 )
 
 type ExchangeTokenInput struct {
-	ClientID           string
-	SubjectToken       string
-	SubjectTokenType   string
-	ActorToken         string
-	ActorTokenType     string
-	Resource           []string // form の resource (複数指定され得るため slice で受ける)
-	Scope              string
-	RequestedTokenType string
-	ProofJKT           string
-	ProofX5TS256       string
+	ClientID             string
+	SubjectToken         string
+	SubjectTokenType     string
+	ActorToken           string
+	ActorTokenType       string
+	Resource             []string // form の resource (複数指定され得るため slice で受ける)
+	Scope                string
+	RequestedTokenType   string
+	ProofJKT             string
+	ProofX5TS256         string
+	AuthorizationDetails []spec.AuthorizationDetail // RFC 9396 — 交換で要求する縮小詳細 (任意)
 }
 
 type ExchangeTokenResult struct {
-	AccessToken     string
-	IssuedTokenType string
-	TokenType       string
-	ExpiresIn       int
-	Scope           string
+	AccessToken          string
+	IssuedTokenType      string
+	TokenType            string
+	ExpiresIn            int
+	Scope                string
+	AuthorizationDetails []spec.AuthorizationDetail
 }
 
 type ExchangeTokenDeps struct {
-	ClientRepo   ports.ClientRepository
-	Introspector ports.TokenIntrospector
-	TokenIssuer  ports.TokenIssuer
-	Authorizer   ports.Authorizer
-	Emit         func(spec.DomainEvent)
+	ClientRepo          ports.ClientRepository
+	Introspector        ports.TokenIntrospector
+	TokenIssuer         ports.TokenIssuer
+	Authorizer          ports.Authorizer
+	AuthzDetailTypeRepo ports.AuthorizationDetailTypeRepository
+	Emit                func(spec.DomainEvent)
 }
 
 func ExchangeToken(ctx context.Context, deps ExchangeTokenDeps, in ExchangeTokenInput, now time.Time) (*ExchangeTokenResult, error) {
@@ -156,6 +160,24 @@ func ExchangeToken(ctx context.Context, deps ExchangeTokenDeps, in ExchangeToken
 		grantedScopes = requested
 	}
 
+	// --- authorization_details ダウンスコープ (拡大不可, RFC 9396 / ADR-050) ---
+	// 要求があれば登録 type に対し検証し、subject_token の詳細の部分集合に限る。
+	// 要求が無ければ subject の詳細を保持する (縮小のみ、決して拡張しない)。
+	grantedDetails := subject.AuthorizationDetails
+	if len(in.AuthorizationDetails) > 0 {
+		if err := ValidateAuthorizationDetails(ctx, deps.AuthzDetailTypeRepo, in.AuthorizationDetails); err != nil {
+			return reject(currentActorSub, NewOAuthError("invalid_authorization_details", err.Error()))
+		}
+		types, err := LoadAuthorizationDetailTypes(ctx, deps.AuthzDetailTypeRepo, in.AuthorizationDetails)
+		if err != nil {
+			return nil, err
+		}
+		if err := domain.DetailsSubsetOf(in.AuthorizationDetails, subject.AuthorizationDetails, types); err != nil {
+			return reject(currentActorSub, NewOAuthError("invalid_authorization_details", "subject_token の authorization_details を超える要求です"))
+		}
+		grantedDetails = in.AuthorizationDetails
+	}
+
 	// --- client の解決 (AuthZEN gate は token_handler 側の grant 宣言チェックで担保) ---
 	client, err := deps.ClientRepo.FindByID(ctx, tenantID, in.ClientID)
 	if err != nil {
@@ -185,6 +207,7 @@ func ExchangeToken(ctx context.Context, deps ExchangeTokenDeps, in ExchangeToken
 		Client: client, Sub: subject.Sub, Scopes: grantedScopes,
 		SenderConstraint: sc, AuthTime: now.Unix(),
 		Audiences: []string{resource}, Act: act,
+		AuthorizationDetails: grantedDetails,
 	})
 	if err != nil {
 		return nil, err
@@ -204,11 +227,12 @@ func ExchangeToken(ctx context.Context, deps ExchangeTokenDeps, in ExchangeToken
 		tokenType = "DPoP"
 	}
 	return &ExchangeTokenResult{
-		AccessToken:     access,
-		IssuedTokenType: tokenTypeAccessTokenURN,
-		TokenType:       tokenType,
-		ExpiresIn:       deps.TokenIssuer.AccessTokenTTLSeconds(),
-		Scope:           strings.Join(grantedScopes, " "),
+		AccessToken:          access,
+		IssuedTokenType:      tokenTypeAccessTokenURN,
+		TokenType:            tokenType,
+		ExpiresIn:            deps.TokenIssuer.AccessTokenTTLSeconds(),
+		Scope:                strings.Join(grantedScopes, " "),
+		AuthorizationDetails: grantedDetails,
 	}, nil
 }
 

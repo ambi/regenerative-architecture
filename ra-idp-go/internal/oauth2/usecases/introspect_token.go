@@ -8,6 +8,7 @@ import (
 
 	"ra-idp-go/internal/oauth2/domain"
 	"ra-idp-go/internal/oauth2/ports"
+	"ra-idp-go/internal/spec"
 	"ra-idp-go/internal/tenancy"
 )
 
@@ -28,6 +29,8 @@ type IntrospectionResponse struct {
 	JTI       string            `json:"jti,omitempty"`
 	CNF       map[string]string `json:"cnf,omitempty"`
 	Act       map[string]any    `json:"act,omitempty"`
+	// AuthorizationDetails は RFC 9396 — RS が信頼する検証点 (ADR-050)。
+	AuthorizationDetails []spec.AuthorizationDetail `json:"authorization_details,omitempty"`
 }
 
 type IntrospectDeps struct {
@@ -92,16 +95,17 @@ func IntrospectToken(ctx context.Context, deps IntrospectDeps, in IntrospectInpu
 		}
 	}
 	resp := &IntrospectionResponse{
-		Active:    r.Active,
-		Scope:     r.Scope,
-		ClientID:  r.ClientID,
-		Sub:       r.Sub,
-		Aud:       r.Aud,
-		TokenType: r.TokenType,
-		Exp:       r.Exp,
-		Iat:       r.Iat,
-		JTI:       r.JTI,
-		Act:       r.Act,
+		Active:               r.Active,
+		Scope:                r.Scope,
+		ClientID:             r.ClientID,
+		Sub:                  r.Sub,
+		Aud:                  r.Aud,
+		TokenType:            r.TokenType,
+		Exp:                  r.Exp,
+		Iat:                  r.Iat,
+		JTI:                  r.JTI,
+		Act:                  r.Act,
+		AuthorizationDetails: r.AuthorizationDetails,
 	}
 	if r.SenderConstraint != nil {
 		resp.CNF = map[string]string{}

@@ -200,31 +200,41 @@ func (d Deps) handleToken(c *echo.Context) error {
 		return c.JSON(http.StatusOK, body)
 
 	case "urn:ietf:params:oauth:grant-type:token-exchange":
+		exchangeDetails, err := usecases.ParseAuthorizationDetails(c.Request().PostFormValue("authorization_details"))
+		if err != nil {
+			return writeOAuthError(c, err)
+		}
 		res, err := usecases.ExchangeToken(ctx, usecases.ExchangeTokenDeps{
 			ClientRepo: d.ClientRepo, Introspector: d.TokenIntrospector,
-			TokenIssuer: d.TokenIssuer, Authorizer: d.Authorizer, Emit: d.Emit,
+			TokenIssuer: d.TokenIssuer, Authorizer: d.Authorizer,
+			AuthzDetailTypeRepo: d.AuthzDetailTypeRepo, Emit: d.Emit,
 		}, usecases.ExchangeTokenInput{
-			ClientID:           clientStub.ID,
-			SubjectToken:       c.Request().PostFormValue("subject_token"),
-			SubjectTokenType:   c.Request().PostFormValue("subject_token_type"),
-			ActorToken:         c.Request().PostFormValue("actor_token"),
-			ActorTokenType:     c.Request().PostFormValue("actor_token_type"),
-			Resource:           c.Request().PostForm["resource"],
-			Scope:              c.Request().PostFormValue("scope"),
-			RequestedTokenType: c.Request().PostFormValue("requested_token_type"),
-			ProofJKT:           dpopJKT,
-			ProofX5TS256:       clientStub.MTLSThumbprintS256,
+			ClientID:             clientStub.ID,
+			SubjectToken:         c.Request().PostFormValue("subject_token"),
+			SubjectTokenType:     c.Request().PostFormValue("subject_token_type"),
+			ActorToken:           c.Request().PostFormValue("actor_token"),
+			ActorTokenType:       c.Request().PostFormValue("actor_token_type"),
+			Resource:             c.Request().PostForm["resource"],
+			Scope:                c.Request().PostFormValue("scope"),
+			RequestedTokenType:   c.Request().PostFormValue("requested_token_type"),
+			ProofJKT:             dpopJKT,
+			ProofX5TS256:         clientStub.MTLSThumbprintS256,
+			AuthorizationDetails: exchangeDetails,
 		}, now)
 		if err != nil {
 			return writeOAuthError(c, err)
 		}
-		return c.JSON(http.StatusOK, map[string]any{
+		body := map[string]any{
 			"access_token":      res.AccessToken,
 			"issued_token_type": res.IssuedTokenType,
 			"token_type":        res.TokenType,
 			"expires_in":        res.ExpiresIn,
 			"scope":             res.Scope,
-		})
+		}
+		if len(res.AuthorizationDetails) > 0 {
+			body["authorization_details"] = res.AuthorizationDetails
+		}
+		return c.JSON(http.StatusOK, body)
 	}
 	return writeOAuthError(c, usecases.NewOAuthError("unsupported_grant_type", "未対応 grant_type: "+grantType))
 }

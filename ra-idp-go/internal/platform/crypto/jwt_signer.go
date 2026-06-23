@@ -216,6 +216,14 @@ func (s *JWTSigner) IntrospectAccessToken(ctx context.Context, token string) (*p
 	if mayAct, ok := payload["may_act"].(map[string]any); ok {
 		res.MayAct = mayAct
 	}
+	if raw, ok := payload["authorization_details"]; ok {
+		if encoded, err := json.Marshal(raw); err == nil {
+			var details []spec.AuthorizationDetail
+			if json.Unmarshal(encoded, &details) == nil {
+				res.AuthorizationDetails = details
+			}
+		}
+	}
 	return res, nil
 }
 

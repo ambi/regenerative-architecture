@@ -22,6 +22,9 @@ type IntrospectionResult struct {
 	Aud    []string
 	Act    map[string]any
 	MayAct map[string]any
+	// AuthorizationDetails は RFC 9396 の構造化詳細 (ADR-050)。検証済みペイロードから
+	// 抽出し、introspection 応答とトークン交換のダウンスコープ判定に使う。
+	AuthorizationDetails []spec.AuthorizationDetail
 }
 
 type TokenIntrospector interface {

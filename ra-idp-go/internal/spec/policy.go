@@ -87,58 +87,60 @@ type AuthZResponse struct {
 }
 
 const (
-	ActionTokenGrantAuthorizationCode = "token:grant_authorization_code"
-	ActionTokenGrantRefresh           = "token:grant_refresh"
-	ActionTokenGrantClientCredentials = "token:grant_client_credentials"
-	ActionTokenGrantDeviceCode        = "token:grant_device_code"
-	ActionTokenGrantTokenExchange     = "token:grant_token_exchange"
-	ActionTokenIntrospect             = "token:introspect"
-	ActionTokenRevoke                 = "token:revoke"
-	ActionUserInfoRead                = "userinfo:read"
-	ActionAuthorizeInitiate           = "authorize:initiate"
-	ActionAdminUserRead               = "admin:user_read"
-	ActionAdminUserCreate             = "admin:user_create"
-	ActionAdminUserUpdate             = "admin:user_update"
-	ActionAdminUserDelete             = "admin:user_delete"
-	ActionAdminClientsManage          = "admin:clients_manage"
-	ActionAdminConsentsManage         = "admin:consents_manage"
-	ActionAdminTenantsManage          = "admin:tenants_manage"
-	ActionAdminSettingsRead           = "admin:settings_read"
-	ActionAdminSettingsUpdate         = "admin:settings_update"
-	ActionAdminAuditEventsRead        = "admin:audit_events_read"
-	ActionAdminKeysRead               = "admin:keys_read"
-	ActionAdminKeysRotate             = "admin:keys_rotate"
-	ActionAdminGroupsRead             = "admin:groups_read"
-	ActionAdminGroupsWrite            = "admin:groups_write"
-	ActionAdminAgentsManage           = "admin:agents_manage"
+	ActionTokenGrantAuthorizationCode         = "token:grant_authorization_code"
+	ActionTokenGrantRefresh                   = "token:grant_refresh"
+	ActionTokenGrantClientCredentials         = "token:grant_client_credentials"
+	ActionTokenGrantDeviceCode                = "token:grant_device_code"
+	ActionTokenGrantTokenExchange             = "token:grant_token_exchange"
+	ActionTokenIntrospect                     = "token:introspect"
+	ActionTokenRevoke                         = "token:revoke"
+	ActionUserInfoRead                        = "userinfo:read"
+	ActionAuthorizeInitiate                   = "authorize:initiate"
+	ActionAdminUserRead                       = "admin:user_read"
+	ActionAdminUserCreate                     = "admin:user_create"
+	ActionAdminUserUpdate                     = "admin:user_update"
+	ActionAdminUserDelete                     = "admin:user_delete"
+	ActionAdminClientsManage                  = "admin:clients_manage"
+	ActionAdminConsentsManage                 = "admin:consents_manage"
+	ActionAdminTenantsManage                  = "admin:tenants_manage"
+	ActionAdminSettingsRead                   = "admin:settings_read"
+	ActionAdminSettingsUpdate                 = "admin:settings_update"
+	ActionAdminAuditEventsRead                = "admin:audit_events_read"
+	ActionAdminKeysRead                       = "admin:keys_read"
+	ActionAdminKeysRotate                     = "admin:keys_rotate"
+	ActionAdminGroupsRead                     = "admin:groups_read"
+	ActionAdminGroupsWrite                    = "admin:groups_write"
+	ActionAdminAgentsManage                   = "admin:agents_manage"
+	ActionAdminAuthorizationDetailTypesManage = "admin:authorization_detail_types_manage"
 )
 
 // PascalCase (SCL permissions のキー) → AuthZ action 名。
 var actionNameMapping = map[string]string{
-	"TokenGrantAuthorizationCode": ActionTokenGrantAuthorizationCode,
-	"TokenGrantRefresh":           ActionTokenGrantRefresh,
-	"TokenGrantClientCredentials": ActionTokenGrantClientCredentials,
-	"TokenGrantDeviceCode":        ActionTokenGrantDeviceCode,
-	"TokenGrantTokenExchange":     ActionTokenGrantTokenExchange,
-	"TokenIntrospect":             ActionTokenIntrospect,
-	"TokenRevoke":                 ActionTokenRevoke,
-	"UserInfoRead":                ActionUserInfoRead,
-	"AuthorizeInitiate":           ActionAuthorizeInitiate,
-	"AdminUserRead":               ActionAdminUserRead,
-	"AdminUserCreate":             ActionAdminUserCreate,
-	"AdminUserUpdate":             ActionAdminUserUpdate,
-	"AdminUserDelete":             ActionAdminUserDelete,
-	"AdminClientsManage":          ActionAdminClientsManage,
-	"AdminConsentsManage":         ActionAdminConsentsManage,
-	"AdminTenantsManage":          ActionAdminTenantsManage,
-	"AdminSettingsRead":           ActionAdminSettingsRead,
-	"AdminSettingsUpdate":         ActionAdminSettingsUpdate,
-	"AdminAuditEventsRead":        ActionAdminAuditEventsRead,
-	"AdminKeysRead":               ActionAdminKeysRead,
-	"AdminKeysRotate":             ActionAdminKeysRotate,
-	"AdminGroupsRead":             ActionAdminGroupsRead,
-	"AdminGroupsWrite":            ActionAdminGroupsWrite,
-	"AdminAgentsManage":           ActionAdminAgentsManage,
+	"TokenGrantAuthorizationCode":         ActionTokenGrantAuthorizationCode,
+	"TokenGrantRefresh":                   ActionTokenGrantRefresh,
+	"TokenGrantClientCredentials":         ActionTokenGrantClientCredentials,
+	"TokenGrantDeviceCode":                ActionTokenGrantDeviceCode,
+	"TokenGrantTokenExchange":             ActionTokenGrantTokenExchange,
+	"TokenIntrospect":                     ActionTokenIntrospect,
+	"TokenRevoke":                         ActionTokenRevoke,
+	"UserInfoRead":                        ActionUserInfoRead,
+	"AuthorizeInitiate":                   ActionAuthorizeInitiate,
+	"AdminUserRead":                       ActionAdminUserRead,
+	"AdminUserCreate":                     ActionAdminUserCreate,
+	"AdminUserUpdate":                     ActionAdminUserUpdate,
+	"AdminUserDelete":                     ActionAdminUserDelete,
+	"AdminClientsManage":                  ActionAdminClientsManage,
+	"AdminConsentsManage":                 ActionAdminConsentsManage,
+	"AdminTenantsManage":                  ActionAdminTenantsManage,
+	"AdminSettingsRead":                   ActionAdminSettingsRead,
+	"AdminSettingsUpdate":                 ActionAdminSettingsUpdate,
+	"AdminAuditEventsRead":                ActionAdminAuditEventsRead,
+	"AdminKeysRead":                       ActionAdminKeysRead,
+	"AdminKeysRotate":                     ActionAdminKeysRotate,
+	"AdminGroupsRead":                     ActionAdminGroupsRead,
+	"AdminGroupsWrite":                    ActionAdminGroupsWrite,
+	"AdminAgentsManage":                   ActionAdminAgentsManage,
+	"AdminAuthorizationDetailTypesManage": ActionAdminAuthorizationDetailTypesManage,
 }
 
 func ActionNameForPermission(permissionName string) (string, bool) {
@@ -210,6 +212,9 @@ var actionRules = map[string][]string{
 		"actor_is_admin", "actor_is_active", "actor_is_authenticated", "actor_and_resource_share_tenant",
 	},
 	ActionAdminAgentsManage: {
+		"actor_is_admin", "actor_is_active", "actor_is_authenticated", "actor_and_resource_share_tenant",
+	},
+	ActionAdminAuthorizationDetailTypesManage: {
 		"actor_is_admin", "actor_is_active", "actor_is_authenticated", "actor_and_resource_share_tenant",
 	},
 }

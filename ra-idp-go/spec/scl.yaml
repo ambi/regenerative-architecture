@@ -51,12 +51,12 @@ bounded_contexts:
       Introspect / Revoke / UserInfo / proof-of-possession)、信頼基盤 (署名鍵 /
       JWKS / Discovery / Authorization Server Metadata / 健全性報告 / 監査保管)
       を本 bounded context に集約する。
-    owns_models: [OAuth2Client, ClientType, TokenEndpointAuthMethod, FapiProfile, ClientRegistrationRequest, AdminClientCreateRequest, AdminClientUpdateRequest, AdminClientResponse, AdminClientCreateResponse, AdminClientListResponse, InvalidClientError, UnauthorizedClientError, AuthorizationRequest, AuthorizeParameters, Consent, ConsentState, AuthorizationDetail, AuthorizationDetailFieldRule, AuthorizationDetailFieldSemantics, AuthorizationDetailsSchema, AuthorizationDetailType, AuthorizationDetailTypeState, AdminConsentResponse, AdminConsentListResponse, AccountConsentResponse, AccountConsentListResponse, AuthorizationCodeRecord, AuthorizationCodeState, AuthorizationCodeRecordState, ResponseType, ResponseMode, CodeChallengeMethod, GrantType, PARRecord, PARRecordState, ParRequest, ParResponse, BrowserConsentRequest, BrowserTransactionResponse, BrowserFlowResponse, EndSessionParameters, DeviceCodeState, DeviceAuthorization, DeviceAuthorizationRequest, DeviceAuthorizationResponse, BrowserDeviceRequest, BrowserDeviceContextResponse, OAuthError, OAuthErrorCode, InvalidRequestError, InvalidScopeError, AccessDeniedError, ExpiredTokenError, SlowDownError, AuthorizationPendingError, ServerError, TokenRequest, TokenResponse, IntrospectionRequest, IntrospectionResponse, RevokeRequest, UserInfoResponse, RefreshTokenRecord, RefreshTokenState, AccessTokenClaims, IdTokenClaims, TokenType, AccessTokenSenderConstraint, SenderConstraintKind, SenderConstraintCnf, RefreshTokenSenderConstraint, Audience, InvalidGrantError, UnsupportedGrantTypeError, InvalidTokenError, InvalidDpopProofError, InsufficientScopeError, SigningKey, SigningKeyState, JWK, JWKS, DiscoveryDocument, SignatureAlgorithm, Uri, AuditEventQuery, AdminAuditEventResponse, AdminAuditEventListResponse, AdminKeyResponse, AdminKeyListResponse, AdminRotateKeyResponse]
+    owns_models: [OAuth2Client, ClientType, TokenEndpointAuthMethod, FapiProfile, ClientRegistrationRequest, AdminClientCreateRequest, AdminClientUpdateRequest, AdminClientResponse, AdminClientCreateResponse, AdminClientListResponse, InvalidClientError, UnauthorizedClientError, AuthorizationRequest, AuthorizeParameters, Consent, ConsentState, AuthorizationDetail, AuthorizationDetailFieldRule, AuthorizationDetailFieldSemantics, AuthorizationDetailsSchema, AuthorizationDetailType, AuthorizationDetailTypeState, AuthorizationDetailTypeRequest, AuthorizationDetailTypeResponse, AuthorizationDetailTypeListResponse, AdminConsentResponse, AdminConsentListResponse, AccountConsentResponse, AccountConsentListResponse, AuthorizationCodeRecord, AuthorizationCodeState, AuthorizationCodeRecordState, ResponseType, ResponseMode, CodeChallengeMethod, GrantType, PARRecord, PARRecordState, ParRequest, ParResponse, BrowserConsentRequest, BrowserTransactionResponse, BrowserFlowResponse, EndSessionParameters, DeviceCodeState, DeviceAuthorization, DeviceAuthorizationRequest, DeviceAuthorizationResponse, BrowserDeviceRequest, BrowserDeviceContextResponse, OAuthError, OAuthErrorCode, InvalidRequestError, InvalidScopeError, AccessDeniedError, ExpiredTokenError, SlowDownError, AuthorizationPendingError, ServerError, TokenRequest, TokenResponse, IntrospectionRequest, IntrospectionResponse, RevokeRequest, UserInfoResponse, RefreshTokenRecord, RefreshTokenState, AccessTokenClaims, IdTokenClaims, TokenType, AccessTokenSenderConstraint, SenderConstraintKind, SenderConstraintCnf, RefreshTokenSenderConstraint, Audience, InvalidGrantError, UnsupportedGrantTypeError, InvalidTokenError, InvalidDpopProofError, InsufficientScopeError, SigningKey, SigningKeyState, JWK, JWKS, DiscoveryDocument, SignatureAlgorithm, Uri, AuditEventQuery, AdminAuditEventResponse, AdminAuditEventListResponse, AdminKeyResponse, AdminKeyListResponse, AdminRotateKeyResponse]
     owns_states: [AuthorizationCodeFlow, AuthorizationCodeRecordLifecycle, ConsentLifecycle, PARRecordLifecycle, DeviceCodeFlow, RefreshTokenLifecycle, SigningKeyLifecycle]
     owns_events: [ClientRegistered, AdminClientCreated, AdminClientUpdated, AdminClientDeleted, AuthorizationCodeIssued, AuthorizationCodeRedeemed, ConsentGranted, ConsentRevoked, PARStored, DeviceAuthorizationRequested, DeviceAuthorizationApproved, DeviceAuthorizationDenied, AccessTokenIssued, RefreshTokenIssued, RefreshTokenRotated, TokenRevoked, TokenIntrospected, TokenExchanged, TokenExchangeRejected, RefreshTokenReuseDetected, SigningKeyRotated, AuthorizationDetailsRequested, AuthorizationDetailsConsented, AuthorizationDetailsRejected]
-    owns_interfaces: [RegisterClient, ListAdminClients, GetAdminClient, CreateAdminClient, UpdateAdminClient, DeleteAdminClient, Authorize, GetBrowserTransaction, SubmitBrowserConsent, PushAuthorizationRequest, DeviceAuthorization, GetBrowserDeviceContext, SubmitBrowserDevice, EndSession, ListAdminConsents, GetAdminConsent, RevokeAdminConsent, ListMyConsents, RevokeMyConsent, Token, Introspect, Revoke, UserInfo, PostUserInfo, GetJwks, GetOpenidConfiguration, GetOauthAuthorizationServer, Health, ListAdminAuditEvents, ExportAdminAuditEvents, GetAdminAuditEvent, ListAdminKeys, GetAdminKey, RotateAdminKey]
+    owns_interfaces: [RegisterClient, ListAuthorizationDetailTypes, GetAuthorizationDetailType, CreateAuthorizationDetailType, UpdateAuthorizationDetailType, DeleteAuthorizationDetailType, ListAdminClients, GetAdminClient, CreateAdminClient, UpdateAdminClient, DeleteAdminClient, Authorize, GetBrowserTransaction, SubmitBrowserConsent, PushAuthorizationRequest, DeviceAuthorization, GetBrowserDeviceContext, SubmitBrowserDevice, EndSession, ListAdminConsents, GetAdminConsent, RevokeAdminConsent, ListMyConsents, RevokeMyConsent, Token, Introspect, Revoke, UserInfo, PostUserInfo, GetJwks, GetOpenidConfiguration, GetOauthAuthorizationServer, Health, ListAdminAuditEvents, ExportAdminAuditEvents, GetAdminAuditEvent, ListAdminKeys, GetAdminKey, RotateAdminKey]
     owns_invariants: [ClientAuthFailureUniformity, PkceRoundTrip, AuthCodeStateSafety, DeviceCodeStateSafety, AuthorizationCodeSingleUse, ParRequestUriSingleUse, AuthorizationCodeTtl, AuthorizationCodeEventuallyResolves, DeviceCodeEventuallyResolves, RedirectUriExactMatch, PkceMandatory, AccessTokenIssuedOnlyAfterConsent, RefreshFamilyTransitiveRevoke, RefreshRotationParentInvariants, DpopJtiUniquenessWithinWindow, TokenHashOneWay, RefreshTokenAbsoluteTtl, AllAccessTokensCarryAudience, SigningKeyMaxAge]
-    owns_permissions: [AdminClientsManage, AuthorizeInitiate, AdminConsentsManage, TokenGrantAuthorizationCode, TokenGrantRefresh, TokenGrantClientCredentials, TokenGrantDeviceCode, TokenGrantTokenExchange, TokenIntrospect, TokenRevoke, UserInfoRead, AdminAuditEventsRead, AdminKeysRead, AdminKeysRotate]
+    owns_permissions: [AdminClientsManage, AuthorizeInitiate, AdminConsentsManage, TokenGrantAuthorizationCode, TokenGrantRefresh, TokenGrantClientCredentials, TokenGrantDeviceCode, TokenGrantTokenExchange, TokenIntrospect, TokenRevoke, UserInfoRead, AdminAuditEventsRead, AdminKeysRead, AdminKeysRotate, AdminAuthorizationDetailTypesManage]
     owns_objectives: [RegisterLatency, RegisterErrorRate, ClientAuthFailureRateLimit, AuthorizeLatency, ParLatency, DeviceAuthorizationLatency, AuthorizeErrorRate, ParErrorRate, DeviceAuthorizationErrorRate, AuthorizeThroughput, AuthorizationCodeLifetime, ParRequestUriLifetime, DeviceCodeLifetime, UserCodeLifetime, DeviceCodePollingDefaultInterval, ConsentRecordsRetention, AuthorizationCodeRedemptionFailureRateLimit, TokenLatency, IntrospectLatency, RevokeLatency, UserInfoLatency, TokenErrorRate, IntrospectErrorRate, RevokeErrorRate, UserInfoErrorRate, TokenEndpointAvailability, TokenThroughput, IntrospectThroughput, AccessTokenLifetime, IdTokenLifetime, RefreshTokenLifetime, RefreshTokenAbsoluteLifetime, DpopProofClockSkewPast, DpopProofClockSkewFuture, DpopJtiReplayWindow, DpopNonceLifetime, RefreshReuseAlertWindow, JwksLatency, DiscoveryLatency, JwksErrorRate, DiscoveryErrorRate, OverallAvailability, SigningKeyMinJwksOverlap, SigningKeyArchiveRetention, AuditLogRetention]
     depends_on:
       - { bounded_context: Tenancy,        reason: クライアント・コード・トークン・鍵・監査はテナント境界内に閉じる。 }
@@ -2338,6 +2338,38 @@ models:
     fields:
       agents: { type: "AgentSummaryResponse[]" }
 
+  AuthorizationDetailTypeRequest:
+    kind: value_object
+    description: 管理者が authorization_details type を登録・更新する JSON リクエスト (RFC 9396 / ADR-050)。type は作成時のみ。
+    annotations: { bounded_context: OAuth2 }
+    fields:
+      type:             { type: String, optional: true, constraints: [{ max_length: 100 }], description: "作成時必須。更新ではパスの type を使う。" }
+      description:      { type: String, optional: true, constraints: [{ max_length: 500 }] }
+      schema:           { type: AuthorizationDetailsSchema }
+      display_template: { type: String, constraints: [non_empty, { max_length: 500 }] }
+      state:            { type: AuthorizationDetailTypeState, optional: true }
+
+  AuthorizationDetailTypeResponse:
+    kind: value_object
+    description: authorization_details type 表現。管理 UI の一覧と詳細で同じ表現を返す (ADR-050)。
+    annotations: { bounded_context: OAuth2 }
+    fields:
+      tenant_id:        { type: String }
+      type:             { type: String }
+      description:      { type: String, optional: true }
+      schema:           { type: AuthorizationDetailsSchema }
+      display_template: { type: String }
+      state:            { type: AuthorizationDetailTypeState }
+      created_at:       { type: Timestamp }
+      updated_at:       { type: Timestamp }
+
+  AuthorizationDetailTypeListResponse:
+    kind: value_object
+    description: 管理 API の authorization_details type 一覧 (ADR-050)。
+    annotations: { bounded_context: OAuth2 }
+    fields:
+      types: { type: "AuthorizationDetailTypeResponse[]" }
+
   AdminClientCreateRequest:
     kind: value_object
     description: 管理者が所属テナントに OAuth client を作成する。生成された client_secret は作成応答で一度だけ返す。
@@ -4448,6 +4480,55 @@ interfaces:
     bindings:
       - { kind: http, method: DELETE, path: "/api/admin/agents/{agent_id}/credentials/{client_id}", successful_status_codes: ["204"] }
 
+  ListAuthorizationDetailTypes:
+    description: 管理者が所属テナントの authorization_details type を一覧する (RFC 9396 / ADR-050)。
+    output:
+      response: { type: AuthorizationDetailTypeListResponse }
+    errors: [AccessDeniedError]
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: /api/admin/authorization-detail-types }
+
+  GetAuthorizationDetailType:
+    description: 管理者が単一 type を取得する。別テナントの type は未存在として扱う (ADR-050)。
+    input:
+      type: { type: String }
+    output:
+      response: { type: AuthorizationDetailTypeResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: "/api/admin/authorization-detail-types/{type}" }
+
+  CreateAuthorizationDetailType:
+    description: 管理者が所属テナントに authorization_details type を登録する (ADR-050)。
+    input:
+      request: { type: AuthorizationDetailTypeRequest }
+    output:
+      response: { type: AuthorizationDetailTypeResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    bindings:
+      - { kind: http, method: POST, path: /api/admin/authorization-detail-types, request_form: body, successful_status_codes: ["201"] }
+
+  UpdateAuthorizationDetailType:
+    description: 管理者が type の schema / display_template / description / state を更新する (ADR-050)。
+    input:
+      type:    { type: String }
+      request: { type: AuthorizationDetailTypeRequest }
+    output:
+      response: { type: AuthorizationDetailTypeResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    bindings:
+      - { kind: http, method: PATCH, path: "/api/admin/authorization-detail-types/{type}", request_form: body }
+
+  DeleteAuthorizationDetailType:
+    description: 管理者が type を削除する (ADR-050)。発行済みトークンは失効まで有効。
+    input:
+      type: { type: String }
+    errors: [InvalidRequestError, AccessDeniedError]
+    bindings:
+      - { kind: http, method: DELETE, path: "/api/admin/authorization-detail-types/{type}", successful_status_codes: ["204"] }
+
   ListAdminClients:
     description: 管理者が所属テナントの client を一覧する。
     output:
@@ -5822,6 +5903,18 @@ permissions:
     actor: User
     action: AdminAgentsManage
     resource: Agent
+    allow_when:
+      and:
+        - "admin in actor.roles"
+        - "actor.disabled_at == null"
+        - "context.authenticated == true"
+        - "actor.tenant_id == resource.tenant_id"
+
+  AdminAuthorizationDetailTypesManage:
+    description: 細粒度な認可詳細 (authorization_details) の種類定義を、検証ルールと同意画面の表示文とあわせて登録・更新・削除します。
+    actor: User
+    action: AdminAuthorizationDetailTypesManage
+    resource: AuthorizationDetailType
     allow_when:
       and:
         - "admin in actor.roles"

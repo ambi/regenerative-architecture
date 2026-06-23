@@ -30,21 +30,22 @@ type RoleInterface struct {
 }
 
 var rolePermissionInterfaces = map[string][]string{
-	"AdminUserRead":        {"ListAdminUsers", "GetAdminUser"},
-	"AdminUserCreate":      {"CreateAdminUser"},
-	"AdminUserUpdate":      {"UpdateAdminUser", "DisableAdminUser", "EnableAdminUser"},
-	"AdminUserDelete":      {"DeleteAdminUser"},
-	"AdminClientsManage":   {"ListAdminClients", "GetAdminClient", "CreateAdminClient", "UpdateAdminClient", "DeleteAdminClient"},
-	"AdminConsentsManage":  {"ListAdminConsents", "GetAdminConsent", "RevokeAdminConsent"},
-	"AdminTenantsManage":   {"ListTenants", "GetTenant", "CreateTenant", "UpdateTenant", "DisableTenant", "EnableTenant"},
-	"AdminSettingsRead":    {"GetAdminSettings"},
-	"AdminSettingsUpdate":  {"UpdateAdminSettings"},
-	"AdminAuditEventsRead": {"ListAdminAuditEvents", "ExportAdminAuditEvents", "GetAdminAuditEvent"},
-	"AdminKeysRead":        {"ListAdminKeys", "GetAdminKey"},
-	"AdminKeysRotate":      {"RotateAdminKey"},
-	"AdminGroupsRead":      {"ListGroups", "GetGroup", "ListUserGroups"},
-	"AdminGroupsWrite":     {"CreateGroup", "UpdateGroup", "DeleteGroup", "AddGroupMember", "RemoveGroupMember"},
-	"AdminAgentsManage":    {"ListAgents", "GetAgent", "RegisterAgent", "UpdateAgent", "DisableAgent", "EnableAgent", "KillAgent", "DeleteAgent", "BindAgentCredential", "UnbindAgentCredential"},
+	"AdminUserRead":                       {"ListAdminUsers", "GetAdminUser"},
+	"AdminUserCreate":                     {"CreateAdminUser"},
+	"AdminUserUpdate":                     {"UpdateAdminUser", "DisableAdminUser", "EnableAdminUser"},
+	"AdminUserDelete":                     {"DeleteAdminUser"},
+	"AdminClientsManage":                  {"ListAdminClients", "GetAdminClient", "CreateAdminClient", "UpdateAdminClient", "DeleteAdminClient"},
+	"AdminConsentsManage":                 {"ListAdminConsents", "GetAdminConsent", "RevokeAdminConsent"},
+	"AdminTenantsManage":                  {"ListTenants", "GetTenant", "CreateTenant", "UpdateTenant", "DisableTenant", "EnableTenant"},
+	"AdminSettingsRead":                   {"GetAdminSettings"},
+	"AdminSettingsUpdate":                 {"UpdateAdminSettings"},
+	"AdminAuditEventsRead":                {"ListAdminAuditEvents", "ExportAdminAuditEvents", "GetAdminAuditEvent"},
+	"AdminKeysRead":                       {"ListAdminKeys", "GetAdminKey"},
+	"AdminKeysRotate":                     {"RotateAdminKey"},
+	"AdminGroupsRead":                     {"ListGroups", "GetGroup", "ListUserGroups"},
+	"AdminGroupsWrite":                    {"CreateGroup", "UpdateGroup", "DeleteGroup", "AddGroupMember", "RemoveGroupMember"},
+	"AdminAgentsManage":                   {"ListAgents", "GetAgent", "RegisterAgent", "UpdateAgent", "DisableAgent", "EnableAgent", "KillAgent", "DeleteAgent", "BindAgentCredential", "UnbindAgentCredential"},
+	"AdminAuthorizationDetailTypesManage": {"ListAuthorizationDetailTypes", "GetAuthorizationDetailType", "CreateAuthorizationDetailType", "UpdateAuthorizationDetailType", "DeleteAuthorizationDetailType"},
 }
 
 func ListRolePolicies(scl *spec.SCL, actorRoles []string, controlPlane bool) ([]RolePolicy, error) {

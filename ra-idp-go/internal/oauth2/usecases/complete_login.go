@@ -91,6 +91,7 @@ func CompleteLogin(ctx context.Context, deps CompleteLoginDeps, in CompleteLogin
 		AuthTime:               authTime,
 		AMR:                    slices.Clone(in.AMR),
 		ACR:                    optional(in.ACR),
+		AuthorizationDetails:   req.AuthorizationDetails,
 		State:                  spec.AuthCodeRecordIssued,
 		IssuedAt:               now,
 		ExpiresAt:              now.Add(60 * time.Second), // RFC 9700 §4.10

@@ -125,13 +125,14 @@ func ExchangeCodeForToken(ctx context.Context, deps ExchangeCodeDeps, in Exchang
 	}
 
 	access, jti, err := deps.TokenIssuer.SignAccessToken(ctx, ports.AccessTokenInput{
-		Client:           client,
-		Sub:              user.Sub,
-		Scopes:           rec.Scopes,
-		SenderConstraint: sc,
-		AuthTime:         rec.AuthTime,
-		AMR:              rec.AMR,
-		ACR:              optionalValue(rec.ACR),
+		Client:               client,
+		Sub:                  user.Sub,
+		Scopes:               rec.Scopes,
+		SenderConstraint:     sc,
+		AuthTime:             rec.AuthTime,
+		AMR:                  rec.AMR,
+		ACR:                  optionalValue(rec.ACR),
+		AuthorizationDetails: rec.AuthorizationDetails,
 	})
 	if err != nil {
 		return nil, err

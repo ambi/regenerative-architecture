@@ -73,6 +73,10 @@ func (s *JWTSigner) SignAccessToken(ctx context.Context, in ports.AccessTokenInp
 	if in.Act != nil {
 		claims["act"] = in.Act
 	}
+	// RFC 9396 — 構造化詳細を claim としてトークンに束縛する (RS の検証点, ADR-050)。
+	if len(in.AuthorizationDetails) > 0 {
+		claims["authorization_details"] = in.AuthorizationDetails
+	}
 	if in.SenderConstraint != nil {
 		cnf := map[string]string{}
 		switch in.SenderConstraint.Type {

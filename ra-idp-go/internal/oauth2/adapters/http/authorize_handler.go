@@ -84,22 +84,34 @@ func (d Deps) handleAuthorize(c *echo.Context) error {
 	if err != nil {
 		return writeOAuthError(c, usecases.NewOAuthError("invalid_request", err.Error()))
 	}
+	details, err := usecases.ParseAuthorizationDetails(q.Get("authorization_details"))
+	if err != nil {
+		return writeOAuthError(c, err)
+	}
 	in := usecases.AuthorizeRequestInput{
 		ClientID: request.ClientID, RedirectURI: request.RedirectURI,
 		ResponseType: request.ResponseType, Scope: request.Scope,
 		StateParam: request.StateParam, Nonce: request.Nonce,
 		CodeChallenge: request.CodeChallenge, CodeChallengeMethod: request.CodeChallengeMethod,
 		Prompt: request.Prompt, MaxAge: request.MaxAge, ACRValues: request.AcrValues, ParUsed: parUsed,
+		AuthorizationDetails: details,
 	}
 	if requestURI := c.QueryParam("request_uri"); requestURI != "" {
 		in.ParRequestURI = requestURI
 	}
 	out, err := usecases.Authorize(c.Request().Context(), usecases.AuthorizeDeps{
-		ClientRepo:   d.ClientRepo,
-		RequestStore: d.RequestStore,
+		ClientRepo:          d.ClientRepo,
+		RequestStore:        d.RequestStore,
+		AuthzDetailTypeRepo: d.AuthzDetailTypeRepo,
 	}, in)
 	if err != nil {
 		return writeOAuthError(c, err)
+	}
+	if len(details) > 0 && d.Emit != nil {
+		d.Emit(&spec.AuthorizationDetailsRequested{
+			At: time.Now().UTC(), TenantID: core.RequestTenantID(c), ClientID: out.Request.ClientID,
+			DetailTypes: oauthdomain.DetailTypes(details),
+		})
 	}
 
 	d.setTransactionCookie(c, out.Request.ID)
@@ -465,11 +477,18 @@ func (d Deps) handleConsentAPI(c *echo.Context) error {
 			TenantID: core.RequestTenantID(c), Sub: authn.Sub, ClientID: req.ClientID,
 			Scopes: scopes, State: spec.ConsentGranted,
 			GrantedAt: now, ExpiresAt: now.Add(365 * 24 * time.Hour),
+			AuthorizationDetails: req.AuthorizationDetails,
 		}); err != nil {
 			return err
 		}
 		if d.Emit != nil {
 			d.Emit(&spec.ConsentGrantedEvent{At: now, TenantID: core.RequestTenantID(c), Sub: authn.Sub, ClientID: req.ClientID, Scopes: scopes})
+			if len(req.AuthorizationDetails) > 0 {
+				d.Emit(&spec.AuthorizationDetailsConsented{
+					At: now, TenantID: core.RequestTenantID(c), Sub: authn.Sub, ClientID: req.ClientID,
+					DetailTypes: oauthdomain.DetailTypes(req.AuthorizationDetails),
+				})
+			}
 		}
 	}
 	redirectTo, err := d.issueCodeURL(c, req, authn.Sub, time.Unix(authn.AuthTime, 0))
@@ -511,6 +530,11 @@ func (d Deps) completeAfterAuthn(
 			}
 		}
 		if req.Prompt != nil && *req.Prompt == "consent" {
+			covered = false
+		}
+		// RFC 9396 — 構造化された authorization_details は粗い scope 同意では代替できない。
+		// 明示同意を要求し、過去 scope 同意での自動スキップを許さない (fail-closed, ADR-050)。
+		if len(req.AuthorizationDetails) > 0 {
 			covered = false
 		}
 		if !covered {

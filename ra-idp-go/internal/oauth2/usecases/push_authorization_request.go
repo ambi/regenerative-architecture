@@ -21,9 +21,10 @@ type PARResult struct {
 }
 
 type PARDeps struct {
-	ClientRepo ports.ClientRepository
-	Store      ports.PARStore
-	Emit       func(spec.DomainEvent)
+	ClientRepo          ports.ClientRepository
+	Store               ports.PARStore
+	AuthzDetailTypeRepo ports.AuthorizationDetailTypeRepository
+	Emit                func(spec.DomainEvent)
 }
 
 func PushAuthorizationRequest(ctx context.Context, deps PARDeps, in PARInput, now time.Time) (*PARResult, error) {
@@ -37,6 +38,16 @@ func PushAuthorizationRequest(ctx context.Context, deps PARDeps, in PARInput, no
 	}
 	if client == nil {
 		return nil, NewOAuthError("invalid_client", "未知の client_id")
+	}
+	// RFC 9396 — authorization_details があれば push 時点で fail-closed 検証する (ADR-050)。
+	if raw := in.Parameters["authorization_details"]; raw != "" {
+		details, err := ParseAuthorizationDetails(raw)
+		if err != nil {
+			return nil, err
+		}
+		if err := ValidateAuthorizationDetails(ctx, deps.AuthzDetailTypeRepo, details); err != nil {
+			return nil, err
+		}
 	}
 	id, err := generateOpaqueToken(32)
 	if err != nil {

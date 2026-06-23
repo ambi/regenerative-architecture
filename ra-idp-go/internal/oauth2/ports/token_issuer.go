@@ -25,6 +25,9 @@ type AccessTokenInput struct {
 	// Act は RFC 8693 §4.1 の actor claim。非 nil のとき act claim を付与する
 	// (トークン交換の委任トークン用)。
 	Act map[string]any
+	// AuthorizationDetails は RFC 9396 の構造化詳細 (ADR-050)。非空のとき
+	// authorization_details claim を付与する。RS の検証点となる。
+	AuthorizationDetails []spec.AuthorizationDetail
 }
 
 type IDTokenInput struct {

@@ -20,19 +20,20 @@ import (
 // =====================================================================
 
 type AuthorizeRequestInput struct {
-	ClientID            string
-	RedirectURI         string
-	ResponseType        string
-	Scope               string
-	StateParam          string
-	Nonce               string
-	CodeChallenge       string
-	CodeChallengeMethod string
-	Prompt              string
-	MaxAge              *int
-	ACRValues           string
-	ParUsed             bool
-	ParRequestURI       string
+	ClientID             string
+	RedirectURI          string
+	ResponseType         string
+	Scope                string
+	StateParam           string
+	Nonce                string
+	CodeChallenge        string
+	CodeChallengeMethod  string
+	Prompt               string
+	MaxAge               *int
+	ACRValues            string
+	ParUsed              bool
+	ParRequestURI        string
+	AuthorizationDetails []spec.AuthorizationDetail
 }
 
 type AuthorizeRequestOutput struct {
@@ -41,8 +42,9 @@ type AuthorizeRequestOutput struct {
 }
 
 type AuthorizeDeps struct {
-	ClientRepo   ports.ClientRepository
-	RequestStore ports.AuthorizationRequestStore
+	ClientRepo          ports.ClientRepository
+	RequestStore        ports.AuthorizationRequestStore
+	AuthzDetailTypeRepo ports.AuthorizationDetailTypeRepository
 }
 
 // Authorize は /authorize のリクエスト検証と保存を行う。
@@ -93,29 +95,35 @@ func Authorize(ctx context.Context, deps AuthorizeDeps, in AuthorizeRequestInput
 		return nil, NewOAuthError("invalid_request", "未対応の prompt です")
 	}
 
+	// RFC 9396 authorization_details: 登録済み type に対し fail-closed 検証 (ADR-050)。
+	if err := ValidateAuthorizationDetails(ctx, deps.AuthzDetailTypeRepo, in.AuthorizationDetails); err != nil {
+		return nil, err
+	}
+
 	id, err := spec.NewUUIDv4()
 	if err != nil {
 		return nil, err
 	}
 	now := time.Now().UTC()
 	req := &spec.AuthorizationRequest{
-		TenantID:            tenantID,
-		ID:                  id,
-		State:               spec.AuthFlowReceived,
-		ClientID:            in.ClientID,
-		RedirectURI:         in.RedirectURI,
-		ResponseType:        spec.ResponseTypeCode,
-		Scope:               strings.Join(requestedScopes, " "),
-		StateParam:          optional(in.StateParam),
-		Nonce:               optional(in.Nonce),
-		CodeChallenge:       in.CodeChallenge,
-		CodeChallengeMethod: spec.CodeChallengeMethodS256,
-		Prompt:              optional(in.Prompt),
-		MaxAge:              in.MaxAge,
-		ACRValues:           optional(in.ACRValues),
-		ParRequestURI:       optional(in.ParRequestURI),
-		CreatedAt:           now,
-		ExpiresAt:           now.Add(10 * time.Minute),
+		TenantID:             tenantID,
+		ID:                   id,
+		State:                spec.AuthFlowReceived,
+		ClientID:             in.ClientID,
+		RedirectURI:          in.RedirectURI,
+		ResponseType:         spec.ResponseTypeCode,
+		Scope:                strings.Join(requestedScopes, " "),
+		StateParam:           optional(in.StateParam),
+		Nonce:                optional(in.Nonce),
+		CodeChallenge:        in.CodeChallenge,
+		CodeChallengeMethod:  spec.CodeChallengeMethodS256,
+		Prompt:               optional(in.Prompt),
+		MaxAge:               in.MaxAge,
+		ACRValues:            optional(in.ACRValues),
+		ParRequestURI:        optional(in.ParRequestURI),
+		AuthorizationDetails: in.AuthorizationDetails,
+		CreatedAt:            now,
+		ExpiresAt:            now.Add(10 * time.Minute),
 	}
 	if err := req.Validate(); err != nil {
 		return nil, NewOAuthError("invalid_request", err.Error())

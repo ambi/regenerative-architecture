@@ -172,7 +172,7 @@ completion:
     - >-
       HTTP 経路: 変更なし。すべての /api/admin/* / /token / /authorize 等は
       動作する。
-    - '永続層 (Postgres / Redis / Memory): port のシグネチャを変えていない。'
+    - '永続層 (Postgres / Valkey / Memory): port のシグネチャを変えていない。'
 
   residual_risk:
     - >-

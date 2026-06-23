@@ -12,11 +12,11 @@ services:
       retries: 20
     ports: ["5432:5432"]
 
-  redis:
-    image: redis:7-alpine
-    command: ["redis-server", "--appendonly", "yes"]
+  valkey:
+    image: valkey/valkey:8-alpine
+    command: ["valkey-server", "--appendonly", "yes"]
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "valkey-cli", "ping"]
       interval: 2s
       timeout: 2s
       retries: 20
@@ -53,7 +53,7 @@ services:
       ISSUER: http://localhost:8080
       PERSISTENCE: postgres
       DATABASE_URL: postgres://ra_idp:ra_idp@postgres:5432/ra_idp?sslmode=disable
-      REDIS_URL: redis://redis:6379/0
+      VALKEY_URL: valkey://valkey:6379/0
       EVENT_SINK: outbox
       OBSERVABILITY: otel
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
@@ -61,7 +61,7 @@ services:
       SCL_PATH: /app/spec/scl.yaml
     depends_on:
       postgres: { condition: service_healthy }
-      redis: { condition: service_healthy }
+      valkey: { condition: service_healthy }
       otel-collector: { condition: service_started }
 
   ui:

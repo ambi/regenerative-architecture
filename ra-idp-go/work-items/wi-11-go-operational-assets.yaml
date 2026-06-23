@@ -31,7 +31,7 @@ scope:
     - SCL objectives の availability / latency / error-rate と alert を
       対応付ける。
     - Grafana dashboard に request rate、error rate、latency、認証失敗、
-      token 発行、PostgreSQL / Redis / relay の主要状態を表示する。
+      token 発行、PostgreSQL / Valkey / relay の主要状態を表示する。
     - ServiceMonitor は Prometheus Operator 利用時だけ適用できる構成にする。
 
   load_testing:

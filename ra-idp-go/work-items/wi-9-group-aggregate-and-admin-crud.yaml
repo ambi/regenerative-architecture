@@ -140,7 +140,7 @@ out_of_scope:
 affected_guarantees:
   - >-
     tenant isolation: Group は tenant-scoped。cross-tenant に user を入れる
-    操作は use case で reject する。Postgres は外部キーで強制。Redis 上の
+    操作は use case で reject する。Postgres は外部キーで強制。Valkey 上の
     一時状態は GroupRepo を経由しないため変化なし。
   - >-
     RBAC backward compatibility: `user.roles` を残し、effective_roles =

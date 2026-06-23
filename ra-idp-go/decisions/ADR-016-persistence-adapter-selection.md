@@ -1,4 +1,4 @@
-# ADR-016: 永続化アダプタは Postgres (durable) + Redis (volatile) + Postgres outbox → Kafka (events) で構成する
+# ADR-016: 永続化アダプタは Postgres (durable) + Valkey (volatile) + Postgres outbox → Kafka (events) で構成する
 
 ## ステータス
 
@@ -43,7 +43,7 @@ OAuth2 / OIDC IdP の状態は性質が大きく分かれる:
 - **コンプライアンス** (PCI / SOC2) で監査ログの不変保管要件 (`slo.yaml audit_log_days = 2555`)
   に対し append-only テーブル + `pg_audit` で対応可能
 
-### 2. Volatile state は Redis
+### 2. Volatile state は Valkey
 
 理由:
 
@@ -51,6 +51,8 @@ OAuth2 / OIDC IdP の状態は性質が大きく分かれる:
   (authorization_code_ttl_seconds=60, par_request_uri_ttl_seconds=600 等)
 - **SETNX + Lua** で「認可コードの atomic redeem」「DPoP jti のリプレイ検出」が
   単一ラウンドトリップで完了 (introspect の `p99_latency_ms = 50` 要件に対する設計余裕)
+- **BSD-3-Clause ライセンスの OSS** として、標準スタックの揮発状態ストアを
+  Valkey に寄せる。実装は Redis Serialization Protocol 互換 API に閉じる。
 - **クラスタモードで水平スケール** (`scalability.token_requests_per_second_max = 5000` を満たす)
 - 揮発で構わない: TTL を過ぎた認可コードは仕様上「invalid_grant」として
   再認証フローへ誘導されるべきもの
@@ -80,7 +82,7 @@ PERSISTENCE = memory | postgres        (default: memory)
 EVENT_SINK  = console | outbox | kafka (default: console)
 ```
 
-`PERSISTENCE=postgres` のとき、durable は Postgres、volatile は Redis をセットで使う。
+`PERSISTENCE=postgres` のとき、durable は Postgres、volatile は Valkey をセットで使う。
 これは「OAuth2 IdP の本番想定構成」が暗黙にこの組み合わせを前提とするため。
 
 ## データライフサイクル制約の実装写像
@@ -94,9 +96,9 @@ EVENT_SINK  = console | outbox | kafka (default: console)
 | `pii_purge_after_deletion_days = 30`   | `users.deleted_at` から 30 日後の物理削除バッチ     |
 | `consent_records_days = 2555`          | `consents` テーブルの保管 7 年                       |
 | `signing_key_archive_days = 2555`      | `signing_keys` テーブルの archive 列、7 年保管       |
-| `authorization_code_ttl_seconds = 60`  | Redis `EX 60`                                       |
-| `par_request_uri_ttl_seconds = 600`    | Redis `EX 600`                                      |
-| `dpop_jti_replay_window_minutes = 10`  | Redis `EX 600`                                      |
+| `authorization_code_ttl_seconds = 60`  | Valkey `EX 60`                                      |
+| `par_request_uri_ttl_seconds = 600`    | Valkey `EX 600`                                     |
+| `dpop_jti_replay_window_minutes = 10`  | Valkey `EX 600`                                     |
 | `refresh_token_ttl_seconds`            | `refresh_tokens.expires_at` 列、cron で物理削除      |
 | `refresh_token_absolute_ttl_seconds`   | `refresh_tokens.absolute_expires_at` 列            |
 
@@ -112,9 +114,9 @@ EVENT_SINK  = console | outbox | kafka (default: console)
 - **CockroachDB / Spanner**: 分散 SQL は魅力的だが、レイテンシ要件 (`p99 = 300ms` for /token)
   に対しコミットレイテンシの分布が広い。グローバル分散が必須になる規模 (>10k RPS) で再検討。
 
-- **KeyDB / Dragonfly (Redis 互換)**: 性能上の優位はあるが、エコシステム成熟度と
-  クライアントライブラリの安定性で Redis OSS が現時点では妥当。
-  Redis 互換 API を維持する限り、差し替えは ADR-016a で容易に行える。
+- **Redis / KeyDB / Dragonfly (Valkey 互換 API)**: いずれもプロトコル互換性は高いが、
+  標準スタックは Valkey に統一する。互換 API を維持する限り、環境ごとの一時的な差し替えは
+  ADR 追加なしで扱える。
 
 - **NATS / Pulsar (Kafka 代替)**: Kafka を選んだのは
   「at-least-once + ordered + 長期保管」の三拍子が標準で揃うため。
@@ -132,11 +134,11 @@ EVENT_SINK  = console | outbox | kafka (default: console)
 
 ## 影響
 
-- 新規依存: `pg`, `ioredis`, `kafkajs`
+- 新規依存: `pg`, Valkey 互換クライアント, `kafkajs`
 - 新規ポート: `src/shared/ports/event-sink.ts` `src/shared/ports/transaction.ts`
 - 新規仕様: `spec/migrations/0001_init.sql`, `spec/event-stream.asyncapi.yaml`
 - 新規 ADR: 本 ADR (ADR-016)
-- 新規アダプタ: `adapters/persistence/postgres/*` `adapters/persistence/redis/*` `adapters/event-sink/*`
+- 新規アダプタ: `adapters/persistence/postgres/*` `adapters/persistence/valkey/*` `adapters/event-sink/*`
 - 既存 `adapters/persistence/in-memory-*.ts` は `adapters/persistence/memory/*.ts` に移設し、
   ルートから re-export して既存 import を保つ
 - `src/oauth2/usecases/*` と `adapters/http/*` と `spec/*` は **完全に無変更**

@@ -43,7 +43,7 @@ Collector の設定変更で Vendor を切り替えられる。
 
 ### 3. 自動計装は使うが、ユースケース境界は手動 span を切る
 
-- HTTP / Postgres / Redis は自動計装 (`@opentelemetry/instrumentation-*`)
+- HTTP / Postgres / Valkey は自動計装 (`@opentelemetry/instrumentation-*`)
 - `src/oauth2/usecases/*` の各関数は手動 span を切る (ビジネスドメイン語彙で trace が読める)
 
 span 名は `spec/observability.yaml` 由来:

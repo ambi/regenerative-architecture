@@ -89,7 +89,7 @@ SCL には `rate_limit_per_minute` policy kind と `ClientAuthFailureRateLimit`
 - 新 port `LoginAttemptThrottle` (`tryAcquire` / `recordFailure` / `recordSuccess`)。
 - 新 adapter:
   - `InMemoryLoginAttemptThrottle` (memory / テスト)
-  - `RedisLoginAttemptThrottle` (本番、`INCR` + `EXPIRE` + `SET NX EX` で lock)
+  - `ValkeyLoginAttemptThrottle` (本番、`INCR` + `EXPIRE` + `SET NX EX` で lock)
 - `authentication-routes.ts` に IP 抽出 + throttle 配線 + sentinel verify。
 - `LoginThrottled` event を `DomainEvent` 判別ユニオン / SCL `events` /
   `infra/event-routing.yaml` に追加。

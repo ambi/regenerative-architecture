@@ -169,7 +169,7 @@ risk_notes: |
   cascade を取りこぼすと「user は消えたが consent / refresh family が
   生き残る」状態になる。新規 DeleteAllForSub を全 repository に強制し、
   use case 側で 1 トランザクションで束ねる。PostgreSQL adapter は
-  pgx.BeginTx を使い、Redis 側は Lua スクリプトでまとめて削除する。
+  pgx.BeginTx を使い、Valkey 側は Lua スクリプトでまとめて削除する。
   cascade テストは memory / postgres 両 adapter で同じ table-driven テスト
   を回し、回帰防止する。
 
@@ -280,7 +280,7 @@ completion:
         tombstone 値を upsert する (DDL は 0001 init に既に deleted_at と
         `users_preferred_username_active_idx` の部分一意 index が存在)。
       - >-
-        redis: SessionStore / DeviceCodeStore の `DeleteAllForSub` を
+        valkey: SessionStore / DeviceCodeStore の `DeleteAllForSub` を
         SCAN ベースで実装。Tenant prefix 内のキーを enumerate し、sub
         一致のものを Pipeline で削除。device は device:user_code:* を
         ペアで削除。
@@ -407,7 +407,7 @@ completion:
       `ON DELETE RESTRICT` があるが、user 本体を anonymize するだけで
       hard delete はしないため、FK 違反は起きない設計。
     - >-
-      Redis SessionStore / DeviceCodeStore の `DeleteAllForSub` は SCAN
+      Valkey SessionStore / DeviceCodeStore の `DeleteAllForSub` は SCAN
       ベース。tenant 内のキー数が極端に多い環境では遅延が増えうる。
       現状の運用想定では admin 操作なので問題にならないが、将来 SCIM
       deprovisioning 等で頻度が増えたら secondary index 化を検討する。

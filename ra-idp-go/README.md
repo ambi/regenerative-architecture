@@ -41,7 +41,7 @@ OAuth 2.0 / OpenID Connect の認可サーバー兼 IdP として次を備える
 - `/realms/{tenant_id}` によるテナント分離、テナント管理 API、テナント単位の永続化（ADR-032〜034）
 - リフレッシュトークンのローテーションとファミリー失効（ADR-004）
 - PS256 による JWT 署名と JWK Set、メモリ / PostgreSQL の鍵ストア（RFC 7638 サムプリントの `kid`）
-- PostgreSQL の永続状態と Redis の揮発状態
+- PostgreSQL の永続状態と Valkey の揮発状態
 - PostgreSQL アウトボックスと Kafka リレー（`ra-idp-relay`）
 - OpenTelemetry OTLP/HTTP によるトレース / メトリクス
 - ドメインイベントの発火（コンソール / アウトボックスのイベントシンク）
@@ -118,7 +118,7 @@ mailpit は宛先に関係なく全部内部に貯めるので、Gmail などの
 ```bash
 PERSISTENCE=postgres \
 DATABASE_URL='postgres://ra_idp:ra_idp@localhost:5432/ra_idp?sslmode=disable' \
-REDIS_URL='redis://localhost:6379/0' \
+VALKEY_URL='valkey://localhost:6379/0' \
 EVENT_SINK=outbox \
 OBSERVABILITY=otel \
 OTEL_EXPORTER_OTLP_ENDPOINT='http://localhost:4318' \
@@ -137,7 +137,7 @@ go run ./cmd/ra-idp-relay
 | -------------------- | --------------------------------------------------------------------------------- |
 | `PERSISTENCE`        | `memory` / `postgres` (`memory`)                                                  |
 | `DATABASE_URL`       | PostgreSQL 接続先。`postgres` 時に必須                                            |
-| `REDIS_URL`          | Redis 接続先。`postgres` 時に必須                                                 |
+| `VALKEY_URL`         | Valkey 接続先。`postgres` 時に必須                                                |
 | `AUTO_MIGRATE`       | 起動時のマイグレーション (`true`)                                                 |
 | `MIGRATIONS_DIR`     | `infra/migrations`                                                                |
 | `EVENT_SINK`         | `console` / `outbox` (`console`)                                                  |
@@ -171,7 +171,7 @@ go test -race ./...
 golangci-lint run
 ```
 
-テストは認可コードのアトミックな引き換え、Redis Lua、リフレッシュファミリー失効、デバイスフロー、クライアント認証、`jwks_uri` の SSRF 防御、AuthZEN のワイヤ契約、イベントのワイヤ形式を含む。
+テストは認可コードのアトミックな引き換え、Valkey Lua、リフレッシュファミリー失効、デバイスフロー、クライアント認証、`jwks_uri` の SSRF 防御、AuthZEN のワイヤ契約、イベントのワイヤ形式を含む。
 
 デモシード:
 
@@ -198,7 +198,7 @@ ra-idp-go/
 ├── internal/authentication/            Layer 3+4: 認証 (domain / ports / usecases / adapters/http)
 ├── internal/platform/                  Layer 4: コンテキスト横断アダプタ
 │   ├── crypto/                         Argon2id, PS256, DPoP, private_key_jwt
-│   ├── persistence/                    memory / PostgreSQL / Redis（リソース別ファイル）
+│   ├── persistence/                    memory / PostgreSQL / Valkey（リソース別ファイル）
 │   ├── http/                           Echo v5 router + core（各 context の adapters/http を集約）
 │   ├── observability/                  OpenTelemetry
 │   ├── policy/                         local / remote AuthZEN

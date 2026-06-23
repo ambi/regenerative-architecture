@@ -118,7 +118,7 @@ completion:
       coherence_test と yaml-check を通過。維持。
   residual_risk:
     - >-
-      recency と step_up_at は in-memory / redis session に載るため、session store が
+      recency と step_up_at は in-memory / valkey session に載るため、session store が
       揮発する構成では再ログインで step-up もやり直しになる (安全側)。
     - >-
       admin 経路の step-up は本 WI の対象外 (end-user self-service に限定)。impersonation

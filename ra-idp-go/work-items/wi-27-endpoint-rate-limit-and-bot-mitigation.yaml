@@ -25,7 +25,7 @@ scope:
     - >-
       `bot_challenge_required` エラーを browser API 用に追加する。
   go:
-    - RateLimiter port を追加し、memory / Redis adapter を実装する。
+    - RateLimiter port を追加し、memory / Valkey adapter を実装する。
     - >-
       `/token` は client_id + IP + tenant、`/authorize` は IP + tenant + client_id、
       password reset は identifier hash + IP で制限する。
@@ -35,7 +35,7 @@ scope:
     - login / password reset / device verification 画面で bot challenge が要求された場合だけ表示する。
     - 通常時は CAPTCHA を出さない。
   documentation:
-    - README に rate limit の環境変数、Redis 必須範囲、CAPTCHA provider 設定を書く。
+    - README に rate limit の環境変数、Valkey 必須範囲、CAPTCHA provider 設定を書く。
 
 out_of_scope:
   - ML による bot スコアリング。

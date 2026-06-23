@@ -14,7 +14,7 @@ var AssuranceManifest = map[string][]AssuranceVerification{
 	},
 	"AuthorizationCodeStoreContract": {
 		{File: "ra-idp-go/internal/platform/persistence/memory/memory_test.go", Check: "TestAuthorizationCodeRedeemIsAtomic"},
-		{File: "ra-idp-go/internal/platform/persistence/redis/redis_test.go", Check: "TestAuthorizationCodeRedeemOnce"},
+		{File: "ra-idp-go/internal/platform/persistence/valkey/valkey_test.go", Check: "TestAuthorizationCodeRedeemOnce"},
 	},
 	"AuthorizationPolicyTests": {
 		{File: "ra-idp-go/internal/oauth2/usecases/exchange_code_test.go", Check: "TestExchangeCodePKCEFailureDoesNotConsumeCode"},

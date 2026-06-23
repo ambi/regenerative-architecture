@@ -35,7 +35,7 @@ RA の観点では、これは「仕様核（状態機械・grant matrix・disco
 5. **承認済みからの発行** — access_token + refresh_token + id_token(openid 時) を
    exchange-code-for-token と同じ経路で発行。`approved → exchanged` に進めてから発行し、
    二重発行を防ぐ。
-6. **volatile store** — `DeviceCodeStore` ポート + memory / redis アダプタ。device_code
+6. **volatile store** — `DeviceCodeStore` ポート + memory / valkey アダプタ。device_code
    ハッシュと user_code の 2 索引を持ち、TTL は device_code 寿命 (600s)。
 7. **監査イベント** — `DeviceAuthorizationRequested` / `Approved` / `Denied` を
    events.schema.json → asyncapi → outbox → Zod の全チェーンに追加。user_code は
@@ -43,7 +43,7 @@ RA の観点では、これは「仕様核（状態機械・grant matrix・disco
 
 ## 影響
 
-- `DeviceCodeStore` ポート + memory/redis アダプタ、`device-routes.ts`、
+- `DeviceCodeStore` ポート + memory/valkey アダプタ、`device-routes.ts`、
   3 usecase（request / verify / exchange）、`device-authorization.ts` ドメインを追加。
 - `token-routes.ts` に device_code 分岐、`OAuthErrorCode` に
   `authorization_pending` / `slow_down` / `expired_token` を追加。

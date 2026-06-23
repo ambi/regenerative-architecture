@@ -53,7 +53,7 @@ SAML、WS-Federation、外部 IdP 連携、SCIM、高保証プロファイルは
 
 - 外部標準の採用範囲は `spec/scl.yaml` の `standards` を正とする。
 - 重要な設計判断は `decisions/ADR-*.md` に残す。
-- 開発時はインメモリアダプタで実行でき、本番向けには PostgreSQL、Redis、Kafka 等へ差し替えられる。
+- 開発時はインメモリアダプタで実行でき、本番向けには PostgreSQL、Valkey、Kafka 等へ差し替えられる。
 - Go と UI の TypeScript / Bun は現在の実装手段であり、仕様核には含めない。
 - UI は日本語と英語、WCAG 2.2 AA を対象とする。
 

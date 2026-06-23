@@ -1,4 +1,4 @@
-package redis
+package valkey
 
 import (
 	"context"
@@ -15,6 +15,9 @@ import (
 )
 
 func Open(ctx context.Context, rawURL string) (*goredis.Client, error) {
+	if strings.HasPrefix(rawURL, "valkey://") {
+		rawURL = "redis://" + strings.TrimPrefix(rawURL, "valkey://")
+	}
 	options, err := goredis.ParseURL(rawURL)
 	if err != nil {
 		return nil, err

@@ -547,7 +547,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
       <div class="eyebrow">Specification Core Language · spec 1.2</div>
       <h1>ra-idp</h1>
     </header>
-    <div class="stats"><a class="stat" href="#standards"><span class="stat-num">30</span><span class="stat-label">standards</span></a><a class="stat" href="#bounded_contexts"><span class="stat-num">5</span><span class="stat-label">bounded contexts</span></a><a class="stat" href="#vocabulary"><span class="stat-num">123</span><span class="stat-label">vocabulary</span></a><a class="stat" href="#models"><span class="stat-num">249</span><span class="stat-label">models</span></a><a class="stat" href="#interfaces"><span class="stat-num">100</span><span class="stat-label">interfaces</span></a><a class="stat" href="#states"><span class="stat-num">11</span><span class="stat-label">states</span></a><a class="stat" href="#invariants"><span class="stat-num">22</span><span class="stat-label">invariants</span></a><a class="stat" href="#scenarios"><span class="stat-num">70</span><span class="stat-label">scenarios</span></a><a class="stat" href="#permissions"><span class="stat-num">25</span><span class="stat-label">permissions</span></a><a class="stat" href="#objectives"><span class="stat-num">54</span><span class="stat-label">objectives</span></a><a class="stat" href="#assurance"><span class="stat-num">5</span><span class="stat-label">assurance</span></a><a class="stat" href="#user_experience"><span class="stat-num">9</span><span class="stat-label">user experience</span></a></div>
+    <div class="stats"><a class="stat" href="#standards"><span class="stat-num">30</span><span class="stat-label">standards</span></a><a class="stat" href="#bounded_contexts"><span class="stat-num">5</span><span class="stat-label">bounded contexts</span></a><a class="stat" href="#vocabulary"><span class="stat-num">123</span><span class="stat-label">vocabulary</span></a><a class="stat" href="#models"><span class="stat-num">250</span><span class="stat-label">models</span></a><a class="stat" href="#interfaces"><span class="stat-num">100</span><span class="stat-label">interfaces</span></a><a class="stat" href="#states"><span class="stat-num">11</span><span class="stat-label">states</span></a><a class="stat" href="#invariants"><span class="stat-num">22</span><span class="stat-label">invariants</span></a><a class="stat" href="#scenarios"><span class="stat-num">70</span><span class="stat-label">scenarios</span></a><a class="stat" href="#permissions"><span class="stat-num">25</span><span class="stat-label">permissions</span></a><a class="stat" href="#objectives"><span class="stat-num">54</span><span class="stat-label">objectives</span></a><a class="stat" href="#assurance"><span class="stat-num">5</span><span class="stat-label">assurance</span></a><a class="stat" href="#user_experience"><span class="stat-num">9</span><span class="stat-label">user experience</span></a></div>
   </section>
   <section id="standards">
     <h2>Standards <span class="count">30</span></h2>
@@ -1445,7 +1445,7 @@ JWKS / Discovery / Authorization Server Metadata / 健全性報告 / 監査保�
 <article class="card" id="bc-federation">
     <header><h3>Federation</h3></header>
     <p class="desc">WS-Federation / WS-Trust などのフェデレーションプロトコル、federation metadata、RP/SP trust、assertion 組み立て、identity 属性からの claim 発行を所有する。OAuth2/OIDC とは別に WS-* / SAML 系の信頼確立とトークン発行を集約する (ADR-059)。</p>
-    <div class="reference-row"><span class="reference-label">models</span><a class="chip chip-ref" href="#model-claimmappingsource">ClaimMappingSource</a> <a class="chip chip-ref" href="#model-claimmappingrule">ClaimMappingRule</a> <a class="chip chip-ref" href="#model-nameidconfiguration">NameIdConfiguration</a> <a class="chip chip-ref" href="#model-claimmappingpolicy">ClaimMappingPolicy</a> <a class="chip chip-ref" href="#model-issuedclaim">IssuedClaim</a></div>
+    <div class="reference-row"><span class="reference-label">models</span><a class="chip chip-ref" href="#model-claimmappingsource">ClaimMappingSource</a> <a class="chip chip-ref" href="#model-claimmappingrule">ClaimMappingRule</a> <a class="chip chip-ref" href="#model-nameidconfiguration">NameIdConfiguration</a> <a class="chip chip-ref" href="#model-claimmappingpolicy">ClaimMappingPolicy</a> <a class="chip chip-ref" href="#model-issuedclaim">IssuedClaim</a> <a class="chip chip-ref" href="#model-wsfedrelyingparty">WsFedRelyingParty</a></div>
     <div class="io"><div class="label">Depends on</div><ul class="vlist"><li><a class="chip chip-ref" href="#bc-tenancy">Tenancy</a> <span class="muted">— RP/SP trust と claim mapping は realm 境界内に閉じる。</span></li><li><a class="chip chip-ref" href="#bc-identitymanagement">IdentityManagement</a> <span class="muted">— claim は User 等 identity principal の属性を source とする。</span></li></ul></div>
 
   </article></div>
@@ -2595,10 +2595,10 @@ JWKS / Discovery / Authorization Server Metadata / 健全性報告 / 監査保�
     </article></div>
   </section>
 <section id="models">
-    <h2>Models <span class="count">249</span></h2>
+    <h2>Models <span class="count">250</span></h2>
 
     <div class="group">
-      <h3 class="grp-title">entity <span class="count">19</span></h3>
+      <h3 class="grp-title">entity <span class="count">20</span></h3>
       <div class="cards"><article class="card" id="model-tenant">
     <header><h3>Tenant</h3><span class="badge badge-kind-entity">entity</span></header>
     <p class="desc">ADR-032 で導入したテナント (realm) 集約。Client / User / Consent / ポリシー / ブランディングはこの境界に閉じる。`default` テナントは起動時に自動作成され、削除・無効化とも不可。</p>
@@ -3895,6 +3895,63 @@ token は base64url の 32 バイト乱数で、保存時は SHA-256 hash のみ
     <td><code class="name">consumed_at</code></td>
     <td><code class="type">Timestamp</code></td>
     <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="model-wsfedrelyingparty">
+    <header><h3>WsFedRelyingParty</h3><span class="badge badge-kind-entity">entity</span></header>
+    <p class="desc">WS-Federation passive の relying party (RP) 登録。wtrealm で識別し、許可する wreply (返信先) の閉集合、audience、claim 発行 policy を束ねる。未登録 wtrealm・許可外 wreply は拒否する (open redirect 防止, fail-closed, ADR-059)。</p>
+    <dl class="kv"><dt>identity</dt><dd><code>tenant_id, wtrealm</code></dd><dt>annotations</dt><dd><span class="chip chip-annotation">bounded context: Federation</span></dd></dl>
+    <table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">tenant_id</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="chip chip-default">default: default</span></td>
+    <td>所属テナント ID (ADR-034)。</td>
+  </tr><tr>
+    <td><code class="name">wtrealm</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="chip chip-constraint">non empty</span></td>
+    <td>RP の識別子 (WS-Fed wtrealm / SAML audience)。</td>
+  </tr><tr>
+    <td><code class="name">display_name</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td>管理 UI 表示名。</td>
+  </tr><tr>
+    <td><code class="name">reply_urls</code></td>
+    <td><code class="type">String[]</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="chip chip-constraint">non empty</span></td>
+    <td>許可する wreply の閉集合。wreply はこの集合との完全一致のみ受理する。</td>
+  </tr><tr>
+    <td><code class="name">audience</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td>発行 assertion の audience。空なら wtrealm を用いる。</td>
+  </tr><tr>
+    <td><code class="name">claim_policy</code></td>
+    <td><code class="type">ClaimMappingPolicy</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td>この RP 向けの claim 発行 policy (ADR-059)。</td>
+  </tr><tr>
+    <td><code class="name">created_at</code></td>
+    <td><code class="type">Timestamp</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">updated_at</code></td>
+    <td><code class="type">Timestamp</code></td>
+    <td><span class="badge badge-required">required</span></td>
     <td><span class="muted">—</span></td>
     <td></td>
   </tr></tbody>

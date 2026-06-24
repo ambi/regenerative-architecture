@@ -1,5 +1,7 @@
 package spec
 
+import "time"
+
 // Federation bounded context の双子定義 (ADR-059)。
 //
 // WS-Federation / WS-Trust / SAML が共有する宣言的 claim mapping と、claim 発行
@@ -51,4 +53,25 @@ type ClaimMappingPolicy struct {
 type IssuedClaim struct {
 	ClaimType string   `json:"claim_type"`
 	Values    []string `json:"values"`
+}
+
+// WsFedRelyingParty は WS-Federation passive の relying party 登録 (ADR-059)。
+// wtrealm で識別し、許可 wreply の閉集合・audience・claim policy を束ねる。
+type WsFedRelyingParty struct {
+	TenantID    string             `json:"tenant_id"`
+	Wtrealm     string             `json:"wtrealm"`
+	DisplayName string             `json:"display_name,omitempty"`
+	ReplyURLs   []string           `json:"reply_urls"`
+	Audience    string             `json:"audience,omitempty"`
+	ClaimPolicy ClaimMappingPolicy `json:"claim_policy"`
+	CreatedAt   time.Time          `json:"created_at"`
+	UpdatedAt   *time.Time         `json:"updated_at,omitempty"`
+}
+
+// EffectiveAudience は assertion に用いる audience を返す。未設定なら wtrealm。
+func (rp WsFedRelyingParty) EffectiveAudience() string {
+	if rp.Audience != "" {
+		return rp.Audience
+	}
+	return rp.Wtrealm
 }

@@ -1,7 +1,7 @@
 id: wi-61-ws-federation-passive-requestor-idp
 title: WS-Federation Passive Requestor Profile の IP-STS としてブラウザ SSO に対応する
 created_at: 2026-06-24
-status: pending
+status: in_progress
 authors: [tn]
 
 motivation: |

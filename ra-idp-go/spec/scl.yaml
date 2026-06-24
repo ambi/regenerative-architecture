@@ -65,7 +65,7 @@ bounded_contexts:
 
   Federation:
     description: WS-Federation / WS-Trust などのフェデレーションプロトコル、federation metadata、RP/SP trust、assertion 組み立て、identity 属性からの claim 発行を所有する。OAuth2/OIDC とは別に WS-* / SAML 系の信頼確立とトークン発行を集約する (ADR-059)。
-    owns_models: [ClaimMappingSource, ClaimMappingRule, NameIdConfiguration, ClaimMappingPolicy, IssuedClaim]
+    owns_models: [ClaimMappingSource, ClaimMappingRule, NameIdConfiguration, ClaimMappingPolicy, IssuedClaim, WsFedRelyingParty]
     depends_on:
       - { bounded_context: Tenancy, reason: RP/SP trust と claim mapping は realm 境界内に閉じる。 }
       - { bounded_context: IdentityManagement, reason: claim は User 等 identity principal の属性を source とする。 }
@@ -3727,6 +3727,24 @@ models:
     fields:
       claim_type: { type: String, constraints: [non_empty], description: "claim 型 URI。" }
       values:     { type: "String[]", constraints: [non_empty], description: "claim の値群 (多値属性は複数値になる)。" }
+
+  WsFedRelyingParty:
+    kind: entity
+    description: >-
+      WS-Federation passive の relying party (RP) 登録。wtrealm で識別し、許可する wreply (返信先)
+      の閉集合、audience、claim 発行 policy を束ねる。未登録 wtrealm・許可外 wreply は拒否する
+      (open redirect 防止, fail-closed, ADR-059)。
+    identity: [tenant_id, wtrealm]
+    annotations: { bounded_context: Federation }
+    fields:
+      tenant_id:    { type: String, default: "default", description: "所属テナント ID (ADR-034)。" }
+      wtrealm:      { type: String, constraints: [non_empty], description: "RP の識別子 (WS-Fed wtrealm / SAML audience)。" }
+      display_name: { type: String, optional: true, description: "管理 UI 表示名。" }
+      reply_urls:   { type: "String[]", constraints: [non_empty], description: "許可する wreply の閉集合。wreply はこの集合との完全一致のみ受理する。" }
+      audience:     { type: String, optional: true, description: "発行 assertion の audience。空なら wtrealm を用いる。" }
+      claim_policy: { type: ClaimMappingPolicy, description: "この RP 向けの claim 発行 policy (ADR-059)。" }
+      created_at:   { type: Timestamp }
+      updated_at:   { type: Timestamp }
 
 # =================================================================
 # 3. interfaces — 外部との契約 (HTTP API)

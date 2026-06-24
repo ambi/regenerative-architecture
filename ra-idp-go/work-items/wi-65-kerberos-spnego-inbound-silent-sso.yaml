@@ -1,0 +1,101 @@
+id: wi-65-kerberos-spnego-inbound-silent-sso
+title: Kerberos/SPNEGO inbound 認証による無音サインイン (passive WIA / エージェントレス Desktop SSO)
+created_at: 2026-06-24
+status: pending
+authors: [tn]
+
+motivation: |
+  ドメイン参加 PC からの Office / Microsoft 365 への無音 SSO (silent SSO) は、
+  「ドメイン参加マシンが持つ Kerberos チケットを、フェデレーションサーバが受け取って
+  検証し、フォームを出さずにサインインを通す」ことで実現する。Okta はこれを Desktop SSO
+  として提供し、オンプレ IIS 上の IWA web app エージェント型と、サービスアカウントで
+  Kerberos を受けるエージェントレス型の 2 系統を持つ。AD FS は passive エンドポイントの
+  Integrated Windows Authentication (WIA) で同じことを行う。
+
+  ra-idp-go には現在、HTTP の Negotiate (SPNEGO/Kerberos) を受け取って検証する inbound
+  認証基盤が無い。本 WI はその土台を実装する。これは単体で価値があり (ドメインユーザーが
+  ra-idp 自身の OIDC/SAML ログインを無音で通せる)、さらに WS-Fed passive
+  ([[wi-61-ws-federation-passive-requestor-idp]]) の上に WIA バリアントを足して、Entra
+  連携 ([[wi-64-entra-domain-federation-m365-sso]]) 経由の Microsoft 365 無音サインインを
+  成立させる。Okta のエージェントレス Desktop SSO と同等を、ra-idp ネイティブで提供する。
+
+  依存関係: 本 WI は wi-61 の passive エンドポイントの「上に乗る」(認証方式として Negotiate を
+  追加する)。逆に wi-61 / wi-62 / wi-63 は本 WI に依存せず、フォーム認証 / UsernameToken だけで
+  完結する。Entra Seamless SSO (`AZUREADSSOACC` を使う managed ドメイン専用機能) は
+  Microsoft 側の別機構であり、フェデレーション IdP である ra-idp は関与しない (スコープ外)。
+
+  なお WS-Trust の `windowstransport` (Kerberos でコンピュータアカウントを認証し、Entra
+  Hybrid Azure AD Join のデバイス登録を成立させる経路) は本 WI のスコープ外とする。これは
+  Okta も cloud STS では正面提供しておらず (managed/PHS や AD FS 併存で回避するのが通例)、
+  本シリーズの「Okta 同等」の到達点を超える。将来 Hybrid Join のデバイス登録まで狙う場合は
+  別 WI とする。
+
+scope:
+  decision:
+    - >-
+      新規 ADR: inbound IWA の信頼境界を確定する。ra-idp を AD ドメインに参加させる代わりに
+      keytab + SPN (例 `HTTP/sts.example.com@EXAMPLE.COM`) を与える方式を既定とし
+      (Okta のエージェントレス Desktop SSO 同様にサービスアカウント/keytab を信頼の起点とする)、
+      Kerberos サービスチケットの検証点 (keytab 復号・clock skew・replay)、NTLM フォールバックの
+      可否、認証済みユーザープリンシパル (UPN) の内部 User への解決、WIA を提示する条件
+      (イントラ判定で社内は Negotiate・社外はフォーム) を定める。
+  scl:
+    - >-
+      新規 model: SpnegoCredential / KerberosServicePrincipal / WindowsAuthenticatedPrincipal。
+      AuthenticationMethod に negotiate を追加する。
+    - 新規 interface: AuthenticateWithNegotiate。passive WIA はこれを束ねる。
+    - 新規 event: NegotiateAuthSucceeded / NegotiateAuthRejected。
+  go:
+    - >-
+      HTTP `Negotiate` (SPNEGO) ハンドラを実装し、keytab で Kerberos サービスチケットを
+      検証して認証済みプリンシパルを取り出す。NTLM フォールバックは ADR の判断に従う。
+    - >-
+      認証済みプリンシパルを内部 User に fail-closed で解決する
+      (未解決・改竄チケット・期限切れ・replay は拒否)。
+    - >-
+      WS-Fed passive (wi-61 のサインインエンドポイント) に WIA バリアントを足し、
+      イントラ判定が真なら Negotiate で無音サインインしフォームを出さない。
+    - ra-idp 自身のログインにも Negotiate を任意の認証方式として提供する (エージェントレス Desktop SSO)。
+  http:
+    - passive エンドポイントが Negotiate チャレンジを返せるようにする。
+  documentation:
+    - >-
+      README / 運用ドキュメントに keytab/SPN の準備、WIA のイントラ判定設定、無音 SSO の前提、
+      および windowstransport/Hybrid Join デバイス登録が範囲外である旨を書く。
+
+out_of_scope:
+  - WS-Fed passive / WS-Trust active のプロトコル本体 (wi-61 / wi-62)。本 WI は IWA バリアントの追加。
+  - federation metadata 公開そのもの (wi-63)。本 WI は WIA passive を広告対象に加えるだけ。
+  - Entra への実テナント end-to-end 検証 (wi-64)。
+  - >-
+    WS-Trust `windowstransport` (Kerberos によるコンピュータアカウント認証) と Entra Hybrid
+    Azure AD Join のデバイス登録。Okta 同様に未提供とし、必要なら将来別 WI とする。
+  - Entra Seamless SSO (`AZUREADSSOACC`) の実装。managed ドメイン専用で ra-idp 非関与。
+  - ra-idp を実際に AD ドメインへ参加させる運用 (keytab/SPN 供給はデプロイ側責務)。
+
+affected_guarantees:
+  - 認証の健全性: 改竄・期限切れ・replay の Kerberos チケットを受理しない (fail-closed)。
+  - プリンシパル解決: 認証済み principal を内部 User に解決できない場合は拒否する。
+  - フォールバック安全性: イントラ判定が偽なら WIA を提示せずフォーム認証に倒す。
+  - tenant isolation: SPN / keytab / WIA 設定は realm / tenant ごとに分離する。
+  - audit: Negotiate 認証の成否を監査に残す。
+
+verification:
+  - cmd: 'go test ./...'
+    in: ra-idp-go
+    reason: SPNEGO 検証・principal 解決・replay/skew 拒否・passive WIA・イントラ判定の境界。
+  - cmd: 'golangci-lint run ./...'
+    in: ra-idp-go
+  - cmd: 'go build ./...'
+    in: ra-idp-go
+  - >-
+    手動: keytab を構成し、ドメイン PC のブラウザから passive サインインがフォーム無しで
+    無音完了すること、改竄・期限切れチケットが拒否されることを確認する。
+  - '手動: 社外 (イントラ判定が偽) からはフォーム認証に倒れることを確認する。'
+
+risk: high
+risk_notes: |
+  inbound IWA は SPNEGO/Kerberos の検証 (keytab・clock skew・replay・principal 解決) を誤ると
+  なりすましを招く。検証はすべて fail-closed で行い、イントラ判定が偽のときは WIA を提示しない。
+  Kerberos ライブラリと SPN/keytab の取り扱いは実績ある実装に委ね、独自実装を避ける。
+  本 WI は wi-61 の上に乗る前提で、その完了後または並行で着手する。

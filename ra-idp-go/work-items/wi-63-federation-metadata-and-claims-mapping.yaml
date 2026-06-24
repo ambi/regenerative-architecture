@@ -1,0 +1,91 @@
+id: wi-63-federation-metadata-and-claims-mapping
+title: Federation metadata 公開と claim 発行ルールエンジンを WS-Fed / WS-Trust で共有する
+created_at: 2026-06-24
+status: pending
+authors: [tn]
+
+motivation: |
+  WS-Federation passive ([[wi-61-ws-federation-passive-requestor-idp]]) と WS-Trust
+  active ([[wi-62-ws-trust-active-sts]]) は、(1) RP / 相手 IdP が信頼を確立するための
+  federation metadata と、(2) 内部ユーザー属性から発行 token の claim を組み立てる
+  claim 発行ルールを共有する。AD FS は `federationmetadata.xml` に passive/active
+  エンドポイント・token type・署名証明書を載せ、relying party trust ごとに claim
+  issuance rule で `UPN` や `nameidentifier` を発行する。PingFederate は attribute
+  contract と token generator で同等を、Okta は Office 365 連携の claim mapping で
+  同等を提供する。
+
+  本 WI は AD FS 互換の `federationmetadata.xml` を realm 配下に公開し、署名証明書
+  (signing certificate) を広告し、RP / SP trust ごとの claim 発行ルール (内部属性 →
+  SAML claim type への mapping、固定値、NameID format / source) を定義・適用する
+  エンジンを実装する。これは WS-Fed と WS-Trust の双方が assertion を組み立てるとき
+  に使い、最終ゴールの Entra 連携 ([[wi-64-entra-domain-federation-m365-sso]]) が
+  要求する UPN / ImmutableID などの claim 形状をこのエンジンで満たす。SAML 2.0 IdP
+  ([[wi-29-saml2-idp]]) の attribute mapping とも基盤を共有する。
+
+scope:
+  decision:
+    - >-
+      新規 ADR: federation metadata の公開範囲と claim 発行ルールの所有境界を確定する。
+      metadata は AD FS 互換 `federationmetadata.xml` (EntityDescriptor + RoleDescriptor:
+      SecurityTokenService / ApplicationServiceType、PassiveRequestorEndpoint、
+      SecurityTokenServiceEndpoint、署名証明書) を realm 単位で公開する。claim ルールは
+      宣言的 mapping (source 属性 → claim type、固定値、NameID format) とし、AD FS の
+      claim rule 言語そのものは採らない方針を明記する。署名証明書は OAuth signing key と
+      分離するか ADR で決める ([[wi-32-kms-hsm-and-per-tenant-signing-keys]] と整合)。
+  scl:
+    - >-
+      新規 model: FederationMetadataDocument / ClaimMappingRule / ClaimType /
+      NameIdConfiguration。RP / SP trust に claim mapping rule 集合を持たせる。
+    - 新規 interface: PublishFederationMetadata / 管理用の ClaimMappingRule CRUD。
+    - 新規 permission: AdminFederationTrustManage。
+    - 新規 event: FederationMetadataPublished / ClaimMappingRuleChanged。
+  go:
+    - >-
+      realm の署名証明書・WS-Fed/WS-Trust エンドポイントから `federationmetadata.xml` を
+      生成し署名する。XML 署名は SAML / WS-* と共有 library を使う。
+    - >-
+      claim 発行エンジンを実装し、ユーザー属性・固定値・NameID 設定から token claim を
+      fail-closed に組み立てる (未マップ属性は出力しない)。WS-Fed / WS-Trust / SAML が再利用する。
+    - claim type は標準 URI (`http://schemas.xmlsoap.org/.../UPN` 等) を扱えるようにする。
+    - >-
+      metadata は存在するエンドポイントを広告する。wi-65 が WIA passive を追加したら
+      RoleDescriptor に反映できるよう拡張点を設ける (本 WI は wi-65 に依存しない)。
+  http:
+    - '`/{realm}/federationmetadata/2007-06/federationmetadata.xml` を公開する。'
+  ui:
+    - admin trust 編集に claim mapping rule・NameID source・metadata ダウンロードを追加する。
+  documentation:
+    - README に metadata URL、claim mapping の設定例、署名証明書の取り扱いを書く。
+
+out_of_scope:
+  - WS-Federation passive / WS-Trust active のプロトコル本体 (wi-61 / wi-62)。
+  - SAML 2.0 metadata 形式そのもの (wi-29 で扱う。本 WI は WS-* 互換 federationmetadata.xml)。
+  - AD FS claim rule language の完全互換。宣言的 mapping に留める。
+
+affected_guarantees:
+  - metadata integrity: 公開する federationmetadata.xml は署名し、改竄を検出可能にする。
+  - claim minimization: mapping で明示した claim だけを発行し、未マップ属性は漏らさない (fail-closed)。
+  - tenant isolation: metadata・署名証明書・claim ルールは realm / tenant ごとに分離する。
+  - key separation: 署名証明書の所在と OAuth signing key との分離方針を ADR で固定し守る。
+  - audit: metadata 公開と claim ルール変更を監査に残す。
+
+verification:
+  - cmd: 'go test ./...'
+    in: ra-idp-go
+    reason: metadata 生成・署名、claim mapping の出力・未マップ拒否、NameID source 解決の境界。
+  - cmd: 'golangci-lint run ./...'
+    in: ra-idp-go
+  - cmd: 'go build ./...'
+    in: ra-idp-go
+  - cmd: 'bun --cwd ra-idp-go/ui typecheck'
+  - cmd: 'bun --cwd ra-idp-go/ui build'
+  - >-
+    手動: federationmetadata.xml を取得し署名・エンドポイント・証明書が正しいこと、
+    claim mapping で UPN / nameidentifier が意図通り発行され未マップ属性が出ないことを確認する。
+
+risk: medium
+risk_notes: |
+  metadata の証明書・エンドポイント記載や claim mapping を誤ると、RP が誤った鍵を信頼したり
+  過剰な属性を漏らす。metadata は署名し、claim は明示 mapping のみ fail-closed で発行する。
+  署名証明書のローテーションは [[wi-23-signing-key-rotation-scheduler]] / [[wi-32-kms-hsm-and-per-tenant-signing-keys]]
+  と整合させ、metadata に複数証明書を載せられるようにする。

@@ -8,6 +8,7 @@ package http
 
 import (
 	authhttp "ra-idp-go/internal/authentication/adapters/http"
+	federationhttp "ra-idp-go/internal/federation/adapters/http"
 	idmhttp "ra-idp-go/internal/identitymanagement/adapters/http"
 	oauth2http "ra-idp-go/internal/oauth2/adapters/http"
 	"ra-idp-go/internal/platform/http/core"
@@ -39,4 +40,5 @@ func registerTenantRoutes(g *echo.Group, d Deps) {
 	authhttp.RegisterRoutes(g, d.Deps)
 	idmhttp.RegisterRoutes(g, d.Deps)
 	tenancyhttp.RegisterRoutes(g, d.Deps)
+	federationhttp.RegisterRoutes(g, d.Deps)
 }

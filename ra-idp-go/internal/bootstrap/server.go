@@ -47,6 +47,13 @@ func Run() error {
 		if err := seedDemoData(ctx, deps.ClientRepo, deps.UserRepo, deps.MfaFactorRepo, deps.PasswordHistoryRepo, deps.GroupRepo, deps.AuthzDetailTypeRepo, hasher); err != nil {
 			return fmt.Errorf("seed demo data: %w", err)
 		}
+		if err := seedWsFedRelyingParty(ctx, deps.WsFedRPRepo); err != nil {
+			return fmt.Errorf("seed federation relying party: %w", err)
+		}
+	}
+	federationSigner, err := newDevFederationSigner()
+	if err != nil {
+		return fmt.Errorf("federation signer: %w", err)
 	}
 	sclDoc, err := spec.LoadSCL()
 	if err != nil {
@@ -132,6 +139,7 @@ func Run() error {
 		TrustedForwardedHops:    envInt("TRUSTED_FORWARDED_HOPS", 0),
 		SentinelPasswordHash:    sentinelPasswordHash,
 		SessionManager:          sessionManager, AuthnResolver: sessionManager,
+		WsFedRPRepo: deps.WsFedRPRepo, FederationSigner: federationSigner,
 		Emit: emit,
 		HealthInfo: httpcore.HealthInfo{
 			Persistence:   runtime.Persistence,

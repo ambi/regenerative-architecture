@@ -7,6 +7,7 @@ import (
 
 	oauthports "ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/platform/eventsink"
+	"ra-idp-go/internal/platform/persistence/memory"
 	"ra-idp-go/internal/platform/persistence/postgres"
 	valkeystore "ra-idp-go/internal/platform/persistence/valkey"
 )
@@ -74,6 +75,8 @@ func assemblePostgres(ctx context.Context) (*Dependencies, error) {
 		EventSink:               sink,
 		AuditEventRepo:          &postgres.AuditEventRepository{Pool: pool},
 		AuthEventBucketStore:    &postgres.AuthEventBucketStore{Pool: pool},
+		// federation RP の postgres 永続化は後続スライス。現状は in-memory で代替する。
+		WsFedRPRepo: memory.NewWsFedRelyingPartyRepository(),
 		Close: func() {
 			_ = valkeyClient.Close()
 			pool.Close()

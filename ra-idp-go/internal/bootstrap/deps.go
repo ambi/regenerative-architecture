@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	authports "ra-idp-go/internal/authentication/ports"
+	federationports "ra-idp-go/internal/federation/ports"
 	idmports "ra-idp-go/internal/identitymanagement/ports"
 	oauthports "ra-idp-go/internal/oauth2/ports"
 	tenantports "ra-idp-go/internal/tenancy/ports"
@@ -38,6 +39,7 @@ type Dependencies struct {
 	EventSink               oauthports.EventSink
 	AuditEventRepo          oauthports.AuditEventRepository
 	AuthEventBucketStore    authports.AuthEventBucketStore
+	WsFedRPRepo             federationports.WsFedRelyingPartyRepository
 	Close                   func()
 }
 

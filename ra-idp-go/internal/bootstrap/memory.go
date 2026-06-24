@@ -38,6 +38,7 @@ func assembleMemory() (*Dependencies, error) {
 		EventSink:               eventsink.NewConsoleSink(),
 		AuditEventRepo:          memory.NewAuditEventStore(0),
 		AuthEventBucketStore:    memory.NewAuthEventBucketStore(),
+		WsFedRPRepo:             memory.NewWsFedRelyingPartyRepository(),
 		Close:                   func() {},
 	}, nil
 }

@@ -10,6 +10,8 @@ import (
 	authdomain "ra-idp-go/internal/authentication/domain"
 	authports "ra-idp-go/internal/authentication/ports"
 	authusecases "ra-idp-go/internal/authentication/usecases"
+	"ra-idp-go/internal/federation/adapters/samltoken"
+	federationports "ra-idp-go/internal/federation/ports"
 	idmports "ra-idp-go/internal/identitymanagement/ports"
 	oauthports "ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/platform/crypto"
@@ -57,6 +59,8 @@ type Deps struct {
 	SentinelPasswordHash       string
 	SessionManager             *authusecases.SessionManager
 	AuthnResolver              authdomain.AuthenticationContextResolver
+	WsFedRPRepo                federationports.WsFedRelyingPartyRepository
+	FederationSigner           *samltoken.Signer
 	Emit                       func(spec.DomainEvent)
 	HealthInfo                 HealthInfo
 }

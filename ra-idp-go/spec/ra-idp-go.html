@@ -547,7 +547,7 @@ table.fields tbody tr:last-child td { border-bottom: none; }
       <div class="eyebrow">Specification Core Language · spec 1.2</div>
       <h1>ra-idp</h1>
     </header>
-    <div class="stats"><a class="stat" href="#standards"><span class="stat-num">30</span><span class="stat-label">standards</span></a><a class="stat" href="#bounded_contexts"><span class="stat-num">5</span><span class="stat-label">bounded contexts</span></a><a class="stat" href="#vocabulary"><span class="stat-num">123</span><span class="stat-label">vocabulary</span></a><a class="stat" href="#models"><span class="stat-num">253</span><span class="stat-label">models</span></a><a class="stat" href="#interfaces"><span class="stat-num">100</span><span class="stat-label">interfaces</span></a><a class="stat" href="#states"><span class="stat-num">11</span><span class="stat-label">states</span></a><a class="stat" href="#invariants"><span class="stat-num">22</span><span class="stat-label">invariants</span></a><a class="stat" href="#scenarios"><span class="stat-num">70</span><span class="stat-label">scenarios</span></a><a class="stat" href="#permissions"><span class="stat-num">25</span><span class="stat-label">permissions</span></a><a class="stat" href="#objectives"><span class="stat-num">54</span><span class="stat-label">objectives</span></a><a class="stat" href="#assurance"><span class="stat-num">5</span><span class="stat-label">assurance</span></a><a class="stat" href="#user_experience"><span class="stat-num">9</span><span class="stat-label">user experience</span></a></div>
+    <div class="stats"><a class="stat" href="#standards"><span class="stat-num">30</span><span class="stat-label">standards</span></a><a class="stat" href="#bounded_contexts"><span class="stat-num">5</span><span class="stat-label">bounded contexts</span></a><a class="stat" href="#vocabulary"><span class="stat-num">123</span><span class="stat-label">vocabulary</span></a><a class="stat" href="#models"><span class="stat-num">253</span><span class="stat-label">models</span></a><a class="stat" href="#interfaces"><span class="stat-num">102</span><span class="stat-label">interfaces</span></a><a class="stat" href="#states"><span class="stat-num">11</span><span class="stat-label">states</span></a><a class="stat" href="#invariants"><span class="stat-num">22</span><span class="stat-label">invariants</span></a><a class="stat" href="#scenarios"><span class="stat-num">70</span><span class="stat-label">scenarios</span></a><a class="stat" href="#permissions"><span class="stat-num">25</span><span class="stat-label">permissions</span></a><a class="stat" href="#objectives"><span class="stat-num">54</span><span class="stat-label">objectives</span></a><a class="stat" href="#assurance"><span class="stat-num">5</span><span class="stat-label">assurance</span></a><a class="stat" href="#user_experience"><span class="stat-num">9</span><span class="stat-label">user experience</span></a></div>
   </section>
   <section id="standards">
     <h2>Standards <span class="count">30</span></h2>
@@ -1445,7 +1445,7 @@ JWKS / Discovery / Authorization Server Metadata / 健全性報告 / 監査保�
 <article class="card" id="bc-federation">
     <header><h3>Federation</h3></header>
     <p class="desc">WS-Federation / WS-Trust などのフェデレーションプロトコル、federation metadata、RP/SP trust、assertion 組み立て、identity 属性からの claim 発行を所有する。OAuth2/OIDC とは別に WS-* / SAML 系の信頼確立とトークン発行を集約する (ADR-059)。</p>
-    <div class="reference-row"><span class="reference-label">models</span><a class="chip chip-ref" href="#model-claimmappingsource">ClaimMappingSource</a> <a class="chip chip-ref" href="#model-claimmappingrule">ClaimMappingRule</a> <a class="chip chip-ref" href="#model-nameidconfiguration">NameIdConfiguration</a> <a class="chip chip-ref" href="#model-claimmappingpolicy">ClaimMappingPolicy</a> <a class="chip chip-ref" href="#model-issuedclaim">IssuedClaim</a> <a class="chip chip-ref" href="#model-wsfedrelyingparty">WsFedRelyingParty</a></div><div class="reference-row"><span class="reference-label">events</span><a class="chip chip-ref" href="#model-wsfedsigninissued">WsFedSignInIssued</a> <a class="chip chip-ref" href="#model-wsfedsigninrejected">WsFedSignInRejected</a> <a class="chip chip-ref" href="#model-wsfedsignout">WsFedSignOut</a></div>
+    <div class="reference-row"><span class="reference-label">models</span><a class="chip chip-ref" href="#model-claimmappingsource">ClaimMappingSource</a> <a class="chip chip-ref" href="#model-claimmappingrule">ClaimMappingRule</a> <a class="chip chip-ref" href="#model-nameidconfiguration">NameIdConfiguration</a> <a class="chip chip-ref" href="#model-claimmappingpolicy">ClaimMappingPolicy</a> <a class="chip chip-ref" href="#model-issuedclaim">IssuedClaim</a> <a class="chip chip-ref" href="#model-wsfedrelyingparty">WsFedRelyingParty</a></div><div class="reference-row"><span class="reference-label">events</span><a class="chip chip-ref" href="#model-wsfedsigninissued">WsFedSignInIssued</a> <a class="chip chip-ref" href="#model-wsfedsigninrejected">WsFedSignInRejected</a> <a class="chip chip-ref" href="#model-wsfedsignout">WsFedSignOut</a></div><div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-wsfederationsignin">WsFederationSignIn</a> <a class="chip chip-ref" href="#iface-wsfederationsignout">WsFederationSignOut</a></div>
     <div class="io"><div class="label">Depends on</div><ul class="vlist"><li><a class="chip chip-ref" href="#bc-tenancy">Tenancy</a> <span class="muted">— RP/SP trust と claim mapping は realm 境界内に閉じる。</span></li><li><a class="chip chip-ref" href="#bc-identitymanagement">IdentityManagement</a> <span class="muted">— claim は User 等 identity principal の属性を source とする。</span></li></ul></div>
 
   </article></div>
@@ -11273,7 +11273,7 @@ token はセッションに 1:1 で紐づかないため本スライスでは失
     </div>
   </section>
 <section id="interfaces">
-    <h2>Interfaces <span class="count">100</span></h2>
+    <h2>Interfaces <span class="count">102</span></h2>
     <p class="lead">外部との契約。入力・出力・エラー・発行イベントと、それを露出する複数のトランスポート (bindings)。</p>
     <div class="cards"><article class="card" id="iface-registerclient">
     <header><h3>RegisterClient</h3></header>
@@ -12063,6 +12063,88 @@ BreachedPasswordChecker を通過した new_password で User.password_hash を
 <div class="binding binding-http">
     <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
     <div class="binding-body"><div class="binding-head"><span class="badge badge-method-post">POST</span> <code class="path">/end_session</code> <span class="chip chip-hint">response: 200, 302</span> <span class="chip chip-hint">form: form</span></div></div>
+  </div></div></div>
+  </article>
+<article class="card" id="iface-wsfederationsignin">
+    <header><h3>WsFederationSignIn</h3></header>
+    <p class="desc">WS-Federation passive requestor profile の sign-in (wi-61)。wtrealm で relying party を解決し、 wreply を許可集合に限定する (open redirect 防止)。未認証はログインへ誘導し、認証済みなら relying party の claim policy で発行した claim を署名済み SAML 2.0 assertion (ADR-060) に載せ、RSTR に包んで自動 POST する。</p>
+    <div class="iface-step"><span class="step-kind-label">STEP</span> <code class="step-tpl">wtrealm {wtrealm} へ wreply {wreply} で sign-in する</code></div>
+    <div class="io">
+    <div class="label">Input</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">wa</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td>wsignin1.0。</td>
+  </tr><tr>
+    <td><code class="name">wtrealm</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td>relying party 識別子。</td>
+  </tr><tr>
+    <td><code class="name">wreply</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td>返信先。許可集合との完全一致のみ。</td>
+  </tr><tr>
+    <td><code class="name">wctx</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td>RP が往復させる不透明コンテキスト。</td>
+  </tr><tr>
+    <td><code class="name">wfresh</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td>再認証の最大経過時間 (分)。</td>
+  </tr><tr>
+    <td><code class="name">wauth</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td>要求された認証方式 URI。</td>
+  </tr><tr>
+    <td><code class="name">whr</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td>home realm のヒント。</td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
+    <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
+    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-get">GET</span> <code class="path">/wsfed</code> <span class="chip chip-hint">response: 200, 303</span> <span class="chip chip-hint">form: query</span></div></div>
+  </div></div></div>
+  </article>
+<article class="card" id="iface-wsfederationsignout">
+    <header><h3>WsFederationSignOut</h3></header>
+    <p class="desc">WS-Federation sign-out (wi-61)。ローカルセッションを破棄する。wsignout1.0 は許可済み wreply への リダイレクトまで行い、wsignoutcleanup1.0 は破棄のみで 200 を返す。</p>
+    <div class="iface-step"><span class="step-kind-label">STEP</span> <code class="step-tpl">wtrealm {wtrealm} へ wreply {wreply} で sign-out する</code></div>
+    <div class="io">
+    <div class="label">Input</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">wa</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td>wsignout1.0 または wsignoutcleanup1.0。</td>
+  </tr><tr>
+    <td><code class="name">wtrealm</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">wreply</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td>返信先。許可集合との完全一致のみ。</td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
+    <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
+    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-get">GET</span> <code class="path">/wsfed</code> <span class="chip chip-hint">response: 200, 303</span> <span class="chip chip-hint">form: query</span></div></div>
   </div></div></div>
   </article>
 <article class="card" id="iface-pushauthorizationrequest">

@@ -67,6 +67,7 @@ bounded_contexts:
     description: WS-Federation / WS-Trust などのフェデレーションプロトコル、federation metadata、RP/SP trust、assertion 組み立て、identity 属性からの claim 発行を所有する。OAuth2/OIDC とは別に WS-* / SAML 系の信頼確立とトークン発行を集約する (ADR-059)。
     owns_models: [ClaimMappingSource, ClaimMappingRule, NameIdConfiguration, ClaimMappingPolicy, IssuedClaim, WsFedRelyingParty]
     owns_events: [WsFedSignInIssued, WsFedSignInRejected, WsFedSignOut]
+    owns_interfaces: [WsFederationSignIn, WsFederationSignOut]
     depends_on:
       - { bounded_context: Tenancy, reason: RP/SP trust と claim mapping は realm 境界内に閉じる。 }
       - { bounded_context: IdentityManagement, reason: claim は User 等 identity principal の属性を source とする。 }
@@ -4129,6 +4130,37 @@ interfaces:
     bindings:
       - { kind: http, method: GET, path: /end_session, request_form: query, successful_status_codes: ["200", "302"] }
       - { kind: http, method: POST, path: /end_session, request_form: form, successful_status_codes: ["200", "302"] }
+
+  WsFederationSignIn:
+    description: >-
+      WS-Federation passive requestor profile の sign-in (wi-61)。wtrealm で relying party を解決し、
+      wreply を許可集合に限定する (open redirect 防止)。未認証はログインへ誘導し、認証済みなら relying party の
+      claim policy で発行した claim を署名済み SAML 2.0 assertion (ADR-060) に載せ、RSTR に包んで自動 POST する。
+    steps:
+      - "wtrealm {wtrealm} へ wreply {wreply} で sign-in する"
+    input:
+      wa:      { type: String, description: "wsignin1.0。" }
+      wtrealm: { type: String, description: "relying party 識別子。" }
+      wreply:  { type: String, optional: true, description: "返信先。許可集合との完全一致のみ。" }
+      wctx:    { type: String, optional: true, description: "RP が往復させる不透明コンテキスト。" }
+      wfresh:  { type: String, optional: true, description: "再認証の最大経過時間 (分)。" }
+      wauth:   { type: String, optional: true, description: "要求された認証方式 URI。" }
+      whr:     { type: String, optional: true, description: "home realm のヒント。" }
+    bindings:
+      - { kind: http, method: GET, path: /wsfed, request_form: query, successful_status_codes: ["200", "303"] }
+
+  WsFederationSignOut:
+    description: >-
+      WS-Federation sign-out (wi-61)。ローカルセッションを破棄する。wsignout1.0 は許可済み wreply への
+      リダイレクトまで行い、wsignoutcleanup1.0 は破棄のみで 200 を返す。
+    steps:
+      - "wtrealm {wtrealm} へ wreply {wreply} で sign-out する"
+    input:
+      wa:      { type: String, description: "wsignout1.0 または wsignoutcleanup1.0。" }
+      wtrealm: { type: String, optional: true }
+      wreply:  { type: String, optional: true, description: "返信先。許可集合との完全一致のみ。" }
+    bindings:
+      - { kind: http, method: GET, path: /wsfed, request_form: query, successful_status_codes: ["200", "303"] }
 
   PushAuthorizationRequest:
     description: Pushed Authorization Request (RFC 9126)

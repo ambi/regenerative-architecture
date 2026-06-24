@@ -22,6 +22,7 @@ OAuth 2.0 / OpenID Connect の認可サーバー兼 IdP として次を備える
 - OpenID Connect Discovery `/.well-known/openid-configuration` と JWK Set `/jwks`（OpenID Connect Discovery 1.0、JWK Set RFC 7517）
 - DPoP による送信者制約トークン（RFC 9449）
 - private_key_jwt クライアント認証（RFC 7523、インライン JWKS / `jwks_uri`）
+- WS-Federation passive requestor profile による IdP（IP-STS）`/wsfed`（`wa=wsignin1.0` のブラウザ SSO と `wsignout1.0` / `wsignoutcleanup1.0` のサインアウト、署名済み SAML 2.0 assertion を RSTR に包んで relying party へ自動 POST、wi-61）。relying party は wtrealm で識別し、許可 wreply の閉集合・claim 発行ポリシーを `/api/admin/wsfed/relying-parties` で管理する。claim は宣言的マッピング（ADR-059）、XML 署名は goxmldsig（ADR-060）
 
 ### 認証・アカウント・管理
 

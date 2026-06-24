@@ -532,13 +532,13 @@ table.fields tbody tr:last-child td { border-bottom: none; }
       </a>
       <a class="overview-tile" href="#tab=decisions">
         <div class="overview-tile-label">Decisions</div>
-        <div class="overview-tile-num">54</div>
+        <div class="overview-tile-num">55</div>
         <div class="overview-tile-hint">ADRs · 2 conception docs</div>
       </a>
       <a class="overview-tile" href="#tab=work-items">
         <div class="overview-tile-label">Work Items</div>
         <div class="overview-tile-num">61</div>
-        <div class="overview-tile-hint">0 in progress · 32 pending · 29 done</div>
+        <div class="overview-tile-hint">1 in progress · 31 pending · 29 done</div>
       </a>
     </div>
   </section></div>
@@ -16093,7 +16093,7 @@ tenant 経路から実行する場合のみ許可する。
     </header>
     <div class="stats">
       <span class="stat"><span class="stat-num">2</span><span class="stat-label">conception</span></span>
-      <span class="stat"><span class="stat-num">54</span><span class="stat-label">adrs</span></span>
+      <span class="stat"><span class="stat-num">55</span><span class="stat-label">adrs</span></span>
     </div>
   </section>
   <section id="dec-conception">
@@ -16291,7 +16291,7 @@ Regenerative Architecture の実証対象である。</li>
   </article></div>
       </section>
   <section id="dec-adrs">
-        <h2>Architecture Decisions <span class="count">54</span></h2>
+        <h2>Architecture Decisions <span class="count">55</span></h2>
         <p class="lead">採用・棄却した設計判断とその根拠。SCL や CONCEPTION からトレースされる。</p>
         <div class="adr-index"><a class="adr-index-row" href="#adr-001-state-machine-as-spec">
         <code class="adr-num">ADR-001</code>
@@ -16509,6 +16509,10 @@ Regenerative Architecture の実証対象である。</li>
         <code class="adr-num">ADR-059</code>
         <span class="adr-title">ADR-059: Federation bounded context と宣言的 claim 発行エンジンを確定する</span>
         <span class="adr-preview">採用 (accepted)。[[wi-63-federation-metadata-and-claims-mapping]] の第 1 スライス (claim 発行エンジン) を実装する意思決定。WS-Federation passive ([[wi-61-ws-federati…</span>
+      </a><a class="adr-index-row" href="#adr-060-xml-signature-library-and-saml-assertion-signing">
+        <code class="adr-num">ADR-060</code>
+        <span class="adr-title">ADR-060: XML 署名ライブラリと SAML assertion 署名を確定する</span>
+        <span class="adr-preview">採用 (accepted)。[[wi-63-federation-metadata-and-claims-mapping]] の署名スライスの意思決定で、 [[ADR-059]] (Federation bounded context / claim 発行) を前提に、claim…</span>
       </a></div>
         <div class="cards"><article class="card decision" id="adr-001-state-machine-as-spec">
     <header>
@@ -22047,6 +22051,72 @@ Entra/M365 連携の要件 (UPN / ImmutableID 等) は満たせる。</li>
 保証点が分散する。</li>
 </ul>
 </div>
+  </article><article class="card decision" id="adr-060-xml-signature-library-and-saml-assertion-signing">
+    <header>
+      <h3>ADR-060: XML 署名ライブラリと SAML assertion 署名を確定する</h3>
+      <span class="badge badge-adr-num">ADR-060</span>
+      <span class="chip chip-hint">ADR-060-xml-signature-library-and-saml-assertion-signing.md</span>
+    </header>
+    <details class="doc-toc"><summary>Outline (5)</summary><ol><li class="lvl-2"><a href="#adr-060-xml-signature-library-and-saml-assertion-signing-">ステータス</a></li><li class="lvl-2"><a href="#adr-060-xml-signature-library-and-saml-assertion-signing-">コンテキスト</a></li><li class="lvl-2"><a href="#adr-060-xml-signature-library-and-saml-assertion-signing-">決定</a></li><li class="lvl-2"><a href="#adr-060-xml-signature-library-and-saml-assertion-signing-">影響</a></li><li class="lvl-2"><a href="#adr-060-xml-signature-library-and-saml-assertion-signing-">却下した代替案</a></li></ol></details>
+    <div class="md"><h2>ステータス</h2>
+<p>採用 (accepted)。[[wi-63-federation-metadata-and-claims-mapping]] の署名スライスの意思決定で、
+[[ADR-059]] (Federation bounded context / claim 発行) を前提に、claim 発行エンジンの出力を
+署名済み SAML assertion に変換する基盤を確定する。WS-Federation passive
+([[wi-61-ws-federation-passive-requestor-idp]]) と WS-Trust active
+([[wi-62-ws-trust-active-sts]]) が、この assertion を RSTR / RST レスポンスに包む。</p>
+<h2>コンテキスト</h2>
+<p>WS-Fed / WS-Trust / SAML は署名済み XML token (SAML assertion) を発行する。XML 署名は
+canonicalization (C14N)、enveloped transform、参照ダイジェストなど誤りやすい要素を持ち、
+署名ラッピング攻撃の温床でもある。これを自前実装するのは禁忌で、[[wi-61-ws-federation-passive-requestor-idp]]
+も「実績あるライブラリを使い自前実装しない」と定めている。</p>
+<p>ra-idp-go にはまだ XML 署名の依存が無い。OAuth2 の署名鍵 (<code>SigningKey</code> / JWK) は JSON token
+向けで、X.509 証明書を前提とする SAML/WS-* の署名には直接使えない。</p>
+<h2>決定</h2>
+<ol>
+<li>
+<p><strong>XML 署名ライブラリは <code>github.com/russellhaering/goxmldsig</code> を採用する。</strong> gosaml2 / dex
+などで実績がある軽量ライブラリで、enveloped 署名と検証に特化する。XML ツリー構築には
+その依存である <code>github.com/beevik/etree</code> を用いる。署名・canonicalization・検証は
+すべてライブラリに委ね、自前実装しない。</p>
+</li>
+<li>
+<p><strong>署名プロファイルは SAML/WS-Fed の相互運用既定に合わせる。</strong> enveloped signature、
+exclusive canonicalization (<code>http://www.w3.org/2001/10/xml-exc-c14n#</code>)、RSA-SHA256、
+ダイジェスト SHA-256。ID 参照属性は SAML の <code>ID</code> を用いる。</p>
+</li>
+<li>
+<p><strong>署名 identity は federation 署名証明書 (X.509 + RSA) とし、OAuth の JWK 署名鍵とは
+分離する</strong> ([[wi-32-kms-hsm-and-per-tenant-signing-keys]] / [[ADR-059]] と整合)。本スライスでは
+証明書・鍵は注入で受け取り、証明書のライフサイクル・ローテーション・metadata への複数証明書
+掲載は後続スライス ([[wi-23-signing-key-rotation-scheduler]] と整合) で扱う。</p>
+</li>
+<li>
+<p><strong>発行 token は SAML 2.0 assertion から始める。</strong> Entra WS-Fed が既定とする SAML 1.1
+assertion は wi-61 で追加する。本スライスは claim 発行エンジン ([[ADR-059]]) の出力を
+bearer subject confirmation・audience restriction・attribute statement を備えた署名済み
+SAML 2.0 assertion に変換するところまで。</p>
+</li>
+<li>
+<p><strong>配置は Federation context 所有のアダプタ</strong> (<code>internal/federation/adapters/samltoken</code>) とする
+([[ADR-047]] context-owned adapter layout)。XML ワイヤ形式は platform 共通ではなく
+federation の責務に属する。</p>
+</li>
+</ol>
+<h2>影響</h2>
+<ul>
+<li>署名安全性 (未署名/改竄拒否) を、HTTP 経路を作る前に round-trip 検証で確立できる。</li>
+<li>wi-61 / wi-62 は assertion 構築・署名を再実装せず本アダプタに委譲する。</li>
+<li>証明書ライフサイクルという重い関心事を本スライスから切り離し、注入境界で先送りできる。</li>
+</ul>
+<h2>却下した代替案</h2>
+<ul>
+<li><strong>フル SAML フレームワーク (crewjam/saml 等) の採用。</strong> IdP/SP の構造を丸ごと持ち込み重く、
+WS-Fed / WS-Trust / SAML 1.1·2.0 を横断する自由度を制約する。署名は goxmldsig、構造は etree で十分。</li>
+<li><strong>XML 署名の自前実装。</strong> canonicalization・署名ラッピング耐性の誤実装リスクが高く、禁忌。</li>
+<li><strong>OAuth の JWK 署名鍵を流用。</strong> SAML/WS-* は X.509 証明書を前提とし、鍵の用途・ローテーション
+境界も異なる。証明書を分離する。</li>
+</ul>
+</div>
   </article></div>
       </section></div>
 <div class="tab" data-tab="work-items" id="tab-work-items"><section id="ch-overview" class="tab-overview">
@@ -22054,12 +22124,18 @@ Entra/M365 連携の要件 (UPN / ImmutableID 等) は満たせる。</li>
       <div class="eyebrow">Work Items</div>
       <h1>Work items</h1>
     </header>
-    <div class="stats"><span class="stat"><span class="stat-num">32</span><span class="stat-label">pending</span></span><span class="stat"><span class="stat-num">29</span><span class="stat-label">completed</span></span></div>
+    <div class="stats"><span class="stat"><span class="stat-num">31</span><span class="stat-label">pending</span></span><span class="stat"><span class="stat-num">1</span><span class="stat-label">in progress</span></span><span class="stat"><span class="stat-num">29</span><span class="stat-label">completed</span></span></div>
   </section>
   <section id="ch-index">
     <h2>Index</h2>
     <p class="lead">優先度順: in_progress → pending → completed → cancelled。同区分内は新しい id 順。</p>
-    <div class="ch-index"><a class="ch-index-row" href="#wi-65-kerberos-spnego-inbound-silent-sso">
+    <div class="ch-index"><a class="ch-index-row" href="#wi-63-federation-metadata-and-claims-mapping">
+        <code class="ch-id">wi-63-federation-metadata-and-claims-mapping</code>
+        <span class="ch-title">Federation metadata 公開と claim 発行ルールエンジンを WS-Fed / WS-Trust で共有する</span>
+        <span class="badge badge-status-progress">in_progress</span>
+        <span class="badge badge-risk-medium">medium</span>
+
+      </a><a class="ch-index-row" href="#wi-65-kerberos-spnego-inbound-silent-sso">
         <code class="ch-id">wi-65-kerberos-spnego-inbound-silent-sso</code>
         <span class="ch-title">Kerberos/SPNEGO inbound 認証による無音サインイン (passive WIA / エージェントレス Desktop SSO)</span>
         <span class="badge badge-status-pending">pending</span>
@@ -22070,12 +22146,6 @@ Entra/M365 連携の要件 (UPN / ImmutableID 等) は満たせる。</li>
         <span class="ch-title">Microsoft Entra domain federation で Microsoft 365 サインインと無音 SSO に対応する</span>
         <span class="badge badge-status-pending">pending</span>
         <span class="badge badge-risk-high">high</span>
-
-      </a><a class="ch-index-row" href="#wi-63-federation-metadata-and-claims-mapping">
-        <code class="ch-id">wi-63-federation-metadata-and-claims-mapping</code>
-        <span class="ch-title">Federation metadata 公開と claim 発行ルールエンジンを WS-Fed / WS-Trust で共有する</span>
-        <span class="badge badge-status-pending">pending</span>
-        <span class="badge badge-risk-medium">medium</span>
 
       </a><a class="ch-index-row" href="#wi-62-ws-trust-active-sts">
         <code class="ch-id">wi-62-ws-trust-active-sts</code>
@@ -22429,7 +22499,61 @@ Entra/M365 連携の要件 (UPN / ImmutableID 等) は満たせる。</li>
   </section>
   <section id="ch-details">
     <h2>Details <span class="count">61</span></h2>
-    <div class="cards"><article class="card change" id="wi-65-kerberos-spnego-inbound-silent-sso">
+    <div class="cards"><article class="card change" id="wi-63-federation-metadata-and-claims-mapping">
+    <header>
+      <h3>Federation metadata 公開と claim 発行ルールエンジンを WS-Fed / WS-Trust で共有する</h3>
+      <span class="chip chip-hint">wi-63-federation-metadata-and-claims-mapping</span>
+
+    </header>
+    <div class="work-item">
+    <header class="wi-header">
+      <h4>Federation metadata 公開と claim 発行ルールエンジンを WS-Fed / WS-Trust で共有する</h4>
+      <div class="wi-meta"><span class="badge badge-status-progress">in_progress</span> <span class="badge badge-risk-medium">risk: medium</span> <span class="chip chip-hint">created 2026-06-24</span> <span class="chip chip-hint">authors: tn</span></div>
+    </header>
+    <details class="change-block" open><summary>Motivation</summary><div class="md"><p>WS-Federation passive ([[wi-61-ws-federation-passive-requestor-idp]]) と WS-Trust
+active ([[wi-62-ws-trust-active-sts]]) は、(1) RP / 相手 IdP が信頼を確立するための
+federation metadata と、(2) 内部ユーザー属性から発行 token の claim を組み立てる
+claim 発行ルールを共有する。AD FS は <code>federationmetadata.xml</code> に passive/active
+エンドポイント・token type・署名証明書を載せ、relying party trust ごとに claim
+issuance rule で <code>UPN</code> や <code>nameidentifier</code> を発行する。PingFederate は attribute
+contract と token generator で同等を、Okta は Office 365 連携の claim mapping で
+同等を提供する。</p>
+<p>本 WI は AD FS 互換の <code>federationmetadata.xml</code> を realm 配下に公開し、署名証明書
+(signing certificate) を広告し、RP / SP trust ごとの claim 発行ルール (内部属性 →
+SAML claim type への mapping、固定値、NameID format / source) を定義・適用する
+エンジンを実装する。これは WS-Fed と WS-Trust の双方が assertion を組み立てるとき
+に使い、最終ゴールの Entra 連携 ([[wi-64-entra-domain-federation-m365-sso]]) が
+要求する UPN / ImmutableID などの claim 形状をこのエンジンで満たす。SAML 2.0 IdP
+([[wi-29-saml2-idp]]) の attribute mapping とも基盤を共有する。</p>
+</div></details><details class="change-block"><summary>Scope</summary><div class="scope-group"><h4>decision</h4><ul class="change-list"><li><div class="md"><p>新規 ADR: federation metadata の公開範囲と claim 発行ルールの所有境界を確定する。 metadata は AD FS 互換 <code>federationmetadata.xml</code> (EntityDescriptor + RoleDescriptor: SecurityTokenService / ApplicationServiceType、PassiveRequestorEndpoint、 SecurityTokenServiceEndpoint、署名証明書) を realm 単位で公開する。claim ルールは 宣言的 mapping (source 属性 → claim type、固定値、NameID format) とし、AD FS の claim rule 言語そのものは採らない方針を明記する。署名証明書は OAuth signing key と 分離するか ADR で決める ([[wi-32-kms-hsm-and-per-tenant-signing-keys]] と整合)。</p>
+</div></li></ul></div><div class="scope-group"><h4>scl</h4><ul class="change-list"><li><div class="md"><p>新規 model: FederationMetadataDocument / ClaimMappingRule / ClaimType / NameIdConfiguration。RP / SP trust に claim mapping rule 集合を持たせる。</p>
+</div></li><li><dl class="kv change-kv"><dt>新規 interface</dt><dd><div class="md"><p>PublishFederationMetadata / 管理用の ClaimMappingRule CRUD。</p>
+</div></dd></dl></li><li><dl class="kv change-kv"><dt>新規 permission</dt><dd><div class="md"><p>AdminFederationTrustManage。</p>
+</div></dd></dl></li><li><dl class="kv change-kv"><dt>新規 event</dt><dd><div class="md"><p>FederationMetadataPublished / ClaimMappingRuleChanged。</p>
+</div></dd></dl></li></ul></div><div class="scope-group"><h4>go</h4><ul class="change-list"><li><div class="md"><p>realm の署名証明書・WS-Fed/WS-Trust エンドポイントから <code>federationmetadata.xml</code> を 生成し署名する。XML 署名は SAML / WS-* と共有 library を使う。</p>
+</div></li><li><div class="md"><p>claim 発行エンジンを実装し、ユーザー属性・固定値・NameID 設定から token claim を fail-closed に組み立てる (未マップ属性は出力しない)。WS-Fed / WS-Trust / SAML が再利用する。</p>
+</div></li><li><div class="md"><p>claim type は標準 URI (<code>http://schemas.xmlsoap.org/.../UPN</code> 等) を扱えるようにする。</p>
+</div></li><li><div class="md"><p>metadata は存在するエンドポイントを広告する。wi-65 が WIA passive を追加したら RoleDescriptor に反映できるよう拡張点を設ける (本 WI は wi-65 に依存しない)。</p>
+</div></li></ul></div><div class="scope-group"><h4>http</h4><ul class="change-list"><li><div class="md"><p><code>/{realm}/federationmetadata/2007-06/federationmetadata.xml</code> を公開する。</p>
+</div></li></ul></div><div class="scope-group"><h4>ui</h4><ul class="change-list"><li><div class="md"><p>admin trust 編集に claim mapping rule・NameID source・metadata ダウンロードを追加する。</p>
+</div></li></ul></div><div class="scope-group"><h4>documentation</h4><ul class="change-list"><li><div class="md"><p>README に metadata URL、claim mapping の設定例、署名証明書の取り扱いを書く。</p>
+</div></li></ul></div></details><details class="change-block"><summary>Out of scope</summary><ul class="change-list"><li><div class="md"><p>WS-Federation passive / WS-Trust active のプロトコル本体 (wi-61 / wi-62)。</p>
+</div></li><li><div class="md"><p>SAML 2.0 metadata 形式そのもの (wi-29 で扱う。本 WI は WS-* 互換 federationmetadata.xml)。</p>
+</div></li><li><div class="md"><p>AD FS claim rule language の完全互換。宣言的 mapping に留める。</p>
+</div></li></ul></details><details class="change-block"><summary>Affected guarantees</summary><ul class="change-list"><li><dl class="kv change-kv"><dt>metadata integrity</dt><dd><div class="md"><p>公開する federationmetadata.xml は署名し、改竄を検出可能にする。</p>
+</div></dd></dl></li><li><dl class="kv change-kv"><dt>claim minimization</dt><dd><div class="md"><p>mapping で明示した claim だけを発行し、未マップ属性は漏らさない (fail-closed)。</p>
+</div></dd></dl></li><li><dl class="kv change-kv"><dt>tenant isolation</dt><dd><div class="md"><p>metadata・署名証明書・claim ルールは realm / tenant ごとに分離する。</p>
+</div></dd></dl></li><li><dl class="kv change-kv"><dt>key separation</dt><dd><div class="md"><p>署名証明書の所在と OAuth signing key との分離方針を ADR で固定し守る。</p>
+</div></dd></dl></li><li><dl class="kv change-kv"><dt>audit</dt><dd><div class="md"><p>metadata 公開と claim ルール変更を監査に残す。</p>
+</div></dd></dl></li></ul></details><details class="change-block"><summary>Verification</summary><ul class="change-list"><li><code>go test ./...</code> <span class="chip chip-hint">in: ra-idp-go</span> <span class="muted">— metadata 生成・署名、claim mapping の出力・未マップ拒否、NameID source 解決の境界。</span></li><li><code>golangci-lint run ./...</code> <span class="chip chip-hint">in: ra-idp-go</span></li><li><code>go build ./...</code> <span class="chip chip-hint">in: ra-idp-go</span></li><li><code>bun --cwd ra-idp-go/ui typecheck</code></li><li><code>bun --cwd ra-idp-go/ui build</code></li><li><div class="md"><p>手動: federationmetadata.xml を取得し署名・エンドポイント・証明書が正しいこと、 claim mapping で UPN / nameidentifier が意図通り発行され未マップ属性が出ないことを確認する。</p>
+</div></li></ul></details><details class="change-block"><summary>Risk notes</summary><div class="md"><p>metadata の証明書・エンドポイント記載や claim mapping を誤ると、RP が誤った鍵を信頼したり
+過剰な属性を漏らす。metadata は署名し、claim は明示 mapping のみ fail-closed で発行する。
+署名証明書のローテーションは [[wi-23-signing-key-rotation-scheduler]] / [[wi-32-kms-hsm-and-per-tenant-signing-keys]]
+と整合させ、metadata に複数証明書を載せられるようにする。</p>
+</div></details>
+  </div>
+
+  </article><article class="card change" id="wi-65-kerberos-spnego-inbound-silent-sso">
     <header>
       <h3>Kerberos/SPNEGO inbound 認証による無音サインイン (passive WIA / エージェントレス Desktop SSO)</h3>
       <span class="chip chip-hint">wi-65-kerberos-spnego-inbound-silent-sso</span>
@@ -22552,60 +22676,6 @@ windowstransport + コンピュータアカウント Kerberos を要するため
 (Okta 同様の既知制約)、managed/PHS への切替や AD FS 併存を回避策として案内する。
 無理に擬似実装しない。実テナント検証は破壊的変更 (ドメイン federation 切替) を伴うため
 検証用テナントで行う。</p>
-</div></details>
-  </div>
-
-  </article><article class="card change" id="wi-63-federation-metadata-and-claims-mapping">
-    <header>
-      <h3>Federation metadata 公開と claim 発行ルールエンジンを WS-Fed / WS-Trust で共有する</h3>
-      <span class="chip chip-hint">wi-63-federation-metadata-and-claims-mapping</span>
-
-    </header>
-    <div class="work-item">
-    <header class="wi-header">
-      <h4>Federation metadata 公開と claim 発行ルールエンジンを WS-Fed / WS-Trust で共有する</h4>
-      <div class="wi-meta"><span class="badge badge-status-pending">pending</span> <span class="badge badge-risk-medium">risk: medium</span> <span class="chip chip-hint">created 2026-06-24</span> <span class="chip chip-hint">authors: tn</span></div>
-    </header>
-    <details class="change-block" open><summary>Motivation</summary><div class="md"><p>WS-Federation passive ([[wi-61-ws-federation-passive-requestor-idp]]) と WS-Trust
-active ([[wi-62-ws-trust-active-sts]]) は、(1) RP / 相手 IdP が信頼を確立するための
-federation metadata と、(2) 内部ユーザー属性から発行 token の claim を組み立てる
-claim 発行ルールを共有する。AD FS は <code>federationmetadata.xml</code> に passive/active
-エンドポイント・token type・署名証明書を載せ、relying party trust ごとに claim
-issuance rule で <code>UPN</code> や <code>nameidentifier</code> を発行する。PingFederate は attribute
-contract と token generator で同等を、Okta は Office 365 連携の claim mapping で
-同等を提供する。</p>
-<p>本 WI は AD FS 互換の <code>federationmetadata.xml</code> を realm 配下に公開し、署名証明書
-(signing certificate) を広告し、RP / SP trust ごとの claim 発行ルール (内部属性 →
-SAML claim type への mapping、固定値、NameID format / source) を定義・適用する
-エンジンを実装する。これは WS-Fed と WS-Trust の双方が assertion を組み立てるとき
-に使い、最終ゴールの Entra 連携 ([[wi-64-entra-domain-federation-m365-sso]]) が
-要求する UPN / ImmutableID などの claim 形状をこのエンジンで満たす。SAML 2.0 IdP
-([[wi-29-saml2-idp]]) の attribute mapping とも基盤を共有する。</p>
-</div></details><details class="change-block"><summary>Scope</summary><div class="scope-group"><h4>decision</h4><ul class="change-list"><li><div class="md"><p>新規 ADR: federation metadata の公開範囲と claim 発行ルールの所有境界を確定する。 metadata は AD FS 互換 <code>federationmetadata.xml</code> (EntityDescriptor + RoleDescriptor: SecurityTokenService / ApplicationServiceType、PassiveRequestorEndpoint、 SecurityTokenServiceEndpoint、署名証明書) を realm 単位で公開する。claim ルールは 宣言的 mapping (source 属性 → claim type、固定値、NameID format) とし、AD FS の claim rule 言語そのものは採らない方針を明記する。署名証明書は OAuth signing key と 分離するか ADR で決める ([[wi-32-kms-hsm-and-per-tenant-signing-keys]] と整合)。</p>
-</div></li></ul></div><div class="scope-group"><h4>scl</h4><ul class="change-list"><li><div class="md"><p>新規 model: FederationMetadataDocument / ClaimMappingRule / ClaimType / NameIdConfiguration。RP / SP trust に claim mapping rule 集合を持たせる。</p>
-</div></li><li><dl class="kv change-kv"><dt>新規 interface</dt><dd><div class="md"><p>PublishFederationMetadata / 管理用の ClaimMappingRule CRUD。</p>
-</div></dd></dl></li><li><dl class="kv change-kv"><dt>新規 permission</dt><dd><div class="md"><p>AdminFederationTrustManage。</p>
-</div></dd></dl></li><li><dl class="kv change-kv"><dt>新規 event</dt><dd><div class="md"><p>FederationMetadataPublished / ClaimMappingRuleChanged。</p>
-</div></dd></dl></li></ul></div><div class="scope-group"><h4>go</h4><ul class="change-list"><li><div class="md"><p>realm の署名証明書・WS-Fed/WS-Trust エンドポイントから <code>federationmetadata.xml</code> を 生成し署名する。XML 署名は SAML / WS-* と共有 library を使う。</p>
-</div></li><li><div class="md"><p>claim 発行エンジンを実装し、ユーザー属性・固定値・NameID 設定から token claim を fail-closed に組み立てる (未マップ属性は出力しない)。WS-Fed / WS-Trust / SAML が再利用する。</p>
-</div></li><li><div class="md"><p>claim type は標準 URI (<code>http://schemas.xmlsoap.org/.../UPN</code> 等) を扱えるようにする。</p>
-</div></li><li><div class="md"><p>metadata は存在するエンドポイントを広告する。wi-65 が WIA passive を追加したら RoleDescriptor に反映できるよう拡張点を設ける (本 WI は wi-65 に依存しない)。</p>
-</div></li></ul></div><div class="scope-group"><h4>http</h4><ul class="change-list"><li><div class="md"><p><code>/{realm}/federationmetadata/2007-06/federationmetadata.xml</code> を公開する。</p>
-</div></li></ul></div><div class="scope-group"><h4>ui</h4><ul class="change-list"><li><div class="md"><p>admin trust 編集に claim mapping rule・NameID source・metadata ダウンロードを追加する。</p>
-</div></li></ul></div><div class="scope-group"><h4>documentation</h4><ul class="change-list"><li><div class="md"><p>README に metadata URL、claim mapping の設定例、署名証明書の取り扱いを書く。</p>
-</div></li></ul></div></details><details class="change-block"><summary>Out of scope</summary><ul class="change-list"><li><div class="md"><p>WS-Federation passive / WS-Trust active のプロトコル本体 (wi-61 / wi-62)。</p>
-</div></li><li><div class="md"><p>SAML 2.0 metadata 形式そのもの (wi-29 で扱う。本 WI は WS-* 互換 federationmetadata.xml)。</p>
-</div></li><li><div class="md"><p>AD FS claim rule language の完全互換。宣言的 mapping に留める。</p>
-</div></li></ul></details><details class="change-block"><summary>Affected guarantees</summary><ul class="change-list"><li><dl class="kv change-kv"><dt>metadata integrity</dt><dd><div class="md"><p>公開する federationmetadata.xml は署名し、改竄を検出可能にする。</p>
-</div></dd></dl></li><li><dl class="kv change-kv"><dt>claim minimization</dt><dd><div class="md"><p>mapping で明示した claim だけを発行し、未マップ属性は漏らさない (fail-closed)。</p>
-</div></dd></dl></li><li><dl class="kv change-kv"><dt>tenant isolation</dt><dd><div class="md"><p>metadata・署名証明書・claim ルールは realm / tenant ごとに分離する。</p>
-</div></dd></dl></li><li><dl class="kv change-kv"><dt>key separation</dt><dd><div class="md"><p>署名証明書の所在と OAuth signing key との分離方針を ADR で固定し守る。</p>
-</div></dd></dl></li><li><dl class="kv change-kv"><dt>audit</dt><dd><div class="md"><p>metadata 公開と claim ルール変更を監査に残す。</p>
-</div></dd></dl></li></ul></details><details class="change-block"><summary>Verification</summary><ul class="change-list"><li><code>go test ./...</code> <span class="chip chip-hint">in: ra-idp-go</span> <span class="muted">— metadata 生成・署名、claim mapping の出力・未マップ拒否、NameID source 解決の境界。</span></li><li><code>golangci-lint run ./...</code> <span class="chip chip-hint">in: ra-idp-go</span></li><li><code>go build ./...</code> <span class="chip chip-hint">in: ra-idp-go</span></li><li><code>bun --cwd ra-idp-go/ui typecheck</code></li><li><code>bun --cwd ra-idp-go/ui build</code></li><li><div class="md"><p>手動: federationmetadata.xml を取得し署名・エンドポイント・証明書が正しいこと、 claim mapping で UPN / nameidentifier が意図通り発行され未マップ属性が出ないことを確認する。</p>
-</div></li></ul></details><details class="change-block"><summary>Risk notes</summary><div class="md"><p>metadata の証明書・エンドポイント記載や claim mapping を誤ると、RP が誤った鍵を信頼したり
-過剰な属性を漏らす。metadata は署名し、claim は明示 mapping のみ fail-closed で発行する。
-署名証明書のローテーションは [[wi-23-signing-key-rotation-scheduler]] / [[wi-32-kms-hsm-and-per-tenant-signing-keys]]
-と整合させ、metadata に複数証明書を載せられるようにする。</p>
 </div></details>
   </div>
 

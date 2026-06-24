@@ -18,5 +18,5 @@ type Deps struct {
 // RegisterRoutes は WS-Federation passive のエンドポイントを登録する。
 func RegisterRoutes(g *echo.Group, cd *core.Deps) {
 	d := Deps{cd}
-	g.GET("/wsfed", d.handleWsFedSignIn)
+	g.GET("/wsfed", d.handleWsFed)
 }

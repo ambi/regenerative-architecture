@@ -75,3 +75,35 @@ func (rp WsFedRelyingParty) EffectiveAudience() string {
 	}
 	return rp.Wtrealm
 }
+
+// WsFedSignInIssued は WS-Federation passive sign-in で assertion を発行した event (wi-61)。
+type WsFedSignInIssued struct {
+	At       time.Time `json:"-"`
+	TenantID string    `json:"tenantId"`
+	Wtrealm  string    `json:"wtrealm"`
+	Sub      string    `json:"sub"`
+}
+
+func (e *WsFedSignInIssued) EventType() string     { return "WsFedSignInIssued" }
+func (e *WsFedSignInIssued) OccurredAt() time.Time { return e.At }
+
+// WsFedSignInRejected は WS-Federation passive sign-in を拒否した event (wi-61)。
+type WsFedSignInRejected struct {
+	At       time.Time `json:"-"`
+	TenantID string    `json:"tenantId"`
+	Wtrealm  string    `json:"wtrealm,omitempty"`
+	Reason   string    `json:"reason"`
+}
+
+func (e *WsFedSignInRejected) EventType() string     { return "WsFedSignInRejected" }
+func (e *WsFedSignInRejected) OccurredAt() time.Time { return e.At }
+
+// WsFedSignOut は WS-Federation sign-out でローカルセッションを破棄した event (wi-61)。
+type WsFedSignOut struct {
+	At       time.Time `json:"-"`
+	TenantID string    `json:"tenantId"`
+	Wtrealm  string    `json:"wtrealm,omitempty"`
+}
+
+func (e *WsFedSignOut) EventType() string     { return "WsFedSignOut" }
+func (e *WsFedSignOut) OccurredAt() time.Time { return e.At }

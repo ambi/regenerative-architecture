@@ -61,8 +61,10 @@ func devSigner(t *testing.T) *samltoken.Signer {
 	return signer
 }
 
-func newServer(t *testing.T, authn *authdomain.AuthenticationContext) *echo.Echo {
+func newServer(t *testing.T, authn *authdomain.AuthenticationContext) (*echo.Echo, *[]spec.DomainEvent) {
 	t.Helper()
+
+	captured := &[]spec.DomainEvent{}
 
 	rpRepo := memory.NewWsFedRelyingPartyRepository()
 	rpRepo.Seed(&spec.WsFedRelyingParty{
@@ -90,8 +92,19 @@ func newServer(t *testing.T, authn *authdomain.AuthenticationContext) *echo.Echo
 		UserRepo:         userRepo,
 		FederationSigner: devSigner(t),
 		AuthnResolver:    stubResolver{ctx: authn},
+		Emit:             func(ev spec.DomainEvent) { *captured = append(*captured, ev) },
 	})
-	return e
+	return e, captured
+}
+
+// hasEvent は指定 EventType の event が捕捉されたかを返す。
+func hasEvent(events []spec.DomainEvent, eventType string) bool {
+	for _, ev := range events {
+		if ev.EventType() == eventType {
+			return true
+		}
+	}
+	return false
 }
 
 func get(e *echo.Echo, target string) *httptest.ResponseRecorder {
@@ -102,7 +115,7 @@ func get(e *echo.Echo, target string) *httptest.ResponseRecorder {
 }
 
 func TestWsFedSignIn_AuthenticatedIssuesPassiveForm(t *testing.T) {
-	e := newServer(t, &authdomain.AuthenticationContext{Sub: "user-1", AuthTime: time.Now().Unix()})
+	e, events := newServer(t, &authdomain.AuthenticationContext{Sub: "user-1", AuthTime: time.Now().Unix()})
 
 	rec := get(e, "/wsfed?wa=wsignin1.0&wtrealm=urn:ra-idp:demo-rp&wctx=ctx-42")
 	if rec.Code != http.StatusOK {
@@ -121,10 +134,13 @@ func TestWsFedSignIn_AuthenticatedIssuesPassiveForm(t *testing.T) {
 	if rec.Header().Get("Cache-Control") != "no-store" {
 		t.Fatalf("Cache-Control = %q, want no-store", rec.Header().Get("Cache-Control"))
 	}
+	if !hasEvent(*events, "WsFedSignInIssued") {
+		t.Fatal("WsFedSignInIssued not emitted")
+	}
 }
 
 func TestWsFedSignIn_UnauthenticatedRedirectsToLogin(t *testing.T) {
-	e := newServer(t, nil) // resolver returns no session
+	e, _ := newServer(t, nil) // resolver returns no session
 
 	rec := get(e, "/wsfed?wa=wsignin1.0&wtrealm=urn:ra-idp:demo-rp")
 	if rec.Code != http.StatusSeeOther {
@@ -141,17 +157,54 @@ func TestWsFedSignIn_UnauthenticatedRedirectsToLogin(t *testing.T) {
 }
 
 func TestWsFedSignIn_UnknownRelyingParty(t *testing.T) {
-	e := newServer(t, &authdomain.AuthenticationContext{Sub: "user-1"})
+	e, events := newServer(t, &authdomain.AuthenticationContext{Sub: "user-1"})
 	if rec := get(e, "/wsfed?wa=wsignin1.0&wtrealm=urn:unknown"); rec.Code != http.StatusBadRequest {
 		t.Fatalf("status=%d, want 400", rec.Code)
+	}
+	if !hasEvent(*events, "WsFedSignInRejected") {
+		t.Fatal("WsFedSignInRejected not emitted")
 	}
 }
 
 func TestWsFedSignIn_DisallowedWreplyRejected(t *testing.T) {
-	e := newServer(t, &authdomain.AuthenticationContext{Sub: "user-1"})
+	e, _ := newServer(t, &authdomain.AuthenticationContext{Sub: "user-1"})
 	rec := get(e, "/wsfed?wa=wsignin1.0&wtrealm=urn:ra-idp:demo-rp&wreply=https://evil.example/steal")
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("status=%d, want 400 (open redirect prevention)", rec.Code)
+	}
+}
+
+func TestWsFedSignOut_RedirectsToAllowedWreply(t *testing.T) {
+	e, events := newServer(t, nil)
+	rec := get(e, "/wsfed?wa=wsignout1.0&wtrealm=urn:ra-idp:demo-rp&wreply=https://rp.example/wsfed")
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("status=%d, want 303", rec.Code)
+	}
+	if loc := rec.Header().Get("Location"); loc != "https://rp.example/wsfed" {
+		t.Fatalf("Location = %q, want allowed wreply", loc)
+	}
+	// セッション cookie が失効される。
+	if !strings.Contains(rec.Header().Get("Set-Cookie"), "Max-Age=0") {
+		t.Fatalf("session cookie not cleared: %q", rec.Header().Get("Set-Cookie"))
+	}
+	if !hasEvent(*events, "WsFedSignOut") {
+		t.Fatal("WsFedSignOut not emitted")
+	}
+}
+
+func TestWsFedSignOut_DisallowedWreplyNoRedirect(t *testing.T) {
+	e, _ := newServer(t, nil)
+	rec := get(e, "/wsfed?wa=wsignout1.0&wtrealm=urn:ra-idp:demo-rp&wreply=https://evil.example/x")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d, want 200 (no open redirect)", rec.Code)
+	}
+}
+
+func TestWsFedSignOutCleanup_ClearsAndReturns200(t *testing.T) {
+	e, _ := newServer(t, nil)
+	rec := get(e, "/wsfed?wa=wsignoutcleanup1.0")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d, want 200", rec.Code)
 	}
 }
 

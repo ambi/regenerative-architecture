@@ -64,3 +64,10 @@ func (r *WsFedRelyingPartyRepository) Save(_ context.Context, rp *spec.WsFedRely
 	r.parts[tenantKey(rp.TenantID, rp.Wtrealm)] = cloneRelyingParty(rp)
 	return nil
 }
+
+func (r *WsFedRelyingPartyRepository) Delete(_ context.Context, tenantID, wtrealm string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.parts, tenantKey(tenantID, wtrealm))
+	return nil
+}

@@ -16,4 +16,6 @@ type WsFedRelyingPartyRepository interface {
 	ListByTenant(ctx context.Context, tenantID string) ([]*spec.WsFedRelyingParty, error)
 	// Save は RP を upsert する。
 	Save(ctx context.Context, rp *spec.WsFedRelyingParty) error
+	// Delete は wtrealm に一致する RP を削除する (冪等)。
+	Delete(ctx context.Context, tenantID, wtrealm string) error
 }

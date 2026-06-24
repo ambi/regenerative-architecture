@@ -208,6 +208,67 @@ func TestWsFedSignOutCleanup_ClearsAndReturns200(t *testing.T) {
 	}
 }
 
+func newAdminServer(t *testing.T) *echo.Echo {
+	t.Helper()
+	userRepo := memory.NewUserRepository()
+	userRepo.Seed(&spec.User{Sub: "admin-1", TenantID: spec.DefaultTenantID, PreferredUsername: "admin", Roles: []string{"admin"}})
+	e := echo.New()
+	httpadapter.Register(e, core.Deps{
+		Issuer:        "https://idp.example",
+		SCL:           spec.MustLoadSCL(),
+		WsFedRPRepo:   memory.NewWsFedRelyingPartyRepository(),
+		UserRepo:      userRepo,
+		AuthnResolver: stubResolver{ctx: &authdomain.AuthenticationContext{Sub: "admin-1"}},
+	})
+	return e
+}
+
+func doJSON(e *echo.Echo, method, target, body string) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(method, target, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	return rec
+}
+
+func TestAdminRelyingParty_CRUD(t *testing.T) {
+	e := newAdminServer(t)
+	const path = "/api/admin/wsfed/relying-parties"
+	body := `{"wtrealm":"urn:rp:a","reply_urls":["https://a.example/acs"],"claim_policy":{"name_id":{"format":"urn:oasis:names:tc:SAML:2.0:nameid-format:persistent","source_attribute":"sub"}}}`
+
+	if rec := doJSON(e, http.MethodPost, path, body); rec.Code != http.StatusCreated {
+		t.Fatalf("create status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	if rec := doJSON(e, http.MethodPost, path, body); rec.Code != http.StatusOK {
+		t.Fatalf("update status=%d, want 200", rec.Code)
+	}
+	if rec := get(e, path); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "urn:rp:a") {
+		t.Fatalf("list status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	if rec := doJSON(e, http.MethodDelete, path+"?wtrealm=urn:rp:a", ""); rec.Code != http.StatusNoContent {
+		t.Fatalf("delete status=%d, want 204", rec.Code)
+	}
+	if rec := get(e, path); strings.Contains(rec.Body.String(), "urn:rp:a") {
+		t.Fatalf("RP still present after delete: %s", rec.Body.String())
+	}
+}
+
+func TestAdminRelyingParty_RejectsInvalid(t *testing.T) {
+	e := newAdminServer(t)
+	// reply_urls 欠落。
+	body := `{"wtrealm":"urn:rp:b","claim_policy":{"name_id":{"format":"f","source_attribute":"sub"}}}`
+	if rec := doJSON(e, http.MethodPost, "/api/admin/wsfed/relying-parties", body); rec.Code != http.StatusBadRequest {
+		t.Fatalf("status=%d, want 400", rec.Code)
+	}
+}
+
+func TestAdminRelyingParty_ForbiddenForNonAdmin(t *testing.T) {
+	e, _ := newServer(t, &authdomain.AuthenticationContext{Sub: "user-1"}) // 非 admin
+	if rec := get(e, "/api/admin/wsfed/relying-parties"); rec.Code != http.StatusForbidden {
+		t.Fatalf("status=%d, want 403", rec.Code)
+	}
+}
+
 func mustUnescape(t *testing.T, s string) string {
 	t.Helper()
 	out, err := url.QueryUnescape(s)

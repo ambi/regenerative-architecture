@@ -19,4 +19,7 @@ type Deps struct {
 func RegisterRoutes(g *echo.Group, cd *core.Deps) {
 	d := Deps{cd}
 	g.GET("/wsfed", d.handleWsFed)
+	g.GET("/api/admin/wsfed/relying-parties", d.handleListRelyingParties)
+	g.POST("/api/admin/wsfed/relying-parties", d.handleUpsertRelyingParty)
+	g.DELETE("/api/admin/wsfed/relying-parties", d.handleDeleteRelyingParty)
 }

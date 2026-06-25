@@ -20,7 +20,7 @@ func TestBuildRSTR(t *testing.T) {
 	created := time.Date(2026, 6, 25, 12, 0, 0, 0, time.UTC)
 	expires := created.Add(5 * time.Minute)
 
-	rstr, err := BuildRSTR(dummyAssertion(), "urn:federation:MicrosoftOnline", created, expires)
+	rstr, err := BuildRSTR(dummyAssertion(), "urn:federation:MicrosoftOnline", "urn:oasis:names:tc:SAML:2.0:assertion", created, expires)
 	if err != nil {
 		t.Fatalf("BuildRSTR: %v", err)
 	}
@@ -41,10 +41,10 @@ func TestBuildRSTR(t *testing.T) {
 
 func TestBuildRSTR_Rejections(t *testing.T) {
 	now := time.Now()
-	if _, err := BuildRSTR(nil, "urn:rp", now, now.Add(time.Minute)); err == nil {
+	if _, err := BuildRSTR(nil, "urn:rp", "", now, now.Add(time.Minute)); err == nil {
 		t.Fatal("expected error for nil assertion")
 	}
-	if _, err := BuildRSTR(dummyAssertion(), "  ", now, now.Add(time.Minute)); err == nil {
+	if _, err := BuildRSTR(dummyAssertion(), "  ", "", now, now.Add(time.Minute)); err == nil {
 		t.Fatal("expected error for empty appliesTo")
 	}
 }

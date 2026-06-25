@@ -3699,6 +3699,15 @@ models:
       nameid は NameIdConfiguration が解決した NameID 値を claim にも反映する場合に使う (ADR-059)。
     values: [user_attribute, fixed, nameid]
 
+  WsFedTokenType:
+    kind: enum
+    description: >-
+      WS-Federation で発行する assertion の SAML バージョン (RSTR の TokenType にもなる)。
+      SAML 1.1 (urn:oasis:names:tc:SAML:1.0:assertion) は Entra / AD FS の WS-Fed 既定 (wi-61)。
+    values:
+      - "urn:oasis:names:tc:SAML:1.0:assertion"
+      - "urn:oasis:names:tc:SAML:2.0:assertion"
+
   ClaimMappingRule:
     kind: value_object
     description: 1 つの出力 claim の宣言的 mapping。出力 claim 型 (URI) を source から組み立てる (ADR-059)。
@@ -3744,6 +3753,7 @@ models:
       display_name: { type: String, optional: true, description: "管理 UI 表示名。" }
       reply_urls:   { type: "String[]", constraints: [non_empty], description: "許可する wreply の閉集合。wreply はこの集合との完全一致のみ受理する。" }
       audience:     { type: String, optional: true, description: "発行 assertion の audience。空なら wtrealm を用いる。" }
+      token_type:   { type: WsFedTokenType, optional: true, description: "発行 assertion の SAML バージョン。空なら SAML 1.1 (Entra WS-Fed 互換の既定)。" }
       claim_policy: { type: ClaimMappingPolicy, description: "この RP 向けの claim 発行 policy (ADR-059)。" }
       created_at:   { type: Timestamp }
       updated_at:   { type: Timestamp }
@@ -4135,7 +4145,9 @@ interfaces:
     description: >-
       WS-Federation passive requestor profile の sign-in (wi-61)。wtrealm で relying party を解決し、
       wreply を許可集合に限定する (open redirect 防止)。未認証はログインへ誘導し、認証済みなら relying party の
-      claim policy で発行した claim を署名済み SAML 2.0 assertion (ADR-060) に載せ、RSTR に包んで自動 POST する。
+      claim policy で発行した claim を署名済み SAML assertion (既定 SAML 1.1 / Entra 互換、RP 設定で SAML 2.0、ADR-060) に
+      載せ、RSTR に包んで自動 POST する。wfresh が示す最大経過時間より認証が古ければ再認証へ誘導し、wauth が要求する
+      認証方式を尊重する (満たせない統合 Windows 認証等は fail-closed で拒否、無音サインインは wi-65)。
     steps:
       - "wtrealm {wtrealm} へ wreply {wreply} で sign-in する"
     input:
@@ -4143,8 +4155,8 @@ interfaces:
       wtrealm: { type: String, description: "relying party 識別子。" }
       wreply:  { type: String, optional: true, description: "返信先。許可集合との完全一致のみ。" }
       wctx:    { type: String, optional: true, description: "RP が往復させる不透明コンテキスト。" }
-      wfresh:  { type: String, optional: true, description: "再認証の最大経過時間 (分)。" }
-      wauth:   { type: String, optional: true, description: "要求された認証方式 URI。" }
+      wfresh:  { type: String, optional: true, description: "再認証の最大経過時間 (分)。古ければ再認証へ誘導する。" }
+      wauth:   { type: String, optional: true, description: "要求された認証方式 URI。満たせなければ拒否する。" }
       whr:     { type: String, optional: true, description: "home realm のヒント。" }
     bindings:
       - { kind: http, method: GET, path: /wsfed, request_form: query, successful_status_codes: ["200", "303"] }

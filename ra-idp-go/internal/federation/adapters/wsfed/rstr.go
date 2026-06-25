@@ -23,20 +23,24 @@ const (
 	nsAddressing = "http://www.w3.org/2005/08/addressing"
 	nsWSU        = "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"
 
-	tokenTypeSAML2 = "urn:oasis:names:tc:SAML:2.0:assertion"
-	requestIssue   = "http://schemas.xmlsoap.org/ws/2005/02/trust/Issue"
-	keyTypeBearer  = "http://schemas.xmlsoap.org/ws/2005/05/identity/NoProofKey"
+	tokenTypeSAML11 = "urn:oasis:names:tc:SAML:1.0:assertion"
+	requestIssue    = "http://schemas.xmlsoap.org/ws/2005/02/trust/Issue"
+	keyTypeBearer   = "http://schemas.xmlsoap.org/ws/2005/05/identity/NoProofKey"
 
 	xmlDateTime = "2006-01-02T15:04:05Z"
 )
 
-// BuildRSTR は署名済み assertion を RSTR 要素に包む。appliesTo は RP の wtrealm。
-func BuildRSTR(signedAssertion *etree.Element, appliesTo string, created, expires time.Time) (*etree.Element, error) {
+// BuildRSTR は署名済み assertion を RSTR 要素に包む。appliesTo は RP の wtrealm、
+// tokenType は assertion の SAML バージョンを表す URN (空なら SAML 1.1 を既定とする)。
+func BuildRSTR(signedAssertion *etree.Element, appliesTo, tokenType string, created, expires time.Time) (*etree.Element, error) {
 	if signedAssertion == nil {
 		return nil, fmt.Errorf("wsfed: signed assertion is required")
 	}
 	if strings.TrimSpace(appliesTo) == "" {
 		return nil, fmt.Errorf("wsfed: appliesTo is required")
+	}
+	if strings.TrimSpace(tokenType) == "" {
+		tokenType = tokenTypeSAML11
 	}
 
 	rstr := etree.NewElement("t:RequestSecurityTokenResponse")
@@ -59,7 +63,7 @@ func BuildRSTR(signedAssertion *etree.Element, appliesTo string, created, expire
 	requested := rstr.CreateElement("t:RequestedSecurityToken")
 	requested.AddChild(signedAssertion.Copy())
 
-	rstr.CreateElement("t:TokenType").SetText(tokenTypeSAML2)
+	rstr.CreateElement("t:TokenType").SetText(tokenType)
 	rstr.CreateElement("t:RequestType").SetText(requestIssue)
 	rstr.CreateElement("t:KeyType").SetText(keyTypeBearer)
 

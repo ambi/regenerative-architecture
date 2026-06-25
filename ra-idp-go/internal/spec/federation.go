@@ -55,14 +55,33 @@ type IssuedClaim struct {
 	Values    []string `json:"values"`
 }
 
+// WsFedTokenType は発行 assertion の SAML バージョン (wi-61)。RSTR の TokenType にもなる。
+type WsFedTokenType string
+
+const (
+	// TokenTypeSAML11 は SAML 1.1 assertion。Entra / AD FS の WS-Federation 既定。
+	TokenTypeSAML11 WsFedTokenType = "urn:oasis:names:tc:SAML:1.0:assertion"
+	// TokenTypeSAML20 は SAML 2.0 assertion。
+	TokenTypeSAML20 WsFedTokenType = "urn:oasis:names:tc:SAML:2.0:assertion"
+)
+
+func (t WsFedTokenType) Valid() bool {
+	switch t {
+	case TokenTypeSAML11, TokenTypeSAML20:
+		return true
+	}
+	return false
+}
+
 // WsFedRelyingParty は WS-Federation passive の relying party 登録 (ADR-059)。
-// wtrealm で識別し、許可 wreply の閉集合・audience・claim policy を束ねる。
+// wtrealm で識別し、許可 wreply の閉集合・audience・token type・claim policy を束ねる。
 type WsFedRelyingParty struct {
 	TenantID    string             `json:"tenant_id"`
 	Wtrealm     string             `json:"wtrealm"`
 	DisplayName string             `json:"display_name,omitempty"`
 	ReplyURLs   []string           `json:"reply_urls"`
 	Audience    string             `json:"audience,omitempty"`
+	TokenType   WsFedTokenType     `json:"token_type,omitempty"`
 	ClaimPolicy ClaimMappingPolicy `json:"claim_policy"`
 	CreatedAt   time.Time          `json:"created_at"`
 	UpdatedAt   *time.Time         `json:"updated_at,omitempty"`
@@ -74,6 +93,15 @@ func (rp WsFedRelyingParty) EffectiveAudience() string {
 		return rp.Audience
 	}
 	return rp.Wtrealm
+}
+
+// EffectiveTokenType は発行する assertion の SAML バージョンを返す。未設定は SAML 1.1
+// (Entra WS-Fed 互換の既定)。
+func (rp WsFedRelyingParty) EffectiveTokenType() WsFedTokenType {
+	if rp.TokenType == TokenTypeSAML20 {
+		return TokenTypeSAML20
+	}
+	return TokenTypeSAML11
 }
 
 // WsFedSignInIssued は WS-Federation passive sign-in で assertion を発行した event (wi-61)。

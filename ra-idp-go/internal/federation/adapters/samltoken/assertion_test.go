@@ -142,6 +142,66 @@ func TestSignedAssertion_TamperDetected(t *testing.T) {
 	}
 }
 
+func TestIssueSignedAssertion_SAML11RoundTrip(t *testing.T) {
+	cert, key := selfSignedCert(t)
+	signer, err := NewSigner(cert, key)
+	if err != nil {
+		t.Fatalf("new signer: %v", err)
+	}
+
+	in := sampleInput()
+	in.Version = SAML11
+	in.AuthnMethod = domain.AuthnPassword
+	signedXML, id, err := IssueSignedAssertion(in, signer)
+	if err != nil {
+		t.Fatalf("issue signed assertion: %v", err)
+	}
+	if id == "" || id[0] != '_' {
+		t.Fatalf("assertion id %q must be an NCName starting with '_'", id)
+	}
+
+	// SAML 1.1 は AssertionID を ID 参照属性とする。
+	doc := etree.NewDocument()
+	if err := doc.ReadFromBytes(signedXML); err != nil {
+		t.Fatalf("parse signed xml: %v", err)
+	}
+	store := &dsig.MemoryX509CertificateStore{Roots: []*x509.Certificate{cert}}
+	vctx := dsig.NewDefaultValidationContext(store)
+	vctx.IdAttribute = idAttribute11
+	if _, err := vctx.Validate(doc.Root()); err != nil {
+		t.Fatalf("SAML 1.1 signature did not validate: %v", err)
+	}
+
+	root := doc.Root()
+	if root.SelectAttrValue("MajorVersion", "") != "1" || root.SelectAttrValue("MinorVersion", "") != "1" {
+		t.Fatalf("expected MajorVersion/MinorVersion 1/1, got %s/%s",
+			root.SelectAttrValue("MajorVersion", ""), root.SelectAttrValue("MinorVersion", ""))
+	}
+	if root.SelectAttrValue("Issuer", "") != in.Issuer {
+		t.Fatalf("Issuer attribute = %q, want %q", root.SelectAttrValue("Issuer", ""), in.Issuer)
+	}
+	if got := doc.FindElement("//NameIdentifier"); got == nil || got.Text() != "AAECAwQFBgc=" {
+		t.Fatalf("SAML 1.1 NameIdentifier missing or wrong: %+v", got)
+	}
+	if got := doc.FindElement("//AuthenticationStatement"); got == nil ||
+		got.SelectAttrValue("AuthenticationMethod", "") != authnMethodPassword {
+		t.Fatalf("AuthenticationMethod missing or not password: %+v", got)
+	}
+	// claim 型 URI は AD FS 流に namespace/name へ分割される。
+	upn := false
+	for _, attr := range doc.FindElements("//Attribute") {
+		if attr.SelectAttrValue("AttributeName", "") == "UPN" &&
+			attr.SelectAttrValue("AttributeNamespace", "") == "http://schemas.xmlsoap.org/claims" {
+			if v := attr.FindElement("AttributeValue"); v != nil && v.Text() == "alice@contoso.com" {
+				upn = true
+			}
+		}
+	}
+	if !upn {
+		t.Fatal("UPN attribute (split namespace/name) not found in SAML 1.1 assertion")
+	}
+}
+
 func TestBuildAssertion_InputValidation(t *testing.T) {
 	base := sampleInput()
 	bad := map[string]func(*AssertionInput){

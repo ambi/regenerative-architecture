@@ -71,7 +71,7 @@ import {
   tenantLocalPath,
   tenantURL,
   UnauthenticatedError,
-  validAdminReturnTo,
+  validReturnTo,
 } from './core'
 
 type TransactionResponse = {
@@ -475,7 +475,7 @@ export async function loadPageData(): Promise<PageData> {
 
   const requestedReturnTo = new URLSearchParams(window.location.search).get('return_to') ?? ''
   const returnTo = requestedReturnTo
-    ? validAdminReturnTo(requestedReturnTo)
+    ? validReturnTo(requestedReturnTo)
       ? requestedReturnTo
       : tenantURL('/admin')
     : undefined

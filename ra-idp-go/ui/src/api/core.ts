@@ -64,13 +64,18 @@ export function tenantURL(path: string): string {
   return `${tenantBasePath()}${path}`
 }
 
-export function validAdminReturnTo(returnTo: string): boolean {
+// validReturnTo は login 後に戻ってよい同一オリジンの内部パスかを判定する。
+// 管理 UI (/admin 配下) と WS-Federation passive エンドポイント (/wsfed) を許可する (wi-61)。
+export function validReturnTo(returnTo: string): boolean {
   if (!returnTo.startsWith('/') || returnTo.includes('\\')) return false
   const parsed = new URL(returnTo, window.location.origin)
+  if (parsed.origin !== window.location.origin) return false
   const adminRoot = tenantURL('/admin')
+  const wsfedPath = tenantURL('/wsfed')
   return (
-    parsed.origin === window.location.origin &&
-    (parsed.pathname === adminRoot || parsed.pathname.startsWith(`${adminRoot}/`))
+    parsed.pathname === adminRoot ||
+    parsed.pathname.startsWith(`${adminRoot}/`) ||
+    parsed.pathname === wsfedPath
   )
 }
 

@@ -178,7 +178,7 @@ func (d Deps) handleTransaction(c *echo.Context) error {
 	req, err := d.transactionRequest(c)
 	if err != nil {
 		if returnTo := c.QueryParam("return_to"); returnTo != "" {
-			if !validAdminReturnTo(c, returnTo) {
+			if !validReturnTo(c, returnTo) {
 				return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "return_to が不正です")
 			}
 			csrf, csrfErr := d.EnsureCSRFCookie(c)
@@ -328,7 +328,7 @@ func (d Deps) handleLoginAPI(c *echo.Context) error {
 	req, transactionErr := d.transactionRequest(c)
 	directAdminLogin := transactionErr != nil && input.ReturnTo != ""
 	if directAdminLogin {
-		if !validAdminReturnTo(c, input.ReturnTo) {
+		if !validReturnTo(c, input.ReturnTo) {
 			return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "return_to が不正です")
 		}
 	} else if transactionErr != nil {
@@ -479,7 +479,7 @@ func (d Deps) handleTOTPAPI(c *echo.Context) error {
 	req, transactionErr := d.transactionRequest(c)
 	directAdminLogin := transactionErr != nil && input.ReturnTo != ""
 	if directAdminLogin {
-		if !validAdminReturnTo(c, input.ReturnTo) {
+		if !validReturnTo(c, input.ReturnTo) {
 			return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "return_to が不正です")
 		}
 	} else if transactionErr != nil {
@@ -804,7 +804,9 @@ func (d Deps) transactionRequest(c *echo.Context) (*spec.AuthorizationRequest, e
 	return req, nil
 }
 
-func validAdminReturnTo(c *echo.Context, returnTo string) bool {
+// validReturnTo は login 後に戻ってよい同一オリジンの内部パスかを判定する。
+// 管理 UI (/admin 配下) と WS-Federation passive エンドポイント (/wsfed) を許可する (wi-61)。
+func validReturnTo(c *echo.Context, returnTo string) bool {
 	if strings.Contains(returnTo, "\\") {
 		return false
 	}
@@ -816,7 +818,10 @@ func validAdminReturnTo(c *echo.Context, returnTo string) bool {
 		return false
 	}
 	adminRoot := core.TenantRoute(c, "/admin")
-	return parsed.Path == adminRoot || strings.HasPrefix(parsed.Path, adminRoot+"/")
+	wsfedRoot := core.TenantRoute(c, "/wsfed")
+	return parsed.Path == adminRoot ||
+		strings.HasPrefix(parsed.Path, adminRoot+"/") ||
+		parsed.Path == wsfedRoot
 }
 
 func (d Deps) setTransactionCookie(c *echo.Context, requestID string) {

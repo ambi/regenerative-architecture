@@ -15,6 +15,7 @@ import type {
   UserAttributeDef,
   WsFedClaimMappingPolicy,
   WsFedRelyingParty,
+  WsFedTokenType,
 } from '../types'
 import { adminRequest, request, tenantURL } from './core'
 
@@ -224,6 +225,7 @@ export type WsFedRelyingPartyInput = {
   display_name?: string
   reply_urls: string[]
   audience?: string
+  token_type?: WsFedTokenType
   claim_policy: WsFedClaimMappingPolicy
 }
 

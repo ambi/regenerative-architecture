@@ -217,12 +217,17 @@ export type WsFedClaimMappingPolicy = {
   rules?: WsFedClaimMappingRule[]
 }
 
+export type WsFedTokenType =
+  | 'urn:oasis:names:tc:SAML:1.0:assertion'
+  | 'urn:oasis:names:tc:SAML:2.0:assertion'
+
 export type WsFedRelyingParty = {
   tenant_id: string
   wtrealm: string
   display_name?: string
   reply_urls: string[]
   audience?: string
+  token_type?: WsFedTokenType
   claim_policy: WsFedClaimMappingPolicy
   created_at: string
   updated_at?: string

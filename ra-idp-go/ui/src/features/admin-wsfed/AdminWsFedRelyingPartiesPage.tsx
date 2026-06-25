@@ -16,13 +16,18 @@ import type {
   AdminWsFedRelyingPartiesPage as PageProps,
   WsFedClaimMappingRule,
   WsFedRelyingParty,
+  WsFedTokenType,
 } from '../../types'
+
+const TOKEN_TYPE_SAML11: WsFedTokenType = 'urn:oasis:names:tc:SAML:1.0:assertion'
+const TOKEN_TYPE_SAML20: WsFedTokenType = 'urn:oasis:names:tc:SAML:2.0:assertion'
 
 type FormState = {
   wtrealm: string
   displayName: string
   replyURLs: string
   audience: string
+  tokenType: WsFedTokenType
   nameIDFormat: string
   nameIDSource: string
   rulesJSON: string
@@ -38,6 +43,7 @@ const emptyForm: FormState = {
   displayName: '',
   replyURLs: '',
   audience: '',
+  tokenType: TOKEN_TYPE_SAML11,
   nameIDFormat: 'urn:oasis:names:tc:SAML:2.0:nameid-format:persistent',
   nameIDSource: 'sub',
   rulesJSON: sampleRules,
@@ -49,6 +55,7 @@ function toForm(rp: WsFedRelyingParty): FormState {
     displayName: rp.display_name ?? '',
     replyURLs: rp.reply_urls.join('\n'),
     audience: rp.audience ?? '',
+    tokenType: rp.token_type ?? TOKEN_TYPE_SAML11,
     nameIDFormat: rp.claim_policy.name_id.format,
     nameIDSource: rp.claim_policy.name_id.source_attribute,
     rulesJSON: JSON.stringify(rp.claim_policy.rules ?? [], null, 2),
@@ -98,6 +105,7 @@ export function AdminWsFedRelyingPartiesPage({
       display_name: form.displayName.trim() || undefined,
       reply_urls: replyURLs,
       audience: form.audience.trim() || undefined,
+      token_type: form.tokenType,
       claim_policy: {
         name_id: {
           format: form.nameIDFormat.trim(),
@@ -204,6 +212,21 @@ export function AdminWsFedRelyingPartiesPage({
                 onChange={(e) => setForm({ ...form, audience: e.target.value })}
               />
             </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="token_type">トークン種別 (SAML バージョン)</Label>
+              <select
+                id="token_type"
+                value={form.tokenType}
+                onChange={(e) => setForm({ ...form, tokenType: e.target.value as WsFedTokenType })}
+                className="w-72 rounded-md border border-slate-300 bg-white p-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none"
+              >
+                <option value={TOKEN_TYPE_SAML11}>SAML 1.1 (Entra / AD FS 既定)</option>
+                <option value={TOKEN_TYPE_SAML20}>SAML 2.0</option>
+              </select>
+              <p className="text-xs leading-5 text-slate-500">
+                Entra domain federation / Microsoft 365 連携は SAML 1.1 が既定です。
+              </p>
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="name_id_format">NameID フォーマット</Label>
@@ -302,6 +325,12 @@ export function AdminWsFedRelyingPartiesPage({
                   <span>
                     <span className="font-semibold text-slate-700">NameID:</span>{' '}
                     {rp.claim_policy.name_id.source_attribute}
+                  </span>
+                  <span>
+                    <span className="font-semibold text-slate-700">トークン:</span>{' '}
+                    {(rp.token_type ?? TOKEN_TYPE_SAML11) === TOKEN_TYPE_SAML20
+                      ? 'SAML 2.0'
+                      : 'SAML 1.1'}
                   </span>
                   <div className="flex flex-wrap gap-1.5">
                     {(rp.claim_policy.rules ?? []).map((rule) => (

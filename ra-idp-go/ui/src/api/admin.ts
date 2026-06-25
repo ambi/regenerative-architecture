@@ -13,6 +13,8 @@ import type {
   AuthorizationDetailType,
   TenantUserAttributeSchema,
   UserAttributeDef,
+  WsFedClaimMappingPolicy,
+  WsFedRelyingParty,
 } from '../types'
 import { adminRequest, request, tenantURL } from './core'
 
@@ -211,6 +213,36 @@ export async function deleteAuthorizationDetailType(
 ): Promise<void> {
   await request(
     `/api/admin/authorization-detail-types/${encodeURIComponent(detailType)}`,
+    adminRequest(csrfToken, 'DELETE'),
+  )
+}
+
+type WsFedRelyingPartyListResponse = { relying_parties: WsFedRelyingParty[] | null }
+
+export type WsFedRelyingPartyInput = {
+  wtrealm: string
+  display_name?: string
+  reply_urls: string[]
+  audience?: string
+  claim_policy: WsFedClaimMappingPolicy
+}
+
+export async function listWsFedRelyingParties(): Promise<WsFedRelyingParty[]> {
+  const response = await request<WsFedRelyingPartyListResponse>('/api/admin/wsfed/relying-parties')
+  return response.relying_parties ?? []
+}
+
+// saveWsFedRelyingParty は wtrealm を upsert キーとして登録/更新する (POST 冪等)。
+export async function saveWsFedRelyingParty(
+  csrfToken: string,
+  input: WsFedRelyingPartyInput,
+): Promise<WsFedRelyingParty> {
+  return request('/api/admin/wsfed/relying-parties', adminRequest(csrfToken, 'POST', input))
+}
+
+export async function deleteWsFedRelyingParty(csrfToken: string, wtrealm: string): Promise<void> {
+  await request(
+    `/api/admin/wsfed/relying-parties?wtrealm=${encodeURIComponent(wtrealm)}`,
     adminRequest(csrfToken, 'DELETE'),
   )
 }

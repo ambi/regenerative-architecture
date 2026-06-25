@@ -35,6 +35,7 @@ import type {
   AdminUser,
   AdminUserDetailPage,
   AdminUsersPage,
+  AdminWsFedRelyingPartiesPage,
   CallbackPage,
   ChangePasswordPage,
   ConsentDetailView,
@@ -64,6 +65,7 @@ import {
   getAdminUser,
   listAdminAuditEvents,
   listAuthorizationDetailTypes,
+  listWsFedRelyingParties,
 } from './admin'
 import {
   AuthenticationAPIError,
@@ -347,6 +349,15 @@ export async function loadPageData(): Promise<PageData> {
       actorUsername: adminAccount!.preferred_username,
       types,
     } satisfies AdminAuthorizationDetailTypesPage
+  }
+  if (path === '/admin/wsfed/relying-parties') {
+    const relyingParties = await listWsFedRelyingParties()
+    return {
+      kind: 'admin-wsfed-relying-parties',
+      csrfToken: adminAccount!.csrf_token,
+      actorUsername: adminAccount!.preferred_username,
+      relyingParties,
+    } satisfies AdminWsFedRelyingPartiesPage
   }
   const clientDetailMatch = path.match(/^\/admin\/clients\/([^/]+)$/)
   if (clientDetailMatch) {

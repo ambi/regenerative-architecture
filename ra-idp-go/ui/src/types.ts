@@ -199,6 +199,42 @@ export type AdminAuthorizationDetailTypesPage = {
   types: AuthorizationDetailType[]
 }
 
+export type WsFedClaimMappingRule = {
+  claim_type: string
+  source: 'user_attribute' | 'fixed' | 'nameid'
+  source_key?: string
+  fixed_value?: string
+  required?: boolean
+}
+
+export type WsFedNameIdConfiguration = {
+  format: string
+  source_attribute: string
+}
+
+export type WsFedClaimMappingPolicy = {
+  name_id: WsFedNameIdConfiguration
+  rules?: WsFedClaimMappingRule[]
+}
+
+export type WsFedRelyingParty = {
+  tenant_id: string
+  wtrealm: string
+  display_name?: string
+  reply_urls: string[]
+  audience?: string
+  claim_policy: WsFedClaimMappingPolicy
+  created_at: string
+  updated_at?: string
+}
+
+export type AdminWsFedRelyingPartiesPage = {
+  kind: 'admin-wsfed-relying-parties'
+  csrfToken: string
+  actorUsername?: string
+  relyingParties: WsFedRelyingParty[]
+}
+
 export type AdminConsent = {
   tenant_id: string
   sub: string
@@ -590,6 +626,7 @@ export type PageData =
   | AdminUserDetailPage
   | AdminClientsPage
   | AdminAuthorizationDetailTypesPage
+  | AdminWsFedRelyingPartiesPage
   | AdminConsentsPage
   | AdminAuditEventsPage
   | AdminKeysPage

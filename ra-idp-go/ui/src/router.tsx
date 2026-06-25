@@ -116,6 +116,10 @@ const AdminUsersPage = namedPage(
   () => import('./features/admin-users/AdminUsersPage'),
   'AdminUsersPage',
 )
+const AdminWsFedRelyingPartiesPage = namedPage(
+  () => import('./features/admin-wsfed/AdminWsFedRelyingPartiesPage'),
+  'AdminWsFedRelyingPartiesPage',
+)
 const CallbackPage = namedPage(() => import('./features/auth-flow/CallbackPage'), 'CallbackPage')
 const ChangePasswordPage = namedPage(
   () => import('./features/account/ChangePasswordPage'),
@@ -298,6 +302,14 @@ export function createAppRouter(data: PageData) {
     component: () =>
       data.kind === 'admin-consents' ? routePage(<AdminConsentsPage {...data} />) : null,
   })
+  const adminWsFedRelyingPartiesRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/admin/wsfed/relying-parties',
+    component: () =>
+      data.kind === 'admin-wsfed-relying-parties'
+        ? routePage(<AdminWsFedRelyingPartiesPage {...data} />)
+        : null,
+  })
   const adminAuthzDetailTypesRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/admin/authorization-detail-types',
@@ -388,6 +400,7 @@ export function createAppRouter(data: PageData) {
       adminRolesRoute,
       adminRoleDetailRoute,
       adminClientsRoute,
+      adminWsFedRelyingPartiesRoute,
       adminAuthzDetailTypesRoute,
       adminClientDetailRoute,
       adminConsentsRoute,

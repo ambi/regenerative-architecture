@@ -11,6 +11,7 @@ import {
   IconUsersGroup,
   IconUserShield,
   IconUsers,
+  IconWorldShare,
 } from '@tabler/icons-react'
 import { tenantBasePath, tenantURL } from '../api'
 
@@ -21,6 +22,7 @@ export type AdminNavKey =
   | 'agents'
   | 'roles'
   | 'clients'
+  | 'wsfed'
   | 'authz-detail-types'
   | 'consents'
   | 'audit-events'
@@ -83,6 +85,13 @@ export function adminNavItems(active: AdminNavKey): AdminNavItem[] {
       icon: IconKey,
       href: tenantURL('/admin/clients'),
       active: active === 'clients',
+    },
+    {
+      key: 'wsfed',
+      label: 'WS-Federation',
+      icon: IconWorldShare,
+      href: tenantURL('/admin/wsfed/relying-parties'),
+      active: active === 'wsfed',
     },
     {
       key: 'authz-detail-types',

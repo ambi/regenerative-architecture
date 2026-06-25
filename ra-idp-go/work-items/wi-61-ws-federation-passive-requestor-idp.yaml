@@ -1,7 +1,7 @@
 id: wi-61-ws-federation-passive-requestor-idp
 title: WS-Federation Passive Requestor Profile の IP-STS としてブラウザ SSO に対応する
 created_at: 2026-06-24
-status: in_progress
+status: completed
 authors: [tn]
 
 motivation: |
@@ -98,3 +98,74 @@ risk_notes: |
   署名検証・canonicalization は library に委ね、`wtrealm` / `wreply` は登録済み RP
   metadata に対して fail-closed で検証する。SAML 2.0 IdP の assertion / 署名基盤を
   先に整えるか並行させ、XML 処理の重複実装を避ける。
+
+completion:
+  completed_at: 2026-06-26
+
+  summary: |
+    Federation bounded context (ADR-059) を新設し、WS-Federation passive requestor
+    profile の IP-STS を実装した。`/{realm}/wsfed` で `wa=wsignin1.0` /
+    `wsignout1.0` / `wsignoutcleanup1.0` を受理する。未認証は既存ログイン UI へ
+    return_to つきで誘導し、認証済みなら RP の宣言的 claim policy で claim を発行し、
+    goxmldsig (ADR-060) で署名した SAML assertion を WS-Trust RSTR に包んで自動 POST
+    する。token は既定で SAML 1.1 (Entra / AD FS の WS-Fed 互換)、RP 設定で SAML 2.0
+    も選択可。`wfresh` を尊重して古い認証は再認証へ誘導し (ログイン往復を吸収する短い
+    猶予つき)、`wauth` を尊重して満たせる password 系は反映、満たせない統合 Windows
+    認証等は fail-closed で拒否する (無音サインインは wi-65)。relying party は
+    `/api/admin/wsfed/relying-parties` と管理 UI 「WS-Federation 連携先」で CRUD でき、
+    許可 wreply 閉集合・audience・token type・claim mapping を編集する。
+
+  semantic_diff:
+    before: "ra-idp-go は OAuth2 / OIDC IdP のみ。WS-Federation RP を連携できない"
+    after: "wtrealm で登録した RP へ署名済み SAML (1.1 既定 / 2.0) を passive で発行し、wfresh / wauth を尊重する WS-Fed IP-STS として振る舞える"
+
+  traceability:
+    specification:
+      - ra-idp-go/spec/scl.yaml  # Federation context, WsFedRelyingParty.token_type, WsFedTokenType, WsFederationSignIn/SignOut
+      - ra-idp-go/decisions/ADR-059-federation-bounded-context-and-claim-issuance.md
+      - ra-idp-go/decisions/ADR-060-xml-signature-library-and-saml-assertion-signing.md
+    implementation:
+      - ra-idp-go/internal/spec/federation.go
+      - ra-idp-go/internal/federation/domain/  # claims, wsfed (wfresh / wauth), attributes
+      - ra-idp-go/internal/federation/adapters/samltoken/assertion.go  # SAML 1.1 / 2.0
+      - ra-idp-go/internal/federation/adapters/wsfed/rstr.go
+      - ra-idp-go/internal/federation/adapters/http/  # wsfed_handler, admin_relying_party_handler
+      - ra-idp-go/internal/federation/ports/relying_party_repository.go
+      - ra-idp-go/internal/platform/persistence/memory/wsfed_relying_parties.go
+      - ra-idp-go/internal/oauth2/adapters/http/authorize_handler.go  # validReturnTo allows /wsfed
+      - ra-idp-go/ui/src/features/admin-wsfed/AdminWsFedRelyingPartiesPage.tsx
+
+  affected_guarantees_state:
+    - "XML signature: assertion は goxmldsig で enveloped 署名し、改竄は検証失敗 (round-trip test)"
+    - "redirect safety: wreply は RP の許可集合と完全一致のみ。sign-in / sign-out とも open redirect を拒否"
+    - "RP 識別: 未登録 wtrealm は 400 で拒否し WsFedSignInRejected を発行"
+    - "tenant isolation: RP リポジトリとエンドポイントは realm ごとに分離"
+    - "audit: WsFedSignInIssued / WsFedSignInRejected / WsFedSignOut を発行"
+    - "freshness: wfresh が示す最大経過時間より古い認証は再認証へ誘導"
+    - "auth method: wauth が満たせない方式 (統合 Windows 等) は fail-closed で拒否"
+
+  verification:
+    - cmd: "go build ./..."
+      in: ra-idp-go
+      result: ok
+    - cmd: "go test ./..."
+      in: ra-idp-go
+      result: ok
+    - cmd: "golangci-lint run ./..."
+      in: ra-idp-go
+      result: "0 issues"
+    - cmd: "bun --cwd ra-idp-go/ui typecheck"
+      result: ok
+    - cmd: "bun --cwd ra-idp-go/ui build"
+      result: ok
+    - "手動: 実サーバで未認証→login→/wsfed 復帰、SAML 1.1 既定 (MajorVersion 1.1 / am:password / claim namespace 分割)、wauth=windows→400、wauth=Password→200、wfresh の往復ループ無しを curl で確認"
+
+  residual_risk:
+    - "Entra / Microsoft 365 の実テナント接続検証は未実施 ([[wi-64-entra-domain-federation-m365-sso]])。"
+    - "federation metadata の公開は未実施 ([[wi-63-federation-metadata-and-claims-mapping]])。"
+    - "wfresh=0 はログイン往復を吸収する短い猶予 (30s) 内のセッション再利用を許容する。"
+    - "署名証明書は開発用自己署名。ライフサイクル / ローテーション / metadata 掲載は後続。"
+
+  human_decisions:
+    - "ui scope の『admin clients に追加』ではなく専用ページ『WS-Federation 連携先』として実装した (RP は OAuth client と別概念のため)。"
+    - "wauth の統合 Windows 認証は fail-closed 拒否とし、無音サインインは wi-65 に委ねた。"

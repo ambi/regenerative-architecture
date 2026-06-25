@@ -139,6 +139,50 @@ func TestWsFedSignIn_AuthenticatedIssuesPassiveForm(t *testing.T) {
 	}
 }
 
+func TestWsFedSignIn_DefaultsToSAML11Token(t *testing.T) {
+	e, _ := newServer(t, &authdomain.AuthenticationContext{Sub: "user-1", AuthTime: time.Now().Unix(), AMR: []string{"pwd"}})
+
+	rec := get(e, "/wsfed?wa=wsignin1.0&wtrealm=urn:ra-idp:demo-rp")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	// 既定 token type は Entra 互換の SAML 1.1。
+	if !strings.Contains(body, "urn:oasis:names:tc:SAML:1.0:assertion") {
+		t.Fatalf("RSTR TokenType is not SAML 1.1: %s", body)
+	}
+	// SAML 1.1 assertion は MajorVersion/MinorVersion と AuthenticationStatement を持つ。
+	if !strings.Contains(body, "MajorVersion=&#34;1&#34;") && !strings.Contains(body, `MajorVersion="1"`) {
+		t.Fatalf("SAML 1.1 MajorVersion not present: %s", body)
+	}
+}
+
+func TestWsFedSignIn_StaleSessionWithWfreshRedirectsToLogin(t *testing.T) {
+	// 認証から十分時間が経過したセッションに wfresh=0 を要求すると再認証へ誘導される。
+	staleAuthTime := time.Now().Add(-30 * time.Minute).Unix()
+	e, _ := newServer(t, &authdomain.AuthenticationContext{Sub: "user-1", AuthTime: staleAuthTime, AMR: []string{"pwd"}})
+
+	rec := get(e, "/wsfed?wa=wsignin1.0&wtrealm=urn:ra-idp:demo-rp&wfresh=0")
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("status=%d, want 303 (wfresh forces re-auth)", rec.Code)
+	}
+	if loc := rec.Header().Get("Location"); !strings.HasPrefix(loc, "/login") {
+		t.Fatalf("Location = %q, want /login", loc)
+	}
+}
+
+func TestWsFedSignIn_UnsupportedWauthRejected(t *testing.T) {
+	e, events := newServer(t, &authdomain.AuthenticationContext{Sub: "user-1", AuthTime: time.Now().Unix(), AMR: []string{"pwd"}})
+
+	rec := get(e, "/wsfed?wa=wsignin1.0&wtrealm=urn:ra-idp:demo-rp&wauth=urn:federation:authentication:windows")
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status=%d, want 400 (integrated Windows auth unsupported)", rec.Code)
+	}
+	if !hasEvent(*events, "WsFedSignInRejected") {
+		t.Fatal("WsFedSignInRejected not emitted")
+	}
+}
+
 func TestWsFedSignIn_UnauthenticatedRedirectsToLogin(t *testing.T) {
 	e, _ := newServer(t, nil) // resolver returns no session
 

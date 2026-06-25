@@ -21,6 +21,14 @@ import (
 // assertionLifetime は発行 assertion / RSTR の有効期間。
 const assertionLifetime = 5 * time.Minute
 
+// samlVersion は RP の token type を samltoken の SAML バージョンへ写す。
+func samlVersion(t spec.WsFedTokenType) samltoken.SAMLVersion {
+	if t == spec.TokenTypeSAML20 {
+		return samltoken.SAML20
+	}
+	return samltoken.SAML11
+}
+
 // handleWsFed は WS-Federation passive エンドポイントを wa で分岐する。
 func (d Deps) handleWsFed(c *echo.Context) error {
 	req := feddomain.ParseSignInRequest(c.QueryParam)
@@ -75,14 +83,28 @@ func (d Deps) handleWsFedSignIn(c *echo.Context, req feddomain.WsFedSignInReques
 		return c.Redirect(http.StatusSeeOther, loginRedirect(c))
 	}
 
+	now := time.Now().UTC()
+
+	// wfresh: 認証が古すぎれば再認証のためログインへ誘導する。
+	if feddomain.RequiresFreshAuth(req.Wfresh, time.Unix(authn.AuthTime, 0), now) {
+		return c.Redirect(http.StatusSeeOther, loginRedirect(c))
+	}
+	// wauth: 要求された認証方式を尊重する。満たせない方式 (統合 Windows 等) は拒否する。
+	authnMethod, err := feddomain.ResolveAuthnMethod(req.Wauth, authn.AMR)
+	if err != nil {
+		d.emit(&spec.WsFedSignInRejected{At: now, TenantID: tenantID, Wtrealm: rp.Wtrealm, Reason: err.Error()})
+		return c.String(http.StatusBadRequest, err.Error())
+	}
+
 	result, err := feddomain.IssueClaims(rp.ClaimPolicy, feddomain.ResolveUserAttributes(*user))
 	if err != nil {
-		d.emit(&spec.WsFedSignInRejected{At: time.Now().UTC(), TenantID: tenantID, Wtrealm: rp.Wtrealm, Reason: "claim issuance failed"})
+		d.emit(&spec.WsFedSignInRejected{At: now, TenantID: tenantID, Wtrealm: rp.Wtrealm, Reason: "claim issuance failed"})
 		return c.String(http.StatusInternalServerError, "claim issuance failed")
 	}
 
-	now := time.Now().UTC()
-	assertion, _, err := samltoken.BuildAssertion(samltoken.AssertionInput{
+	tokenType := rp.EffectiveTokenType()
+	signed, _, err := samltoken.BuildSignedAssertion(samltoken.AssertionInput{
+		Version:      samlVersion(tokenType),
 		Issuer:       core.RequestIssuer(c, d.Issuer),
 		Audience:     rp.EffectiveAudience(),
 		Recipient:    validated.ReplyURL,
@@ -90,18 +112,14 @@ func (d Deps) handleWsFedSignIn(c *echo.Context, req feddomain.WsFedSignInReques
 		NotBefore:    now.Add(-1 * time.Minute),
 		NotOnOrAfter: now.Add(assertionLifetime),
 		AuthnInstant: time.Unix(authn.AuthTime, 0).UTC(),
+		AuthnMethod:  authnMethod,
 		Result:       result,
-	})
+	}, d.FederationSigner)
 	if err != nil {
 		return c.String(http.StatusInternalServerError, "assertion build failed")
 	}
 
-	signed, err := d.FederationSigner.Sign(assertion)
-	if err != nil {
-		return c.String(http.StatusInternalServerError, "assertion signing failed")
-	}
-
-	rstr, err := wsfed.BuildRSTR(signed, rp.Wtrealm, now, now.Add(assertionLifetime))
+	rstr, err := wsfed.BuildRSTR(signed, rp.Wtrealm, string(tokenType), now, now.Add(assertionLifetime))
 	if err != nil {
 		return c.String(http.StatusInternalServerError, "rstr build failed")
 	}

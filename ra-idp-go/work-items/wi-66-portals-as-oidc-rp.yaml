@@ -1,7 +1,7 @@
 id: wi-66-portals-as-oidc-rp
 title: 管理コンソールとアカウントポータルを自分自身の IdP の OIDC RP にする
 created_at: 2026-06-27
-status: in_progress
+status: completed
 authors: [tn]
 
 motivation: |
@@ -141,3 +141,77 @@ risk_notes: |
   資格情報漏洩になる。短命 access token・rotation refresh・CSP / no-store の徹底で
   リスクを抑える。移行中は Bearer とセッションの dual-mode となるため、両経路の認可が
   同じロール / actor 境界を通ることをテストで担保する。
+
+completion:
+  completed_at: 2026-06-27
+
+  summary: |
+    管理コンソール (`/admin/*`) とアカウントポータル (`/account/*`) を、自分自身の IdP の
+    OIDC RP (authorization_code + PKCE、pure SPA) として認証する構成へ移行した。
+    `/api/{admin,account}/*` は RFC 9068 アクセストークンを検証する resource server と
+    なり、Bearer の `sub` を既存のロール / actor 境界 (ADR-031 / 038 / 042) に通す。
+    ファーストパーティ public クライアント `ra-admin-console` / `ra-account-portal` を
+    seed し、`first_party` フラグで consent をスキップする。SPA には最小の OIDC RP
+    クライアント (`api/oidc`) を実装し、`/authorize` リダイレクト・`/callback` での
+    code→token 交換・refresh による silent renew・RP-initiated logout を行う。OIDC 設定
+    破壊時のロックアウトを避けるため、first-party セッションログインを緊急経路として残し
+    `ResolveAuthentication` を Bearer/セッション dual-mode とした。resource server は
+    portal scope (`ra.admin` / `ra.account`) を要求し、cross-portal 利用を fail-closed で
+    拒否する。
+
+  semantic_diff:
+    before: "管理 / アカウント portal は IdP 内蔵アプリで、セッション cookie で認証し IdP の token を消費しない"
+    after: "両 portal は自分自身の IdP の OIDC RP として PKCE で認証し、Bearer access token で API を呼ぶ。緊急セッション経路は残す"
+
+  traceability:
+    specification:
+      - ra-idp-go/spec/scl.yaml  # OAuth2Client.first_party, DiscoveryDocument.scopes_supported (ra.admin / ra.account)
+      - ra-idp-go/decisions/ADR-061-first-party-portals-as-oidc-rp.md
+    implementation:
+      - ra-idp-go/internal/platform/http/core/auth.go  # Bearer 解決 + portal scope 境界
+      - ra-idp-go/internal/spec/schemas.go  # Client.FirstParty
+      - ra-idp-go/internal/oauth2/adapters/http/authorize_handler.go  # first-party consent skip
+      - ra-idp-go/internal/bootstrap/seed.go  # ra-admin-console / ra-account-portal
+      - ra-idp-go/internal/platform/persistence/postgres/clients.go
+      - ra-idp-go/infra/migrations/0016_clients_first_party.sql
+      - ra-idp-go/ui/src/api/oidc.ts  # SPA OIDC RP クライアント
+      - ra-idp-go/ui/src/api/core.ts  # request() への Bearer 付与
+      - ra-idp-go/ui/src/api/pageData.ts  # ensureLoggedIn / completeLoginFromCallback ゲート
+
+  affected_guarantees_state:
+    - "admin/account authorization: Bearer (active + portal scope) を要求し、role/actor 境界に通す。scope 不足・cross-portal は 401 (live + unit test)"
+    - "bootstrap availability: first-party セッションログインを緊急経路として残し dual-mode"
+    - "token exposure: access token 600s + offline_access による rotation refresh。no-store 維持"
+    - "audit: OIDC ログイン (code / token 発行) は既存監査で記録"
+
+  verification:
+    - cmd: "go build ./..."
+      in: ra-idp-go
+      result: ok
+    - cmd: "go test ./..."
+      in: ra-idp-go
+      result: ok
+    - cmd: "golangci-lint run ./..."
+      in: ra-idp-go
+      result: "0 issues"
+    - cmd: "bun --cwd ra-idp-go/ui run lint && bun --cwd ra-idp-go/ui typecheck && bun --cwd ra-idp-go/ui build"
+      result: ok
+    - >-
+      手動 (ローカル実機): ra-admin-console で authorize(consent skip)→login→token
+      (scope ra.admin offline_access, refresh_token あり)→/api/admin/users 200、Bearer 無し
+      401。refresh_token grant で silent renew→再取得 token で 200。ra.account token は
+      /api/admin/* 401・/api/account/profile 200 (cross-portal 拒否)。
+
+  residual_risk:
+    - >-
+      ポータル RP ログインの自動 e2e (playwright) は未追加。既存 golden-path e2e は
+      汎用 OAuth client 経路を引き続きカバーする。
+    - >-
+      サイドバー遷移のフルリロードによる体感遅延は本 WI の対象外で [[wi-67-spa-client-side-routing]]
+      が扱う。本 WI は OIDC 由来遅延を silent renew (offline_access) で解消するに留める。
+    - "緊急セッションログイン経路は残置。最小化 (UI 非露出化など) は後続で検討。"
+
+  human_decisions:
+    - "トークンの持ち方は pure SPA RP (ブラウザ保持) を採用 (BFF は不採用)。no-token-in-JS 方針を ADR-061 で更新。"
+    - "対象は管理 + アカウント両 portal。ログイン経路を OIDC に統一。"
+    - "resource server で portal scope を fail-closed 強制し、cross-portal token 利用を拒否。"

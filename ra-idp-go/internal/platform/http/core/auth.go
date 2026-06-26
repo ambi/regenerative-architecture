@@ -59,6 +59,14 @@ func (d Deps) resolveAuthnContext(c *echo.Context) (*authdomain.AuthenticationCo
 		if res == nil || !res.Active || res.Sub == "" {
 			return nil, nil
 		}
+		// resource server のスコープ境界 (ADR-061): admin / account API は対応する
+		// portal scope を要求する。account portal の token で admin API を叩く等の
+		// cross-portal 利用を fail-closed で拒否する。緊急セッション経路は scope を
+		// 持たないが、その経路はこの分岐を通らない (role 境界で守る)。
+		if want := requiredPortalScope(c.Request().URL.Path); want != "" &&
+			!slices.Contains(strings.Fields(res.Scope), want) {
+			return nil, nil
+		}
 		// access token 経由は session を持たないので SessionID は空。完全発行された
 		// access token は認証完了を含意するため AuthenticationPending は false。
 		return &authdomain.AuthenticationContext{Sub: res.Sub, AuthTime: res.Iat}, nil
@@ -70,6 +78,19 @@ func (d Deps) resolveAuthnContext(c *echo.Context) (*authdomain.AuthenticationCo
 		c.Request().Context(),
 		authdomain.HTTPHeadersAdapter{H: c.Request().Header},
 	)
+}
+
+// requiredPortalScope は resource path が Bearer に要求する portal scope を返す。
+// admin / account 以外の API (例: /api/auth/account) は scope を要求しない。
+func requiredPortalScope(path string) string {
+	switch {
+	case strings.Contains(path, "/api/admin/"):
+		return "ra.admin"
+	case strings.Contains(path, "/api/account/"):
+		return "ra.account"
+	default:
+		return ""
+	}
 }
 
 // bearerToken は Authorization: Bearer <token> を抽出する。無ければ空文字を返す。

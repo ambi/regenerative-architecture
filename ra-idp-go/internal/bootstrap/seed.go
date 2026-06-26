@@ -96,8 +96,8 @@ func seedFirstPartyPortalClients(ctx context.Context, clients oauthports.ClientR
 		name     string
 		scope    string
 	}{
-		{"ra-admin-console", "RA Admin Console", "openid profile ra.admin"},
-		{"ra-account-portal", "RA Account Portal", "openid profile ra.account"},
+		{"ra-admin-console", "RA Admin Console", "openid profile ra.admin offline_access"},
+		{"ra-account-portal", "RA Account Portal", "openid profile ra.account offline_access"},
 	}
 	for _, p := range portals {
 		name := p.name

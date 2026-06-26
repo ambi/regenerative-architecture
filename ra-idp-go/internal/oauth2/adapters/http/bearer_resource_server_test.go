@@ -64,7 +64,11 @@ func getWithBearer(e *echo.Echo, token string) *httptest.ResponseRecorder {
 }
 
 func activeToken(sub string) *oauthports.IntrospectionResult {
-	return &oauthports.IntrospectionResult{Active: true, Sub: sub, Iat: time.Now().Unix(), Scope: "openid ra.admin"}
+	return tokenWithScope(sub, "openid ra.admin")
+}
+
+func tokenWithScope(sub, scope string) *oauthports.IntrospectionResult {
+	return &oauthports.IntrospectionResult{Active: true, Sub: sub, Iat: time.Now().Unix(), Scope: scope}
 }
 
 func TestBearerAccessTokenAuthorizesAdmin(t *testing.T) {
@@ -93,6 +97,30 @@ func TestBearerInactiveTokenIsUnauthorized(t *testing.T) {
 	rec := getWithBearer(e, "revoked")
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("inactive token must be 401: status=%d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestBearerWithoutPortalScopeIsUnauthorized(t *testing.T) {
+	admin := keyAdminUser("user_alice", "acme", []string{"admin"})
+	// admin ロールはあるが token に ra.admin scope が無い → fail-closed (ADR-061)。
+	e := newBearerAdminServer(t, admin, stubIntrospector{byToken: map[string]*oauthports.IntrospectionResult{
+		"good": tokenWithScope("user_alice", "openid profile"),
+	}})
+	rec := getWithBearer(e, "good")
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("admin API without ra.admin scope must be 401: status=%d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestBearerAccountScopeRejectedOnAdminAPI(t *testing.T) {
+	admin := keyAdminUser("user_alice", "acme", []string{"admin"})
+	// account portal の token (ra.account) で admin API を叩く cross-portal 利用を拒否。
+	e := newBearerAdminServer(t, admin, stubIntrospector{byToken: map[string]*oauthports.IntrospectionResult{
+		"good": tokenWithScope("user_alice", "openid profile ra.account"),
+	}})
+	rec := getWithBearer(e, "good")
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("account-scoped token must not authorize admin API: status=%d body=%s", rec.Code, rec.Body.String())
 	}
 }
 

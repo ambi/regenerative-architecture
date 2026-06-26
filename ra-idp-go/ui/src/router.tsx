@@ -9,11 +9,38 @@ import { Suspense, lazy, useEffect, type ComponentType, type ReactNode } from 'r
 import type { PageData } from './types'
 import { AuthenticationAPIError, resolvePageData, tenantBasePath, tenantURL } from './api'
 
+// pageModuleLoaders は遅延ロードされる全ページの import 関数。preloadPageChunks が
+// バックグラウンドで全 chunk を先読みし、サイドバー遷移時の Suspense (空白) を防ぐ。
+const pageModuleLoaders: Array<() => Promise<unknown>> = []
+
 function namedPage(loader: () => Promise<Record<string, unknown>>, exportName: string) {
+  pageModuleLoaders.push(loader)
   return lazy(async () => {
     const module = await loader()
     return { default: module[exportName] as ComponentType<object> }
   })
+}
+
+let preloadStarted = false
+
+// preloadPageChunks は全ページの JS chunk をアイドル時にバックグラウンド先読みする。
+// 一度だけ実行され、以降の client-side 遷移で lazy chunk のロード待ち (画面空白) を無くす。
+export function preloadPageChunks() {
+  if (preloadStarted) {
+    return
+  }
+  preloadStarted = true
+  const run = () => {
+    for (const load of pageModuleLoaders) {
+      void load()
+    }
+  }
+  const idle = (window as { requestIdleCallback?: (cb: () => void) => void }).requestIdleCallback
+  if (idle) {
+    idle(run)
+  } else {
+    setTimeout(run, 200)
+  }
 }
 
 const AccountActivityPage = namedPage(
@@ -355,7 +382,8 @@ export function createAppRouter() {
     routeTree: rootRoute.addChildren(PAGE_PATHS.map(makePageRoute)),
     history: createBrowserHistory(),
     basepath: tenantBasePath() || '/',
-    defaultPendingComponent: () => <div className="min-h-screen bg-slate-50" />,
+    // pending 中は前ページを表示したままにする (空白を出さない)。loader はページ chunk
+    // 先読み済み + データ取得のみのため、遷移は概ね即時に入れ替わる (wi-67)。
     defaultErrorComponent: ({ error }) => <ErrorScreen error={error} />,
   })
 }

@@ -1,9 +1,10 @@
 import { IconChevronDown, IconLogout, IconUserCircle } from '@tabler/icons-react'
 import { Link } from '@tanstack/react-router'
-import type { ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { logout, tenantBasePath } from '../api'
 import { adminNavItems, type AdminNavKey } from '../lib/adminNav'
 import { cn } from '../lib/utils'
+import { preloadPageChunks } from '../router'
 import { Brand } from './Brand'
 
 // toLocal は tenantURL 由来の絶対パスを router 相対パス (テナント基底を除いたもの) に変換する。
@@ -43,6 +44,10 @@ export function AdminShell({
 }: AdminShellProps) {
   const items = adminNavItems(active)
   const currentItem = items.find((item) => item.active)
+  // 管理コンソールに入ったら全ページ chunk をバックグラウンド先読みし、サイドバー遷移の空白を防ぐ。
+  useEffect(() => {
+    preloadPageChunks()
+  }, [])
   return (
     <div className="app-surface">
       <header className="app-header">

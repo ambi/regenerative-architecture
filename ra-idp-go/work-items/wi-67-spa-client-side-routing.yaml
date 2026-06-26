@@ -102,6 +102,7 @@ completion:
 
   affected_guarantees_state:
     - "navigation latency: サイドバー遷移は対象 route のデータのみ取得し、ドキュメントを再読込しない (E2E: marker 保持 + location.pathname 更新)"
+    - "no blank flash: shell マウント時に全ページ chunk をバックグラウンド先読みし、pending 中は前ページを表示したままにする (Suspense の全画面空白を回避)"
     - "deep link / reload: 任意パスの直接オープンも router loader が解決 (golden-path E2E は full-nav 経路を継続検証)"
     - "auth guard: 未ログイン admin/account は loader 内 ensureLoggedIn で OIDC ログインへ誘導"
     - "API 契約不変: /api/{admin,account}/* は変更なし"

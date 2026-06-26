@@ -9,10 +9,11 @@ import {
   IconUser,
   IconUserCircle,
 } from '@tabler/icons-react'
-import type { ReactNode } from 'react'
 import { Link } from '@tanstack/react-router'
+import { useEffect, type ReactNode } from 'react'
 import { logout } from '../api'
 import { cn } from '../lib/utils'
+import { preloadPageChunks } from '../router'
 import { Brand } from './Brand'
 import {
   DropdownMenu,
@@ -63,6 +64,10 @@ export function AccountShell({
   description,
   children,
 }: AccountShellProps) {
+  // アカウントポータルに入ったら全ページ chunk をバックグラウンド先読みし、遷移の空白を防ぐ。
+  useEffect(() => {
+    preloadPageChunks()
+  }, [])
   return (
     <div className="app-surface">
       <header className="app-header">

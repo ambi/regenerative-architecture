@@ -40,5 +40,20 @@ cookie.
 ## API boundary
 
 Browser-facing authentication APIs live under `/api/auth/*`. OAuth/OIDC protocol endpoints retain
-their standard paths. Future management APIs belong under `/api/admin/*` and must use explicit
-authorization policies independently from the login transaction APIs.
+their standard paths. Management APIs live under `/api/admin/*` and self-service APIs under
+`/api/account/*`; both use explicit authorization policies independently from the login
+transaction APIs.
+
+## Admin console and account portal as OIDC RPs
+
+The admin console (`/admin/*`) and account portal (`/account/*`) authenticate as OIDC relying
+parties of the IdP itself, using `authorization_code` + PKCE against the IdP's own `/authorize`
+and `/token` (ADR-061). They are registered as first-party public clients (`ra-admin-console`,
+`ra-account-portal`) whose consent screen is skipped because the resource owner is the IdP user.
+
+Because they are pure SPA RPs, the access token is held in the browser (`sessionStorage`) and sent
+as `Authorization: Bearer` to `/api/{admin,account}/*`, which validate it as RFC 9068 resource
+servers. This is a deliberate departure from a strict "no tokens in JavaScript" posture; it is
+bounded by short-lived access tokens (600 s), `Cache-Control: no-store`, and keeping tokens out of
+URLs, logs, and the DOM. The first-party session login (`POST /api/auth/login`) is retained as an
+emergency bootstrap path so a broken OIDC client/key configuration cannot lock administrators out.

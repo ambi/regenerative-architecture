@@ -112,11 +112,11 @@ completion:
       - ra-idp-go/decisions/ADR-060-xml-signature-library-and-saml-assertion-signing.md
       - ra-idp-go/decisions/ADR-062-federation-metadata-publication.md
     implementation:
-      - ra-idp-go/internal/federation/adapters/metadata/federation_metadata.go
-      - ra-idp-go/internal/federation/adapters/http/metadata_handler.go
-      - ra-idp-go/internal/federation/adapters/http/routes.go
-      - ra-idp-go/internal/federation/adapters/samltoken/assertion.go
-      - ra-idp-go/internal/federation/domain/claims.go
+      - ra-idp-go/internal/wsfederation/adapters/metadata/federation_metadata.go
+      - ra-idp-go/internal/wsfederation/adapters/http/metadata_handler.go
+      - ra-idp-go/internal/wsfederation/adapters/http/routes.go
+      - ra-idp-go/internal/wsfederation/adapters/samltoken/assertion.go
+      - ra-idp-go/internal/wsfederation/domain/claims.go
       - ra-idp-go/internal/spec/federation.go
       - ra-idp-go/ui/src/features/admin-wsfed/AdminWsFedRelyingPartiesPage.tsx
       - ra-idp-go/README.md
@@ -129,7 +129,7 @@ completion:
     - "audit: claim mapping 変更は既存 admin RP 更新経路で扱う。metadata 公開イベントは未実装"
 
   verification:
-    - cmd: "GOCACHE=/tmp/ra-idp-go-cache go test ./internal/federation/..."
+    - cmd: "GOCACHE=/tmp/ra-idp-go-cache go test ./internal/wsfederation/..."
       in: ra-idp-go
       result: ok
     - cmd: "GOCACHE=/tmp/ra-idp-go-cache go test ./..."
@@ -138,7 +138,7 @@ completion:
     - cmd: "bun run yaml-check --schema=work-item ../ra-idp-go/work-items/wi-62-ws-trust-active-sts.yaml ../ra-idp-go/work-items/wi-63-federation-metadata-and-claims-mapping.yaml"
       in: tools
       result: ok
-    - cmd: "go test ./internal/federation/..."
+    - cmd: "go test ./internal/wsfederation/..."
       in: ra-idp-go
       result: "failed: default Go build cache under ~/Library/Caches was not writable in sandbox; rerun with GOCACHE=/tmp succeeded"
     - cmd: "golangci-lint run ./..."

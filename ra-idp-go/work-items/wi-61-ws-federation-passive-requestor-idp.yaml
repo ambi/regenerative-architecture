@@ -103,7 +103,7 @@ completion:
   completed_at: 2026-06-26
 
   summary: |
-    Federation bounded context (ADR-059) を新設し、WS-Federation passive requestor
+    WsFederation bounded context (ADR-064) と宣言的 claim 発行 (ADR-059) に沿って、WS-Federation passive requestor
     profile の IP-STS を実装した。`/{realm}/wsfed` で `wa=wsignin1.0` /
     `wsignout1.0` / `wsignoutcleanup1.0` を受理する。未認証は既存ログイン UI へ
     return_to つきで誘導し、認証済みなら RP の宣言的 claim policy で claim を発行し、
@@ -121,16 +121,16 @@ completion:
 
   traceability:
     specification:
-      - ra-idp-go/spec/scl.yaml  # Federation context, WsFedRelyingParty.token_type, WsFedTokenType, WsFederationSignIn/SignOut
+      - ra-idp-go/spec/scl.yaml  # WsFederation context, WsFedRelyingParty.token_type, WsFedTokenType, WsFederationSignIn/SignOut
       - ra-idp-go/decisions/ADR-059-federation-bounded-context-and-claim-issuance.md
       - ra-idp-go/decisions/ADR-060-xml-signature-library-and-saml-assertion-signing.md
     implementation:
       - ra-idp-go/internal/spec/federation.go
-      - ra-idp-go/internal/federation/domain/  # claims, wsfed (wfresh / wauth), attributes
-      - ra-idp-go/internal/federation/adapters/samltoken/assertion.go  # SAML 1.1 / 2.0
-      - ra-idp-go/internal/federation/adapters/wsfed/rstr.go
-      - ra-idp-go/internal/federation/adapters/http/  # wsfed_handler, admin_relying_party_handler
-      - ra-idp-go/internal/federation/ports/relying_party_repository.go
+      - ra-idp-go/internal/wsfederation/domain/  # claims, wsfed (wfresh / wauth), attributes
+      - ra-idp-go/internal/wsfederation/adapters/samltoken/assertion.go  # SAML 1.1 / 2.0
+      - ra-idp-go/internal/wsfederation/adapters/wsfed/rstr.go
+      - ra-idp-go/internal/wsfederation/adapters/http/  # wsfed_handler, admin_relying_party_handler
+      - ra-idp-go/internal/wsfederation/ports/relying_party_repository.go
       - ra-idp-go/internal/platform/persistence/memory/wsfed_relying_parties.go
       - ra-idp-go/internal/oauth2/adapters/http/authorize_handler.go  # validReturnTo allows /wsfed
       - ra-idp-go/ui/src/features/admin-wsfed/AdminWsFedRelyingPartiesPage.tsx

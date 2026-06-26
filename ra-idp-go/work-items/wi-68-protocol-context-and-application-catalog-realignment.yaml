@@ -1,7 +1,7 @@
 id: wi-68-protocol-context-and-application-catalog-realignment
 title: Protocol bounded context と Application Catalog の境界を整理する
 created_at: 2026-06-27
-status: pending
+status: completed
 authors: [tn]
 
 motivation: |
@@ -62,3 +62,59 @@ risk_notes: |
   主なリスクは実装挙動ではなく、仕様・ADR・パッケージ名・UI ラベルの不整合である。
   単純な rename でも import path や生成 HTML、ワークアイテム traceability が広範囲に変わる。
   wire behavior を変えず、検証は既存 WS-Fed / WS-Trust / OAuth2 テストが green のままかで確認する。
+
+completion:
+  completed_at: 2026-06-27
+  summary: |
+    SCL / ADR / 実装ディレクトリ / 管理 UI の protocol 境界を ADR-064 に合わせて整理した。
+    `Federation` bounded context 名を廃止し、WS-Federation passive と WS-Trust active STS は
+    `WsFederation` に集約した。claim mapping / NameID / attribute release は `ClaimRelease`、
+    key material lifecycle / JWKS 管理は `SigningKeys`、運用者向け上位概念は将来の
+    `ApplicationCatalog` として SCL に反映した。
+  semantic_diff:
+    before: "`Federation` が WS-Fed / WS-Trust 専用実装を指し、管理 UI の「アプリケーション」は OAuth2/OIDC client だけを指していた"
+    after: "`WsFederation` / `ClaimRelease` / `SigningKeys` / `ApplicationCatalog` の境界を分け、`/admin/clients` は OAuth2/OIDC client 管理として明示した"
+
+  traceability:
+    specification:
+      - ra-idp-go/spec/scl.yaml
+      - ra-idp-go/spec/ra-idp-go.html
+      - ra-idp-go/decisions/ADR-064-protocol-contexts-and-application-catalog.md
+      - ra-idp-go/decisions/ADR-059-federation-bounded-context-and-claim-issuance.md
+      - ra-idp-go/decisions/ADR-060-xml-signature-library-and-saml-assertion-signing.md
+      - ra-idp-go/decisions/ADR-062-federation-metadata-publication.md
+    implementation:
+      - ra-idp-go/internal/wsfederation/
+      - ra-idp-go/internal/bootstrap/
+      - ra-idp-go/internal/platform/http/
+      - ra-idp-go/ui/src/lib/adminNav.ts
+      - ra-idp-go/ui/src/features/admin-clients/AdminClientsPage.tsx
+
+  affected_guarantees_state:
+    - "traceability: SCL / ADR / implementation / UI の protocol 境界名を `WsFederation` / `ClaimRelease` / `SigningKeys` / `ApplicationCatalog` に整理した"
+    - "protocol isolation: WS-Fed / WS-Trust は `WsFederation`、OAuth2/OIDC は `OAuth2`、将来 SAML は `Saml` に分ける方針を SCL に反映した"
+    - "product language clarity: `/admin/clients` は OAuth2/OIDC client 管理として表示し、統合 ApplicationCatalog まで「アプリケーション」表記を避けた"
+    - "shared assertion reuse: claim release と signing key lifecycle を SCL 上の共有 capability として明示した"
+
+  verification:
+    - cmd: 'GOCACHE=/tmp/ra-idp-go-cache go test ./...'
+      in: ra-idp-go
+      result: ok
+    - cmd: 'golangci-lint run ./...'
+      in: ra-idp-go
+      result: 'ok: 0 issues (run outside sandbox after package loading failed inside sandbox)'
+    - cmd: 'bun --cwd ra-idp-go/ui typecheck'
+      result: ok
+    - cmd: 'bun --cwd ra-idp-go/ui build'
+      result: ok
+    - cmd: 'bun --cwd ra-idp-go/ui lint'
+      result: ok
+    - cmd: 'bun run yaml-check:work-items'
+      in: tools
+      result: ok
+    - cmd: 'bun run yaml-check:scl'
+      in: tools
+      result: ok
+  residual_risk:
+    - "ApplicationCatalog 本体は未実装。OIDC client / SAML SP / WS-Fed RP を束ねる UI と aggregate は後続 WI で扱う。"
+    - "ClaimRelease / SigningKeys は SCL 上の所有境界を先に整理した段階で、Go package の物理分離は後続の実装進行に合わせて行う。"

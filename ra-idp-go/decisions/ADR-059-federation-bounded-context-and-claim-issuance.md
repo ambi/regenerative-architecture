@@ -1,4 +1,4 @@
-# ADR-059: Federation bounded context と宣言的 claim 発行エンジンを確定する
+# ADR-059: 宣言的 claim 発行エンジンを確定する
 
 ## ステータス
 

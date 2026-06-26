@@ -1,4 +1,4 @@
-// Package ports は Federation bounded context の永続境界 (port) を定義する。
+// Package ports は WsFederation bounded context の永続境界 (port) を定義する。
 package ports
 
 import (

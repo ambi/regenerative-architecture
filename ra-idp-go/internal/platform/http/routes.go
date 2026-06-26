@@ -8,12 +8,12 @@ package http
 
 import (
 	authhttp "ra-idp-go/internal/authentication/adapters/http"
-	federationhttp "ra-idp-go/internal/federation/adapters/http"
 	idmhttp "ra-idp-go/internal/identitymanagement/adapters/http"
 	oauth2http "ra-idp-go/internal/oauth2/adapters/http"
 	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/spec"
 	tenancyhttp "ra-idp-go/internal/tenancy/adapters/http"
+	wsfederationhttp "ra-idp-go/internal/wsfederation/adapters/http"
 
 	"github.com/labstack/echo/v5"
 )
@@ -40,5 +40,5 @@ func registerTenantRoutes(g *echo.Group, d Deps) {
 	authhttp.RegisterRoutes(g, d.Deps)
 	idmhttp.RegisterRoutes(g, d.Deps)
 	tenancyhttp.RegisterRoutes(g, d.Deps)
-	federationhttp.RegisterRoutes(g, d.Deps)
+	wsfederationhttp.RegisterRoutes(g, d.Deps)
 }

@@ -3,7 +3,7 @@
 ## ステータス
 
 採用 (accepted)。[[wi-63-federation-metadata-and-claims-mapping]] の署名スライスの意思決定で、
-[[ADR-059]] (Federation bounded context / claim 発行) を前提に、claim 発行エンジンの出力を
+[[ADR-059]] (claim 発行) を前提に、claim 発行エンジンの出力を
 署名済み SAML assertion に変換する基盤を確定する。WS-Federation passive
 ([[wi-61-ws-federation-passive-requestor-idp]]) と WS-Trust active
 ([[wi-62-ws-trust-active-sts]]) が、この assertion を RSTR / RST レスポンスに包む。
@@ -39,9 +39,10 @@ ra-idp-go にはまだ XML 署名の依存が無い。OAuth2 の署名鍵 (`Sign
    bearer subject confirmation・audience restriction・attribute statement を備えた署名済み
    SAML 2.0 assertion に変換するところまで。
 
-5. **配置は Federation context 所有のアダプタ** (`internal/federation/adapters/samltoken`) とする
-   ([[ADR-047]] context-owned adapter layout)。XML ワイヤ形式は platform 共通ではなく
-   federation の責務に属する。
+5. **短期配置は WsFederation context 所有のアダプタ** (`internal/wsfederation/adapters/samltoken`) とする
+   ([[ADR-047]] context-owned adapter layout)。XML ワイヤ形式は platform 共通ではない。
+   将来 SAML context が入る時点で、XML signing adapter の共有配置を `SigningKeys` /
+   protocol adapter 境界に沿って再評価する ([[ADR-064]])。
 
 ## 影響
 

@@ -5,10 +5,10 @@ import (
 	"errors"
 
 	authports "ra-idp-go/internal/authentication/ports"
-	federationports "ra-idp-go/internal/federation/ports"
 	idmports "ra-idp-go/internal/identitymanagement/ports"
 	oauthports "ra-idp-go/internal/oauth2/ports"
 	tenantports "ra-idp-go/internal/tenancy/ports"
+	wsfederationports "ra-idp-go/internal/wsfederation/ports"
 )
 
 // Dependencies は HTTP 層に渡す全境界をまとめた DI コンテナ。
@@ -39,7 +39,7 @@ type Dependencies struct {
 	EventSink               oauthports.EventSink
 	AuditEventRepo          oauthports.AuditEventRepository
 	AuthEventBucketStore    authports.AuthEventBucketStore
-	WsFedRPRepo             federationports.WsFedRelyingPartyRepository
+	WsFedRPRepo             wsfederationports.WsFedRelyingPartyRepository
 	Close                   func()
 }
 

@@ -9,11 +9,11 @@ import (
 
 	authdomain "ra-idp-go/internal/authentication/domain"
 	authusecases "ra-idp-go/internal/authentication/usecases"
-	"ra-idp-go/internal/federation/adapters/samltoken"
-	"ra-idp-go/internal/federation/adapters/wsfed"
-	feddomain "ra-idp-go/internal/federation/domain"
 	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/wsfederation/adapters/samltoken"
+	"ra-idp-go/internal/wsfederation/adapters/wsfed"
+	feddomain "ra-idp-go/internal/wsfederation/domain"
 
 	"github.com/labstack/echo/v5"
 )

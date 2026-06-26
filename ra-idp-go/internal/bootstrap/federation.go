@@ -10,9 +10,9 @@ import (
 	"math/big"
 	"time"
 
-	"ra-idp-go/internal/federation/adapters/samltoken"
-	federationports "ra-idp-go/internal/federation/ports"
 	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/wsfederation/adapters/samltoken"
+	wsfederationports "ra-idp-go/internal/wsfederation/ports"
 )
 
 // newDevFederationSigner は開発用の自己署名 federation 署名証明書から署名器を作る。
@@ -42,7 +42,7 @@ func newDevFederationSigner() (*samltoken.Signer, error) {
 }
 
 // seedWsFedRelyingParty は WS-Federation passive のデモ用 relying party を投入する。
-func seedWsFedRelyingParty(ctx context.Context, repo federationports.WsFedRelyingPartyRepository) error {
+func seedWsFedRelyingParty(ctx context.Context, repo wsfederationports.WsFedRelyingPartyRepository) error {
 	now := time.Now().UTC()
 	rp := &spec.WsFedRelyingParty{
 		TenantID:    spec.DefaultTenantID,

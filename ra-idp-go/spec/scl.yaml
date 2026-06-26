@@ -48,29 +48,81 @@ bounded_contexts:
       とその Dynamic Registration、認可判断 (Authorize / Consent /
       Authorization Code / PAR / Device Authorization / RP-Initiated Logout)、
       トークン発行とライフサイクル (AccessToken / RefreshToken / ID Token /
-      Introspect / Revoke / UserInfo / proof-of-possession)、信頼基盤 (署名鍵 /
-      JWKS / Discovery / Authorization Server Metadata / 健全性報告 / 監査保管)
+      Introspect / Revoke / UserInfo / proof-of-possession)、Discovery /
+      Authorization Server Metadata / 健全性報告 / 監査保管
       を本 bounded context に集約する。
-    owns_models: [OAuth2Client, ClientType, TokenEndpointAuthMethod, FapiProfile, ClientRegistrationRequest, AdminClientCreateRequest, AdminClientUpdateRequest, AdminClientResponse, AdminClientCreateResponse, AdminClientListResponse, InvalidClientError, UnauthorizedClientError, AuthorizationRequest, AuthorizeParameters, Consent, ConsentState, AuthorizationDetail, AuthorizationDetailFieldRule, AuthorizationDetailFieldSemantics, AuthorizationDetailsSchema, AuthorizationDetailType, AuthorizationDetailTypeState, AuthorizationDetailTypeRequest, AuthorizationDetailTypeResponse, AuthorizationDetailTypeListResponse, AdminConsentResponse, AdminConsentListResponse, AccountConsentResponse, AccountConsentListResponse, AuthorizationCodeRecord, AuthorizationCodeState, AuthorizationCodeRecordState, ResponseType, ResponseMode, CodeChallengeMethod, GrantType, PARRecord, PARRecordState, ParRequest, ParResponse, BrowserConsentRequest, BrowserTransactionResponse, BrowserFlowResponse, EndSessionParameters, DeviceCodeState, DeviceAuthorization, DeviceAuthorizationRequest, DeviceAuthorizationResponse, BrowserDeviceRequest, BrowserDeviceContextResponse, OAuthError, OAuthErrorCode, InvalidRequestError, InvalidScopeError, AccessDeniedError, ExpiredTokenError, SlowDownError, AuthorizationPendingError, ServerError, TokenRequest, TokenResponse, IntrospectionRequest, IntrospectionResponse, RevokeRequest, UserInfoResponse, RefreshTokenRecord, RefreshTokenState, AccessTokenClaims, IdTokenClaims, TokenType, AccessTokenSenderConstraint, SenderConstraintKind, SenderConstraintCnf, RefreshTokenSenderConstraint, Audience, InvalidGrantError, UnsupportedGrantTypeError, InvalidTokenError, InvalidDpopProofError, InsufficientScopeError, SigningKey, SigningKeyState, JWK, JWKS, DiscoveryDocument, SignatureAlgorithm, Uri, AuditEventQuery, AdminAuditEventResponse, AdminAuditEventListResponse, AdminKeyResponse, AdminKeyListResponse, AdminRotateKeyResponse]
-    owns_states: [AuthorizationCodeFlow, AuthorizationCodeRecordLifecycle, ConsentLifecycle, PARRecordLifecycle, DeviceCodeFlow, RefreshTokenLifecycle, SigningKeyLifecycle]
-    owns_events: [ClientRegistered, AdminClientCreated, AdminClientUpdated, AdminClientDeleted, AuthorizationCodeIssued, AuthorizationCodeRedeemed, ConsentGranted, ConsentRevoked, PARStored, DeviceAuthorizationRequested, DeviceAuthorizationApproved, DeviceAuthorizationDenied, AccessTokenIssued, RefreshTokenIssued, RefreshTokenRotated, TokenRevoked, TokenIntrospected, TokenExchanged, TokenExchangeRejected, RefreshTokenReuseDetected, SigningKeyRotated, AuthorizationDetailsRequested, AuthorizationDetailsConsented, AuthorizationDetailsRejected]
-    owns_interfaces: [RegisterClient, ListAuthorizationDetailTypes, GetAuthorizationDetailType, CreateAuthorizationDetailType, UpdateAuthorizationDetailType, DeleteAuthorizationDetailType, ListAdminClients, GetAdminClient, CreateAdminClient, UpdateAdminClient, DeleteAdminClient, Authorize, GetBrowserTransaction, SubmitBrowserConsent, PushAuthorizationRequest, DeviceAuthorization, GetBrowserDeviceContext, SubmitBrowserDevice, EndSession, ListAdminConsents, GetAdminConsent, RevokeAdminConsent, ListMyConsents, RevokeMyConsent, Token, Introspect, Revoke, UserInfo, PostUserInfo, GetJwks, GetOpenidConfiguration, GetOauthAuthorizationServer, Health, ListAdminAuditEvents, ExportAdminAuditEvents, GetAdminAuditEvent, ListAdminKeys, GetAdminKey, RotateAdminKey]
-    owns_invariants: [ClientAuthFailureUniformity, PkceRoundTrip, AuthCodeStateSafety, DeviceCodeStateSafety, AuthorizationCodeSingleUse, ParRequestUriSingleUse, AuthorizationCodeTtl, AuthorizationCodeEventuallyResolves, DeviceCodeEventuallyResolves, RedirectUriExactMatch, PkceMandatory, AccessTokenIssuedOnlyAfterConsent, RefreshFamilyTransitiveRevoke, RefreshRotationParentInvariants, DpopJtiUniquenessWithinWindow, TokenHashOneWay, RefreshTokenAbsoluteTtl, AllAccessTokensCarryAudience, SigningKeyMaxAge]
-    owns_permissions: [AdminClientsManage, AuthorizeInitiate, AdminConsentsManage, TokenGrantAuthorizationCode, TokenGrantRefresh, TokenGrantClientCredentials, TokenGrantDeviceCode, TokenGrantTokenExchange, TokenIntrospect, TokenRevoke, UserInfoRead, AdminAuditEventsRead, AdminKeysRead, AdminKeysRotate, AdminAuthorizationDetailTypesManage]
-    owns_objectives: [RegisterLatency, RegisterErrorRate, ClientAuthFailureRateLimit, AuthorizeLatency, ParLatency, DeviceAuthorizationLatency, AuthorizeErrorRate, ParErrorRate, DeviceAuthorizationErrorRate, AuthorizeThroughput, AuthorizationCodeLifetime, ParRequestUriLifetime, DeviceCodeLifetime, UserCodeLifetime, DeviceCodePollingDefaultInterval, ConsentRecordsRetention, AuthorizationCodeRedemptionFailureRateLimit, TokenLatency, IntrospectLatency, RevokeLatency, UserInfoLatency, TokenErrorRate, IntrospectErrorRate, RevokeErrorRate, UserInfoErrorRate, TokenEndpointAvailability, TokenThroughput, IntrospectThroughput, AccessTokenLifetime, IdTokenLifetime, RefreshTokenLifetime, RefreshTokenAbsoluteLifetime, DpopProofClockSkewPast, DpopProofClockSkewFuture, DpopJtiReplayWindow, DpopNonceLifetime, RefreshReuseAlertWindow, JwksLatency, DiscoveryLatency, JwksErrorRate, DiscoveryErrorRate, OverallAvailability, SigningKeyMinJwksOverlap, SigningKeyArchiveRetention, AuditLogRetention]
+    owns_models: [OAuth2Client, ClientType, TokenEndpointAuthMethod, FapiProfile, ClientRegistrationRequest, AdminClientCreateRequest, AdminClientUpdateRequest, AdminClientResponse, AdminClientCreateResponse, AdminClientListResponse, InvalidClientError, UnauthorizedClientError, AuthorizationRequest, AuthorizeParameters, Consent, ConsentState, AuthorizationDetail, AuthorizationDetailFieldRule, AuthorizationDetailFieldSemantics, AuthorizationDetailsSchema, AuthorizationDetailType, AuthorizationDetailTypeState, AuthorizationDetailTypeRequest, AuthorizationDetailTypeResponse, AuthorizationDetailTypeListResponse, AdminConsentResponse, AdminConsentListResponse, AccountConsentResponse, AccountConsentListResponse, AuthorizationCodeRecord, AuthorizationCodeState, AuthorizationCodeRecordState, ResponseType, ResponseMode, CodeChallengeMethod, GrantType, PARRecord, PARRecordState, ParRequest, ParResponse, BrowserConsentRequest, BrowserTransactionResponse, BrowserFlowResponse, EndSessionParameters, DeviceCodeState, DeviceAuthorization, DeviceAuthorizationRequest, DeviceAuthorizationResponse, BrowserDeviceRequest, BrowserDeviceContextResponse, OAuthError, OAuthErrorCode, InvalidRequestError, InvalidScopeError, AccessDeniedError, ExpiredTokenError, SlowDownError, AuthorizationPendingError, ServerError, TokenRequest, TokenResponse, IntrospectionRequest, IntrospectionResponse, RevokeRequest, UserInfoResponse, RefreshTokenRecord, RefreshTokenState, AccessTokenClaims, IdTokenClaims, TokenType, AccessTokenSenderConstraint, SenderConstraintKind, SenderConstraintCnf, RefreshTokenSenderConstraint, Audience, InvalidGrantError, UnsupportedGrantTypeError, InvalidTokenError, InvalidDpopProofError, InsufficientScopeError, DiscoveryDocument, Uri, AuditEventQuery, AdminAuditEventResponse, AdminAuditEventListResponse]
+    owns_states: [AuthorizationCodeFlow, AuthorizationCodeRecordLifecycle, ConsentLifecycle, PARRecordLifecycle, DeviceCodeFlow, RefreshTokenLifecycle]
+    owns_events: [ClientRegistered, AdminClientCreated, AdminClientUpdated, AdminClientDeleted, AuthorizationCodeIssued, AuthorizationCodeRedeemed, ConsentGranted, ConsentRevoked, PARStored, DeviceAuthorizationRequested, DeviceAuthorizationApproved, DeviceAuthorizationDenied, AccessTokenIssued, RefreshTokenIssued, RefreshTokenRotated, TokenRevoked, TokenIntrospected, TokenExchanged, TokenExchangeRejected, RefreshTokenReuseDetected, AuthorizationDetailsRequested, AuthorizationDetailsConsented, AuthorizationDetailsRejected]
+    owns_interfaces: [RegisterClient, ListAuthorizationDetailTypes, GetAuthorizationDetailType, CreateAuthorizationDetailType, UpdateAuthorizationDetailType, DeleteAuthorizationDetailType, ListAdminClients, GetAdminClient, CreateAdminClient, UpdateAdminClient, DeleteAdminClient, Authorize, GetBrowserTransaction, SubmitBrowserConsent, PushAuthorizationRequest, DeviceAuthorization, GetBrowserDeviceContext, SubmitBrowserDevice, EndSession, ListAdminConsents, GetAdminConsent, RevokeAdminConsent, ListMyConsents, RevokeMyConsent, Token, Introspect, Revoke, UserInfo, PostUserInfo, GetOpenidConfiguration, GetOauthAuthorizationServer, Health, ListAdminAuditEvents, ExportAdminAuditEvents, GetAdminAuditEvent]
+    owns_invariants: [ClientAuthFailureUniformity, PkceRoundTrip, AuthCodeStateSafety, DeviceCodeStateSafety, AuthorizationCodeSingleUse, ParRequestUriSingleUse, AuthorizationCodeTtl, AuthorizationCodeEventuallyResolves, DeviceCodeEventuallyResolves, RedirectUriExactMatch, PkceMandatory, AccessTokenIssuedOnlyAfterConsent, RefreshFamilyTransitiveRevoke, RefreshRotationParentInvariants, DpopJtiUniquenessWithinWindow, TokenHashOneWay, RefreshTokenAbsoluteTtl, AllAccessTokensCarryAudience]
+    owns_permissions: [AdminClientsManage, AuthorizeInitiate, AdminConsentsManage, TokenGrantAuthorizationCode, TokenGrantRefresh, TokenGrantClientCredentials, TokenGrantDeviceCode, TokenGrantTokenExchange, TokenIntrospect, TokenRevoke, UserInfoRead, AdminAuditEventsRead, AdminAuthorizationDetailTypesManage]
+    owns_objectives: [RegisterLatency, RegisterErrorRate, ClientAuthFailureRateLimit, AuthorizeLatency, ParLatency, DeviceAuthorizationLatency, AuthorizeErrorRate, ParErrorRate, DeviceAuthorizationErrorRate, AuthorizeThroughput, AuthorizationCodeLifetime, ParRequestUriLifetime, DeviceCodeLifetime, UserCodeLifetime, DeviceCodePollingDefaultInterval, ConsentRecordsRetention, AuthorizationCodeRedemptionFailureRateLimit, TokenLatency, IntrospectLatency, RevokeLatency, UserInfoLatency, TokenErrorRate, IntrospectErrorRate, RevokeErrorRate, UserInfoErrorRate, TokenEndpointAvailability, TokenThroughput, IntrospectThroughput, AccessTokenLifetime, IdTokenLifetime, RefreshTokenLifetime, RefreshTokenAbsoluteLifetime, DpopProofClockSkewPast, DpopProofClockSkewFuture, DpopJtiReplayWindow, DpopNonceLifetime, RefreshReuseAlertWindow, DiscoveryLatency, DiscoveryErrorRate, OverallAvailability, AuditLogRetention]
     depends_on:
       - { bounded_context: Tenancy,        reason: クライアント・コード・トークン・鍵・監査はテナント境界内に閉じる。 }
       - { bounded_context: Authentication, reason: Authorize は AuthenticationContext を Authentication から解決する。 }
       - { bounded_context: IdentityManagement, reason: UserInfo / ID Token claim と Agent client_credentials は identity principal 情報を参照する。 }
+      - { bounded_context: SigningKeys, reason: ID Token / access token / JWK Set の署名鍵ライフサイクルと公開は SigningKeys が所有する。 }
 
-  Federation:
-    description: WS-Federation / WS-Trust などのフェデレーションプロトコル、federation metadata、RP/SP trust、assertion 組み立て、identity 属性からの claim 発行を所有する。OAuth2/OIDC とは別に WS-* / SAML 系の信頼確立とトークン発行を集約する (ADR-059)。
-    owns_models: [ClaimMappingSource, ClaimMappingRule, NameIdConfiguration, ClaimMappingPolicy, IssuedClaim, WsFedRelyingParty]
-    owns_events: [WsFedSignInIssued, WsFedSignInRejected, WsFedSignOut]
-    owns_interfaces: [WsFederationSignIn, WsFederationSignOut]
+  ApplicationCatalog:
+    description: |
+      運用者が「接続する業務アプリケーション」として扱う上位概念を所有する。OIDC client /
+      SAML SP / WS-Fed RP は Application の protocol binding であり、表示名、所有者、
+      ライフサイクル、割当、共通ポリシー、共通監査はここに集約する (ADR-064)。
+      現時点では将来導入の語彙予約であり、既存 protocol 固有管理画面の振る舞いは変えない。
     depends_on:
-      - { bounded_context: Tenancy, reason: RP/SP trust と claim mapping は realm 境界内に閉じる。 }
-      - { bounded_context: IdentityManagement, reason: claim は User 等 identity principal の属性を source とする。 }
+      - { bounded_context: Tenancy, reason: Application は realm 境界内に閉じる。 }
+
+  ClaimRelease:
+    description: |
+      identity principal の属性を外部 relying party / service provider / client へ出すための
+      release policy と protocol-neutral な claim projection を所有する。属性解決と出力許可を
+      共通化し、OIDC JSON claims、SAML AttributeStatement、WS-Fed claim URI への wire 変換は
+      各 protocol context が所有する (ADR-064)。
+    owns_models: [ClaimMappingSource, ClaimMappingRule, NameIdConfiguration, ClaimMappingPolicy, IssuedClaim]
+    depends_on:
+      - { bounded_context: Tenancy, reason: claim release policy は realm 境界内に閉じる。 }
+      - { bounded_context: IdentityManagement, reason: claim の source は User 等 identity principal の属性である。 }
+
+  SigningKeys:
+    description: |
+      tenant-scoped signing key material のライフサイクル、ローテーション、公開重複期間、監査を
+      protocol 横断で所有する。OAuth2/OIDC は JWK/JWKS と JWT signer、SAML / WS-* は X.509
+      証明書と XML signer adapter を使うが、鍵用途・ローテーション・tenant isolation の規範は
+      ここに集約する (ADR-064)。
+    owns_models: [SigningKey, SigningKeyState, JWK, JWKS, SignatureAlgorithm, AdminKeyResponse, AdminKeyListResponse, AdminRotateKeyResponse]
+    owns_states: [SigningKeyLifecycle]
+    owns_events: [SigningKeyRotated]
+    owns_interfaces: [GetJwks, ListAdminKeys, GetAdminKey, RotateAdminKey]
+    owns_invariants: [SigningKeyMaxAge]
+    owns_permissions: [AdminKeysRead, AdminKeysRotate]
+    owns_objectives: [JwksLatency, JwksErrorRate, SigningKeyMinJwksOverlap, SigningKeyArchiveRetention]
+    depends_on:
+      - { bounded_context: Tenancy, reason: 署名鍵と証明書は tenant / realm 境界内に閉じる。 }
+
+  WsFederation:
+    description: WS-Federation passive と WS-Trust active STS の trust、federationmetadata.xml、MEX、RST/RSTR、WS-Fed relying party binding を所有する。SAML assertion / claim release / signing key lifecycle の共有 capability には依存するが、SAML 2.0 SP binding は将来の Saml context が所有する (ADR-064)。
+    owns_models: [WsFedTokenType, WsFedRelyingParty, WsTrustRequestSecurityToken, WsTrustResponse, SecurityTokenEndpoint]
+    owns_events: [WsFedSignInIssued, WsFedSignInRejected, WsFedSignOut, WsTrustTokenIssued, WsTrustTokenRejected]
+    owns_interfaces: [WsFederationSignIn, WsFederationSignOut, WsTrustIssue, WsTrustMetadataExchange, PublishWsFederationMetadata]
+    depends_on:
+      - { bounded_context: Tenancy, reason: WS-Fed RP trust と endpoint は realm 境界内に閉じる。 }
+      - { bounded_context: Authentication, reason: WS-Fed passive は AuthenticationContext を参照し、WS-Trust usernamemixed は資格情報検証を再利用する。 }
+      - { bounded_context: IdentityManagement, reason: WS-Fed / WS-Trust token の subject は User 属性から解決する。 }
+      - { bounded_context: ClaimRelease, reason: WS-Fed / WS-Trust の assertion claim は ClaimRelease policy で組み立てる。 }
+      - { bounded_context: SigningKeys, reason: SAML assertion 署名証明書と metadata への証明書広告は SigningKeys の鍵境界に従う。 }
+
+  Saml:
+    description: |
+      SAML 2.0 IdP の service provider binding、SAML metadata、AuthnRequest / Response、
+      ACS / SLO を将来所有する protocol context。現時点では [[wi-29-saml2-idp]] のための
+      境界予約であり、WS-Fed / WS-Trust とは claim release と XML signing capability だけを共有する。
+    depends_on:
+      - { bounded_context: Tenancy, reason: SAML SP trust と metadata は realm 境界内に閉じる。 }
+      - { bounded_context: Authentication, reason: SAML SSO は AuthenticationContext を参照する。 }
+      - { bounded_context: IdentityManagement, reason: SAML assertion の subject は User 属性から解決する。 }
+      - { bounded_context: ClaimRelease, reason: SAML AttributeStatement / NameID は ClaimRelease policy を利用する。 }
+      - { bounded_context: SigningKeys, reason: SAML assertion / metadata 署名は SigningKeys の鍵境界に従う。 }
 
 # =================================================================
 # 0. standards — 適用する外部標準と規範要件
@@ -705,6 +757,25 @@ vocabulary:
   ResourceServer:
     definition: AccessToken を提示する Client に対して保護リソースを返すサーバー。本アプリの外部。
     aliases: [resource_server]
+  Application:
+    definition: 運用者が接続・割当・監査する業務アプリケーション。OIDC client、SAML SP、WS-Fed RP は Application に紐づく protocol binding である。
+    aliases: [アプリケーション, ApplicationCatalog]
+  ProtocolBinding:
+    definition: >-
+      Application を特定 protocol で接続するための設定。例: OAuth2Client、SAML ServiceProvider、WS-Fed RelyingParty。
+    aliases: [binding, protocol_binding]
+  ClaimReleasePolicy:
+    definition: identity principal の属性を外部 application / relying party / service provider / client へ出すための属性解決と出力許可の規則。
+    aliases: [ClaimMappingPolicy, attribute release, claim mapping]
+  WsFederation:
+    definition: WS-Federation passive と WS-Trust active STS を組み合わせた WS-* protocol family。
+    aliases: [WS-Federation, WS-Trust, WS-Fed]
+  Saml:
+    definition: SAML 2.0 IdP protocol family。Service Provider 向け metadata、AuthnRequest、SAMLResponse、ACS、SLO を扱う。
+    aliases: [SAML, SAML2]
+  SigningKeys:
+    definition: tenant-scoped signing key material のライフサイクルと公開を扱う境界。OAuth2/OIDC は JWK/JWKS、SAML/WS-* は X.509 証明書を使う。
+    aliases: [KeyMaterial, signing keys]
 
   # ---------- クライアントタイプ ----------
   Public:
@@ -3690,7 +3761,7 @@ models:
 
 
   # ---------------------------------------------------------------
-  # Federation — WS-* / SAML 共有の claim 発行 (ADR-059)
+  # ClaimRelease / WsFederation — protocol-neutral claim release と WS-* binding
   # ---------------------------------------------------------------
 
   ClaimMappingSource:
@@ -3747,7 +3818,7 @@ models:
       の閉集合、audience、claim 発行 policy を束ねる。未登録 wtrealm・許可外 wreply は拒否する
       (open redirect 防止, fail-closed, ADR-059)。
     identity: [tenant_id, wtrealm]
-    annotations: { bounded_context: Federation }
+    annotations: { bounded_context: WsFederation }
     fields:
       tenant_id:    { type: String, default: "default", description: "所属テナント ID (ADR-034)。" }
       wtrealm:      { type: String, constraints: [non_empty], description: "RP の識別子 (WS-Fed wtrealm / SAML audience)。" }
@@ -3758,6 +3829,38 @@ models:
       claim_policy: { type: ClaimMappingPolicy, description: "この RP 向けの claim 発行 policy (ADR-059)。" }
       created_at:   { type: Timestamp }
       updated_at:   { type: Timestamp }
+
+  SecurityTokenEndpoint:
+    kind: value_object
+    description: WS-Trust / WS-Federation metadata に広告する STS endpoint。受理する認証方式と binding を表す (wi-62)。
+    fields:
+      url:           { type: Uri, description: "公開 endpoint URL。" }
+      binding:       { type: String, constraints: [non_empty], description: "例: usernamemixed, mex, passive。" }
+      auth_methods:  { type: "String[]", constraints: [non_empty], description: "受理する認証方式。例: UsernameToken。" }
+
+  WsTrustRequestSecurityToken:
+    kind: value_object
+    description: WS-Trust 1.3 Issue binding の RST から検証対象を抽出した中間表現 (wi-62)。
+    fields:
+      message_id:   { type: String, constraints: [non_empty], description: "WS-Addressing MessageID。replay 防止に使う。" }
+      to:           { type: Uri, description: "WS-Addressing To。要求先 STS endpoint。" }
+      action:       { type: String, constraints: [non_empty], description: "WS-Addressing Action。Issue のみ受理する。" }
+      username:     { type: String, constraints: [non_empty], description: "WS-Security UsernameToken username。" }
+      created_at:   { type: Timestamp, description: "WS-Security Timestamp Created。" }
+      expires_at:   { type: Timestamp, description: "WS-Security Timestamp Expires。" }
+      applies_to:   { type: String, constraints: [non_empty], description: "対象 RP / audience。登録済み WsFedRelyingParty に解決する。" }
+      token_type:   { type: WsFedTokenType, optional: true, description: "要求 token type。空なら RP 既定。" }
+
+  WsTrustResponse:
+    kind: value_object
+    description: WS-Trust Issue に対する RSTR。署名済み SAML assertion と lifetime / appliesTo を含む (wi-62)。
+    fields:
+      relates_to:    { type: String, optional: true, description: "元 RST の MessageID。" }
+      applies_to:    { type: String, constraints: [non_empty] }
+      token_type:    { type: WsFedTokenType }
+      issued_at:     { type: Timestamp }
+      expires_at:    { type: Timestamp }
+      assertion_id:  { type: String, optional: true }
 
   WsFedSignInIssued:
     kind: event
@@ -3784,6 +3887,24 @@ models:
       occurredAt: { type: Timestamp }
       tenantId:   { type: String, description: "sign-out したテナント ID。" }
       wtrealm:    { type: String, optional: true, description: "sign-out を要求した RP の wtrealm (判明していれば)。" }
+
+  WsTrustTokenIssued:
+    kind: event
+    description: WS-Trust active STS で署名済み assertion を発行した (wi-62)。
+    payload:
+      occurredAt: { type: Timestamp }
+      tenantId:   { type: String, description: "発行したテナント ID。" }
+      appliesTo:  { type: String, description: "発行先 RP / audience。" }
+      sub:        { type: String, description: "subject user。" }
+
+  WsTrustTokenRejected:
+    kind: event
+    description: WS-Trust active STS の Issue 要求を拒否した (wi-62)。
+    payload:
+      occurredAt: { type: Timestamp }
+      tenantId:   { type: String, description: "拒否したテナント ID。" }
+      appliesTo:  { type: String, optional: true, description: "要求された AppliesTo (判明していれば)。" }
+      reason:     { type: String, description: "拒否理由の要約。" }
 
 # =================================================================
 # 3. interfaces — 外部との契約 (HTTP API)
@@ -4174,6 +4295,44 @@ interfaces:
       wreply:  { type: String, optional: true, description: "返信先。許可集合との完全一致のみ。" }
     bindings:
       - { kind: http, method: GET, path: /wsfed, request_form: query, successful_status_codes: ["200", "303"] }
+
+  WsTrustIssue:
+    description: >-
+      WS-Trust 1.3 active STS Issue endpoint (wi-62)。UsernameToken を検証し、
+      AppliesTo を登録済み WsFedRelyingParty に解決する。RP の claim policy で組み立てた
+      claim を署名済み SAML assertion に載せ、RSTR として返す。未登録 AppliesTo、期限切れ
+      Timestamp、不正な Action / RequestType / TokenType は fail-closed で拒否する。
+    steps:
+      - "username {username} と applies_to {applies_to} で security token を要求する"
+    input:
+      request: { type: WsTrustRequestSecurityToken }
+    output:
+      response: { type: WsTrustResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [WsTrustTokenIssued, WsTrustTokenRejected]
+    bindings:
+      - { kind: http, method: POST, path: /trust/usernamemixed, request_body: xml }
+
+  WsTrustMetadataExchange:
+    description: >-
+      WS-Trust MEX endpoint (wi-62)。active STS の usernamemixed endpoint、UsernameToken
+      policy、WS-Addressing / SOAP binding を realm issuer から派生して広告する。
+    output:
+      endpoint: { type: SecurityTokenEndpoint }
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: /trust/mex, successful_status_codes: ["200"] }
+
+  PublishWsFederationMetadata:
+    description: >-
+      WS-Federation / WS-Trust metadata publication (wi-63)。realm entityID、passive endpoint、
+      active STS endpoint、MEX endpoint、token 署名検証用証明書を AD FS 互換
+      federationmetadata.xml として公開する。
+    output:
+      endpoint: { type: SecurityTokenEndpoint }
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: /federationmetadata/2007-06/federationmetadata.xml, successful_status_codes: ["200"] }
 
   PushAuthorizationRequest:
     description: Pushed Authorization Request (RFC 9126)

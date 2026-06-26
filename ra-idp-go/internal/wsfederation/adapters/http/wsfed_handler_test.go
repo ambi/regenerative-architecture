@@ -15,12 +15,12 @@ import (
 	"time"
 
 	authdomain "ra-idp-go/internal/authentication/domain"
-	"ra-idp-go/internal/federation/adapters/samltoken"
 	"ra-idp-go/internal/platform/crypto"
 	httpadapter "ra-idp-go/internal/platform/http"
 	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/platform/persistence/memory"
 	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/wsfederation/adapters/samltoken"
 
 	"github.com/labstack/echo/v5"
 )

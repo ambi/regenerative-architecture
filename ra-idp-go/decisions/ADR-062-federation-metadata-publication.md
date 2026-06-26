@@ -22,14 +22,15 @@ federation 署名証明書を広告する派生物として扱う。
    URL は `/{realm}/federationmetadata/2007-06/federationmetadata.xml` とし、default tenant でも
    tenant issuer (`/realms/default`) を entityID として広告する。
 
-2. **metadata は Federation context の wire adapter が生成する。**
+2. **metadata は WsFederation context の wire adapter が生成する。**
    `EntityDescriptor` に `SecurityTokenServiceType` と `ApplicationServiceType` の
    `RoleDescriptor` を含め、`PassiveRequestorEndpoint`、`SecurityTokenServiceEndpoint`、
    `MetadataEndpoint`、署名用 `KeyDescriptor` を広告する。
 
-3. **署名証明書は federation 署名証明書を広告する。**
-   OAuth/OIDC の JWK 署名鍵は流用しない。現スライスでは文書自体の XML 署名と証明書ローテーションは
-   永続 key lifecycle WI に委ね、metadata には token 署名検証用の X.509 証明書を載せる。
+3. **署名証明書は WS-* 用の X.509 署名証明書を広告する。**
+   OAuth/OIDC の JWK 形式は metadata へ流用しない。鍵用途・ローテーション・公開重複期間は
+   `SigningKeys` の責務として扱い、metadata には WS-* token 署名検証用の X.509 証明書を載せる
+   ([[ADR-064]])。
 
 4. **MEX は WS-Trust active endpoint の discovery として公開する。**
    `/{realm}/trust/mex` は `usernamemixed` endpoint と UsernameToken 必須の policy を広告する。

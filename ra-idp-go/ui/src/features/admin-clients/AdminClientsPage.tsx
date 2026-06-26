@@ -113,7 +113,7 @@ export function AdminClientsPage({
       setError(
         cause instanceof AuthenticationAPIError
           ? cause.message
-          : 'アプリケーション管理操作を完了できませんでした。',
+          : 'OAuth2/OIDC クライアント管理操作を完了できませんでした。',
       )
     } finally {
       setBusy(false)
@@ -164,7 +164,7 @@ export function AdminClientsPage({
           setIssuedSecret({ clientID: result.client.client_id, secret: result.client_secret })
         }
         await refresh(result.client.client_id)
-      }, 'アプリケーションを作成しました。')
+      }, 'OAuth2/OIDC クライアントを作成しました。')
       return
     }
     if (!selected) return
@@ -180,7 +180,7 @@ export function AdminClientsPage({
       })
       setDialog(null)
       await refresh(selected.client_id)
-    }, 'アプリケーションを更新しました。')
+    }, 'OAuth2/OIDC クライアントを更新しました。')
   }
 
   async function handleDelete() {
@@ -189,7 +189,7 @@ export function AdminClientsPage({
       await deleteAdminClient(csrfToken, selected.client_id)
       setDialog(null)
       await refresh('')
-    }, 'アプリケーションを削除しました。')
+    }, 'OAuth2/OIDC クライアントを削除しました。')
   }
 
   return (
@@ -197,17 +197,17 @@ export function AdminClientsPage({
       <AdminShell
         active="clients"
         actorUsername={actorUsername}
-        title="アプリケーション"
-        description="OAuth client の接続先、認証方式、許可する grant と scope を管理します。"
+        title="OAuth2/OIDC クライアント"
+        description="OAuth2/OIDC client の接続先、認証方式、許可する grant と scope を管理します。"
         actions={
           <Button onClick={openCreate}>
             <IconPlus size={17} aria-hidden="true" />
-            アプリケーションを追加
+            クライアントを追加
           </Button>
         }
       >
-            <section className="grid gap-3 sm:grid-cols-3" aria-label="アプリケーション概要">
-              <Metric label="総アプリケーション" value={clients.length} />
+            <section className="grid gap-3 sm:grid-cols-3" aria-label="OAuth2/OIDC クライアント概要">
+              <Metric label="総クライアント" value={clients.length} />
               <Metric label="機密タイプ" value={clients.filter((client) => client.client_type === 'confidential').length} />
               <Metric label="PAR 必須" value={clients.filter((client) => client.require_pushed_authorization_requests).length} />
             </section>
@@ -224,7 +224,7 @@ export function AdminClientsPage({
               <div className="flex flex-col gap-3 border-b border-slate-200 p-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="relative w-full max-w-xl">
                   <IconSearch size={18} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true" />
-                  <Input value={query} onChange={(event) => setQuery(event.target.value)} className="h-10 pl-10" placeholder="名前、client ID、redirect URI、scope で検索" aria-label="アプリケーションを検索" />
+                  <Input value={query} onChange={(event) => setQuery(event.target.value)} className="h-10 pl-10" placeholder="名前、client ID、redirect URI、scope で検索" aria-label="OAuth2/OIDC クライアントを検索" />
                 </div>
                 <Button
                   variant="outline"
@@ -241,7 +241,7 @@ export function AdminClientsPage({
                   <table className="w-full min-w-[760px] text-left text-sm">
                     <thead className="border-b border-slate-200 bg-slate-50/80 text-[0.68rem] font-bold uppercase tracking-[0.08em] text-slate-500">
                       <tr>
-                        <th className="px-5 py-3.5">アプリケーション</th>
+                        <th className="px-5 py-3.5">クライアント</th>
                         <th className="px-5 py-3.5">種別</th>
                         <th className="px-5 py-3.5">認証方式</th>
                         <th className="px-5 py-3.5">グラント</th>
@@ -264,8 +264,8 @@ export function AdminClientsPage({
                   {filtered.length === 0 && (
                     <div className="flex min-h-64 flex-col items-center justify-center px-6 text-center">
                       <IconKey size={28} className="text-slate-300" aria-hidden="true" />
-                      <p className="mt-3 font-semibold text-slate-800">アプリケーションが見つかりません</p>
-                      <p className="mt-1 text-sm text-slate-500">検索語を変更するか、新しいアプリケーションを追加してください。</p>
+                      <p className="mt-3 font-semibold text-slate-800">クライアントが見つかりません</p>
+                      <p className="mt-1 text-sm text-slate-500">検索語を変更するか、新しいクライアントを追加してください。</p>
                     </div>
                   )}
                 </div>
@@ -273,7 +273,7 @@ export function AdminClientsPage({
                   {selected ? (
                     <ClientPaneView client={selected} busy={busy} onEdit={() => openEdit(selected)} onDelete={() => setDialog('delete')} />
                   ) : (
-                    <div className="flex h-full min-h-80 items-center justify-center p-8 text-center text-sm text-slate-500">アプリケーションを選択すると詳細が表示されます。</div>
+                    <div className="flex h-full min-h-80 items-center justify-center p-8 text-center text-sm text-slate-500">クライアントを選択すると詳細が表示されます。</div>
                   )}
                 </aside>
               </div>
@@ -309,7 +309,7 @@ function ClientPaneView({ client, busy, onEdit, onDelete }: { client: AdminClien
             menu={
               <DropdownMenuItem className="text-red-700" onSelect={onDelete}>
                 <IconTrash size={17} aria-hidden="true" />
-                アプリケーションを削除
+                クライアントを削除
               </DropdownMenuItem>
             }
           />
@@ -327,7 +327,7 @@ function ClientPaneView({ client, busy, onEdit, onDelete }: { client: AdminClien
   )
 }
 
-// ClientDetailBody はアプリケーションの全メタデータを表示する (wi-39)。
+// ClientDetailBody は OAuth2/OIDC client の全メタデータを表示する (wi-39)。
 function ClientDetailBody({ client }: { client: AdminClient }) {
   const security =
     [
@@ -373,7 +373,7 @@ function ClientDetailBody({ client }: { client: AdminClient }) {
   )
 }
 
-// AdminClientDetailPage はアプリケーションの全メタデータと編集/削除を扱う専用詳細画面 (wi-39)。
+// AdminClientDetailPage は OAuth2/OIDC client の全メタデータと編集/削除を扱う専用詳細画面 (wi-39)。
 export function AdminClientDetailPage({
   csrfToken,
   actorUsername,
@@ -397,7 +397,7 @@ export function AdminClientDetailPage({
       setError(
         cause instanceof AuthenticationAPIError
           ? cause.message
-          : 'アプリケーション管理操作を完了できませんでした。',
+          : 'OAuth2/OIDC クライアント管理操作を完了できませんでした。',
       )
     } finally {
       setBusy(false)
@@ -435,14 +435,14 @@ export function AdminClientDetailPage({
       })
       setDialog(null)
       setClient(await getAdminClient(client.client_id))
-    }, 'アプリケーションを更新しました。')
+    }, 'OAuth2/OIDC クライアントを更新しました。')
   }
 
   async function handleDelete() {
     await run(async () => {
       await deleteAdminClient(csrfToken, client.client_id)
       window.location.assign(tenantURL('/admin/clients'))
-    }, 'アプリケーションを削除しました。')
+    }, 'OAuth2/OIDC クライアントを削除しました。')
   }
 
   return (
@@ -459,7 +459,7 @@ export function AdminClientDetailPage({
               className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
             >
               <IconArrowLeft size={16} aria-hidden="true" />
-              アプリケーション一覧
+              クライアント一覧
             </a>
             <Button type="button" disabled={busy} onClick={openEdit}>
               <IconEdit size={16} aria-hidden="true" />
@@ -507,7 +507,7 @@ export function AdminClientDetailPage({
 function ClientFormDialog({ mode, form, busy, onChange, onClose, onSubmit }: { mode: 'create' | 'edit'; form: ClientForm; busy: boolean; onChange: (form: ClientForm) => void; onClose: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void }) {
   const set = <K extends keyof ClientForm>(key: K, value: ClientForm[K]) => onChange({ ...form, [key]: value })
   return (
-    <Dialog title={mode === 'create' ? 'アプリケーションを追加' : 'アプリケーションを編集'} onClose={onClose}>
+    <Dialog title={mode === 'create' ? 'クライアントを追加' : 'クライアントを編集'} onClose={onClose}>
       <form onSubmit={onSubmit}>
         <div className="grid max-h-[70vh] gap-5 overflow-y-auto p-6">
           <Field label="表示名"><Input value={form.client_name} onChange={(event) => set('client_name', event.target.value)} /></Field>
@@ -539,7 +539,7 @@ function ClientFormDialog({ mode, form, busy, onChange, onClose, onSubmit }: { m
 
 function DeleteDialog({ client, busy, onClose, onConfirm }: { client: AdminClient; busy: boolean; onClose: () => void; onConfirm: () => void }) {
   return (
-    <Dialog title="アプリケーションを削除" onClose={onClose}>
+    <Dialog title="クライアントを削除" onClose={onClose}>
       <div className="p-6">
         <div className="flex gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
           <IconAlertTriangle className="shrink-0" size={20} />

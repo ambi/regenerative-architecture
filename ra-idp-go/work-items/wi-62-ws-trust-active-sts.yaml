@@ -121,11 +121,11 @@ completion:
       - ra-idp-go/decisions/ADR-062-federation-metadata-publication.md
       - ra-idp-go/decisions/ADR-063-ws-trust-active-sts-scope.md
     implementation:
-      - ra-idp-go/internal/federation/adapters/wstrust/rst.go
-      - ra-idp-go/internal/federation/adapters/http/wstrust_handler.go
-      - ra-idp-go/internal/federation/adapters/http/routes.go
+      - ra-idp-go/internal/wsfederation/adapters/wstrust/rst.go
+      - ra-idp-go/internal/wsfederation/adapters/http/wstrust_handler.go
+      - ra-idp-go/internal/wsfederation/adapters/http/routes.go
       - ra-idp-go/internal/spec/federation.go
-      - ra-idp-go/internal/federation/adapters/metadata/federation_metadata.go
+      - ra-idp-go/internal/wsfederation/adapters/metadata/federation_metadata.go
       - ra-idp-go/ui/src/features/admin-wsfed/AdminWsFedRelyingPartiesPage.tsx
       - ra-idp-go/README.md
 
@@ -137,7 +137,7 @@ completion:
     - "audit: WsTrustTokenIssued / WsTrustTokenRejected を発行"
 
   verification:
-    - cmd: "GOCACHE=/tmp/ra-idp-go-cache go test ./internal/federation/..."
+    - cmd: "GOCACHE=/tmp/ra-idp-go-cache go test ./internal/wsfederation/..."
       in: ra-idp-go
       result: ok
     - cmd: "GOCACHE=/tmp/ra-idp-go-cache go test ./..."

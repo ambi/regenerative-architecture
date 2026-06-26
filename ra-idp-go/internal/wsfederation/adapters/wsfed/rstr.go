@@ -1,4 +1,4 @@
-// Package wsfed は Federation bounded context の WS-Federation passive アダプタ (ADR-047, wi-61)。
+// Package wsfed は WsFederation bounded context の WS-Federation passive アダプタ (ADR-047, wi-61)。
 //
 // 署名済み SAML assertion (samltoken アダプタ, ADR-060) を WS-Trust の RequestSecurityTokenResponse
 // (RSTR) に包み、relying party へ自動 POST する passive レスポンスを組み立てる。XML 構造は etree、

@@ -12,8 +12,8 @@ import (
 	"github.com/beevik/etree"
 	dsig "github.com/russellhaering/goxmldsig"
 
-	"ra-idp-go/internal/federation/domain"
 	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/wsfederation/domain"
 )
 
 // selfSignedCert は署名検証のためのテスト用 X.509 証明書と鍵を生成する。

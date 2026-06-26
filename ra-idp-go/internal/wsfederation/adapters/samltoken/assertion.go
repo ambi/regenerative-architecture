@@ -1,4 +1,4 @@
-// Package samltoken は Federation bounded context の SAML token アダプタ (ADR-047)。
+// Package samltoken は WsFederation bounded context の SAML token アダプタ (ADR-047)。
 //
 // claim 発行エンジン (ADR-059) の出力を、署名済み SAML assertion という XML ワイヤ形式に
 // 変換する。Entra / AD FS の WS-Federation 既定である SAML 1.1 と、SAML 2.0 の双方を組み立てる
@@ -19,7 +19,7 @@ import (
 	"github.com/beevik/etree"
 	dsig "github.com/russellhaering/goxmldsig"
 
-	"ra-idp-go/internal/federation/domain"
+	"ra-idp-go/internal/wsfederation/domain"
 )
 
 const (

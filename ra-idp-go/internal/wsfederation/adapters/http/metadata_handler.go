@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"ra-idp-go/internal/federation/adapters/metadata"
 	"ra-idp-go/internal/platform/http/core"
+	"ra-idp-go/internal/wsfederation/adapters/metadata"
 
 	"github.com/labstack/echo/v5"
 )

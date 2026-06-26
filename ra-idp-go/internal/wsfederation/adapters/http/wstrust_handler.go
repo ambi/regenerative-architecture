@@ -7,11 +7,11 @@ import (
 	"time"
 
 	authports "ra-idp-go/internal/authentication/ports"
-	"ra-idp-go/internal/federation/adapters/samltoken"
-	"ra-idp-go/internal/federation/adapters/wstrust"
-	feddomain "ra-idp-go/internal/federation/domain"
 	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/wsfederation/adapters/samltoken"
+	"ra-idp-go/internal/wsfederation/adapters/wstrust"
+	feddomain "ra-idp-go/internal/wsfederation/domain"
 
 	"github.com/labstack/echo/v5"
 )

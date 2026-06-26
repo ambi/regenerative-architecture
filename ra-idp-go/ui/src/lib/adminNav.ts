@@ -81,7 +81,7 @@ export function adminNavItems(active: AdminNavKey): AdminNavItem[] {
     },
     {
       key: 'clients',
-      label: 'アプリケーション',
+      label: 'OAuth2/OIDC',
       icon: IconKey,
       href: tenantURL('/admin/clients'),
       active: active === 'clients',

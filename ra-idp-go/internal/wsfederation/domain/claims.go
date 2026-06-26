@@ -1,4 +1,4 @@
-// Package domain は Federation bounded context のドメインロジックを所有する。
+// Package domain は WsFederation bounded context のドメインロジックを所有する。
 //
 // 本ファイルは claim 発行エンジンを担う (ADR-059)。WS-Federation / WS-Trust / SAML が
 // 共有する protocol-agnostic な変換で、解決済みの identity 属性と ClaimMappingPolicy から

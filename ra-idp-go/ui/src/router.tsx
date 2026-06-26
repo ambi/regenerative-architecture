@@ -5,9 +5,9 @@ import {
   createRoute,
   createRouter,
 } from '@tanstack/react-router'
-import { Suspense, lazy, type ComponentType, type ReactNode } from 'react'
+import { Suspense, lazy, useEffect, type ComponentType, type ReactNode } from 'react'
 import type { PageData } from './types'
-import { tenantBasePath } from './api'
+import { AuthenticationAPIError, resolvePageData, tenantBasePath, tenantURL } from './api'
 
 function namedPage(loader: () => Promise<Record<string, unknown>>, exportName: string) {
   return lazy(async () => {
@@ -148,273 +148,214 @@ function routePage(page: ReactNode) {
   return <Suspense fallback={<div className="min-h-screen bg-slate-50" />}>{page}</Suspense>
 }
 
-const rootRoute = createRootRoute({
-  component: Outlet,
-})
+// markPage は描画したページ種別を <meta name="ra-idp:page"> で DOM に表明する。
+// SPA dispatcher の分岐を E2E から機械的に検証するための不変条件マーカー (wi-22)。
+function markPage(kind: string) {
+  let meta = document.head.querySelector<HTMLMetaElement>('meta[name="ra-idp:page"]')
+  if (!meta) {
+    meta = document.createElement('meta')
+    meta.name = 'ra-idp:page'
+    document.head.appendChild(meta)
+  }
+  meta.content = kind
+}
 
-export function createAppRouter(data: PageData) {
-  const homeRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/',
-    component: () => (data.kind === 'home' ? routePage(<HomePage {...data} />) : null),
-  })
-  const loginRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/login',
-    component: () => (data.kind === 'login' ? routePage(<LoginPage {...data} />) : null),
-  })
-  const consentRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/consent',
-    component: () => (data.kind === 'consent' ? routePage(<ConsentPage {...data} />) : null),
-  })
-  const totpRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/totp',
-    component: () => (data.kind === 'totp' ? routePage(<TotpPage {...data} />) : null),
-  })
-  const deviceRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/device',
-    component: () => (data.kind === 'device' ? routePage(<DevicePage {...data} />) : null),
-  })
-  const statusRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/status',
-    component: () => (data.kind === 'status' ? routePage(<StatusPage {...data} />) : null),
-  })
-  const callbackRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/callback',
-    component: () => (data.kind === 'callback' ? routePage(<CallbackPage {...data} />) : null),
-  })
-  const changePasswordRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/account/password',
-    component: () =>
-      data.kind === 'change-password' ? routePage(<ChangePasswordPage {...data} />) : null,
-  })
-  const accountHomeRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/account',
-    component: () =>
-      data.kind === 'account-home' ? routePage(<AccountHomePage {...data} />) : null,
-  })
-  const accountProfileRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/account/profile',
-    component: () =>
-      data.kind === 'account-profile' ? routePage(<AccountProfilePage {...data} />) : null,
-  })
-  const accountEmailsRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/account/emails',
-    component: () =>
-      data.kind === 'account-emails' ? routePage(<AccountEmailsPage {...data} />) : null,
-  })
-  const emailVerifyRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/account/email/verify',
-    component: () =>
-      data.kind === 'email-verify' ? routePage(<EmailVerifyPage {...data} />) : null,
-  })
-  const accountApplicationsRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/account/applications',
-    component: () =>
-      data.kind === 'account-applications'
-        ? routePage(<AccountApplicationsPage {...data} />)
-        : null,
-  })
-  const accountDataRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/account/data',
-    component: () =>
-      data.kind === 'account-data' ? routePage(<AccountDataPage {...data} />) : null,
-  })
-  const accountSecurityRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/account/security',
-    component: () =>
-      data.kind === 'account-security' ? routePage(<AccountSecurityPage {...data} />) : null,
-  })
-  const accountActivityRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/account/activity',
-    component: () =>
-      data.kind === 'account-activity' ? routePage(<AccountActivityPage {...data} />) : null,
-  })
-  const forgotPasswordRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/forgot_password',
-    component: () =>
-      data.kind === 'forgot-password' ? routePage(<ForgotPasswordPage {...data} />) : null,
-  })
-  const resetPasswordRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/reset_password',
-    component: () =>
-      data.kind === 'reset-password' ? routePage(<ResetPasswordPage {...data} />) : null,
-  })
-  const adminDashboardRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/admin',
-    component: () =>
-      data.kind === 'admin-dashboard' ? routePage(<AdminDashboardPage {...data} />) : null,
-  })
-  const adminUsersRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/admin/users',
-    component: () => (data.kind === 'admin-users' ? routePage(<AdminUsersPage {...data} />) : null),
-  })
-  const adminUserDetailRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/admin/users/$sub',
-    component: () =>
-      data.kind === 'admin-user-detail' ? routePage(<AdminUserDetailPage {...data} />) : null,
-  })
-  const adminRolesRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/admin/roles',
-    component: () => (data.kind === 'admin-roles' ? routePage(<AdminRolesPage {...data} />) : null),
-  })
-  const adminRoleDetailRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/admin/roles/$name',
-    component: () =>
-      data.kind === 'admin-role-detail' ? routePage(<AdminRoleDetailPage {...data} />) : null,
-  })
-  const adminClientsRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/admin/clients',
-    component: () =>
-      data.kind === 'admin-clients' ? routePage(<AdminClientsPage {...data} />) : null,
-  })
-  const adminClientDetailRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/admin/clients/$clientId',
-    component: () =>
-      data.kind === 'admin-client-detail' ? routePage(<AdminClientDetailPage {...data} />) : null,
-  })
-  const adminConsentsRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/admin/consents',
-    component: () =>
-      data.kind === 'admin-consents' ? routePage(<AdminConsentsPage {...data} />) : null,
-  })
-  const adminWsFedRelyingPartiesRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/admin/wsfed/relying-parties',
-    component: () =>
-      data.kind === 'admin-wsfed-relying-parties'
-        ? routePage(<AdminWsFedRelyingPartiesPage {...data} />)
-        : null,
-  })
-  const adminAuthzDetailTypesRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/admin/authorization-detail-types',
-    component: () =>
-      data.kind === 'admin-authz-detail-types'
-        ? routePage(<AdminAuthorizationDetailTypesPage {...data} />)
-        : null,
-  })
-  const adminAuditEventsRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/admin/audit_events',
-    component: () =>
-      data.kind === 'admin-audit-events' ? routePage(<AdminAuditEventsPage {...data} />) : null,
-  })
-  const adminKeysRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/admin/keys',
-    component: () => (data.kind === 'admin-keys' ? routePage(<AdminKeysPage {...data} />) : null),
-  })
-  const adminTenantsRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/admin/tenants',
-    component: () =>
-      data.kind === 'admin-tenants' ? routePage(<AdminTenantsPage {...data} />) : null,
-  })
-  const adminGroupsRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/admin/groups',
-    component: () =>
-      data.kind === 'admin-groups' ? routePage(<AdminGroupsPage {...data} />) : null,
-  })
-  const adminGroupDetailRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/admin/groups/$groupId',
-    component: () =>
-      data.kind === 'admin-group-detail' ? routePage(<AdminGroupDetailPage {...data} />) : null,
-  })
-  const adminAgentsRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/admin/agents',
-    component: () =>
-      data.kind === 'admin-agents' ? routePage(<AdminAgentsPage {...data} />) : null,
-  })
-  const adminAgentDetailRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/admin/agents/$agentId',
-    component: () =>
-      data.kind === 'admin-agent-detail' ? routePage(<AdminAgentDetailPage {...data} />) : null,
-  })
-  const adminSettingsRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/admin/settings',
-    component: () =>
-      data.kind === 'admin-settings' ? routePage(<AdminSettingsPage {...data} />) : null,
-  })
-  const adminTenantAttributesRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/admin/tenant/attributes',
-    component: () =>
-      data.kind === 'admin-tenant-attributes'
-        ? routePage(<AdminTenantAttributesPage {...data} />)
-        : null,
-  })
+// renderPage は解決済み PageData を対応するページコンポーネントへ振り分ける。
+function renderPage(data: PageData): ReactNode {
+  switch (data.kind) {
+    case 'home':
+      return <HomePage {...data} />
+    case 'login':
+      return <LoginPage {...data} />
+    case 'consent':
+      return <ConsentPage {...data} />
+    case 'totp':
+      return <TotpPage {...data} />
+    case 'device':
+      return <DevicePage {...data} />
+    case 'status':
+      return <StatusPage {...data} />
+    case 'callback':
+      return <CallbackPage {...data} />
+    case 'change-password':
+      return <ChangePasswordPage {...data} />
+    case 'account-home':
+      return <AccountHomePage {...data} />
+    case 'account-profile':
+      return <AccountProfilePage {...data} />
+    case 'account-emails':
+      return <AccountEmailsPage {...data} />
+    case 'email-verify':
+      return <EmailVerifyPage {...data} />
+    case 'account-applications':
+      return <AccountApplicationsPage {...data} />
+    case 'account-data':
+      return <AccountDataPage {...data} />
+    case 'account-security':
+      return <AccountSecurityPage {...data} />
+    case 'account-activity':
+      return <AccountActivityPage {...data} />
+    case 'forgot-password':
+      return <ForgotPasswordPage {...data} />
+    case 'reset-password':
+      return <ResetPasswordPage {...data} />
+    case 'admin-dashboard':
+      return <AdminDashboardPage {...data} />
+    case 'admin-users':
+      return <AdminUsersPage {...data} />
+    case 'admin-user-detail':
+      return <AdminUserDetailPage {...data} />
+    case 'admin-roles':
+      return <AdminRolesPage {...data} />
+    case 'admin-role-detail':
+      return <AdminRoleDetailPage {...data} />
+    case 'admin-clients':
+      return <AdminClientsPage {...data} />
+    case 'admin-client-detail':
+      return <AdminClientDetailPage {...data} />
+    case 'admin-consents':
+      return <AdminConsentsPage {...data} />
+    case 'admin-wsfed-relying-parties':
+      return <AdminWsFedRelyingPartiesPage {...data} />
+    case 'admin-authz-detail-types':
+      return <AdminAuthorizationDetailTypesPage {...data} />
+    case 'admin-audit-events':
+      return <AdminAuditEventsPage {...data} />
+    case 'admin-keys':
+      return <AdminKeysPage {...data} />
+    case 'admin-tenants':
+      return <AdminTenantsPage {...data} />
+    case 'admin-groups':
+      return <AdminGroupsPage {...data} />
+    case 'admin-group-detail':
+      return <AdminGroupDetailPage {...data} />
+    case 'admin-agents':
+      return <AdminAgentsPage {...data} />
+    case 'admin-agent-detail':
+      return <AdminAgentDetailPage {...data} />
+    case 'admin-settings':
+      return <AdminSettingsPage {...data} />
+    case 'admin-tenant-attributes':
+      return <AdminTenantAttributesPage {...data} />
+    default:
+      return null
+  }
+}
 
+// PageContent は遅延ロードされたページを描画し、マウント後に種別を meta へ表明する。
+// markPage を Suspense 境界の内側で呼ぶことで、lazy chunk のロード完了 (= ページ DOM が
+// 実在する) 時点で meta が更新される (E2E の不変条件が描画と一致する、wi-67)。
+function PageContent({ data }: { data: PageData }) {
+  useEffect(() => {
+    markPage(data.kind)
+  }, [data.kind])
+  return renderPage(data)
+}
+
+// PageView は loader が解決した PageData を Suspense 境界つきで描画する。
+function PageView({ data }: { data: PageData }) {
+  return routePage(<PageContent data={data} />)
+}
+
+// ErrorScreen は loader が投げた認証エラーを、ブート時と同じ案内画面で表示する。
+function ErrorScreen({ error }: { error: unknown }) {
+  markPage('error')
+  const rawMessage =
+    error instanceof AuthenticationAPIError ? error.message : '認証画面を読み込めませんでした。'
+  const expiredLogin =
+    rawMessage.includes('認可トランザクション') || rawMessage.toLowerCase().includes('transaction')
+  const title = expiredLogin ? 'ログイン要求が終了しています' : '認証を続行できません'
+  const message = expiredLogin
+    ? '前のログイン要求は完了または期限切れになっています。利用したい画面をもう一度開いてログインしてください。'
+    : rawMessage || '認証画面を読み込めませんでした。もう一度お試しください。'
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-slate-100 p-6">
+      <div className="w-full max-w-md rounded-2xl border bg-white p-8 text-center shadow-lg">
+        <h1 className="text-xl font-semibold text-slate-950">{title}</h1>
+        <p className="mt-3 text-sm leading-6 text-slate-600">{message}</p>
+        {expiredLogin ? (
+          <div className="mt-6 grid gap-2">
+            <a
+              href={tenantURL('/account')}
+              className="inline-flex h-10 items-center justify-center rounded-lg bg-slate-950 px-4 text-sm font-semibold text-white hover:bg-slate-800"
+            >
+              マイページを開く
+            </a>
+            <a
+              href={tenantURL('/admin')}
+              className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 hover:bg-slate-50"
+            >
+              管理コンソールを開く
+            </a>
+          </div>
+        ) : null}
+      </div>
+    </main>
+  )
+}
+
+const rootRoute = createRootRoute({ component: Outlet })
+
+// PAGE_PATHS は SPA が扱う全パス。各パスは共有 loader (resolvePageData) と PageView を持つ。
+const PAGE_PATHS = [
+  '/',
+  '/login',
+  '/consent',
+  '/totp',
+  '/device',
+  '/status',
+  '/callback',
+  '/account/password',
+  '/account',
+  '/account/profile',
+  '/account/emails',
+  '/account/email/verify',
+  '/account/applications',
+  '/account/data',
+  '/account/security',
+  '/account/activity',
+  '/forgot_password',
+  '/reset_password',
+  '/admin',
+  '/admin/users',
+  '/admin/users/$sub',
+  '/admin/roles',
+  '/admin/roles/$name',
+  '/admin/clients',
+  '/admin/clients/$clientId',
+  '/admin/consents',
+  '/admin/wsfed/relying-parties',
+  '/admin/authorization-detail-types',
+  '/admin/audit_events',
+  '/admin/keys',
+  '/admin/tenants',
+  '/admin/groups',
+  '/admin/groups/$groupId',
+  '/admin/agents',
+  '/admin/agents/$agentId',
+  '/admin/settings',
+  '/admin/tenant/attributes',
+] as const
+
+function makePageRoute(path: string) {
+  const route = createRoute({
+    getParentRoute: () => rootRoute,
+    path,
+    // loader は遷移先 location でページデータを取得する。client-side 遷移では window への
+    // 依存を持たず、その route のデータだけを取得する (wi-67)。
+    loader: ({ location }) =>
+      resolvePageData({ pathname: location.pathname, search: location.searchStr }),
+    component: () => <PageView data={route.useLoaderData() as PageData} />,
+  })
+  return route
+}
+
+export function createAppRouter() {
   return createRouter({
-    routeTree: rootRoute.addChildren([
-      homeRoute,
-      loginRoute,
-      totpRoute,
-      consentRoute,
-      deviceRoute,
-      statusRoute,
-      callbackRoute,
-      changePasswordRoute,
-      accountHomeRoute,
-      accountProfileRoute,
-      accountEmailsRoute,
-      emailVerifyRoute,
-      accountApplicationsRoute,
-      accountDataRoute,
-      accountSecurityRoute,
-      accountActivityRoute,
-      forgotPasswordRoute,
-      resetPasswordRoute,
-      adminDashboardRoute,
-      adminUsersRoute,
-      adminUserDetailRoute,
-      adminRolesRoute,
-      adminRoleDetailRoute,
-      adminClientsRoute,
-      adminWsFedRelyingPartiesRoute,
-      adminAuthzDetailTypesRoute,
-      adminClientDetailRoute,
-      adminConsentsRoute,
-      adminAuditEventsRoute,
-      adminKeysRoute,
-      adminTenantsRoute,
-      adminGroupsRoute,
-      adminGroupDetailRoute,
-      adminAgentsRoute,
-      adminAgentDetailRoute,
-      adminSettingsRoute,
-      adminTenantAttributesRoute,
-    ]),
+    routeTree: rootRoute.addChildren(PAGE_PATHS.map(makePageRoute)),
     history: createBrowserHistory(),
     basepath: tenantBasePath() || '/',
+    defaultPendingComponent: () => <div className="min-h-screen bg-slate-50" />,
+    defaultErrorComponent: ({ error }) => <ErrorScreen error={error} />,
   })
 }

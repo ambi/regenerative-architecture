@@ -1,9 +1,20 @@
 import { IconChevronDown, IconLogout, IconUserCircle } from '@tabler/icons-react'
+import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
-import { logout, tenantURL } from '../api'
+import { logout, tenantBasePath } from '../api'
 import { adminNavItems, type AdminNavKey } from '../lib/adminNav'
 import { cn } from '../lib/utils'
 import { Brand } from './Brand'
+
+// toLocal は tenantURL 由来の絶対パスを router 相対パス (テナント基底を除いたもの) に変換する。
+// TanStack Router は basepath を別管理するため、Link には基底を除いたパスを渡す。
+function toLocal(href: string): string {
+  const base = tenantBasePath()
+  if (base && href.startsWith(base)) {
+    return href.slice(base.length) || '/'
+  }
+  return href
+}
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,14 +48,14 @@ export function AdminShell({
       <header className="app-header">
         <div className="flex h-16 items-center justify-between px-5 lg:px-7">
           <div className="flex items-center gap-5">
-            <a
-              href={tenantURL('/admin')}
+            <Link
+              to="/admin"
               aria-current={active === 'dashboard' ? 'page' : undefined}
               aria-label="管理コンソール"
               className="rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600/30"
             >
               <Brand compact />
-            </a>
+            </Link>
             <div className="hidden h-6 w-px bg-slate-200/80 sm:block" />
             <div className="hidden items-center gap-2 rounded-lg border border-slate-200/80 bg-white/70 px-2.5 py-1.5 text-sm font-medium text-slate-700 shadow-xs sm:flex">
               <span className="flex size-7 items-center justify-center rounded-md bg-slate-950 text-xs font-bold text-white">
@@ -81,10 +92,10 @@ export function AdminShell({
               </DropdownMenuLabel>
               <DropdownMenuSeparator className="my-1 h-px bg-slate-200" />
               <DropdownMenuItem asChild>
-                <a href={tenantURL('/account')}>
+                <Link to="/account">
                   <IconUserCircle size={17} aria-hidden="true" />
                   マイページ
-                </a>
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator className="my-1 h-px bg-slate-200" />
               <DropdownMenuItem asChild>
@@ -108,9 +119,9 @@ export function AdminShell({
         <aside className="app-sidebar">
           <nav className="flex flex-1 flex-col gap-1 p-4" aria-label="管理メニュー">
             {items.map((item) => (
-              <a
+              <Link
                 key={item.key}
-                href={item.href}
+                to={toLocal(item.href)}
                 className={cn(
                   'flex h-10 w-full items-center gap-3 rounded-lg px-3 text-left text-sm font-medium transition-[background-color,color,box-shadow]',
                   item.active
@@ -121,7 +132,7 @@ export function AdminShell({
               >
                 <item.icon size={18} stroke={1.8} aria-hidden="true" />
                 {item.label}
-              </a>
+              </Link>
             ))}
           </nav>
         </aside>
@@ -137,9 +148,9 @@ export function AdminShell({
                     ) : (
                       <>
                         <li>
-                          <a href={tenantURL('/admin')} className="hover:text-blue-700 hover:underline">
+                          <Link to="/admin" className="hover:text-blue-700 hover:underline">
                             管理コンソール
-                          </a>
+                          </Link>
                         </li>
                         <li aria-hidden="true">/</li>
                         <li aria-current="page">{currentItem?.label ?? title}</li>

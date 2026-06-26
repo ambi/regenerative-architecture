@@ -129,6 +129,23 @@ async function waitForUrl(view: Bun.WebView, pattern: RegExp, timeoutMs = 15_000
   throw new Error(`timeout waiting for url ${pattern}, last=${view.url}`)
 }
 
+// waitForLocationPath は client-side 遷移 (history.pushState) 後の window.location.pathname を
+// 待つ。Bun.WebView の view.url は top-level 遷移しか追わないため、pushState では更新されない。
+async function waitForLocationPath(
+  view: Bun.WebView,
+  expected: string,
+  timeoutMs = 15_000,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    if ((await view.evaluate('window.location.pathname')) === expected) {
+      return
+    }
+    await Bun.sleep(150)
+  }
+  throw new Error(`timeout waiting for location.pathname=${expected}`)
+}
+
 // clickButtonByText は表示文言からボタンを特定して click する。consent の許可ボタンは
 // type=button で固有の CSS セレクタを持たないため text で引く。React の onClick は
 // プログラム的 click でも発火する。
@@ -171,6 +188,50 @@ test('authorize golden path: login -> consent -> callback keeps code and iss', a
     expect(callbackUrl.searchParams.get('code')).toBeTruthy()
     expect(callbackUrl.searchParams.get('iss')).toBeTruthy()
     expect(callbackUrl.searchParams.get('state')).toBe('e2e-state')
+  } finally {
+    view.close()
+  }
+}, 60_000)
+
+// wi-67: 管理コンソールのサイドバー遷移が client-side (フルリロード無し) であること。
+// /admin は OIDC RP としてログインし (ADR-061)、ログイン後はサイドバーの Link 遷移が
+// ページを再読込せず、対象 route のデータだけを取得することを検証する。
+test('admin sidebar navigation is client-side (no full reload)', async () => {
+  const view = new Bun.WebView({ width: 1280, height: 2000 })
+  try {
+    // 管理コンソールを開く → OIDC RP として /authorize 経由でログイン画面へ。
+    await view.navigate(`${uiOrigin}/admin`)
+    await waitForPage(view, 'login')
+    await view.click('input[name="username"]')
+    await view.type(demo.username)
+    await view.click('input[name="password"]')
+    await view.type(demo.password)
+    await view.click('button[type="submit"]')
+
+    // first-party クライアントは consent をスキップし、/callback で token 交換して
+    // ダッシュボードへ戻る。
+    await waitForPage(view, 'admin-dashboard')
+
+    // フルリロード検出マーカー。client-side 遷移なら保持され、再読込なら消える。
+    await view.evaluate('window.__raSpaMarker = "kept"')
+
+    // サイドバーの「ユーザー」リンクを click (TanStack Link → client-side 遷移)。
+    const clicked = await view.evaluate(`(() => {
+      const link = [...document.querySelectorAll('nav[aria-label="管理メニュー"] a')]
+        .find((a) => (a.textContent ?? '').trim() === 'ユーザー')
+      if (!link) return false
+      link.click()
+      return true
+    })()`)
+    expect(clicked).toBe(true)
+
+    // client-side 遷移は history.pushState のため WebView の view.url には出ない。
+    // 実際の location.pathname とページ種別で遷移完了を判定する。
+    await waitForLocationPath(view, '/admin/users')
+    await waitForPage(view, 'admin-users')
+
+    // 遷移後もマーカーが残っていれば、フルリロードしていない (= client-side 遷移)。
+    expect(await view.evaluate('window.__raSpaMarker ?? null')).toBe('kept')
   } finally {
     view.close()
   }

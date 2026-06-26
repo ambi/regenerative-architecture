@@ -67,8 +67,20 @@ import {
   listAuthorizationDetailTypes,
   listWsFedRelyingParties,
 } from './admin'
-import { AuthenticationAPIError, request, tenantLocalPath, tenantURL, validReturnTo } from './core'
+import {
+  AuthenticationAPIError,
+  request,
+  tenantBasePath,
+  tenantLocalPath,
+  tenantURL,
+  validReturnTo,
+} from './core'
 import { completeLoginFromCallback, ensureLoggedIn } from './oidc'
+
+// PageLocation はページデータ解決の入力となる位置情報。pathname はテナント基底を除いた
+// ローカルパス (先頭スラッシュ付き)、search は生のクエリ文字列。client-side routing では
+// 遷移先の location を渡し、window.location への依存を無くす (wi-67)。
+export type PageLocation = { pathname: string; search: string }
 
 type TransactionResponse = {
   kind: 'login' | 'totp' | 'consent'
@@ -98,8 +110,15 @@ function hasAdminRole(roles: string[] | undefined): boolean {
   return (roles ?? []).some((role) => role === 'admin' || role === 'system_admin')
 }
 
-export async function loadPageData(): Promise<PageData> {
-  const path = tenantLocalPath()
+// loadPageData は現在の window.location に対するページデータを解決する (初期ブート用)。
+export function loadPageData(): Promise<PageData> {
+  return resolvePageData({ pathname: tenantLocalPath(), search: window.location.search })
+}
+
+// resolvePageData は与えられた location に対するページデータを解決する。router の loader が
+// 遷移先 location を渡して呼ぶことで、フルリロード無しの client-side 遷移を可能にする (wi-67)。
+export async function resolvePageData(loc: PageLocation): Promise<PageData> {
+  const path = loc.pathname
   // /callback で OIDC RP ログインを完了させる (ADR-061)。stored login state があれば
   // code を /token に交換して returnTo へ戻る。RP ログインでなければ既存のデモ表示に進む。
   if (path === '/callback' && (await completeLoginFromCallback())) {
@@ -107,7 +126,7 @@ export async function loadPageData(): Promise<PageData> {
   }
   // 管理コンソールは自分自身の IdP の OIDC RP として認証する。トークンが無ければ
   // /authorize へ誘導し (戻り先を保持)、取得済みなら Bearer で API を呼ぶ。
-  const authReturnTo = `${window.location.pathname}${window.location.search}`
+  const authReturnTo = `${tenantBasePath()}${loc.pathname}${loc.search}`
   let adminAccount: AccountContextResponse | undefined
   if (path === '/admin' || path.startsWith('/admin/')) {
     await ensureLoggedIn('admin', authReturnTo)
@@ -124,13 +143,13 @@ export async function loadPageData(): Promise<PageData> {
     return { kind: 'home', demoEnabled: import.meta.env.DEV } satisfies HomePage
   }
   if (path === '/status') {
-    const state = new URLSearchParams(window.location.search).get('state')
+    const state = new URLSearchParams(loc.search).get('state')
     const supported = ['approved', 'denied', 'signed-out', 'authentication-required'] as const
     const status = supported.find((value) => value === state) ?? 'authentication-required'
     return { kind: 'status', status } satisfies StatusPage
   }
   if (path === '/callback') {
-    const parameters = new URLSearchParams(window.location.search)
+    const parameters = new URLSearchParams(loc.search)
     return {
       kind: 'callback',
       code: parameters.get('code') ?? undefined,
@@ -139,7 +158,7 @@ export async function loadPageData(): Promise<PageData> {
     } satisfies CallbackPage
   }
   if (path === '/device') {
-    const userCode = new URLSearchParams(window.location.search).get('user_code') ?? ''
+    const userCode = new URLSearchParams(loc.search).get('user_code') ?? ''
     const data = await request<DeviceResponse>(
       `/api/auth/device?user_code=${encodeURIComponent(userCode)}`,
     )
@@ -171,7 +190,7 @@ export async function loadPageData(): Promise<PageData> {
   }
   if (path === '/account/email/verify') {
     const ctx = await request<{ csrf_token: string }>('/api/account/email/verify_context')
-    const token = new URLSearchParams(window.location.search).get('token') ?? ''
+    const token = new URLSearchParams(loc.search).get('token') ?? ''
     return { kind: 'email-verify', csrfToken: ctx.csrf_token, token } satisfies EmailVerifyPage
   }
   if (path === '/account/applications') {
@@ -469,11 +488,11 @@ export async function loadPageData(): Promise<PageData> {
     return {
       kind: 'reset-password',
       csrfToken: data.csrf_token,
-      token: new URLSearchParams(window.location.search).get('token') ?? '',
+      token: new URLSearchParams(loc.search).get('token') ?? '',
     } satisfies ResetPasswordPage
   }
 
-  const requestedReturnTo = new URLSearchParams(window.location.search).get('return_to') ?? ''
+  const requestedReturnTo = new URLSearchParams(loc.search).get('return_to') ?? ''
   const returnTo = requestedReturnTo
     ? validReturnTo(requestedReturnTo)
       ? requestedReturnTo

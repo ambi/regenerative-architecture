@@ -57,3 +57,14 @@ servers. This is a deliberate departure from a strict "no tokens in JavaScript" 
 bounded by short-lived access tokens (600 s), `Cache-Control: no-store`, and keeping tokens out of
 URLs, logs, and the DOM. The first-party session login (`POST /api/auth/login`) is retained as an
 emergency bootstrap path so a broken OIDC client/key configuration cannot lock administrators out.
+
+## Client-side routing
+
+The SPA uses TanStack Router for client-side navigation. Each path is a route whose `loader`
+resolves only that page's data (`resolvePageData`) and whose component dispatches on the resulting
+`kind` (ADR-061, wi-67). Internal admin/account navigation uses `<Link>`, so moving between pages
+does not reload the document or re-fetch every page's data — only the target route's loader runs.
+The OIDC login guard (`ensureLoggedIn`) runs inside the loader, so it applies to both the initial
+load and in-app navigation. Auth-flow transitions (login/consent/callback and the OIDC redirects)
+remain full-page navigations by nature. The rendered page kind is asserted to the DOM via
+`<meta name="ra-idp:page">` for E2E.

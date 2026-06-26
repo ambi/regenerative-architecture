@@ -1,7 +1,7 @@
 id: wi-67-spa-client-side-routing
 title: 管理コンソール / アカウントポータルの画面遷移を client-side routing 化して全リロードを無くす
 created_at: 2026-06-27
-status: pending
+status: completed
 authors: [tn]
 
 motivation: |
@@ -71,3 +71,56 @@ risk_notes: |
   ルーティングモデルの作り替えは admin / account 全ページの描画経路に触れるため回帰面が
   広い。route 単位 loader への分解は段階的に行い、各 route で deep link とリロード耐性を
   確認する。OIDC トークン guard を SPA ナビゲーション経路にも通すこと。
+
+completion:
+  completed_at: 2026-06-27
+
+  summary: |
+    SPA を TanStack Router の loader ベースの client-side routing に作り替えた。各パスは
+    共有 loader (resolvePageData) で「その route のデータだけ」を取得し、PageView が
+    解決済み PageData の kind に応じてページを描画する。サイドバー / パンくず / アカウント
+    メニュー / ロゴのナビゲーションを `<Link>` に置き換え、画面遷移でドキュメントを再読込
+    しない。OIDC ログイン guard (ensureLoggedIn) は loader 内で動くため、初期ロードと
+    in-app 遷移の両方に適用される。pageData は window.location 依存を排し、遷移先 location
+    (pathname / searchStr) を受け取る resolvePageData に分離した。markPage は Suspense 境界の
+    内側で呼び、lazy chunk のロード完了 (ページ DOM 実在) と meta 表明を一致させた。
+
+  semantic_diff:
+    before: "サイドバー等は <a href> でクリックごとに SPA 全体をフルリロードし、loadPageData が全ページデータを取り直す"
+    after: "TanStack Router の loader/Link による client-side 遷移。対象 route のデータのみ取得し、ドキュメントは再読込しない"
+
+  traceability:
+    specification:
+      - ra-idp-go/decisions/ADR-061-first-party-portals-as-oidc-rp.md  # OIDC guard を loader で適用
+    implementation:
+      - ra-idp-go/ui/src/router.tsx  # loader + PageView + 共有ルート生成
+      - ra-idp-go/ui/src/main.tsx  # RouterProvider のみ
+      - ra-idp-go/ui/src/api/pageData.ts  # resolvePageData(location)
+      - ra-idp-go/ui/src/components/AdminShell.tsx  # サイドバー/パンくず/ロゴを Link 化
+      - ra-idp-go/ui/src/components/AccountShell.tsx  # ナビ/ロゴ/管理リンクを Link 化
+      - ra-idp-go/ui/tests/e2e/authorize-golden-path.spec.ts  # client-side 遷移の E2E
+
+  affected_guarantees_state:
+    - "navigation latency: サイドバー遷移は対象 route のデータのみ取得し、ドキュメントを再読込しない (E2E: marker 保持 + location.pathname 更新)"
+    - "deep link / reload: 任意パスの直接オープンも router loader が解決 (golden-path E2E は full-nav 経路を継続検証)"
+    - "auth guard: 未ログイン admin/account は loader 内 ensureLoggedIn で OIDC ログインへ誘導"
+    - "API 契約不変: /api/{admin,account}/* は変更なし"
+
+  verification:
+    - cmd: "bun --cwd ra-idp-go/ui run lint"
+      result: ok
+    - cmd: "bun --cwd ra-idp-go/ui typecheck"
+      result: ok
+    - cmd: "bun --cwd ra-idp-go/ui build"
+      result: ok
+    - cmd: "bun --cwd ra-idp-go/ui run test:e2e"
+      result: "2 pass (golden path + admin sidebar client-side navigation)"
+
+  residual_risk:
+    - >-
+      ページ内コンテンツのリンク (一覧テーブルの行 → 詳細など) は未変換で、引き続き
+      フルリロード遷移になる。primary navigation (shell) は client-side 化済み。後続で
+      個別変換する。
+    - >-
+      auth-flow 画面 (login / consent / totp / device / callback) は OAuth リダイレクトの
+      性質上フルページ遷移のまま (本 WI の out_of_scope)。

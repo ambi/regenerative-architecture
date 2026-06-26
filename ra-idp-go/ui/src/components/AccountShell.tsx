@@ -10,7 +10,8 @@ import {
   IconUserCircle,
 } from '@tabler/icons-react'
 import type { ReactNode } from 'react'
-import { logout, tenantURL } from '../api'
+import { Link } from '@tanstack/react-router'
+import { logout } from '../api'
 import { cn } from '../lib/utils'
 import { Brand } from './Brand'
 import {
@@ -67,13 +68,13 @@ export function AccountShell({
       <header className="app-header">
         <div className="flex h-16 items-center justify-between px-5 lg:px-7">
           <div className="flex items-center gap-5">
-            <a
-              href={tenantURL('/account')}
+            <Link
+              to="/account"
               aria-label="アカウント"
               className="rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600/30"
             >
               <Brand compact />
-            </a>
+            </Link>
             <div className="hidden h-6 w-px bg-slate-200/80 sm:block" />
             <span className="hidden items-center gap-2 rounded-lg border border-slate-200/80 bg-white/70 px-2.5 py-1.5 text-sm font-medium text-slate-600 shadow-xs sm:flex">
               <IconShieldLock size={16} className="text-slate-400" aria-hidden="true" />
@@ -105,10 +106,10 @@ export function AccountShell({
               <DropdownMenuSeparator className="my-1 h-px bg-slate-200" />
               {isAdmin ? (
                 <DropdownMenuItem asChild>
-                  <a href={tenantURL('/admin')}>
+                  <Link to="/admin">
                     <IconShieldLock size={17} aria-hidden="true" />
                     管理コンソール
-                  </a>
+                  </Link>
                 </DropdownMenuItem>
               ) : null}
               <DropdownMenuItem asChild>
@@ -132,9 +133,9 @@ export function AccountShell({
         <aside className="app-sidebar">
           <nav className="flex flex-1 flex-col gap-1 p-4" aria-label="マイページメニュー">
             {navItems.map((item) => (
-              <a
+              <Link
                 key={item.key}
-                href={tenantURL(item.href)}
+                to={item.href}
                 className={cn(
                   'flex h-10 w-full items-center gap-3 rounded-lg px-3 text-left text-sm font-medium transition-[background-color,color,box-shadow]',
                   item.key === active
@@ -145,7 +146,7 @@ export function AccountShell({
               >
                 <item.icon size={18} stroke={1.8} aria-hidden="true" />
                 {item.label}
-              </a>
+              </Link>
             ))}
           </nav>
         </aside>

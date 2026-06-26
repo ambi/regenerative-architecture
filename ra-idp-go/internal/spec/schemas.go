@@ -51,7 +51,11 @@ type Client struct {
 	RequirePushedAuthorizationRequests bool                    `json:"require_pushed_authorization_requests"`
 	DpopBoundAccessTokens              bool                    `json:"dpop_bound_access_tokens"`
 	FapiProfile                        FapiProfile             `json:"fapi_profile"`
-	CreatedAt                          time.Time               `json:"created_at"`
+	// FirstParty は IdP 自身が所有する信頼済みクライアント (管理コンソール /
+	// アカウントポータル) を表す。resource owner が IdP 利用者自身であるため、
+	// authorization_code フローで consent 画面をスキップする (ADR-061)。
+	FirstParty bool      `json:"first_party"`
+	CreatedAt  time.Time `json:"created_at"`
 }
 
 func (c Client) Validate() error {

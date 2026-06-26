@@ -1350,6 +1350,7 @@ models:
       require_pkce:                           { type: Boolean, optional: true }
       dpop_bound_access_tokens:               { type: Boolean, default: false }
       fapi_profile:                           { type: FapiProfile, default: None }
+      first_party:                            { type: Boolean, default: false }
       created_at:                             { type: Timestamp }
 
   User:
@@ -1748,7 +1749,7 @@ models:
       device_authorization_endpoint:                 { type: Uri }
       registration_endpoint:                         { type: Uri }
       end_session_endpoint:                          { type: Uri, optional: true }
-      scopes_supported:                              { type: "String[]", default: [openid, profile, email, phone, address, custom_attribute, offline_access] }
+      scopes_supported:                              { type: "String[]", default: [openid, profile, email, phone, address, custom_attribute, offline_access, ra.admin, ra.account] }
       response_types_supported:                      { type: "ResponseType[]" }
       response_modes_supported:                      { type: "ResponseMode[]", optional: true }
       grant_types_supported:                         { type: "GrantType[]" }

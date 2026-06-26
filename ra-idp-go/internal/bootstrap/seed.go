@@ -112,7 +112,7 @@ func seedFirstPartyPortalClients(ctx context.Context, clients oauthports.ClientR
 			ResponseTypes:           []spec.ResponseType{spec.ResponseTypeCode},
 			TokenEndpointAuthMethod: spec.AuthMethodNone,
 			Scope:                   p.scope, IDTokenSignedResponseAlg: spec.SigAlgPS256,
-			FapiProfile: spec.FapiNone, CreatedAt: now,
+			FapiProfile: spec.FapiNone, FirstParty: true, CreatedAt: now,
 		}); err != nil {
 			return err
 		}

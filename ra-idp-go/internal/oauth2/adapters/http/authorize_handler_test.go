@@ -33,9 +33,10 @@ func (f *fakeAuthnResolver) Resolve(_ context.Context, _ authdomain.Headers) (*a
 }
 
 const (
-	authClientID    = "auth-client"
-	authClientSec   = "auth-client-secret"
-	authRedirectURI = "https://app.example.com/cb"
+	authClientID           = "auth-client"
+	authClientSec          = "auth-client-secret"
+	authRedirectURI        = "https://app.example.com/cb"
+	authFirstPartyClientID = "auth-client-fp"
 )
 
 func newAuthorizeTestServer(t *testing.T, authn *authdomain.AuthenticationContext, consent *spec.Consent) *echo.Echo {
@@ -55,6 +56,20 @@ func newAuthorizeTestServer(t *testing.T, authn *authdomain.AuthenticationContex
 		Scope:                    "openid profile",
 		IDTokenSignedResponseAlg: spec.SigAlgPS256,
 		FapiProfile:              spec.FapiNone,
+		CreatedAt:                now,
+	})
+	// first-party クライアント (ADR-061): consent をスキップする検証用。
+	clientRepo.Seed(&spec.Client{
+		TenantID: spec.DefaultTenantID,
+		ClientID: authFirstPartyClientID, ClientType: spec.ClientPublic,
+		RedirectURIs:             []string{authRedirectURI},
+		GrantTypes:               []spec.GrantType{spec.GrantAuthorizationCode},
+		ResponseTypes:            []spec.ResponseType{spec.ResponseTypeCode},
+		TokenEndpointAuthMethod:  spec.AuthMethodNone,
+		Scope:                    "openid profile ra.admin",
+		IDTokenSignedResponseAlg: spec.SigAlgPS256,
+		FapiProfile:              spec.FapiNone,
+		FirstParty:               true,
 		CreatedAt:                now,
 	})
 	if authn != nil {
@@ -164,5 +179,30 @@ func TestAuthorizePromptConsentBypassesExistingConsent(t *testing.T) {
 	}
 	if loc := rec.Header().Get("Location"); !strings.HasSuffix(loc, "/consent") {
 		t.Fatalf("redirect Location=%q, want /consent", loc)
+	}
+}
+
+// ADR-061: first-party クライアントは consent 画面をスキップし、同意レコードが
+// 無くても即 authorization code を発行する (redirect_uri へ code 付きで 303)。
+func TestAuthorizeFirstPartyClientSkipsConsent(t *testing.T) {
+	now := time.Now().UTC()
+	authn := &authdomain.AuthenticationContext{
+		Sub: "user_alice", AuthTime: now.Unix(), AMR: []string{"pwd"},
+	}
+	e := newAuthorizeTestServer(t, authn, nil)
+	q := authorizeQuery(url.Values{})
+	q.Set("client_id", authFirstPartyClientID)
+	q.Set("scope", "openid profile ra.admin")
+	rec := runAuthorize(t, e, q)
+	// 認可コード発行は redirect_uri へ 302 (Found)。/consent への 303 ではない。
+	if rec.Code != http.StatusFound {
+		t.Fatalf("expected 302, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	loc := rec.Header().Get("Location")
+	if strings.Contains(loc, "/consent") {
+		t.Fatalf("first-party client must skip consent, got Location=%q", loc)
+	}
+	if !strings.HasPrefix(loc, authRedirectURI) || !strings.Contains(loc, "code=") {
+		t.Fatalf("expected redirect to %s with code, got Location=%q", authRedirectURI, loc)
 	}
 }

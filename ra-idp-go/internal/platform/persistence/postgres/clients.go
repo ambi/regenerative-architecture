@@ -29,8 +29,8 @@ INSERT INTO clients (
  tenant_id,client_id,client_secret_hash,client_name,client_type,redirect_uris,grant_types,response_types,
  token_endpoint_auth_method,scope,jwks_uri,jwks,tls_client_auth_subject_dn,
  id_token_signed_response_alg,require_pushed_authorization_requests,dpop_bound_access_tokens,
- fapi_profile,created_at
-) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NULLIF($12,'null')::jsonb,$13,$14,$15,$16,$17,$18)
+ fapi_profile,first_party,created_at
+) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NULLIF($12,'null')::jsonb,$13,$14,$15,$16,$17,$18,$19)
 ON CONFLICT (tenant_id,client_id) DO UPDATE SET
  client_secret_hash=COALESCE(EXCLUDED.client_secret_hash,clients.client_secret_hash),
  client_name=EXCLUDED.client_name,client_type=EXCLUDED.client_type,
@@ -40,11 +40,12 @@ ON CONFLICT (tenant_id,client_id) DO UPDATE SET
  tls_client_auth_subject_dn=EXCLUDED.tls_client_auth_subject_dn,
  id_token_signed_response_alg=EXCLUDED.id_token_signed_response_alg,
  require_pushed_authorization_requests=EXCLUDED.require_pushed_authorization_requests,
- dpop_bound_access_tokens=EXCLUDED.dpop_bound_access_tokens,fapi_profile=EXCLUDED.fapi_profile`,
+ dpop_bound_access_tokens=EXCLUDED.dpop_bound_access_tokens,fapi_profile=EXCLUDED.fapi_profile,
+ first_party=EXCLUDED.first_party`,
 		c.TenantID, c.ClientID, c.ClientSecretHash, c.ClientName, c.ClientType, string(redirectURIs), string(grantTypes),
 		string(responseTypes), c.TokenEndpointAuthMethod, c.Scope, c.JwksURI, string(jwks),
 		c.TlsClientAuthSubjectDN, c.IDTokenSignedResponseAlg,
-		c.RequirePushedAuthorizationRequests, c.DpopBoundAccessTokens, c.FapiProfile, c.CreatedAt)
+		c.RequirePushedAuthorizationRequests, c.DpopBoundAccessTokens, c.FapiProfile, c.FirstParty, c.CreatedAt)
 	return err
 }
 
@@ -73,7 +74,7 @@ func (r *ClientRepository) FindAll(ctx context.Context, tenantID string) ([]*spe
 const clientSelect = `SELECT tenant_id,client_id,client_secret_hash,client_name,client_type,redirect_uris,
 grant_types,response_types,token_endpoint_auth_method,scope,jwks_uri,jwks,
 tls_client_auth_subject_dn,id_token_signed_response_alg,
-require_pushed_authorization_requests,dpop_bound_access_tokens,fapi_profile,created_at FROM clients`
+require_pushed_authorization_requests,dpop_bound_access_tokens,fapi_profile,first_party,created_at FROM clients`
 
 func scanClient(row rowScanner) (*spec.Client, error) {
 	var c spec.Client
@@ -81,7 +82,7 @@ func scanClient(row rowScanner) (*spec.Client, error) {
 	err := row.Scan(&c.TenantID, &c.ClientID, &c.ClientSecretHash, &c.ClientName, &c.ClientType,
 		&redirectURIs, &grantTypes, &responseTypes, &c.TokenEndpointAuthMethod, &c.Scope,
 		&c.JwksURI, &jwks, &c.TlsClientAuthSubjectDN, &c.IDTokenSignedResponseAlg,
-		&c.RequirePushedAuthorizationRequests, &c.DpopBoundAccessTokens, &c.FapiProfile, &c.CreatedAt)
+		&c.RequirePushedAuthorizationRequests, &c.DpopBoundAccessTokens, &c.FapiProfile, &c.FirstParty, &c.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}

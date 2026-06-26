@@ -610,7 +610,9 @@ func (d Deps) completeAfterAuthn(
 	if authn.AuthenticationPending {
 		return authorizationNext{Path: core.TenantRoute(c, "/totp")}, nil
 	}
-	if d.ConsentRepo != nil {
+	// first-party クライアント (IdP 自身の管理コンソール / アカウントポータル) は
+	// resource owner が IdP 利用者自身であるため consent をスキップする (ADR-061)。
+	if d.ConsentRepo != nil && !client.FirstParty {
 		consent, _ := d.ConsentRepo.Find(
 			c.Request().Context(), core.RequestTenantID(c), authn.Sub, client.ClientID,
 		)

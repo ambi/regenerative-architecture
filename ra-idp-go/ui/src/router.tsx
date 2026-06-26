@@ -1,37 +1,105 @@
 import {
-  Outlet,
   createBrowserHistory,
   createRootRoute,
   createRoute,
   createRouter,
+  Outlet,
 } from '@tanstack/react-router'
-import { Suspense, lazy, useEffect, type ComponentType, type ReactNode } from 'react'
-import type { PageData } from './types'
+import { useEffect, type ComponentType } from 'react'
 import { AuthenticationAPIError, resolvePageData, tenantBasePath, tenantURL } from './api'
+import type { PageData } from './types'
 
-// pageModuleLoaders は遅延ロードされる全ページの import 関数。preloadPageChunks が
-// バックグラウンドで全 chunk を先読みし、サイドバー遷移時の Suspense (空白) を防ぐ。
-const pageModuleLoaders: Array<() => Promise<unknown>> = []
+// ページごとに props 型 (PageData の各 variant) が異なるため、共通の描画口では any を許す。
+// 実際の props は loader が解決した data (kind 一致) を spread するため整合する。
+// biome-ignore lint/suspicious/noExplicitAny: per-page props differ; data spread keeps them consistent
+type PageComponent = ComponentType<any>
+type PageKind = PageData['kind']
 
-function namedPage(loader: () => Promise<Record<string, unknown>>, exportName: string) {
-  pageModuleLoaders.push(loader)
-  return lazy(async () => {
-    const module = await loader()
-    return { default: module[exportName] as ComponentType<object> }
-  })
+// loadPageComponent は kind ごとのページコンポーネントを動的 import する。各ページは個別
+// チャンクに code-split され、ロードは route loader 内で await される。描画時に
+// React.lazy/Suspense を経由しないため、遷移中は前ページが表示され続け、画面が空白に
+// ならない (wi-67)。
+const loadPageComponent: Record<PageKind, () => Promise<PageComponent>> = {
+  home: () => import('./features/auth-flow/HomePage').then((m) => m.HomePage),
+  login: () => import('./features/auth-flow/LoginPage').then((m) => m.LoginPage),
+  consent: () => import('./features/auth-flow/ConsentPage').then((m) => m.ConsentPage),
+  totp: () => import('./features/auth-flow/TotpPage').then((m) => m.TotpPage),
+  device: () => import('./features/auth-flow/DevicePage').then((m) => m.DevicePage),
+  status: () => import('./features/auth-flow/StatusPage').then((m) => m.StatusPage),
+  callback: () => import('./features/auth-flow/CallbackPage').then((m) => m.CallbackPage),
+  'change-password': () =>
+    import('./features/account/ChangePasswordPage').then((m) => m.ChangePasswordPage),
+  'account-home': () => import('./features/account/AccountHomePage').then((m) => m.AccountHomePage),
+  'account-profile': () =>
+    import('./features/account/AccountProfilePage').then((m) => m.AccountProfilePage),
+  'account-emails': () =>
+    import('./features/account/AccountEmailsPage').then((m) => m.AccountEmailsPage),
+  'email-verify': () => import('./features/auth-flow/EmailVerifyPage').then((m) => m.EmailVerifyPage),
+  'account-applications': () =>
+    import('./features/account/AccountApplicationsPage').then((m) => m.AccountApplicationsPage),
+  'account-data': () => import('./features/account/AccountDataPage').then((m) => m.AccountDataPage),
+  'account-security': () =>
+    import('./features/account/AccountSecurityPage').then((m) => m.AccountSecurityPage),
+  'account-activity': () =>
+    import('./features/account/AccountActivityPage').then((m) => m.AccountActivityPage),
+  'forgot-password': () =>
+    import('./features/auth-flow/ForgotPasswordPage').then((m) => m.ForgotPasswordPage),
+  'reset-password': () =>
+    import('./features/auth-flow/ResetPasswordPage').then((m) => m.ResetPasswordPage),
+  'admin-dashboard': () =>
+    import('./features/admin-dashboard/AdminDashboardPage').then((m) => m.AdminDashboardPage),
+  'admin-users': () => import('./features/admin-users/AdminUsersPage').then((m) => m.AdminUsersPage),
+  'admin-user-detail': () =>
+    import('./features/admin-users/AdminUsersPage').then((m) => m.AdminUserDetailPage),
+  'admin-roles': () => import('./features/admin-roles/AdminRolesPage').then((m) => m.AdminRolesPage),
+  'admin-role-detail': () =>
+    import('./features/admin-roles/AdminRolesPage').then((m) => m.AdminRoleDetailPage),
+  'admin-clients': () =>
+    import('./features/admin-clients/AdminClientsPage').then((m) => m.AdminClientsPage),
+  'admin-client-detail': () =>
+    import('./features/admin-clients/AdminClientsPage').then((m) => m.AdminClientDetailPage),
+  'admin-consents': () =>
+    import('./features/admin-consents/AdminConsentsPage').then((m) => m.AdminConsentsPage),
+  'admin-wsfed-relying-parties': () =>
+    import('./features/admin-wsfed/AdminWsFedRelyingPartiesPage').then(
+      (m) => m.AdminWsFedRelyingPartiesPage,
+    ),
+  'admin-authz-detail-types': () =>
+    import('./features/admin-authz-detail-types/AdminAuthorizationDetailTypesPage').then(
+      (m) => m.AdminAuthorizationDetailTypesPage,
+    ),
+  'admin-audit-events': () =>
+    import('./features/admin-audit-events/AdminAuditEventsPage').then((m) => m.AdminAuditEventsPage),
+  'admin-keys': () => import('./features/admin-keys/AdminKeysPage').then((m) => m.AdminKeysPage),
+  'admin-tenants': () =>
+    import('./features/admin-tenants/AdminTenantsPage').then((m) => m.AdminTenantsPage),
+  'admin-groups': () =>
+    import('./features/admin-groups/AdminGroupsPage').then((m) => m.AdminGroupsPage),
+  'admin-group-detail': () =>
+    import('./features/admin-groups/AdminGroupsPage').then((m) => m.AdminGroupDetailPage),
+  'admin-agents': () =>
+    import('./features/admin-agents/AdminAgentsPage').then((m) => m.AdminAgentsPage),
+  'admin-agent-detail': () =>
+    import('./features/admin-agents/AdminAgentsPage').then((m) => m.AdminAgentDetailPage),
+  'admin-settings': () =>
+    import('./features/admin-settings/AdminSettingsPage').then((m) => m.AdminSettingsPage),
+  'admin-tenant-attributes': () =>
+    import('./features/admin-tenants/AdminTenantAttributesPage').then(
+      (m) => m.AdminTenantAttributesPage,
+    ),
 }
 
 let preloadStarted = false
 
 // preloadPageChunks は全ページの JS chunk をアイドル時にバックグラウンド先読みする。
-// 一度だけ実行され、以降の client-side 遷移で lazy chunk のロード待ち (画面空白) を無くす。
+// loader が chunk を await するため先読みは必須ではないが、初回遷移の loader を高速化する。
 export function preloadPageChunks() {
   if (preloadStarted) {
     return
   }
   preloadStarted = true
   const run = () => {
-    for (const load of pageModuleLoaders) {
+    for (const load of Object.values(loadPageComponent)) {
       void load()
     }
   }
@@ -41,138 +109,6 @@ export function preloadPageChunks() {
   } else {
     setTimeout(run, 200)
   }
-}
-
-const AccountActivityPage = namedPage(
-  () => import('./features/account/AccountActivityPage'),
-  'AccountActivityPage',
-)
-const AccountApplicationsPage = namedPage(
-  () => import('./features/account/AccountApplicationsPage'),
-  'AccountApplicationsPage',
-)
-const AccountDataPage = namedPage(
-  () => import('./features/account/AccountDataPage'),
-  'AccountDataPage',
-)
-const AccountEmailsPage = namedPage(
-  () => import('./features/account/AccountEmailsPage'),
-  'AccountEmailsPage',
-)
-const AccountHomePage = namedPage(
-  () => import('./features/account/AccountHomePage'),
-  'AccountHomePage',
-)
-const AccountProfilePage = namedPage(
-  () => import('./features/account/AccountProfilePage'),
-  'AccountProfilePage',
-)
-const AccountSecurityPage = namedPage(
-  () => import('./features/account/AccountSecurityPage'),
-  'AccountSecurityPage',
-)
-const AdminAuditEventsPage = namedPage(
-  () => import('./features/admin-audit-events/AdminAuditEventsPage'),
-  'AdminAuditEventsPage',
-)
-const AdminClientDetailPage = namedPage(
-  () => import('./features/admin-clients/AdminClientsPage'),
-  'AdminClientDetailPage',
-)
-const AdminClientsPage = namedPage(
-  () => import('./features/admin-clients/AdminClientsPage'),
-  'AdminClientsPage',
-)
-const AdminConsentsPage = namedPage(
-  () => import('./features/admin-consents/AdminConsentsPage'),
-  'AdminConsentsPage',
-)
-const AdminAuthorizationDetailTypesPage = namedPage(
-  () => import('./features/admin-authz-detail-types/AdminAuthorizationDetailTypesPage'),
-  'AdminAuthorizationDetailTypesPage',
-)
-const AdminDashboardPage = namedPage(
-  () => import('./features/admin-dashboard/AdminDashboardPage'),
-  'AdminDashboardPage',
-)
-const AdminGroupDetailPage = namedPage(
-  () => import('./features/admin-groups/AdminGroupsPage'),
-  'AdminGroupDetailPage',
-)
-const AdminGroupsPage = namedPage(
-  () => import('./features/admin-groups/AdminGroupsPage'),
-  'AdminGroupsPage',
-)
-const AdminAgentDetailPage = namedPage(
-  () => import('./features/admin-agents/AdminAgentsPage'),
-  'AdminAgentDetailPage',
-)
-const AdminAgentsPage = namedPage(
-  () => import('./features/admin-agents/AdminAgentsPage'),
-  'AdminAgentsPage',
-)
-const AdminKeysPage = namedPage(
-  () => import('./features/admin-keys/AdminKeysPage'),
-  'AdminKeysPage',
-)
-const AdminRoleDetailPage = namedPage(
-  () => import('./features/admin-roles/AdminRolesPage'),
-  'AdminRoleDetailPage',
-)
-const AdminRolesPage = namedPage(
-  () => import('./features/admin-roles/AdminRolesPage'),
-  'AdminRolesPage',
-)
-const AdminSettingsPage = namedPage(
-  () => import('./features/admin-settings/AdminSettingsPage'),
-  'AdminSettingsPage',
-)
-const AdminTenantAttributesPage = namedPage(
-  () => import('./features/admin-tenants/AdminTenantAttributesPage'),
-  'AdminTenantAttributesPage',
-)
-const AdminTenantsPage = namedPage(
-  () => import('./features/admin-tenants/AdminTenantsPage'),
-  'AdminTenantsPage',
-)
-const AdminUserDetailPage = namedPage(
-  () => import('./features/admin-users/AdminUsersPage'),
-  'AdminUserDetailPage',
-)
-const AdminUsersPage = namedPage(
-  () => import('./features/admin-users/AdminUsersPage'),
-  'AdminUsersPage',
-)
-const AdminWsFedRelyingPartiesPage = namedPage(
-  () => import('./features/admin-wsfed/AdminWsFedRelyingPartiesPage'),
-  'AdminWsFedRelyingPartiesPage',
-)
-const CallbackPage = namedPage(() => import('./features/auth-flow/CallbackPage'), 'CallbackPage')
-const ChangePasswordPage = namedPage(
-  () => import('./features/account/ChangePasswordPage'),
-  'ChangePasswordPage',
-)
-const ConsentPage = namedPage(() => import('./features/auth-flow/ConsentPage'), 'ConsentPage')
-const DevicePage = namedPage(() => import('./features/auth-flow/DevicePage'), 'DevicePage')
-const EmailVerifyPage = namedPage(
-  () => import('./features/auth-flow/EmailVerifyPage'),
-  'EmailVerifyPage',
-)
-const ForgotPasswordPage = namedPage(
-  () => import('./features/auth-flow/ForgotPasswordPage'),
-  'ForgotPasswordPage',
-)
-const HomePage = namedPage(() => import('./features/auth-flow/HomePage'), 'HomePage')
-const LoginPage = namedPage(() => import('./features/auth-flow/LoginPage'), 'LoginPage')
-const ResetPasswordPage = namedPage(
-  () => import('./features/auth-flow/ResetPasswordPage'),
-  'ResetPasswordPage',
-)
-const StatusPage = namedPage(() => import('./features/auth-flow/StatusPage'), 'StatusPage')
-const TotpPage = namedPage(() => import('./features/auth-flow/TotpPage'), 'TotpPage')
-
-function routePage(page: ReactNode) {
-  return <Suspense fallback={<div className="min-h-screen bg-slate-50" />}>{page}</Suspense>
 }
 
 // markPage は描画したページ種別を <meta name="ra-idp:page"> で DOM に表明する。
@@ -187,101 +123,15 @@ function markPage(kind: string) {
   meta.content = kind
 }
 
-// renderPage は解決済み PageData を対応するページコンポーネントへ振り分ける。
-function renderPage(data: PageData): ReactNode {
-  switch (data.kind) {
-    case 'home':
-      return <HomePage {...data} />
-    case 'login':
-      return <LoginPage {...data} />
-    case 'consent':
-      return <ConsentPage {...data} />
-    case 'totp':
-      return <TotpPage {...data} />
-    case 'device':
-      return <DevicePage {...data} />
-    case 'status':
-      return <StatusPage {...data} />
-    case 'callback':
-      return <CallbackPage {...data} />
-    case 'change-password':
-      return <ChangePasswordPage {...data} />
-    case 'account-home':
-      return <AccountHomePage {...data} />
-    case 'account-profile':
-      return <AccountProfilePage {...data} />
-    case 'account-emails':
-      return <AccountEmailsPage {...data} />
-    case 'email-verify':
-      return <EmailVerifyPage {...data} />
-    case 'account-applications':
-      return <AccountApplicationsPage {...data} />
-    case 'account-data':
-      return <AccountDataPage {...data} />
-    case 'account-security':
-      return <AccountSecurityPage {...data} />
-    case 'account-activity':
-      return <AccountActivityPage {...data} />
-    case 'forgot-password':
-      return <ForgotPasswordPage {...data} />
-    case 'reset-password':
-      return <ResetPasswordPage {...data} />
-    case 'admin-dashboard':
-      return <AdminDashboardPage {...data} />
-    case 'admin-users':
-      return <AdminUsersPage {...data} />
-    case 'admin-user-detail':
-      return <AdminUserDetailPage {...data} />
-    case 'admin-roles':
-      return <AdminRolesPage {...data} />
-    case 'admin-role-detail':
-      return <AdminRoleDetailPage {...data} />
-    case 'admin-clients':
-      return <AdminClientsPage {...data} />
-    case 'admin-client-detail':
-      return <AdminClientDetailPage {...data} />
-    case 'admin-consents':
-      return <AdminConsentsPage {...data} />
-    case 'admin-wsfed-relying-parties':
-      return <AdminWsFedRelyingPartiesPage {...data} />
-    case 'admin-authz-detail-types':
-      return <AdminAuthorizationDetailTypesPage {...data} />
-    case 'admin-audit-events':
-      return <AdminAuditEventsPage {...data} />
-    case 'admin-keys':
-      return <AdminKeysPage {...data} />
-    case 'admin-tenants':
-      return <AdminTenantsPage {...data} />
-    case 'admin-groups':
-      return <AdminGroupsPage {...data} />
-    case 'admin-group-detail':
-      return <AdminGroupDetailPage {...data} />
-    case 'admin-agents':
-      return <AdminAgentsPage {...data} />
-    case 'admin-agent-detail':
-      return <AdminAgentDetailPage {...data} />
-    case 'admin-settings':
-      return <AdminSettingsPage {...data} />
-    case 'admin-tenant-attributes':
-      return <AdminTenantAttributesPage {...data} />
-    default:
-      return null
-  }
-}
+type LoadedPage = { data: PageData; Component: PageComponent }
 
-// PageContent は遅延ロードされたページを描画し、マウント後に種別を meta へ表明する。
-// markPage を Suspense 境界の内側で呼ぶことで、lazy chunk のロード完了 (= ページ DOM が
-// 実在する) 時点で meta が更新される (E2E の不変条件が描画と一致する、wi-67)。
-function PageContent({ data }: { data: PageData }) {
+// PageView は loader が解決済みのコンポーネントとデータを描画する。コンポーネントは
+// loader 内で読み込み済みのため Suspense を介さず、マウント時に種別を meta へ表明する。
+function PageView({ data, Component }: LoadedPage) {
   useEffect(() => {
     markPage(data.kind)
   }, [data.kind])
-  return renderPage(data)
-}
-
-// PageView は loader が解決した PageData を Suspense 境界つきで描画する。
-function PageView({ data }: { data: PageData }) {
-  return routePage(<PageContent data={data} />)
+  return <Component {...data} />
 }
 
 // ErrorScreen は loader が投げた認証エラーを、ブート時と同じ案内画面で表示する。
@@ -323,7 +173,8 @@ function ErrorScreen({ error }: { error: unknown }) {
 
 const rootRoute = createRootRoute({ component: Outlet })
 
-// PAGE_PATHS は SPA が扱う全パス。各パスは共有 loader (resolvePageData) と PageView を持つ。
+// PAGE_PATHS は SPA が扱う全パス。各パスは共有 loader (resolvePageData + コンポーネント
+// ロード) と PageView を持つ。
 const PAGE_PATHS = [
   '/',
   '/login',
@@ -368,11 +219,20 @@ function makePageRoute(path: string) {
   const route = createRoute({
     getParentRoute: () => rootRoute,
     path,
-    // loader は遷移先 location でページデータを取得する。client-side 遷移では window への
-    // 依存を持たず、その route のデータだけを取得する (wi-67)。
-    loader: ({ location }) =>
-      resolvePageData({ pathname: location.pathname, search: location.searchStr }),
-    component: () => <PageView data={route.useLoaderData() as PageData} />,
+    // loader は遷移先 location のデータとページコンポーネントの両方を解決する。両方が
+    // 揃うまで TanStack Router は前ページを表示し続けるため、遷移時に空白が出ない (wi-67)。
+    loader: async ({ location }): Promise<LoadedPage> => {
+      const data = await resolvePageData({
+        pathname: location.pathname,
+        search: location.searchStr,
+      })
+      const Component = await loadPageComponent[data.kind]()
+      return { data, Component }
+    },
+    component: () => {
+      const { data, Component } = route.useLoaderData() as LoadedPage
+      return <PageView data={data} Component={Component} />
+    },
   })
   return route
 }
@@ -382,8 +242,8 @@ export function createAppRouter() {
     routeTree: rootRoute.addChildren(PAGE_PATHS.map(makePageRoute)),
     history: createBrowserHistory(),
     basepath: tenantBasePath() || '/',
-    // pending 中は前ページを表示したままにする (空白を出さない)。loader はページ chunk
-    // 先読み済み + データ取得のみのため、遷移は概ね即時に入れ替わる (wi-67)。
+    // pendingComponent を設定しないことで、loader 解決中は前ページを表示したままにする
+    // (全画面の空白を出さない)。コンポーネントは loader で await 済みのため Suspense も挟まない。
     defaultErrorComponent: ({ error }) => <ErrorScreen error={error} />,
   })
 }

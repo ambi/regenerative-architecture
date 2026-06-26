@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"slices"
+	"strings"
 
 	authdomain "ra-idp-go/internal/authentication/domain"
 	"ra-idp-go/internal/spec"
@@ -21,13 +22,7 @@ var (
 // リクエスト先テナントに属する場合のみ AuthenticationContext を返す。失効/無効/
 // テナント不一致のセッションは未認証 (nil) として扱う (defense-in-depth)。
 func (d Deps) ResolveAuthentication(c *echo.Context) (*authdomain.AuthenticationContext, error) {
-	if d.AuthnResolver == nil {
-		return nil, nil
-	}
-	authn, err := d.AuthnResolver.Resolve(
-		c.Request().Context(),
-		authdomain.HTTPHeadersAdapter{H: c.Request().Header},
-	)
+	authn, err := d.resolveAuthnContext(c)
 	if err != nil || authn == nil || d.UserRepo == nil {
 		return authn, err
 	}
@@ -47,6 +42,44 @@ func (d Deps) ResolveAuthentication(c *echo.Context) (*authdomain.Authentication
 		return nil, nil
 	}
 	return authn, nil
+}
+
+// resolveAuthnContext は AuthenticationContext を解決する。OIDC RP 化した portal が
+// 提示する Bearer access token を優先し ([[ADR-061]])、無ければ first-party セッション
+// cookie で解決する (dual-mode)。Bearer は緊急セッションログイン経路と併存する。
+func (d Deps) resolveAuthnContext(c *echo.Context) (*authdomain.AuthenticationContext, error) {
+	if token := bearerToken(c); token != "" {
+		if d.TokenIntrospector == nil {
+			return nil, nil
+		}
+		res, err := d.TokenIntrospector.IntrospectAccessToken(c.Request().Context(), token)
+		if err != nil {
+			return nil, err
+		}
+		if res == nil || !res.Active || res.Sub == "" {
+			return nil, nil
+		}
+		// access token 経由は session を持たないので SessionID は空。完全発行された
+		// access token は認証完了を含意するため AuthenticationPending は false。
+		return &authdomain.AuthenticationContext{Sub: res.Sub, AuthTime: res.Iat}, nil
+	}
+	if d.AuthnResolver == nil {
+		return nil, nil
+	}
+	return d.AuthnResolver.Resolve(
+		c.Request().Context(),
+		authdomain.HTTPHeadersAdapter{H: c.Request().Header},
+	)
+}
+
+// bearerToken は Authorization: Bearer <token> を抽出する。無ければ空文字を返す。
+func bearerToken(c *echo.Context) string {
+	const prefix = "bearer "
+	h := c.Request().Header.Get("Authorization")
+	if len(h) > len(prefix) && strings.EqualFold(h[:len(prefix)], prefix) {
+		return strings.TrimSpace(h[len(prefix):])
+	}
+	return ""
 }
 
 // RequireAdmin は認証済み + 有効ロールに admin を含むユーザを要求する。

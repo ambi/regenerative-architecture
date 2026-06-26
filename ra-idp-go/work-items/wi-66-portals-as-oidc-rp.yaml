@@ -1,0 +1,143 @@
+id: wi-66-portals-as-oidc-rp
+title: 管理コンソールとアカウントポータルを自分自身の IdP の OIDC RP にする
+created_at: 2026-06-27
+status: in_progress
+authors: [tn]
+
+motivation: |
+  現状、管理コンソール (`/admin/*`) とアカウントポータル (`/account/*`) の React SPA は
+  OIDC ではなく IdP 自身のファーストパーティ・ブラウザセッション (HttpOnly セッション
+  cookie、`POST /api/auth/login` で発行) でログインしている。`/api/admin/*` と
+  `/api/account/*` はサーバ側でセッション cookie から `sub` を解決し、ロール / actor
+  境界 (ADR-031 / ADR-038 / ADR-042) で認可している。つまり両 SPA は「RP」ではなく IdP に
+  内蔵された first-party アプリで、IdP が発行するトークンを一切消費していない。
+
+  本 WI は両 SPA を **自分自身の IdP の OIDC RP** に作り変える。authorization_code +
+  PKCE で IdP の `/authorize` にリダイレクトし、`/callback` で code を `/token` に交換して
+  access token (RFC 9068 JWT, ADR-012) を取得し、`Authorization: Bearer` で
+  `/api/admin/*` / `/api/account/*` を呼ぶ。API 側はセッションではなく Bearer トークンを
+  検証する resource server になる。
+
+  これは Keycloak が admin console を master realm の OIDC クライアント
+  (`security-admin-console`) として保護しているのと同じ「自己ドッグフーディング」構成で、
+  デモ IdP として「IdP を本来の使い方 (OIDC RP) で自分自身に対して使う」ことを示す価値が
+  ある。RP 側の authorization_code / PKCE / token 取得 / silent renew / RP-initiated
+  logout という、これまで IdP 側からは見えていなかった経路を実装で示せる。
+
+  ユーザ判断 (本 WI の起点):
+    - トークンの持ち方: **ピュア SPA RP** を選択。トークンはブラウザが保持し、
+      `/api/{admin,account}/*` を Bearer (RFC 9068) のリソースサーバ化する。
+      本リポジトリの `ui/ARCHITECTURE.md` が掲げる no-token-in-JS 方針は本 WI で更新する
+      (ADR-061)。
+    - 対象範囲: **管理 + アカウント両方**の SPA を OIDC RP 化し、ログイン経路を統一する。
+
+scope:
+  decision:
+    - >-
+      新規 ADR-061: 「ファーストパーティ portal を自分自身の IdP の OIDC RP にする」。
+      pure SPA RP を採用しトークンをブラウザ保持にする判断、`/api/{admin,account}/*` の
+      Bearer resource server 化、ブラウザに格納するトークンの種別と寿命 (短命 access
+      token + refresh rotation, ADR-004/012)、ブートストラップ・ロックアウト緩和
+      (循環依存対策として first-party セッションログインを緊急経路として残す) を確定する。
+      `ui/ARCHITECTURE.md` の no-token-in-JS 方針の更新もここで明記する。
+  scl:
+    - >-
+      ファーストパーティ portal を表す OIDC クライアントと scope (`ra.admin` /
+      `ra.account`) を SCL に追記する。両 client は public + PKCE 必須 + first-party
+      (consent skip) とする。Bearer で保護される admin / account interface の前提
+      (caller が access token を提示する) を反映する。
+  go:
+    - >-
+      `core.Deps.ResolveAuthentication` に Bearer 経路を追加する。`Authorization: Bearer`
+      があれば `TokenIntrospector.IntrospectAccessToken` (既存) で JWT access token を
+      検証し、active かつ要求 scope を含むなら `AuthenticationContext` を組み立てる。
+      セッション cookie 経路は緊急ログインのため当面併存させる (dual-mode)。
+    - >-
+      first-party SPA クライアント `ra-admin-console` / `ra-account-portal` を seed する
+      (public, authorization_code + PKCE, redirect_uri = `/callback`,
+      scope = `openid profile ra.admin` / `openid profile ra.account`)。
+    - >-
+      first-party クライアントは consent をスキップする (Client に first_party フラグ、
+      または seed 済み granted consent)。fail-open しないよう scope は固定。
+  http:
+    - >-
+      `/api/admin/*` と `/api/account/*` の認可を Bearer 必須に切り替える (緊急セッション
+      経路は残す)。401 応答は `WWW-Authenticate: Bearer` を返す。
+    - discovery の `scopes_supported` に `ra.admin` / `ra.account` を広告する。
+  ui:
+    - >-
+      SPA に最小の OIDC RP クライアント (PKCE verifier/challenge/state/nonce 生成、
+      `/authorize` への redirect、`/callback` での code→token 交換、token を
+      sessionStorage に保持、`request()` への Bearer 付与、prompt=none / refresh による
+      silent renew) を実装する。
+    - >-
+      `loadPageData` の admin / account 分岐を、未トークン時は `/login` ではなく
+      `/authorize` へ誘導する形に変える。`/callback` を実トークン交換に作り替える
+      (現状 CallbackPage は静的デモ表示)。
+    - RP-initiated logout (`/end_session` + token revoke) を sign-out 導線に接続する。
+  documentation:
+    - >-
+      README と `ui/ARCHITECTURE.md` に「両 portal は自分自身の IdP の OIDC RP」構成、
+      トークン保持方針の変更、緊急セッションログイン経路を記す。
+
+stages:
+  - id: backend-resource-server
+    summary: >-
+      Bearer access token を受け付ける resource server 化 (ResolveAuthentication に
+      Bearer 経路追加) と first-party SPA クライアントの seed。セッション経路と併存する
+      追加的・後方互換な増分で、単体テスト可能。
+  - id: scopes-and-consent
+    summary: >-
+      `ra.admin` / `ra.account` scope の導入、first-party consent skip、discovery 広告。
+  - id: spa-rp-login
+    summary: >-
+      SPA の OIDC RP クライアント実装、loadPageData / callback の差し替え、
+      RP-initiated logout。両 portal をトークン経路へ移行。
+  - id: harden-and-docs
+    summary: >-
+      緊急セッションログイン経路の最小化と境界テスト、e2e、ドキュメント更新、
+      no-token-in-JS 方針の改訂。
+
+out_of_scope:
+  - >-
+    BFF (サーバ側 token 保持) 方式。ユーザ判断で pure SPA RP を採用したため扱わない。
+  - 外部 (サードパーティ) RP の新規追加。既存 demo-client の扱いは変えない。
+  - DPoP による SPA トークンの sender-constraint 化。必要なら追加 WI とする。
+
+affected_guarantees:
+  - >-
+    admin / account API authorization: Bearer access token を検証し、active かつ
+    要求 scope と既存ロール / actor 境界 (ADR-031 / ADR-038 / ADR-042) を満たす場合のみ
+    許可する。トークン無効・scope 不足は fail-closed。
+  - >-
+    bootstrap availability: OIDC クライアント設定や鍵の破壊で管理者がロックアウト
+    されないよう、first-party セッションログインを緊急経路として残す (ADR-061)。
+  - >-
+    token exposure: ブラウザ保持トークンは短命 access token + rotation refresh とし、
+    保存先と寿命を ADR-061 で固定する。no-token-in-JS 方針の変更を明示する。
+  - tenant isolation: トークンの audience / realm と resource path のテナントを一致させる。
+  - audit: OIDC ログイン (authorization_code 発行 / token 発行) は既存監査で記録される。
+
+verification:
+  - cmd: 'go build ./...'
+    in: ra-idp-go
+  - cmd: 'go test ./...'
+    in: ra-idp-go
+    reason: Bearer 解決 (active/scope/テナント不一致) と既存セッション経路の併存の境界。
+  - cmd: 'golangci-lint run ./...'
+    in: ra-idp-go
+  - cmd: 'bun --cwd ra-idp-go/ui typecheck'
+  - cmd: 'bun --cwd ra-idp-go/ui build'
+  - >-
+    手動: 管理者で `/admin` を開き `/authorize`→ログイン→`/callback`→token 取得→
+    `/api/admin/*` が Bearer で通ること、トークン無効化後に 401 となること、
+    緊急セッションログインで復旧できることを確認する。
+
+risk: high
+risk_notes: |
+  IdP が自分自身を認証する循環依存により、OIDC クライアント設定 / 署名鍵の破壊が
+  管理コンソールのロックアウトに直結する。緊急 first-party セッションログイン経路を
+  必ず残す。pure SPA はトークンをブラウザに置くため XSS によるトークン窃取が直接の
+  資格情報漏洩になる。短命 access token・rotation refresh・CSP / no-store の徹底で
+  リスクを抑える。移行中は Bearer とセッションの dual-mode となるため、両経路の認可が
+  同じロール / actor 境界を通ることをテストで担保する。

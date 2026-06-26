@@ -45,6 +45,9 @@ func seedDemoData(
 	}); err != nil {
 		return err
 	}
+	if err := seedFirstPartyPortalClients(ctx, clients, now); err != nil {
+		return err
+	}
 	password := envDefault("DEMO_USER_PASSWORD", "demo-password-1234")
 	if result := authusecases.ValidatePassword(password); !result.OK {
 		return errors.New("DEMO_USER_PASSWORD violates password policy")
@@ -81,6 +84,40 @@ func seedDemoData(
 	return mfaFactors.Save(ctx, &spec.MfaFactor{
 		Sub: "user_alice", Type: spec.MfaFactorTOTP, Secret: &totpSecret, Label: &label, CreatedAt: now,
 	})
+}
+
+// seedFirstPartyPortalClients は管理コンソールとアカウントポータルを自分自身の IdP の
+// OIDC RP として登録する (ADR-061 / [[wi-66-portals-as-oidc-rp]])。両者は public +
+// authorization_code + PKCE のファーストパーティ SPA クライアントで、client secret を
+// 持たない (token_endpoint_auth_method = none)。redirect_uri は SPA の `/callback`。
+func seedFirstPartyPortalClients(ctx context.Context, clients oauthports.ClientRepository, now time.Time) error {
+	portals := []struct {
+		clientID string
+		name     string
+		scope    string
+	}{
+		{"ra-admin-console", "RA Admin Console", "openid profile ra.admin"},
+		{"ra-account-portal", "RA Account Portal", "openid profile ra.account"},
+	}
+	for _, p := range portals {
+		name := p.name
+		if err := clients.Save(ctx, &spec.Client{
+			TenantID: spec.DefaultTenantID, ClientID: p.clientID,
+			ClientName: &name, ClientType: spec.ClientPublic,
+			RedirectURIs: []string{
+				"http://localhost:3000/callback",
+				"http://localhost:5173/callback",
+			},
+			GrantTypes:              []spec.GrantType{spec.GrantAuthorizationCode, spec.GrantRefreshToken},
+			ResponseTypes:           []spec.ResponseType{spec.ResponseTypeCode},
+			TokenEndpointAuthMethod: spec.AuthMethodNone,
+			Scope:                   p.scope, IDTokenSignedResponseAlg: spec.SigAlgPS256,
+			FapiProfile: spec.FapiNone, CreatedAt: now,
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // seedDemoAuthorizationDetailTypes は RFC 9396 のサンプル type を 1 件投入する (ADR-050)。

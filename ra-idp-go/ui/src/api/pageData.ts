@@ -67,14 +67,8 @@ import {
   listAuthorizationDetailTypes,
   listWsFedRelyingParties,
 } from './admin'
-import {
-  AuthenticationAPIError,
-  request,
-  tenantLocalPath,
-  tenantURL,
-  UnauthenticatedError,
-  validReturnTo,
-} from './core'
+import { AuthenticationAPIError, request, tenantLocalPath, tenantURL, validReturnTo } from './core'
+import { completeLoginFromCallback, ensureLoggedIn } from './oidc'
 
 type TransactionResponse = {
   kind: 'login' | 'totp' | 'consent'
@@ -106,30 +100,25 @@ function hasAdminRole(roles: string[] | undefined): boolean {
 
 export async function loadPageData(): Promise<PageData> {
   const path = tenantLocalPath()
+  // /callback で OIDC RP ログインを完了させる (ADR-061)。stored login state があれば
+  // code を /token に交換して returnTo へ戻る。RP ログインでなければ既存のデモ表示に進む。
+  if (path === '/callback' && (await completeLoginFromCallback())) {
+    return new Promise<PageData>(() => {})
+  }
+  // 管理コンソールは自分自身の IdP の OIDC RP として認証する。トークンが無ければ
+  // /authorize へ誘導し (戻り先を保持)、取得済みなら Bearer で API を呼ぶ。
+  const authReturnTo = `${window.location.pathname}${window.location.search}`
   let adminAccount: AccountContextResponse | undefined
   if (path === '/admin' || path.startsWith('/admin/')) {
-    try {
-      adminAccount = await request<AccountContextResponse>('/api/auth/account')
-    } catch (error) {
-      if (!(error instanceof UnauthenticatedError)) throw error
-      const returnTo = `${window.location.pathname}${window.location.search}`
-      window.location.assign(`${tenantURL('/login')}?return_to=${encodeURIComponent(returnTo)}`)
-      return new Promise<PageData>(() => {})
-    }
+    await ensureLoggedIn('admin', authReturnTo)
+    adminAccount = await request<AccountContextResponse>('/api/auth/account')
   }
-  // end-user account portal も認証必須。未認証なら login へ誘導し戻り先を保持する
-  // (wi-18 と同じ pattern)。一度取得したコンテキストは各 /account/* 分岐で再利用する。
-  // ただしメール変更の検証ページはメールのリンクから (未ログインで) 開かれうるため除外する。
+  // アカウントポータルも OIDC RP として認証する。メール変更の検証ページはメールの
+  // リンクから (未ログインで) 開かれうるため除外する。
   let accountContext: AccountContextResponse | undefined
   if (path !== '/account/email/verify' && (path === '/account' || path.startsWith('/account/'))) {
-    try {
-      accountContext = await request<AccountContextResponse>('/api/auth/account')
-    } catch (error) {
-      if (!(error instanceof UnauthenticatedError)) throw error
-      const returnTo = `${window.location.pathname}${window.location.search}`
-      window.location.assign(`${tenantURL('/login')}?return_to=${encodeURIComponent(returnTo)}`)
-      return new Promise<PageData>(() => {})
-    }
+    await ensureLoggedIn('account', authReturnTo)
+    accountContext = await request<AccountContextResponse>('/api/auth/account')
   }
   if (path === '/') {
     return { kind: 'home', demoEnabled: import.meta.env.DEV } satisfies HomePage

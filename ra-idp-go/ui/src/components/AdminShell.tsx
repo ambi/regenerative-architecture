@@ -1,6 +1,6 @@
 import { IconChevronDown, IconLogout, IconUserCircle } from '@tabler/icons-react'
 import type { ReactNode } from 'react'
-import { tenantURL } from '../api'
+import { logout, tenantURL } from '../api'
 import { adminNavItems, type AdminNavKey } from '../lib/adminNav'
 import { cn } from '../lib/utils'
 import { Brand } from './Brand'
@@ -88,10 +88,16 @@ export function AdminShell({
               </DropdownMenuItem>
               <DropdownMenuSeparator className="my-1 h-px bg-slate-200" />
               <DropdownMenuItem asChild>
-                <a href={tenantURL('/end_session')} className="text-red-700">
+                <button
+                  type="button"
+                  onClick={() => {
+                    void logout('admin')
+                  }}
+                  className="w-full text-left text-red-700"
+                >
                   <IconLogout size={17} aria-hidden="true" />
                   ログアウト
-                </a>
+                </button>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

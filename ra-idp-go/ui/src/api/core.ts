@@ -21,11 +21,24 @@ export class UnauthenticatedError extends AuthenticationAPIError {
   }
 }
 
+// bearerTokenProvider は OIDC RP モジュール (api/oidc) が登録する access token 取得関数。
+// core → oidc の循環 import を避けるため、依存方向を逆 (oidc が core に登録) にする。
+let bearerTokenProvider: () => string | null = () => null
+
+export function setBearerTokenProvider(provider: () => string | null) {
+  bearerTokenProvider = provider
+}
+
 export async function request<T>(url: string, init?: RequestInit): Promise<T> {
+  const token = bearerTokenProvider()
+  const headers = token
+    ? { ...(init?.headers ?? {}), Authorization: `Bearer ${token}` }
+    : init?.headers
   const response = await fetch(tenantURL(url), {
     credentials: 'same-origin',
     cache: 'no-store',
     ...init,
+    ...(headers ? { headers } : {}),
   })
   const body = (await response.json().catch(() => ({}))) as T & APIError
   if (!response.ok) {

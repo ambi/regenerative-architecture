@@ -10,7 +10,7 @@ import {
   IconUserCircle,
 } from '@tabler/icons-react'
 import type { ReactNode } from 'react'
-import { tenantURL } from '../api'
+import { logout, tenantURL } from '../api'
 import { cn } from '../lib/utils'
 import { Brand } from './Brand'
 import {
@@ -112,10 +112,16 @@ export function AccountShell({
                 </DropdownMenuItem>
               ) : null}
               <DropdownMenuItem asChild>
-                <a href={tenantURL('/end_session')} className="text-red-700">
+                <button
+                  type="button"
+                  onClick={() => {
+                    void logout('account')
+                  }}
+                  className="w-full text-left text-red-700"
+                >
                   <IconLogout size={17} aria-hidden="true" />
                   ログアウト
-                </a>
+                </button>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

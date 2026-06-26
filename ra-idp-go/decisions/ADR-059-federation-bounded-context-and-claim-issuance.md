@@ -2,8 +2,10 @@
 
 ## ステータス
 
-採用 (accepted)。[[wi-63-federation-metadata-and-claims-mapping]] の第 1 スライス
-(claim 発行エンジン) を実装する意思決定。WS-Federation passive
+一部置き換え (superseded in part)。[[wi-63-federation-metadata-and-claims-mapping]] の第 1 スライス
+(claim 発行エンジン) を実装する意思決定。`Federation` bounded context という名前と
+WS-* / SAML を同居させる境界判断は [[ADR-064]] に置き換えられた。宣言的 claim mapping と
+fail-closed な claim 発行エンジンの決定は引き続き有効。WS-Federation passive
 ([[wi-61-ws-federation-passive-requestor-idp]])・WS-Trust active
 ([[wi-62-ws-trust-active-sts]])・Entra domain federation
 ([[wi-64-entra-domain-federation-m365-sso]]) と、将来の SAML 2.0 IdP
@@ -27,10 +29,10 @@ XML 署名ライブラリの選定 (重い意思決定) を待たずに、最小
 
 ## 決定
 
-1. **新規 bounded context `Federation` を導入する。** WS-Federation / WS-Trust、federation
-   metadata、RP/SP trust、assertion 組み立て、claim 発行を所有する。Tenancy (realm 境界)・
-   IdentityManagement (claim の source となる identity 属性) に依存する。SAML 2.0 IdP も将来
-   ここに同居させる。
+1. **(ADR-064 により置き換え)** 当初は新規 bounded context `Federation` を導入し、
+   WS-Federation / WS-Trust / SAML の RP/SP trust、assertion 組み立て、claim 発行を所有させる
+   方針だった。現在は protocol context を `OAuth2` / `WsFederation` / 将来 `Saml` に分け、
+   `Federation` という bounded context 名は使わない。
 
 2. **claim 発行は宣言的 mapping とする。** AD FS の claim rule language は採らない。
    `ClaimMappingRule` は「出力 claim 型 (URI) ← source (user 属性 / 固定値 / NameID)」の
@@ -49,7 +51,8 @@ XML 署名ライブラリの選定 (重い意思決定) を待たずに、最小
 
 - 属性最小化と同意整合が、プロトコル実装より前に単体テストで検証できる。
 - WS-Fed / WS-Trust / SAML の各 WI は claim 組み立てを再実装せず、本エンジンに委譲する。
-- `Federation` が OAuth2 と並ぶ第 5 の protocol context となり、SAML / WS-* の今後の拡張点になる。
+- `Federation` bounded context 名は ADR-064 で廃止された。claim mapping は WS-Fed / WS-Trust /
+  SAML の共有 capability として維持する。
 
 ## 却下した代替案
 

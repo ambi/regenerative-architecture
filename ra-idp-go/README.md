@@ -22,7 +22,8 @@ OAuth 2.0 / OpenID Connect の認可サーバー兼 IdP として次を備える
 - OpenID Connect Discovery `/.well-known/openid-configuration` と JWK Set `/jwks`（OpenID Connect Discovery 1.0、JWK Set RFC 7517）
 - DPoP による送信者制約トークン（RFC 9449）
 - private_key_jwt クライアント認証（RFC 7523、インライン JWKS / `jwks_uri`）
-- WS-Federation passive requestor profile による IdP（IP-STS）`/wsfed`（`wa=wsignin1.0` のブラウザ SSO と `wsignout1.0` / `wsignoutcleanup1.0` のサインアウト、署名済み SAML assertion を RSTR に包んで relying party へ自動 POST、wi-61）。token は既定で SAML 1.1（Entra / AD FS の WS-Fed 互換）、relying party 設定で SAML 2.0 も選択可。`wfresh`（再認証の最大経過分数）を尊重して古い認証は再ログインへ誘導し、`wauth`（要求された認証方式）を尊重して満たせない統合 Windows 認証等は fail-closed で拒否する（無音サインインは wi-65）。relying party は wtrealm で識別し、許可 wreply の閉集合・トークン種別・claim 発行ポリシーを `/api/admin/wsfed/relying-parties`（管理 UI: WS-Federation 連携先）で管理する。claim は宣言的マッピング（ADR-059）、XML 署名は goxmldsig（ADR-060）
+- WS-Federation passive requestor profile による IdP（IP-STS）`/wsfed`（`wa=wsignin1.0` のブラウザ SSO と `wsignout1.0` / `wsignoutcleanup1.0` のサインアウト、署名済み SAML assertion を RSTR に包んで relying party へ自動 POST、wi-61）。token は既定で SAML 1.1（Entra / AD FS の WS-Fed 互換）、relying party 設定で SAML 2.0 も選択可。`wfresh`（再認証の最大経過分数）を尊重して古い認証は再ログインへ誘導し、`wauth`（要求された認証方式）を尊重して満たせない統合 Windows 認証等は fail-closed で拒否する（無音サインインは wi-65）。relying party は wtrealm で識別し、許可 wreply の閉集合・トークン種別・claim 発行ポリシーを `/api/admin/wsfed/relying-parties`（管理 UI: WS-Federation 連携先）で管理する。claim は宣言的マッピング（ADR-059）、XML 署名は goxmldsig（ADR-060）。AD FS 互換 federation metadata は `/{realm}/federationmetadata/2007-06/federationmetadata.xml`、WS-Trust MEX は `/{realm}/trust/mex` で公開し、issuer・passive/active endpoint・署名証明書を広告する（ADR-062、wi-63）
+- WS-Trust 1.3 active requestor STS `/trust/usernamemixed`（Issue binding のみ、WS-Security UsernameToken username/password 認証、Timestamp / MessageID replay / AppliesTo を fail-closed 検証し、登録済み RP 向けに署名済み SAML assertion を SOAP RSTR で返す、ADR-063、wi-62）。`windowstransport` / Kerberos は範囲外
 
 ### 認証・アカウント・管理
 

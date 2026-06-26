@@ -16,6 +16,7 @@ import (
 
 	authdomain "ra-idp-go/internal/authentication/domain"
 	"ra-idp-go/internal/federation/adapters/samltoken"
+	"ra-idp-go/internal/platform/crypto"
 	httpadapter "ra-idp-go/internal/platform/http"
 	"ra-idp-go/internal/platform/http/core"
 	"ra-idp-go/internal/platform/persistence/memory"
@@ -82,17 +83,29 @@ func newServer(t *testing.T, authn *authdomain.AuthenticationContext) (*echo.Ech
 	})
 
 	userRepo := memory.NewUserRepository()
-	userRepo.Seed(&spec.User{Sub: "user-1", PreferredUsername: "alice"})
+	hasher := crypto.NewArgon2idPasswordHasher()
+	passwordHash, err := hasher.Hash("correct-password")
+	if err != nil {
+		t.Fatalf("hash password: %v", err)
+	}
+	sentinel, err := hasher.Hash("sentinel-password")
+	if err != nil {
+		t.Fatalf("hash sentinel: %v", err)
+	}
+	userRepo.Seed(&spec.User{Sub: "user-1", PreferredUsername: "alice", PasswordHash: passwordHash})
 
 	e := echo.New()
 	httpadapter.Register(e, core.Deps{
-		Issuer:           "https://idp.example",
-		SCL:              spec.MustLoadSCL(),
-		WsFedRPRepo:      rpRepo,
-		UserRepo:         userRepo,
-		FederationSigner: devSigner(t),
-		AuthnResolver:    stubResolver{ctx: authn},
-		Emit:             func(ev spec.DomainEvent) { *captured = append(*captured, ev) },
+		Issuer:                     "https://idp.example",
+		SCL:                        spec.MustLoadSCL(),
+		WsFedRPRepo:                rpRepo,
+		UserRepo:                   userRepo,
+		PasswordHasher:             hasher,
+		SentinelPasswordHash:       sentinel,
+		ClientAssertionReplayStore: memory.NewClientAssertionReplayStore(),
+		FederationSigner:           devSigner(t),
+		AuthnResolver:              stubResolver{ctx: authn},
+		Emit:                       func(ev spec.DomainEvent) { *captured = append(*captured, ev) },
 	})
 	return e, captured
 }
@@ -250,6 +263,140 @@ func TestWsFedSignOutCleanup_ClearsAndReturns200(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status=%d, want 200", rec.Code)
 	}
+}
+
+func TestFederationMetadata_Published(t *testing.T) {
+	e, _ := newServer(t, nil)
+	rec := get(e, "/federationmetadata/2007-06/federationmetadata.xml")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		`entityID="https://idp.example/realms/default"`,
+		"fed:PassiveRequestorEndpoint",
+		"https://idp.example/realms/default/wsfed",
+		"https://idp.example/realms/default/trust/usernamemixed",
+		"ds:X509Certificate",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("metadata missing %q:\n%s", want, body)
+		}
+	}
+	if ct := rec.Header().Get("Content-Type"); !strings.Contains(ct, "application/xml") {
+		t.Fatalf("Content-Type=%q, want application/xml", ct)
+	}
+}
+
+func TestTrustMEX_Published(t *testing.T) {
+	e, _ := newServer(t, nil)
+	rec := get(e, "/trust/mex")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		"mex:Metadata",
+		"UserNameWSTrustBinding_IWSTrust13Sync",
+		"https://idp.example/realms/default/trust/usernamemixed",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("MEX missing %q:\n%s", want, body)
+		}
+	}
+}
+
+func TestWsTrustUsernameMixed_IssuesRSTR(t *testing.T) {
+	e, events := newServer(t, nil)
+	rec := postWsTrustSOAP(e, wsTrustRST(time.Now().UTC(), "urn:uuid:issue-1", "urn:ra-idp:demo-rp"))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		"RequestSecurityTokenResponseCollection",
+		"RequestedSecurityToken",
+		"urn:oasis:names:tc:SAML:1.0:assertion",
+		"urn:ra-idp:demo-rp",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("RSTR missing %q:\n%s", want, body)
+		}
+	}
+	if !hasEvent(*events, "WsTrustTokenIssued") {
+		t.Fatal("WsTrustTokenIssued not emitted")
+	}
+}
+
+func TestWsTrustUsernameMixed_RejectsUnknownAppliesTo(t *testing.T) {
+	e, events := newServer(t, nil)
+	rec := postWsTrustSOAP(e, wsTrustRST(time.Now().UTC(), "urn:uuid:issue-2", "urn:unknown"))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status=%d, want 400 body=%s", rec.Code, rec.Body.String())
+	}
+	if !hasEvent(*events, "WsTrustTokenRejected") {
+		t.Fatal("WsTrustTokenRejected not emitted")
+	}
+}
+
+func TestWsTrustUsernameMixed_RejectsExpiredTimestampAndReplay(t *testing.T) {
+	e, _ := newServer(t, nil)
+	expired := time.Now().UTC().Add(-10 * time.Minute)
+	if rec := postWsTrustSOAP(e, wsTrustRST(expired, "urn:uuid:expired", "urn:ra-idp:demo-rp")); rec.Code != http.StatusBadRequest {
+		t.Fatalf("expired status=%d, want 400", rec.Code)
+	}
+	first := postWsTrustSOAP(e, wsTrustRST(time.Now().UTC(), "urn:uuid:replay", "urn:ra-idp:demo-rp"))
+	if first.Code != http.StatusOK {
+		t.Fatalf("first status=%d body=%s", first.Code, first.Body.String())
+	}
+	second := postWsTrustSOAP(e, wsTrustRST(time.Now().UTC(), "urn:uuid:replay", "urn:ra-idp:demo-rp"))
+	if second.Code != http.StatusBadRequest {
+		t.Fatalf("replay status=%d, want 400", second.Code)
+	}
+}
+
+func postWsTrustSOAP(e *echo.Echo, body string) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(http.MethodPost, "/trust/usernamemixed", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/soap+xml")
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	return rec
+}
+
+func wsTrustRST(now time.Time, messageID, appliesTo string) string {
+	return `<?xml version="1.0" encoding="utf-8"?>
+<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"
+  xmlns:a="http://www.w3.org/2005/08/addressing"
+  xmlns:o="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd"
+  xmlns:u="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"
+  xmlns:t="http://docs.oasis-open.org/ws-sx/ws-trust/200512"
+  xmlns:wsp="http://schemas.xmlsoap.org/ws/2004/09/policy">
+  <s:Header>
+    <a:Action>http://docs.oasis-open.org/ws-sx/ws-trust/200512/Issue</a:Action>
+    <a:MessageID>` + messageID + `</a:MessageID>
+    <a:To>https://idp.example/realms/default/trust/usernamemixed</a:To>
+    <o:Security>
+      <u:Timestamp>
+        <u:Created>` + now.Format(time.RFC3339) + `</u:Created>
+        <u:Expires>` + now.Add(5*time.Minute).Format(time.RFC3339) + `</u:Expires>
+      </u:Timestamp>
+      <o:UsernameToken>
+        <o:Username>alice</o:Username>
+        <o:Password>correct-password</o:Password>
+      </o:UsernameToken>
+    </o:Security>
+  </s:Header>
+  <s:Body>
+    <t:RequestSecurityToken>
+      <t:RequestType>http://docs.oasis-open.org/ws-sx/ws-trust/200512/Issue</t:RequestType>
+      <wsp:AppliesTo>
+        <a:EndpointReference>
+          <a:Address>` + appliesTo + `</a:Address>
+        </a:EndpointReference>
+      </wsp:AppliesTo>
+    </t:RequestSecurityToken>
+  </s:Body>
+</s:Envelope>`
 }
 
 func newAdminServer(t *testing.T) *echo.Echo {

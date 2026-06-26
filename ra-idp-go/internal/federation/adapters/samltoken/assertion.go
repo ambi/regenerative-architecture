@@ -230,6 +230,14 @@ func NewSigner(cert *x509.Certificate, key *rsa.PrivateKey) (*Signer, error) {
 	return &Signer{cert: cert, key: key}, nil
 }
 
+// Certificate は federation 署名証明書の読み取り専用コピーを返す。
+func (s *Signer) Certificate() *x509.Certificate {
+	if s == nil || s.cert == nil {
+		return nil
+	}
+	return s.cert
+}
+
 func (s *Signer) signingContext(idAttr string) (*dsig.SigningContext, error) {
 	ctx, err := dsig.NewSigningContext(s.key, [][]byte{s.cert.Raw})
 	if err != nil {

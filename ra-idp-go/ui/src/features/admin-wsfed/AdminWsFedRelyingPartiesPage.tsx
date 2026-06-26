@@ -1,4 +1,4 @@
-import { IconPlus, IconTrash, IconWorldShare, IconX } from '@tabler/icons-react'
+import { IconDownload, IconPlus, IconServerBolt, IconTrash, IconWorldShare, IconX } from '@tabler/icons-react'
 import { type FormEvent, useState } from 'react'
 import {
   AuthenticationAPIError,
@@ -73,6 +73,26 @@ export function AdminWsFedRelyingPartiesPage({
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const endpointLinks = [
+    {
+      label: 'Federation metadata',
+      href: tenantURL('/federationmetadata/2007-06/federationmetadata.xml'),
+      value: '/federationmetadata/2007-06/federationmetadata.xml',
+      icon: IconDownload,
+    },
+    {
+      label: 'WS-Trust MEX',
+      href: tenantURL('/trust/mex'),
+      value: '/trust/mex',
+      icon: IconServerBolt,
+    },
+    {
+      label: 'WS-Trust usernamemixed',
+      href: tenantURL('/trust/usernamemixed'),
+      value: '/trust/usernamemixed',
+      icon: IconServerBolt,
+    },
+  ]
 
   function reset() {
     setEditing(null)
@@ -164,6 +184,22 @@ export function AdminWsFedRelyingPartiesPage({
     >
       {error ? <Alert variant="destructive">{error}</Alert> : null}
       {notice ? <Alert variant="success">{notice}</Alert> : null}
+
+      <div className="grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 sm:grid-cols-3">
+        {endpointLinks.map(({ label, href, value, icon: Icon }) => (
+          <a
+            key={value}
+            className="flex min-w-0 items-start gap-2 rounded-md border border-slate-200 bg-white p-2.5 text-xs text-slate-600 hover:border-blue-300 hover:text-blue-700"
+            href={href}
+          >
+            <Icon size={16} className="mt-0.5 shrink-0 text-blue-600" aria-hidden="true" />
+            <span className="min-w-0">
+              <span className="block font-semibold text-slate-800">{label}</span>
+              <span className="block truncate font-mono">{value}</span>
+            </span>
+          </a>
+        ))}
+      </div>
 
       {showForm ? (
         <Card className="p-4">
@@ -348,11 +384,11 @@ export function AdminWsFedRelyingPartiesPage({
       )}
 
       <p className="text-xs text-slate-400">
-        passive エンドポイントは{' '}
+        WS-Federation passive sign-in は{' '}
         <a className="underline" href={tenantURL('/wsfed?wa=wsignin1.0')}>
           /wsfed
         </a>{' '}
-        です。未認証アクセスはログイン後に元の要求へ戻ります。
+        で処理します。
       </p>
     </AdminShell>
   )

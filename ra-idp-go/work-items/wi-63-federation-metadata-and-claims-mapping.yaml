@@ -1,7 +1,7 @@
 id: wi-63-federation-metadata-and-claims-mapping
 title: Federation metadata 公開と claim 発行ルールエンジンを WS-Fed / WS-Trust で共有する
 created_at: 2026-06-24
-status: in_progress
+status: completed
 authors: [tn]
 
 motivation: |
@@ -89,3 +89,72 @@ risk_notes: |
   過剰な属性を漏らす。metadata は署名し、claim は明示 mapping のみ fail-closed で発行する。
   署名証明書のローテーションは [[wi-23-signing-key-rotation-scheduler]] / [[wi-32-kms-hsm-and-per-tenant-signing-keys]]
   と整合させ、metadata に複数証明書を載せられるようにする。
+
+completion:
+  completed_at: 2026-06-27
+
+  summary: |
+    ADR-062 を追加し、AD FS 互換の federation metadata 公開範囲を確定した。
+    `/{realm}/federationmetadata/2007-06/federationmetadata.xml` は tenant issuer、
+    WS-Fed passive endpoint、WS-Trust active endpoint、MEX endpoint、federation 署名証明書を
+    `SecurityTokenServiceType` / `ApplicationServiceType` の RoleDescriptor として広告する。
+    `/{realm}/trust/mex` は `usernamemixed` endpoint と UsernameToken 前提の policy を広告する。
+    Claim mapping は既存の宣言的 `ClaimMappingPolicy` / `IssueClaims` を継続利用し、RP 管理 API
+    から NameID / claim rule を管理できる。未マップ属性は出力せず、required source 欠落は拒否する。
+
+  semantic_diff:
+    before: "WS-Fed token 発行と claim mapping はあるが、RP / Entra が信頼確立に使う federationmetadata.xml と MEX が無い"
+    after: "realm ごとの federationmetadata.xml と trust/mex が公開され、issuer・endpoint・署名証明書・claim mapping 方針を WS-Fed / WS-Trust で共有できる"
+
+  traceability:
+    specification:
+      - ra-idp-go/decisions/ADR-059-federation-bounded-context-and-claim-issuance.md
+      - ra-idp-go/decisions/ADR-060-xml-signature-library-and-saml-assertion-signing.md
+      - ra-idp-go/decisions/ADR-062-federation-metadata-publication.md
+    implementation:
+      - ra-idp-go/internal/federation/adapters/metadata/federation_metadata.go
+      - ra-idp-go/internal/federation/adapters/http/metadata_handler.go
+      - ra-idp-go/internal/federation/adapters/http/routes.go
+      - ra-idp-go/internal/federation/adapters/samltoken/assertion.go
+      - ra-idp-go/internal/federation/domain/claims.go
+      - ra-idp-go/internal/spec/federation.go
+      - ra-idp-go/ui/src/features/admin-wsfed/AdminWsFedRelyingPartiesPage.tsx
+      - ra-idp-go/README.md
+
+  affected_guarantees_state:
+    - "metadata integrity: federation 署名証明書を KeyDescriptor として広告する。文書自体の XML 署名は未実施で残リスクに明示"
+    - "claim minimization: IssueClaims は mapping で明示した claim だけを出力し、required 欠落は拒否"
+    - "tenant isolation: metadata / MEX URL は core.RequestIssuer と TenantRoute により realm ごとに分離"
+    - "key separation: metadata は FederationSigner の X.509 証明書を広告し、OAuth JWK は流用しない"
+    - "audit: claim mapping 変更は既存 admin RP 更新経路で扱う。metadata 公開イベントは未実装"
+
+  verification:
+    - cmd: "GOCACHE=/tmp/ra-idp-go-cache go test ./internal/federation/..."
+      in: ra-idp-go
+      result: ok
+    - cmd: "GOCACHE=/tmp/ra-idp-go-cache go test ./..."
+      in: ra-idp-go
+      result: ok
+    - cmd: "bun run yaml-check --schema=work-item ../ra-idp-go/work-items/wi-62-ws-trust-active-sts.yaml ../ra-idp-go/work-items/wi-63-federation-metadata-and-claims-mapping.yaml"
+      in: tools
+      result: ok
+    - cmd: "go test ./internal/federation/..."
+      in: ra-idp-go
+      result: "failed: default Go build cache under ~/Library/Caches was not writable in sandbox; rerun with GOCACHE=/tmp succeeded"
+    - cmd: "golangci-lint run ./..."
+      in: ra-idp-go
+      result: "ok: 0 issues (run outside sandbox after package loading failed inside sandbox)"
+    - cmd: "bun --cwd ra-idp-go/ui typecheck"
+      result: ok
+    - cmd: "bun --cwd ra-idp-go/ui build"
+      result: ok
+
+  residual_risk:
+    - "federationmetadata.xml 文書自体の XML 署名は未実装。現状は token 検証用署名証明書の広告まで。"
+    - "証明書ローテーションと複数証明書掲載は [[wi-23-signing-key-rotation-scheduler]] / [[wi-32-kms-hsm-and-per-tenant-signing-keys]] と整合して後続対応。"
+    - "WS-Trust RST/RSTR 本体は [[wi-62-ws-trust-active-sts]]。本 WI の MEX は endpoint/policy 広告まで。"
+    - "Entra / Microsoft 365 実テナント検証は [[wi-64-entra-domain-federation-m365-sso]] で実施する。"
+
+  human_decisions:
+    - "AD FS claim rule language は採らず、既存の宣言的 ClaimMappingPolicy を WS-Fed / WS-Trust / 将来 SAML の共有境界とした。"
+    - "default tenant も tenant issuer (`/realms/default`) を entityID として広告し、既存 tenant resolution と整合させた。"

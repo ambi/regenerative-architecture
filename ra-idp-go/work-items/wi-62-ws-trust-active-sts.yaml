@@ -1,7 +1,7 @@
 id: wi-62-ws-trust-active-sts
 title: WS-Trust 1.3 Active Requestor STS (RST/RSTR・MEX) で能動クライアント認証に対応する
 created_at: 2026-06-24
-status: pending
+status: completed
 authors: [tn]
 
 motivation: |
@@ -96,3 +96,70 @@ risk_notes: |
   MessageID・AppliesTo を fail-closed で検証する。windowstransport (Kerberos/IWA) は
   本シリーズでは範囲外とし、Issue パイプラインを認証方式から独立させて将来別 WI で
   足せる拡張点に留める。
+
+completion:
+  completed_at: 2026-06-27
+
+  summary: |
+    ADR-063 を追加し、WS-Trust 1.3 active STS の初期対応を Issue binding /
+    `usernamemixed` に限定して実装した。`/{realm}/trust/usernamemixed` は SOAP 1.2 RST を受理し、
+    WS-Addressing `MessageID` / `To` / `Action`、WS-Security UsernameToken、Timestamp、
+    `AppliesTo` を fail-closed に検証する。`MessageID` は短期 replay store に記録し、
+    `AppliesTo` は登録済み WS-Fed RP に解決する。username/password は既存 UserRepository /
+    PasswordHasher / LoginAttemptThrottle を使って検証し、RP の ClaimMappingPolicy と SAML
+    署名器を再利用して署名済み assertion を SOAP RSTR で返す。MEX は wi-63 の `trust/mex` が
+    `usernamemixed` endpoint を広告する。
+
+  semantic_diff:
+    before: "WS-Fed passive はあるが、rich client / legacy active authentication が使う WS-Trust active endpoint は無い"
+    after: "`/trust/usernamemixed` が UsernameToken 認証の WS-Trust Issue RST を受け、登録済み RP 向けの署名済み SAML assertion を RSTR で返す"
+
+  traceability:
+    specification:
+      - ra-idp-go/decisions/ADR-059-federation-bounded-context-and-claim-issuance.md
+      - ra-idp-go/decisions/ADR-060-xml-signature-library-and-saml-assertion-signing.md
+      - ra-idp-go/decisions/ADR-062-federation-metadata-publication.md
+      - ra-idp-go/decisions/ADR-063-ws-trust-active-sts-scope.md
+    implementation:
+      - ra-idp-go/internal/federation/adapters/wstrust/rst.go
+      - ra-idp-go/internal/federation/adapters/http/wstrust_handler.go
+      - ra-idp-go/internal/federation/adapters/http/routes.go
+      - ra-idp-go/internal/spec/federation.go
+      - ra-idp-go/internal/federation/adapters/metadata/federation_metadata.go
+      - ra-idp-go/ui/src/features/admin-wsfed/AdminWsFedRelyingPartiesPage.tsx
+      - ra-idp-go/README.md
+
+  affected_guarantees_state:
+    - "XML signature safety: RSTR に含める SAML assertion は samltoken/goxmldsig で署名"
+    - "audience restriction: AppliesTo は登録済み RP に解決し、assertion Audience / Recipient に束縛"
+    - "replay protection: WS-Addressing MessageID を ClientAssertionReplayStore に `wstrust:` prefix で短期記録"
+    - "credential safety: UsernameToken password は既存 PasswordHasher / SentinelPasswordHash / LoginAttemptThrottle を利用"
+    - "audit: WsTrustTokenIssued / WsTrustTokenRejected を発行"
+
+  verification:
+    - cmd: "GOCACHE=/tmp/ra-idp-go-cache go test ./internal/federation/..."
+      in: ra-idp-go
+      result: ok
+    - cmd: "GOCACHE=/tmp/ra-idp-go-cache go test ./..."
+      in: ra-idp-go
+      result: ok
+    - cmd: "bun run yaml-check --schema=work-item ../ra-idp-go/work-items/wi-62-ws-trust-active-sts.yaml ../ra-idp-go/work-items/wi-63-federation-metadata-and-claims-mapping.yaml"
+      in: tools
+      result: ok
+    - cmd: "golangci-lint run ./..."
+      in: ra-idp-go
+      result: "ok: 0 issues (run outside sandbox after package loading failed inside sandbox)"
+    - cmd: "bun --cwd ra-idp-go/ui typecheck"
+      result: ok
+    - cmd: "bun --cwd ra-idp-go/ui build"
+      result: ok
+
+  residual_risk:
+    - "SOAP / WS-Security parsing は Issue / UsernameToken に必要な要素だけを正規化する最小実装。より広い WS-* 相互運用は wi-64 の実テナント検証で確認する。"
+    - "WS-Trust Validate / Renew / Cancel は未対応。"
+    - "windowstransport / Kerberos / Hybrid Azure AD Join デバイス登録は未提供。必要なら別 WI。"
+    - "MessageID replay store は既存 ClientAssertionReplayStore を prefix 付きで再利用している。専用 port は将来の永続化設計時に分離可能。"
+
+  human_decisions:
+    - "初期 WS-Trust は Okta 同等の username/password active auth に限定し、Kerberos windowstransport は実装しない。"
+    - "MEX 公開は wi-63 側の metadata adapter に置き、RST/RSTR 本体だけを wi-62 の wstrust adapter に置いた。"

@@ -135,3 +135,25 @@ type WsFedSignOut struct {
 
 func (e *WsFedSignOut) EventType() string     { return "WsFedSignOut" }
 func (e *WsFedSignOut) OccurredAt() time.Time { return e.At }
+
+// WsTrustTokenIssued は WS-Trust active STS で assertion を発行した event (wi-62)。
+type WsTrustTokenIssued struct {
+	At        time.Time `json:"-"`
+	TenantID  string    `json:"tenantId"`
+	AppliesTo string    `json:"appliesTo"`
+	Sub       string    `json:"sub"`
+}
+
+func (e *WsTrustTokenIssued) EventType() string     { return "WsTrustTokenIssued" }
+func (e *WsTrustTokenIssued) OccurredAt() time.Time { return e.At }
+
+// WsTrustTokenRejected は WS-Trust active STS の Issue 要求を拒否した event (wi-62)。
+type WsTrustTokenRejected struct {
+	At        time.Time `json:"-"`
+	TenantID  string    `json:"tenantId"`
+	AppliesTo string    `json:"appliesTo,omitempty"`
+	Reason    string    `json:"reason"`
+}
+
+func (e *WsTrustTokenRejected) EventType() string     { return "WsTrustTokenRejected" }
+func (e *WsTrustTokenRejected) OccurredAt() time.Time { return e.At }

@@ -112,6 +112,9 @@ const (
 	ActionAdminGroupsWrite                    = "admin:groups_write"
 	ActionAdminAgentsManage                   = "admin:agents_manage"
 	ActionAdminAuthorizationDetailTypesManage = "admin:authorization_detail_types_manage"
+	ActionAdminApplicationsManage             = "admin:applications_manage"
+	ActionAdminApplicationAssignmentsManage   = "admin:application_assignments_manage"
+	ActionMyApplicationsRead                  = "account:applications_read"
 )
 
 // PascalCase (SCL permissions のキー) → AuthZ action 名。
@@ -141,6 +144,9 @@ var actionNameMapping = map[string]string{
 	"AdminGroupsWrite":                    ActionAdminGroupsWrite,
 	"AdminAgentsManage":                   ActionAdminAgentsManage,
 	"AdminAuthorizationDetailTypesManage": ActionAdminAuthorizationDetailTypesManage,
+	"AdminApplicationsManage":             ActionAdminApplicationsManage,
+	"AdminApplicationAssignmentsManage":   ActionAdminApplicationAssignmentsManage,
+	"MyApplicationsRead":                  ActionMyApplicationsRead,
 }
 
 func ActionNameForPermission(permissionName string) (string, bool) {
@@ -216,6 +222,15 @@ var actionRules = map[string][]string{
 	},
 	ActionAdminAuthorizationDetailTypesManage: {
 		"actor_is_admin", "actor_is_active", "actor_is_authenticated", "actor_and_resource_share_tenant",
+	},
+	ActionAdminApplicationsManage: {
+		"actor_is_admin", "actor_is_active", "actor_is_authenticated", "actor_and_resource_share_tenant",
+	},
+	ActionAdminApplicationAssignmentsManage: {
+		"actor_is_admin", "actor_is_active", "actor_is_authenticated", "actor_and_resource_share_tenant",
+	},
+	ActionMyApplicationsRead: {
+		"actor_is_authenticated", "actor_and_resource_share_tenant",
 	},
 }
 

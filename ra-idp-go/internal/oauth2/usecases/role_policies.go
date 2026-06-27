@@ -46,6 +46,8 @@ var rolePermissionInterfaces = map[string][]string{
 	"AdminGroupsWrite":                    {"CreateGroup", "UpdateGroup", "DeleteGroup", "AddGroupMember", "RemoveGroupMember"},
 	"AdminAgentsManage":                   {"ListAgents", "GetAgent", "RegisterAgent", "UpdateAgent", "DisableAgent", "EnableAgent", "KillAgent", "DeleteAgent", "BindAgentCredential", "UnbindAgentCredential"},
 	"AdminAuthorizationDetailTypesManage": {"ListAuthorizationDetailTypes", "GetAuthorizationDetailType", "CreateAuthorizationDetailType", "UpdateAuthorizationDetailType", "DeleteAuthorizationDetailType"},
+	"AdminApplicationsManage":             {"ListAdminApplications", "GetAdminApplication", "CreateAdminApplication", "UpdateAdminApplication", "DeleteAdminApplication", "AttachProtocolBinding", "DetachProtocolBinding"},
+	"AdminApplicationAssignmentsManage":   {"ListApplicationAssignments", "AssignApplication", "UnassignApplication"},
 }
 
 func ListRolePolicies(scl *spec.SCL, actorRoles []string, controlPlane bool) ([]RolePolicy, error) {

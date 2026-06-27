@@ -67,11 +67,18 @@ bounded_contexts:
   ApplicationCatalog:
     description: |
       運用者が「接続する業務アプリケーション」として扱う上位概念を所有する。OIDC client /
-      SAML SP / WS-Fed RP は Application の protocol binding であり、表示名、所有者、
-      ライフサイクル、割当、共通ポリシー、共通監査はここに集約する (ADR-064)。
-      現時点では将来導入の語彙予約であり、既存 protocol 固有管理画面の振る舞いは変えない。
+      SAML SP / WS-Fed RP は Application の protocol binding であり、表示名、アイコン、
+      ライフサイクル、割当はここに集約する (ADR-064, wi-69)。割当はポータル可視性と
+      フェデレーション利用可否を fail-closed で制御する。protocol binding の wire 挙動は
+      各 protocol context が所有し、ApplicationCatalog は binding を opaque key で参照する。
+    owns_models: [ApplicationKind, ApplicationStatus, ProtocolBindingType, AssignmentSubjectType, AssignmentVisibility, ProtocolBinding, Application, ApplicationAssignment, AdminApplicationResponse, AdminApplicationListResponse, AdminApplicationCreateRequest, AdminApplicationUpdateRequest, ProtocolBindingRequest, ApplicationAssignmentRequest, ApplicationAssignmentResponse, ApplicationAssignmentListResponse, MyApplication, MyApplicationListResponse]
+    owns_events: [ApplicationCreated, ApplicationUpdated, ApplicationDeleted, ProtocolBindingAttached, ProtocolBindingDetached, ApplicationAssigned, ApplicationUnassigned]
+    owns_interfaces: [ListAdminApplications, GetAdminApplication, CreateAdminApplication, UpdateAdminApplication, DeleteAdminApplication, AttachProtocolBinding, DetachProtocolBinding, ListApplicationAssignments, AssignApplication, UnassignApplication, ListMyApplications]
+    owns_invariants: [AssignmentGatesProtocol, AssignmentGatesPortalVisibility]
+    owns_permissions: [AdminApplicationsManage, AdminApplicationAssignmentsManage, MyApplicationsRead]
     depends_on:
-      - { bounded_context: Tenancy, reason: Application は realm 境界内に閉じる。 }
+      - { bounded_context: Tenancy, reason: Application・binding・割当は realm 境界内に閉じる。 }
+      - { bounded_context: IdentityManagement, reason: 割当の subject は User / Group の identity principal である。 }
 
   ClaimRelease:
     description: |
@@ -3934,6 +3941,232 @@ models:
       domain:     { type: String, description: "Entra 検証済み domain。" }
       issuerUri:  { type: String, description: "Entra に登録する IssuerUri。" }
 
+  # ---------- ApplicationCatalog (wi-69, ADR-064) ----------
+  ApplicationKind:
+    kind: enum
+    description: Application が SSO フェデレーションを束ねる federated か、SSO しない外部リンク weblink か (wi-69)。
+    values: [federated, weblink]
+
+  ApplicationStatus:
+    kind: enum
+    description: Application の有効状態 (wi-69)。
+    values: [active, disabled]
+
+  ProtocolBindingType:
+    kind: enum
+    description: Application に接続する protocol binding の種別 (wi-69, ADR-064)。
+    values: [oidc, saml, wsfed]
+
+  AssignmentSubjectType:
+    kind: enum
+    description: Application 割当の対象種別 (wi-69)。
+    values: [user, group]
+
+  AssignmentVisibility:
+    kind: enum
+    description: 割当の可視性。hidden はポータル一覧から除外するがプロトコル利用は許可する (wi-69)。
+    values: [visible, hidden]
+
+  ProtocolBinding:
+    kind: value_object
+    description: >-
+      Application に紐づく protocol binding。OIDC client / WS-Fed RP / 将来 SAML SP への
+      参照を opaque key で保持する。binding の wire 挙動は各 protocol context が所有する (wi-69, ADR-064)。
+    fields:
+      type:      { type: ProtocolBindingType, description: "binding 種別。" }
+      client_id: { type: String, optional: true, description: "oidc binding が指す OAuth2 client_id。" }
+      wtrealm:   { type: String, optional: true, description: "wsfed binding が指す WS-Fed RP の wtrealm。" }
+
+  Application:
+    kind: entity
+    description: >-
+      運用者が「接続する業務アプリケーション」として扱う上位 aggregate。OIDC client /
+      SAML SP / WS-Fed RP を protocol binding として束ね、表示名・アイコン・状態・割当を所有する。
+      weblink kind は binding を持たない外部リンク (wi-69, ADR-064)。
+    identity: [tenant_id, application_id]
+    annotations: { bounded_context: ApplicationCatalog }
+    fields:
+      tenant_id:      { type: String, default: "default", description: "所属テナント ID (ADR-034)。" }
+      application_id: { type: UUID, description: "Application 識別子。" }
+      name:           { type: String, constraints: [non_empty], description: "管理 UI / ポータル表示名。" }
+      kind:           { type: ApplicationKind, description: "federated か weblink か。" }
+      status:         { type: ApplicationStatus, description: "有効状態。" }
+      icon_url:       { type: String, optional: true, description: "ポータル一覧に表示するアイコン URL。" }
+      launch_url:     { type: String, optional: true, description: "weblink kind の起動先 URL。" }
+      bindings:       { type: "ProtocolBinding[]", description: "接続済み protocol binding。weblink は空。" }
+      created_at:     { type: Timestamp }
+      updated_at:     { type: Timestamp }
+
+  ApplicationAssignment:
+    kind: entity
+    description: >-
+      Application へのユーザー / グループ割当。割当はポータル可視性とフェデレーション利用可否を
+      fail-closed で制御する。hidden は一覧に出さないがプロトコル利用は許可する (wi-69)。
+    identity: [tenant_id, application_id, subject_type, subject_id]
+    annotations: { bounded_context: ApplicationCatalog }
+    fields:
+      tenant_id:      { type: String, default: "default", description: "所属テナント ID。" }
+      application_id: { type: UUID, description: "対象 Application。" }
+      subject_type:   { type: AssignmentSubjectType, description: "user か group か。" }
+      subject_id:     { type: String, constraints: [non_empty], description: "user の sub または group id。" }
+      visibility:     { type: AssignmentVisibility, description: "visible か hidden か。" }
+      created_at:     { type: Timestamp }
+
+  AdminApplicationResponse:
+    kind: value_object
+    description: 管理 API が返す Application 表現 (wi-69)。
+    fields:
+      application_id: { type: UUID }
+      name:           { type: String }
+      kind:           { type: ApplicationKind }
+      status:         { type: ApplicationStatus }
+      icon_url:       { type: String, optional: true }
+      launch_url:     { type: String, optional: true }
+      bindings:       { type: "ProtocolBinding[]" }
+      created_at:     { type: Timestamp }
+      updated_at:     { type: Timestamp }
+
+  AdminApplicationListResponse:
+    kind: value_object
+    description: Application 一覧レスポンス (wi-69)。
+    fields:
+      applications: { type: "AdminApplicationResponse[]" }
+
+  AdminApplicationCreateRequest:
+    kind: value_object
+    description: Application 作成リクエスト (wi-69)。
+    fields:
+      name:       { type: String, constraints: [non_empty] }
+      kind:       { type: ApplicationKind }
+      icon_url:   { type: String, optional: true }
+      launch_url: { type: String, optional: true }
+
+  AdminApplicationUpdateRequest:
+    kind: value_object
+    description: Application 更新リクエスト。指定フィールドのみ変更する (wi-69)。
+    fields:
+      name:       { type: String, optional: true }
+      status:     { type: ApplicationStatus, optional: true }
+      icon_url:   { type: String, optional: true }
+      launch_url: { type: String, optional: true }
+
+  ProtocolBindingRequest:
+    kind: value_object
+    description: protocol binding の接続リクエスト (wi-69)。
+    fields:
+      type:      { type: ProtocolBindingType }
+      client_id: { type: String, optional: true }
+      wtrealm:   { type: String, optional: true }
+
+  ApplicationAssignmentRequest:
+    kind: value_object
+    description: Application 割当リクエスト。visibility 省略時は visible (wi-69)。
+    fields:
+      subject_type: { type: AssignmentSubjectType }
+      subject_id:   { type: String, constraints: [non_empty] }
+      visibility:   { type: AssignmentVisibility, optional: true }
+
+  ApplicationAssignmentResponse:
+    kind: value_object
+    description: 割当表現 (wi-69)。
+    fields:
+      subject_type: { type: AssignmentSubjectType }
+      subject_id:   { type: String }
+      visibility:   { type: AssignmentVisibility }
+      created_at:   { type: Timestamp }
+
+  ApplicationAssignmentListResponse:
+    kind: value_object
+    description: 割当一覧レスポンス (wi-69)。
+    fields:
+      assignments: { type: "ApplicationAssignmentResponse[]" }
+
+  MyApplication:
+    kind: value_object
+    description: 利用者ポータルに表示する割当済みアプリ 1 件 (wi-69)。
+    fields:
+      application_id: { type: UUID }
+      name:           { type: String }
+      kind:           { type: ApplicationKind }
+      icon_url:       { type: String, optional: true }
+      launch_url:     { type: String, optional: true }
+
+  MyApplicationListResponse:
+    kind: value_object
+    description: 利用者ポータルの割当済みアプリ一覧 (wi-69)。
+    fields:
+      applications: { type: "MyApplication[]" }
+
+  ApplicationCreated:
+    kind: event
+    description: Application を作成した (wi-69)。
+    payload:
+      occurredAt:    { type: Timestamp }
+      tenantId:      { type: String }
+      actorSub:      { type: String }
+      applicationId: { type: String }
+
+  ApplicationUpdated:
+    kind: event
+    description: Application のメタデータを更新した (wi-69)。
+    payload:
+      occurredAt:    { type: Timestamp }
+      tenantId:      { type: String }
+      actorSub:      { type: String }
+      applicationId: { type: String }
+      changedFields: { type: "String[]" }
+
+  ApplicationDeleted:
+    kind: event
+    description: Application を削除した (wi-69)。
+    payload:
+      occurredAt:    { type: Timestamp }
+      tenantId:      { type: String }
+      actorSub:      { type: String }
+      applicationId: { type: String }
+
+  ProtocolBindingAttached:
+    kind: event
+    description: Application に protocol binding を接続した (wi-69)。
+    payload:
+      occurredAt:    { type: Timestamp }
+      tenantId:      { type: String }
+      actorSub:      { type: String }
+      applicationId: { type: String }
+      bindingType:   { type: String }
+
+  ProtocolBindingDetached:
+    kind: event
+    description: Application から protocol binding を解除した (wi-69)。
+    payload:
+      occurredAt:    { type: Timestamp }
+      tenantId:      { type: String }
+      actorSub:      { type: String }
+      applicationId: { type: String }
+      bindingType:   { type: String }
+
+  ApplicationAssigned:
+    kind: event
+    description: Application にユーザー / グループを割当てた (wi-69)。
+    payload:
+      occurredAt:    { type: Timestamp }
+      tenantId:      { type: String }
+      actorSub:      { type: String }
+      applicationId: { type: String }
+      subjectType:   { type: String }
+      subjectId:     { type: String }
+
+  ApplicationUnassigned:
+    kind: event
+    description: Application の割当を解除した (wi-69)。
+    payload:
+      occurredAt:    { type: Timestamp }
+      tenantId:      { type: String }
+      actorSub:      { type: String }
+      applicationId: { type: String }
+      subjectType:   { type: String }
+      subjectId:     { type: String }
+
 # =================================================================
 # 3. interfaces — 外部との契約 (HTTP API)
 # =================================================================
@@ -5191,6 +5424,124 @@ interfaces:
     bindings:
       - { kind: http, method: PUT, path: /api/admin/tenant/user_attribute_schema, request_form: body }
 
+  # ---------- ApplicationCatalog (wi-69) ----------
+  ListAdminApplications:
+    description: 管理者が所属テナントの Application を一覧する。
+    output:
+      response: { type: AdminApplicationListResponse }
+    errors: [AccessDeniedError]
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: /api/admin/applications }
+
+  GetAdminApplication:
+    description: 管理者が Application を取得する。別テナントは未存在として扱う。
+    input:
+      application_id: { type: String }
+    output:
+      application: { type: AdminApplicationResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: "/api/admin/applications/{application_id}" }
+
+  CreateAdminApplication:
+    description: 管理者が Application を作成する。
+    input:
+      request: { type: AdminApplicationCreateRequest }
+    output:
+      application: { type: AdminApplicationResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [ApplicationCreated]
+    bindings:
+      - { kind: http, method: POST, path: /api/admin/applications, request_form: body, successful_status_codes: ["201"] }
+
+  UpdateAdminApplication:
+    description: 管理者が Application のメタデータを更新する。
+    input:
+      application_id: { type: String }
+      request:        { type: AdminApplicationUpdateRequest }
+    output:
+      application: { type: AdminApplicationResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [ApplicationUpdated]
+    bindings:
+      - { kind: http, method: PATCH, path: "/api/admin/applications/{application_id}", request_form: body }
+
+  DeleteAdminApplication:
+    description: 管理者が Application を削除する (冪等)。
+    input:
+      application_id: { type: String }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [ApplicationDeleted]
+    bindings:
+      - { kind: http, method: DELETE, path: "/api/admin/applications/{application_id}", successful_status_codes: ["204"] }
+
+  AttachProtocolBinding:
+    description: 管理者が Application に protocol binding を接続する。
+    input:
+      application_id: { type: String }
+      request:        { type: ProtocolBindingRequest }
+    output:
+      application: { type: AdminApplicationResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [ProtocolBindingAttached]
+    bindings:
+      - { kind: http, method: POST, path: "/api/admin/applications/{application_id}/bindings", request_form: body, successful_status_codes: ["201"] }
+
+  DetachProtocolBinding:
+    description: 管理者が Application から protocol binding を解除する (冪等)。
+    input:
+      application_id: { type: String }
+      binding_type:   { type: String }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [ProtocolBindingDetached]
+    bindings:
+      - { kind: http, method: DELETE, path: "/api/admin/applications/{application_id}/bindings/{binding_type}", successful_status_codes: ["204"] }
+
+  ListApplicationAssignments:
+    description: 管理者が Application の割当を一覧する。
+    input:
+      application_id: { type: String }
+    output:
+      response: { type: ApplicationAssignmentListResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: "/api/admin/applications/{application_id}/assignments" }
+
+  AssignApplication:
+    description: 管理者が Application にユーザー / グループを割当てる。
+    input:
+      application_id: { type: String }
+      request:        { type: ApplicationAssignmentRequest }
+    output:
+      assignment: { type: ApplicationAssignmentResponse }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [ApplicationAssigned]
+    bindings:
+      - { kind: http, method: POST, path: "/api/admin/applications/{application_id}/assignments", request_form: body, successful_status_codes: ["201"] }
+
+  UnassignApplication:
+    description: 管理者が Application の割当を解除する (冪等)。
+    input:
+      application_id: { type: String }
+      subject_type:   { type: String }
+      subject_id:     { type: String }
+    errors: [InvalidRequestError, AccessDeniedError]
+    emits: [ApplicationUnassigned]
+    bindings:
+      - { kind: http, method: DELETE, path: "/api/admin/applications/{application_id}/assignments/{subject_type}/{subject_id}", successful_status_codes: ["204"] }
+
+  ListMyApplications:
+    description: 利用者が自分に割当済み (visible) の Application を一覧する。hidden 割当は除外する。
+    output:
+      response: { type: MyApplicationListResponse }
+    errors: [AccessDeniedError]
+    read_only: true
+    bindings:
+      - { kind: http, method: GET, path: /api/account/applications }
+
 
 # =================================================================
 # 4. states — 状態遷移
@@ -5516,6 +5867,22 @@ invariants:
         - "error == InvalidClient"
         - "len(error_description) == len(error_description_constant)"  # メッセージは固定文字列
 
+
+  # ---------- ApplicationCatalog (wi-69) ----------
+  AssignmentGatesProtocol:
+    description: |
+      未割当の subject はどの protocol binding でもフェデレーションを開始 / 完了できない。
+      authorize / WS-Fed sign-in / 将来 SAML SSO は割当を fail-closed で確認する。
+      反例: 未割当ユーザーがプロトコル経由でアプリにログインできる (アクセス制御の迂回)。
+    target: Application
+    never: "federation_completed and not subject_assigned"
+
+  AssignmentGatesPortalVisibility:
+    description: |
+      ListMyApplications は visible 割当のみ返す。hidden 割当は一覧から除外するが
+      プロトコル利用は引き続き許可する。
+    target: ApplicationAssignment
+    always: "listed_in_portal implies (assigned and visibility == visible)"
 
 # =================================================================
 # 6. scenarios — Given-When-Then の具体例
@@ -6379,6 +6746,41 @@ permissions:
         - "actor.disabled_at == null"
         - "context.authenticated == true"
 
+
+  # ---------- ApplicationCatalog (wi-69) ----------
+  AdminApplicationsManage:
+    description: 所属テナント内の Application 一覧・取得・作成・更新・削除・binding 接続/解除。
+    actor: User
+    action: AdminApplicationsManage
+    resource: Application
+    allow_when:
+      and:
+        - "admin in actor.roles"
+        - "actor.disabled_at == null"
+        - "context.authenticated == true"
+        - "actor.tenant_id == resource.tenant_id"
+
+  AdminApplicationAssignmentsManage:
+    description: Application へのユーザー / グループ割当の参照・追加・削除。
+    actor: User
+    action: AdminApplicationAssignmentsManage
+    resource: ApplicationAssignment
+    allow_when:
+      and:
+        - "admin in actor.roles"
+        - "actor.disabled_at == null"
+        - "context.authenticated == true"
+        - "actor.tenant_id == resource.tenant_id"
+
+  MyApplicationsRead:
+    description: 利用者が自分に割当済みの Application 一覧を参照する。
+    actor: User
+    action: MyApplicationsRead
+    resource: ApplicationAssignment
+    allow_when:
+      and:
+        - "context.authenticated == true"
+        - "actor.tenant_id == resource.tenant_id"
 
 # =================================================================
 # 8. objectives — 非機能目標

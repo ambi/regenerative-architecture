@@ -559,36 +559,58 @@ permissions:
         - actor.tenant_id == resource.tenant_id
 scenarios:
   管理者は監査ログを期間で絞り込み参照・エクスポートできる:
-    steps:
-      - "roles=[\"admin\"] のユーザー \"operator\" が管理画面の監査ログを開く"
+    goal: 管理者が所属テナントの監査イベントを絞り込み、参照・エクスポートする。
+    primary_actor: Administrator
+    scope: Tenancy
+    level: user_goal
+    preconditions:
+      - "roles=[\"admin\"] のユーザー \"operator\" が管理画面の監査ログを開いている"
+    main_success:
       - "管理者 \"operator\" が直近 24 時間で監査イベントを絞り込む"
       - 一覧に所属テナントの監査イベントだけが表示される
       - "管理者 \"operator\" が絞り込み結果をエクスポートする"
   管理者はテナント固有のユーザー属性スキーマを定義できる:
-    steps:
-      - "roles=[\"admin\"] のユーザー \"operator\" が管理画面のユーザー属性を開く"
+    goal: 管理者がテナント固有のカスタムユーザー属性スキーマを定義する。
+    primary_actor: Administrator
+    scope: Tenancy
+    level: user_goal
+    preconditions:
+      - "roles=[\"admin\"] のユーザー \"operator\" が管理画面のユーザー属性を開いている"
+    main_success:
       - "管理者 \"operator\" が editable_by_user=true の custom_attribute を追加する"
       - 更新後のスキーマに追加した属性が含まれる
-  default テナントは起動時に自動作成され削除不可:
+  default テナントは起動時に自動作成され削除も無効化もできない:
+    goal: default テナントが bootstrap で常在し、削除・無効化を受け付けない。
+    primary_actor: System
+    scope: Tenancy
+    level: user_goal
     description: ADR-032 の bootstrap 不変性。
-    steps:
+    main_success:
       - IdP を起動する
       - "テナント \"default\" が status=Active で存在する"
-      - default テナントを削除する API は提供されない
-      - default テナントの disable は InvalidRequestError で拒否される
-  未 prefix のリクエストは default テナントに解決される:
+    extensions:
+      - condition: default テナントの削除を試みる
+        steps:
+          - default テナントを削除する API は提供されない
+      - condition: default テナントの無効化を試みる
+        steps:
+          - default テナントの disable は InvalidRequestError で拒否される
+  リクエストのテナントは realm prefix から解決される:
+    goal: HTTP リクエストの realm prefix から対象テナントを解決する。
+    primary_actor: OAuth2Client
+    scope: Tenancy
+    level: user_goal
     description: ADR-033 の下位互換。/.well-known や /authorize が prefix なしでも動く。
-    steps:
+    main_success:
       - /realms/ 接頭辞を持たない /authorize にリクエストを送る
       - "解決されたテナントは \"default\""
       - iss claim は base URL + /realms/default
-  無効化されたテナントへの /authorize は invalid_request で拒否される:
-    description: ADR-032 の disable 効果。tenant の存在を漏らさないため 404 ではなく invalid_request。
-    steps:
-      - "tenant_id \"acme\" を作成する"
-      - "tenant_id \"acme\" を無効化する"
-      - "\"/realms/acme/authorize\" にリクエストを送る"
-      - "エラー \"InvalidRequestError\""
+    extensions:
+      - condition: 対象テナントが無効化されている
+        steps:
+          - "tenant_id \"acme\" を作成して無効化する"
+          - "無効化済みテナントの \"/realms/acme/authorize\" にリクエストを送る"
+          - "テナントの存在を漏らさずエラー \"InvalidRequestError\""
 user_experience:
   screens:
     AdminTenants:

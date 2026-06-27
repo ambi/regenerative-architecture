@@ -788,35 +788,52 @@ permissions:
         - actor.tenant_id == resource.tenant_id
 scenarios:
   管理者は所属テナントの client を作成・更新・削除できる:
-    steps:
+    goal: 管理者が所属テナントの client を作成・更新・削除する。
+    primary_actor: Administrator
+    scope: Application
+    level: user_goal
+    preconditions:
       - "tenant_id \"acme\" の roles=[\"admin\"] のユーザー \"operator\" が認証済みである"
+    main_success:
       - "管理者 \"operator\" が client \"portal\" を作成する"
       - 作成応答だけが生成された client_secret を含む
       - "管理者 \"operator\" が client \"portal\" の redirect_uris を更新する"
       - "管理者 \"operator\" が client \"portal\" を削除する"
       - "\"AdminClientCreated\"、\"AdminClientUpdated\"、\"AdminClientDeleted\" が発行される"
-  管理 client API は別テナントの client を公開しない:
-    steps:
-      - "tenant_id \"acme\" に client_id \"portal\" が存在する"
-      - "tenant_id \"default\" の管理者が client_id \"portal\" を取得する"
-      - "エラー \"InvalidRequestError\""
+    extensions:
+      - at: 1
+        condition: 管理画面から操作する
+        steps:
+          - "roles=[\"admin\"] のユーザー \"operator\" が管理画面のアプリケーション一覧を開く"
+          - "管理者 \"operator\" が confidential client を作成する"
+          - 画面は生成された client_secret を一度だけ表示する
+          - "管理者 \"operator\" が redirect_uris と scope を編集する"
+          - "管理者 \"operator\" が client_id を確認して client を削除する"
+          - 一覧から対象 client が消える
+      - condition: 別テナントの client を取得しようとする
+        steps:
+          - "tenant_id \"acme\" に client_id \"portal\" が存在する"
+          - "tenant_id \"default\" の管理者が client_id \"portal\" を取得する"
+          - "エラー \"InvalidRequestError\""
   管理 consent API は別テナントの同意を公開しない:
-    steps:
+    goal: 管理 consent API がテナント境界を越えた同意を公開しない。
+    primary_actor: Administrator
+    scope: Application
+    level: user_goal
+    preconditions:
       - "tenant_id \"acme\" のユーザー \"alice\" と client \"portal\" の Consent が存在する"
+    main_success:
       - "tenant_id \"default\" の管理者が同じ sub と client_id の Consent を取得する"
       - "エラー \"InvalidRequestError\""
-  管理者は管理画面で client を作成・編集・削除できる:
-    steps:
-      - "roles=[\"admin\"] のユーザー \"operator\" が管理画面のアプリケーション一覧を開く"
-      - "管理者 \"operator\" が confidential client を作成する"
-      - 画面は生成された client_secret を一度だけ表示する
-      - "管理者 \"operator\" が redirect_uris と scope を編集する"
-      - "管理者 \"operator\" が client_id を確認して client を削除する"
-      - 一覧から対象 client が消える
   管理者は管理画面でアプリケーションを作成し protocol binding を構成できる:
+    goal: 管理者が統合 Application 画面でアプリを作成し、protocol binding と割り当てを構成する。
+    primary_actor: Administrator
+    scope: Application
+    level: user_goal
     description: OAuth2 / WS-Federation / service を統合した Application 画面 (commit a5e2ec8)。
-    steps:
-      - "roles=[\"admin\"] のユーザー \"operator\" が管理画面のアプリケーション一覧を開く"
+    preconditions:
+      - "roles=[\"admin\"] のユーザー \"operator\" が管理画面のアプリケーション一覧を開いている"
+    main_success:
       - "管理者 \"operator\" が confidential なアプリケーション \"portal\" を作成する"
       - 画面は生成された client_secret を一度だけ表示する
       - "管理者 \"operator\" がアプリケーション \"portal\" に OIDC protocol binding を追加する"
@@ -825,8 +842,13 @@ scenarios:
       - "管理者 \"operator\" がアプリケーション \"portal\" を削除する"
       - 一覧から対象アプリケーションが消える
   ダッシュボードは所属テナントの集計を表示する:
-    steps:
-      - "roles=[\"admin\"] のユーザー \"operator\" が管理ダッシュボードを開く"
+    goal: 管理ダッシュボードが所属テナントの集計を表示する。
+    primary_actor: Administrator
+    scope: Application
+    level: user_goal
+    preconditions:
+      - "roles=[\"admin\"] のユーザー \"operator\" が管理ダッシュボードを開いている"
+    main_success:
       - ユーザー数・登録アプリケーション数・付与済み同意数・直近 24 時間の監査イベント数が表示される
       - 最近の監査イベントが表示される
 user_experience:

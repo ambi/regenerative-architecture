@@ -1855,16 +1855,26 @@ permissions:
         - actor.tenant_id == resource.tenant_id
 scenarios:
   管理者はエージェントを登録し client 資格情報をバインドできる:
-    steps:
-      - "roles=[\"admin\"] のユーザー \"operator\" が管理画面のエージェント一覧を開く"
+    goal: 管理者が非人間エージェントを登録し、資格情報のバインドとライフサイクル操作を行う。
+    primary_actor: Administrator
+    scope: IdentityManagement
+    level: user_goal
+    preconditions:
+      - "roles=[\"admin\"] のユーザー \"operator\" が管理画面のエージェント一覧を開いている"
+    main_success:
       - "管理者 \"operator\" がエージェント \"batch-agent\" を登録する"
       - "管理者 \"operator\" がエージェント \"batch-agent\" に client 資格情報をバインドする"
       - "管理者 \"operator\" がエージェント \"batch-agent\" を無効化する"
       - "管理者 \"operator\" がエージェント \"batch-agent\" を再有効化する"
       - "エージェント一覧に \"batch-agent\" が表示される"
   管理者は無効化したユーザーを再有効化できる:
-    steps:
-      - "管理者がユーザー \"alice\" を無効化する"
+    goal: 管理者が無効化済みユーザーを再有効化する。
+    primary_actor: Administrator
+    scope: IdentityManagement
+    level: user_goal
+    preconditions:
+      - "管理者がユーザー \"alice\" を無効化している"
+    main_success:
       - "管理者がユーザー \"alice\" を再有効化する"
       - "ユーザー \"alice\" の disabled_at は空である"
       - "\"UserEnabled\" が発行される"

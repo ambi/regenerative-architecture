@@ -4194,10 +4194,18 @@ objectives:
     retention: 7y
 scenarios:
   認可コードフローでアクセストークンと ID トークンを取得できる:
+    goal: Client が認可コードを access token と ID token に交換する。
+    primary_actor: OAuth2Client
+    scope: OAuth2
+    level: user_goal
     description: 認可リクエスト→認可コード交換と進み、PKCE 検証を経てトークン一式を得る。
-    steps:
-      - "confidential クライアント \"web-app\" を redirect_uri \"https://app.example.com/callback\" で登録する"
-      - "ユーザー \"alice\" が \"web-app\" に scope \"openid profile\" を同意済みである"
+    preconditions:
+      - "\"web-app\" は confidential クライアントで redirect_uri \"https://app.example.com/callback\" を登録済みである"
+      - "ユーザー \"alice\" は \"web-app\" に scope \"openid profile\" を同意済みである"
+    success_guarantees:
+      - 認可コードはちょうど一度だけ償還され、再利用できない。
+      - access_token・id_token・refresh_token が発行される。
+    main_success:
       - "\"web-app\" として scope \"openid profile\" で認可リクエストを送る"
       - 発行された認可コードを正しい PKCE verifier で交換する
       - 応答に access_token・id_token・refresh_token が含まれ token_type は Bearer
@@ -4206,128 +4214,175 @@ scenarios:
       - "\"AuthorizationCodeRedeemed\" が発行される"
       - "\"AccessTokenIssued\" が発行される"
       - "\"RefreshTokenIssued\" が発行される"
-  PKCE verifier が不一致なら拒否される:
-    description: 400 invalid_grant で拒否される。
-    steps:
-      - 認可コードを誤った code_verifier で交換する
-      - "エラー \"InvalidGrantError\""
-  認可コードを 2 回交換するとトークンファミリーが全失効する:
-    steps:
-      - "発行済み認可コード \"AC1\"（family_id \"F1\"）を用意する"
-      - "認可コード \"AC1\" を verifier \"v\" で交換する"
-      - "認可コード \"AC1\" を verifier \"v\" で交換する"
-      - 1 回目の応答には access_token が含まれる
-      - "2 回目はエラー \"InvalidGrantError\""
-      - "family_id \"F1\" のトークンがすべて失効する"
-      - "\"RefreshTokenReuseDetected\" が発行される"
-      - "\"TokenRevoked\" が発行される"
-  リフレッシュトークンを使うと新トークンが返り旧トークンは無効化される:
-    steps:
-      - "有効な refresh token \"RT1\" を用意する"
+    extensions:
+      - at: 1
+        condition: 認可リクエストの redirect_uri が未登録である
+        steps:
+          - リダイレクトは行われず IdP がエラーページを表示する
+          - "エラー \"InvalidRequestError\""
+      - at: 2
+        condition: PKCE verifier が一致しない
+        steps:
+          - 認可コードを誤った code_verifier で交換する
+          - "エラー \"InvalidGrantError\""
+          - トークンは発行されない
+      - at: 2
+        condition: 同じ認可コードを 2 回交換する
+        steps:
+          - 1 回目の応答には access_token が含まれる
+          - "2 回目はエラー \"InvalidGrantError\""
+          - 発行ファミリーのトークンがすべて失効する
+          - "\"RefreshTokenReuseDetected\" が発行される"
+          - "\"TokenRevoked\" が発行される"
+      - at: 2
+        condition: 認可コードが発行から 60 秒を超えている
+        steps:
+          - "認可コードの交換はエラー \"InvalidGrantError\""
+          - 認可コードの状態は Expired になる
+  リフレッシュトークンをローテーションして新しいトークンを得る:
+    goal: Client が refresh token をローテーションして新しい access/refresh token を得る。
+    primary_actor: OAuth2Client
+    scope: OAuth2
+    level: user_goal
+    preconditions:
+      - "有効な refresh token \"RT1\" が存在する"
+    success_guarantees:
+      - 旧 refresh token はローテーションで無効化され、再使用は family 全体を失効させる。
+    main_success:
       - "リフレッシュトークン \"RT1\" を交換する"
       - 応答に新しい access_token と refresh_token が含まれる
       - "\"RT1\" の状態は \"Rotated\""
       - "\"RefreshTokenRotated\" が発行される"
       - "\"AccessTokenIssued\" が発行される"
       - "\"RefreshTokenIssued\" が発行される"
-  旧リフレッシュトークンの再使用はファミリー全体を失効させる:
-    steps:
-      - "有効な refresh token \"RT1\"（family_id \"F1\"）を用意する"
-      - "リフレッシュトークン \"RT1\" を交換する"
-      - "リフレッシュトークン \"RT1\" を交換する"
-      - ローテーションの応答には access_token と refresh_token が含まれる
-      - "再使用はエラー \"InvalidGrantError\""
-      - "\"RT1\" の状態は \"Revoked\""
-      - "family_id \"F1\" のトークンがすべて失効する"
-      - "\"RefreshTokenRotated\" が発行される"
-      - "\"RefreshTokenReuseDetected\" が発行される"
-      - "\"TokenRevoked\" が発行される"
-  不正な client_secret は invalid_client で拒否される:
-    description: client_id の存在有無は開示しない。
-    steps:
+    extensions:
+      - at: 1
+        condition: ローテーション済みの旧 refresh token を再使用する
+        steps:
+          - "family_id \"F1\" の refresh token \"RT1\" をローテーション後に再使用する"
+          - "再使用はエラー \"InvalidGrantError\""
+          - "\"RT1\" の状態は \"Revoked\""
+          - "family_id \"F1\" のトークンがすべて失効する"
+          - "\"RefreshTokenReuseDetected\" が発行される"
+          - "\"TokenRevoked\" が発行される"
+  不正なクライアント認証は invalid_client で一律拒否される:
+    goal: トークンエンドポイントが不正なクライアント認証を client_id の存在を漏らさず拒否する。
+    primary_actor: OAuth2Client
+    scope: OAuth2
+    level: user_goal
+    description: client_id の存在有無を開示せず、タイミング差も出さない。
+    main_success:
       - 既知のクライアントを誤った client_secret で認可コードを交換する
       - "エラー \"InvalidClientError\""
-  未知の client_id も一律 invalid_client で拒否される:
-    description: タイミング差が出ないよう一律に拒否する。
-    steps:
-      - 未知の client_id で認可コードを交換する
-      - "エラー \"InvalidClientError\""
-  未登録の redirect_uri へはリダイレクトしない:
-    steps:
-      - "\"web-app\" として redirect_uri \"https://evil.example/cb\" で認可リクエストを送る"
-      - "エラー \"InvalidRequestError\""
-      - リダイレクトは行われず IdP がエラーページを表示する
-  既存の同意があれば同意画面はスキップされる:
-    steps:
+    extensions:
+      - condition: 未知の client_id で交換する
+        steps:
+          - 未知の client_id で認可コードを交換する
+          - "エラー \"InvalidClientError\""
+  既存同意の有無に応じて同意画面を出し分ける:
+    goal: 既存同意があれば同意画面をスキップし、prompt=consent なら再同意を求める。
+    primary_actor: ResourceOwner
+    scope: OAuth2
+    level: user_goal
+    preconditions:
       - "ユーザー \"alice\" が \"web-app\" に scope \"openid profile\" を同意済みである"
+    main_success:
       - "\"web-app\" として scope \"openid profile\" で認可リクエストを送る"
       - 認可リクエストの状態は Consented
       - 同意 UI は表示されない
-  prompt=consent は既存同意があっても再同意を求める:
-    steps:
-      - "ユーザー \"alice\" が \"web-app\" に scope \"openid profile\" を同意済みである"
-      - "\"web-app\" として prompt \"consent\" で認可リクエストを送る"
-      - 認可リクエストの状態は ConsentPending
-  PAR 経由の request_uri は一度だけ参照できる:
-    description: RFC 9126。使用直後に無効化される。
-    steps:
-      - "クライアント \"web-app\" を用意する"
+    extensions:
+      - at: 1
+        condition: prompt=consent で再同意を要求する
+        steps:
+          - "\"web-app\" として prompt \"consent\" で認可リクエストを送る"
+          - 認可リクエストの状態は ConsentPending
+  PAR で送信した認可リクエストを request_uri 経由で実行する:
+    goal: Client が認可リクエストを事前送信し、一度だけ使える request_uri で認可を実行する。
+    primary_actor: OAuth2Client
+    scope: OAuth2
+    level: user_goal
+    description: RFC 9126。request_uri は使用直後に無効化される。
+    preconditions:
+      - "クライアント \"web-app\" が存在する"
+    main_success:
       - "\"web-app\" として認可リクエストを事前送信する"
-      - "request_uri \"<返された値>\" で認可リクエストを送る"
       - PAR 応答に request_uri が含まれ expires_in は 600 以下
+      - "request_uri \"<返された値>\" で認可リクエストを送る"
       - "その PAR レコードの状態は \"Used\""
       - "\"PARStored\" が発行される"
       - "\"AuthorizationCodeIssued\" が発行される"
-  FAPI クライアントは PAR なしの直接認可リクエストを拒否される:
-    steps:
-      - "PAR 必須の FAPI クライアント \"fapi-app\" を用意する"
-      - "\"fapi-app\" として scope \"openid\" で認可リクエストを送る"
-      - "エラー \"InvalidRequestError\""
+    extensions:
+      - condition: PAR 必須の FAPI クライアントが PAR なしで直接送信する
+        steps:
+          - "PAR 必須の FAPI クライアント \"fapi-app\" として scope \"openid\" で直接認可リクエストを送る"
+          - "エラー \"InvalidRequestError\""
   DPoP 証明付き要求はセンダー制約付きトークンを発行する:
-    steps:
+    goal: Client が DPoP 証明を付けて proof-of-possession 制約付きトークンを得る。
+    primary_actor: OAuth2Client
+    scope: OAuth2
+    level: user_goal
+    description: RFC 9449。
+    main_success:
       - 有効な DPoP 証明を付けて認可コードを交換する
       - 発行された access token は DPoP 鍵サムプリントに cnf でバインドされる
       - 発行された refresh token のセンダー制約は Dpop
-  iat が 60 秒以上古い DPoP 証明は拒否される:
-    description: RFC 9449。
-    steps:
-      - "iat \"2026-01-01T00:00:00Z\" の DPoP 証明を用意する"
-      - "時刻が \"2026-01-01T00:01:30Z\" になる"
-      - その DPoP 証明を付けて認可コードを交換する
-      - "エラー \"InvalidDpopProofError\""
-  同一 DPoP jti の再使用はリプレイとして拒否される:
-    steps:
-      - "jti \"ABC\" の DPoP 証明を用意する"
-      - その証明を付けて認可コードを交換する
-      - "同じ jti \"ABC\" の DPoP 証明を付けて認可コードを交換する"
-      - 1 回目の応答には access_token が含まれる
-      - "2 回目はエラー \"InvalidDpopProofError\""
+    extensions:
+      - at: 1
+        condition: iat が 60 秒以上古い DPoP 証明である
+        steps:
+          - "iat \"2026-01-01T00:00:00Z\" の DPoP 証明を時刻 \"2026-01-01T00:01:30Z\" で付けて認可コードを交換する"
+          - "エラー \"InvalidDpopProofError\""
+      - at: 1
+        condition: 同一 DPoP jti を再使用する
+        steps:
+          - "jti \"ABC\" の DPoP 証明を付けて認可コードを交換する"
+          - "同じ jti \"ABC\" の DPoP 証明を付けて認可コードを交換する"
+          - 1 回目の応答には access_token が含まれる
+          - "2 回目はエラー \"InvalidDpopProofError\""
   失効済みトークンの introspection は active=false のみ返す:
-    steps:
-      - "失効済み access token \"AT1\" を用意する"
+    goal: ResourceServer が失効済みトークンを検査すると active=false だけを得る。
+    primary_actor: ResourceServer
+    scope: OAuth2
+    level: user_goal
+    preconditions:
+      - "失効済み access token \"AT1\" が存在する"
+    main_success:
       - "トークン \"AT1\" を検査する"
       - 応答は active=false のみで他のフィールドを含まない
-  openid スコープ付きトークンでユーザー情報は sub を返す:
-    steps:
-      - "scope \"openid profile\" の access token \"AT1\" を用意する"
+  UserInfo は openid スコープのトークンに sub を返す:
+    goal: Client が openid スコープの access token で UserInfo クレームを得る。
+    primary_actor: OAuth2Client
+    scope: OAuth2
+    level: user_goal
+    preconditions:
+      - "scope \"openid profile\" の access token \"AT1\" が存在する"
+    main_success:
       - "トークン \"AT1\" でユーザー情報を取得する"
       - 応答に sub・name・preferred_username が含まれる
-  openid スコープのないトークンのユーザー情報取得は拒否される:
-    description: 403 insufficient_scope。
-    steps:
-      - "scope \"profile\" のみの access token \"AT1\" を用意する"
-      - "トークン \"AT1\" でユーザー情報を取得する"
-      - "エラー \"InsufficientScopeError\""
+    extensions:
+      - condition: openid スコープを持たないトークンで取得する
+        steps:
+          - "scope \"profile\" のみの access token \"AT1\" でユーザー情報を取得する"
+          - "エラー \"InsufficientScopeError\""
   Discovery 文書は宣言された全エンドポイントを広告する:
-    steps:
+    goal: クライアントが Discovery 文書から全エンドポイントを得る。
+    primary_actor: OAuth2Client
+    scope: OAuth2
+    level: user_goal
+    main_success:
       - Discovery 文書を取得する
       - 応答に issuer・authorization_endpoint・token_endpoint・userinfo_endpoint・jwks_uri・introspection_endpoint・revocation_endpoint・pushed_authorization_request_endpoint・device_authorization_endpoint・registration_endpoint が含まれる
   認可コードの並行交換はちょうど一方だけ成功する:
-    description: "互いに観測しない並行呼び出しのうち一方のみ成功し、\n成功側のファミリーも再使用検出により最終的に全失効する。\n"
+    goal: 互いに観測しない並行コード交換のうち一方だけが成功する。
+    primary_actor: OAuth2Client
+    scope: OAuth2
+    level: user_goal
+    description: "成功側のファミリーも再使用検出により最終的に全失効する。"
     tags:
       - concurrency
-    steps:
-      - "発行済み認可コード \"AC1\"（family_id \"F1\"）を用意する"
+    preconditions:
+      - "発行済み認可コード \"AC1\"（family_id \"F1\"）が存在する"
+    main_success:
       - "認可コード \"AC1\" を verifier \"v\" で並行に 2 回交換する"
       - "ちょうど一方が成功し、もう一方はエラー \"InvalidGrantError\""
       - "family_id \"F1\" のトークンがすべて失効する"
@@ -4335,96 +4390,133 @@ scenarios:
       - "\"RefreshTokenReuseDetected\" が発行される"
       - "\"TokenRevoked\" が発行される"
   動的クライアント登録は client_id を採番して返す:
+    goal: Client が Dynamic Registration で client_id を採番し metadata を登録する。
+    primary_actor: OAuth2Client
+    scope: OAuth2
+    level: user_goal
     description: RFC 7591 §3.2.1 — 成功応答は client_id と client_metadata を返す。
-    steps:
+    main_success:
       - "confidential クライアント \"web-app\" を redirect_uri \"https://app.example.com/callback\" で登録する"
       - 応答に client_id と client_secret が含まれる
       - "\"ClientRegistered\" が発行される"
-  redirect_uri が無いクライアント登録は拒否される:
-    steps:
-      - "confidential クライアント \"web-app\" を redirect_uri \"\" で登録する"
-      - "エラー \"InvalidRequestError\""
-  60 秒経過した認可コードの交換は拒否される:
-    description: RFC 9700 §4.10 — TTL 60 秒を超えると invalid_grant。
-    steps:
-      - "issued_at \"2026-01-01T00:00:00Z\" の認可コード \"AC1\" を用意する"
-      - "時刻が \"2026-01-01T00:01:30Z\" になる"
-      - "認可コード \"AC1\" を verifier \"v\" で交換する"
-      - "エラー \"InvalidGrantError\""
-      - "\"AC1\" の状態は \"Expired\""
+    extensions:
+      - at: 1
+        condition: redirect_uri を持たない登録要求である
+        steps:
+          - "confidential クライアント \"web-app\" を redirect_uri \"\" で登録する"
+          - "エラー \"InvalidRequestError\""
   absolute_expires_at を超えた refresh token はローテーション不可:
+    goal: 絶対 TTL を超えた refresh token はローテーションで延長されない。
+    primary_actor: OAuth2Client
+    scope: OAuth2
+    level: user_goal
     description: ローテーションで延長されない絶対 TTL。
-    steps:
-      - "absolute_expires_at \"2026-01-01T00:00:00Z\" の refresh token \"RT1\" を用意する"
+    preconditions:
+      - "absolute_expires_at \"2026-01-01T00:00:00Z\" の refresh token \"RT1\" が存在する"
+    main_success:
       - "時刻が \"2026-01-02T00:00:00Z\" になる"
       - "リフレッシュトークン \"RT1\" を交換する"
       - "エラー \"InvalidGrantError\""
-  /revoke でリフレッシュトークンを失効できる:
-    steps:
-      - "有効な refresh token \"RT1\" を用意する"
+  クライアントは自分のトークンを失効できる:
+    goal: クライアントが自分の所有する refresh token を失効させる。
+    primary_actor: OAuth2Client
+    scope: OAuth2
+    level: user_goal
+    preconditions:
+      - "有効な refresh token \"RT1\" が存在する"
+    main_success:
       - "トークン \"RT1\" を失効させる"
       - "\"RT1\" の状態は \"Revoked\""
       - "\"TokenRevoked\" が発行される"
-  他クライアントの所有トークンの失効要求は静かに無視される:
-    description: RFC 7009 §2.2 — 所有者でないクライアントからの失効要求は 200 OK のみ返し、実際の失効は行わない（盗難検知防止）。
-    steps:
-      - "クライアント \"client-A\" が所有する refresh token \"RT1\" を用意する"
-      - "\"client-B\" としてトークン \"RT1\" を失効させる"
-      - "\"RT1\" の状態は \"Active\""
+    extensions:
+      - condition: 所有者でないクライアントが失効を要求する
+        steps:
+          - "クライアント \"client-A\" が所有する refresh token \"RT1\" に対し \"client-B\" として失効を要求する"
+          - "盗難検知防止のため 200 OK のみ返り \"RT1\" の状態は \"Active\" のまま"
   失効した access_token でユーザー情報取得は invalid_token で拒否される:
-    steps:
-      - "有効な access token \"AT1\" を用意する"
+    goal: 失効した access token での UserInfo 取得が拒否される。
+    primary_actor: OAuth2Client
+    scope: OAuth2
+    level: user_goal
+    preconditions:
+      - "有効な access token \"AT1\" が存在する"
+    main_success:
       - "トークン \"AT1\" を失効させる"
       - "トークン \"AT1\" でユーザー情報を取得する"
       - "エラー \"InvalidTokenError\""
-  offline_access スコープがあれば refresh_token も発行される:
-    description: OIDC Core §11 — refresh_token は offline_access 付与時のみ。
-    steps:
-      - "confidential クライアント \"web-app\" を grant_types に \"authorization_code\"・\"refresh_token\" 含めて登録する"
+  refresh_token は offline_access スコープ付与時のみ発行される:
+    goal: refresh_token が offline_access を要求したときだけ発行される。
+    primary_actor: OAuth2Client
+    scope: OAuth2
+    level: user_goal
+    description: OIDC Core §11。
+    preconditions:
+      - "confidential クライアント \"web-app\" が grant_types に \"authorization_code\"・\"refresh_token\" を含めて登録済みである"
+    main_success:
       - "\"web-app\" として scope \"openid offline_access\" で認可リクエストを送る"
       - "発行された認可コードを verifier \"v\" で交換する"
       - 応答に refresh_token が含まれる
       - "\"RefreshTokenIssued\" が発行される"
-  offline_access が無いと refresh_token は発行されない:
-    steps:
-      - "\"web-app\" として scope \"openid profile\" で認可リクエストを送る"
-      - "発行された認可コードを verifier \"v\" で交換する"
-      - 応答に refresh_token は含まれない
+    extensions:
+      - condition: offline_access を要求しない
+        steps:
+          - "\"web-app\" として scope \"openid profile\" で認可リクエストを送る"
+          - "発行された認可コードを verifier \"v\" で交換する"
+          - 応答に refresh_token は含まれない
   認可リクエストの nonce は ID トークンに伝播する:
+    goal: 認可リクエストの nonce が id_token クレームへ伝播する。
+    primary_actor: OAuth2Client
+    scope: OAuth2
+    level: user_goal
     description: OIDC Core §3.1.2.1 — リプレイ防止のため nonce は id_token に必須で含む。
-    steps:
+    main_success:
       - "\"web-app\" として scope \"openid\"、nonce \"n-12345\" で認可リクエストを送る"
       - "発行された認可コードを verifier \"v\" で交換する"
       - "応答の id_token の nonce クレームは \"n-12345\""
-  RP-Initiated Logout は登録済み post_logout_redirect_uri にだけリダイレクトする:
-    description: OIDC RP-Initiated Logout 1.0 — logout 後の redirect URI はクライアント登録済み URI に限定する。
-    steps:
-      - "confidential クライアント \"web-app\" を redirect_uri \"https://app.example.com/cb\" で登録する"
+  RP-Initiated Logout は登録済み post_logout_redirect_uri にだけ戻す:
+    goal: RP-Initiated Logout が登録済み post_logout_redirect_uri にだけリダイレクトする。
+    primary_actor: ResourceOwner
+    scope: OAuth2
+    level: user_goal
+    description: OIDC RP-Initiated Logout 1.0 — open redirect を避け、登録済み URI のみ許可する。
+    preconditions:
+      - "confidential クライアント \"web-app\" が redirect_uri \"https://app.example.com/cb\" で登録済みである"
+    main_success:
       - "\"web-app\" として post_logout_redirect_uri \"https://app.example.com/cb\" でログアウトする"
       - state が post_logout_redirect_uri に伝播する
-  未登録 post_logout_redirect_uri は拒否される:
-    description: open redirect を避けるため、logout redirect も登録済み URI のみ許可する。
-    steps:
-      - "confidential クライアント \"web-app\" を redirect_uri \"https://app.example.com/cb\" で登録する"
-      - "\"web-app\" として post_logout_redirect_uri \"https://evil.example.com/cb\" でログアウトする"
-      - "エラー \"InvalidRequestError\""
+    extensions:
+      - at: 1
+        condition: 未登録の post_logout_redirect_uri を指定する
+        steps:
+          - "\"web-app\" として post_logout_redirect_uri \"https://evil.example.com/cb\" でログアウトする"
+          - "エラー \"InvalidRequestError\""
   client_credentials グラントで M2M トークンが発行される:
+    goal: confidential クライアントが client_credentials で自身向けのトークンを得る。
+    primary_actor: OAuth2Client
+    scope: OAuth2
+    level: user_goal
     description: RFC 6749 §4.4 — confidential クライアント自身のリソースアクセス。
-    steps:
-      - "confidential クライアント \"backend\" を grant_types に \"client_credentials\" 含めて登録する"
+    preconditions:
+      - "confidential クライアント \"backend\" が grant_types に \"client_credentials\" を含めて登録済みである"
+    main_success:
       - "\"backend\" として client_credentials で scope \"api:read\" のトークンを取得する"
       - 応答に access_token が含まれ refresh_token は含まれない
       - 発行された access_token の sub は client_id と一致する
       - "\"AccessTokenIssued\" が発行される"
-  public クライアントは client_credentials を登録できない:
-    description: client_credentials は confidential 限定（TokenGrantClientCredentials 認可ルール）。
-    steps:
-      - "public クライアント \"spa-app\" を grant_types に \"client_credentials\" 含めて登録する"
-      - "エラー \"InvalidRequestError\""
+    extensions:
+      - condition: public クライアントが client_credentials を登録しようとする
+        steps:
+          - "public クライアント \"spa-app\" を grant_types に \"client_credentials\" 含めて登録する"
+          - "client_credentials は confidential 限定でありエラー \"InvalidRequestError\""
   デバイス認可フローでアクセストークンを取得できる:
-    description: RFC 8628 §3 — TV 等の入力制約デバイス向けの完全な正常系。
-    steps:
-      - "confidential クライアント \"tv-app\" を grant_types に \"urn:ietf:params:oauth:grant-type:device_code\" 含めて登録する"
+    goal: 入力制約デバイスが device flow でトークンを取得する。
+    primary_actor: OAuth2Client
+    scope: OAuth2
+    level: user_goal
+    description: RFC 8628 §3 — TV 等の入力制約デバイス向け。
+    preconditions:
+      - "confidential クライアント \"tv-app\" が grant_types に \"urn:ietf:params:oauth:grant-type:device_code\" を含めて登録済みである"
+    main_success:
       - "\"tv-app\" として scope \"openid profile\" でデバイス認可を開始する"
       - 応答に device_code・user_code・verification_uri・interval が含まれる
       - "ユーザー \"alice\" が verification_uri で user_code を入力し承認する"
@@ -4433,90 +4525,116 @@ scenarios:
       - "\"DeviceAuthorizationRequested\" が発行される"
       - "\"DeviceAuthorizationApproved\" が発行される"
       - "\"AccessTokenIssued\" が発行される"
-  承認前のデバイス交換は authorization_pending を返す:
-    description: RFC 8628 §3.5 — ユーザー承認前のポーリングは authorization_pending。
-    steps:
-      - "Issued 状態の device_code \"DC1\" を用意する"
-      - "device_code \"DC1\" を交換する"
-      - "エラー \"AuthorizationPendingError\""
-  ポーリング間隔より短い再試行は slow_down を返す:
-    description: RFC 8628 §3.5 — interval 秒未満での再試行は slow_down で interval+5 秒に増やす。
-    steps:
-      - "interval 5 秒の device_code \"DC1\" を Issued 状態で用意する"
-      - "device_code \"DC1\" を交換する"
-      - "\"2s\" 経過する"
-      - "device_code \"DC1\" を交換する"
-      - "2 回目はエラー \"SlowDownError\""
-  期限切れの device_code は expired_token を返す:
-    description: RFC 8628 §3.5 — expires_in を超えた device_code 交換は expired_token。
-    steps:
-      - "issued_at \"2026-01-01T00:00:00Z\"・expires_at \"2026-01-01T00:10:00Z\" の device_code \"DC1\" を用意する"
-      - "時刻が \"2026-01-01T00:11:00Z\" になる"
-      - "device_code \"DC1\" を交換する"
-      - "エラー \"ExpiredTokenError\""
+    extensions:
+      - at: 4
+        condition: ユーザー承認前にポーリングする
+        steps:
+          - "Issued 状態の device_code \"DC1\" を交換する"
+          - "エラー \"AuthorizationPendingError\""
+      - at: 4
+        condition: ポーリング間隔より短い再試行をする
+        steps:
+          - "interval 5 秒の device_code \"DC1\" を Issued 状態で用意する"
+          - "device_code \"DC1\" を交換し \"2s\" 経過後に再度交換する"
+          - "2 回目はエラー \"SlowDownError\""
+      - at: 4
+        condition: device_code が expires_in を超えている
+        steps:
+          - "issued_at \"2026-01-01T00:00:00Z\"・expires_at \"2026-01-01T00:10:00Z\" の device_code \"DC1\" を時刻 \"2026-01-01T00:11:00Z\" で交換する"
+          - "エラー \"ExpiredTokenError\""
   改ざんされた client_assertion は invalid_client で拒否される:
-    steps:
-      - "confidential クライアント \"fapi-app\" を token_endpoint_auth_method \"private_key_jwt\"・jwks 登録で用意する"
+    goal: private_key_jwt の改ざんされた client_assertion を拒否する。
+    primary_actor: OAuth2Client
+    scope: OAuth2
+    level: user_goal
+    preconditions:
+      - "confidential クライアント \"fapi-app\" が token_endpoint_auth_method \"private_key_jwt\"・jwks 登録で存在する"
+    main_success:
       - "認可コード \"AC1\" を verifier \"v\"・改ざんされた client_assertion で交換する"
       - "エラー \"InvalidClientError\""
   mTLS バインド AT は同じ証明書のリクエストでのみ受理される:
+    goal: mTLS 証明書バインドされた access token を同一証明書の提示でのみ受理する。
+    primary_actor: OAuth2Client
+    scope: OAuth2
+    level: user_goal
     description: "RFC 8705 §3。cnf.x5t#S256 が AT に埋め込まれ、resource access では同一証明書の thumbprint 一致を要求する。"
-    steps:
-      - "confidential クライアント \"mtls-app\" を token_endpoint_auth_method \"tls_client_auth\" で用意する"
+    preconditions:
+      - "confidential クライアント \"mtls-app\" が token_endpoint_auth_method \"tls_client_auth\" で存在する"
+    main_success:
       - mTLS 証明書バインドされた access_token を発行する
       - 同じ証明書を提示して userinfo を取得すると 200 を返す
-      - 別の証明書を提示すると invalid_token で拒否される
+    extensions:
+      - condition: 別の証明書を提示する
+        steps:
+          - 別の証明書を提示すると invalid_token で拒否される
   RFC 8414 メタデータ文書は OIDC Discovery と同等の内容を返す:
+    goal: クライアントが RFC 8414 メタデータを別パスで取得する。
+    primary_actor: OAuth2Client
+    scope: OAuth2
+    level: user_goal
     description: 同一のメタデータを別パスでも取得できる。
-    steps:
+    main_success:
       - Authorization Server メタデータを取得する
       - 応答に issuer・authorization_endpoint・token_endpoint・jwks_uri・grant_types_supported が含まれる
   管理者は所属テナントの同意を参照・撤回できるが付与は代行できない:
-    steps:
+    goal: 管理者が所属テナントの同意を参照・撤回する。付与や scope 拡張は代行できない。
+    primary_actor: Administrator
+    scope: OAuth2
+    level: user_goal
+    preconditions:
       - "tenant_id \"acme\" の roles=[\"admin\"] のユーザー \"operator\" が認証済みである"
       - "tenant_id \"acme\" のユーザー \"alice\" と client \"portal\" の Consent が Granted で存在する"
+    main_success:
       - "管理者 \"operator\" が Consent 一覧と単一 Consent を取得する"
       - "管理者 \"operator\" がユーザー \"alice\" と client \"portal\" の Consent を撤回する"
       - Consent の state は Revoked で revoked_at が記録される
       - "\"ConsentRevoked\" が actorSub \"operator\" で発行される"
       - 管理者が Consent を作成または scope 拡張する interface は存在しない
   ユーザーは接続済みアプリの同意を自分で撤回できる:
-    steps:
+    goal: ユーザーが接続済みアプリの同意を一覧して撤回する。
+    primary_actor: ResourceOwner
+    scope: OAuth2
+    level: user_goal
+    preconditions:
       - "ユーザー \"alice\" が client \"web-app\" に scope \"openid profile\" を同意済みである"
-      - "ユーザー \"alice\" が認証済みで接続済みアプリ画面を開く"
+      - "ユーザー \"alice\" が認証済みで接続済みアプリ画面を開いている"
+    main_success:
       - "一覧に \"web-app\" が表示される"
       - "ユーザー \"alice\" が \"web-app\" の同意を撤回する"
       - Consent の state は Revoked になり一覧から消える
-  "/realms/{id}/.well-known/openid-configuration は同 prefix の issuer を返す":
-    steps:
-      - "tenant_id \"acme\" を Active で作成する"
+  realm prefix 付き Discovery は同 prefix の issuer を返す:
+    goal: テナント prefix 付き Discovery が同じ prefix の issuer とエンドポイントを返す。
+    primary_actor: OAuth2Client
+    scope: OAuth2
+    level: user_goal
+    preconditions:
+      - "tenant_id \"acme\" が Active で存在する"
+    main_success:
       - /realms/acme/.well-known/openid-configuration を取得する
       - 応答の issuer は base URL + /realms/acme
       - 応答の authorization_endpoint は base URL + /realms/acme/authorize
-  他テナントの client_id を使うと invalid_client で拒否される:
-    description: クロステナントガード。クライアントの所属テナントとリクエストテナントが一致しない場合は existence を漏らさず拒否する。
-    steps:
-      - "tenant_id \"acme\" に client_id \"web-app\" を登録する"
-      - "\"/realms/default/token\" に client_id \"web-app\" で交換を要求する"
-      - "エラー \"InvalidClientError\""
-  他テナントの認可コードを別テナントの token endpoint で交換できない:
-    description: クロステナントガード。code 解決時に record.tenant_id != ctx.tenant_id を確認。
-    steps:
-      - "tenant_id \"acme\" で認可コード \"AC1\" を発行する"
-      - "\"/realms/default/token\" で認可コード \"AC1\" を交換する"
+  トークンエンドポイントはテナント境界を越えた資格情報を受理しない:
+    goal: クロステナントの client / code / refresh / device_code を existence を漏らさず拒否する。
+    primary_actor: OAuth2Client
+    scope: OAuth2
+    level: user_goal
+    description: クロステナントガード。record.tenant_id != ctx.tenant_id を確認し、存在しない資格情報と同じ応答にする。
+    main_success:
+      - "tenant_id \"acme\" で発行した認可コード \"AC1\" を \"/realms/default/token\" で交換する"
       - "エラー \"InvalidGrantError\""
-  他テナントのリフレッシュトークンを別テナントの token endpoint で再発行できない:
-    description: クロステナントガード。refresh_token 解決時に record.tenant_id != ctx.tenant_id を確認し、存在しないトークンと同じ応答にする。
-    steps:
-      - "tenant_id \"acme\" でリフレッシュトークン \"RT1\" を発行する"
-      - "\"/realms/default/token\" でリフレッシュトークン \"RT1\" を再発行する"
-      - "エラー \"InvalidGrantError\""
-  他テナントの device_code を別テナントの token endpoint で交換できない:
-    description: クロステナントガード。device flow の record.tenant_id != ctx.tenant_id を確認。
-    steps:
-      - "tenant_id \"acme\" で device_code \"DC1\" を発行し承認する"
-      - "\"/realms/default/token\" で device_code \"DC1\" を交換する"
-      - "エラー \"InvalidGrantError\""
+    extensions:
+      - condition: 他テナントの client_id を使う
+        steps:
+          - "tenant_id \"acme\" に登録した client_id \"web-app\" で \"/realms/default/token\" に交換を要求する"
+          - "エラー \"InvalidClientError\""
+      - condition: 他テナントのリフレッシュトークンを再発行する
+        steps:
+          - "tenant_id \"acme\" で発行した refresh token \"RT1\" を \"/realms/default/token\" で再発行する"
+          - "エラー \"InvalidGrantError\""
+      - condition: 他テナントの device_code を交換する
+        steps:
+          - "tenant_id \"acme\" で発行し承認した device_code \"DC1\" を \"/realms/default/token\" で交換する"
+          - "エラー \"InvalidGrantError\""
 user_experience:
   screens:
     Home:

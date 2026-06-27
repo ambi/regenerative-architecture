@@ -274,16 +274,26 @@ objectives:
     retention: 7y
     description: 旧鍵で署名された監査トークンを検証するため。
 scenarios:
-  鍵回転後も旧 kid の JWKS エントリは保持される:
-    steps:
-      - "kid \"kid-old\" を \"kid-new\" に回転した署名鍵を用意する"
+  署名鍵を回転しても旧 kid は JWKS に残る:
+    goal: 署名鍵を回転しつつ旧 kid での署名検証を継続できる。
+    primary_actor: Administrator
+    scope: SigningKeys
+    level: user_goal
+    preconditions:
+      - "現在の署名鍵は kid \"kid-old\" を持つ"
+    success_guarantees:
+      - 回転後も旧 kid と新 kid の両方が JWKS で公開される。
+    main_success:
+      - "kid \"kid-old\" を \"kid-new\" に回転する"
       - JWKS を取得する
       - "応答に kid \"kid-old\" と \"kid-new\" の両方が含まれる"
-  管理者は管理画面で署名鍵を回転でき旧 kid は JWKS に残る:
-    steps:
-      - "roles=[\"admin\"] のユーザー \"operator\" が管理画面の署名鍵一覧を開く"
-      - "管理者 \"operator\" が現在の署名鍵を回転する"
-      - JWKS に旧 kid と新 kid の両方が含まれる
+    extensions:
+      - at: 1
+        condition: 管理者が管理画面から回転する
+        steps:
+          - "roles=[\"admin\"] のユーザー \"operator\" が管理画面の署名鍵一覧を開く"
+          - "管理者 \"operator\" が現在の署名鍵を回転する"
+          - JWKS に旧 kid と新 kid の両方が含まれる
 user_experience:
   screens:
     AdminKeys:

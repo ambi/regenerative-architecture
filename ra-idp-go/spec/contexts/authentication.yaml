@@ -1144,196 +1144,292 @@ objectives:
     note: "Delete は即時 anonymize cascade で実施し、preferred_username / name / email / password_hash / mfa_* / roles を削除と同時に消去する。`sub` のみを audit のため保持する。"
 scenarios:
   有効なトークンの introspection は active=true を返す:
-    steps:
-      - "有効な access token \"AT1\" を用意する"
+    goal: ResourceServer が有効な access token を検査して有効性とクレームを得る。
+    primary_actor: ResourceServer
+    scope: Authentication
+    level: user_goal
+    preconditions:
+      - "有効な access token \"AT1\" が存在する"
+    main_success:
       - "認証済み ResourceServer としてトークン \"AT1\" を検査する"
       - 応答は active=true で scope・client_id・sub・exp・iat を含む
-  max_age を超えた前回認証では再認証を要求する:
-    description: OIDC Core §3.1.2.1 — auth_time が max_age 秒以上前なら再認証必須。
-    steps:
-      - "ユーザー \"alice\" が auth_time \"2026-01-01T00:00:00Z\" で認証済みである"
-      - "時刻が \"2026-01-01T02:00:00Z\" になる"
-      - "\"web-app\" として max_age \"60\" で認可リクエストを送る"
-      - 認可リクエストの状態は AuthenticationPending
-  prompt=none でセッションが無い場合は拒否される:
-    description: OIDC Core §3.1.2.1 — 対話なし要求に対しセッションが無ければ access_denied。
-    steps:
-      - "未認証セッションで '\"web-app\" として prompt \"none\" で認可リクエストを送る'"
-      - "エラー \"AccessDeniedError\""
-  パスワードログイン後はセッション Cookie で認可を継続できる:
-    description: ユーザー名・パスワード認証に成功すると HttpOnly セッション Cookie を発行し、同じ認可リクエストを継続する。
-    steps:
-      - "未認証セッションで '\"web-app\" として認可リクエストを送る'"
+  ResourceOwner はブラウザでパスワード認証し認可を継続する:
+    goal: ResourceOwner がユーザー名・パスワードで認証し、同じ認可リクエストを継続する。
+    primary_actor: ResourceOwner
+    scope: Authentication
+    level: user_goal
+    description: 認証成功で HttpOnly セッション Cookie を発行し、認可フローを継続する。
+    preconditions:
+      - "未認証セッションで \"web-app\" として認可リクエストを送信済みである"
+    success_guarantees:
+      - 認証成功でセッション Cookie が発行され、認可コードが返る。
+    main_success:
       - "browser login API に username \"alice\" と正しい password を送信する"
       - セッション Cookie が発行される
       - 認可コードが redirect_uri に返る
       - "\"UserAuthenticated\" が発行される"
-  browser login API の CSRF 不一致は拒否される:
-    description: SameSite cookie と request token が一致しない browser login API は invalid_request。
-    steps:
-      - "未認証セッションで '\"web-app\" として認可リクエストを送る'"
-      - csrf 値を改ざんして browser login API を送信する
-      - "エラー \"InvalidRequestError\""
-  prompt=login は既存セッションがあっても再認証を要求する:
-    description: OIDC Core §3.1.2.1 — prompt=login は既存セッションの再利用を禁止する。
-    steps:
-      - "ユーザー \"alice\" が現在時刻で認証済みである"
-      - "\"web-app\" として prompt \"login\" で認可リクエストを送る"
-      - 認可リクエストの状態は AuthenticationPending
-  private_key_jwt によるクライアント認証が成功する:
-    description: RFC 7523 §2.2 — client_assertion の署名 JWT で認証成立。
-    steps:
-      - "confidential クライアント \"fapi-app\" を token_endpoint_auth_method \"private_key_jwt\"・jwks 登録で用意する"
+    extensions:
+      - condition: SameSite cookie と request token が一致しない
+        steps:
+          - csrf 値を改ざんして browser login API を送信する
+          - "エラー \"InvalidRequestError\""
+      - condition: prompt=login で既存セッションの再利用が禁止される
+        steps:
+          - "ユーザー \"alice\" が現在時刻で認証済みである"
+          - "\"web-app\" として prompt \"login\" で認可リクエストを送る"
+          - 認可リクエストの状態は AuthenticationPending
+      - condition: 前回認証が max_age 秒以上前である
+        steps:
+          - "ユーザー \"alice\" が auth_time \"2026-01-01T00:00:00Z\" で認証済みである"
+          - "時刻が \"2026-01-01T02:00:00Z\" になる"
+          - "\"web-app\" として max_age \"60\" で認可リクエストを送る"
+          - 認可リクエストの状態は AuthenticationPending
+      - condition: prompt=none だが利用できるセッションが無い
+        steps:
+          - "未認証セッションで \"web-app\" として prompt \"none\" で認可リクエストを送る"
+          - "エラー \"AccessDeniedError\""
+  クライアントは登録済みの認証方式でトークンエンドポイントに認証する:
+    goal: confidential クライアントが登録済みの認証方式で token endpoint に認証する。
+    primary_actor: OAuth2Client
+    scope: Authentication
+    level: user_goal
+    description: RFC 7523 §2.2 (private_key_jwt) と RFC 8705 §2.1.1 (tls_client_auth)。
+    preconditions:
+      - "confidential クライアント \"fapi-app\" が token_endpoint_auth_method \"private_key_jwt\"・jwks 登録で存在する"
+    main_success:
       - "認可コード \"AC1\" を verifier \"v\"・有効な client_assertion で交換する"
       - 応答に access_token が含まれる
-  tls_client_auth で mTLS の Subject DN が一致すれば認証成立:
-    description: RFC 8705 §2.1.1。
-    steps:
-      - "confidential クライアント \"mtls-app\" を token_endpoint_auth_method \"tls_client_auth\"・tls_client_auth_subject_dn \"CN=mtls-app\" で用意する"
-      - "認可コード \"AC1\" を verifier \"v\"・mTLS Subject DN \"CN=mtls-app\" で交換する"
-      - 応答に access_token が含まれる
-  admin ロールを持つユーザーはユーザー管理 API を利用できる:
-    steps:
+    extensions:
+      - condition: tls_client_auth で mTLS の Subject DN が一致する
+        steps:
+          - "confidential クライアント \"mtls-app\" を token_endpoint_auth_method \"tls_client_auth\"・tls_client_auth_subject_dn \"CN=mtls-app\" で用意する"
+          - "認可コード \"AC1\" を verifier \"v\"・mTLS Subject DN \"CN=mtls-app\" で交換する"
+          - 応答に access_token が含まれる
+  ロールに応じて管理 API のアクセスが制御される:
+    goal: 管理 API へのアクセスが呼び出しユーザーのロールで制御される。
+    primary_actor: Administrator
+    scope: Authentication
+    level: user_goal
+    preconditions:
       - "roles に \"admin\" を持つユーザー \"operator\" が認証済みである"
+    main_success:
       - "管理者 \"operator\" が preferred_username \"bob\" のユーザーを作成する"
       - "管理者 \"operator\" がユーザー一覧を取得する"
       - "応答にユーザー \"bob\" が含まれる"
       - "\"UserCreated\" が発行される"
-  admin ロールを持たないユーザーは管理 API を利用できない:
-    steps:
-      - "roles が空のユーザー \"alice\" が認証済みである"
-      - "ユーザー \"alice\" がユーザー一覧を取得する"
-      - "エラー \"AccessDeniedError\""
+    extensions:
+      - condition: admin ロールを持たないユーザーが管理 API を呼ぶ
+        steps:
+          - "roles が空のユーザー \"alice\" が認証済みである"
+          - "ユーザー \"alice\" がユーザー一覧を取得する"
+          - "エラー \"AccessDeniedError\""
+      - condition: テナント管理は system_admin だけに許される
+        steps:
+          - "roles=[\"system_admin\"] のユーザー \"ops\" が /realms/default/admin/tenants にアクセスする"
+          - 応答は 200 でテナント一覧を返す
+          - "roles=[\"admin\"] のユーザー \"tadmin\" が /realms/default/admin/tenants にアクセスする"
+          - "エラー \"AccessDeniedError\""
   管理者はグループを作成しユーザーを所属させると有効ロールにグループ由来ロールが乗る:
+    goal: 管理者がグループにロールを束ね、メンバーの有効ロールへ反映する。
+    primary_actor: Administrator
+    scope: Authentication
+    level: user_goal
     description: effective_roles(user) = user.roles ∪ group.roles。membership 操作は監査イベントを伴う。
-    steps:
+    preconditions:
       - "roles=[\"admin\"] のユーザー \"operator\" が認証済みである"
+      - "roles が空のユーザー \"alice\" が同一テナントに存在する"
+    main_success:
       - "管理者 \"operator\" が roles=[\"catalog:read\"] のグループ \"engineering\" を作成する"
       - "\"GroupCreated\" が発行される"
-      - "roles が空のユーザー \"alice\" が同一テナントに存在する"
       - "管理者 \"operator\" がユーザー \"alice\" をグループ \"engineering\" に所属させる"
       - "\"GroupMemberAdded\" が発行される"
       - "ユーザー \"alice\" の所属グループを取得すると effective_roles に \"catalog:read\" が含まれる"
       - "group_roles は \"catalog:read\" を含み direct_roles は空である"
-      - "管理者 \"operator\" が同じユーザーを同じグループに再度所属させても \"GroupMemberAdded\" は再発行されない"
-  無効化されたユーザーはログインできない:
-    steps:
-      - "管理者がユーザー \"alice\" を無効化する"
-      - "ユーザー \"alice\" が正しい password で browser login API を送信する"
-      - "エラー \"AccessDeniedError\""
-      - "\"UserDisabled\" が発行される"
-  無効化されたユーザーの既存セッションは利用できない:
-    steps:
+    extensions:
+      - condition: 同じユーザーを同じグループへ再度所属させる
+        steps:
+          - "管理者 \"operator\" がユーザー \"alice\" をグループ \"engineering\" に再度所属させる"
+          - "\"GroupMemberAdded\" は再発行されない"
+  無効化されたユーザーは新規ログインも既存セッションも拒否される:
+    goal: ユーザーを無効化すると新規ログインと既存セッションの両方が遮断される。
+    primary_actor: Administrator
+    scope: Authentication
+    level: user_goal
+    preconditions:
       - "ユーザー \"alice\" が認証済みセッションを持つ"
+    main_success:
       - "管理者がユーザー \"alice\" を無効化する"
+      - "\"UserDisabled\" が発行される"
       - "ユーザー \"alice\" が既存セッションで認証必須 API を呼ぶ"
       - "エラー \"AccessDeniedError\""
+    extensions:
+      - condition: 無効化済みユーザーが新規ログインを試みる
+        steps:
+          - "ユーザー \"alice\" が正しい password で browser login API を送信する"
+          - "エラー \"AccessDeniedError\""
   管理者はパスワードポリシー設定を参照・更新できる:
-    steps:
-      - "roles=[\"admin\"] のユーザー \"operator\" が管理画面の設定を開く"
+    goal: 管理者が所属テナントのパスワードポリシーを参照・更新する。
+    primary_actor: Administrator
+    scope: Authentication
+    level: user_goal
+    preconditions:
+      - "roles=[\"admin\"] のユーザー \"operator\" が管理画面の設定を開いている"
+    main_success:
       - "管理者 \"operator\" がパスワードの最小長を更新する"
       - 更新後の設定に新しい最小長が反映される
   ユーザーは自分のプロフィール表示名を更新できる:
-    steps:
-      - "ユーザー \"alice\" が認証済みでマイアカウントのプロフィールを開く"
+    goal: ユーザーが自分のプロフィール表示名と編集可能属性を更新する。
+    primary_actor: ResourceOwner
+    scope: Authentication
+    level: user_goal
+    preconditions:
+      - "ユーザー \"alice\" が認証済みでマイアカウントのプロフィールを開いている"
+    main_success:
       - "ユーザー \"alice\" が表示名を更新する"
       - 更新後のプロフィールに新しい表示名が反映される
       - editable_by_user=false の属性は更新できない
   ユーザーは現在のパスワードを確認して新しいパスワードへ変更できる:
-    steps:
-      - "ユーザー \"alice\" が認証済みでパスワード変更画面を開く"
+    goal: ユーザーが現在のパスワードを確認のうえ新しいパスワードへ変更する。
+    primary_actor: ResourceOwner
+    scope: Authentication
+    level: user_goal
+    preconditions:
+      - "ユーザー \"alice\" が認証済みでパスワード変更画面を開いている"
+    main_success:
       - "ユーザー \"alice\" が正しい現在のパスワードと新しいパスワードを送信する"
       - パスワードが変更され password_changed_at が更新される
-  ポリシーを満たさないパスワード変更は拒否される:
-    steps:
-      - "ユーザー \"alice\" が認証済みでパスワード変更画面を開く"
-      - "ユーザー \"alice\" が 12 文字未満のパスワードを送信する"
-      - "エラー \"PasswordPolicyError\""
+    extensions:
+      - condition: 新しいパスワードがポリシーを満たさない
+        steps:
+          - "ユーザー \"alice\" が 12 文字未満のパスワードを送信する"
+          - "エラー \"PasswordPolicyError\""
   ユーザーはメールアドレス変更を起票し確認リンクで確定できる:
+    goal: ユーザーが primary email の変更を起票し、確認リンクで確定する。
+    primary_actor: ResourceOwner
+    scope: Authentication
+    level: user_goal
     description: 新アドレスへ送ったワンタイムリンクの確認で primary email を確定する。
-    steps:
-      - "ユーザー \"alice\" が認証済みでメールアドレス画面を開く"
+    preconditions:
+      - "ユーザー \"alice\" が認証済みでメールアドレス画面を開いている"
+    main_success:
       - "ユーザー \"alice\" が新しいメールアドレスへの変更を起票する"
       - 新アドレスへ確認リンクが送られる
       - "ユーザー \"alice\" が確認リンクのトークンで変更を確定する"
       - primary email が新しいアドレスへ更新される
   ユーザーは TOTP factor を登録して有効化できる:
+    goal: ユーザーが TOTP factor を登録し、コード確認で有効化する。
+    primary_actor: ResourceOwner
+    scope: Authentication
+    level: user_goal
     description: secret はクライアントが確認まで保持し、確認時のコード検証で有効化する。
-    steps:
-      - "ユーザー \"alice\" が認証済みでセキュリティ画面を開く"
+    preconditions:
+      - "ユーザー \"alice\" が認証済みでセキュリティ画面を開いている"
+    main_success:
       - "ユーザー \"alice\" が TOTP 登録を開始する"
       - 応答に secret と account_name が含まれる
       - "ユーザー \"alice\" がその secret に対する正しいコードで登録を確認する"
       - セキュリティ概要の MFA 状態が登録済みになる
-  TOTP factor の解除は step-up 再認証を要求する:
+  ユーザーは step-up 再認証のうえで TOTP factor を解除する:
+    goal: ユーザーが step-up 再認証を成立させてから TOTP factor を解除する。
+    primary_actor: ResourceOwner
+    scope: Authentication
+    level: user_goal
     description: 機微操作は step-up を成立させてから実行する。
-    steps:
+    preconditions:
       - "ユーザー \"alice\" が登録済み TOTP factor を持ち認証済みである"
-      - "ユーザー \"alice\" が step-up なしで TOTP factor の解除を試みる"
-      - step-up 再認証が要求される
+    main_success:
       - "ユーザー \"alice\" が step-up を成立させ現在の TOTP コードで解除する"
       - TOTP factor が解除される
+    extensions:
+      - at: 1
+        condition: step-up なしで解除を試みる
+        steps:
+          - "ユーザー \"alice\" が step-up なしで TOTP factor の解除を試みる"
+          - step-up 再認証が要求される
   ユーザーは自分の有効なセッションを一覧して失効できる:
-    steps:
+    goal: ユーザーが自分の有効なセッションを一覧し、個別・一括で失効させる。
+    primary_actor: ResourceOwner
+    scope: Authentication
+    level: user_goal
+    preconditions:
       - "ユーザー \"alice\" が複数の有効なセッションを持ち認証済みである"
+    main_success:
       - "ユーザー \"alice\" がアクティビティ画面でセッション一覧を取得する"
       - "ユーザー \"alice\" が現在以外のセッションを 1 件失効させる"
       - 失効したセッションは一覧から消える
       - "ユーザー \"alice\" が現在以外のすべてのセッションを一括失効させる"
       - 現在のセッションだけが残る
   ユーザーは自分のサインイン履歴を確認できる:
-    steps:
-      - "ユーザー \"alice\" が認証済みでアクティビティ画面を開く"
+    goal: ユーザーが自分のサインイン履歴を確認する。
+    primary_actor: ResourceOwner
+    scope: Authentication
+    level: user_goal
+    preconditions:
+      - "ユーザー \"alice\" が認証済みでアクティビティ画面を開いている"
+    main_success:
       - "ユーザー \"alice\" が自分のサインイン履歴を取得する"
       - 応答に自分のサインインイベントだけが含まれる
   ユーザーは自分のアカウントデータをエクスポートできる:
-    steps:
-      - "ユーザー \"alice\" が認証済みでデータとプライバシー画面を開く"
+    goal: ユーザーが自分の profile と consents を含むアカウントデータをエクスポートする。
+    primary_actor: ResourceOwner
+    scope: Authentication
+    level: user_goal
+    preconditions:
+      - "ユーザー \"alice\" が認証済みでデータとプライバシー画面を開いている"
+    main_success:
       - "ユーザー \"alice\" がアカウントデータをエクスポートする"
       - 応答に自分の profile と consents が含まれる
   マイアカウント API は他人のリソースを返さない:
-    steps:
+    goal: マイアカウント API が呼び出しユーザー自身のリソースだけを返す。
+    primary_actor: ResourceOwner
+    scope: Authentication
+    level: user_goal
+    preconditions:
       - "ユーザー \"alice\" が認証済みである"
+    main_success:
       - "ユーザー \"alice\" のマイアカウント概要を取得する"
       - "応答は \"alice\" 自身のデータだけで roles を含まない"
-  パスワードリセット要求はアカウントの存在を漏らさない:
-    description: 列挙攻撃を避けるため、登録有無にかかわらず同じ応答を返す。
-    steps:
-      - パスワード再設定画面で未登録のメールアドレスを送信する
-      - 応答は登録済みアドレスと区別できない
-      - パスワード再設定画面で登録済みのメールアドレスを送信する
-      - 登録済みアドレスへリセットリンクが送られる
-  ユーザーはリセットトークンで新しいパスワードを設定できる:
-    steps:
-      - "ユーザー \"alice\" 宛に有効なパスワードリセットトークンが発行される"
+  ユーザーはメールのリセットリンクでパスワードを再設定する:
+    goal: ユーザーがメールで届いたリセットトークンで新しいパスワードを設定する。
+    primary_actor: ResourceOwner
+    scope: Authentication
+    level: user_goal
+    preconditions:
+      - "ユーザー \"alice\" 宛に有効なパスワードリセットトークンが発行されている"
+    main_success:
       - "ユーザー \"alice\" がそのトークンと新しいパスワードを送信する"
       - パスワードが更新される
       - "ユーザー \"alice\" が新しいパスワードで browser login API に成功する"
-  期限切れ・不正なリセットトークンは拒否される:
-    steps:
-      - 無効なパスワードリセットトークンで新しいパスワードを送信する
-      - "エラー \"InvalidRequestError\""
+    extensions:
+      - at: 1
+        condition: トークンが期限切れまたは不正である
+        steps:
+          - 無効なパスワードリセットトークンで新しいパスワードを送信する
+          - "エラー \"InvalidRequestError\""
+      - condition: リセット要求はアカウントの存在を漏らさない
+        steps:
+          - パスワード再設定画面で未登録のメールアドレスを送信する
+          - 応答は登録済みアドレスと区別できない
+          - パスワード再設定画面で登録済みのメールアドレスを送信する
+          - 登録済みアドレスへリセットリンクが送られる
   TOTP 必須ユーザーは正しいコードで認証を継続できる:
-    steps:
-      - TOTP factor が登録された authentication_pending の LoginSession を用意する
+    goal: MFA 必須ユーザーが TOTP コードを検証して認可フローを継続する。
+    primary_actor: ResourceOwner
+    scope: Authentication
+    level: user_goal
+    preconditions:
+      - TOTP factor が登録された authentication_pending の LoginSession が存在する
+    main_success:
       - browser TOTP API に正しいコードを送信する
       - 認証が成立し認可フローが継続する
       - "\"UserAuthenticated\" が発行される"
-  誤った TOTP コードは認証を継続しない:
-    steps:
-      - TOTP factor が登録された authentication_pending の LoginSession を用意する
-      - browser TOTP API に誤ったコードを送信する
-      - "エラー \"InvalidRequestError\""
-      - LoginSession は authentication_pending のままである
-  system_admin だけが /realms/default/admin/tenants を呼べ admin は 403:
-    description: RBAC 境界。
-    steps:
-      - "roles=[\"system_admin\"] のユーザー \"ops\" が認証済みである"
-      - "ユーザー \"ops\" が /realms/default/admin/tenants にアクセスする"
-      - 応答は 200 でテナント一覧を返す
-      - "roles=[\"admin\"] のユーザー \"tadmin\" が認証済みである"
-      - "ユーザー \"tadmin\" が /realms/default/admin/tenants にアクセスする"
-      - "エラー \"AccessDeniedError\""
+    extensions:
+      - at: 1
+        condition: 誤った TOTP コードを送信する
+        steps:
+          - browser TOTP API に誤ったコードを送信する
+          - "エラー \"InvalidRequestError\""
+          - LoginSession は authentication_pending のままである
 user_experience:
   screens:
     Login:

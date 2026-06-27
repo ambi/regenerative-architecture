@@ -1,7 +1,7 @@
 id: wi-34-ra-idp-scl-scl2-scenario-migration
 title: ra-idp-go SCL の SCL 1.0 残存表現を SCL 2.0 scenario へ移行する
 created_at: 2026-06-27
-status: pending
+status: completed
 authors: [tn]
 
 motivation: |
@@ -47,3 +47,51 @@ risk_notes: |
   旧 Assurance と UX Requirements を scenario へ移す作業は意味論変更を伴う。
   単なる YAML 変換ではなく、各 context の正常系・代替系・失敗系を
   Cockburn use case 風に読み直して移行する必要がある。
+
+completion:
+  completed_at: 2026-06-28
+  summary: |
+    全 context の scenario を SCL 2.0 の Cockburn 構造形式 (goal / primary_actor /
+    scope / level / preconditions / success_guarantees / main_success / extensions)
+    へ変換した。SCL 1.0 のルートキー (assurance / narrative / given-when-then 等) は
+    残っておらず、旧 User Experience - Requirements は wi-33 で各 context の
+    user_experience へ移設済みだった。
+
+    各 use case の正常系を main_success に、密結合した失敗・代替・ガード系を
+    extensions (必要に応じ at 付き) に畳んで重複 scenario を解消した。flat steps の
+    scenario は全 context で 0 件になった。主な統合例:
+    OAuth2 認可コードフロー (未登録 redirect_uri / PKCE 不一致 / 二重交換 / 60 秒経過)、
+    refresh ローテーション (再使用 family 失効)、不正クライアント認証、同意画面の出し分け、
+    PAR、DPoP、UserInfo、Discovery、動的登録、失効、offline_access、RP-Initiated Logout、
+    client_credentials、device flow (pending / slow_down / expired)、クロステナントガード。
+    Authentication ではブラウザログイン (CSRF / prompt=login / max_age / prompt=none)、
+    RBAC、無効化ユーザー、パスワード変更・リセット、TOTP、マイアカウント系を統合した。
+    構造形式の step 文は従来どおり自然文のままで、§3.6 が認める SCL 2.0 正規形である。
+  semantic_diff:
+    before:
+      scenario_form: 全 scenario が flat な自然文 steps 形式で、正常系・失敗系・代替系が別々の scenario に分散
+      scl2_structured_form: context SCL に preconditions/main_success/extensions 形式の use case が 0 件
+    after:
+      scenario_form: 全 scenario が goal/preconditions/main_success/extensions の Cockburn 構造形式で、失敗・代替・ガードは extensions に集約
+      scl2_structured_form: 全 context の scenario が構造形式で表現され、HTML でも主成功フローと例外条件が読める
+  verification:
+    - cmd: bun run yaml-check:all
+      in: tools
+      result: ok, all SCL and work-item files OK
+    - cmd: bun test
+      in: tools
+      result: ok, 125 pass / 0 fail
+    - cmd: bun run typecheck
+      in: tools
+      result: ok
+    - cmd: bun run scl-to-html:ra-idp-go
+      in: tools
+      result: ok, structured scenarios render preconditions/main_success/extensions
+  remaining_guarantees_state:
+    - 単一上流ソース性: pass。各 use case の正常系と例外条件が 1 つの scenario に集約された。
+    - 検証可能性: pass。全 scenario が構造形式で schema 検証と HTML 描画を通る。
+    - 簡潔性: pass。重複していた失敗・代替 scenario を extensions へ畳み、flat steps と SCL 1.0 残滓を解消した。
+  human_decisions:
+    - SCL 2.0 構造形式は自然文形式の一種であり、自然文 steps を正規形とする設計判断と矛盾しない。
+    - 全 scenario を構造形式へ変換し、密結合した失敗・代替系は use case の extensions に畳む。
+    - 全件機械変換ではなく、代表 use case を構造形式へ変換して実演する方針を採る。

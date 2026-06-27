@@ -43,7 +43,9 @@ func TestSMTPEmailSenderSendsPlaintextMessage(t *testing.T) {
 	requireBodyContains(t, body, "To: alice@example.com")
 	requireBodyContains(t, body, "MIME-Version: 1.0")
 	requireBodyContains(t, body, "Content-Type: text/plain; charset=utf-8")
-	requireBodyContains(t, body, "リセットリンク")
+	requireBodyContains(t, body, "Content-Transfer-Encoding: base64")
+	requireBodyContains(t, body, encodeMIMEBody("リセットリンク: https://example.com/reset?token=abc"))
+	requireBodyNotContains(t, body, "リセットリンク")
 	requireBodyContains(t, body, "Subject: =?utf-8?")
 }
 
@@ -106,11 +108,17 @@ func TestBuildRFC5322MessageMultipart(t *testing.T) {
 		"Content-Type: multipart/alternative; boundary=",
 		"Content-Type: text/plain; charset=utf-8",
 		"Content-Type: text/html; charset=utf-8",
-		"plain body",
-		"&lt;p&gt;html body&lt;/p&gt;",
+		"Content-Transfer-Encoding: base64",
+		encodeMIMEBody("plain body"),
+		encodeMIMEBody("&lt;p&gt;html body&lt;/p&gt;"),
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("missing %q in body:\n%s", want, body)
+		}
+	}
+	for _, unsafe := range []string{"plain body", "<p>html body</p>", "&lt;p&gt;html body&lt;/p&gt;"} {
+		if strings.Contains(body, unsafe) {
+			t.Errorf("raw content %q reached SMTP DATA:\n%s", unsafe, body)
 		}
 	}
 }
@@ -127,8 +135,13 @@ func TestBuildRFC5322MessageHTMLOnly(t *testing.T) {
 	if !strings.Contains(body, "Content-Type: text/html; charset=utf-8") {
 		t.Errorf("expected single-part text/html, got:\n%s", body)
 	}
-	if strings.Contains(body, "<p>only html</p>") || !strings.Contains(body, "&lt;p&gt;only html&lt;/p&gt;") {
-		t.Errorf("expected escaped HTML body, got:\n%s", body)
+	if !strings.Contains(body, "Content-Transfer-Encoding: base64") {
+		t.Errorf("expected base64 transfer encoding, got:\n%s", body)
+	}
+	if strings.Contains(body, "<p>only html</p>") ||
+		strings.Contains(body, "&lt;p&gt;only html&lt;/p&gt;") ||
+		!strings.Contains(body, encodeMIMEBody("&lt;p&gt;only html&lt;/p&gt;")) {
+		t.Errorf("expected escaped and encoded HTML body, got:\n%s", body)
 	}
 	if strings.Contains(body, "multipart/alternative") {
 		t.Errorf("unexpected multipart for HTML-only message:\n%s", body)
@@ -152,12 +165,21 @@ func TestBuildRFC5322MessageSanitizesUntrustedContent(t *testing.T) {
 	}
 	for _, want := range []string{
 		"Subject: reset Bcc: attacker@example.com",
-		"line1\r\nline2",
-		"&lt;script&gt;alert(1)&lt;/script&gt;",
-		`&lt;a href=&#34;javascript:alert(1)&#34;&gt;x&lt;/a&gt;`,
+		encodeMIMEBody("line1\r\nline2"),
+		encodeMIMEBody(`&lt;script&gt;alert(1)&lt;/script&gt;&lt;a href=&#34;javascript:alert(1)&#34;&gt;x&lt;/a&gt;`),
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("missing sanitized content %q in body:\n%s", want, body)
+		}
+	}
+	for _, unsafe := range []string{
+		"line1\r\nline2",
+		"<script>",
+		"javascript:alert(1)",
+		"&lt;script&gt;alert(1)&lt;/script&gt;",
+	} {
+		if strings.Contains(body, unsafe) {
+			t.Errorf("raw unsafe content %q reached SMTP DATA:\n%s", unsafe, body)
 		}
 	}
 	if strings.Contains(body, "\x00") {
@@ -190,6 +212,13 @@ func requireBodyContains(t *testing.T, body, needle string) {
 	t.Helper()
 	if !strings.Contains(body, needle) {
 		t.Fatalf("expected %q in body:\n%s", needle, body)
+	}
+}
+
+func requireBodyNotContains(t *testing.T, body, needle string) {
+	t.Helper()
+	if strings.Contains(body, needle) {
+		t.Fatalf("did not expect %q in body:\n%s", needle, body)
 	}
 }
 

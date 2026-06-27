@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -161,8 +162,8 @@ func buildRFC5322Message(from string, message authports.EmailMessage, now time.T
 		return "", fmt.Errorf("smtp to header: %w", err)
 	}
 	subject := sanitizeHeaderValue(message.Subject)
-	textBody := sanitizeTextBody(message.Text)
-	htmlBody := sanitizeHTMLBody(message.HTML)
+	textBody := encodeMIMEBody(sanitizeTextBody(message.Text))
+	htmlBody := encodeMIMEBody(sanitizeHTMLBody(message.HTML))
 
 	var b strings.Builder
 	fmt.Fprintf(&b, "From: %s\r\n", fromHeader)
@@ -186,12 +187,12 @@ func buildRFC5322Message(from string, message authports.EmailMessage, now time.T
 		fmt.Fprintf(&b, "--%s--\r\n", boundary)
 	case hasHTML:
 		b.WriteString("Content-Type: text/html; charset=utf-8\r\n")
-		b.WriteString("Content-Transfer-Encoding: 8bit\r\n\r\n")
+		b.WriteString("Content-Transfer-Encoding: base64\r\n\r\n")
 		b.WriteString(htmlBody)
 		b.WriteString("\r\n")
 	default:
 		b.WriteString("Content-Type: text/plain; charset=utf-8\r\n")
-		b.WriteString("Content-Transfer-Encoding: 8bit\r\n\r\n")
+		b.WriteString("Content-Transfer-Encoding: base64\r\n\r\n")
 		b.WriteString(textBody)
 		b.WriteString("\r\n")
 	}
@@ -201,7 +202,7 @@ func buildRFC5322Message(from string, message authports.EmailMessage, now time.T
 func writePart(b *strings.Builder, boundary, contentType, body string) {
 	fmt.Fprintf(b, "--%s\r\n", boundary)
 	fmt.Fprintf(b, "Content-Type: %s\r\n", contentType)
-	b.WriteString("Content-Transfer-Encoding: 8bit\r\n\r\n")
+	b.WriteString("Content-Transfer-Encoding: base64\r\n\r\n")
 	b.WriteString(body)
 	b.WriteString("\r\n")
 }
@@ -229,6 +230,22 @@ func sanitizeTextBody(body string) string {
 func sanitizeHTMLBody(body string) string {
 	body = sanitizeTextBody(body)
 	return html.EscapeString(body)
+}
+
+func encodeMIMEBody(body string) string {
+	const lineLength = 76
+	encoded := base64.StdEncoding.EncodeToString([]byte(body))
+	if len(encoded) <= lineLength {
+		return encoded
+	}
+	var b strings.Builder
+	for len(encoded) > lineLength {
+		b.WriteString(encoded[:lineLength])
+		b.WriteString("\r\n")
+		encoded = encoded[lineLength:]
+	}
+	b.WriteString(encoded)
+	return b.String()
 }
 
 func randomBoundary() (string, error) {

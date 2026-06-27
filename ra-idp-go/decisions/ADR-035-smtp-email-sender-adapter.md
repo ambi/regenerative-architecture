@@ -78,9 +78,10 @@ hardcode しており、ra-idp-go を本番環境にデプロイしても forgot
    - 添付ファイルはサポートしない (リセット / 検証メールに不要)。
 
 9. **件名の文字符号化**: `mime.QEncoding.Encode("utf-8", subject)` を使い
-   ASCII 範囲外を RFC 2047 encoded-word に変換する。本文は `8bit`
-   Content-Transfer-Encoding で UTF-8 をそのまま送る (主要 MTA は 8BITMIME
-   をサポートする前提)。
+   ASCII 範囲外を RFC 2047 encoded-word に変換する。本文は正規化後に
+   `base64` Content-Transfer-Encoding で配送する。SMTP DATA 上に利用者由来の
+   CRLF、ヘッダ風行、HTML 断片を直接出さず、メール内容注入の静的解析
+   (CodeQL `go/email-injection`) でも検証できる形にするため。
 
 10. **秘密情報の取り扱い**:
     - `SMTP_PASSWORD` は環境変数だけで受け取る。設定ファイル経路は提供しない。
@@ -96,6 +97,8 @@ hardcode しており、ra-idp-go を本番環境にデプロイしても forgot
       `html.EscapeString` でエスケープし、HTML メール上の表示テキストとして
       扱う。将来、装飾済み HTML テンプレートを必要とする場合は、許可タグ /
       許可属性ベースのサニタイザ導入を別 ADR で判断する。
+    - 正規化済み `Text` / `HTML` は MIME part ごとに Base64 化し、76 文字で
+      CRLF 折り返しする。
 
 ## 影響
 

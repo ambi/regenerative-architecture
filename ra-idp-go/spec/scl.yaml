@@ -6462,6 +6462,176 @@ scenarios:
       - '管理者 "operator" が client_id を確認して client を削除する'
       - '一覧から対象 client が消える'
 
+  管理者は管理画面でアプリケーションを作成し protocol binding を構成できる:
+    description: OAuth2 / WS-Federation / service を統合した Application 画面 (commit a5e2ec8)。
+    steps:
+      - 'roles=["admin"] のユーザー "operator" が管理画面のアプリケーション一覧を開く'
+      - '管理者 "operator" が confidential なアプリケーション "portal" を作成する'
+      - '画面は生成された client_secret を一度だけ表示する'
+      - '管理者 "operator" がアプリケーション "portal" に OIDC protocol binding を追加する'
+      - '管理者 "operator" がアプリケーション "portal" の redirect_uris と scope を編集する'
+      - '管理者 "operator" がアプリケーション "portal" をユーザー "alice" に割り当てる'
+      - '管理者 "operator" がアプリケーション "portal" を削除する'
+      - '一覧から対象アプリケーションが消える'
+
+  管理者はエージェントを登録し client 資格情報をバインドできる:
+    steps:
+      - 'roles=["admin"] のユーザー "operator" が管理画面のエージェント一覧を開く'
+      - '管理者 "operator" がエージェント "batch-agent" を登録する'
+      - '管理者 "operator" がエージェント "batch-agent" に client 資格情報をバインドする'
+      - '管理者 "operator" がエージェント "batch-agent" を無効化する'
+      - '管理者 "operator" がエージェント "batch-agent" を再有効化する'
+      - 'エージェント一覧に "batch-agent" が表示される'
+
+  管理者は監査ログを期間で絞り込み参照・エクスポートできる:
+    steps:
+      - 'roles=["admin"] のユーザー "operator" が管理画面の監査ログを開く'
+      - '管理者 "operator" が直近 24 時間で監査イベントを絞り込む'
+      - '一覧に所属テナントの監査イベントだけが表示される'
+      - '管理者 "operator" が絞り込み結果をエクスポートする'
+
+  管理者は管理画面で署名鍵を回転でき旧 kid は JWKS に残る:
+    steps:
+      - 'roles=["admin"] のユーザー "operator" が管理画面の署名鍵一覧を開く'
+      - '管理者 "operator" が現在の署名鍵を回転する'
+      - 'JWKS に旧 kid と新 kid の両方が含まれる'
+
+  管理者はテナント固有のユーザー属性スキーマを定義できる:
+    steps:
+      - 'roles=["admin"] のユーザー "operator" が管理画面のユーザー属性を開く'
+      - '管理者 "operator" が editable_by_user=true の custom_attribute を追加する'
+      - '更新後のスキーマに追加した属性が含まれる'
+
+  管理者はパスワードポリシー設定を参照・更新できる:
+    steps:
+      - 'roles=["admin"] のユーザー "operator" が管理画面の設定を開く'
+      - '管理者 "operator" がパスワードの最小長を更新する'
+      - '更新後の設定に新しい最小長が反映される'
+
+  ダッシュボードは所属テナントの集計を表示する:
+    steps:
+      - 'roles=["admin"] のユーザー "operator" が管理ダッシュボードを開く'
+      - 'ユーザー数・登録アプリケーション数・付与済み同意数・直近 24 時間の監査イベント数が表示される'
+      - '最近の監査イベントが表示される'
+
+  # ---------- マイアカウント (self-service) ----------
+  ユーザーは自分のプロフィール表示名を更新できる:
+    steps:
+      - 'ユーザー "alice" が認証済みでマイアカウントのプロフィールを開く'
+      - 'ユーザー "alice" が表示名を更新する'
+      - '更新後のプロフィールに新しい表示名が反映される'
+      - 'editable_by_user=false の属性は更新できない'
+
+  ユーザーは現在のパスワードを確認して新しいパスワードへ変更できる:
+    steps:
+      - 'ユーザー "alice" が認証済みでパスワード変更画面を開く'
+      - 'ユーザー "alice" が正しい現在のパスワードと新しいパスワードを送信する'
+      - 'パスワードが変更され password_changed_at が更新される'
+
+  ポリシーを満たさないパスワード変更は拒否される:
+    steps:
+      - 'ユーザー "alice" が認証済みでパスワード変更画面を開く'
+      - 'ユーザー "alice" が 12 文字未満のパスワードを送信する'
+      - 'エラー "PasswordPolicyError"'
+
+  ユーザーはメールアドレス変更を起票し確認リンクで確定できる:
+    description: wi-21。新アドレスへ送ったワンタイムリンクの確認で primary email を確定する。
+    steps:
+      - 'ユーザー "alice" が認証済みでメールアドレス画面を開く'
+      - 'ユーザー "alice" が新しいメールアドレスへの変更を起票する'
+      - '新アドレスへ確認リンクが送られる'
+      - 'ユーザー "alice" が確認リンクのトークンで変更を確定する'
+      - 'primary email が新しいアドレスへ更新される'
+
+  ユーザーは TOTP factor を登録して有効化できる:
+    description: wi-21。secret はクライアントが確認まで保持し、確認時のコード検証で有効化する。
+    steps:
+      - 'ユーザー "alice" が認証済みでセキュリティ画面を開く'
+      - 'ユーザー "alice" が TOTP 登録を開始する'
+      - '応答に secret と account_name が含まれる'
+      - 'ユーザー "alice" がその secret に対する正しいコードで登録を確認する'
+      - 'セキュリティ概要の MFA 状態が登録済みになる'
+
+  TOTP factor の解除は step-up 再認証を要求する:
+    description: ADR-043。機微操作は step-up を成立させてから実行する。
+    steps:
+      - 'ユーザー "alice" が登録済み TOTP factor を持ち認証済みである'
+      - 'ユーザー "alice" が step-up なしで TOTP factor の解除を試みる'
+      - 'step-up 再認証が要求される'
+      - 'ユーザー "alice" が step-up を成立させ現在の TOTP コードで解除する'
+      - 'TOTP factor が解除される'
+
+  ユーザーは自分の有効なセッションを一覧して失効できる:
+    description: wi-20。
+    steps:
+      - 'ユーザー "alice" が複数の有効なセッションを持ち認証済みである'
+      - 'ユーザー "alice" がアクティビティ画面でセッション一覧を取得する'
+      - 'ユーザー "alice" が現在以外のセッションを 1 件失効させる'
+      - '失効したセッションは一覧から消える'
+      - 'ユーザー "alice" が現在以外のすべてのセッションを一括失効させる'
+      - '現在のセッションだけが残る'
+
+  ユーザーは自分のサインイン履歴を確認できる:
+    steps:
+      - 'ユーザー "alice" が認証済みでアクティビティ画面を開く'
+      - 'ユーザー "alice" が自分のサインイン履歴を取得する'
+      - '応答に自分のサインインイベントだけが含まれる'
+
+  ユーザーは接続済みアプリの同意を自分で撤回できる:
+    steps:
+      - 'ユーザー "alice" が client "web-app" に scope "openid profile" を同意済みである'
+      - 'ユーザー "alice" が認証済みで接続済みアプリ画面を開く'
+      - '一覧に "web-app" が表示される'
+      - 'ユーザー "alice" が "web-app" の同意を撤回する'
+      - 'Consent の state は Revoked になり一覧から消える'
+
+  ユーザーは自分のアカウントデータをエクスポートできる:
+    steps:
+      - 'ユーザー "alice" が認証済みでデータとプライバシー画面を開く'
+      - 'ユーザー "alice" がアカウントデータをエクスポートする'
+      - '応答に自分の profile と consents が含まれる'
+
+  マイアカウント API は他人のリソースを返さない:
+    steps:
+      - 'ユーザー "alice" が認証済みである'
+      - 'ユーザー "alice" のマイアカウント概要を取得する'
+      - '応答は "alice" 自身のデータだけで roles を含まない'
+
+  # ---------- ログイン補助フロー (パスワードリセット / TOTP) ----------
+  パスワードリセット要求はアカウントの存在を漏らさない:
+    description: 列挙攻撃を避けるため、登録有無にかかわらず同じ応答を返す。
+    steps:
+      - 'パスワード再設定画面で未登録のメールアドレスを送信する'
+      - '応答は登録済みアドレスと区別できない'
+      - 'パスワード再設定画面で登録済みのメールアドレスを送信する'
+      - '登録済みアドレスへリセットリンクが送られる'
+
+  ユーザーはリセットトークンで新しいパスワードを設定できる:
+    steps:
+      - 'ユーザー "alice" 宛に有効なパスワードリセットトークンが発行される'
+      - 'ユーザー "alice" がそのトークンと新しいパスワードを送信する'
+      - 'パスワードが更新される'
+      - 'ユーザー "alice" が新しいパスワードで browser login API に成功する'
+
+  期限切れ・不正なリセットトークンは拒否される:
+    steps:
+      - '無効なパスワードリセットトークンで新しいパスワードを送信する'
+      - 'エラー "InvalidRequestError"'
+
+  TOTP 必須ユーザーは正しいコードで認証を継続できる:
+    steps:
+      - 'TOTP factor が登録された authentication_pending の LoginSession を用意する'
+      - 'browser TOTP API に正しいコードを送信する'
+      - '認証が成立し認可フローが継続する'
+      - '"UserAuthenticated" が発行される'
+
+  誤った TOTP コードは認証を継続しない:
+    steps:
+      - 'TOTP factor が登録された authentication_pending の LoginSession を用意する'
+      - 'browser TOTP API に誤ったコードを送信する'
+      - 'エラー "InvalidRequestError"'
+      - 'LoginSession は authentication_pending のままである'
+
   # ---------- テナント (ADR-032 / ADR-033 / ADR-034) ----------
   default テナントは起動時に自動作成され削除不可:
     description: ADR-032 の bootstrap 不変性。
@@ -7434,16 +7604,153 @@ user_experience:
       route: /callback
       purpose: ローカルデモClientの認可成功またはOAuthエラーを表示する。
       states: [success, oauth_error, invalid_response]
+    AdminDashboard:
+      route: /admin
+      purpose: 管理者にテナントのユーザー数・登録アプリケーション数・付与済み同意数・直近24時間の監査イベント数と最近のイベントを集約表示する。
+      interfaces: [ListAdminUsers, ListAdminClients, ListAdminConsents, ListAdminAuditEvents]
+      states: [ready, loading, empty, access_denied, service_error]
     AdminUsers:
       route: /admin/users
-      purpose: 管理者が所属テナントのユーザー一覧、ロール、アカウント状態を管理する。
-      interfaces: [ListAdminUsers, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser]
+      purpose: 管理者が所属テナントのユーザーを一覧・詳細表示し、プロフィール、ロール、アカウント状態、必須アクション、所属グループを管理する。
+      interfaces: [ListAdminUsers, GetAdminUser, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser, DeleteAdminUser, SetUserRequiredAction, ClearUserRequiredAction, ListUserGroups, AddGroupMember]
+      states: [ready, loading, submitting, empty, delete_confirmation, access_denied, service_error]
+    AdminGroups:
+      route: /admin/groups
+      purpose: 管理者が複数ロールをまとめたグループを作成・更新・削除し、メンバーを追加・削除する。
+      interfaces: [ListGroups, GetGroup, CreateGroup, UpdateGroup, DeleteGroup, AddGroupMember, RemoveGroupMember, ListAdminUsers]
+      states: [ready, loading, submitting, empty, delete_confirmation, access_denied, service_error]
+    AdminAgents:
+      route: /admin/agents
+      purpose: 管理者が非人間プリンシパル(エージェント)を登録・更新し、有効化・無効化・強制終了・削除と client 資格情報のバインド・アンバインドを行う。
+      interfaces: [ListAgents, GetAgent, RegisterAgent, UpdateAgent, DisableAgent, EnableAgent, KillAgent, DeleteAgent, BindAgentCredential, UnbindAgentCredential]
+      states: [ready, loading, submitting, empty, delete_confirmation, access_denied, service_error]
+    AdminRoles:
+      route: /admin/roles
+      purpose: 管理ロールと各ロールに許可される操作、ロールを持つユーザー数を読み取り専用で一覧する。標準ロールは編集・削除できない。
+      states: [ready, loading, empty, access_denied, service_error]
+    AdminApplications:
+      route: /admin/applications
+      purpose: |
+        管理者が OAuth2 / WS-Federation / service の各種クライアントを単一の「アプリケーション」として
+        一覧・作成・更新・削除し、protocol binding の追加・削除、OIDC / WS-Fed 個別設定、Entra 連携、
+        ユーザー/グループへの割り当てを行う統合画面 (commit a5e2ec8)。
+      interfaces: [ListAdminApplications, GetAdminApplication, CreateAdminApplication, UpdateAdminApplication, DeleteAdminApplication, AttachProtocolBinding, DetachProtocolBinding, UpdateApplicationOidcConfig, UpdateApplicationWsFedConfig, ConfigureEntraFederation, ListApplicationAssignments, AssignApplication, UnassignApplication, ListAdminUsers, ListGroups]
+      states: [ready, loading, submitting, empty, secret_issued, delete_confirmation, access_denied, service_error]
+    AdminAuthorizationDetailTypes:
+      route: /admin/authorization-detail-types
+      purpose: 管理者が RAR (RFC 9396) の authorization_details type とそのフィールドスキーマを一覧・作成・更新・削除する。
+      interfaces: [ListAuthorizationDetailTypes, GetAuthorizationDetailType, CreateAuthorizationDetailType, UpdateAuthorizationDetailType, DeleteAuthorizationDetailType]
+      states: [ready, loading, submitting, empty, delete_confirmation, access_denied, service_error]
+    AdminConsents:
+      route: /admin/consents
+      purpose: 管理者が所属テナントの同意を一覧・参照し、撤回する。付与や scope 拡張の代行はできない。
+      interfaces: [ListAdminConsents, GetAdminConsent, RevokeAdminConsent]
       states: [ready, loading, submitting, empty, access_denied, service_error]
+    AdminAuditEvents:
+      route: /admin/audit_events
+      purpose: 管理者が監査イベントを対象ユーザーや期間で絞り込んで一覧・参照し、エクスポートする。
+      interfaces: [ListAdminAuditEvents, GetAdminAuditEvent, ExportAdminAuditEvents]
+      states: [ready, loading, empty, access_denied, service_error]
+    AdminKeys:
+      route: /admin/keys
+      purpose: 管理者が署名鍵を一覧・参照し、回転する。回転後も旧 kid は JWKS で保持される。
+      interfaces: [ListAdminKeys, GetAdminKey, RotateAdminKey]
+      states: [ready, loading, submitting, empty, access_denied, service_error]
+    AdminTenants:
+      route: /admin/tenants
+      purpose: control plane (system_admin) がテナントを一覧・作成・更新し、有効化・無効化する。default テナントは削除・無効化できない。
+      interfaces: [ListTenants, GetTenant, CreateTenant, UpdateTenant, DisableTenant, EnableTenant]
+      states: [ready, loading, submitting, empty, access_denied, service_error]
+    AdminTenantAttributes:
+      route: /admin/tenant/attributes
+      purpose: 管理者がテナント固有のカスタムユーザー属性スキーマを定義・更新する。組み込み属性はコードが提供する。
+      interfaces: [GetTenantUserAttributeSchema, UpdateTenantUserAttributeSchema]
+      states: [ready, loading, submitting, access_denied, service_error]
+    AdminSettings:
+      route: /admin/settings
+      purpose: 管理者がパスワードポリシーなど所属テナントの設定を参照・更新する。
+      interfaces: [GetAdminSettings, UpdateAdminSettings]
+      states: [ready, loading, submitting, access_denied, service_error]
     AdminClients:
       route: /admin/clients
-      purpose: 管理者が所属テナントのOAuth clientを一覧し、作成、metadata更新、削除を行う。
+      purpose: |
+        OAuth2 client の低レベル設定を直接編集する advanced 画面。通常運用は AdminApplications に
+        一本化されており、サイドバー導線を持たず URL 直叩きでのみ到達する (commit a5e2ec8)。
+        生成された client_secret は作成成功直後に一度だけ表示する。
       interfaces: [ListAdminClients, GetAdminClient, CreateAdminClient, UpdateAdminClient, DeleteAdminClient]
       states: [ready, loading, submitting, empty, secret_issued, delete_confirmation, access_denied, service_error]
+    AdminWsFedRelyingParties:
+      route: /admin/wsfed/relying-parties
+      purpose: |
+        WS-Federation relying party の低レベル設定を直接編集する advanced 画面。通常運用は
+        AdminApplications に一本化されており、サイドバー導線を持たず URL 直叩きでのみ到達する。
+        Entra 連携の設定もここから行える。
+      interfaces: [ConfigureEntraFederation]
+      states: [ready, loading, submitting, empty, delete_confirmation, access_denied, service_error]
+
+    AccountHome:
+      route: /account
+      purpose: end-userに自身のアカウント概要(最終ログイン、パスワード変更日時、MFA状態、未対応の必須アクション)を提示する。adminロールは含めない。
+      interfaces: [GetAccountSummary]
+      states: [ready, loading, access_denied, service_error]
+    AccountApps:
+      route: /account/apps
+      purpose: end-userが利用できるアプリケーションをタイルで一覧し、起動する。
+      interfaces: [ListMyApplications]
+      states: [ready, loading, empty, access_denied, service_error]
+    AccountProfile:
+      route: /account/profile
+      purpose: end-userが自身のプロフィール(表示名と editable_by_user=true の属性)を確認・更新する。
+      interfaces: [GetUserProfile, UpdateUserProfile]
+      states: [ready, loading, submitting, access_denied, service_error]
+    AccountEmails:
+      route: /account/emails
+      purpose: end-userが primary email の変更を起票し、新アドレスへ確認リンクを送る。
+      interfaces: [RequestEmailChange]
+      states: [ready, submitting, change_requested, access_denied, service_error]
+    AccountEmailVerify:
+      route: /account/email/verify
+      purpose: メールで届いたワンタイムリンクを開き、新しいメールアドレスをアカウントへ確定する。
+      interfaces: [ConfirmEmailChange]
+      states: [idle, submitting, done, invalid_token, service_error]
+    AccountSecurity:
+      route: /account/security
+      purpose: |
+        end-userがパスワード変更日時と MFA (TOTP) 状態を確認し、TOTP factor を登録・解除する。
+        機微操作には step-up 再認証 (ADR-043) を要求する。
+      interfaces: [GetAccountSecurity, StartTotpEnrollment, ConfirmTotpEnrollment, RemoveTotpFactor, StartStepUpAuthentication, CompleteStepUpAuthentication]
+      states: [ready, loading, submitting, enrolling, step_up_required, access_denied, service_error]
+    ChangePassword:
+      route: /account/password
+      purpose: end-userが現在のパスワードを確認したうえで新しいパスワードへ変更する。
+      interfaces: [ChangePassword]
+      states: [ready, submitting, weak_password, invalid_credentials, success, service_error]
+    AccountActivity:
+      route: /account/activity
+      purpose: end-userが自身の有効なセッションを一覧して個別または一括で失効させ、最近のサインイン履歴を確認する。
+      interfaces: [ListMySessions, RevokeMySession, RevokeMyOtherSessions, ListMySignInActivity]
+      states: [ready, loading, submitting, empty, access_denied, service_error]
+    AccountApplications:
+      route: /account/applications
+      purpose: end-userが自身のアカウントへのアクセスを許可した接続済みアプリ(同意)を一覧し、撤回する。
+      interfaces: [ListMyConsents, RevokeMyConsent]
+      states: [ready, loading, submitting, empty, access_denied, service_error]
+    AccountData:
+      route: /account/data
+      purpose: end-userが自身のプロフィールと同意を含むアカウントデータをエクスポートする。
+      interfaces: [ExportAccountData]
+      states: [ready, submitting, exported, access_denied, service_error]
+
+    ForgotPassword:
+      route: /forgot_password
+      purpose: 未ログインのResourceOwnerがメールアドレスを入力してパスワード再設定リンクを要求する。アカウントの存在有無は開示しない。
+      interfaces: [RequestPasswordReset]
+      states: [ready, submitting, submitted, service_error]
+    ResetPassword:
+      route: /reset_password
+      purpose: メールで届いたリセットトークンで新しいパスワードを設定する。
+      interfaces: [ResetPasswordWithToken]
+      states: [ready, submitting, success, invalid_token, weak_password, service_error]
 
   transitions:
     - { from: Home, to: Login, trigger: authorization_started, interface: Authorize }
@@ -7458,8 +7765,23 @@ user_experience:
     - { from: Device, to: Status, trigger: device_denied, interface: SubmitBrowserDevice }
     - { to: Status, trigger: session_ended, interface: EndSession }
     - { to: Callback, trigger: local_demo_authorization_response, external: true }
-    - { from: AdminUsers, to: AdminClients, trigger: application_management_selected }
-    - { from: AdminClients, to: AdminUsers, trigger: user_management_selected }
+    # --- ログイン補助フロー ---
+    - { from: Login, to: ForgotPassword, trigger: password_reset_requested }
+    - { from: ForgotPassword, to: ResetPassword, trigger: reset_link_opened, interface: RequestPasswordReset, external: true }
+    - { from: ResetPassword, to: Login, trigger: password_reset_succeeded, interface: ResetPasswordWithToken }
+    # --- 管理シェル内のサイドバー遷移 (代表) ---
+    - { from: AdminDashboard, to: AdminUsers, trigger: user_management_selected }
+    - { from: AdminDashboard, to: AdminApplications, trigger: application_management_selected }
+    - { from: AdminUsers, to: AdminGroups, trigger: group_management_selected }
+    - { from: AdminUsers, to: AdminApplications, trigger: application_management_selected }
+    - { from: AdminApplications, to: AdminUsers, trigger: user_management_selected }
+    # --- マイアカウントポータル内の遷移 (代表) ---
+    - { from: AccountHome, to: AccountSecurity, trigger: security_selected }
+    - { from: AccountSecurity, to: ChangePassword, trigger: change_password_selected }
+    - { from: AccountHome, to: AccountProfile, trigger: profile_selected }
+    - { from: AccountHome, to: AccountActivity, trigger: activity_selected }
+    - { from: AccountHome, to: AccountApplications, trigger: connected_apps_selected }
+    - { from: AccountEmails, to: AccountEmailVerify, trigger: email_verification_link_opened, interface: RequestEmailChange, external: true }
 
   requirements:
     - id: UX-TRANSACTION-BOUND
@@ -7473,16 +7795,16 @@ user_experience:
       category: security
       adoption: required
       statement: 状態変更を伴うブラウザAPIはSameSite cookieとリクエストトークンを照合してCSRFを拒否する。
-      screens: [Login, Totp, Consent, Device, AdminUsers, AdminClients]
-      interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, SubmitBrowserConsent, SubmitBrowserDevice, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser, CreateAdminClient, UpdateAdminClient, DeleteAdminClient]
+      screens: [Login, Totp, Consent, Device, ForgotPassword, ResetPassword, ChangePassword, AccountProfile, AccountEmails, AccountEmailVerify, AccountSecurity, AccountActivity, AccountApplications, AdminUsers, AdminGroups, AdminAgents, AdminApplications, AdminAuthorizationDetailTypes, AdminConsents, AdminKeys, AdminTenants, AdminTenantAttributes, AdminSettings, AdminClients, AdminWsFedRelyingParties]
+      interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, SubmitBrowserConsent, SubmitBrowserDevice, RequestPasswordReset, ResetPasswordWithToken, ChangePassword, UpdateUserProfile, RequestEmailChange, ConfirmEmailChange, ConfirmTotpEnrollment, RemoveTotpFactor, RevokeMySession, RevokeMyOtherSessions, RevokeMyConsent, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser, DeleteAdminUser, CreateGroup, UpdateGroup, DeleteGroup, AddGroupMember, RemoveGroupMember, RegisterAgent, UpdateAgent, DisableAgent, EnableAgent, KillAgent, DeleteAgent, CreateAdminApplication, UpdateAdminApplication, DeleteAdminApplication, RevokeAdminConsent, RotateAdminKey, CreateTenant, UpdateTenant, DisableTenant, EnableTenant, UpdateTenantUserAttributeSchema, UpdateAdminSettings, CreateAdminClient, UpdateAdminClient, DeleteAdminClient]
       standards: [RFC9700, FAPI2SecurityProfile]
       scenarios: [browser login API の CSRF 不一致は拒否される]
     - id: UX-NO-STORE
       category: privacy
       adoption: required
-      statement: 認証トランザクション、CSRF token、user_code、管理対象データを含むブラウザAPI応答は保存キャッシュを禁止する。
-      screens: [Login, Totp, Consent, Device, AdminUsers, AdminClients]
-      interfaces: [GetBrowserTransaction, GetBrowserDeviceContext, ListAdminUsers, ListAdminClients, GetAdminClient, CreateAdminClient, UpdateAdminClient]
+      statement: 認証トランザクション、CSRF token、user_code、管理対象データ、自己アカウントデータを含むブラウザAPI応答は保存キャッシュを禁止する。
+      screens: [Login, Totp, Consent, Device, AccountHome, AccountProfile, AccountSecurity, AccountActivity, AccountApplications, AccountData, AdminUsers, AdminGroups, AdminAgents, AdminApplications, AdminConsents, AdminAuditEvents, AdminKeys, AdminTenants, AdminSettings, AdminClients]
+      interfaces: [GetBrowserTransaction, GetBrowserDeviceContext, GetAccountSummary, GetUserProfile, GetAccountSecurity, ListMySessions, ListMyConsents, ExportAccountData, ListAdminUsers, ListGroups, ListAgents, ListAdminApplications, ListAdminConsents, ListAdminAuditEvents, ListAdminKeys, ListTenants, ListAdminClients, GetAdminClient, CreateAdminClient, UpdateAdminClient]
     - id: UX-NO-CREDENTIAL-ECHO
       category: privacy
       adoption: required
@@ -7503,9 +7825,28 @@ user_experience:
     - id: UX-ADMIN-TENANT-SCOPE
       category: security
       adoption: required
-      statement: 管理画面は現在のrealm prefixを維持し、所属テナント内のUserとOAuth2Clientだけを表示・変更する。
-      screens: [AdminUsers, AdminClients]
-      interfaces: [ListAdminUsers, ListAdminClients, GetAdminClient, CreateAdminClient, UpdateAdminClient, DeleteAdminClient]
+      statement: 管理画面は現在のrealm prefixを維持し、所属テナント内のリソース(User、Group、Agent、Application/Client、Consent、AuditEvent、Key、設定、属性スキーマ)だけを表示・変更する。
+      screens: [AdminDashboard, AdminUsers, AdminGroups, AdminAgents, AdminRoles, AdminApplications, AdminAuthorizationDetailTypes, AdminConsents, AdminAuditEvents, AdminKeys, AdminTenantAttributes, AdminSettings, AdminClients, AdminWsFedRelyingParties]
+      interfaces: [ListAdminUsers, ListGroups, ListAgents, ListAdminApplications, ListAuthorizationDetailTypes, ListAdminConsents, ListAdminAuditEvents, ListAdminKeys, GetTenantUserAttributeSchema, GetAdminSettings, ListAdminClients, GetAdminClient, CreateAdminClient, UpdateAdminClient, DeleteAdminClient]
+    - id: UX-ADMIN-CONTROL-PLANE
+      category: security
+      adoption: required
+      statement: テナント管理画面はcontrol plane(/realms/default配下)かつsystem_adminロールでのみ到達でき、通常テナントの管理者には導線も操作も提供しない。
+      screens: [AdminTenants]
+      interfaces: [ListTenants, GetTenant, CreateTenant, UpdateTenant, DisableTenant, EnableTenant]
+      scenarios: [system_admin だけが /realms/default/admin/tenants を呼べ admin は 403]
+    - id: UX-ACCOUNT-SELF-SCOPE
+      category: security
+      adoption: required
+      statement: マイアカウント画面は呼び出しユーザー自身のリソースだけを表示・変更し、他者のプロフィール、セッション、同意、データへはアクセスできない。
+      screens: [AccountHome, AccountProfile, AccountEmails, AccountSecurity, AccountActivity, AccountApplications, AccountData]
+      interfaces: [GetAccountSummary, GetUserProfile, UpdateUserProfile, RequestEmailChange, ConfirmEmailChange, GetAccountSecurity, ListMySessions, RevokeMySession, RevokeMyOtherSessions, ListMyConsents, RevokeMyConsent, ExportAccountData]
+    - id: UX-ACCOUNT-STEP-UP
+      category: security
+      adoption: required
+      statement: TOTP factorの登録・解除など機微なセキュリティ操作は、step-up再認証(ADR-043)を成立させてから実行する。
+      screens: [AccountSecurity]
+      interfaces: [StartStepUpAuthentication, CompleteStepUpAuthentication, ConfirmTotpEnrollment, RemoveTotpFactor]
     - id: UX-REGISTERED-REDIRECT
       category: security
       adoption: required
@@ -7524,7 +7865,7 @@ user_experience:
       category: accessibility
       adoption: required
       statement: すべての入力、表示切替、許可、拒否、再試行をキーボードだけで操作可能にする。
-      screens: [Home, Login, Totp, Consent, Device, Status, Callback, AdminUsers, AdminClients]
+      screens: [Home, Login, Totp, Consent, Device, Status, Callback, ForgotPassword, ResetPassword, AccountHome, AccountApps, AccountProfile, AccountEmails, AccountEmailVerify, AccountSecurity, ChangePassword, AccountActivity, AccountApplications, AccountData, AdminDashboard, AdminUsers, AdminGroups, AdminAgents, AdminRoles, AdminApplications, AdminAuthorizationDetailTypes, AdminConsents, AdminAuditEvents, AdminKeys, AdminTenants, AdminTenantAttributes, AdminSettings, AdminClients, AdminWsFedRelyingParties]
       standards: [WCAG22]
     - id: UX-FOCUS
       category: accessibility
@@ -7542,7 +7883,7 @@ user_experience:
       category: accessibility
       adoption: required
       statement: 非同期送信の失敗と認証結果を支援技術へ通知し、送信中は重複操作を防ぐ。
-      screens: [Login, Totp, Consent, Device, Status, Callback, AdminUsers, AdminClients]
+      screens: [Login, Totp, Consent, Device, Status, Callback, ForgotPassword, ResetPassword, ChangePassword, AccountProfile, AccountEmails, AccountEmailVerify, AccountSecurity, AccountActivity, AccountApplications, AccountData, AdminUsers, AdminGroups, AdminAgents, AdminApplications, AdminAuthorizationDetailTypes, AdminConsents, AdminKeys, AdminTenants, AdminTenantAttributes, AdminSettings, AdminClients, AdminWsFedRelyingParties]
       standards: [WCAG22]
     - id: UX-LOCALE
       category: localization

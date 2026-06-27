@@ -7,6 +7,7 @@
 package core
 
 import (
+	appports "ra-idp-go/internal/application/ports"
 	authdomain "ra-idp-go/internal/authentication/domain"
 	authports "ra-idp-go/internal/authentication/ports"
 	authusecases "ra-idp-go/internal/authentication/usecases"
@@ -61,6 +62,8 @@ type Deps struct {
 	AuthnResolver              authdomain.AuthenticationContextResolver
 	WsFedRPRepo                wsfederationports.WsFedRelyingPartyRepository
 	FederationSigner           *samltoken.Signer
+	ApplicationRepo            appports.ApplicationRepository
+	ApplicationAssignmentRepo  appports.AssignmentRepository
 	Emit                       func(spec.DomainEvent)
 	HealthInfo                 HealthInfo
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	appports "ra-idp-go/internal/application/ports"
 	authports "ra-idp-go/internal/authentication/ports"
 	idmports "ra-idp-go/internal/identitymanagement/ports"
 	oauthports "ra-idp-go/internal/oauth2/ports"
@@ -14,33 +15,35 @@ import (
 // Dependencies は HTTP 層に渡す全境界をまとめた DI コンテナ。
 // 永続層 (memory/postgres) や event sink の差分を本構造体で吸収する。
 type Dependencies struct {
-	ClientRepo              oauthports.ClientRepository
-	TenantRepo              tenantports.TenantRepository
-	AttrSchemaRepo          tenantports.TenantUserAttributeSchemaRepository
-	UserRepo                oauthports.UserRepository
-	GroupRepo               idmports.GroupRepository
-	AgentRepo               idmports.AgentRepository
-	MfaFactorRepo           authports.MfaFactorRepository
-	PasswordHistoryRepo     authports.PasswordHistoryRepository
-	PasswordResetTokenStore authports.PasswordResetTokenStore
-	EmailChangeTokenStore   authports.EmailChangeTokenStore
-	ConsentRepo             oauthports.ConsentRepository
-	AuthzDetailTypeRepo     oauthports.AuthorizationDetailTypeRepository
-	RequestStore            oauthports.AuthorizationRequestStore
-	CodeStore               oauthports.AuthorizationCodeStore
-	PARStore                oauthports.PARStore
-	RefreshStore            oauthports.RefreshTokenStore
-	DeviceCodeStore         oauthports.DeviceCodeStore
-	DpopReplay              oauthports.DpopReplayStore
-	ClientAssertionReplay   oauthports.ClientAssertionReplayStore
-	AccessTokenDenylist     oauthports.AccessTokenDenylist
-	SessionStore            authports.SessionStore
-	KeyStore                oauthports.KeyStore
-	EventSink               oauthports.EventSink
-	AuditEventRepo          oauthports.AuditEventRepository
-	AuthEventBucketStore    authports.AuthEventBucketStore
-	WsFedRPRepo             wsfederationports.WsFedRelyingPartyRepository
-	Close                   func()
+	ClientRepo                oauthports.ClientRepository
+	TenantRepo                tenantports.TenantRepository
+	AttrSchemaRepo            tenantports.TenantUserAttributeSchemaRepository
+	UserRepo                  oauthports.UserRepository
+	GroupRepo                 idmports.GroupRepository
+	AgentRepo                 idmports.AgentRepository
+	MfaFactorRepo             authports.MfaFactorRepository
+	PasswordHistoryRepo       authports.PasswordHistoryRepository
+	PasswordResetTokenStore   authports.PasswordResetTokenStore
+	EmailChangeTokenStore     authports.EmailChangeTokenStore
+	ConsentRepo               oauthports.ConsentRepository
+	AuthzDetailTypeRepo       oauthports.AuthorizationDetailTypeRepository
+	RequestStore              oauthports.AuthorizationRequestStore
+	CodeStore                 oauthports.AuthorizationCodeStore
+	PARStore                  oauthports.PARStore
+	RefreshStore              oauthports.RefreshTokenStore
+	DeviceCodeStore           oauthports.DeviceCodeStore
+	DpopReplay                oauthports.DpopReplayStore
+	ClientAssertionReplay     oauthports.ClientAssertionReplayStore
+	AccessTokenDenylist       oauthports.AccessTokenDenylist
+	SessionStore              authports.SessionStore
+	KeyStore                  oauthports.KeyStore
+	EventSink                 oauthports.EventSink
+	AuditEventRepo            oauthports.AuditEventRepository
+	AuthEventBucketStore      authports.AuthEventBucketStore
+	WsFedRPRepo               wsfederationports.WsFedRelyingPartyRepository
+	ApplicationRepo           appports.ApplicationRepository
+	ApplicationAssignmentRepo appports.AssignmentRepository
+	Close                     func()
 }
 
 // RuntimeConfig は /health などで露出するための実行時構成ラベルを集約する。

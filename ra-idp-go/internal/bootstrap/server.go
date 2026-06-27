@@ -140,6 +140,7 @@ func Run() error {
 		SentinelPasswordHash:    sentinelPasswordHash,
 		SessionManager:          sessionManager, AuthnResolver: sessionManager,
 		WsFedRPRepo: deps.WsFedRPRepo, FederationSigner: federationSigner,
+		ApplicationRepo: deps.ApplicationRepo, ApplicationAssignmentRepo: deps.ApplicationAssignmentRepo,
 		Emit: emit,
 		HealthInfo: httpcore.HealthInfo{
 			Persistence:   runtime.Persistence,

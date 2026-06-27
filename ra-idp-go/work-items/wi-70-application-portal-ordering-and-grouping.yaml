@@ -1,0 +1,89 @@
+id: wi-70-application-portal-ordering-and-grouping
+title: 利用者ポータルのアプリケーション一覧に並び替えと分類を入れる
+created_at: 2026-06-27
+status: pending
+authors: [tn]
+
+motivation: |
+  [[wi-69-application-catalog-aggregate-and-assignment]] で利用者ポータルに
+  アプリケーション一覧 (icon 付きタイル) が入る。割当アプリが増えると、固定順では
+  目的のアプリを探しにくくなる。Okta の End-User Dashboard も Entra ID の
+  My Apps も、利用者がタイルを並べ替え、管理者がセクション (collection / category) で
+  分類してポータルを整理できる。
+
+  本 WI はポータル一覧の見つけやすさを担う UX 機能を分離して扱う。並び順 (利用者の
+  手動並び替えと既定の整列規則) と分類 (管理者が定義するカテゴリ/セクション) を導入する。
+  アプリケーション本体・割当・アイコンは wi-69 が所有し、本 WI はその上の表示順序と
+  グルーピングだけを足す。
+
+scope:
+  decision:
+    - >-
+      ADR 追補または軽量 ADR: 並び順の所有者を決める。既定整列 (アルファベット / 最近利用)
+      は計算で出し、利用者の手動並び替えは per-user の表示設定として永続化する。
+      カテゴリは管理者が tenant 単位で定義し、Application に 0..N 個割り当てる。
+  scl:
+    - >-
+      ApplicationCatalog に ApplicationCategory / ApplicationOrdering を追加し、
+      per-user の手動順を IdentityManagement (User の portal preference) 側に置くか
+      ApplicationCatalog に置くかを ADR で確定して反映する。
+    - >-
+      interface: 管理者の Category CRUD と Application への付与、利用者の
+      ReorderMyApplications (手動順保存)。ListMyApplications に並び順とカテゴリを含める。
+    - event: ApplicationCategoryCreated / ApplicationCategoryUpdated / ApplicationCategoryDeleted。
+    - permission: AdminApplicationCategoriesManage。
+  go:
+    - カテゴリの persistence (categories / application_categories テーブル、tenant scope)。
+    - per-user の手動並び順の persistence と、未設定時の既定整列ロジック。
+  http:
+    - /admin/application-categories の CRUD と Application への付与。
+    - /api/account/applications/order の取得/更新。
+  ui:
+    - account: ポータル一覧をカテゴリ別セクションで表示し、ドラッグ等で手動並び替えできる。
+    - admin: カテゴリ管理と、Application へのカテゴリ付与。
+
+initial_context:
+  features: [ApplicationCatalog, IdentityManagement, Tenancy]
+  scl:
+    components: [ApplicationCatalog]
+    related_components: [IdentityManagement, Tenancy]
+    existing_roots: [Application, ApplicationAssignment, User]
+  decisions:
+    - decisions/ADR-064-protocol-contexts-and-application-catalog.md
+  source:
+    - ui/src/features/account/
+  stop_before_reading:
+    - internal/oauth2/
+    - internal/wsfederation/
+
+out_of_scope:
+  - アプリケーション本体・割当・アイコンの実装 ([[wi-69-application-catalog-aggregate-and-assignment]])。
+  - 属性/利用頻度に基づく自動レコメンド並び替え。初期は手動順 + 単純な既定整列のみ。
+  - ポータルのテーマ/ブランディング全般。
+
+affected_guarantees:
+  - findability: 割当アプリが増えても利用者が並び替えと分類で目的のアプリを見つけられる。
+  - assignment scoping: カテゴリ表示は割当済みアプリだけを対象にし、未割当アプリを露出しない。
+  - tenant isolation: カテゴリ定義と per-user 順序は realm / user 境界内に閉じる。
+
+verification:
+  - cmd: 'GOCACHE=/tmp/ra-idp-go-cache go test ./...'
+    in: ra-idp-go
+  - cmd: 'golangci-lint run ./...'
+    in: ra-idp-go
+  - cmd: 'bun --cwd ra-idp-go/ui typecheck'
+  - cmd: 'bun --cwd ra-idp-go/ui lint'
+  - cmd: 'bun --cwd ra-idp-go/ui build'
+  - cmd: 'bun run yaml-check:work-items'
+    in: tools
+  - cmd: 'bun run yaml-check:scl'
+    in: tools
+  - >-
+    手動: 複数アプリを割当 → カテゴリを作成し付与 → 利用者ポータルでセクション表示と
+    手動並び替えが保存・再現されることを確認する。
+
+risk: low
+risk_notes: |
+  ポータル表示順とグルーピングの UX 機能で、認証/認可の wire behavior には影響しない。
+  カテゴリ表示が割当境界を越えてアプリを露出しないことだけ確認する。
+  wi-69 の Application / Assignment 実装に依存するため、後続として実装する。

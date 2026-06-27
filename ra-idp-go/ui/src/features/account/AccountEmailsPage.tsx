@@ -8,9 +8,18 @@ import { Button } from '../../components/ui/button'
 import { Card } from '../../components/ui/card'
 import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
-import type { AccountEmailsPage as PageProps } from '../../types'
 
-export function AccountEmailsPage({ csrfToken, email, emailVerified, isAdmin }: PageProps) {
+export function AccountEmailsPage({
+  csrfToken,
+  email,
+  emailVerified,
+  isAdmin,
+}: {
+  csrfToken: string
+  email?: string
+  emailVerified: boolean
+  isAdmin: boolean
+}) {
   const [newEmail, setNewEmail] = useState('')
   const [editing, setEditing] = useState(false)
   const [submitting, setSubmitting] = useState(false)

@@ -15,7 +15,6 @@ import { Card } from '../../components/ui/card'
 import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
 import type {
-  AdminWsFedRelyingPartiesPage as PageProps,
   WsFedClaimMappingRule,
   WsFedRelyingParty,
   WsFedTokenType,
@@ -68,7 +67,11 @@ export function AdminWsFedRelyingPartiesPage({
   csrfToken,
   actorUsername,
   relyingParties,
-}: PageProps) {
+}: {
+  csrfToken: string
+  actorUsername?: string
+  relyingParties: WsFedRelyingParty[]
+}) {
   const [items, setItems] = useState(relyingParties)
   const [editing, setEditing] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm)

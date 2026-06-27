@@ -13,13 +13,17 @@ import { Button } from '../../components/ui/button'
 import { Card } from '../../components/ui/card'
 import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
-import type { AdminTenant, AdminTenantsPage as AdminTenantsPageData } from '../../types'
+import type { AdminTenant } from '../../types'
 
 export function AdminTenantsPage({
   csrfToken,
   actorUsername,
   tenants: initial,
-}: AdminTenantsPageData) {
+}: {
+  csrfToken: string
+  actorUsername?: string
+  tenants: AdminTenant[]
+}) {
   const [tenants, setTenants] = useState(initial)
   const [selected, setSelected] = useState<AdminTenant | null>(initial[0] ?? null)
   const [showCreate, setShowCreate] = useState(false)

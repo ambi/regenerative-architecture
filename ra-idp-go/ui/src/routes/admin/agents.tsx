@@ -1,12 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { request } from '../../api/core'
 import { AdminAgentsPage } from '../../features/admin-agents/AdminAgentsPage'
-import type { AdminAgent, AdminAgentsPage as AdminAgentsPageData } from '../../types'
+import type { AdminAgent } from '../../types'
 import { requirePortalAccount } from '../-guards'
 import { PageMarker } from '../-page'
 
 export const Route = createFileRoute('/admin/agents')({
-  loader: async ({ location }): Promise<AdminAgentsPageData> => {
+  loader: async ({ location }) => {
     const account = await requirePortalAccount('admin', location.pathname, location.searchStr)
     const agents = await request<{ agents: AdminAgent[] }>('/api/admin/agents')
     return {

@@ -1,5 +1,5 @@
 import { request, tenantURL, validReturnTo } from '../api/core'
-import type { ConsentDetailView, ConsentPage, LoginPage, TotpPage } from '../types'
+import type { ConsentDetailView } from '../types'
 import { PageMarker } from './-page'
 import { ConsentPage as ConsentPageComponent } from '../features/auth-flow/ConsentPage'
 import { LoginPage as LoginPageComponent } from '../features/auth-flow/LoginPage'
@@ -13,7 +13,24 @@ type TransactionResponse = {
   authorization_details?: ConsentDetailView[]
 }
 
-export type BrowserFlowPage = LoginPage | TotpPage | ConsentPage
+export type BrowserFlowPage =
+  | {
+      kind: 'login'
+      csrfToken: string
+      returnTo?: string
+    }
+  | {
+      kind: 'totp'
+      csrfToken: string
+      returnTo?: string
+    }
+  | {
+      kind: 'consent'
+      csrfToken: string
+      clientName: string
+      scopes: string[]
+      authorizationDetails: ConsentDetailView[]
+    }
 
 export async function loadBrowserFlowData(path: string, search: string): Promise<BrowserFlowPage> {
   const requestedReturnTo = new URLSearchParams(search).get('return_to') ?? ''

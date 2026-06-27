@@ -8,7 +8,7 @@ import { Card } from '../../components/ui/card'
 import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
 import { cn } from '../../lib/utils'
-import type { AdminSettings, AdminSettingsPage as AdminSettingsPageData } from '../../types'
+import type { AdminSettings } from '../../types'
 
 const DEFAULT_TENANT_ID = 'default'
 
@@ -51,7 +51,13 @@ export function AdminSettingsPage({
   actorRoles,
   actorTenantID,
   settings: initial,
-}: AdminSettingsPageData) {
+}: {
+  csrfToken: string
+  actorUsername?: string
+  actorRoles: string[]
+  actorTenantID: string
+  settings: AdminSettings
+}) {
   const [settings, setSettings] = useState(initial)
   const [active, setActive] = useState<TabKey>('general')
   const isSystemAdminOnDefault =

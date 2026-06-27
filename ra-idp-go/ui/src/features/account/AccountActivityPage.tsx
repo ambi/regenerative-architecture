@@ -15,11 +15,7 @@ import { StepUpCancelledError, useStepUpGuard } from '../../components/StepUpDia
 import { Alert } from '../../components/ui/alert'
 import { Button } from '../../components/ui/button'
 import { Card } from '../../components/ui/card'
-import type {
-  AccountActivityPage as PageProps,
-  AccountSession,
-  AccountSignInActivity,
-} from '../../types'
+import type { AccountSession, AccountSignInActivity } from '../../types'
 
 function formatDateTime(value: string): string {
   return new Date(value).toLocaleString('ja-JP', { dateStyle: 'medium', timeStyle: 'short' })
@@ -108,7 +104,13 @@ export function AccountActivityPage({
   isAdmin,
   activities,
   sessions: initialSessions,
-}: PageProps) {
+}: {
+  csrfToken: string
+  username: string
+  activities: AccountSignInActivity[]
+  sessions: AccountSession[]
+  isAdmin: boolean
+}) {
   const [sessions, setSessions] = useState(initialSessions)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [busyOthers, setBusyOthers] = useState(false)

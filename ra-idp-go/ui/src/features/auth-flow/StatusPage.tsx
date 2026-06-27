@@ -9,7 +9,6 @@ import { tenantURL } from '../../api'
 import { AuthShell } from '../../components/AuthShell'
 import { Button } from '../../components/ui/button'
 import { cn } from '../../lib/utils'
-import type { StatusPage as StatusPageData } from '../../types'
 
 const content = {
   approved: {
@@ -46,7 +45,9 @@ const content = {
   },
 } as const
 
-export function StatusPage({ status }: StatusPageData) {
+type StatusKey = keyof typeof content
+
+export function StatusPage({ status }: { status: StatusKey }) {
   const state = content[status]
   const StatusIcon = state.icon
 

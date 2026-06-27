@@ -2,9 +2,8 @@ import { IconArrowRight, IconInfoCircle } from '@tabler/icons-react'
 import { startDemoAuthorization } from '../../api'
 import { AuthShell } from '../../components/AuthShell'
 import { Button } from '../../components/ui/button'
-import type { HomePage as HomePageData } from '../../types'
 
-export function HomePage({ demoEnabled }: HomePageData) {
+export function HomePage({ demoEnabled }: { demoEnabled: boolean }) {
   return (
     <AuthShell>
       <div className="flex flex-col gap-7 py-4">

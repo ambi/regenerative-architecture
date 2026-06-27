@@ -21,7 +21,7 @@ import { Button } from '../../components/ui/button'
 import { Card } from '../../components/ui/card'
 import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
-import type { AccountSecurityPage as PageProps, TotpEnrollmentStart } from '../../types'
+import type { AccountSecurity, TotpEnrollmentStart } from '../../types'
 
 function formatDateTime(value?: string): string {
   if (!value) return '記録なし'
@@ -32,7 +32,17 @@ function errorMessage(cause: unknown, fallback: string): string {
   return cause instanceof AuthenticationAPIError ? cause.message : fallback
 }
 
-export function AccountSecurityPage({ csrfToken, username, isAdmin, security }: PageProps) {
+export function AccountSecurityPage({
+  csrfToken,
+  username,
+  isAdmin,
+  security,
+}: {
+  csrfToken: string
+  username: string
+  isAdmin: boolean
+  security: AccountSecurity
+}) {
   const [enrolled, setEnrolled] = useState(security.totp_enrolled)
   const [enrollment, setEnrollment] = useState<TotpEnrollmentStart | null>(null)
   const [enrollCode, setEnrollCode] = useState('')

@@ -8,10 +8,10 @@ import { Card } from '../../components/ui/card'
 import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
 import type {
-  AdminTenantAttributesPage as PageProps,
   AttributeType,
   AttrVisibility,
   UserAttributeDef,
+  TenantUserAttributeSchema,
 } from '../../types'
 
 const ATTRIBUTE_TYPES: AttributeType[] = ['string', 'number', 'boolean', 'date', 'string_array']
@@ -45,7 +45,15 @@ function newAttribute(): UserAttributeDef {
 // editing は追加 (index === null) か既存行の編集 (index >= 0)。
 type EditingState = { index: number | null; draft: UserAttributeDef } | null
 
-export function AdminTenantAttributesPage({ csrfToken, actorUsername, schema }: PageProps) {
+export function AdminTenantAttributesPage({
+  csrfToken,
+  actorUsername,
+  schema,
+}: {
+  csrfToken: string
+  actorUsername?: string
+  schema: TenantUserAttributeSchema
+}) {
   const [attributes, setAttributes] = useState<UserAttributeDef[]>(schema.attributes)
   const [editing, setEditing] = useState<EditingState>(null)
   const [saving, setSaving] = useState(false)

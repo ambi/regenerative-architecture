@@ -19,7 +19,6 @@ import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
 import type {
   AdminApplication,
-  AdminApplicationsPage as PageData,
   ApplicationAssignment,
   ApplicationKind,
   ProtocolBinding,
@@ -345,7 +344,15 @@ function ApplicationCard({
   )
 }
 
-export function AdminApplicationsPage({ csrfToken, actorUsername, applications: initial }: PageData) {
+export function AdminApplicationsPage({
+  csrfToken,
+  actorUsername,
+  applications: initial,
+}: {
+  csrfToken: string
+  actorUsername?: string
+  applications: AdminApplication[]
+}) {
   const [applications, setApplications] = useState<AdminApplication[]>(initial)
   const [error, setError] = useState('')
   const [name, setName] = useState('')

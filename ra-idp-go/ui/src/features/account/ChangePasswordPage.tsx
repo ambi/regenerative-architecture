@@ -21,7 +21,6 @@ import { Alert } from '../../components/ui/alert'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
-import type { ChangePasswordPage as ChangePasswordPageData } from '../../types'
 
 function violationMessage(violation: string): string {
   switch (violation) {
@@ -38,7 +37,11 @@ export function ChangePasswordPage({
   csrfToken,
   preferredUsername,
   isAdmin,
-}: ChangePasswordPageData) {
+}: {
+  csrfToken: string
+  preferredUsername: string
+  isAdmin: boolean
+}) {
   const backHref = isAdmin ? tenantURL('/admin') : tenantURL('/account/profile')
   const backLabel = isAdmin ? '管理コンソールへ戻る' : 'プロフィールへ戻る'
   const [showCurrent, setShowCurrent] = useState(false)

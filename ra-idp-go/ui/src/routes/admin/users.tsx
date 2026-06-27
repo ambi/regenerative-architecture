@@ -2,9 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { request } from '../../api/core'
 import { AdminUsersPage } from '../../features/admin-users/AdminUsersPage'
 import type {
-  AdminUser,
-  AdminUsersPage as AdminUsersPageData,
-  TenantUserAttributeSchema,
+  AdminUser,  TenantUserAttributeSchema,
 } from '../../types'
 import { requirePortalAccount } from '../-guards'
 import { PageMarker } from '../-page'
@@ -12,7 +10,7 @@ import { PageMarker } from '../-page'
 type AdminUserListResponse = { users: AdminUser[] }
 
 export const Route = createFileRoute('/admin/users')({
-  loader: async ({ location }): Promise<AdminUsersPageData> => {
+  loader: async ({ location }) => {
     const account = await requirePortalAccount('admin', location.pathname, location.searchStr)
     const [users, schema] = await Promise.all([
       request<AdminUserListResponse>('/api/admin/users'),

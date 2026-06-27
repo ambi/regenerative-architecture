@@ -14,7 +14,6 @@ import { Card } from '../../components/ui/card'
 import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
 import type {
-  AdminAuthorizationDetailTypesPage as PageProps,
   AuthorizationDetailType,
 } from '../../types'
 
@@ -51,7 +50,15 @@ function toForm(t: AuthorizationDetailType): FormState {
   }
 }
 
-export function AdminAuthorizationDetailTypesPage({ csrfToken, actorUsername, types }: PageProps) {
+export function AdminAuthorizationDetailTypesPage({
+  csrfToken,
+  actorUsername,
+  types,
+}: {
+  csrfToken: string
+  actorUsername?: string
+  types: AuthorizationDetailType[]
+}) {
   const [items, setItems] = useState(types)
   const [editing, setEditing] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm)

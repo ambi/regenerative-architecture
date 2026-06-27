@@ -1,11 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { ChangePasswordPage } from '../../features/account/ChangePasswordPage'
-import type { ChangePasswordPage as ChangePasswordPageData } from '../../types'
 import { hasAdminRole, requirePortalAccount } from '../-guards'
 import { PageMarker } from '../-page'
 
 export const Route = createFileRoute('/account/password')({
-  loader: async ({ location }): Promise<ChangePasswordPageData> => {
+  loader: async ({ location }) => {
     const account = await requirePortalAccount('account', location.pathname, location.searchStr)
     return {
       kind: 'change-password',

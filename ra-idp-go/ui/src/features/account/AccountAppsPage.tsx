@@ -1,7 +1,7 @@
 import { IconLayoutGrid } from '@tabler/icons-react'
 import { AccountShell } from '../../components/AccountShell'
 import { Card } from '../../components/ui/card'
-import type { AccountAppsPage as PageProps, MyApplication } from '../../types'
+import type { MyApplication } from '../../types'
 
 function initials(name: string): string {
   return name.trim().slice(0, 2).toUpperCase() || '??'
@@ -41,7 +41,15 @@ function AppTile({ app }: { app: MyApplication }) {
   return body
 }
 
-export function AccountAppsPage({ username, applications, isAdmin }: PageProps) {
+export function AccountAppsPage({
+  username,
+  applications,
+  isAdmin,
+}: {
+  username: string
+  applications: MyApplication[]
+  isAdmin: boolean
+}) {
   return (
     <AccountShell
       active="apps"

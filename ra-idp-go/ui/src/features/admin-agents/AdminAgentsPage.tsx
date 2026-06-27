@@ -41,8 +41,6 @@ import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
 import type {
   AdminAgent,
-  AdminAgentDetailPage as AdminAgentDetailPageData,
-  AdminAgentsPage as AdminAgentsPageData,
 } from '../../types'
 
 const KIND_LABELS: Record<AdminAgent['kind'], string> = {
@@ -76,7 +74,11 @@ export function AdminAgentsPage({
   csrfToken,
   actorUsername,
   agents: initial,
-}: AdminAgentsPageData) {
+}: {
+  csrfToken: string
+  actorUsername?: string
+  agents: AdminAgent[]
+}) {
   const [agents, setAgents] = useState(initial)
   const initialID = new URLSearchParams(window.location.search).get('agent')
   const [selectedID, setSelectedID] = useState<string>(
@@ -291,7 +293,11 @@ export function AdminAgentDetailPage({
   csrfToken,
   actorUsername,
   agent: initialAgent,
-}: AdminAgentDetailPageData) {
+}: {
+  csrfToken: string
+  actorUsername?: string
+  agent: AdminAgent
+}) {
   const [agent, setAgent] = useState(initialAgent)
   const [editing, setEditing] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)

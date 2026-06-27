@@ -12,7 +12,7 @@ import { Button } from '../../components/ui/button'
 import { Card } from '../../components/ui/card'
 import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
-import type { AdminAuditEvent, AdminAuditEventsPage as AdminAuditEventsPageData } from '../../types'
+import type { AdminAuditEvent } from '../../types'
 
 const DEFAULT_TENANT_ID = 'default'
 
@@ -62,7 +62,12 @@ export function AdminAuditEventsPage({
   actorRoles,
   actorTenantID,
   events: initial,
-}: AdminAuditEventsPageData) {
+}: {
+  actorUsername?: string
+  actorRoles: string[]
+  actorTenantID: string
+  events: AdminAuditEvent[]
+}) {
   const [events, setEvents] = useState(initial)
   const [selected, setSelected] = useState<AdminAuditEvent | null>(initial[0] ?? null)
   const [category, setCategory] = useState<'' | AdminAuditEventQuery['category']>('')

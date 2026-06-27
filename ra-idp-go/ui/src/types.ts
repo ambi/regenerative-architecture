@@ -1,70 +1,8 @@
-export type HomePage = {
-  kind: 'home'
-  demoEnabled: boolean
-}
-
-export type LoginPage = {
-  kind: 'login'
-  csrfToken: string
-  returnTo?: string
-}
-
-export type TotpPage = {
-  kind: 'totp'
-  csrfToken: string
-  returnTo?: string
-}
-
 export type ConsentDetailView = {
   type: string
   description?: string
   summary: string
   lines?: string[]
-}
-
-export type ConsentPage = {
-  kind: 'consent'
-  csrfToken: string
-  clientName: string
-  scopes: string[]
-  authorizationDetails?: ConsentDetailView[]
-}
-
-export type DevicePage = {
-  kind: 'device'
-  csrfToken: string
-  userCode: string
-}
-
-export type StatusPage = {
-  kind: 'status'
-  status: 'approved' | 'denied' | 'signed-out' | 'authentication-required'
-}
-
-export type CallbackPage = {
-  kind: 'callback'
-  code?: string
-  error?: string
-  errorDescription?: string
-}
-
-export type ChangePasswordPage = {
-  kind: 'change-password'
-  csrfToken: string
-  sub: string
-  preferredUsername?: string
-  isAdmin: boolean
-}
-
-export type ForgotPasswordPage = {
-  kind: 'forgot-password'
-  csrfToken: string
-}
-
-export type ResetPasswordPage = {
-  kind: 'reset-password'
-  csrfToken: string
-  token: string
 }
 
 export type AdminUser = {
@@ -111,37 +49,6 @@ export function requiredActionLabel(action: string): string {
   return REQUIRED_ACTION_LABELS[action] ?? 'その他の必須対応'
 }
 
-export type AdminUsersPage = {
-  kind: 'admin-users'
-  csrfToken: string
-  actorUsername?: string
-  users: AdminUser[]
-  attributeDefs: UserAttributeDef[]
-}
-
-export type AdminUserDetailPage = {
-  kind: 'admin-user-detail'
-  csrfToken: string
-  actorUsername?: string
-  user: AdminUser
-  schema: TenantUserAttributeSchema
-}
-
-export type AdminDashboardPage = {
-  kind: 'admin-dashboard'
-  csrfToken: string
-  actorUsername?: string
-  actorRoles: string[]
-  actorTenantID: string
-  userCount: number
-  activeUserCount: number
-  disabledUserCount: number
-  clientCount: number
-  grantedConsentCount: number
-  auditEventCount24h: number
-  recentEvents: AdminAuditEvent[]
-}
-
 export type AdminClient = {
   tenant_id: string
   client_id: string
@@ -165,13 +72,6 @@ export type AdminClient = {
   dpop_bound_access_tokens: boolean
   fapi_profile: string
   created_at: string
-}
-
-export type AdminClientsPage = {
-  kind: 'admin-clients'
-  csrfToken: string
-  actorUsername?: string
-  clients: AdminClient[]
 }
 
 export type ApplicationKind = 'federated' | 'weblink'
@@ -203,13 +103,6 @@ export type ApplicationAssignment = {
   created_at: string
 }
 
-export type AdminApplicationsPage = {
-  kind: 'admin-applications'
-  csrfToken: string
-  actorUsername?: string
-  applications: AdminApplication[]
-}
-
 export type AuthorizationDetailFieldRule = {
   name: string
   semantics: 'set' | 'at_most' | 'enum' | 'exact'
@@ -226,13 +119,6 @@ export type AuthorizationDetailType = {
   state: 'Enabled' | 'Disabled'
   created_at: string
   updated_at: string
-}
-
-export type AdminAuthorizationDetailTypesPage = {
-  kind: 'admin-authz-detail-types'
-  csrfToken: string
-  actorUsername?: string
-  types: AuthorizationDetailType[]
 }
 
 export type WsFedClaimMappingRule = {
@@ -280,13 +166,6 @@ export type WsFedRelyingParty = {
   updated_at?: string
 }
 
-export type AdminWsFedRelyingPartiesPage = {
-  kind: 'admin-wsfed-relying-parties'
-  csrfToken: string
-  actorUsername?: string
-  relyingParties: WsFedRelyingParty[]
-}
-
 export type AdminConsent = {
   tenant_id: string
   sub: string
@@ -298,13 +177,6 @@ export type AdminConsent = {
   revoked_at?: string
 }
 
-export type AdminConsentsPage = {
-  kind: 'admin-consents'
-  csrfToken: string
-  actorUsername?: string
-  consents: AdminConsent[]
-}
-
 export type AdminAuditEvent = {
   id: string
   tenant_id: string
@@ -313,30 +185,12 @@ export type AdminAuditEvent = {
   payload: Record<string, unknown>
 }
 
-export type AdminAuditEventsPage = {
-  kind: 'admin-audit-events'
-  csrfToken: string
-  actorUsername?: string
-  actorRoles: string[]
-  actorTenantID: string
-  events: AdminAuditEvent[]
-}
-
 export type AdminKey = {
   kid: string
   alg: string
   active: boolean
   created_at: string
   public_jwk: Record<string, unknown>
-}
-
-export type AdminKeysPage = {
-  kind: 'admin-keys'
-  csrfToken: string
-  actorUsername?: string
-  actorRoles: string[]
-  actorTenantID: string
-  keys: AdminKey[]
 }
 
 export type AdminGroup = {
@@ -363,13 +217,6 @@ export type AdminUserGroups = {
   effective_roles: string[]
 }
 
-export type AdminGroupsPage = {
-  kind: 'admin-groups'
-  csrfToken: string
-  actorUsername?: string
-  groups: AdminGroup[]
-}
-
 export type AdminAgent = {
   id: string
   tenant_id: string
@@ -386,20 +233,6 @@ export type AdminAgent = {
   killed_at?: string
 }
 
-export type AdminAgentsPage = {
-  kind: 'admin-agents'
-  csrfToken: string
-  actorUsername?: string
-  agents: AdminAgent[]
-}
-
-export type AdminAgentDetailPage = {
-  kind: 'admin-agent-detail'
-  csrfToken: string
-  actorUsername?: string
-  agent: AdminAgent
-}
-
 export type AdminTenant = {
   id: string
   display_name: string
@@ -412,13 +245,6 @@ export type AdminTenant = {
   created_at: string
   updated_at?: string
   disabled_at?: string
-}
-
-export type AdminTenantsPage = {
-  kind: 'admin-tenants'
-  csrfToken: string
-  actorUsername?: string
-  tenants: AdminTenant[]
 }
 
 export type AdminRoleInterface = {
@@ -441,35 +267,6 @@ export type AdminRole = {
   permissions: AdminRolePermission[]
 }
 
-export type AdminRolesPage = {
-  kind: 'admin-roles'
-  actorUsername?: string
-  roles: AdminRole[]
-  users: AdminUser[]
-}
-
-export type AdminRoleDetailPage = {
-  kind: 'admin-role-detail'
-  actorUsername?: string
-  role: AdminRole
-  count: number
-  usernames: string[]
-}
-
-export type AdminClientDetailPage = {
-  kind: 'admin-client-detail'
-  csrfToken: string
-  actorUsername?: string
-  client: AdminClient
-}
-
-export type AdminGroupDetailPage = {
-  kind: 'admin-group-detail'
-  csrfToken: string
-  actorUsername?: string
-  group: AdminGroup
-}
-
 export type AdminSettings = {
   tenant_id: string
   display_name: string
@@ -483,15 +280,6 @@ export type AdminSettings = {
     max_length: number
     history_depth: number
   }
-}
-
-export type AdminSettingsPage = {
-  kind: 'admin-settings'
-  csrfToken: string
-  actorUsername?: string
-  actorRoles: string[]
-  actorTenantID: string
-  settings: AdminSettings
 }
 
 export type AttributeType = 'string' | 'number' | 'boolean' | 'date' | 'string_array'
@@ -542,13 +330,6 @@ export type AccountProfile = {
   editable_attributes: UserAttributeDef[]
 }
 
-export type AccountProfilePage = {
-  kind: 'account-profile'
-  csrfToken: string
-  profile: AccountProfile
-  isAdmin: boolean
-}
-
 export type AccountSummary = {
   sub: string
   preferred_username: string
@@ -562,26 +343,6 @@ export type AccountSummary = {
   required_actions: string[]
 }
 
-export type AccountHomePage = {
-  kind: 'account-home'
-  summary: AccountSummary
-  isAdmin: boolean
-}
-
-export type AccountEmailsPage = {
-  kind: 'account-emails'
-  csrfToken: string
-  email?: string
-  emailVerified: boolean
-  isAdmin: boolean
-}
-
-export type EmailVerifyPage = {
-  kind: 'email-verify'
-  csrfToken: string
-  token: string
-}
-
 export type AccountConsent = {
   client_id: string
   scopes: string[]
@@ -590,33 +351,12 @@ export type AccountConsent = {
   expires_at: string
 }
 
-export type AccountApplicationsPage = {
-  kind: 'account-applications'
-  csrfToken: string
-  username: string
-  consents: AccountConsent[]
-  isAdmin: boolean
-}
-
 export type MyApplication = {
   application_id: string
   name: string
   kind: ApplicationKind
   icon_url?: string
   launch_url?: string
-}
-
-export type AccountAppsPage = {
-  kind: 'account-apps'
-  username: string
-  applications: MyApplication[]
-  isAdmin: boolean
-}
-
-export type AccountDataPage = {
-  kind: 'account-data'
-  username: string
-  isAdmin: boolean
 }
 
 export type AccountMfaFactor = {
@@ -639,14 +379,6 @@ export type TotpEnrollmentStart = {
   issuer: string
 }
 
-export type AccountSecurityPage = {
-  kind: 'account-security'
-  csrfToken: string
-  username: string
-  isAdmin: boolean
-  security: AccountSecurity
-}
-
 export type AccountSignInActivity = {
   occurred_at: string
   amr: string[]
@@ -660,63 +392,6 @@ export type AccountSession = {
   started_at: string
   expires_at: string
 }
-
-export type AccountActivityPage = {
-  kind: 'account-activity'
-  csrfToken: string
-  username: string
-  isAdmin: boolean
-  activities: AccountSignInActivity[]
-  sessions: AccountSession[]
-}
-
-export type AdminTenantAttributesPage = {
-  kind: 'admin-tenant-attributes'
-  csrfToken: string
-  actorUsername?: string
-  schema: TenantUserAttributeSchema
-}
-
-export type PageData =
-  | HomePage
-  | LoginPage
-  | TotpPage
-  | ConsentPage
-  | DevicePage
-  | StatusPage
-  | CallbackPage
-  | ChangePasswordPage
-  | ForgotPasswordPage
-  | ResetPasswordPage
-  | AdminDashboardPage
-  | AdminUsersPage
-  | AdminUserDetailPage
-  | AdminClientsPage
-  | AdminApplicationsPage
-  | AdminAuthorizationDetailTypesPage
-  | AdminWsFedRelyingPartiesPage
-  | AdminConsentsPage
-  | AdminAuditEventsPage
-  | AdminKeysPage
-  | AdminTenantsPage
-  | AdminGroupsPage
-  | AdminGroupDetailPage
-  | AdminAgentsPage
-  | AdminAgentDetailPage
-  | AdminRolesPage
-  | AdminRoleDetailPage
-  | AdminClientDetailPage
-  | AdminSettingsPage
-  | AdminTenantAttributesPage
-  | AccountProfilePage
-  | AccountHomePage
-  | AccountEmailsPage
-  | EmailVerifyPage
-  | AccountApplicationsPage
-  | AccountAppsPage
-  | AccountDataPage
-  | AccountSecurityPage
-  | AccountActivityPage
 
 export type BrowserFlowResponse = {
   next?: string

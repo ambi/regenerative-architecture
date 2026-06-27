@@ -1,10 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { StatusPage } from '../features/auth-flow/StatusPage'
-import type { StatusPage as StatusPageData } from '../types'
 import { PageMarker } from './-page'
 
 export const Route = createFileRoute('/status')({
-  loader: ({ location }): StatusPageData => {
+  loader: ({ location }) => {
     const state = new URLSearchParams(location.searchStr).get('state')
     const supported = ['approved', 'denied', 'signed-out', 'authentication-required'] as const
     const status = supported.find((value) => value === state) ?? 'authentication-required'

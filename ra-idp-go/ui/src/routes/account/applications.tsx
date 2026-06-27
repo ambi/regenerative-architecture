@@ -1,12 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { listAccountConsents } from '../../api/account'
 import { AccountApplicationsPage } from '../../features/account/AccountApplicationsPage'
-import type { AccountApplicationsPage as AccountApplicationsPageData } from '../../types'
 import { hasAdminRole, requirePortalAccount } from '../-guards'
 import { PageMarker } from '../-page'
 
 export const Route = createFileRoute('/account/applications')({
-  loader: async ({ location }): Promise<AccountApplicationsPageData> => {
+  loader: async ({ location }) => {
     const account = await requirePortalAccount('account', location.pathname, location.searchStr)
     const consents = await listAccountConsents()
     return {

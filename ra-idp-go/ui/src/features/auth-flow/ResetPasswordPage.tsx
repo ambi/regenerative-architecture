@@ -6,9 +6,8 @@ import { Alert } from '../../components/ui/alert'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
-import type { ResetPasswordPage as ResetPasswordPageData } from '../../types'
 
-export function ResetPasswordPage({ csrfToken, token }: ResetPasswordPageData) {
+export function ResetPasswordPage({ csrfToken, token }: { csrfToken: string; token: string }) {
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState(token ? '' : 'リセットリンクが不正です。')

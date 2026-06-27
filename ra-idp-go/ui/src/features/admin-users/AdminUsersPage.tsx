@@ -56,12 +56,11 @@ import { attributeGroupKey, attributeGroupTitle, attributeLabel, cn } from '../.
 import {
   type AdminGroup,
   type AdminUser,
-  type AdminUserDetailPage as AdminUserDetailPageData,
   type AdminUserGroups,
-  type AdminUsersPage as AdminUsersPageData,
   type AttributeValue,
   REQUIRED_ACTIONS,
   requiredActionLabel,
+  type TenantUserAttributeSchema,
   type UserAttributeDef,
 } from '../../types'
 import {
@@ -83,7 +82,12 @@ export function AdminUsersPage({
   actorUsername,
   users: initialUsers,
   attributeDefs,
-}: AdminUsersPageData) {
+}: {
+  csrfToken: string
+  actorUsername?: string
+  users: AdminUser[]
+  attributeDefs: UserAttributeDef[]
+}) {
   const [users, setUsers] = useState(initialUsers)
   const [selectedSub, setSelectedSub] = useState(initialUsers[0]?.sub ?? '')
   const [query, setQuery] = useState(
@@ -426,7 +430,12 @@ export function AdminUserDetailPage({
   actorUsername,
   user: initialUser,
   schema,
-}: AdminUserDetailPageData) {
+}: {
+  csrfToken: string
+  actorUsername?: string
+  user: AdminUser
+  schema: TenantUserAttributeSchema
+}) {
   const [user, setUser] = useState(initialUser)
   const [showEditor, setShowEditor] = useState(false)
   const [showDelete, setShowDelete] = useState(false)

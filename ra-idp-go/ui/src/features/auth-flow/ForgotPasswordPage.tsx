@@ -6,9 +6,8 @@ import { Alert } from '../../components/ui/alert'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
-import type { ForgotPasswordPage as ForgotPasswordPageData } from '../../types'
 
-export function ForgotPasswordPage({ csrfToken }: ForgotPasswordPageData) {
+export function ForgotPasswordPage({ csrfToken }: { csrfToken: string }) {
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState('')

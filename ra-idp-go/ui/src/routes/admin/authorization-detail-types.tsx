@@ -1,12 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { listAuthorizationDetailTypes } from '../../api/admin'
 import { AdminAuthorizationDetailTypesPage } from '../../features/admin-authz-detail-types/AdminAuthorizationDetailTypesPage'
-import type { AdminAuthorizationDetailTypesPage as AdminAuthorizationDetailTypesPageData } from '../../types'
 import { requirePortalAccount } from '../-guards'
 import { PageMarker } from '../-page'
 
 export const Route = createFileRoute('/admin/authorization-detail-types')({
-  loader: async ({ location }): Promise<AdminAuthorizationDetailTypesPageData> => {
+  loader: async ({ location }) => {
     const account = await requirePortalAccount('admin', location.pathname, location.searchStr)
     const types = await listAuthorizationDetailTypes()
     return {

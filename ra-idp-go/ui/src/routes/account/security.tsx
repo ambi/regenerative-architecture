@@ -1,12 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { getAccountSecurity } from '../../api/account'
 import { AccountSecurityPage } from '../../features/account/AccountSecurityPage'
-import type { AccountSecurityPage as AccountSecurityPageData } from '../../types'
 import { hasAdminRole, requirePortalAccount } from '../-guards'
 import { PageMarker } from '../-page'
 
 export const Route = createFileRoute('/account/security')({
-  loader: async ({ location }): Promise<AccountSecurityPageData> => {
+  loader: async ({ location }) => {
     const account = await requirePortalAccount('account', location.pathname, location.searchStr)
     const security = await getAccountSecurity()
     return {

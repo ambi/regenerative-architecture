@@ -5,7 +5,7 @@ import { AdminShell } from '../../components/AdminShell'
 import { Alert } from '../../components/ui/alert'
 import { Button } from '../../components/ui/button'
 import { Card } from '../../components/ui/card'
-import type { AdminKey, AdminKeysPage as AdminKeysPageData } from '../../types'
+import type { AdminKey } from '../../types'
 
 const DEFAULT_TENANT_ID = 'default'
 
@@ -15,7 +15,13 @@ export function AdminKeysPage({
   actorRoles,
   actorTenantID,
   keys: initial,
-}: AdminKeysPageData) {
+}: {
+  csrfToken: string
+  actorUsername?: string
+  actorRoles: string[]
+  actorTenantID: string
+  keys: AdminKey[]
+}) {
   const [keys, setKeys] = useState(initial)
   const [selected, setSelected] = useState<AdminKey | null>(
     initial.find((k) => k.active) ?? initial[0] ?? null,

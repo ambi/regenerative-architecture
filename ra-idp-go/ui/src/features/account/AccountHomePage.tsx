@@ -8,7 +8,7 @@ import {
 import type { ReactNode } from 'react'
 import { AccountShell } from '../../components/AccountShell'
 import { Card } from '../../components/ui/card'
-import { type AccountHomePage as PageProps, requiredActionLabel } from '../../types'
+import { requiredActionLabel, type AccountSummary } from '../../types'
 
 function formatDateTime(value: string | undefined): string {
   if (!value) {
@@ -27,7 +27,13 @@ function formatDateTime(value: string | undefined): string {
   })
 }
 
-export function AccountHomePage({ summary, isAdmin }: PageProps) {
+export function AccountHomePage({
+  summary,
+  isAdmin,
+}: {
+  summary: AccountSummary
+  isAdmin: boolean
+}) {
   const displayName = summary.name?.trim() || summary.preferred_username
   return (
     <AccountShell

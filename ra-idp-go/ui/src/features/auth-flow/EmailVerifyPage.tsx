@@ -4,9 +4,8 @@ import { AuthenticationAPIError, confirmEmailChange, tenantURL } from '../../api
 import { AuthShell } from '../../components/AuthShell'
 import { Alert } from '../../components/ui/alert'
 import { Button } from '../../components/ui/button'
-import type { EmailVerifyPage as PageProps } from '../../types'
 
-export function EmailVerifyPage({ csrfToken, token }: PageProps) {
+export function EmailVerifyPage({ csrfToken, token }: { csrfToken: string; token: string }) {
   const [state, setState] = useState<'idle' | 'submitting' | 'done'>('idle')
   const [error, setError] = useState('')
 

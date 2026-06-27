@@ -1,9 +1,16 @@
 import { IconCheck, IconLayoutDashboard, IconRefresh, IconX } from '@tabler/icons-react'
 import { AuthShell } from '../../components/AuthShell'
 import { Button } from '../../components/ui/button'
-import type { CallbackPage as CallbackPageData } from '../../types'
 
-export function CallbackPage({ code, error, errorDescription }: CallbackPageData) {
+export function CallbackPage({
+  code,
+  error,
+  errorDescription,
+}: {
+  code?: string
+  error?: string
+  errorDescription?: string
+}) {
   const succeeded = Boolean(code) && !error
 
   return (

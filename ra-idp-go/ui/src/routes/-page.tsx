@@ -1,5 +1,4 @@
 import { useEffect, type ReactNode } from 'react'
-import type { PageData } from '../types'
 
 // markPage は描画したページ種別を <meta name="ra-idp:page"> で DOM に表明する。
 // SPA dispatcher の分岐を E2E から機械的に検証するための不変条件マーカー (wi-22)。
@@ -13,7 +12,7 @@ function markPage(kind: string) {
   meta.content = kind
 }
 
-export function PageMarker({ kind, children }: { kind: PageData['kind']; children: ReactNode }) {
+export function PageMarker({ kind, children }: { kind: string; children: ReactNode }) {
   useEffect(() => {
     markPage(kind)
   }, [kind])

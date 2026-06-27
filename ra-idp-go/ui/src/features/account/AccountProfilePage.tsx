@@ -9,7 +9,6 @@ import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
 import type {
   AccountProfile,
-  AccountProfilePage as PageProps,
   AttributeValue,
   UserAttributeDef,
 } from '../../types'
@@ -65,7 +64,15 @@ function textToValue(def: UserAttributeDef, text: string): AttributeValue | unde
   }
 }
 
-export function AccountProfilePage({ csrfToken, profile: initial, isAdmin }: PageProps) {
+export function AccountProfilePage({
+  csrfToken,
+  profile: initial,
+  isAdmin,
+}: {
+  csrfToken: string
+  profile: AccountProfile
+  isAdmin: boolean
+}) {
   const [profile, setProfile] = useState(initial)
   const [name, setName] = useState(initial.name ?? '')
   const [givenName, setGivenName] = useState(initial.given_name ?? '')

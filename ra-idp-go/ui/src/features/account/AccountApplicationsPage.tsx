@@ -5,7 +5,7 @@ import { AccountShell } from '../../components/AccountShell'
 import { Alert } from '../../components/ui/alert'
 import { Button } from '../../components/ui/button'
 import { Card } from '../../components/ui/card'
-import type { AccountApplicationsPage as PageProps, AccountConsent } from '../../types'
+import type { AccountConsent } from '../../types'
 
 function formatDate(value: string): string {
   const date = new Date(value)
@@ -20,7 +20,12 @@ export function AccountApplicationsPage({
   username,
   consents: initial,
   isAdmin,
-}: PageProps) {
+}: {
+  csrfToken: string
+  username: string
+  consents: AccountConsent[]
+  isAdmin: boolean
+}) {
   const [consents, setConsents] = useState<AccountConsent[]>(initial)
   const [pending, setPending] = useState('')
   const [error, setError] = useState('')

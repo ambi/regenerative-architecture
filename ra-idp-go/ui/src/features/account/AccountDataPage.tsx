@@ -5,9 +5,8 @@ import { AccountShell } from '../../components/AccountShell'
 import { Alert } from '../../components/ui/alert'
 import { Button } from '../../components/ui/button'
 import { Card } from '../../components/ui/card'
-import type { AccountDataPage as PageProps } from '../../types'
 
-export function AccountDataPage({ username, isAdmin }: PageProps) {
+export function AccountDataPage({ username, isAdmin }: { username: string; isAdmin: boolean }) {
   const [downloading, setDownloading] = useState(false)
   const [error, setError] = useState('')
 

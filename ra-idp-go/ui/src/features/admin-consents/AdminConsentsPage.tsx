@@ -6,13 +6,17 @@ import { Alert } from '../../components/ui/alert'
 import { Button } from '../../components/ui/button'
 import { Card } from '../../components/ui/card'
 import { Input } from '../../components/ui/input'
-import type { AdminConsent, AdminConsentsPage as AdminConsentsPageData } from '../../types'
+import type { AdminConsent } from '../../types'
 
 export function AdminConsentsPage({
   csrfToken,
   actorUsername,
   consents: initial,
-}: AdminConsentsPageData) {
+}: {
+  csrfToken: string
+  actorUsername?: string
+  consents: AdminConsent[]
+}) {
   const [consents, setConsents] = useState(initial)
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<AdminConsent | null>(initial[0] ?? null)

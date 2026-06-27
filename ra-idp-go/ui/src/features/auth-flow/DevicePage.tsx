@@ -11,9 +11,8 @@ import { AuthShell } from '../../components/AuthShell'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
-import type { DevicePage as DevicePageData } from '../../types'
 
-export function DevicePage({ csrfToken, userCode }: DevicePageData) {
+export function DevicePage({ csrfToken, userCode }: { csrfToken: string; userCode: string }) {
   const normalizedCode = userCode.replace(/-/g, '').toUpperCase()
   const [code, setCode] = useState(normalizedCode)
   const [error, setError] = useState('')

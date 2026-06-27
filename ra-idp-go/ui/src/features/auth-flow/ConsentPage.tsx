@@ -14,7 +14,7 @@ import { AuthenticationAPIError, continueBrowserFlow, submitConsent } from '../.
 import { AuthShell } from '../../components/AuthShell'
 import { Button } from '../../components/ui/button'
 import { Card } from '../../components/ui/card'
-import type { ConsentPage as ConsentPageData } from '../../types'
+import type { ConsentDetailView } from '../../types'
 
 const scopeDetails: Record<string, { label: string; description: string; icon: typeof IconId }> = {
   openid: { label: 'アカウント識別子', description: '本人確認に必要な一意のID', icon: IconId },
@@ -40,7 +40,12 @@ export function ConsentPage({
   clientName,
   scopes,
   authorizationDetails = [],
-}: ConsentPageData) {
+}: {
+  csrfToken: string
+  clientName: string
+  scopes: string[]
+  authorizationDetails?: ConsentDetailView[]
+}) {
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 

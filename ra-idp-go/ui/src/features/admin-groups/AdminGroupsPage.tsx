@@ -38,9 +38,7 @@ import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
 import type {
   AdminGroup,
-  AdminGroupDetailPage as AdminGroupDetailPageData,
   AdminGroupMember,
-  AdminGroupsPage as AdminGroupsPageData,
   AdminUser,
 } from '../../types'
 
@@ -48,7 +46,11 @@ export function AdminGroupsPage({
   csrfToken,
   actorUsername,
   groups: initial,
-}: AdminGroupsPageData) {
+}: {
+  csrfToken: string
+  actorUsername?: string
+  groups: AdminGroup[]
+}) {
   const [groups, setGroups] = useState(initial)
   const initialID = new URLSearchParams(window.location.search).get('group')
   const [selectedID, setSelectedID] = useState<string>(
@@ -224,7 +226,11 @@ export function AdminGroupDetailPage({
   csrfToken,
   actorUsername,
   group: initialGroup,
-}: AdminGroupDetailPageData) {
+}: {
+  csrfToken: string
+  actorUsername?: string
+  group: AdminGroup
+}) {
   const [group, setGroup] = useState(initialGroup)
   const [editing, setEditing] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)

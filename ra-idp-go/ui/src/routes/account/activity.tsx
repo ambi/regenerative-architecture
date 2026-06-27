@@ -1,12 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { getSignInActivity, listAccountSessions } from '../../api/account'
 import { AccountActivityPage } from '../../features/account/AccountActivityPage'
-import type { AccountActivityPage as AccountActivityPageData } from '../../types'
 import { hasAdminRole, requirePortalAccount } from '../-guards'
 import { PageMarker } from '../-page'
 
 export const Route = createFileRoute('/account/activity')({
-  loader: async ({ location }): Promise<AccountActivityPageData> => {
+  loader: async ({ location }) => {
     const account = await requirePortalAccount('account', location.pathname, location.searchStr)
     const [activities, sessions] = await Promise.all([getSignInActivity(), listAccountSessions()])
     return {

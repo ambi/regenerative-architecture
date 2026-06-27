@@ -13,7 +13,7 @@ import { tenantURL } from '../../api'
 import { AdminShell } from '../../components/AdminShell'
 import { Card } from '../../components/ui/card'
 import { cn } from '../../lib/utils'
-import type { AdminAuditEvent, AdminDashboardPage as AdminDashboardPageData } from '../../types'
+import type { AdminAuditEvent } from '../../types'
 
 const DEFAULT_TENANT_ID = 'default'
 
@@ -28,7 +28,18 @@ export function AdminDashboardPage({
   grantedConsentCount,
   auditEventCount24h,
   recentEvents,
-}: AdminDashboardPageData) {
+}: {
+  actorUsername?: string
+  actorRoles: string[]
+  actorTenantID: string
+  userCount: number
+  activeUserCount: number
+  disabledUserCount: number
+  clientCount: number
+  grantedConsentCount: number
+  auditEventCount24h: number
+  recentEvents: AdminAuditEvent[]
+}) {
   const showTenantsLink =
     actorRoles.includes('system_admin') && actorTenantID === DEFAULT_TENANT_ID
 

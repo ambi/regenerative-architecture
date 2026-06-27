@@ -13,13 +13,17 @@ import { AdminShell } from '../../components/AdminShell'
 import { Button } from '../../components/ui/button'
 import { Card } from '../../components/ui/card'
 import { cn } from '../../lib/utils'
-import type {
-  AdminRole,
-  AdminRoleDetailPage as AdminRoleDetailPageData,
-  AdminRolesPage as AdminRolesPageData,
-} from '../../types'
+import type { AdminRole, AdminUser } from '../../types'
 
-export function AdminRolesPage({ actorUsername, roles, users }: AdminRolesPageData) {
+export function AdminRolesPage({
+  actorUsername,
+  roles,
+  users,
+}: {
+  actorUsername?: string
+  roles: AdminRole[]
+  users: AdminUser[]
+}) {
   const [selectedName, setSelectedName] = useState(roles[0]?.name ?? '')
   const selected = roles.find((role) => role.name === selectedName)
   const roleCounts = useMemo(
@@ -123,7 +127,12 @@ export function AdminRoleDetailPage({
   role,
   count,
   usernames,
-}: AdminRoleDetailPageData) {
+}: {
+  actorUsername?: string
+  role: AdminRole
+  count: number
+  usernames: string[]
+}) {
   return (
     <AdminShell
       active="roles"

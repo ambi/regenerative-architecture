@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { AuthenticationAPIError, request } from '../../../api/core'
 import { AdminRoleDetailPage } from '../../../features/admin-roles/AdminRolesPage'
-import type { AdminRole, AdminRoleDetailPage as AdminRoleDetailPageData, AdminUser } from '../../../types'
+import type { AdminRole, AdminUser } from '../../../types'
 import { requirePortalAccount } from '../../-guards'
 import { PageMarker } from '../../-page'
 
@@ -9,7 +9,7 @@ type AdminRoleListResponse = { roles: AdminRole[] }
 type AdminUserListResponse = { users: AdminUser[] }
 
 export const Route = createFileRoute('/admin/roles_/$name')({
-  loader: async ({ location, params }): Promise<AdminRoleDetailPageData> => {
+  loader: async ({ location, params }) => {
     const account = await requirePortalAccount('admin', location.pathname, location.searchStr)
     const [roles, users] = await Promise.all([
       request<AdminRoleListResponse>('/api/admin/policy/roles'),

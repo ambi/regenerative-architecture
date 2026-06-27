@@ -32,8 +32,6 @@ import { Label } from '../../components/ui/label'
 import { cn } from '../../lib/utils'
 import type {
   AdminClient,
-  AdminClientDetailPage as AdminClientDetailPageData,
-  AdminClientsPage as AdminClientsPageData,
 } from '../../types'
 
 type ClientForm = {
@@ -68,7 +66,11 @@ export function AdminClientsPage({
   csrfToken,
   actorUsername,
   clients: initialClients,
-}: AdminClientsPageData) {
+}: {
+  csrfToken: string
+  actorUsername?: string
+  clients: AdminClient[]
+}) {
   const [clients, setClients] = useState(initialClients)
   const [selectedID, setSelectedID] = useState(initialClients[0]?.client_id ?? '')
   const [query, setQuery] = useState('')
@@ -378,7 +380,11 @@ export function AdminClientDetailPage({
   csrfToken,
   actorUsername,
   client: initialClient,
-}: AdminClientDetailPageData) {
+}: {
+  csrfToken: string
+  actorUsername?: string
+  client: AdminClient
+}) {
   const [client, setClient] = useState(initialClient)
   const [form, setForm] = useState<ClientForm>(emptyForm)
   const [dialog, setDialog] = useState<'edit' | 'delete' | null>(null)

@@ -4,9 +4,7 @@ import { request } from '../../api/core'
 import { AdminDashboardPage } from '../../features/admin-dashboard/AdminDashboardPage'
 import type {
   AdminClient,
-  AdminConsent,
-  AdminDashboardPage as AdminDashboardPageData,
-  AdminUser,
+  AdminConsent,  AdminUser,
 } from '../../types'
 import { requirePortalAccount } from '../-guards'
 import { PageMarker } from '../-page'
@@ -16,7 +14,7 @@ type AdminClientListResponse = { clients: AdminClient[] }
 type AdminConsentListResponse = { consents: AdminConsent[] }
 
 export const Route = createFileRoute('/admin/')({
-  loader: async ({ location }): Promise<AdminDashboardPageData> => {
+  loader: async ({ location }) => {
     const account = await requirePortalAccount('admin', location.pathname, location.searchStr)
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
     const [users, clients, consents, recentEvents] = await Promise.all([

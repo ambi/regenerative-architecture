@@ -1,7 +1,7 @@
 id: wi-69-application-catalog-aggregate-and-assignment
 title: Application を上位 aggregate として実装し、protocol binding・割当・プロビジョニングを束ねる
 created_at: 2026-06-27
-status: pending
+status: completed
 authors: [tn]
 
 motivation: |
@@ -47,8 +47,7 @@ scope:
       Application に owns_models を与える: Application / ApplicationStatus /
       ApplicationKind (federated / weblink) / ProtocolBinding / ProtocolBindingType
       (oidc / saml / wsfed) / ApplicationAssignment / AssignmentSubject (user / group) /
-      AssignmentVisibility (visible / hidden) / ApplicationIcon / ProvisioningBinding /
-      ProvisioningDirection (inbound / outbound)。
+      AssignmentVisibility (visible / hidden) / ApplicationIcon。
     - >-
       owns_events: ApplicationCreated / ApplicationUpdated / ApplicationDeleted /
       ApplicationEnabled / ApplicationDisabled / ProtocolBindingAttached /
@@ -68,7 +67,7 @@ scope:
       既存 OAuth2 の AdminClient 系 interface と WsFederation の WsFedRelyingParty を
       ProtocolBinding として Application に従属させる依存関係を SCL に反映する。
   go:
-    - Application 集約と Postgres / memory adapter (applications / protocol_bindings / application_assignments / provisioning_bindings テーブル、tenant scope、binding から既存 client / RP への外部キー)。
+    - Application 集約と Postgres / memory adapter (applications / protocol_bindings / application_assignments テーブル、tenant scope、binding から既存 client / RP への外部キー)。
     - >-
       フェデレーション開始経路 (`/authorize`, WS-Fed sign-in, 将来 SAML SSO) で、解決された
       subject が当該 Application に割当済みか fail-closed で確認し、未割当なら拒否する。
@@ -106,7 +105,13 @@ initial_context:
 
 out_of_scope:
   - SAML 2.0 SP binding 本体の実装 ([[wi-29-saml2-idp]]、本 WI は binding 種別の予約のみ)。
-  - SCIM inbound / outbound プロトコル本体の実装 ([[wi-31-scim2-provisioning]] / [[wi-45-outbound-scim-provisioning]]、本 WI は Application への binding 表現と起動点のみ)。
+  - >-
+      SCIM provisioning は inbound / outbound とも [[wi-31-scim2-provisioning]] /
+      [[wi-45-outbound-scim-provisioning]] が所有する。当初は本 WI が Application 起点の
+      ProvisioningBinding / ProvisioningDirection 表現だけ予約する想定だったが、wi-45 が
+      provisioning の割当を ProvisioningConnector / ProvisioningAssignment という独自モデルで
+      設計するため、Application↔connector の関係は実体 (outbound) を作る wi-45 時点で確定する。
+      したがって本 WI では provisioning binding 表現も持たず、SCIM は wi-31 / wi-45 に委ねる。
   - Entra ID 相当のライセンスプロビジョニング (将来 WI。SCIM binding 拡張として後続で扱う)。
   - 既存 OAuth2 client / WS-Fed RP の wire behavior 変更 (上位 aggregate を被せるのみ)。
   - 割当条件の動的化 (属性ベース/ルールベース割当)。初期は user / group の直接割当のみ。
@@ -116,7 +121,7 @@ affected_guarantees:
   - assignment fail-closed: 未割当 subject はポータルにアプリが出ず、どの protocol binding でもフェデレーションを開始/完了できない。
   - protocol isolation: Application は上位 aggregate に留まり、OAuth2 / WsFederation / Saml の protocol state machine と wire contract を吸収しない。
   - traceability: SCL の Application owns_* と実装ディレクトリ・UI ナビが一致する。
-  - tenant isolation: Application・binding・割当・icon・provisioning binding はすべて realm 境界内に閉じる。
+  - tenant isolation: Application・binding・割当・icon はすべて realm 境界内に閉じる。
   - audit: create/update/delete/assign/unassign/binding 接続解除を監査に残す。
 
 verification:
@@ -152,3 +157,50 @@ risk_notes: |
   漏れなく適用すること。1 経路でも割当チェックが抜けると「未割当でもログインできる」
   セキュリティ欠陥になる。binding は既存 client / RP を参照する形にし、wire behavior は
   変えない。ADR-066 で aggregate と割当セマンティクスを先に固定してから実装する。
+
+completion:
+  completed_at: 2026-06-28
+  summary: |
+    OAuth2 client / WS-Fed RP / SAML SP / service client を単一の Application aggregate に
+    束ね、protocol を意識させない一覧・CRUD・割当・利用者ポータルを実装した。ADR-066 を起票。
+
+    - 集約: spec に Application / ApplicationKind (federated / weblink / service) /
+      ApplicationStatus / ProtocolBinding (oidc / saml / wsfed) / ApplicationAssignment /
+      AssignmentSubject (user / group) / AssignmentVisibility (visible / hidden) と
+      ライフサイクルイベント (Created/Updated/Deleted, BindingAttached/Detached,
+      Assigned/Unassigned) を定義。domain に weblink=launch_url 必須・binding 不可、
+      federated=binding 検証の不変条件を実装。
+    - 永続化: Postgres / memory adapter (applications / protocol_bindings /
+      application_assignments、tenant scope、binding は既存 client / RP / SP を opaque key で参照)。
+    - fail-closed 割当ゲート: ApplicationAccessAllowed を /authorize と WS-Fed sign-in に
+      適用し (invariant AssignmentGatesProtocol)、未割当 subject はフェデレーションを
+      完了できない。ListMyApplications は visible 割当のみ返す (AssignmentGatesPortalVisibility)。
+    - HTTP / UI: /admin/applications の CRUD・binding・割当・icon と
+      /api/account/applications を実装。admin ナビを「アプリケーション」に一本化し、
+      利用者ポータルに icon 付きアプリ一覧 (SSO 起動 / 外部リンク) を追加。
+    - SCIM provisioning binding (ProvisioningBinding / ProvisioningDirection) は実装しない。
+      out_of_scope のとおり inbound / outbound とも [[wi-31-scim2-provisioning]] /
+      [[wi-45-outbound-scim-provisioning]] が所有し、Application↔connector の関係は
+      ProvisioningConnector / ProvisioningAssignment を設計する wi-45 時点で確定する。
+    - 後続価値は別 WI に分割: ポータル並び替え (wi-70)、サインオンポリシー (wi-71)、
+      テンプレートカタログ (wi-72)、クレーム上書き (wi-73)、icon 画像アップロード (wi-74)、
+      advanced 設定の畳み込みと低レベル画面撤去 (wi-76, ADR-066, 完了済)。
+  affected_guarantees_state:
+    - { guarantee: "product language clarity", state: held, note: "admin ナビと利用者ポータルを Application 単位に統一。protocol 別画面は ADR-066/wi-76 で撤去。" }
+    - { guarantee: "assignment fail-closed", state: held, note: "ApplicationAccessAllowed を /authorize と WS-Fed sign-in に適用。未割当はポータル非表示かつフェデレーション拒否。" }
+    - { guarantee: "protocol isolation", state: held, note: "Application は binding を opaque key で参照し、OAuth2 / WsFederation / Saml の wire 挙動を吸収しない。" }
+    - { guarantee: "traceability", state: held, note: "SCL Application owns_* と internal/application、UI ナビが一致 (provisioning binding は SCL からも除外し wi-31/wi-45 に委譲)。" }
+    - { guarantee: "tenant isolation", state: held, note: "applications / protocol_bindings / application_assignments を tenant scope で保存・問い合わせ。" }
+    - { guarantee: "audit", state: held, note: "create/update/delete/assign/unassign/binding 接続解除をイベント emit。" }
+  verification:
+    - { cmd: "GOCACHE=/tmp/ra-idp-go-cache go test ./...", in: ra-idp-go, result: passed }
+    - { cmd: "golangci-lint run ./...", in: ra-idp-go, result: passed }
+    - { cmd: "go build ./...", in: ra-idp-go, result: passed }
+    - { cmd: "bun --cwd ra-idp-go/ui typecheck", result: passed }
+    - { cmd: "bun --cwd ra-idp-go/ui lint", result: passed }
+    - { cmd: "bun --cwd ra-idp-go/ui build", result: passed }
+    - { cmd: "bun run yaml-check:scl", in: tools, result: passed }
+    - { cmd: "bun run yaml-check:work-items", in: tools, result: passed }
+  residual_risk:
+    - "fail-closed ゲートは将来の SAML SSO 開始経路にも適用が必要。SAML SSO 本体 (wi-29) 実装時にゲート結線を確認すること。"
+    - "割当 → ポータル表示 → SSO / 直リンク (hidden) / fail-closed 拒否の手動 E2E は未実施。ユニット / ハンドラテストは緑。"

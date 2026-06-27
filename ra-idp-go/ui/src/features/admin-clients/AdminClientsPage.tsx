@@ -201,7 +201,7 @@ export function AdminClientsPage({
   return (
     <>
       <AdminShell
-        active="clients"
+        active="oauth2"
         actorUsername={actorUsername}
         title="OAuth2/OIDC クライアント"
         description="OAuth2/OIDC client の接続先、認証方式、許可する grant と scope を管理します。"
@@ -539,7 +539,7 @@ export function AdminClientDetailPage({
   return (
     <>
       <AdminShell
-        active="clients"
+        active="oauth2"
         actorUsername={actorUsername}
         title={client.client_name || client.client_id}
         description={client.client_id}

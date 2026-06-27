@@ -105,20 +105,23 @@ func TestApplicationAdminCRUDAndAccountVisibility(t *testing.T) {
 	csrf, cookie := appCSRF(t, e)
 
 	create := adminJSON(t, e, http.MethodPost, "/api/admin/applications", csrf, cookie, map[string]any{
-		"name": "Payroll", "kind": "federated",
+		"name": "Payroll", "type": "weblink", "launch_url": "https://payroll.example",
 	})
 	if create.Code != http.StatusCreated {
 		t.Fatalf("create status=%d body=%s", create.Code, create.Body.String())
 	}
 	var created struct {
-		ApplicationID string `json:"application_id"`
+		Application struct {
+			ApplicationID string `json:"application_id"`
+		} `json:"application"`
 	}
 	if err := json.Unmarshal(create.Body.Bytes(), &created); err != nil {
 		t.Fatal(err)
 	}
-	if created.ApplicationID == "" {
+	if created.Application.ApplicationID == "" {
 		t.Fatalf("missing application_id: %s", create.Body.String())
 	}
+	appID := created.Application.ApplicationID
 
 	// 未割当の regular はポータルに出ない。
 	if apps := myApplications(t, e, "regular"); len(apps) != 0 {
@@ -126,7 +129,7 @@ func TestApplicationAdminCRUDAndAccountVisibility(t *testing.T) {
 	}
 
 	// 割当すると出る。
-	assign := adminJSON(t, e, http.MethodPost, "/api/admin/applications/"+created.ApplicationID+"/assignments", csrf, cookie, map[string]any{
+	assign := adminJSON(t, e, http.MethodPost, "/api/admin/applications/"+appID+"/assignments", csrf, cookie, map[string]any{
 		"subject_type": "user", "subject_id": "regular",
 	})
 	if assign.Code != http.StatusCreated {
@@ -137,7 +140,7 @@ func TestApplicationAdminCRUDAndAccountVisibility(t *testing.T) {
 	}
 
 	// hidden 割当に上書きするとポータルから消える。
-	hidden := adminJSON(t, e, http.MethodPost, "/api/admin/applications/"+created.ApplicationID+"/assignments", csrf, cookie, map[string]any{
+	hidden := adminJSON(t, e, http.MethodPost, "/api/admin/applications/"+appID+"/assignments", csrf, cookie, map[string]any{
 		"subject_type": "user", "subject_id": "regular", "visibility": "hidden",
 	})
 	if hidden.Code != http.StatusCreated {

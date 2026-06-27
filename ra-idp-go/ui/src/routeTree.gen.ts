@@ -48,8 +48,11 @@ import { Route as AdminTenantAttributesRouteImport } from './routes/admin/tenant
 import { Route as AdminRolesNameRouteImport } from './routes/admin/roles_/$name'
 import { Route as AdminGroupsGroupIdRouteImport } from './routes/admin/groups_/$groupId'
 import { Route as AdminClientsClientIdRouteImport } from './routes/admin/clients_/$clientId'
+import { Route as AdminApplicationsApplicationIdRouteImport } from './routes/admin/applications_/$applicationId'
 import { Route as AdminAgentsAgentIdRouteImport } from './routes/admin/agents_/$agentId'
 import { Route as AccountEmailVerifyRouteImport } from './routes/account/email/verify'
+import { Route as AdminApplicationsApplicationIdIndexRouteImport } from './routes/admin/applications_/$applicationId.index'
+import { Route as AdminApplicationsApplicationIdEditRouteImport } from './routes/admin/applications_/$applicationId.edit'
 
 const TotpRoute = TotpRouteImport.update({
   id: '/totp',
@@ -248,6 +251,12 @@ const AdminClientsClientIdRoute = AdminClientsClientIdRouteImport.update({
   path: '/clients/$clientId',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminApplicationsApplicationIdRoute =
+  AdminApplicationsApplicationIdRouteImport.update({
+    id: '/applications_/$applicationId',
+    path: '/applications/$applicationId',
+    getParentRoute: () => AdminRouteRoute,
+  } as any)
 const AdminAgentsAgentIdRoute = AdminAgentsAgentIdRouteImport.update({
   id: '/agents_/$agentId',
   path: '/agents/$agentId',
@@ -258,6 +267,18 @@ const AccountEmailVerifyRoute = AccountEmailVerifyRouteImport.update({
   path: '/email/verify',
   getParentRoute: () => AccountRouteRoute,
 } as any)
+const AdminApplicationsApplicationIdIndexRoute =
+  AdminApplicationsApplicationIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AdminApplicationsApplicationIdRoute,
+  } as any)
+const AdminApplicationsApplicationIdEditRoute =
+  AdminApplicationsApplicationIdEditRouteImport.update({
+    id: '/edit',
+    path: '/edit',
+    getParentRoute: () => AdminApplicationsApplicationIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -295,12 +316,15 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AdminIndexRoute
   '/account/email/verify': typeof AccountEmailVerifyRoute
   '/admin/agents/$agentId': typeof AdminAgentsAgentIdRoute
+  '/admin/applications/$applicationId': typeof AdminApplicationsApplicationIdRouteWithChildren
   '/admin/clients/$clientId': typeof AdminClientsClientIdRoute
   '/admin/groups/$groupId': typeof AdminGroupsGroupIdRoute
   '/admin/roles/$name': typeof AdminRolesNameRoute
   '/admin/tenant/attributes': typeof AdminTenantAttributesRoute
   '/admin/users/$sub': typeof AdminUsersSubRoute
   '/admin/wsfed/relying-parties': typeof AdminWsfedRelyingPartiesRoute
+  '/admin/applications/$applicationId/edit': typeof AdminApplicationsApplicationIdEditRoute
+  '/admin/applications/$applicationId/': typeof AdminApplicationsApplicationIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -342,6 +366,8 @@ export interface FileRoutesByTo {
   '/admin/tenant/attributes': typeof AdminTenantAttributesRoute
   '/admin/users/$sub': typeof AdminUsersSubRoute
   '/admin/wsfed/relying-parties': typeof AdminWsfedRelyingPartiesRoute
+  '/admin/applications/$applicationId/edit': typeof AdminApplicationsApplicationIdEditRoute
+  '/admin/applications/$applicationId': typeof AdminApplicationsApplicationIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -380,12 +406,15 @@ export interface FileRoutesById {
   '/admin/': typeof AdminIndexRoute
   '/account/email/verify': typeof AccountEmailVerifyRoute
   '/admin/agents_/$agentId': typeof AdminAgentsAgentIdRoute
+  '/admin/applications_/$applicationId': typeof AdminApplicationsApplicationIdRouteWithChildren
   '/admin/clients_/$clientId': typeof AdminClientsClientIdRoute
   '/admin/groups_/$groupId': typeof AdminGroupsGroupIdRoute
   '/admin/roles_/$name': typeof AdminRolesNameRoute
   '/admin/tenant/attributes': typeof AdminTenantAttributesRoute
   '/admin/users_/$sub': typeof AdminUsersSubRoute
   '/admin/wsfed/relying-parties': typeof AdminWsfedRelyingPartiesRoute
+  '/admin/applications_/$applicationId/edit': typeof AdminApplicationsApplicationIdEditRoute
+  '/admin/applications_/$applicationId/': typeof AdminApplicationsApplicationIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -425,12 +454,15 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/account/email/verify'
     | '/admin/agents/$agentId'
+    | '/admin/applications/$applicationId'
     | '/admin/clients/$clientId'
     | '/admin/groups/$groupId'
     | '/admin/roles/$name'
     | '/admin/tenant/attributes'
     | '/admin/users/$sub'
     | '/admin/wsfed/relying-parties'
+    | '/admin/applications/$applicationId/edit'
+    | '/admin/applications/$applicationId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -472,6 +504,8 @@ export interface FileRouteTypes {
     | '/admin/tenant/attributes'
     | '/admin/users/$sub'
     | '/admin/wsfed/relying-parties'
+    | '/admin/applications/$applicationId/edit'
+    | '/admin/applications/$applicationId'
   id:
     | '__root__'
     | '/'
@@ -509,12 +543,15 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/account/email/verify'
     | '/admin/agents_/$agentId'
+    | '/admin/applications_/$applicationId'
     | '/admin/clients_/$clientId'
     | '/admin/groups_/$groupId'
     | '/admin/roles_/$name'
     | '/admin/tenant/attributes'
     | '/admin/users_/$sub'
     | '/admin/wsfed/relying-parties'
+    | '/admin/applications_/$applicationId/edit'
+    | '/admin/applications_/$applicationId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -806,6 +843,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminClientsClientIdRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/applications_/$applicationId': {
+      id: '/admin/applications_/$applicationId'
+      path: '/applications/$applicationId'
+      fullPath: '/admin/applications/$applicationId'
+      preLoaderRoute: typeof AdminApplicationsApplicationIdRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/agents_/$agentId': {
       id: '/admin/agents_/$agentId'
       path: '/agents/$agentId'
@@ -819,6 +863,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/account/email/verify'
       preLoaderRoute: typeof AccountEmailVerifyRouteImport
       parentRoute: typeof AccountRouteRoute
+    }
+    '/admin/applications_/$applicationId/': {
+      id: '/admin/applications_/$applicationId/'
+      path: '/'
+      fullPath: '/admin/applications/$applicationId/'
+      preLoaderRoute: typeof AdminApplicationsApplicationIdIndexRouteImport
+      parentRoute: typeof AdminApplicationsApplicationIdRoute
+    }
+    '/admin/applications_/$applicationId/edit': {
+      id: '/admin/applications_/$applicationId/edit'
+      path: '/edit'
+      fullPath: '/admin/applications/$applicationId/edit'
+      preLoaderRoute: typeof AdminApplicationsApplicationIdEditRouteImport
+      parentRoute: typeof AdminApplicationsApplicationIdRoute
     }
   }
 }
@@ -853,6 +911,24 @@ const AccountRouteRouteWithChildren = AccountRouteRoute._addFileChildren(
   AccountRouteRouteChildren,
 )
 
+interface AdminApplicationsApplicationIdRouteChildren {
+  AdminApplicationsApplicationIdEditRoute: typeof AdminApplicationsApplicationIdEditRoute
+  AdminApplicationsApplicationIdIndexRoute: typeof AdminApplicationsApplicationIdIndexRoute
+}
+
+const AdminApplicationsApplicationIdRouteChildren: AdminApplicationsApplicationIdRouteChildren =
+  {
+    AdminApplicationsApplicationIdEditRoute:
+      AdminApplicationsApplicationIdEditRoute,
+    AdminApplicationsApplicationIdIndexRoute:
+      AdminApplicationsApplicationIdIndexRoute,
+  }
+
+const AdminApplicationsApplicationIdRouteWithChildren =
+  AdminApplicationsApplicationIdRoute._addFileChildren(
+    AdminApplicationsApplicationIdRouteChildren,
+  )
+
 interface AdminRouteRouteChildren {
   AdminAgentsRoute: typeof AdminAgentsRoute
   AdminApplicationsRoute: typeof AdminApplicationsRoute
@@ -868,6 +944,7 @@ interface AdminRouteRouteChildren {
   AdminUsersRoute: typeof AdminUsersRoute
   AdminIndexRoute: typeof AdminIndexRoute
   AdminAgentsAgentIdRoute: typeof AdminAgentsAgentIdRoute
+  AdminApplicationsApplicationIdRoute: typeof AdminApplicationsApplicationIdRouteWithChildren
   AdminClientsClientIdRoute: typeof AdminClientsClientIdRoute
   AdminGroupsGroupIdRoute: typeof AdminGroupsGroupIdRoute
   AdminRolesNameRoute: typeof AdminRolesNameRoute
@@ -891,6 +968,8 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminUsersRoute: AdminUsersRoute,
   AdminIndexRoute: AdminIndexRoute,
   AdminAgentsAgentIdRoute: AdminAgentsAgentIdRoute,
+  AdminApplicationsApplicationIdRoute:
+    AdminApplicationsApplicationIdRouteWithChildren,
   AdminClientsClientIdRoute: AdminClientsClientIdRoute,
   AdminGroupsGroupIdRoute: AdminGroupsGroupIdRoute,
   AdminRolesNameRoute: AdminRolesNameRoute,

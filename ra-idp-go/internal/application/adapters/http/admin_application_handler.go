@@ -31,13 +31,6 @@ type applicationResponse struct {
 	UpdatedAt     time.Time                 `json:"updated_at"`
 }
 
-type applicationCreateRequest struct {
-	Name      string               `json:"name"`
-	Kind      spec.ApplicationKind `json:"kind"`
-	IconURL   string               `json:"icon_url"`
-	LaunchURL string               `json:"launch_url"`
-}
-
 type applicationUpdateRequest struct {
 	Name      *string                 `json:"name"`
 	Status    *spec.ApplicationStatus `json:"status"`
@@ -90,28 +83,10 @@ func (d Deps) handleGetApplication(c *echo.Context) error {
 	if app == nil {
 		return d.writeApplicationError(c, appusecases.ErrApplicationNotFound)
 	}
-	return core.NoStoreJSON(c, http.StatusOK, toApplicationResponse(app))
-}
-
-func (d Deps) handleCreateApplication(c *echo.Context) error {
-	if err := d.VerifyBrowserRequest(c); err != nil {
-		return err
-	}
-	actor, err := d.RequireAdmin(c)
-	if err != nil {
-		return d.WriteAdminAccessError(c, err)
-	}
-	var req applicationCreateRequest
-	if err := core.DecodeJSON(c.Request(), &req); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
-	}
-	app, err := appusecases.CreateApplication(c.Request().Context(), d.applicationDeps(), appusecases.CreateApplicationInput{
-		ActorSub: actor.Sub, Name: req.Name, Kind: req.Kind, IconURL: req.IconURL, LaunchURL: req.LaunchURL, Now: time.Now().UTC(),
+	oidc, wsfed := d.resolveProtocolConfig(c, app)
+	return core.NoStoreJSON(c, http.StatusOK, map[string]any{
+		"application": toApplicationResponse(app), "oidc": oidc, "wsfed": wsfed,
 	})
-	if err != nil {
-		return d.writeApplicationError(c, err)
-	}
-	return core.NoStoreJSON(c, http.StatusCreated, toApplicationResponse(app))
 }
 
 func (d Deps) handleUpdateApplication(c *echo.Context) error {

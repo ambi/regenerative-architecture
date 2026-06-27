@@ -658,6 +658,16 @@ func (d Deps) canUseTOTP(c *echo.Context, sub string) bool {
 	return err == nil && factor != nil && factor.Secret != nil && *factor.Secret != ""
 }
 
+// clientIsFirstParty は client_id が first-party クライアントかを返す。解決不能なら false
+// (fail-closed で割当ゲートを適用する)。
+func (d Deps) clientIsFirstParty(c *echo.Context, clientID string) bool {
+	if d.ClientRepo == nil {
+		return false
+	}
+	client, err := d.ClientRepo.FindByID(c.Request().Context(), core.RequestTenantID(c), clientID)
+	return err == nil && client != nil && client.FirstParty
+}
+
 func (d Deps) issueCodeURL(
 	c *echo.Context,
 	req *spec.AuthorizationRequest,
@@ -667,14 +677,18 @@ func (d Deps) issueCodeURL(
 	iss := core.RequestIssuer(c, d.Issuer)
 	// 割当ゲート (wi-69): client が Application binding に属する場合、未割当 subject には
 	// 認可コードを発行せず access_denied で RP へ返す (fail-closed, AssignmentGatesProtocol)。
-	allowed, err := d.ApplicationAccessAllowed(
-		c.Request().Context(), core.RequestTenantID(c), spec.ProtocolBindingOIDC, req.ClientID, sub,
-	)
-	if err != nil {
-		return "", err
-	}
-	if !allowed {
-		return authorizationErrorURL(req, iss, "access_denied", "この利用者はアプリケーションに割り当てられていません"), nil
+	// ただし first-party クライアント (IdP 自身の管理コンソール / アカウントポータル) は
+	// resource owner が IdP 利用者自身であり、アプリ割当でログインをゲートしない (ADR-061)。
+	if !d.clientIsFirstParty(c, req.ClientID) {
+		allowed, err := d.ApplicationAccessAllowed(
+			c.Request().Context(), core.RequestTenantID(c), spec.ProtocolBindingOIDC, req.ClientID, sub,
+		)
+		if err != nil {
+			return "", err
+		}
+		if !allowed {
+			return authorizationErrorURL(req, iss, "access_denied", "この利用者はアプリケーションに割り当てられていません"), nil
+		}
 	}
 	out, err := usecases.CompleteLogin(c.Request().Context(), usecases.CompleteLoginDeps{
 		RequestStore: d.RequestStore,

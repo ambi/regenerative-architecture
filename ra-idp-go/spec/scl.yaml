@@ -72,9 +72,9 @@ bounded_contexts:
       ライフサイクル、割当はここに集約する (ADR-064, wi-69)。割当はポータル可視性と
       フェデレーション利用可否を fail-closed で制御する。protocol binding の wire 挙動は
       各 protocol context が所有し、Application は binding を opaque key で参照する。
-    owns_models: [ApplicationKind, ApplicationStatus, ProtocolBindingType, AssignmentSubjectType, AssignmentVisibility, ProtocolBinding, Application, ApplicationAssignment, AdminApplicationResponse, AdminApplicationListResponse, AdminApplicationCreateRequest, AdminApplicationUpdateRequest, ProtocolBindingRequest, ApplicationAssignmentRequest, ApplicationAssignmentResponse, ApplicationAssignmentListResponse, MyApplication, MyApplicationListResponse]
+    owns_models: [ApplicationKind, ApplicationStatus, ProtocolBindingType, AssignmentSubjectType, AssignmentVisibility, ApplicationProvisionType, ProtocolBinding, Application, ApplicationAssignment, AdminApplicationResponse, AdminApplicationListResponse, AdminApplicationCreateRequest, AdminApplicationCreateResponse, ApplicationOidcConfig, ApplicationWsFedConfig, AdminApplicationDetailResponse, ApplicationOidcConfigUpdateRequest, ApplicationWsFedConfigUpdateRequest, AdminApplicationUpdateRequest, ProtocolBindingRequest, ApplicationAssignmentRequest, ApplicationAssignmentResponse, ApplicationAssignmentListResponse, MyApplication, MyApplicationListResponse]
     owns_events: [ApplicationCreated, ApplicationUpdated, ApplicationDeleted, ProtocolBindingAttached, ProtocolBindingDetached, ApplicationAssigned, ApplicationUnassigned]
-    owns_interfaces: [ListAdminApplications, GetAdminApplication, CreateAdminApplication, UpdateAdminApplication, DeleteAdminApplication, AttachProtocolBinding, DetachProtocolBinding, ListApplicationAssignments, AssignApplication, UnassignApplication, ListMyApplications]
+    owns_interfaces: [ListAdminApplications, GetAdminApplication, CreateAdminApplication, UpdateAdminApplication, DeleteAdminApplication, AttachProtocolBinding, DetachProtocolBinding, UpdateApplicationOidcConfig, UpdateApplicationWsFedConfig, ListApplicationAssignments, AssignApplication, UnassignApplication, ListMyApplications]
     owns_invariants: [AssignmentGatesProtocol, AssignmentGatesPortalVisibility]
     owns_permissions: [AdminApplicationsManage, AdminApplicationAssignmentsManage, MyApplicationsRead]
     depends_on:
@@ -1420,7 +1420,7 @@ models:
       client_secret_hash:                     { type: String, optional: true, annotations: { sensitive: true } }
       client_name:                            { type: String, optional: true, constraints: [{ max_length: 200 }] }
       client_type:                            { type: ClientType }
-      redirect_uris:                          { type: "Uri[]", constraints: [non_empty] }
+      redirect_uris:                          { type: "Uri[]", optional: true, description: "redirect 系グラント (authorization_code) のとき必須。client_credentials のみの M2M クライアントは持たない (RFC 6749 §3.1.2)。" }
       grant_types:                            { type: "GrantType[]", constraints: [non_empty] }
       response_types:                         { type: "ResponseType[]" }
       token_endpoint_auth_method:             { type: TokenEndpointAuthMethod }
@@ -3946,8 +3946,11 @@ models:
   # ---------- Application (wi-69, ADR-064) ----------
   ApplicationKind:
     kind: enum
-    description: Application が SSO フェデレーションを束ねる federated か、SSO しない外部リンク weblink か (wi-69)。
-    values: [federated, weblink]
+    description: >-
+      Application の種別。federated は SSO フェデレーションを束ねる業務アプリ、weblink は SSO
+      しない外部リンク、service は M2M / client_credentials の API クライアント (Okta の API
+      Services 相当。ポータルタイル・利用者割当を持たない) (wi-69)。
+    values: [federated, weblink, service]
 
   ApplicationStatus:
     kind: enum
@@ -3968,6 +3971,14 @@ models:
     kind: enum
     description: 割当の可視性。hidden はポータル一覧から除外するがプロトコル利用は許可する (wi-69)。
     values: [visible, hidden]
+
+  ApplicationProvisionType:
+    kind: enum
+    description: >-
+      一括作成で選ぶアプリ種別。oidc / wsfed は federated Application と対応する OAuth2 client /
+      WS-Fed RP を同時に作成し、weblink は SSO なしの外部リンク、service は M2M /
+      client_credentials の OAuth2 client (service kind) を作る (wi-69)。
+    values: [oidc, wsfed, weblink, service]
 
   ProtocolBinding:
     kind: value_object
@@ -4036,12 +4047,70 @@ models:
 
   AdminApplicationCreateRequest:
     kind: value_object
-    description: Application 作成リクエスト (wi-69)。
+    description: >-
+      Application 一括作成リクエスト。種別を選び、対応するプロトコル設定もまとめて受け取る。
+      backend が OAuth2 client / WS-Fed RP を作成し、Application と protocol binding を一括で作る (wi-69)。
     fields:
-      name:       { type: String, constraints: [non_empty] }
-      kind:       { type: ApplicationKind }
-      icon_url:   { type: String, optional: true }
-      launch_url: { type: String, optional: true }
+      name:           { type: String, constraints: [non_empty] }
+      type:           { type: ApplicationProvisionType, description: "oidc / wsfed / weblink。" }
+      icon_url:       { type: String, optional: true }
+      launch_url:     { type: String, optional: true, description: "ポータルのタイルから開く起動 URL。weblink では必須。" }
+      redirect_uris:  { type: "String[]", optional: true, description: "type=oidc のとき必須。生成する OAuth2 client のリダイレクト URI。" }
+      scope:          { type: String, optional: true, description: "type=service の OAuth2 client スコープ (client_credentials)。" }
+      wtrealm:        { type: String, optional: true, description: "type=wsfed のとき必須。生成する WS-Fed RP の wtrealm。" }
+      reply_urls:     { type: "String[]", optional: true, description: "type=wsfed のとき必須。許可する wreply。" }
+      name_id_format: { type: String, optional: true, description: "type=wsfed の NameID 形式。" }
+      name_id_source: { type: String, optional: true, description: "type=wsfed の NameID ソース属性。" }
+
+  AdminApplicationCreateResponse:
+    kind: value_object
+    description: >-
+      一括作成の結果。type=oidc のときは生成した OAuth2 client の client_id / client_secret を
+      一度だけ返す (再表示不可) (wi-69)。
+    fields:
+      application:   { type: AdminApplicationResponse }
+      client_id:     { type: String, optional: true, description: "type=oidc のとき返る生成クライアント ID。" }
+      client_secret: { type: String, optional: true, description: "type=oidc のとき一度だけ返るシークレット。" }
+
+  ApplicationOidcConfig:
+    kind: value_object
+    description: Application の OIDC binding が指す OAuth2 client の実設定 (アプリ詳細表示用) (wi-69)。
+    fields:
+      client_id:     { type: String }
+      redirect_uris: { type: "String[]" }
+      scope:         { type: String }
+
+  ApplicationWsFedConfig:
+    kind: value_object
+    description: Application の WS-Fed binding が指す relying party の実設定 (アプリ詳細表示用) (wi-69)。
+    fields:
+      wtrealm:        { type: String }
+      reply_urls:     { type: "String[]" }
+      name_id_format: { type: String }
+      name_id_source: { type: String }
+
+  AdminApplicationDetailResponse:
+    kind: value_object
+    description: アプリ詳細レスポンス。Application 本体に加え、binding から解決した protocol 実設定を含む (wi-69)。
+    fields:
+      application: { type: AdminApplicationResponse }
+      oidc:        { type: ApplicationOidcConfig, optional: true }
+      wsfed:       { type: ApplicationWsFedConfig, optional: true }
+
+  ApplicationOidcConfigUpdateRequest:
+    kind: value_object
+    description: OIDC binding 設定の更新リクエスト。指定フィールドのみ変更する (wi-69)。
+    fields:
+      redirect_uris: { type: "String[]", optional: true }
+      scope:         { type: String, optional: true }
+
+  ApplicationWsFedConfigUpdateRequest:
+    kind: value_object
+    description: WS-Federation binding 設定の更新リクエスト。指定フィールドのみ変更する (wi-69)。
+    fields:
+      reply_urls:     { type: "String[]", optional: true }
+      name_id_format: { type: String, optional: true }
+      name_id_source: { type: String, optional: true }
 
   AdminApplicationUpdateRequest:
     kind: value_object
@@ -5437,22 +5506,24 @@ interfaces:
       - { kind: http, method: GET, path: /api/admin/applications }
 
   GetAdminApplication:
-    description: 管理者が Application を取得する。別テナントは未存在として扱う。
+    description: 管理者が Application を取得する。binding から解決した protocol 実設定も含む。別テナントは未存在として扱う。
     input:
       application_id: { type: String }
     output:
-      application: { type: AdminApplicationResponse }
+      response: { type: AdminApplicationDetailResponse }
     errors: [InvalidRequestError, AccessDeniedError]
     read_only: true
     bindings:
       - { kind: http, method: GET, path: "/api/admin/applications/{application_id}" }
 
   CreateAdminApplication:
-    description: 管理者が Application を作成する。
+    description: >-
+      管理者が Application を一括作成する。種別に応じて OAuth2 client / WS-Fed RP も同時に作成し、
+      protocol binding を接続する。
     input:
       request: { type: AdminApplicationCreateRequest }
     output:
-      application: { type: AdminApplicationResponse }
+      response: { type: AdminApplicationCreateResponse }
     errors: [InvalidRequestError, AccessDeniedError]
     emits: [ApplicationCreated]
     bindings:
@@ -5500,6 +5571,24 @@ interfaces:
     emits: [ProtocolBindingDetached]
     bindings:
       - { kind: http, method: DELETE, path: "/api/admin/applications/{application_id}/bindings/{binding_type}", successful_status_codes: ["204"] }
+
+  UpdateApplicationOidcConfig:
+    description: 管理者が Application の OIDC binding が指す OAuth2 client の設定を更新する。
+    input:
+      application_id: { type: String }
+      request:        { type: ApplicationOidcConfigUpdateRequest }
+    errors: [InvalidRequestError, AccessDeniedError]
+    bindings:
+      - { kind: http, method: PATCH, path: "/api/admin/applications/{application_id}/oidc", request_form: body, successful_status_codes: ["204"] }
+
+  UpdateApplicationWsFedConfig:
+    description: 管理者が Application の WS-Fed binding が指す relying party の設定を更新する。
+    input:
+      application_id: { type: String }
+      request:        { type: ApplicationWsFedConfigUpdateRequest }
+    errors: [InvalidRequestError, AccessDeniedError]
+    bindings:
+      - { kind: http, method: PATCH, path: "/api/admin/applications/{application_id}/wsfed", request_form: body, successful_status_codes: ["204"] }
 
   ListApplicationAssignments:
     description: 管理者が Application の割当を一覧する。

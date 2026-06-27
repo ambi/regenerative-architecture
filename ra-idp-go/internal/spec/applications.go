@@ -17,11 +17,14 @@ const (
 	ApplicationFederated ApplicationKind = "federated"
 	// ApplicationWeblink は binding を持たない外部リンク (SSO 非対応)。
 	ApplicationWeblink ApplicationKind = "weblink"
+	// ApplicationService は M2M / サービス用の OAuth2 client (client_credentials)。
+	// ポータルタイルや利用者割当を持たず、Okta の "API Services" に相当する。
+	ApplicationService ApplicationKind = "service"
 )
 
 func (k ApplicationKind) Valid() bool {
 	switch k {
-	case ApplicationFederated, ApplicationWeblink:
+	case ApplicationFederated, ApplicationWeblink, ApplicationService:
 		return true
 	}
 	return false

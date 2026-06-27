@@ -4,7 +4,6 @@ import {
   IconBuildingCommunity,
   IconCheckupList,
   IconForms,
-  IconKey,
   IconLayoutDashboard,
   IconRobot,
   IconSettings,
@@ -12,7 +11,6 @@ import {
   IconUsersGroup,
   IconUserShield,
   IconUsers,
-  IconWorldShare,
 } from '@tabler/icons-react'
 import { tenantBasePath, tenantURL } from '../api'
 
@@ -23,7 +21,7 @@ export type AdminNavKey =
   | 'agents'
   | 'roles'
   | 'applications'
-  | 'clients'
+  | 'oauth2'
   | 'wsfed'
   | 'authz-detail-types'
   | 'consents'
@@ -89,20 +87,6 @@ export function adminNavItems(active: AdminNavKey): AdminNavItem[] {
       active: active === 'applications',
     },
     {
-      key: 'clients',
-      label: 'OAuth2/OIDC バインディング',
-      icon: IconKey,
-      href: tenantURL('/admin/clients'),
-      active: active === 'clients',
-    },
-    {
-      key: 'wsfed',
-      label: 'WS-Federation バインディング',
-      icon: IconWorldShare,
-      href: tenantURL('/admin/wsfed/relying-parties'),
-      active: active === 'wsfed',
-    },
-    {
       key: 'authz-detail-types',
       label: '認可詳細の種類',
       icon: IconForms,
@@ -130,6 +114,9 @@ export function adminNavItems(active: AdminNavKey): AdminNavItem[] {
       href: tenantURL('/admin/keys'),
       active: active === 'keys',
     },
+    // OAuth2 クライアント / WS-Federation RP の低レベル設定は「アプリケーション」に一本化した
+    // ため、専用のサイドバー導線は持たない (Okta 流)。/admin/clients・/admin/wsfed/relying-parties
+    // は URL 直叩きで到達できる advanced 面として残す。
   ]
   if (isControlPlane()) {
     items.push({

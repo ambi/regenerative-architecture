@@ -1,4 +1,4 @@
-import { IconLayoutGrid } from '@tabler/icons-react'
+import { IconExternalLink, IconLayoutGrid } from '@tabler/icons-react'
 import { AccountShell } from '../../components/AccountShell'
 import { Card } from '../../components/ui/card'
 import type { MyApplication } from '../../types'
@@ -8,6 +8,7 @@ function initials(name: string): string {
 }
 
 function AppTile({ app }: { app: MyApplication }) {
+  const launchable = Boolean(app.launch_url)
   const icon = app.icon_url ? (
     <img src={app.icon_url} alt="" className="size-12 rounded-xl object-cover" aria-hidden="true" />
   ) : (
@@ -16,9 +17,19 @@ function AppTile({ app }: { app: MyApplication }) {
     </span>
   )
   const body = (
-    <Card className="flex h-full flex-col items-center gap-3 p-5 text-center transition hover:border-blue-300 hover:shadow-md">
+    <Card
+      className={`flex h-full flex-col items-center gap-3 p-5 text-center transition ${
+        launchable ? 'hover:border-blue-300 hover:shadow-md' : 'opacity-70'
+      }`}
+    >
       {icon}
-      <span className="text-sm font-semibold text-slate-900">{app.name}</span>
+      <span className="flex items-center gap-1 text-sm font-semibold text-slate-900">
+        {app.name}
+        {launchable ? (
+          <IconExternalLink size={14} className="text-slate-400" aria-hidden="true" />
+        ) : null}
+      </span>
+      {launchable ? null : <span className="text-xs text-slate-400">起動 URL が未設定です</span>}
     </Card>
   )
   if (app.launch_url) {

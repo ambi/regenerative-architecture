@@ -74,7 +74,7 @@ export type AdminClient = {
   created_at: string
 }
 
-export type ApplicationKind = 'federated' | 'weblink'
+export type ApplicationKind = 'federated' | 'weblink' | 'service'
 export type ApplicationStatus = 'active' | 'disabled'
 export type ProtocolBindingType = 'oidc' | 'saml' | 'wsfed'
 
@@ -101,6 +101,26 @@ export type ApplicationAssignment = {
   subject_id: string
   visibility: 'visible' | 'hidden'
   created_at: string
+}
+
+// プロトコル設定はアプリ詳細で解決される。OAuth2 client / WS-Fed RP の実設定を映す。
+export type ApplicationOidcConfig = {
+  client_id: string
+  redirect_uris: string[]
+  scope: string
+}
+
+export type ApplicationWsFedConfig = {
+  wtrealm: string
+  reply_urls: string[]
+  name_id_format: string
+  name_id_source: string
+}
+
+export type AdminApplicationDetail = {
+  application: AdminApplication
+  oidc?: ApplicationOidcConfig | null
+  wsfed?: ApplicationWsFedConfig | null
 }
 
 export type AuthorizationDetailFieldRule = {

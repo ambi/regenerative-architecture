@@ -46,7 +46,7 @@ var rolePermissionInterfaces = map[string][]string{
 	"AdminGroupsWrite":                    {"CreateGroup", "UpdateGroup", "DeleteGroup", "AddGroupMember", "RemoveGroupMember"},
 	"AdminAgentsManage":                   {"ListAgents", "GetAgent", "RegisterAgent", "UpdateAgent", "DisableAgent", "EnableAgent", "KillAgent", "DeleteAgent", "BindAgentCredential", "UnbindAgentCredential"},
 	"AdminAuthorizationDetailTypesManage": {"ListAuthorizationDetailTypes", "GetAuthorizationDetailType", "CreateAuthorizationDetailType", "UpdateAuthorizationDetailType", "DeleteAuthorizationDetailType"},
-	"AdminApplicationsManage":             {"ListAdminApplications", "GetAdminApplication", "CreateAdminApplication", "UpdateAdminApplication", "DeleteAdminApplication", "AttachProtocolBinding", "DetachProtocolBinding"},
+	"AdminApplicationsManage":             {"ListAdminApplications", "GetAdminApplication", "CreateAdminApplication", "UpdateAdminApplication", "DeleteAdminApplication", "AttachProtocolBinding", "DetachProtocolBinding", "UpdateApplicationOidcConfig", "UpdateApplicationWsFedConfig"},
 	"AdminApplicationAssignmentsManage":   {"ListApplicationAssignments", "AssignApplication", "UnassignApplication"},
 }
 

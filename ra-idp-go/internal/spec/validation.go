@@ -2,6 +2,7 @@ package spec
 
 import (
 	"regexp"
+	"slices"
 
 	"ra-idp-go/internal/validation"
 
@@ -39,7 +40,7 @@ var clientSchema = z.Struct(z.Shape{
 	).Required(),
 	"RedirectURIs": z.Slice(
 		z.String().URL(),
-	).Min(1).Required(),
+	),
 	"GrantTypes": z.Slice(
 		z.StringLike[GrantType]().TestFunc(
 			func(value *GrantType, _ z.Ctx) bool { return value.Valid() },
@@ -78,7 +79,26 @@ var clientSchema = z.Struct(z.Shape{
 	default:
 		return true
 	}
-}, z.Message("client authentication method requires matching credentials"))
+}, z.Message("client authentication method requires matching credentials")).
+	TestFunc(func(value any, _ z.Ctx) bool {
+		client, ok := value.(*Client)
+		if !ok {
+			return false
+		}
+		// redirect 系グラント (authorization_code) は redirect_uri を必須とする
+		// (RFC 6749 §3.1.2)。client_credentials のみの M2M クライアントは redirect を持たない。
+		if clientUsesRedirect(client) {
+			return len(client.RedirectURIs) > 0
+		}
+		return true
+	}, z.Message("redirect_uris is required for redirect-based grants"))
+
+// clientUsesRedirect は client が redirect 系グラント (authorization_code) または
+// code response_type を使うかを返す。これらは redirect_uri を必要とする。
+func clientUsesRedirect(client *Client) bool {
+	return slices.Contains(client.GrantTypes, GrantAuthorizationCode) ||
+		slices.Contains(client.ResponseTypes, ResponseTypeCode)
+}
 
 var userSchema = z.Struct(z.Shape{
 	"Sub":               z.String().Required(),

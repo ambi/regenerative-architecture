@@ -50,6 +50,9 @@ func Run() error {
 		if err := seedWsFedRelyingParty(ctx, deps.WsFedRPRepo); err != nil {
 			return fmt.Errorf("seed federation relying party: %w", err)
 		}
+		if err := seedDemoApplications(ctx, deps.ApplicationRepo, deps.ApplicationAssignmentRepo, time.Now().UTC()); err != nil {
+			return fmt.Errorf("seed demo applications: %w", err)
+		}
 	}
 	federationSigner, err := newDevFederationSigner()
 	if err != nil {

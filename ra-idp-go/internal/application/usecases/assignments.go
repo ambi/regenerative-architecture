@@ -118,6 +118,10 @@ func ListMyApplications(ctx context.Context, deps AssignmentDeps, subjects []por
 		if app == nil || app.Status != spec.ApplicationActive {
 			continue
 		}
+		// service kind は M2M クライアントでありポータルタイルを持たない (Okta の API Services 相当)。
+		if app.Kind == spec.ApplicationService {
+			continue
+		}
 		seen[assignment.ApplicationID] = struct{}{}
 		out = append(out, app)
 	}

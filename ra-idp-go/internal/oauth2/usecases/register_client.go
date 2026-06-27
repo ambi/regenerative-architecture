@@ -3,6 +3,7 @@ package usecases
 
 import (
 	"context"
+	"slices"
 	"time"
 
 	"ra-idp-go/internal/oauth2/domain"
@@ -44,13 +45,16 @@ func RegisterClient(ctx context.Context, deps RegisterClientDeps, in RegisterCli
 	if in.ClientType == "" {
 		in.ClientType = spec.ClientConfidential
 	}
-	if len(in.RedirectURIs) == 0 {
-		return nil, NewOAuthError("invalid_redirect_uri", "redirect_uris is required")
-	}
 	if len(in.GrantTypes) == 0 {
 		in.GrantTypes = []spec.GrantType{spec.GrantAuthorizationCode}
 	}
-	if len(in.ResponseTypes) == 0 {
+	// redirect 系グラント (authorization_code) のみ redirect_uri / code response_type を要求する。
+	// client_credentials のみの M2M クライアントは redirect を持たない (RFC 6749 §3.1.2)。
+	interactive := slices.Contains(in.GrantTypes, spec.GrantAuthorizationCode)
+	if interactive && len(in.RedirectURIs) == 0 {
+		return nil, NewOAuthError("invalid_redirect_uri", "redirect_uris is required")
+	}
+	if interactive && len(in.ResponseTypes) == 0 {
 		in.ResponseTypes = []spec.ResponseType{spec.ResponseTypeCode}
 	}
 	if in.TokenEndpointAuthMethod == "" {

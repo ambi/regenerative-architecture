@@ -1,6 +1,7 @@
 import type {
   AdminAgent,
   AdminApplication,
+  AdminApplicationDetail,
   AdminAuditEvent,
   AdminClient,
   AdminConsent,
@@ -12,7 +13,6 @@ import type {
   AdminUser,
   AdminUserGroups,
   ApplicationAssignment,
-  ApplicationKind,
   ApplicationStatus,
   ProtocolBinding,
   ProtocolBindingType,
@@ -580,12 +580,29 @@ export async function unbindAdminAgentCredential(
   )
 }
 
-// Application カタログ (wi-69)。
+// Application カタログ (wi-69)。種別を選びプロトコル設定もまとめて入力する一括作成 API。
+// backend が OAuth2 client / WS-Fed RP を作成し、Application と binding を一括で作る。
 export type CreateAdminApplicationInput = {
   name: string
-  kind: ApplicationKind
+  type: 'oidc' | 'wsfed' | 'weblink' | 'service'
   icon_url?: string
   launch_url?: string
+  // OIDC
+  redirect_uris?: string[]
+  // service (M2M / client_credentials)
+  scope?: string
+  // WS-Federation
+  wtrealm?: string
+  reply_urls?: string[]
+  name_id_format?: string
+  name_id_source?: string
+}
+
+// OIDC を一括作成すると client_secret が一度だけ返る (再表示不可)。
+export type CreateAdminApplicationResult = {
+  application: AdminApplication
+  client_id?: string
+  client_secret?: string
 }
 
 export type UpdateAdminApplicationInput = {
@@ -595,16 +612,53 @@ export type UpdateAdminApplicationInput = {
   launch_url?: string
 }
 
+export type UpdateApplicationOidcInput = {
+  redirect_uris?: string[]
+  scope?: string
+}
+
+export type UpdateApplicationWsFedInput = {
+  reply_urls?: string[]
+  name_id_format?: string
+  name_id_source?: string
+}
+
 export async function listAdminApplications(): Promise<AdminApplication[]> {
   return (await request<{ applications: AdminApplication[] }>('/api/admin/applications'))
     .applications
 }
 
+export async function getAdminApplication(id: string): Promise<AdminApplicationDetail> {
+  return request<AdminApplicationDetail>(`/api/admin/applications/${encodeURIComponent(id)}`)
+}
+
 export async function createAdminApplication(
   csrfToken: string,
   input: CreateAdminApplicationInput,
-): Promise<AdminApplication> {
+): Promise<CreateAdminApplicationResult> {
   return request('/api/admin/applications', adminRequest(csrfToken, 'POST', input))
+}
+
+export async function updateApplicationOidcConfig(
+  csrfToken: string,
+  id: string,
+  input: UpdateApplicationOidcInput,
+): Promise<void> {
+  await request(
+    `/api/admin/applications/${encodeURIComponent(id)}/oidc`,
+    adminRequest(csrfToken, 'PATCH', input),
+  )
+}
+
+export async function updateApplicationWsFedConfig(
+  csrfToken: string,
+  id: string,
+  input: UpdateApplicationWsFedInput,
+): Promise<void> {
+  await request(
+    `/api/admin/applications/${encodeURIComponent(id)}/wsfed`,
+    adminRequest(csrfToken, 'PATCH', input),
+  )
 }
 
 export async function updateAdminApplication(

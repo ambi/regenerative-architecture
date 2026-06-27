@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	appports "ra-idp-go/internal/application/ports"
 	authports "ra-idp-go/internal/authentication/ports"
 	authusecases "ra-idp-go/internal/authentication/usecases"
 	idmports "ra-idp-go/internal/identitymanagement/ports"
@@ -113,6 +114,54 @@ func seedFirstPartyPortalClients(ctx context.Context, clients oauthports.ClientR
 			TokenEndpointAuthMethod: spec.AuthMethodNone,
 			Scope:                   p.scope, IDTokenSignedResponseAlg: spec.SigAlgPS256,
 			FapiProfile: spec.FapiNone, FirstParty: true, CreatedAt: now,
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// seedDemoApplications は既存の OIDC クライアント / WS-Fed RP を「アプリケーション」として
+// カタログに登録する。管理コンソール・アカウントポータル・demo-client・demo WS-Fed RP を
+// federated Application として binding 接続し、いずれも user_alice に割り当てる。これにより
+// ポータルのアプリ一覧に並び、デモのログイン経路 (割当ゲート) も成立する (wi-69)。
+// 管理コンソール / ポータルは first-party のため、割当がなくてもログイン自体は塞がない。
+func seedDemoApplications(
+	ctx context.Context,
+	apps appports.ApplicationRepository,
+	assignments appports.AssignmentRepository,
+	now time.Time,
+) error {
+	if apps == nil {
+		return nil
+	}
+	seeds := []struct {
+		id        string
+		name      string
+		launchURL string
+		binding   spec.ProtocolBinding
+	}{
+		{"app-ra-admin-console", "RA Admin Console", "/realms/default/admin", spec.ProtocolBinding{Type: spec.ProtocolBindingOIDC, ClientID: "ra-admin-console"}},
+		{"app-ra-account-portal", "RA Account Portal", "/realms/default/account", spec.ProtocolBinding{Type: spec.ProtocolBindingOIDC, ClientID: "ra-account-portal"}},
+		{"app-demo-client", "Demo Client", "", spec.ProtocolBinding{Type: spec.ProtocolBindingOIDC, ClientID: "demo-client"}},
+		{"app-demo-wsfed-rp", "Demo WS-Federation RP", "https://rp.example/wsfed", spec.ProtocolBinding{Type: spec.ProtocolBindingWsFed, Wtrealm: "urn:ra-idp:demo-rp"}},
+	}
+	for _, s := range seeds {
+		if err := apps.Save(ctx, &spec.Application{
+			TenantID: spec.DefaultTenantID, ApplicationID: s.id, Name: s.name,
+			Kind: spec.ApplicationFederated, Status: spec.ApplicationActive,
+			LaunchURL: s.launchURL, Bindings: []spec.ProtocolBinding{s.binding},
+			CreatedAt: now, UpdatedAt: now,
+		}); err != nil {
+			return err
+		}
+		if assignments == nil {
+			continue
+		}
+		if err := assignments.Save(ctx, &spec.ApplicationAssignment{
+			TenantID: spec.DefaultTenantID, ApplicationID: s.id,
+			SubjectType: spec.AssignmentSubjectUser, SubjectID: "user_alice",
+			Visibility: spec.AssignmentVisible, CreatedAt: now,
 		}); err != nil {
 			return err
 		}

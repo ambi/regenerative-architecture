@@ -11,8 +11,6 @@ work item (`work-items/*.yaml`) も同じページから辿れる。
 ```bash
 bun scl-to-html \
   --scl       ../ra-idp-go/spec/scl.yaml \
-  --decisions ../ra-idp-go/decisions \
-  --work-items ../ra-idp-go/work-items \
   --title     "ra-idp" \
   --out       out/ra-idp.html
 ```
@@ -20,6 +18,8 @@ bun scl-to-html \
 - `--scl` のみ必須。`--decisions` / `--work-items` 省略時はそのタブが空表示になる。
 - `--out` を省略すると HTML が標準出力に書き出される。
 - `--title` を省略すると `system` フィールド (SCL) がページタイトルになる。
+- 通常のレビュー用 HTML は SCL のみを出す。ADR / work item まで含む監査用の全部入り HTML
+  が必要な場合だけ `--decisions` / `--work-items` を指定する。
 
 `--help` で同じ案内が出る。
 
@@ -28,17 +28,16 @@ bun scl-to-html \
 単一の HTML ファイル。CSS / JS / すべてのテキストは inline 同梱 (外部リソース 0)。
 ライト / ダーク両対応 (`prefers-color-scheme` に追従)。
 
-4 タブ:
+タブ:
 
 | タブ      | 内容                                                             |
 | --------- | ---------------------------------------------------------------- |
-| Overview  | システム名・タブ別件数のサマリ                                   |
 | SCL       | SPECIFICATION_CORE_LANGUAGE.md §3 の 12 セクションをカード表示   |
-| Decisions | CONCEPTION + CONCEPTION_BASELINE + ADR-NNN-…md (markdown 描画)   |
-| Work Items | work-items/*.yaml (status 順インデックス、完了情報を含む)       |
+| Decisions | CONCEPTION + CONCEPTION_BASELINE + ADR-NNN-…md (指定時のみ)      |
+| Work Items | work-items/*.yaml (指定時のみ)                                  |
 
 URL ハッシュは `#tab=<name>&sec=<section-id>` 形式でルーティング。JS 無効でも
-4 タブの内容が縦に並んで読める (degraded mode)。
+生成されたタブの内容が縦に並んで読める (degraded mode)。
 
 ## JSON Schema との関係
 
@@ -56,6 +55,8 @@ bun test                  # ユニットテスト (Bun test runner)
 bun run lint              # Biome
 bun run typecheck         # tsc --noEmit
 bun scl-to-html --help    # CLI 確認
+bun run scl-to-html:ra-idp-go       # ra-idp-go の SCL HTML
+bun run scl-to-html:ra-idp-go:full  # ADR / work item も含む全部入り HTML
 ```
 
 ソース構成:

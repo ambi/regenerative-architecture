@@ -3,12 +3,12 @@
  *
  * Layout:
  *   header  · system title + tab bar
- *   main    · sidebar (per-tab TOC) + the four <div class="tab"> panes
+ *   main    · sidebar (per-tab TOC) + available <div class="tab"> panes
  *
- * All four panes are rendered into the same HTML; client-side JS picks
+ * Available panes are rendered into the same HTML; client-side JS picks
  * one based on `#tab=<name>` (with the section anchor as a sibling
  * `&sec=<id>`). Without JS the page degrades to a single scrollable
- * document (every pane visible).
+ * document (every rendered pane visible).
  */
 
 import { esc } from './html.ts'
@@ -17,61 +17,32 @@ import { renderDecisionsTab, decisionsTocItems } from './render-decisions.ts'
 import { renderSclTab, sclTocItems } from './render-scl.ts'
 import type { SiteInput } from './types.ts'
 
-type TabKey = 'overview' | 'scl' | 'decisions' | 'work-items'
+type TabKey = 'scl' | 'decisions' | 'work-items'
 
 const TAB_LABELS: Record<TabKey, string> = {
-  overview: 'Overview',
   scl: 'SCL',
   decisions: 'Decisions',
   'work-items': 'Work Items',
 }
 
-const renderOverviewTab = (site: SiteInput): string => {
-  const { scl, decisions, work_items: workItems } = site
-  const sclSectionCount = sclTocItems(scl).length - 1
-  const adrCount = decisions.filter((d) => d.kind === 'adr').length
-  const conceptionCount = decisions.filter((d) => d.kind === 'conception').length
-  const inProgress = workItems.filter((c) => c.work_item.status === 'in_progress').length
-  const pending = workItems.filter((c) => c.work_item.status === 'pending').length
-  const completed = workItems.filter((c) => c.work_item.status === 'completed').length
-
-  return `<section id="ov-hero" class="tab-overview">
-    <header class="page-header">
-      <div class="eyebrow">Regenerative Architecture</div>
-      <h1>${esc(site.title ?? scl.system)}</h1>
-      <p class="lead">SCL spec ${esc(scl.spec_version)} — 仕様核と、それを支える設計判断・ワークアイテムを一つの文書にまとめたもの。</p>
-    </header>
-    <div class="overview-grid">
-      <a class="overview-tile" href="#tab=scl">
-        <div class="overview-tile-label">SCL</div>
-        <div class="overview-tile-num">${sclSectionCount}</div>
-        <div class="overview-tile-hint">sections present</div>
-      </a>
-      <a class="overview-tile" href="#tab=decisions">
-        <div class="overview-tile-label">Decisions</div>
-        <div class="overview-tile-num">${adrCount}</div>
-        <div class="overview-tile-hint">ADRs · ${conceptionCount} conception doc${conceptionCount === 1 ? '' : 's'}</div>
-      </a>
-      <a class="overview-tile" href="#tab=work-items">
-        <div class="overview-tile-label">Work Items</div>
-        <div class="overview-tile-num">${workItems.length}</div>
-        <div class="overview-tile-hint">${inProgress} in progress · ${pending} pending · ${completed} done</div>
-      </a>
-    </div>
-  </section>`
+const availableTabs = (site: SiteInput): TabKey[] => {
+  const tabs: TabKey[] = ['scl']
+  if (site.decisions.length > 0) tabs.push('decisions')
+  if (site.work_items.length > 0) tabs.push('work-items')
+  return tabs
 }
 
 const renderTab = (key: TabKey, body: string): string =>
   `<div class="tab" data-tab="${esc(key)}" id="tab-${esc(key)}">${body}</div>`
 
-const renderTabBar = (active: TabKey): string => {
-  const tabs = (['overview', 'scl', 'decisions', 'work-items'] as TabKey[])
+const renderTabBar = (tabs: TabKey[], active: TabKey): string => {
+  const links = tabs
     .map(
       (key) =>
         `<a class="tab-link${key === active ? ' active' : ''}" data-tab-link="${esc(key)}" href="#tab=${esc(key)}">${esc(TAB_LABELS[key])}</a>`,
     )
     .join('')
-  return `<nav class="tab-bar" aria-label="Tabs">${tabs}</nav>`
+  return `<nav class="tab-bar" aria-label="Tabs">${links}</nav>`
 }
 
 const renderTocFor = (key: TabKey, items: Array<{ id: string; label: string }>): string => {
@@ -186,8 +157,6 @@ main { min-width: 0; }
 
 section { margin-bottom: 56px; scroll-margin-top: 88px; }
 
-/* overview tab */
-.tab-overview { margin-bottom: 32px; }
 .page-header { margin-bottom: 24px; }
 .eyebrow {
   font-size: 11px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase;
@@ -207,25 +176,6 @@ section { margin-bottom: 56px; scroll-margin-top: 88px; }
 .stat:hover { border-color: var(--accent); text-decoration: none; transform: translateY(-1px); }
 .stat-num { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
 .stat-label { font-size: 12px; color: var(--muted); text-transform: capitalize; }
-
-.overview-grid {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px; margin-top: 24px;
-}
-.overview-tile {
-  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
-  padding: 22px; color: var(--fg); display: flex; flex-direction: column; gap: 6px;
-  transition: border-color .15s, transform .15s;
-}
-.overview-tile:hover {
-  border-color: var(--accent); text-decoration: none; transform: translateY(-1px);
-}
-.overview-tile-label {
-  font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
-  color: var(--accent);
-}
-.overview-tile-num { font-size: 36px; font-weight: 700; letter-spacing: -0.02em; }
-.overview-tile-hint { font-size: 13px; color: var(--muted); }
 
 section > h2 {
   font-size: 26px; margin: 0 0 6px; letter-spacing: -0.01em;
@@ -581,10 +531,10 @@ const SCRIPT = `
 (() => {
   document.documentElement.classList.add('js');
 
-  // Parse "#tab=foo&sec=bar" into { tab, sec }. Defaults to overview tab.
+  // Parse "#tab=foo&sec=bar" into { tab, sec }. Defaults to SCL tab.
   const parseHash = () => {
     const h = location.hash.replace(/^#/, '');
-    const out = { tab: 'overview', sec: '' };
+    const out = { tab: 'scl', sec: '' };
     if (!h) return out;
     if (!h.includes('=')) {
       // Bare anchor like "#models" — resolve the owning tab from the target node.
@@ -599,7 +549,7 @@ const SCRIPT = `
         const toc = document.querySelector('.toc a[data-sec="' + cssEscape(sec) + '"]');
         if (toc) {
           const tocBox = toc.closest('.toc');
-          out.tab = (tocBox && tocBox.getAttribute('data-toc-for')) || 'overview';
+          out.tab = (tocBox && tocBox.getAttribute('data-toc-for')) || 'scl';
         }
       }
       return out;
@@ -629,7 +579,7 @@ const SCRIPT = `
       t.classList.toggle('active', match);
       if (match) found = true;
     }
-    if (!found) name = 'overview';
+    if (!found) name = 'scl';
     for (const t of tabs) t.classList.toggle('active', t.getAttribute('data-tab') === name);
     for (const a of tabLinks) a.classList.toggle('active', a.getAttribute('data-tab-link') === name);
     for (const toc of tocs) toc.classList.toggle('active', toc.getAttribute('data-toc-for') === name);
@@ -682,23 +632,38 @@ const SCRIPT = `
 })();
 `
 
+const compactCss = (source: string): string =>
+  source
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/\s*([{}:;,>])\s*/g, '$1')
+    .trim()
+
+const compactJs = (source: string): string =>
+  source
+    .replace(/^\s*\/\/.*$/gm, '')
+    .replace(/[ \t]+$/gm, '')
+    .replace(/\n{2,}/g, '\n')
+    .trim()
+
 export const renderPage = (site: SiteInput): string => {
   const { scl, decisions, work_items: workItems } = site
   const title = site.title ?? scl.system
+  const tabsToRender = availableTabs(site)
+  const bodies: Record<TabKey, string> = {
+    scl: renderSclTab(scl),
+    decisions: renderDecisionsTab(decisions),
+    'work-items': renderChangesTab(workItems),
+  }
+  const tocItems: Record<TabKey, Array<{ id: string; label: string }>> = {
+    scl: sclTocItems(scl),
+    decisions: decisionsTocItems(decisions),
+    'work-items': changesTocItems(workItems),
+  }
 
-  const tabs = [
-    renderTab('overview', renderOverviewTab(site)),
-    renderTab('scl', renderSclTab(scl)),
-    renderTab('decisions', renderDecisionsTab(decisions)),
-    renderTab('work-items', renderChangesTab(workItems)),
-  ].join('\n')
+  const tabs = tabsToRender.map((key) => renderTab(key, bodies[key])).join('\n')
 
-  const tocs = [
-    renderTocFor('overview', [{ id: 'ov-hero', label: 'Overview' }]),
-    renderTocFor('scl', sclTocItems(scl)),
-    renderTocFor('decisions', decisionsTocItems(decisions)),
-    renderTocFor('work-items', changesTocItems(workItems)),
-  ].join('\n')
+  const tocs = tabsToRender.map((key) => renderTocFor(key, tocItems[key])).join('\n')
 
   const html = `<!doctype html>
 <html lang="en">
@@ -706,20 +671,20 @@ export const renderPage = (site: SiteInput): string => {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)}</title>
-<style>${CSS}</style>
+<style>${compactCss(CSS)}</style>
 </head>
 <body>
 <header class="app-header">
   <div class="app-header-row">
-    <a href="#tab=overview" class="app-title">${esc(title)}</a>
-    ${renderTabBar('overview')}
+    <a href="#tab=scl" class="app-title">${esc(title)}</a>
+    ${renderTabBar(tabsToRender, 'scl')}
   </div>
 </header>
 <div class="layout">
   <aside class="toc-wrap">${tocs}</aside>
   <main>${tabs}</main>
 </div>
-<script>${SCRIPT}</script>
+<script>${compactJs(SCRIPT)}</script>
 </body>
 </html>
 `

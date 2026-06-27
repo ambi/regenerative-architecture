@@ -63,7 +63,7 @@ describe('renderSclTab', () => {
     expect(html).toContain('id="objectives"')
   })
 
-  it('renders the spec version in the SCL overview banner', () => {
+  it('renders the spec version in the SCL tab header', () => {
     expect(html).toContain('spec 1.0')
   })
 
@@ -258,16 +258,26 @@ describe('renderPage (integration)', () => {
     expect(html).toContain('<script>')
   })
 
-  it('embeds all four tabs with data-tab markers', () => {
-    expect(html).toContain('data-tab="overview"')
+  it('embeds available tabs with data-tab markers', () => {
     expect(html).toContain('data-tab="scl"')
     expect(html).toContain('data-tab="decisions"')
     expect(html).toContain('data-tab="work-items"')
+    expect(html).not.toContain('data-tab="overview"')
   })
 
-  it('emits a tab bar with active overview by default (server side)', () => {
+  it('omits Decisions and Work Items tabs when no sources are loaded', () => {
+    const out = renderPage({ scl: sampleScl(), decisions: [], work_items: [] })
+    expect(out).toContain('data-tab="scl"')
+    expect(out).not.toContain('data-tab="overview"')
+    expect(out).not.toContain('data-tab="decisions"')
+    expect(out).not.toContain('data-tab="work-items"')
+    expect(out).not.toContain('data-tab-link="decisions"')
+    expect(out).not.toContain('data-tab-link="work-items"')
+  })
+
+  it('emits a tab bar with active SCL by default (server side)', () => {
     expect(html).toContain('tab-link active')
-    expect(html).toContain('data-tab-link="overview"')
+    expect(html).toContain('data-tab-link="scl"')
   })
 
   it('honours --title override in <title> and header', () => {

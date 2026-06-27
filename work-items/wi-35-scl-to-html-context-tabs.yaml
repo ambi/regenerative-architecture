@@ -1,0 +1,90 @@
+id: wi-35-scl-to-html-context-tabs
+title: scl-to-html の context 表示をタブ切り替えにする
+created_at: 2026-06-27
+status: completed
+authors: [tn]
+
+motivation: |
+  scl-to-html は root context_map と全 context SCL を単一の SCL タブ内へ縦に
+  展開するようになったが、ra-idp-go のように context 数と要素数が多い仕様では
+  すべての context が並び、目的の context を読むのが難しい。
+
+  root overview と各 bounded context を UI 上のタブで切り替えられるようにし、
+  context-local な閲覧と全体構造の把握を両立させる。
+
+scope:
+  tooling:
+    - SCL タブ内に Overview / Context Map / 各 context の切り替え UI を追加する。
+    - context ごとの Models / Interfaces / States / Scenarios / Permissions / UX をその context タブ内に表示する。
+    - URL hash または query state で選択中 context を共有・復元できるようにする。
+    - context-local anchor と cross-context link がタブ切り替え後も機能するようにする。
+    - context が 10 件以上でも横幅を破綻させないタブ配置にする。
+
+out_of_scope:
+  - Context Map、States、UX transitions の図表示。
+  - SCL 内容そのものの context 再配置。
+  - ra-idp-go 固有のスタイル分岐。
+
+affected_guarantees:
+  - 部分取得可能性: HTML でも context-local な単位で読める。
+  - 検証可能性: context bundle rendering とタブ状態をテストで固定する。
+  - 可読性: 大きな SCL でも閲覧単位が context ごとに分かれる。
+
+verification:
+  - cmd: bun test
+    in: tools
+  - cmd: bun run typecheck
+    in: tools
+  - cmd: bun run lint
+    in: tools
+  - cmd: bun run scl-to-html:ra-idp-go
+    in: tools
+
+risk: medium
+risk_notes: |
+  既存のアンカー、検索、リンク挙動に影響する。サーバーサイドで初期表示が
+  破綻しない構造にし、クライアント側のタブ切り替えは progressive enhancement
+  として実装する。
+
+completion:
+  completed_at: 2026-06-27
+  summary: |
+    SCL タブ内に Overview と各 bounded context の二段目タブを追加した。
+    root context_map は Overview pane に残し、context-local SCL は
+    data-scl-context-pane ごとの表示に分けた。
+
+    既存の context-local anchor prefix は維持し、URL hash の sec が指す要素から
+    所属する context pane を自動表示するようにした。context タブのリンクは
+    #tab=scl&sec=<context-anchor> を使うため、選択中 context は URL で共有・復元できる。
+  semantic_diff:
+    before:
+      context_display: 全 context SCL を SCL タブ内に縦一列で展開
+      navigation: TOC から context section へスクロールするだけ
+      hidden_state: context-local anchor が隠れた pane に入ることはない
+    after:
+      context_display: Overview と各 context を二段目タブで切り替える
+      navigation: hash router がリンク先 section の所属 context pane を自動表示する
+      hidden_state: hidden pane 内の anchor へ遷移すると pane を先に表示してからスクロールする
+  verification:
+    - cmd: bun test
+      in: tools
+      result: ok, 125 pass
+    - cmd: bun run typecheck
+      in: tools
+      result: ok
+    - cmd: bun run lint
+      in: tools
+      result: ok
+    - cmd: bun run yaml-check:all
+      in: tools
+      result: ok, 85 work item file(s) and 13 SCL file(s) OK
+    - cmd: bun run scl-to-html:ra-idp-go
+      in: tools
+      result: ok, generated ra-idp-go/spec/ra-idp-go.html with context tabs
+  affected_guarantees_state:
+    - 部分取得可能性: pass。HTML 上でも context ごとに表示単位を切り替えられる。
+    - 検証可能性: pass。context tab 用の renderer test を追加し、既存 bundle test も維持した。
+    - 可読性: pass。ra-idp-go の全 context が縦一列に並ばず、タブで読む対象を絞れる。
+  residual_risk:
+    - 実ブラウザでのキーボード操作性と視覚的な細部は未検証。生成 HTML は手元で作成済みだが、Playwright による画面検証は別途必要。
+    - context 数がさらに増えた場合は、タブを検索付き selector へ変える余地がある。

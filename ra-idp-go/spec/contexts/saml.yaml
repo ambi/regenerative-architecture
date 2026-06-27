@@ -1,0 +1,6 @@
+# ra-idp Saml — SCL
+# Generated from ra-idp-go/spec/scl.yaml during SCL 2.0 context split.
+
+system: ra-idp
+spec_version: "2.0"
+context: Saml

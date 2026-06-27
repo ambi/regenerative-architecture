@@ -1,0 +1,77 @@
+# ra-idp ClaimMapping — SCL
+# Generated from ra-idp-go/spec/scl.yaml during SCL 2.0 context split.
+
+system: ra-idp
+spec_version: "2.0"
+context: ClaimMapping
+models:
+  ClaimMappingSource:
+    kind: enum
+    description: claim 値の供給元。user_attribute は identity principal の属性、fixed は静的な固定値、 nameid は NameIdConfiguration が解決した NameID 値を claim にも反映する場合に使う (ADR-059)。
+    values:
+      - user_attribute
+      - fixed
+      - nameid
+  ClaimMappingRule:
+    kind: value_object
+    description: 1 つの出力 claim の宣言的 mapping。出力 claim 型 (URI) を source から組み立てる (ADR-059)。
+    fields:
+      claim_type:
+        type: String
+        constraints:
+          - non_empty
+        description: "出力する claim 型 URI (例: http://schemas.xmlsoap.org/claims/UPN)。"
+      source:
+        type: ClaimMappingSource
+        description: claim 値の供給元。
+      source_key:
+        type: String
+        optional: true
+        description: source=user_attribute のとき参照する属性名。
+      fixed_value:
+        type: String
+        optional: true
+        description: source=fixed のとき出力する固定値。
+      required:
+        type: Boolean
+        default: false
+        description: true のとき source が解決できなければ発行を拒否する (fail-closed)。
+  NameIdConfiguration:
+    kind: value_object
+    description: 発行 assertion の NameID (subject 識別子) の format と供給元 (ADR-059)。
+    fields:
+      format:
+        type: String
+        constraints:
+          - non_empty
+        description: "NameID format URI (例: urn:oasis:names:tc:SAML:2.0:nameid-format:persistent)。"
+      source_attribute:
+        type: String
+        constraints:
+          - non_empty
+        description: NameID 値を供給する identity 属性名。
+  ClaimMappingPolicy:
+    kind: value_object
+    description: RP/SP trust ごとの claim 発行規則一式。NameID と claim 規則集合を束ねる (ADR-059)。
+    fields:
+      name_id:
+        type: NameIdConfiguration
+        description: NameID の構成。
+      rules:
+        type: "ClaimMappingRule[]"
+        optional: true
+        description: 出力 claim 規則の集合 (空なら NameID のみ)。
+  IssuedClaim:
+    kind: value_object
+    description: claim 発行エンジンの出力。1 つの claim 型と、その値群 (ADR-059)。
+    fields:
+      claim_type:
+        type: String
+        constraints:
+          - non_empty
+        description: claim 型 URI。
+      values:
+        type: "String[]"
+        constraints:
+          - non_empty
+        description: claim の値群 (多値属性は複数値になる)。

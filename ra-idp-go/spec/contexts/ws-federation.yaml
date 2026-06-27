@@ -1,0 +1,390 @@
+# ra-idp WsFederation — SCL
+# Generated from ra-idp-go/spec/scl.yaml during SCL 2.0 context split.
+
+system: ra-idp
+spec_version: "2.0"
+context: WsFederation
+models:
+  WsFedTokenType:
+    kind: enum
+    description: WS-Federation で発行する assertion の SAML バージョン (RSTR の TokenType にもなる)。 SAML 1.1 (urn:oasis:names:tc:SAML:1.0:assertion) は Entra / AD FS の WS-Fed 既定 (wi-61)。
+    values:
+      - urn:oasis:names:tc:SAML:1.0:assertion
+      - urn:oasis:names:tc:SAML:2.0:assertion
+  WsFedRelyingParty:
+    kind: entity
+    description: "WS-Federation passive の relying party (RP) 登録。wtrealm で識別し、許可する wreply (返信先) の閉集合、audience、claim 発行 policy を束ねる。未登録 wtrealm・許可外 wreply は拒否する (open redirect 防止, fail-closed, ADR-059)。"
+    identity:
+      - tenant_id
+      - wtrealm
+    fields:
+      tenant_id:
+        type: String
+        default: default
+        description: 所属テナント ID (ADR-034)。
+      wtrealm:
+        type: String
+        constraints:
+          - non_empty
+        description: RP の識別子 (WS-Fed wtrealm / SAML audience)。
+      display_name:
+        type: String
+        optional: true
+        description: 管理 UI 表示名。
+      reply_urls:
+        type: "String[]"
+        constraints:
+          - non_empty
+        description: 許可する wreply の閉集合。wreply はこの集合との完全一致のみ受理する。
+      audience:
+        type: String
+        optional: true
+        description: 発行 assertion の audience。空なら wtrealm を用いる。
+      token_type:
+        type: WsFedTokenType
+        optional: true
+        description: 発行 assertion の SAML バージョン。空なら SAML 1.1 (Entra WS-Fed 互換の既定)。
+      claim_policy:
+        type: ClaimMappingPolicy
+        description: この RP 向けの claim 発行 policy (ADR-059)。
+      entra_profile:
+        type: EntraFederationProfile
+        optional: true
+        description: Microsoft Entra domain federation preset。設定時に required claims と sourceAnchor 変換を束ねる (wi-64)。
+      created_at:
+        type: Timestamp
+      updated_at:
+        type: Timestamp
+  EntraFederationProfile:
+    kind: value_object
+    description: Microsoft Entra domain federation 用 profile。IssuerUri、sourceAnchor 属性、 passive / active / MEX endpoint を束ね、UPN / ImmutableID / persistent NameID の claim preset を WS-Fed RP に適用する (wi-64)。
+    fields:
+      domain:
+        type: String
+        constraints:
+          - non_empty
+        description: Entra で検証済みの DNS domain。
+      issuer_uri:
+        type: String
+        constraints:
+          - non_empty
+        description: Entra に登録する IssuerUri。発行 token の issuer / RP wtrealm と一致させる。
+      source_anchor_attribute:
+        type: String
+        constraints:
+          - non_empty
+        description: ImmutableID の元になる不変 user 属性。objectGUID の GUID 文字列または既に base64 化済みの値。
+      immutable_id_attribute:
+        type: String
+        constraints:
+          - non_empty
+        description: 変換後 ImmutableID を格納する合成属性名。既定 entra_immutable_id。
+      passive_logon_uri:
+        type: Uri
+        description: Entra PassiveLogOnUri。通常 /wsfed。
+      active_logon_uri:
+        type: Uri
+        description: Entra ActiveLogOnUri。通常 /trust/usernamemixed。
+      metadata_exchange_uri:
+        type: Uri
+        description: Entra MetadataExchangeUri。通常 /trust/mex。
+  SecurityTokenEndpoint:
+    kind: value_object
+    description: WS-Trust / WS-Federation metadata に広告する STS endpoint。受理する認証方式と binding を表す (wi-62)。
+    fields:
+      url:
+        type: Uri
+        description: 公開 endpoint URL。
+      binding:
+        type: String
+        constraints:
+          - non_empty
+        description: "例: usernamemixed, mex, passive。"
+      auth_methods:
+        type: "String[]"
+        constraints:
+          - non_empty
+        description: "受理する認証方式。例: UsernameToken。"
+  WsTrustRequestSecurityToken:
+    kind: value_object
+    description: WS-Trust 1.3 Issue binding の RST から検証対象を抽出した中間表現 (wi-62)。
+    fields:
+      message_id:
+        type: String
+        constraints:
+          - non_empty
+        description: WS-Addressing MessageID。replay 防止に使う。
+      to:
+        type: Uri
+        description: WS-Addressing To。要求先 STS endpoint。
+      username:
+        type: String
+        constraints:
+          - non_empty
+        description: WS-Security UsernameToken username。
+      created_at:
+        type: Timestamp
+        description: WS-Security Timestamp Created。
+      expires_at:
+        type: Timestamp
+        description: WS-Security Timestamp Expires。
+      applies_to:
+        type: String
+        constraints:
+          - non_empty
+        description: 対象 RP / audience。登録済み WsFedRelyingParty に解決する。
+      token_type:
+        type: WsFedTokenType
+        optional: true
+        description: 要求 token type。空なら RP 既定。
+  WsTrustResponse:
+    kind: value_object
+    description: WS-Trust Issue に対する RSTR。署名済み SAML assertion と lifetime / appliesTo を含む (wi-62)。
+    fields:
+      relates_to:
+        type: String
+        optional: true
+        description: 元 RST の MessageID。
+      applies_to:
+        type: String
+        constraints:
+          - non_empty
+      token_type:
+        type: WsFedTokenType
+      issued_at:
+        type: Timestamp
+      expires_at:
+        type: Timestamp
+      assertion_id:
+        type: String
+        optional: true
+  WsFedSignInIssued:
+    kind: event
+    description: WS-Federation passive sign-in で署名済み assertion を RP へ発行した (wi-61)。
+    payload:
+      occurredAt:
+        type: Timestamp
+      tenantId:
+        type: String
+        description: 発行したテナント ID。
+      wtrealm:
+        type: String
+        description: 発行先 RP の wtrealm。
+      sub:
+        type: String
+        description: subject (NameID 由来の user)。
+  WsFedSignInRejected:
+    kind: event
+    description: "WS-Federation passive sign-in を拒否した (未登録 wtrealm・許可外 wreply・検証失敗など, wi-61)。"
+    payload:
+      occurredAt:
+        type: Timestamp
+      tenantId:
+        type: String
+        description: 拒否したテナント ID。
+      wtrealm:
+        type: String
+        optional: true
+        description: 要求された wtrealm (判明していれば)。
+      reason:
+        type: String
+        description: 拒否理由の要約。
+  WsFedSignOut:
+    kind: event
+    description: WS-Federation sign-out でローカルセッションを破棄した (wi-61)。
+    payload:
+      occurredAt:
+        type: Timestamp
+      tenantId:
+        type: String
+        description: sign-out したテナント ID。
+      wtrealm:
+        type: String
+        optional: true
+        description: sign-out を要求した RP の wtrealm (判明していれば)。
+  WsTrustTokenIssued:
+    kind: event
+    description: WS-Trust active STS で署名済み assertion を発行した (wi-62)。
+    payload:
+      occurredAt:
+        type: Timestamp
+      tenantId:
+        type: String
+        description: 発行したテナント ID。
+      appliesTo:
+        type: String
+        description: 発行先 RP / audience。
+      sub:
+        type: String
+        description: subject user。
+  WsTrustTokenRejected:
+    kind: event
+    description: WS-Trust active STS の Issue 要求を拒否した (wi-62)。
+    payload:
+      occurredAt:
+        type: Timestamp
+      tenantId:
+        type: String
+        description: 拒否したテナント ID。
+      appliesTo:
+        type: String
+        optional: true
+        description: 要求された AppliesTo (判明していれば)。
+      reason:
+        type: String
+        description: 拒否理由の要約。
+  EntraFederationConfigured:
+    kind: event
+    description: Microsoft Entra domain federation preset を設定し、対応する WS-Fed RP trust を upsert した (wi-64)。
+    payload:
+      occurredAt:
+        type: Timestamp
+      tenantId:
+        type: String
+        description: 設定したテナント ID。
+      domain:
+        type: String
+        description: Entra 検証済み domain。
+      issuerUri:
+        type: String
+        description: Entra に登録する IssuerUri。
+interfaces:
+  WsFederationSignIn:
+    description: WS-Federation passive requestor profile の sign-in (wi-61)。wtrealm で relying party を解決し、 wreply を許可集合に限定する (open redirect 防止)。未認証はログインへ誘導し、認証済みなら relying party の claim policy で発行した claim を署名済み SAML assertion (既定 SAML 1.1 / Entra 互換、RP 設定で SAML 2.0、ADR-060) に 載せ、RSTR に包んで自動 POST する。wfresh が示す最大経過時間より認証が古ければ再認証へ誘導し、wauth が要求する 認証方式を尊重する (満たせない統合 Windows 認証等は fail-closed で拒否、無音サインインは wi-65)。
+    steps:
+      - "wtrealm {wtrealm} へ wreply {wreply} で sign-in する"
+    input:
+      wa:
+        type: String
+        description: wsignin1.0。
+      wtrealm:
+        type: String
+        description: relying party 識別子。
+      wreply:
+        type: String
+        optional: true
+        description: 返信先。許可集合との完全一致のみ。
+      wctx:
+        type: String
+        optional: true
+        description: RP が往復させる不透明コンテキスト。
+      wfresh:
+        type: String
+        optional: true
+        description: 再認証の最大経過時間 (分)。古ければ再認証へ誘導する。
+      wauth:
+        type: String
+        optional: true
+        description: 要求された認証方式 URI。満たせなければ拒否する。
+      whr:
+        type: String
+        optional: true
+        description: home realm のヒント。
+    bindings:
+      - kind: http
+        method: GET
+        path: /wsfed
+        request_form: query
+        successful_status_codes:
+          - "200"
+          - "303"
+  WsFederationSignOut:
+    description: WS-Federation sign-out (wi-61)。ローカルセッションを破棄する。wsignout1.0 は許可済み wreply への リダイレクトまで行い、wsignoutcleanup1.0 は破棄のみで 200 を返す。
+    steps:
+      - "wtrealm {wtrealm} へ wreply {wreply} で sign-out する"
+    input:
+      wa:
+        type: String
+        description: wsignout1.0 または wsignoutcleanup1.0。
+      wtrealm:
+        type: String
+        optional: true
+      wreply:
+        type: String
+        optional: true
+        description: 返信先。許可集合との完全一致のみ。
+    bindings:
+      - kind: http
+        method: GET
+        path: /wsfed
+        request_form: query
+        successful_status_codes:
+          - "200"
+          - "303"
+  WsTrustIssue:
+    description: WS-Trust 1.3 active STS Issue endpoint (wi-62)。UsernameToken を検証し、 AppliesTo を登録済み WsFedRelyingParty に解決する。RP の claim policy で組み立てた claim を署名済み SAML assertion に載せ、RSTR として返す。未登録 AppliesTo、期限切れ Timestamp、不正な Action / RequestType / TokenType は fail-closed で拒否する。
+    steps:
+      - "username {username} と applies_to {applies_to} で security token を要求する"
+    input:
+      request:
+        type: WsTrustRequestSecurityToken
+    output:
+      response:
+        type: WsTrustResponse
+    errors:
+      - InvalidRequestError
+      - AccessDeniedError
+    emits:
+      - WsTrustTokenIssued
+      - WsTrustTokenRejected
+    bindings:
+      - kind: http
+        method: POST
+        path: /trust/usernamemixed
+        request_body: xml
+  WsTrustMetadataExchange:
+    description: WS-Trust MEX endpoint (wi-62)。active STS の usernamemixed endpoint、UsernameToken policy、WS-Addressing / SOAP binding を realm issuer から派生して広告する。
+    output:
+      endpoint:
+        type: SecurityTokenEndpoint
+    read_only: true
+    bindings:
+      - kind: http
+        method: GET
+        path: /trust/mex
+        successful_status_codes:
+          - "200"
+  PublishWsFederationMetadata:
+    description: WS-Federation / WS-Trust metadata publication (wi-63)。realm entityID、passive endpoint、 active STS endpoint、MEX endpoint、token 署名検証用証明書を AD FS 互換 federationmetadata.xml として公開する。
+    output:
+      endpoint:
+        type: SecurityTokenEndpoint
+    read_only: true
+    bindings:
+      - kind: http
+        method: GET
+        path: /federationmetadata/2007-06/federationmetadata.xml
+        successful_status_codes:
+          - "200"
+  ConfigureEntraFederation:
+    description: Microsoft Entra domain federation preset を設定する (wi-64)。検証済み domain、 IssuerUri、sourceAnchor 属性を受け取り、sourceAnchor が既存 user で欠落・重複しないこと、 GUID または base64 ImmutableID として正規化できることを検証する。成功時は UPN / ImmutableID / persistent NameID の claim preset を持つ WsFedRelyingParty を upsert し、Entra に登録する PassiveLogOnUri / ActiveLogOnUri / MetadataExchangeUri を返す。 Hybrid Azure AD Join device registration は windowstransport + コンピュータアカウント Kerberos を要するため未提供として診断に含める。
+    input:
+      domain:
+        type: String
+        description: Entra で検証済みの DNS domain。
+      issuer_uri:
+        type: String
+        optional: true
+        description: 空なら domain から安定生成する IssuerUri。
+      source_anchor_attribute:
+        type: String
+        description: ImmutableID の元になる不変 user 属性。
+      reply_url:
+        type: Uri
+        optional: true
+        description: Entra が wreply に使う URL。空なら Microsoft Online の既定 URL。
+    output:
+      profile:
+        type: EntraFederationProfile
+      relying_party:
+        type: WsFedRelyingParty
+    errors:
+      - InvalidRequestError
+      - AccessDeniedError
+    emits:
+      - EntraFederationConfigured
+    bindings:
+      - kind: http
+        method: POST
+        path: /api/admin/wsfed/entra-federation
+        request_body: json

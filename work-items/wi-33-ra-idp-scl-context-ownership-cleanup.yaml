@@ -1,0 +1,45 @@
+id: wi-33-ra-idp-scl-context-ownership-cleanup
+title: ra-idp-go SCL の System 集約要素を正しい context へ再配置する
+created_at: 2026-06-27
+status: pending
+authors: [tn]
+
+motivation: |
+  ra-idp-go の context 分割後、System context に Standards、Glossary、
+  User Experience が大量に残っている。しかしそれらの多くは横断共有物ではなく、
+  OAuth2、Authentication、Application、IdentityManagement など特定の
+  bounded context の言語・標準・UX に属する。
+
+  System context が実質的な雑多置き場になると、context-local SCL の部分取得性と
+  所有境界が弱くなる。System には本当に横断的な外部標準、共有語彙、
+  全体 UX だけを残し、context 固有の要素はそれぞれの context SCL へ移す。
+
+scope:
+  examples:
+    - ra-idp-go/spec/contexts/system.yaml の standards / glossary / user_experience を棚卸しする。
+    - context 固有の standard entry を該当 context の standards へ移す。
+    - context 固有の glossary entry を該当 context の glossary へ移す。
+    - context 固有の UX screen / transition / requirement を該当 context の user_experience または scenarios へ移す。
+    - System context には複数 context が同じ意味で参照する標準・語彙・体験だけを残す。
+
+out_of_scope:
+  - SCL schema の構造変更。
+  - HTML レンダラーの UI 変更。
+  - Go 実装、OpenAPI、生成コードの更新。
+
+affected_guarantees:
+  - 部分取得可能性: context 固有の語彙・標準・UX をその context SCL だけで取得できる。
+  - 単一上流ソース性: 所有 context と配置先が一致する。
+  - 検証可能性: 再配置後も全 SCL ファイルが schema 検証を通る。
+
+verification:
+  - cmd: bun run yaml-check:all
+    in: tools
+  - cmd: bun run scl-to-html:ra-idp-go
+    in: tools
+
+risk: medium
+risk_notes: |
+  要素の意味的な所有 context を判断する作業であり、誤配置すると context 間の
+  公開言語が曖昧になる。context_map の depends_on / publishes と各要素の名前、
+  関連 interface / scenario / permission を照合しながら移す。

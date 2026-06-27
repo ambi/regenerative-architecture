@@ -19,11 +19,10 @@ import {
   typeText,
 } from './html.ts'
 import {
-  type AssuranceObligation,
   type Binding,
-  type BoundedContext,
-  type EvidenceRequirement,
+  type ContextMapEntry,
   type Field,
+  type GlossaryEntry,
   type Interface,
   type Invariant,
   type Model,
@@ -31,19 +30,20 @@ import {
   type Permission,
   type Scenario,
   SECTION_KINDS,
+  type SclBundle,
+  type SclContextDocument,
   type SclDocument,
   type SectionKind,
   type Standard,
   type StateMachine,
   type UserExperience,
-  type Vocabulary,
 } from './types.ts'
 
 // ─── cross-section references ──────────────────────────────────────
 
 const referenceAnchor = (section: string, name: string): string | undefined => {
   const prefixes: Record<string, string> = {
-    vocabulary: 'vocab',
+    glossary: 'glossary',
     models: 'model',
     events: 'model',
     interfaces: 'iface',
@@ -53,11 +53,39 @@ const referenceAnchor = (section: string, name: string): string | undefined => {
     permissions: 'perm',
     objectives: 'obj',
     standards: 'std',
-    assurance: 'assurance',
-    bounded_contexts: 'bc',
+    context_map: 'ctx',
   }
   const prefix = prefixes[section]
   return prefix ? `#${prefix}-${slug(name)}` : undefined
+}
+
+const prefixAnchors = (html: string, prefix: string): string => {
+  const knownIds = new Set([...SECTION_KINDS, 'scl-overview'])
+  const idRe = new RegExp(
+    `^(${[
+      'std',
+      'req',
+      'ctx',
+      'glossary',
+      'model',
+      'iface',
+      'state',
+      'inv',
+      'scn',
+      'perm',
+      'obj',
+      'screen',
+      'ux',
+    ].join('|')})-`,
+  )
+  const shouldPrefix = (id: string): boolean => knownIds.has(id) || idRe.test(id)
+  return html
+    .replace(/\bid="([^"]+)"/g, (_m, id: string) =>
+      shouldPrefix(id) ? `id="${esc(`${prefix}-${id}`)}"` : `id="${esc(id)}"`,
+    )
+    .replace(/\bhref="#([^"]+)"/g, (_m, id: string) =>
+      shouldPrefix(id) ? `href="#${esc(`${prefix}-${id}`)}"` : `href="#${esc(id)}"`,
+    )
 }
 
 const renderNamedReferences = (refs?: Record<string, string[]>): string => {
@@ -113,8 +141,12 @@ const ioTable = (io: Record<string, Field>, label: string): string => {
     .map(
       ([k, f]) => `<tr>
     <td><code class="name">${esc(k)}</code></td>
-    <td><code class="type">${esc(typeText(f.type))}</code></td>
-    <td>${f.optional ? badge('optional', 'optional') : badge('required', 'required')}</td>
+    <td>${
+      f.fields
+        ? `<div class="label">inline</div>${fieldsTable(f.fields)}`
+        : `<code class="type">${esc(typeText(f.type))}</code>`
+    }</td>
+    <td>${f.fields ? '' : f.optional ? badge('optional', 'optional') : badge('required', 'required')}</td>
     <td>${f.description ? esc(f.description) : ''}</td>
   </tr>`,
     )
@@ -221,62 +253,52 @@ const renderStandards = (standards: Record<string, Standard>): string => {
   )
 }
 
-// ─── section: bounded_contexts ─────────────────────────────────────
+// ─── section: context_map ──────────────────────────────────────────
 
-const OWNS_ORDER: Array<[keyof BoundedContext, string]> = [
-  ['owns_models', 'models'],
-  ['owns_states', 'states'],
-  ['owns_events', 'events'],
-  ['owns_interfaces', 'interfaces'],
-  ['owns_invariants', 'invariants'],
-  ['owns_permissions', 'permissions'],
-  ['owns_objectives', 'objectives'],
-]
-
-const renderBoundedContext = (name: string, c: BoundedContext): string => {
+const renderContextMapEntry = (name: string, c: ContextMapEntry): string => {
   const desc = c.description ? `<p class="desc">${esc(c.description)}</p>` : ''
-  const refs: Record<string, string[]> = {}
-  for (const [key, label] of OWNS_ORDER) {
-    const items = c[key] as string[] | undefined
-    if (items?.length) refs[label] = items
-  }
-  const deps = (c.depends_on ?? [])
-    .map((d) => {
-      const ref = d.bounded_context
-        ? link(`#bc-${slug(d.bounded_context)}`, d.bounded_context, 'ref')
-        : '<span class="muted">?</span>'
-      return `<li>${ref}${d.reason ? ` <span class="muted">— ${esc(d.reason)}</span>` : ''}</li>`
+  const publishes = c.publishes?.length
+    ? `<div class="reference-row"><span class="reference-label">publishes</span>${c.publishes
+        .map((item) => chip(item, 'ref'))
+        .join(' ')}</div>`
+    : ''
+  const deps = Object.entries(c.depends_on ?? {})
+    .map(([depName, dep]) => {
+      const ref = link(`#ctx-${slug(depName)}`, depName, 'ref')
+      const uses = dep.uses?.length ? ` ${dep.uses.map((item) => chip(item)).join(' ')}` : ''
+      const via = dep.via ? badge(dep.via, 'hint') : ''
+      return `<li>${ref} ${via}${uses}${dep.reason ? ` <span class="muted">— ${esc(dep.reason)}</span>` : ''}</li>`
     })
     .join('')
   const depsBlock = deps
     ? `<div class="io"><div class="label">Depends on</div><ul class="vlist">${deps}</ul></div>`
     : ''
   const ann = renderAnnotations(c.annotations)
-  return `<article class="card" id="bc-${esc(slug(name))}">
-    <header><h3>${esc(name)}</h3></header>
+  return `<article class="card" id="ctx-${esc(slug(name))}">
+    <header><h3>${esc(name)}</h3>${c.path ? chip(c.path, 'hint') : ''}</header>
     ${desc}
-    ${renderNamedReferences(refs)}
+    ${publishes}
     ${depsBlock}
     ${ann ? `<dl class="kv">${kvRow('annotations', ann)}</dl>` : ''}
   </article>`
 }
 
-const renderBoundedContexts = (boundedContexts: Record<string, BoundedContext>): string => {
-  const cards = Object.entries(boundedContexts)
-    .map(([n, c]) => renderBoundedContext(n, c))
+const renderContextMap = (contextMap: Record<string, ContextMapEntry>): string => {
+  const cards = Object.entries(contextMap)
+    .map(([n, c]) => renderContextMapEntry(n, c))
     .join('\n')
   return wrapSection(
-    'bounded_contexts',
-    'Bounded Contexts',
-    'DDD の bounded context。所有関係と依存方向を宣言する。',
+    'context_map',
+    'Context Map',
+    'Bounded Context 間の公開言語と依存方向。',
     `<div class="cards">${cards}</div>`,
-    Object.keys(boundedContexts).length,
+    Object.keys(contextMap).length,
   )
 }
 
-// ─── section: vocabulary ───────────────────────────────────────────
+// ─── section: glossary ─────────────────────────────────────────────
 
-const renderVocab = (entries: Record<string, Vocabulary>): string => {
+const renderGlossary = (entries: Record<string, GlossaryEntry>): string => {
   const items = Object.entries(entries)
     .map(([name, v]) => {
       const def = v.definition ?? v.description ?? ''
@@ -296,7 +318,7 @@ const renderVocab = (entries: Record<string, Vocabulary>): string => {
           .join('')}</ul>
       </div>`
         : ''
-      return `<article class="vocab-entry" id="vocab-${esc(slug(name))}">
+      return `<article class="vocab-entry" id="glossary-${esc(slug(name))}">
       <div class="vocab-name"><code class="name">${esc(name)}</code>${ctx}</div>
       <div class="vocab-body">
         ${def ? `<p class="def">${esc(def)}</p>` : ''}
@@ -308,9 +330,9 @@ const renderVocab = (entries: Record<string, Vocabulary>): string => {
     })
     .join('\n')
   return wrapSection(
-    'vocabulary',
-    'Vocabulary',
-    '本仕様で使うドメイン用語の定義。PascalCase が正準名、aliases は実装上の別表記。',
+    'glossary',
+    'Glossary',
+    '曖昧語、別名、翻訳、外部標準語を説明する補助用語集。',
     `<div class="vocab-list">${items}</div>`,
     Object.keys(entries).length,
   )
@@ -735,15 +757,47 @@ const renderScenario = (name: string, s: Scenario, xref: Map<string, string>): s
   const tags = s.tags?.length ? s.tags.map((t) => chip(t, 'tag')).join(' ') : ''
   const desc = s.description ? `<p class="desc">${esc(s.description)}</p>` : ''
   const ann = renderAnnotations(s.annotations)
+  const metaRows = [
+    s.goal ? kvRow('goal', esc(s.goal)) : '',
+    s.primary_actor ? kvRow('primary actor', chip(s.primary_actor)) : '',
+    s.scope ? kvRow('scope', chip(s.scope)) : '',
+    s.level ? kvRow('level', chip(s.level)) : '',
+  ]
+    .filter(Boolean)
+    .join('')
+  const listBlock = (label: string, items?: string[]) =>
+    items?.length
+      ? `<div class="sub"><div class="label">${esc(label)}</div><ul class="vlist">${items
+          .map((item) => `<li>${renderStepText(item, xref)}</li>`)
+          .join('')}</ul></div>`
+      : ''
   const steps = (s.steps ?? [])
     .map((st) => `<li class="scn-step">${renderStepText(String(st), xref)}</li>`)
+    .join('')
+  const mainSuccess = (s.main_success ?? [])
+    .map((st) => `<li class="scn-step">${renderStepText(String(st), xref)}</li>`)
+    .join('')
+  const extensions = (s.extensions ?? [])
+    .map(
+      (ext) => `<article class="requirement">
+        <header>${ext.at !== undefined ? chip(`at ${ext.at}`, 'hint') : ''}<code class="name">${esc(ext.condition ?? '')}</code></header>
+        <ol class="scn-steps">${(ext.steps ?? [])
+          .map((st) => `<li class="scn-step">${renderStepText(String(st), xref)}</li>`)
+          .join('')}</ol>
+      </article>`,
+    )
     .join('')
   const where = s.where?.length ? renderWhere(s.where) : ''
   return `<article class="card scenario" id="scn-${esc(slug(name))}">
     <header><h3>${esc(name)}</h3>${tags}</header>
     ${desc}
+    ${metaRows ? `<dl class="kv">${metaRows}</dl>` : ''}
     ${ann ? `<dl class="kv">${kvRow('annotations', ann)}</dl>` : ''}
-    <ol class="scn-steps">${steps}</ol>
+    ${listBlock('Preconditions', s.preconditions)}
+    ${listBlock('Success guarantees', s.success_guarantees)}
+    ${mainSuccess ? `<div class="sub"><div class="label">Main success</div><ol class="scn-steps">${mainSuccess}</ol></div>` : ''}
+    ${steps ? `<div class="sub"><div class="label">Steps</div><ol class="scn-steps">${steps}</ol></div>` : ''}
+    ${extensions ? `<div class="sub"><div class="label">Extensions</div><div class="requirements">${extensions}</div></div>` : ''}
     ${where}
   </article>`
 }
@@ -768,7 +822,7 @@ const renderPermission = (name: string, p: Permission): string => {
   const triple = (
     [
       ['actor', p.actor],
-      ['action', p.action],
+      ['operation', p.operation],
       ['resource', p.resource],
     ] as const
   )
@@ -777,6 +831,17 @@ const renderPermission = (name: string, p: Permission): string => {
     )
     .join('')
   const clauses: string[] = []
+  if (p.protects?.length) {
+    clauses.push(
+      `<div class="reference-row"><span class="reference-label">protects</span>${p.protects
+        .map((target) => {
+          const [section, name] = target.split('.', 2)
+          const href = section && name ? referenceAnchor(section, name) : undefined
+          return href ? link(href, target, 'ref') : chip(target)
+        })
+        .join(' ')}</div>`,
+    )
+  }
   if (p.allow_when !== undefined)
     clauses.push(
       `<div class="clause"><div class="clause-label ok">allow when</div>${renderExpression(p.allow_when)}</div>`,
@@ -851,81 +916,6 @@ const renderObjectives = (objs: Record<string, Objective>): string => {
     })
     .join('\n')
   return wrapSection('objectives', 'Objectives', '', groups, Object.keys(objs).length)
-}
-
-// ─── section: assurance ────────────────────────────────────────────
-
-const renderAcceptance = (acc: unknown): string => {
-  if (acc === null || acc === undefined) return ''
-  if (isObj(acc)) {
-    if (typeof acc.evidence === 'string' && typeof acc.criterion === 'string') {
-      return `<div class="acceptance-leaf"><code class="name">${esc(acc.evidence)}</code> <span class="muted">— ${esc(acc.criterion)}</span></div>`
-    }
-    if (Array.isArray(acc.all)) {
-      return `<div class="acceptance"><div class="acceptance-label">ALL</div><ul class="vlist">${acc.all
-        .map((x) => `<li>${renderAcceptance(x)}</li>`)
-        .join('')}</ul></div>`
-    }
-    if (Array.isArray(acc.any)) {
-      return `<div class="acceptance"><div class="acceptance-label">ANY</div><ul class="vlist">${acc.any
-        .map((x) => `<li>${renderAcceptance(x)}</li>`)
-        .join('')}</ul></div>`
-    }
-    if (acc.not !== undefined) {
-      return `<div class="acceptance"><div class="acceptance-label">NOT</div>${renderAcceptance(acc.not)}</div>`
-    }
-  }
-  return renderValue(acc)
-}
-
-const renderAssurance = (obligations: Record<string, AssuranceObligation>): string => {
-  const cards = Object.entries(obligations)
-    .map(([name, obligation]) => {
-      const evidence = Object.entries(obligation.evidence ?? {})
-        .map(([evName, req]: [string, EvidenceRequirement]) => {
-          const attributes = [
-            req.kind ? badge(req.kind, `kind-${req.kind}`) : '',
-            req.producer ? chip(`producer: ${req.producer}`, 'hint') : '',
-            req.evaluation ? chip(`evaluation: ${req.evaluation}`, 'hint') : '',
-            req.recheck ? chip(`recheck: ${req.recheck}`, 'hint') : '',
-          ]
-            .filter(Boolean)
-            .join(' ')
-          return `<article class="requirement">
-            <header><code class="name">${esc(evName)}</code>${attributes}</header>
-            ${req.environments?.length ? `<div class="chip-row">${req.environments.map((environment) => chip(environment)).join(' ')}</div>` : ''}
-            ${renderNamedReferences(req.covers)}
-            ${req.procedure ? `<p><strong>procedure:</strong> <code>${esc(req.procedure)}</code></p>` : ''}
-            ${req.oracle ? `<p><strong>oracle:</strong> ${esc(req.oracle)}</p>` : ''}
-          </article>`
-        })
-        .join('')
-      const approval = obligation.approval
-        ? `<dl class="kv">
-            ${obligation.approval.role ? kvRow('approval role', chip(obligation.approval.role)) : ''}
-            ${obligation.approval.when?.length ? kvRow('approval when', obligation.approval.when.map((condition) => chip(condition)).join(' ')) : ''}
-            ${obligation.approval.decision_record !== undefined ? kvRow('decision record', badge(obligation.approval.decision_record)) : ''}
-          </dl>`
-        : ''
-      return `<article class="card" id="assurance-${esc(slug(name))}">
-        <header><h3>${esc(name)}</h3>${obligation.risk_level ? badge(obligation.risk_level, `severity-${obligation.risk_level}`) : ''}</header>
-        ${obligation.claim ? `<p class="desc"><strong>claim:</strong> ${esc(obligation.claim)}</p>` : ''}
-        ${obligation.risk ? `<p><strong>risk:</strong> ${esc(obligation.risk)}</p>` : ''}
-        ${renderNamedReferences(obligation.derived_from)}
-        ${obligation.acceptance !== undefined ? `<div class="io"><div class="label">Acceptance</div>${renderAcceptance(obligation.acceptance)}</div>` : ''}
-        ${evidence ? `<div class="io"><div class="label">Evidence</div><div class="requirements">${evidence}</div></div>` : ''}
-        ${approval}
-        ${obligation.annotations ? `<dl class="kv">${kvRow('annotations', renderAnnotations(obligation.annotations))}</dl>` : ''}
-      </article>`
-    })
-    .join('\n')
-  return wrapSection(
-    'assurance',
-    'Assurance',
-    '規範要件を満たしたと判定するための主張、リスク、合否基準、必要な検証。',
-    `<div class="cards">${cards}</div>`,
-    Object.keys(obligations).length,
-  )
 }
 
 // ─── section: user_experience ──────────────────────────────────────
@@ -1032,8 +1022,8 @@ const wrapSection = (
 
 export const SECTION_TITLES: Record<SectionKind, string> = {
   standards: 'Standards',
-  bounded_contexts: 'Bounded Contexts',
-  vocabulary: 'Vocabulary',
+  context_map: 'Context Map',
+  glossary: 'Glossary',
   models: 'Models',
   interfaces: 'Interfaces',
   states: 'States',
@@ -1041,7 +1031,6 @@ export const SECTION_TITLES: Record<SectionKind, string> = {
   scenarios: 'Scenarios',
   permissions: 'Permissions',
   objectives: 'Objectives',
-  assurance: 'Assurance',
   user_experience: 'User Experience',
 }
 
@@ -1049,10 +1038,10 @@ const renderOneSection = (k: SectionKind, scl: SclDocument): string => {
   switch (k) {
     case 'standards':
       return scl.standards ? renderStandards(scl.standards) : ''
-    case 'bounded_contexts':
-      return scl.bounded_contexts ? renderBoundedContexts(scl.bounded_contexts) : ''
-    case 'vocabulary':
-      return scl.vocabulary ? renderVocab(scl.vocabulary) : ''
+    case 'context_map':
+      return scl.context_map ? renderContextMap(scl.context_map) : ''
+    case 'glossary':
+      return scl.glossary ? renderGlossary(scl.glossary) : ''
     case 'models':
       return scl.models ? renderModels(scl.models) : ''
     case 'interfaces':
@@ -1067,8 +1056,6 @@ const renderOneSection = (k: SectionKind, scl: SclDocument): string => {
       return scl.permissions ? renderPermissions(scl.permissions) : ''
     case 'objectives':
       return scl.objectives ? renderObjectives(scl.objectives) : ''
-    case 'assurance':
-      return scl.assurance ? renderAssurance(scl.assurance) : ''
     case 'user_experience':
       return scl.user_experience ? renderUserExperience(scl.user_experience) : ''
   }
@@ -1077,7 +1064,10 @@ const renderOneSection = (k: SectionKind, scl: SclDocument): string => {
 export const sclSectionsPresent = (scl: SclDocument): SectionKind[] =>
   SECTION_KINDS.filter((k) => scl[k] !== undefined)
 
-export const renderSclTab = (scl: SclDocument): string => {
+const isSclBundle = (scl: SclDocument | SclBundle): scl is SclBundle =>
+  'root' in scl && 'contexts' in scl
+
+const renderSingleSclTab = (scl: SclDocument): string => {
   const sections = sclSectionsPresent(scl)
     .map((k) => renderOneSection(k, scl))
     .filter(Boolean)
@@ -1102,7 +1092,89 @@ export const renderSclTab = (scl: SclDocument): string => {
   ${sections}`
 }
 
-export const sclTocItems = (scl: SclDocument): Array<{ id: string; label: string }> => [
-  { id: 'scl-overview', label: 'Overview' },
-  ...sclSectionsPresent(scl).map((k) => ({ id: k, label: SECTION_TITLES[k] })),
+const renderContextDocument = (ctx: SclContextDocument): string => {
+  const contextName = ctx.document.context ?? ctx.name
+  const prefix = `context-${slug(contextName)}`
+  const sections = sclSectionsPresent(ctx.document)
+    .filter((k) => k !== 'context_map')
+    .map((k) => prefixAnchors(renderOneSection(k, ctx.document), prefix))
+    .filter(Boolean)
+    .join('\n')
+  const stats = sclSectionsPresent(ctx.document)
+    .filter((k) => k !== 'context_map')
+    .map((k) => {
+      const section = ctx.document[k]
+      const n =
+        k === 'user_experience'
+          ? Object.keys(ctx.document.user_experience?.screens ?? {}).length
+          : Object.keys(section as Record<string, unknown>).length
+      return `<a class="stat" href="#${esc(`${prefix}-${k}`)}"><span class="stat-num">${n}</span><span class="stat-label">${esc(SECTION_TITLES[k].toLowerCase())}</span></a>`
+    })
+    .join('')
+  return `<section id="${esc(prefix)}" class="context-document">
+    <header class="page-header">
+      <div class="eyebrow">Bounded Context · ${esc(ctx.path)}</div>
+      <h1>${esc(contextName)}</h1>
+    </header>
+    <div class="stats">${stats}</div>
+  </section>
+  ${sections}`
+}
+
+export const renderSclTab = (input: SclDocument | SclBundle): string => {
+  if (!isSclBundle(input)) return renderSingleSclTab(input)
+  const root = `<div class="scl-context-pane active" data-scl-context-pane="overview">
+    ${renderSingleSclTab(input.root)}
+  </div>`
+  const contextLinks = input.contexts
+    .map((ctx) => {
+      const contextName = ctx.document.context ?? ctx.name
+      const prefix = `context-${slug(contextName)}`
+      return `<a class="context-tab-link" data-scl-context-link="${esc(prefix)}" href="${esc(`#tab=scl&sec=${prefix}`)}">${esc(contextName)}</a>`
+    })
+    .join('')
+  const contextNav = `<nav class="context-tab-bar" aria-label="SCL contexts">
+    <a class="context-tab-link active" data-scl-context-link="overview" href="${esc('#tab=scl&sec=scl-overview')}">Overview</a>
+    ${contextLinks}
+  </nav>`
+  const contexts = input.contexts
+    .map((ctx) => {
+      const contextName = ctx.document.context ?? ctx.name
+      const prefix = `context-${slug(contextName)}`
+      return `<div class="scl-context-pane" data-scl-context-pane="${esc(prefix)}">
+        ${renderContextDocument(ctx)}
+      </div>`
+    })
+    .join('\n')
+  return `${contextNav}\n${root}${contexts ? `\n${contexts}` : ''}`
+}
+
+export interface SclTocItem {
+  id: string
+  label: string
+  sclContext?: string
+}
+
+const singleSclTocItems = (scl: SclDocument, sclContext?: string): SclTocItem[] => [
+  { id: 'scl-overview', label: 'Overview', sclContext },
+  ...sclSectionsPresent(scl).map((k) => ({ id: k, label: SECTION_TITLES[k], sclContext })),
 ]
+
+const contextTocItems = (ctx: SclContextDocument): SclTocItem[] => {
+  const contextName = ctx.document.context ?? ctx.name
+  const prefix = `context-${slug(contextName)}`
+  return [
+    { id: prefix, label: 'Overview', sclContext: prefix },
+    ...sclSectionsPresent(ctx.document)
+      .filter((k) => k !== 'context_map')
+      .map((k) => ({ id: `${prefix}-${k}`, label: SECTION_TITLES[k], sclContext: prefix })),
+  ]
+}
+
+export const sclTocItems = (input: SclDocument | SclBundle): SclTocItem[] => {
+  if (!isSclBundle(input)) return singleSclTocItems(input)
+  return [
+    ...singleSclTocItems(input.root, 'overview'),
+    ...input.contexts.flatMap((ctx) => contextTocItems(ctx)),
+  ]
+}

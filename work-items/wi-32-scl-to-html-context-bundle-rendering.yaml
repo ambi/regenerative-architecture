@@ -1,0 +1,91 @@
+id: wi-32-scl-to-html-context-bundle-rendering
+title: scl-to-html で context 分割 SCL を単一 HTML に展開する
+created_at: 2026-06-27
+status: completed
+authors: [tn]
+
+motivation: |
+  ra-idp-go/spec/scl.yaml は SCL 2.0 の root context_map として分割されたが、
+  scl-to-html は root ファイル単体だけを描画していた。そのため生成 HTML では
+  context map だけが表示され、各 bounded context の models / interfaces /
+  scenarios などをまとめて確認できなかった。
+
+scope:
+  tooling:
+    - scl-to-html が root context_map.path の SCL ファイルを読み込む。
+    - root SCL と context-local SCL 群を同じ SCL タブへ展開する。
+    - context-local な HTML アンカーを prefix して root や他 context と衝突させない。
+    - 非 ASCII 名だけの scenario でも空 ID にならないよう slug を安定化する。
+
+out_of_scope:
+  - context ごとの別タブ化。
+  - context map の依存グラフ描画。
+  - 状態遷移図や UX 遷移図の専用ビジュアライズ。
+
+affected_guarantees:
+  - 部分取得可能性: context-local SCL を保ったまま HTML では全体閲覧できる。
+  - 単一上流ソース性: root context_map.path を HTML 生成時の読み込み正本にする。
+  - 検証可能性: context bundle 読み込みとアンカー prefix をテストで固定する。
+
+verification:
+  - cmd: bun test
+    in: tools
+  - cmd: bun run typecheck
+    in: tools
+  - cmd: bun run lint
+    in: tools
+  - cmd: bun run yaml-check:all
+    in: tools
+  - cmd: bun run scl-to-html:ra-idp-go
+    in: tools
+
+risk: medium
+risk_notes: |
+  HTML のアンカー体系を拡張するため中リスク。root SCL の既存アンカーは維持し、
+  context-local SCL だけ `context-<name>-...` の prefix を付けることで衝突を避ける。
+
+completion:
+  completed_at: 2026-06-27
+  summary: |
+    loadSclBundle を追加し、root SCL の context_map.path を root ファイルからの
+    相対パスとして読み込むようにした。renderSclTab は SclDocument 単体と
+    SclBundle の両方を受け付け、bundle の場合は root の後ろに各 context SCL を
+    Bounded Context セクションとして展開する。
+
+    context-local な section/card/link は `context-<context>-...` に prefix し、同じ
+    HTML 内で root や他 context のアンカーと衝突しないようにした。日本語だけの
+    scenario 名など ASCII slug が空になるケースは、安定ハッシュ slug に fallback する。
+  semantic_diff:
+    before:
+      html_input: --scl の単一 YAML だけを描画
+      root_context_map: context_map.path は表示されるだけで読み込まれない
+      context_sections: 分割済み SCL の中身は HTML に出ない
+    after:
+      html_input: --scl の root YAML と context_map.path の context YAML を bundle として描画
+      root_context_map: context_map.path が HTML 生成時の読み込み対象になる
+      context_sections: 各 context の Models / Interfaces / States / Scenarios などが同じ SCL タブに出る
+  verification:
+    - cmd: bun test
+      in: tools
+      result: ok, 124 pass
+    - cmd: bun run typecheck
+      in: tools
+      result: ok
+    - cmd: bun run lint
+      in: tools
+      result: ok
+    - cmd: bun run yaml-check:all
+      in: tools
+      result: ok, 80 work item file(s) and 13 SCL file(s) OK
+    - cmd: bun run scl-to-html:ra-idp-go
+      in: tools
+      result: ok, generated ra-idp-go/spec/ra-idp-go.html with context sections
+  affected_guarantees_state:
+    - 部分取得可能性: pass。SCL ファイルは context-local のまま、HTML では root から束ねて閲覧できる。
+    - 単一上流ソース性: pass。context_map.path が context SCL 読み込みの正本になった。
+    - 検証可能性: pass。bundle loader、context rendering、anchor prefix、slug fallback をテストした。
+  residual_risk:
+    - context 数と要素数が多い場合、単一 HTML は大きくなる。必要になれば context 折りたたみや lazy rendering を別作業で検討する。
+    - context 間参照リンクは context-local prefix の範囲で安定化したが、公開言語をまたぐ厳密な cross-context link 解決は未実装。
+  human_decisions:
+    - root context_map だけでなく、各 context SCL も同じ HTML でまとめて見る。

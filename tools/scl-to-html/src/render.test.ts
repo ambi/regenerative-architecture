@@ -8,12 +8,12 @@ import { renderPage } from './page.ts'
 import { renderChangesTab } from './render-changes.ts'
 import { renderDecisionsTab } from './render-decisions.ts'
 import { renderSclTab, sclTocItems } from './render-scl.ts'
-import type { ChangeEntry, DecisionDoc, SclDocument, SiteInput } from './types.ts'
+import type { ChangeEntry, DecisionDoc, SclBundle, SclDocument, SiteInput } from './types.ts'
 
 const sampleScl = (): SclDocument => ({
   system: 'demo',
-  spec_version: '1.0',
-  vocabulary: {
+  spec_version: '2.0',
+  glossary: {
     Foo: { definition: 'a thing' },
   },
   models: {
@@ -35,7 +35,13 @@ const sampleScl = (): SclDocument => ({
     },
   },
   permissions: {
-    P: { actor: 'User', action: 'Do', resource: 'Foo', allow_when: 'true' },
+    P: {
+      actor: 'User',
+      protects: ['interfaces.DoIt'],
+      operation: 'do',
+      resource: 'Foo',
+      allow_when: 'true',
+    },
   },
   invariants: {
     I: { description: 'always', always: 'x == y' },
@@ -54,7 +60,7 @@ describe('renderSclTab', () => {
   const html = renderSclTab(sampleScl())
 
   it('contains every present-section anchor', () => {
-    expect(html).toContain('id="vocabulary"')
+    expect(html).toContain('id="glossary"')
     expect(html).toContain('id="models"')
     expect(html).toContain('id="interfaces"')
     expect(html).toContain('id="permissions"')
@@ -64,7 +70,7 @@ describe('renderSclTab', () => {
   })
 
   it('renders the spec version in the SCL tab header', () => {
-    expect(html).toContain('spec 1.0')
+    expect(html).toContain('spec 2.0')
   })
 
   it('renders composite identity as a comma-joined string', () => {
@@ -89,6 +95,69 @@ describe('renderSclTab', () => {
     const items = sclTocItems(sampleScl())
     expect(items.map((i) => i.id)).toContain('models')
     expect(items.map((i) => i.id)).toContain('scenarios')
+  })
+})
+
+describe('renderSclTab with context documents', () => {
+  const bundle: SclBundle = {
+    root: {
+      system: 'demo',
+      spec_version: '2.0',
+      context_map: {
+        Application: { path: 'contexts/application.yaml' },
+      },
+    },
+    contexts: [
+      {
+        name: 'Application',
+        path: 'contexts/application.yaml',
+        document: {
+          system: 'demo',
+          spec_version: '2.0',
+          context: 'Application',
+          models: {
+            Application: {
+              kind: 'entity',
+              identity: 'id',
+              fields: { id: { type: 'UUID' } },
+            },
+          },
+          scenarios: {
+            'application flow': {
+              steps: ['"Application" を読む'],
+            },
+          },
+        },
+      },
+    ],
+  }
+  const html = renderSclTab(bundle)
+
+  it('renders root context map and referenced context documents in one SCL tab', () => {
+    expect(html).toContain('id="context_map"')
+    expect(html).toContain('id="context-application"')
+    expect(html).toContain('id="context-application-models"')
+    expect(html).toContain('Bounded Context · contexts/application.yaml')
+  })
+
+  it('renders context documents behind second-level context tabs', () => {
+    expect(html).toContain('class="context-tab-link active"')
+    expect(html).toContain('data-scl-context-link="overview"')
+    expect(html).toContain('data-scl-context-link="context-application"')
+    expect(html).toContain('data-scl-context-pane="overview"')
+    expect(html).toContain('data-scl-context-pane="context-application"')
+    expect(html).toContain('href="#tab=scl&amp;sec=context-application"')
+  })
+
+  it('prefixes context-local anchors to avoid collisions with root sections', () => {
+    expect(html).toContain('id="context-application-model-application"')
+    expect(html).toContain('href="#context-application-model-application"')
+  })
+
+  it('lists context sections in TOC items', () => {
+    const items = sclTocItems(bundle)
+    expect(items.map((i) => i.id)).toContain('context-application')
+    expect(items.map((i) => i.id)).toContain('context-application-models')
   })
 })
 

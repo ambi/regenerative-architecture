@@ -292,14 +292,18 @@ describe('validateAgainstSchema — scl', () => {
     expect(f).toEqual([])
   })
 
-  it('requires permissions to have actor, action, resource', () => {
+  it('requires permissions to have actor and resource, and rejects legacy action', () => {
     const f = validateAgainstSchema(
       'scl',
-      { system: 'demo', spec_version: '1.0', permissions: { P: { actor: 'User' } } },
+      {
+        system: 'demo',
+        spec_version: '2.0',
+        permissions: { P: { actor: 'User', action: 'Do' } },
+      },
       '',
     )
-    expect(f.some((x) => x.message.includes('action'))).toBe(true)
     expect(f.some((x) => x.message.includes('resource'))).toBe(true)
+    expect(f.some((x) => x.message.includes('additional properties'))).toBe(true)
   })
 
   it('requires invariants to declare always / never / eventually', () => {

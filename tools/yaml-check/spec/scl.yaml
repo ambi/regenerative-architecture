@@ -9,13 +9,13 @@
 #           フィールド/フラグ = snake_case (CLI フラグは kebab-case)。
 
 system: yaml-check
-spec_version: "1.0"
+spec_version: "2.0"
 
 # =================================================================
-# 1. vocabulary
+# 1. glossary
 # =================================================================
 
-vocabulary:
+glossary:
 
   YamlInput:
     definition: 検査対象となる UTF-8 テキストファイル。拡張子は通常 .yaml だが、ツール側は内容ベースで処理する。

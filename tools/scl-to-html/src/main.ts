@@ -21,7 +21,7 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { parseCliArgs } from './args.ts'
-import { loadChanges, loadDecisions, loadScl } from './load.ts'
+import { loadChanges, loadDecisions, loadSclBundle } from './load.ts'
 import { renderPage } from './page.ts'
 
 const argv = process.argv.slice(2)
@@ -41,7 +41,7 @@ const sclPath = resolve(process.cwd(), sclArg)
 const decisionsPath = decisionsArg ? resolve(process.cwd(), decisionsArg) : null
 const workItemsPath = workItemsArg ? resolve(process.cwd(), workItemsArg) : null
 
-const scl = await loadScl(sclPath)
+const scl = await loadSclBundle(sclPath)
 const decisions = decisionsPath ? await loadDecisions(decisionsPath) : []
 const workItems = workItemsPath ? await loadChanges(workItemsPath) : []
 

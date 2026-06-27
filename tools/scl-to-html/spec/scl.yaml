@@ -10,10 +10,10 @@ system: scl-to-html
 spec_version: "2.0"
 
 # =================================================================
-# 1. vocabulary
+# 1. glossary
 # =================================================================
 
-vocabulary:
+glossary:
 
   SclDocument:
     definition: 入力となる SCL 形式の YAML 文書。
@@ -42,15 +42,15 @@ vocabulary:
 
   Section:
     definition: |
-      SCL の論理単位。standards / bounded_contexts / vocabulary / models /
+      SCL の論理単位。standards / context_map / glossary / models /
       interfaces / states / invariants / scenarios / permissions /
-      objectives / assurance / user_experience の 12 種。
+      objectives / user_experience の 11 種。
 
   CrossReference:
     definition: |
       ある宣言が他の宣言を名前で参照する関係。interfaces.errors /
       interfaces.emits、scenarios の自然文ステップに引用された既知の名前、
-      assurance.derived_from、bounded_contexts.depends_on などが該当する。
+      context_map.depends_on などが該当する。
     aliases: [xref]
 
   Render:
@@ -70,8 +70,8 @@ models:
     kind: enum
     values:
       - standards
-      - bounded_contexts
-      - vocabulary
+      - context_map
+      - glossary
       - models
       - interfaces
       - states
@@ -79,7 +79,6 @@ models:
       - scenarios
       - permissions
       - objectives
-      - assurance
       - user_experience
 
   DecisionKind:
@@ -94,8 +93,8 @@ models:
       spec_version:    { type: String, constraints: [non_empty] }
       annotations:     { type: Map, optional: true }
       standards:       { type: Map, optional: true }
-      bounded_contexts:      { type: Map, optional: true }
-      vocabulary:      { type: Map, optional: true }
+      context_map:      { type: Map, optional: true }
+      glossary:      { type: Map, optional: true }
       models:          { type: Map, optional: true }
       interfaces:      { type: Map, optional: true }
       states:          { type: Map, optional: true }
@@ -103,7 +102,6 @@ models:
       scenarios:       { type: Map, optional: true }
       permissions:     { type: Map, optional: true }
       objectives:      { type: Map, optional: true }
-      assurance:       { type: Map, optional: true }
       user_experience: { type: Map, optional: true }
 
   DecisionDoc:
@@ -284,9 +282,9 @@ scenarios:
 
   最小の SCL でも HTML になり、無いセクションは出力されない:
     steps:
-      - vocabulary だけを持つ最小の SCL を用意する
+      - glossary だけを持つ最小の SCL を用意する
       - "それを Render に渡す"
-      - 出力に vocabulary セクションが含まれる
+      - 出力に glossary セクションが含まれる
       - 出力に models セクションは現れない
 
   ユーザ文字列の HTML 特殊文字はエスケープされる:

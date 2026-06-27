@@ -18,6 +18,7 @@ import { renderSclTab, sclTocItems } from './render-scl.ts'
 import type { SiteInput } from './types.ts'
 
 type TabKey = 'scl' | 'decisions' | 'work-items'
+type TocItem = { id: string; label: string; sclContext?: string }
 
 const TAB_LABELS: Record<TabKey, string> = {
   scl: 'SCL',
@@ -45,11 +46,16 @@ const renderTabBar = (tabs: TabKey[], active: TabKey): string => {
   return `<nav class="tab-bar" aria-label="Tabs">${links}</nav>`
 }
 
-const renderTocFor = (key: TabKey, items: Array<{ id: string; label: string }>): string => {
+const renderTocFor = (key: TabKey, items: TocItem[]): string => {
   const list = items
     .map(
-      (item) =>
-        `<li><a data-sec="${esc(item.id)}" href="#tab=${esc(key)}&sec=${esc(item.id)}">${esc(item.label)}</a></li>`,
+      (item) => {
+        const contextAttr =
+          key === 'scl' && item.sclContext
+            ? ` data-scl-context-item="${esc(item.sclContext)}"`
+            : ''
+        return `<li${contextAttr}><a data-sec="${esc(item.id)}" href="${esc(`#tab=${key}&sec=${item.id}`)}">${esc(item.label)}</a></li>`
+      },
     )
     .join('')
   return `<nav class="toc" data-toc-for="${esc(key)}" aria-label="${esc(TAB_LABELS[key])} contents">
@@ -148,12 +154,36 @@ code { background: var(--code-bg); padding: 1px 6px; border-radius: 4px; font-si
   background: var(--accent-soft); color: var(--accent); font-weight: 600;
   border-left-color: var(--accent);
 }
+.js .toc li[data-scl-context-item] { display: none; }
+.js .toc li[data-scl-context-item].context-visible { display: list-item; }
 main { min-width: 0; }
 
 /* tab panes — JS hides inactive ones; no-JS shows all */
 .tab { display: block; }
 .js .tab { display: none; }
 .js .tab.active { display: block; }
+
+.context-tab-bar {
+  position: sticky; top: 57px; z-index: 5;
+  display: flex; gap: 4px; flex-wrap: wrap; align-items: center;
+  margin: -8px 0 24px; padding: 8px 0 10px;
+  background: color-mix(in srgb, var(--bg) 94%, transparent);
+  backdrop-filter: saturate(180%) blur(8px);
+  border-bottom: 1px solid var(--border);
+}
+.context-tab-link {
+  display: inline-flex; align-items: center; min-height: 30px;
+  padding: 5px 10px; border-radius: 8px; font-size: 13px;
+  color: var(--fg-soft); border: 1px solid transparent;
+}
+.context-tab-link:hover { background: var(--surface-2); color: var(--fg); text-decoration: none; }
+.context-tab-link.active {
+  background: var(--accent-soft); color: var(--accent); font-weight: 600;
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.scl-context-pane { display: block; }
+.js .scl-context-pane { display: none; }
+.js .scl-context-pane.active { display: block; }
 
 section { margin-bottom: 56px; scroll-margin-top: 88px; }
 
@@ -319,7 +349,7 @@ table.fields thead th {
 table.fields tbody tr:last-child td { border-bottom: none; }
 .enum-vals { display: flex; flex-wrap: wrap; gap: 4px; }
 
-/* vocabulary */
+/* glossary */
 .vocab-list { display: grid; gap: 12px; margin-top: 12px; }
 .vocab-entry {
   background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
@@ -571,6 +601,9 @@ const SCRIPT = `
   const tabs = Array.from(document.querySelectorAll('[data-tab]'));
   const tabLinks = Array.from(document.querySelectorAll('[data-tab-link]'));
   const tocs = Array.from(document.querySelectorAll('[data-toc-for]'));
+  const sclContextPanes = Array.from(document.querySelectorAll('[data-scl-context-pane]'));
+  const sclContextLinks = Array.from(document.querySelectorAll('[data-scl-context-link]'));
+  const sclContextTocItems = Array.from(document.querySelectorAll('[data-scl-context-item]'));
 
   const showTab = (name) => {
     let found = false;
@@ -586,9 +619,38 @@ const SCRIPT = `
     return name;
   };
 
+  const showSclContextPane = (name) => {
+    if (!sclContextPanes.length) return;
+    let paneName = name || 'overview';
+    if (!sclContextPanes.some((pane) => pane.getAttribute('data-scl-context-pane') === paneName)) {
+      paneName = 'overview';
+    }
+    for (const pane of sclContextPanes) {
+      pane.classList.toggle('active', pane.getAttribute('data-scl-context-pane') === paneName);
+    }
+    for (const link of sclContextLinks) {
+      link.classList.toggle('active', link.getAttribute('data-scl-context-link') === paneName);
+    }
+    for (const item of sclContextTocItems) {
+      item.classList.toggle('context-visible', item.getAttribute('data-scl-context-item') === paneName);
+    }
+  };
+
+  const showSclContextForSection = (sec) => {
+    if (!sclContextPanes.length) return;
+    if (!sec) {
+      showSclContextPane('overview');
+      return;
+    }
+    const el = document.getElementById(sec);
+    const pane = el && el.closest('[data-scl-context-pane]');
+    showSclContextPane((pane && pane.getAttribute('data-scl-context-pane')) || 'overview');
+  };
+
   const route = () => {
     const { tab, sec } = parseHash();
     const active = showTab(tab);
+    if (active === 'scl') showSclContextForSection(sec);
     if (sec) {
       const el = document.getElementById(sec);
       if (el) {
@@ -604,7 +666,10 @@ const SCRIPT = `
   const setActiveLink = (tab) => {
     const toc = document.querySelector('.toc[data-toc-for="' + cssEscape(tab) + '"]');
     if (!toc) return;
-    const links = Array.from(toc.querySelectorAll('a[data-sec]'));
+    const links = Array.from(toc.querySelectorAll('a[data-sec]')).filter((a) => {
+      const item = a.closest('[data-scl-context-item]');
+      return !item || item.classList.contains('context-visible');
+    });
     if (!links.length) return;
     const sections = links
       .map((a) => document.getElementById(a.getAttribute('data-sec')))
@@ -646,9 +711,12 @@ const compactJs = (source: string): string =>
     .replace(/\n{2,}/g, '\n')
     .trim()
 
+const sclSystem = (site: SiteInput): string =>
+  'root' in site.scl ? site.scl.root.system : site.scl.system
+
 export const renderPage = (site: SiteInput): string => {
   const { scl, decisions, work_items: workItems } = site
-  const title = site.title ?? scl.system
+  const title = site.title ?? sclSystem(site)
   const tabsToRender = availableTabs(site)
   const bodies: Record<TabKey, string> = {
     scl: renderSclTab(scl),

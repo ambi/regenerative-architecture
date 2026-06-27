@@ -39,6 +39,10 @@ describe('slug', () => {
   it('preserves digits', () => {
     expect(slug('ADR-024-key-rotation')).toBe('adr-024-key-rotation')
   })
+  it('falls back to a stable non-empty slug for non-ASCII names', () => {
+    expect(slug('管理者はアプリを作成できる')).toMatch(/^u-[a-z0-9]+$/)
+    expect(slug('管理者はアプリを作成できる')).toBe(slug('管理者はアプリを作成できる'))
+  })
 })
 
 describe('chip / link / badge', () => {

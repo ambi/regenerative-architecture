@@ -5,11 +5,11 @@
  * directory path to avoid stale results across runs.
  */
 
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, describe, expect, it } from 'bun:test'
-import { loadChanges, loadDecisions, loadScl } from './load.ts'
+import { loadChanges, loadDecisions, loadScl, loadSclBundle } from './load.ts'
 
 const cleanup: string[] = []
 afterAll(async () => {
@@ -39,6 +39,44 @@ describe('loadScl', () => {
     const path = join(dir, 'scl.yaml')
     await writeFile(path, '- a\n- b\n')
     await expect(loadScl(path)).rejects.toThrow()
+  })
+})
+
+describe('loadSclBundle', () => {
+  it('loads context documents referenced by root context_map paths', async () => {
+    const dir = await tempDir()
+    await mkdir(join(dir, 'contexts'))
+    await writeFile(
+      join(dir, 'scl.yaml'),
+      [
+        'system: demo',
+        'spec_version: "2.0"',
+        'context_map:',
+        '  App:',
+        '    path: contexts/application.yaml',
+      ].join('\n') + '\n',
+    )
+    await writeFile(
+      join(dir, 'contexts', 'application.yaml'),
+      [
+        'system: demo',
+        'spec_version: "2.0"',
+        'context: Application',
+        'models:',
+        '  App:',
+        '    kind: entity',
+        '    identity: id',
+        '    fields:',
+        '      id: { type: UUID }',
+      ].join('\n') + '\n',
+    )
+
+    const bundle = await loadSclBundle(join(dir, 'scl.yaml'))
+    expect(bundle.root.system).toBe('demo')
+    expect(bundle.contexts).toHaveLength(1)
+    expect(bundle.contexts[0]?.name).toBe('App')
+    expect(bundle.contexts[0]?.path).toBe('contexts/application.yaml')
+    expect(bundle.contexts[0]?.document.context).toBe('Application')
   })
 })
 

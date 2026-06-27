@@ -10,8 +10,8 @@
 
 export const SECTION_KINDS = [
   'standards',
-  'bounded_contexts',
-  'vocabulary',
+  'context_map',
+  'glossary',
   'models',
   'interfaces',
   'states',
@@ -19,7 +19,6 @@ export const SECTION_KINDS = [
   'scenarios',
   'permissions',
   'objectives',
-  'assurance',
   'user_experience',
 ] as const
 
@@ -28,10 +27,11 @@ export type SectionKind = (typeof SECTION_KINDS)[number]
 export interface SclDocument {
   system: string
   spec_version: string
+  context?: string
   annotations?: Record<string, unknown>
   standards?: Record<string, Standard>
-  bounded_contexts?: Record<string, BoundedContext>
-  vocabulary?: Record<string, Vocabulary>
+  context_map?: Record<string, ContextMapEntry>
+  glossary?: Record<string, GlossaryEntry>
   models?: Record<string, Model>
   interfaces?: Record<string, Interface>
   states?: Record<string, StateMachine>
@@ -39,21 +39,26 @@ export interface SclDocument {
   scenarios?: Record<string, Scenario>
   permissions?: Record<string, Permission>
   objectives?: Record<string, Objective>
-  assurance?: Record<string, AssuranceObligation>
   user_experience?: UserExperience
 }
 
-export interface BoundedContext {
+export interface ContextMapEntry {
+  path?: string
   description?: string
-  owns_models?: string[]
-  owns_states?: string[]
-  owns_events?: string[]
-  owns_interfaces?: string[]
-  owns_invariants?: string[]
-  owns_permissions?: string[]
-  owns_objectives?: string[]
-  depends_on?: Array<{ bounded_context?: string; reason?: string }>
+  publishes?: string[]
+  depends_on?: Record<string, { uses?: string[]; via?: string; reason?: string }>
   annotations?: Record<string, unknown>
+}
+
+export interface SclContextDocument {
+  name: string
+  path: string
+  document: SclDocument
+}
+
+export interface SclBundle {
+  root: SclDocument
+  contexts: SclContextDocument[]
 }
 
 export interface Standard {
@@ -103,7 +108,7 @@ export interface UserExperience {
   }>
 }
 
-export interface Vocabulary {
+export interface GlossaryEntry {
   definition?: string
   description?: string
   aliases?: string[]
@@ -114,6 +119,7 @@ export interface Vocabulary {
 
 export interface Field {
   type?: unknown
+  fields?: Record<string, Field>
   optional?: boolean
   default?: unknown
   constraints?: unknown[]
@@ -178,6 +184,14 @@ export interface Scenario {
   description?: string
   annotations?: Record<string, unknown>
   tags?: string[]
+  goal?: string
+  primary_actor?: string
+  scope?: string
+  level?: string
+  preconditions?: string[]
+  success_guarantees?: string[]
+  main_success?: string[]
+  extensions?: Array<{ at?: string | number; condition?: string; steps?: string[] }>
   steps?: string[]
   where?: Array<Record<string, unknown>>
 }
@@ -186,7 +200,8 @@ export interface Permission {
   description?: string
   annotations?: Record<string, unknown>
   actor?: string
-  action?: string
+  protects?: string[]
+  operation?: string
   resource?: string
   allow_when?: unknown
   deny_when?: unknown
@@ -197,32 +212,6 @@ export interface Objective {
   description?: string
   annotations?: Record<string, unknown>
   [k: string]: unknown
-}
-
-export interface AssuranceObligation {
-  claim?: string
-  risk?: string
-  risk_level?: string
-  derived_from?: Record<string, string[]>
-  acceptance?: unknown
-  evidence?: Record<string, EvidenceRequirement>
-  approval?: {
-    when?: string[]
-    role?: string
-    decision_record?: boolean
-  }
-  annotations?: Record<string, unknown>
-}
-
-export interface EvidenceRequirement {
-  kind?: string
-  producer?: string
-  evaluation?: string
-  environments?: string[]
-  recheck?: string
-  covers?: Record<string, string[]>
-  procedure?: string
-  oracle?: string
 }
 
 // ─── Decisions (CONCEPTION + ADR) ──────────────────────────────────
@@ -285,7 +274,7 @@ export interface ChangeEntry {
 // ─── Top-level page input ──────────────────────────────────────────
 
 export interface SiteInput {
-  scl: SclDocument
+  scl: SclDocument | SclBundle
   decisions: DecisionDoc[]
   work_items: ChangeEntry[]
   /** Optional override for the document <title> and page header. */

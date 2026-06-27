@@ -13,11 +13,20 @@ export const esc = (s: unknown): string =>
     .replace(/"/g, '&quot;')
 
 /** Normalize an arbitrary string into a stable kebab-case anchor fragment. */
-export const slug = (s: string): string =>
-  s
+export const slug = (s: string): string => {
+  const normalized = s
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
+  if (normalized) return normalized
+
+  let hash = 2166136261
+  for (const ch of s) {
+    hash ^= ch.codePointAt(0) ?? 0
+    hash = Math.imul(hash, 16777619)
+  }
+  return `u-${(hash >>> 0).toString(36)}`
+}
 
 export const isObj = (v: unknown): v is Record<string, unknown> =>
   v !== null && typeof v === 'object' && !Array.isArray(v)

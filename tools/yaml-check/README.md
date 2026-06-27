@@ -36,7 +36,7 @@ bun yaml-check --help
 
 ```bash
 bun run yaml-check:work-items          # */work-items/*.yaml
-bun run yaml-check:scl                 # ra-idp-go / scl-to-html / yaml-check の SCL 3 本
+bun run yaml-check:scl                 # ra-idp-go の context 分割 SCL 群 + tools SCL
 bun run yaml-check:all                 # 上 2 つを直列で
 ```
 

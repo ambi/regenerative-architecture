@@ -1,0 +1,46 @@
+id: wi-36-scl-to-html-diagram-views
+title: scl-to-html に Context Map・状態遷移・UX 遷移の図表示を追加する
+created_at: 2026-06-27
+status: pending
+authors: [tn]
+
+motivation: |
+  HTML 版 SCL はテキストと表で構造を確認できるが、context 間依存、
+  state machine、UX screen transition は関係性を図で見た方が理解しやすい。
+  特に ra-idp-go のような複数 protocol / 複数 context の仕様では、
+  図表示がないと全体像と遷移の把握に時間がかかる。
+
+scope:
+  tooling:
+    - Context Map を context node と dependency edge の図として表示する。
+    - States を state node と transition edge の図として表示する。
+    - User Experience の screens / transitions を画面遷移図として表示する。
+    - 図と既存の詳細カードを相互リンクさせる。
+    - 図が大きい場合でも pan / zoom / fit-to-view できるようにする。
+    - 静的 HTML として生成しても図が表示される実装方式を選ぶ。
+
+out_of_scope:
+  - SCL の context 再配置。
+  - scenarios の SCL 2.0 移行。
+  - context タブ UI の導入。
+
+affected_guarantees:
+  - 可視化可能性: context map、state transitions、UX transitions を図として確認できる。
+  - 単一上流ソース性: 図は SCL YAML から派生生成され、手書き図を正本にしない。
+  - 検証可能性: 代表的な context map / state / UX transition の描画出力をテストで固定する。
+
+verification:
+  - cmd: bun test
+    in: tools
+  - cmd: bun run typecheck
+    in: tools
+  - cmd: bun run lint
+    in: tools
+  - cmd: bun run scl-to-html:ra-idp-go
+    in: tools
+
+risk: medium
+risk_notes: |
+  図の自動レイアウトは仕様サイズに左右される。初期実装では過度に複雑な
+  レイアウト最適化を避け、SCL から安定した node / edge を生成することと、
+  大きい図でも閲覧操作で破綻しないことを優先する。

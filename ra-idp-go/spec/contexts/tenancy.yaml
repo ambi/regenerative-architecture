@@ -1,0 +1,552 @@
+# ra-idp Tenancy — SCL
+# Generated from ra-idp-go/spec/scl.yaml during SCL 2.0 context split.
+
+system: ra-idp
+spec_version: "2.0"
+context: Tenancy
+models:
+  TenantStatus:
+    kind: enum
+    description: "ADR-032 のテナント状態。Active は通常稼働、Disabled はテナント全体のプロトコル受付を停止 (`/authorize` `/token` 等が一律 invalid_request)。"
+    values:
+      - Active
+      - Disabled
+  AttributeType:
+    kind: enum
+    description: 属性値の sum type discriminator (ADR-040)。OIDC 標準クレームの組み込み属性と tenant 定義 custom 属性の両方で共通。
+    values:
+      - String
+      - Number
+      - Boolean
+      - Date
+      - StringArray
+  AttrVisibility:
+    kind: enum
+    description: 属性の開示範囲 (ADR-040)。ClaimExposed のみ UserInfo / ID Token に出せる。
+    values:
+      - Private
+      - SelfReadable
+      - AdminReadable
+      - ClaimExposed
+  Tenant:
+    kind: entity
+    description: "ADR-032 で導入したテナント (realm) 集約。Client / User / Consent / ポリシー / ブランディングはこの境界に閉じる。`default` テナントは起動時に自動作成され、削除・無効化とも不可。"
+    identity: id
+    fields:
+      id:
+        type: String
+        constraints:
+          - non_empty
+          - max_length: 63
+          - pattern: "^[a-z0-9][a-z0-9-]{0,62}$"
+        description: URL-safe slug。予約語 admin は禁止。
+      display_name:
+        type: String
+        constraints:
+          - non_empty
+          - max_length: 200
+        annotations:
+          pii: true
+      status:
+        type: TenantStatus
+        default: Active
+      password_policy_override:
+        type: PasswordPolicyOverride
+        optional: true
+        description: objectives.PasswordPolicy をこのテナントだけ上書きする値。指定された値のみ上書きされ、それ以外は global default を継承。
+      created_at:
+        type: Timestamp
+      updated_at:
+        type: Timestamp
+        optional: true
+      disabled_at:
+        type: Timestamp
+        optional: true
+        description: テナント無効化時刻 (ADR-032)。non-null なら /authorize / /token / /login 等を一律拒否。
+  PasswordPolicyOverride:
+    kind: value_object
+    description: "テナント固有のパスワードポリシー上書き値 (Phase 4)。Phase 0 で固定値とした\nobjectives.PasswordPolicy をテナント解決ポートで差し替えるためのスキーマ。\n省略フィールドは global default を継承し、change_password / reset_password の\n評価経路ではテナント値が global より厳しい方向にのみ働く想定。\n"
+    fields:
+      min_length:
+        type: Integer
+        optional: true
+        description: 下限長 (≥ global default を推奨)
+      max_length:
+        type: Integer
+        optional: true
+        description: 上限長
+      history_depth:
+        type: Integer
+        optional: true
+        description: 履歴照合件数 (PasswordHistoryNoReuse)
+  UserAttributeDef:
+    kind: value_object
+    description: 属性 1 件の定義 (ADR-040)。OIDC 組み込みカタログ (BuiltinUserAttributeDefs) と tenant 定義 (TenantUserAttributeSchema) の両方で使う。key は snake_case、英字始まり。
+    fields:
+      key:
+        type: String
+        constraints:
+          - non_empty
+          - pattern: "^[a-z][a-z0-9_]{0,62}$"
+      label:
+        type: String
+        optional: true
+        constraints:
+          - max_length: 100
+        description: 利用者向けの日本語表示名。未設定なら UI は key を表示する。
+      type:
+        type: AttributeType
+      multi_valued:
+        type: Boolean
+        default: false
+        description: type == StringArray のときのみ true。
+      required:
+        type: Boolean
+        default: false
+      editable_by_user:
+        type: Boolean
+        default: false
+        description: self-service 経路で end-user が編集できるか。
+      claim_name:
+        type: String
+        optional: true
+        description: 露出時に UserInfo / ID Token に出す OIDC claim 名。
+      oidc_scope:
+        type: String
+        optional: true
+        description: 露出を解禁する OIDC scope (profile / phone / address 等)。
+      visibility:
+        type: AttrVisibility
+        default: Private
+      pii:
+        type: Boolean
+        default: true
+        description: 省略時は PII 扱い (監査 hash 化) が安全側 default。
+  TenantUserAttributeSchema:
+    kind: entity
+    description: tenant 単位の custom 属性定義集合 (ADR-040)。組み込み属性はコード (BuiltinUserAttributeDefs) が持ち、本集合は tenant 固有分のみ。tenant aggregate には埋め込まず独立 aggregate として持ち、tenant 削除時に cascade する。
+    identity: tenant_id
+    fields:
+      tenant_id:
+        type: String
+        default: default
+        description: 所属テナント ID (ADR-034)。
+      attributes:
+        type: "UserAttributeDef[]"
+        description: key が一意で組み込み属性と衝突しない定義の並び。
+      updated_at:
+        type: Timestamp
+  PasswordPolicyDefaults:
+    kind: value_object
+    description: "objectives.PasswordPolicy の現行値。テナント設定 UI が「テナント上書きが\n無いときに実際に適用される値」をユーザに具体数字で示せるよう、API レスポンスに\n埋め込む。同時に override がこの値より弱い場合の reject 閾値でもある。\n"
+    fields:
+      min_length:
+        type: Integer
+        description: objectives.PasswordPolicy.min_length。
+      max_length:
+        type: Integer
+        description: objectives.PasswordPolicy.max_length。
+      history_depth:
+        type: Integer
+        description: objectives.PasswordPolicy.history_depth。
+  AdminSettingsResponse:
+    kind: value_object
+    description: "`/api/admin/settings` の返り値。テナント本体ではなく管理 UI 向けの projection で、\ntenant_id / display_name / password_policy_override に加え、UI 表示と weaker\npolicy gating に使う objectives 標準値を併せて返す。\n"
+    fields:
+      tenant_id:
+        type: String
+      display_name:
+        type: String
+        annotations:
+          pii: true
+      password_policy_override:
+        type: PasswordPolicyOverride
+        optional: true
+      password_policy_defaults:
+        type: PasswordPolicyDefaults
+  TenantUserAttributeSchemaResponse:
+    kind: value_object
+    description: "`/api/admin/tenant/user_attribute_schema` の返り値。tenant 固有の custom 属性定義\n(attributes) に加え、参照用にコードが持つ組み込みカタログ (builtin) を併せて返し、\nUI が key 衝突を避けつつ全属性を一覧できるようにする (ADR-040)。\n"
+    fields:
+      tenant_id:
+        type: String
+      attributes:
+        type: "UserAttributeDef[]"
+        description: tenant が編集可能な custom 定義。
+      builtin:
+        type: "UserAttributeDef[]"
+        description: コード提供の読み取り専用カタログ (BuiltinUserAttributeDefs)。
+      updated_at:
+        type: Timestamp
+  TenantUserAttributeSchemaUpdateRequest:
+    kind: value_object
+    description: tenant の custom 属性定義を全置換する JSON リクエスト (ADR-040)。組み込み属性との key 衝突・重複 key は use case 側で拒否する。
+    fields:
+      attributes:
+        type: "UserAttributeDef[]"
+        description: 新しい custom 定義一覧。空配列で全削除。
+  TenantCreateRequest:
+    kind: value_object
+    description: "管理者が新規テナントを登録する JSON リクエスト (ADR-032)。`id` は URL-safe slug。"
+    fields:
+      id:
+        type: String
+        constraints:
+          - non_empty
+          - max_length: 63
+          - pattern: "^[a-z0-9][a-z0-9-]{0,62}$"
+      display_name:
+        type: String
+        constraints:
+          - non_empty
+          - max_length: 200
+        annotations:
+          pii: true
+  TenantUpdateRequest:
+    kind: value_object
+    description: "管理者がテナントの表示名 / パスワードポリシー上書きを更新する JSON リクエスト (ADR-032)。`id` と status は変更しない。status 変更は disable/enable 専用 endpoint を経由。"
+    fields:
+      display_name:
+        type: String
+        optional: true
+        constraints:
+          - non_empty
+          - max_length: 200
+        annotations:
+          pii: true
+      password_policy_override:
+        type: PasswordPolicyOverride
+        optional: true
+        description: 省略時は既存値を維持。null を渡したい場合は明示する。
+  TenantSummaryResponse:
+    kind: value_object
+    description: テナント表現。管理 UI の一覧と詳細で同じ表現を返す (ADR-032)。
+    fields:
+      id:
+        type: String
+      display_name:
+        type: String
+        annotations:
+          pii: true
+      status:
+        type: TenantStatus
+      password_policy_override:
+        type: PasswordPolicyOverride
+        optional: true
+      created_at:
+        type: Timestamp
+      updated_at:
+        type: Timestamp
+        optional: true
+      disabled_at:
+        type: Timestamp
+        optional: true
+  TenantListResponse:
+    kind: value_object
+    description: 管理 API のテナント一覧 (ADR-032)。
+    fields:
+      tenants:
+        type: "TenantSummaryResponse[]"
+  TenantCreated:
+    kind: event
+    description: system_admin が新規テナントを作成した (ADR-032)。
+    payload:
+      occurredAt:
+        type: Timestamp
+      actorSub:
+        type: String
+      tenantId:
+        type: String
+  TenantUpdated:
+    kind: event
+    description: system_admin がテナントの表示名を更新した (ADR-032)。
+    payload:
+      occurredAt:
+        type: Timestamp
+      actorSub:
+        type: String
+      tenantId:
+        type: String
+      changedFields:
+        type: "String[]"
+  TenantUserAttributeSchemaUpdated:
+    kind: event
+    description: テナント内 admin が custom 属性定義 (TenantUserAttributeSchema) を更新した (ADR-040)。値は持たず、変更後の custom 属性 key 一覧のみを記録する。
+    payload:
+      occurredAt:
+        type: Timestamp
+      actorSub:
+        type: String
+      tenantId:
+        type: String
+      attributeKeys:
+        type: "String[]"
+  TenantDisabled:
+    kind: event
+    description: system_admin がテナントを無効化した。当該テナントのすべてのプロトコルルートは invalid_request で拒否される (ADR-032)。
+    payload:
+      occurredAt:
+        type: Timestamp
+      actorSub:
+        type: String
+      tenantId:
+        type: String
+  TenantEnabled:
+    kind: event
+    description: system_admin が無効化済みテナントを再有効化した (ADR-032)。
+    payload:
+      occurredAt:
+        type: Timestamp
+      actorSub:
+        type: String
+      tenantId:
+        type: String
+states:
+  TenantLifecycle:
+    description: テナント (ADR-032) のライフサイクル。Active で通常稼働、Disable で全プロトコルルートを停止、Enable で復帰。物理削除は本フェーズ対象外。
+    target: Tenant
+    initial: Active
+    terminal:
+      []
+    transitions:
+      - from: Active
+        event: Disable
+        to: Disabled
+      - from: Disabled
+        event: Enable
+        to: Active
+interfaces:
+  ResolveTenant:
+    description: "HTTP リクエストの path から所属テナントを解決する内部インターフェース (ADR-033)。\n`/realms/{tenant_id}/...` の prefix が無い場合は `default` テナントに解決する。\n不在テナントは 404 tenant_not_found、disabled テナントは OAuth/OIDC の\nprotocol route では 400 invalid_request とし、いずれも存在や状態の詳細を漏らさない。\n"
+    input:
+      path:
+        type: String
+        description: HTTP リクエスト path
+    output:
+      tenant:
+        type: Tenant
+    errors:
+      - InvalidRequestError
+  ListTenants:
+    description: system_admin がテナント一覧を取得する。default control-plane tenant のセッションで認証する (ADR-032)。
+    output:
+      response:
+        type: TenantListResponse
+    errors:
+      - AccessDeniedError
+    read_only: true
+    bindings:
+      - kind: http
+        method: GET
+        path: /realms/default/admin/tenants
+  GetTenant:
+    description: system_admin が単一テナントを取得する。
+    input:
+      tenant_id:
+        type: String
+    output:
+      tenant:
+        type: TenantSummaryResponse
+    errors:
+      - InvalidRequestError
+      - AccessDeniedError
+    read_only: true
+    bindings:
+      - kind: http
+        method: GET
+        path: "/realms/default/admin/tenants/{tenant_id}"
+  CreateTenant:
+    description: system_admin が新規テナントを作成する。
+    input:
+      request:
+        type: TenantCreateRequest
+    output:
+      tenant:
+        type: TenantSummaryResponse
+    errors:
+      - InvalidRequestError
+      - AccessDeniedError
+    emits:
+      - TenantCreated
+    bindings:
+      - kind: http
+        method: POST
+        path: /realms/default/admin/tenants
+        request_form: body
+        successful_status_codes:
+          - "201"
+  UpdateTenant:
+    description: system_admin がテナントの表示名を更新する。
+    input:
+      tenant_id:
+        type: String
+      request:
+        type: TenantUpdateRequest
+    output:
+      tenant:
+        type: TenantSummaryResponse
+    errors:
+      - InvalidRequestError
+      - AccessDeniedError
+    emits:
+      - TenantUpdated
+    bindings:
+      - kind: http
+        method: PATCH
+        path: "/realms/default/admin/tenants/{tenant_id}"
+        request_form: body
+  DisableTenant:
+    description: system_admin が default 以外のテナントを無効化する。/authorize / /token / /login 等は一律 invalid_request になる。
+    input:
+      tenant_id:
+        type: String
+    errors:
+      - InvalidRequestError
+      - AccessDeniedError
+    emits:
+      - TenantDisabled
+    bindings:
+      - kind: http
+        method: POST
+        path: "/realms/default/admin/tenants/{tenant_id}/disable"
+        successful_status_codes:
+          - "204"
+  EnableTenant:
+    description: system_admin が無効化済みテナントを再有効化する。
+    input:
+      tenant_id:
+        type: String
+    errors:
+      - InvalidRequestError
+      - AccessDeniedError
+    emits:
+      - TenantEnabled
+    bindings:
+      - kind: http
+        method: POST
+        path: "/realms/default/admin/tenants/{tenant_id}/enable"
+        successful_status_codes:
+          - "204"
+  GetAdminSettings:
+    description: "テナント内 admin が自身のテナントの設定 (表示名 / パスワードポリシー上書き) を取得する。\n対象テナントは actor.tenant_id に固定するため cross-tenant 読み出しは構造的に発生しない。\n`/admin/tenants` (system_admin 専用) とは別経路で、admin にも開放される (ADR-032)。\nレスポンスには objectives.PasswordPolicy の現行値 (password_policy_defaults) を\n含め、UI が「上書きしないときに実際に適用される値」を具体数字で示せるようにする。\n"
+    output:
+      settings:
+        type: AdminSettingsResponse
+    errors:
+      - AccessDeniedError
+    read_only: true
+    bindings:
+      - kind: http
+        method: GET
+        path: /api/admin/settings
+  UpdateAdminSettings:
+    description: "テナント内 admin が自身のテナントの設定を更新する。display_name と\npassword_policy_override のいずれかまたは両方を任意フィールドとして受け取り、\nactor.tenant_id に固定した上で UpdateTenant のロジックを実行する (ADR-032)。\npassword_policy_override が objectives.PasswordPolicy の標準値より弱い場合\n(min_length 下回り / max_length 上回り / history_depth 下回り) は use case\n側で拒否する。\n"
+    input:
+      request:
+        type: TenantUpdateRequest
+    output:
+      settings:
+        type: AdminSettingsResponse
+    errors:
+      - InvalidRequestError
+      - AccessDeniedError
+    emits:
+      - TenantUpdated
+    bindings:
+      - kind: http
+        method: PATCH
+        path: /api/admin/settings
+        request_form: body
+  GetTenantUserAttributeSchema:
+    description: "テナント内 admin が自身のテナントの custom 属性定義を取得する (ADR-040)。\n対象テナントは actor.tenant_id に固定し cross-tenant 読み出しを構造的に排除する。\nレスポンスには tenant 固有の custom 定義に加えて組み込みカタログ (builtin) も\n含め、UI が全属性を一覧しつつ key 衝突を避けられるようにする。\n"
+    output:
+      schema:
+        type: TenantUserAttributeSchemaResponse
+    errors:
+      - AccessDeniedError
+    read_only: true
+    bindings:
+      - kind: http
+        method: GET
+        path: /api/admin/tenant/user_attribute_schema
+  UpdateTenantUserAttributeSchema:
+    description: "テナント内 admin が custom 属性定義を全置換する (ADR-040)。actor.tenant_id に\n固定した上で、各 UserAttributeDef を検証し、組み込み属性との key 衝突・重複 key を\n拒否する。値そのものは保持せず定義のみを扱う。\n"
+    input:
+      request:
+        type: TenantUserAttributeSchemaUpdateRequest
+    output:
+      schema:
+        type: TenantUserAttributeSchemaResponse
+    errors:
+      - InvalidRequestError
+      - AccessDeniedError
+    emits:
+      - TenantUserAttributeSchemaUpdated
+    bindings:
+      - kind: http
+        method: PUT
+        path: /api/admin/tenant/user_attribute_schema
+        request_form: body
+permissions:
+  AdminTenantsManage:
+    description: テナントの作成・更新・無効化・再有効化・一覧取得 (ADR-032)。system_admin ロールに限定する。
+    actor: User
+    resource: Tenant
+    allow_when:
+      and:
+        - system_admin in actor.roles
+        - "actor.tenant_id == \"default\""
+        - actor.disabled_at == null
+        - context.authenticated == true
+  AdminSettingsRead:
+    description: "所属テナントの管理設定 (表示名 / パスワードポリシー上書き) を閲覧する。\ntenant 内 admin と system_admin のどちらでも許可する。\n対象は actor.tenant_id に固定するため cross-tenant 読み出しは構造的に発生しない (ADR-032)。\n"
+    actor: User
+    resource: Tenant
+    allow_when:
+      and:
+        - (admin in actor.roles) or (system_admin in actor.roles)
+        - actor.disabled_at == null
+        - context.authenticated == true
+        - actor.tenant_id == resource.tenant_id
+  AdminSettingsUpdate:
+    description: "所属テナントの管理設定を更新する。tenant 内 admin に解放し、設定対象は\nactor.tenant_id に固定する (ADR-032)。password_policy_override は global\nPasswordPolicy より弱い場合 use case 側で reject する。\n"
+    actor: User
+    resource: Tenant
+    allow_when:
+      and:
+        - (admin in actor.roles) or (system_admin in actor.roles)
+        - actor.disabled_at == null
+        - context.authenticated == true
+        - actor.tenant_id == resource.tenant_id
+scenarios:
+  管理者は監査ログを期間で絞り込み参照・エクスポートできる:
+    steps:
+      - "roles=[\"admin\"] のユーザー \"operator\" が管理画面の監査ログを開く"
+      - "管理者 \"operator\" が直近 24 時間で監査イベントを絞り込む"
+      - 一覧に所属テナントの監査イベントだけが表示される
+      - "管理者 \"operator\" が絞り込み結果をエクスポートする"
+  管理者はテナント固有のユーザー属性スキーマを定義できる:
+    steps:
+      - "roles=[\"admin\"] のユーザー \"operator\" が管理画面のユーザー属性を開く"
+      - "管理者 \"operator\" が editable_by_user=true の custom_attribute を追加する"
+      - 更新後のスキーマに追加した属性が含まれる
+  default テナントは起動時に自動作成され削除不可:
+    description: ADR-032 の bootstrap 不変性。
+    steps:
+      - IdP を起動する
+      - "テナント \"default\" が status=Active で存在する"
+      - default テナントを削除する API は提供されない
+      - default テナントの disable は InvalidRequestError で拒否される
+  未 prefix のリクエストは default テナントに解決される:
+    description: ADR-033 の下位互換。/.well-known や /authorize が prefix なしでも動く。
+    steps:
+      - /realms/ 接頭辞を持たない /authorize にリクエストを送る
+      - "解決されたテナントは \"default\""
+      - iss claim は base URL + /realms/default
+  無効化されたテナントへの /authorize は invalid_request で拒否される:
+    description: ADR-032 の disable 効果。tenant の存在を漏らさないため 404 ではなく invalid_request。
+    steps:
+      - "tenant_id \"acme\" を作成する"
+      - "tenant_id \"acme\" を無効化する"
+      - "\"/realms/acme/authorize\" にリクエストを送る"
+      - "エラー \"InvalidRequestError\""

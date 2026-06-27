@@ -19,31 +19,37 @@ SCL は以下を満たす。
 
 ## 2 文書構造
 
-SCL ドキュメントは先頭にシステム識別子と SCL 自身のバージョンを置き、続いて
-中核9セクションと、適用する標準・ユーザー体験を記述する2つの任意セクションを持つ。
+SCL ドキュメントは先頭にシステム識別子、SCL 自身のバージョン、必要なら bounded context 名を置き、続いて中核セクションを持つ。単一上流ソースとは単一の論理正本を意味し、単一巨大ファイルを意味しない。複数の bounded context を持つシステムでは、各 context が独立した `scl.yaml` を持ち、ルートの `context-map.yaml` が context 間の公開言語と依存だけを宣言する。
 
 ```yaml
 system: TaskTracker        # 必須: システム名
-spec_version: "1.0"        # 必須: SCL バージョン
+spec_version: "2.0"        # 必須: SCL バージョン
+context: TaskAuthoring     # 任意: この文書が表す bounded context 名
 annotations:     { ... }   # 任意: 文書全体への補助情報
 
 standards:       { ... }   # 任意: 外部標準と採用する規範要件
-bounded_contexts: { ... }  # 任意: 境界づけられたコンテキスト分割
-vocabulary:      { ... }   # 用語の定義
-models:          { ... }   # データの形と同一性
+context_map:     { ... }   # 任意: 複数 context の公開言語と依存
+glossary:        { ... }   # 任意: 曖昧語・別名・翻訳・外部標準語の説明
+models:          { ... }   # ドメインモデルの形と同一性
 interfaces:      { ... }   # 外部との契約（インターフェース）
 states:          { ... }   # 状態と遷移
 invariants:      { ... }   # 普遍的に成り立つ不変条件
-scenarios:       { ... }   # 自然文ステップで書く受け入れ例
+scenarios:       { ... }   # Use Case / 受け入れ例
 permissions:     { ... }   # 認可ルール
 objectives:      { ... }   # 非機能目標
-assurance:       { ... }   # 保証義務と合否基準
 user_experience: { ... }   # 任意: 画面、遷移、利用品質
 ```
 
-すべてのセクションで現れる名前（モデル名・フィールド名・状態名・イベント名・アクション名）はそのコンテキストの `vocabulary` に登録された語彙と一対一で対応していなければならない。CIで名前の整合性を自動検証する。
+`context_map` は通常ルート文書または `context-map.yaml` だけに置く。context-local
+な `scl.yaml` では `context` を置き、その文書内の `models`、`interfaces`、
+`states`、`invariants`、`scenarios`、`permissions`、`objectives` はその context
+が所有する。所有リストを別途重ねて書かない。
 
-`annotations` は 9 つのセクションには含めない。文書全体に対する任意の補助情報であり、型は [§3.2 Annotation](#32-models--ドメインモデル) と同じ `map[string, any]` とする。
+モデル名・イベント名・インターフェース名・状態名は、それぞれの定義が一次情報である。
+すべてを `glossary` に二重登録する必要はない。`glossary` は、曖昧語、別名、翻訳、
+同名衝突、外部標準の用語を説明するための補助セクションである。
+
+`annotations` は中核セクションには含めない。文書全体に対する任意の補助情報であり、型は [§3.2 Annotation](#32-models--ドメインモデル) と同じ `map[string, any]` とする。
 
 ### 2.1 standards — 外部標準との対応
 
@@ -82,55 +88,55 @@ standards:
 | `optional` | 構成、プロファイル、クライアント能力により適用 |
 | `excluded` | 意図的に仕様対象外。`reason` 必須              |
 
-`relates_to` は `vocabulary`、`models`、`interfaces`、`states`、`invariants`、`scenarios`、`permissions`、`objectives`、`assurance` の名前を参照できる。
+`relates_to` は `glossary`、`models`、`interfaces`、`states`、`invariants`、`scenarios`、`permissions`、`objectives` の名前を参照できる。
 
-### 2.2 bounded_contexts — 境界づけられたコンテキスト
+### 2.2 context_map — 境界づけられたコンテキストの対応
 
-1 つの SCL ドキュメント内で、モデル・状態・イベント・インターフェース・不変条件・認可・目標を所有関係で束ね、DDD の bounded context に分割する。`bounded_contexts` はユビキタス言語とドメインモデルの意味が一貫する境界であり、AI に渡す文脈、再生成する単位、ワークアイテムの近傍配置を決める。
+`context_map` は DDD の bounded context 間の関係を宣言する。所有関係は各 context の `scl.yaml` によって決まるため、`context_map` は `owns_models` や`owns_interfaces` を持たない。ここに書くのは、どの context がどの文書にあり、他 context に公開する名前は何で、どの公開言語に依存するかだけである。
 
-単一リポジトリ・単一 SCL ドキュメントの中に複数の bounded context を書いてよい。ただし、独自のリリース判断、独立した標準適用、同名語彙の衝突、別チーム所有などにより文書単位を分ける必要が出た場合は、§3.10 の複数コンテキスト構成に移行する。
+小さなシステムでは単一の `scl.yaml` に `context` を省略してよい。複数 context を持つシステムでは、ルートに `context-map.yaml` を置き、各 context の近くに`scl.yaml`、`decisions/`、`work-items/` を置く。
 
 ```yaml
-bounded_contexts:
+system: TaskTracker
+spec_version: "2.0"
+context_map:
   TaskAuthoring:
+    path: task-authoring/scl.yaml
     description: タスクの作成・編集と担当者割り当てを所有する
-    owns_models: [Task, TaskState]
-    owns_events: [TaskCreated, TaskUpdated]
-    owns_interfaces: [CreateTask, UpdateTask]
+    publishes: [TaskRef, CreateTask, UpdateTask]
   TaskExecution:
+    path: task-execution/scl.yaml
     description: タスクの開始・完了・中断ライフサイクルを所有する
-    owns_states: [TaskLifecycle]
-    owns_events: [TaskStarted, TaskCompleted]
-    owns_interfaces: [StartTask, CompleteTask]
+    publishes: [StartTask, CompleteTask]
     depends_on:
-      - { bounded_context: TaskAuthoring, reason: 開始・完了は TaskAuthoring が所有する Task に対する操作である }
+      TaskAuthoring:
+        via: published_language
+        uses: [TaskRef]
 ```
 
 **マップキー**: bounded context 名 (`<Name>`)。PascalCase。
 
 **プロパティ**:
 
-| プロパティ         | 型             | 必須 | 説明                                                              |
-| ------------------ | -------------- | ---- | ----------------------------------------------------------------- |
-| `description`      | `string`       | ✓    | bounded context の責務                                            |
-| `owns_models`      | `string[]`     | –    | 所有する `models` 名のリスト（`kind: event` の event 含む）       |
-| `owns_states`      | `string[]`     | –    | 所有する `states` 名のリスト                                      |
-| `owns_events`      | `string[]`     | –    | 所有する `models` のうち `kind: event` の名前のリスト             |
-| `owns_interfaces`  | `string[]`     | –    | 所有する `interfaces` 名のリスト                                  |
-| `owns_invariants`  | `string[]`     | –    | 所有する `invariants` 名のリスト                                  |
-| `owns_permissions` | `string[]`     | –    | 所有する `permissions` 名のリスト                                 |
-| `owns_objectives`  | `string[]`     | –    | 所有する `objectives` 名のリスト                                  |
-| `depends_on`       | `Dependency[]` | –    | 依存先 bounded context とその理由                                 |
-| `annotations`      | `Annotation`   | –    | bounded context への補助情報                                      |
+| プロパティ    | 型                       | 必須 | 説明                                                         |
+| ------------- | ------------------------ | ---- | ------------------------------------------------------------ |
+| `path`        | `string`                 | –    | context-local SCL 文書への相対パス                           |
+| `description` | `string`                 | ✓    | bounded context の責務                                       |
+| `publishes`   | `string[]`               | –    | 他 context が `Context.Name` で参照してよい公開名            |
+| `depends_on`  | `map[string, Dependency]` | –    | 依存先 context と、利用する公開言語                          |
+| `annotations` | `Annotation`             | –    | context への補助情報                                        |
 
 **Dependency**:
 
-| プロパティ  | 型       | 必須 | 説明                 |
-| ----------- | -------- | ---- | -------------------- |
-| `bounded_context` | `string` | ✓    | 依存先 bounded context 名 |
-| `reason`          | `string` | ✓    | 依存の根拠               |
+| プロパティ | 型                                                                                                       | 必須 | 説明                                                                        |
+| ---------- | -------------------------------------------------------------------------------------------------------- | ---- | --------------------------------------------------------------------------- |
+| `uses`     | `string[]`                                                                                               | ✓    | 依存先 context の `publishes` に含まれる名前                                |
+| `via`      | `shared_kernel` \| `published_language` \| `customer_supplier` \| `conformist` \| `anticorruption_layer` | –    | 統合パターン（助言的）                                                      |
+| `reason`   | `string`                                                                                                 | –    | 依存の根拠                                                                  |
 
-`owns_*` に挙げる名前は対応するセクションに登録されていなければならず、1 つの要素を所有する bounded context は高々 1 つである。`depends_on` は有向非循環で、循環は境界の見直しを示す。`bounded_contexts` を宣言しないドキュメントは「単一の暗黙 bounded context」を持つものとして扱う。
+依存は有向非循環を基本とし、循環が必要に見える場合は shared kernel の切り出し、
+公開言語の縮小、または境界自体の見直しを検討する。context 間では相手の内部
+モデルを直接参照せず、`publishes` に含まれる公開名だけを使う。
 
 ### 2.3 user_experience — 画面と利用品質
 
@@ -163,12 +169,15 @@ user_experience:
 
 ## 3 セクションリファレンス
 
-### 3.1 vocabulary — 意味の語彙
+### 3.1 glossary — 意味の語彙
 
-ユビキタス言語の定義。第1層の他セクションに現れる全ての概念名はここに登録される。
+ユビキタス言語の補助定義。第1層の他セクションに現れるすべての概念名を
+ここへ登録する必要はない。Entity、Event、Interface、State、Permission などは、
+それぞれのセクションの定義が一次情報である。`glossary` は、曖昧語、別名、
+翻訳、外部標準の用語、同名語の context 差を説明したい場合に使う。
 
 ```yaml
-vocabulary:
+glossary:
   Task:
     definition: 担当者一名により独立に完了可能な作業単位
     aliases: [タスク]
@@ -202,7 +211,13 @@ vocabulary:
 
 ### 3.2 models — ドメインモデル
 
-エンティティ・値オブジェクト・イベント・列挙・エラーの宣言。
+エンティティ・ドメイン値オブジェクト・イベント・列挙・エラーの宣言。
+`models` は bounded context のユビキタス言語に属する安定したドメイン概念だけを
+置く。特定の API で 1 回だけ使う request / response DTO は `models` ではなく
+`interfaces.<name>.input` / `interfaces.<name>.output` に inline で置く。
+同じ形を複数 interface で使う場合も、まず interface-local に置く。重複が仕様理解の
+妨げになるほど大きくなったときだけ、ドメイン上の名前を持つ値オブジェクトとして
+`models` に昇格させる。
 
 ```yaml
 models:
@@ -233,7 +248,7 @@ models:
       target: { type: String }
 ```
 
-**マップキー**: モデル名。`vocabulary` に登録されていなければならない。
+**マップキー**: モデル名。
 
 **プロパティ（共通）**:
 
@@ -260,7 +275,7 @@ models:
 
 | プロパティ | 型         | 必須 | 説明                                                               |
 | ---------- | ---------- | ---- | ------------------------------------------------------------------ |
-| `values`   | `string[]` | ✓    | 列挙値のリスト。各値は `vocabulary` に登録されていなければならない |
+| `values`   | `string[]` | ✓    | 列挙値のリスト |
 
 **`kind: event` / `kind: error` 固有**:
 
@@ -313,9 +328,28 @@ interfaces:
         args:
           - { name: task_id, position: 1 }
         exit_codes: { success: 0, NotFound: 64, InvalidTransition: 65, Forbidden: 77 }
+
+  SubmitBrowserLogin:
+    description: Browser login JSON API。
+    input:
+      body:
+        fields:
+          username: { type: String, constraints: [non_empty] }
+          password: { type: String, constraints: [non_empty] }
+    output:
+      body:
+        fields:
+          next: { type: BrowserFlowStep }
+          redirect_uri: { type: Uri, optional: true }
+    errors: [InvalidRequest, AccessDenied]
+    bindings:
+      - kind: http
+        method: POST
+        path: /api/auth/login
+        request_body: json
 ```
 
-**マップキー**: インターフェース名。`vocabulary` に登録されていなければならない。
+**マップキー**: インターフェース名。
 
 **プロパティ**:
 
@@ -323,8 +357,8 @@ interfaces:
 | ------------- | ----------------------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `description` | `string`                | 推奨 | このインターフェースが何を行うか                                                                                                                                           |
 | `steps`       | `string[]`              | –    | scenarios の自然文ステップが束縛する文テンプレートの列。`{field}`=input、`{result}`=出力束縛。同一インターフェースが文脈により異なる自然文で参照される場合は複数並べてよい |
-| `input`       | `map[string, FieldDef]` | –    | 入力パラメータ                                                                                                                                                             |
-| `output`      | `map[string, FieldDef]` | –    | 正常系の出力                                                                                                                                                               |
+| `input`       | `map[string, FieldDef \| InlineSchema]` | –    | 入力パラメータまたは interface-local schema                                                                                                                     |
+| `output`      | `map[string, FieldDef \| InlineSchema]` | –    | 正常系の出力または interface-local schema                                                                                                                       |
 | `errors`      | `string[]`              | –    | 発生しうるエラー。各要素は `kind: error` のモデル名                                                                                                                        |
 | `emits`       | `string[]`              | –    | 発行するイベント。各要素は `kind: event` のモデル名                                                                                                                        |
 | `idempotent`  | `bool`                  | –    | 同一入力での再実行が安全か。既定 `false`                                                                                                                                   |
@@ -412,6 +446,15 @@ interfaces:
 
 `kind: schedule` は input を取らない（暗黙の「現在時刻」のみ）。発火は scenarios の clock 刺激で検証する。
 
+**InlineSchema**:
+
+| プロパティ | 型                      | 必須 | 説明               |
+| ---------- | ----------------------- | ---- | ------------------ |
+| `fields`   | `map[string, FieldDef]` | ✓    | inline の構造定義  |
+
+request / response DTO を `models` に逃がさない。interface-local な構造は
+`input` / `output` の `fields` に直接書く。
+
 ### 3.4 states — 状態遷移
 
 状態を持つモデルの遷移を宣言的に記述する。`switch` 文や workflow DSL に埋め込まない。
@@ -446,7 +489,7 @@ states:
 | プロパティ | 型           | 必須 | 説明                                                        |
 | ---------- | ------------ | ---- | ----------------------------------------------------------- |
 | `from`     | `string`     | ✓    | 遷移元の状態のステート名                                    |
-| `event`    | `string`     | ✓    | 引き金となるイベント名。`vocabulary` に登録                 |
+| `event`    | `string`     | ✓    | 引き金となるイベント名                                      |
 | `to`       | `string`     | ✓    | 遷移先の状態のステート名                                    |
 | `guard`    | `Expression` | –    | 遷移を許可する条件（[§5 式](#5-式-expression-の文法) 参照） |
 | `effect`   | `string[]`   | –    | 遷移時に発行されるイベント                                  |
@@ -533,9 +576,12 @@ invariants:
 
 † `always` / `never` / `eventually` のうち少なくとも 1 つが必要。複数同時に書けば同じ `assuming` 配下での AND になる。
 
-### 3.6 scenarios — 受け入れ例
+### 3.6 scenarios — Use Case と受け入れ例
 
-特定の状況での期待振る舞いを、**受け入れテストとして人間が読める自然文ステップ**で記述する。`invariants` が *普遍*（常に成り立つ法則）を、`scenarios` が *個別*（具体的な振る舞いの例）を表し、両者は補完関係にある。
+特定の状況での期待振る舞いを、**Cockburn Use Case 風の構造**または
+**受け入れテストとして人間が読める自然文ステップ**で記述する。`invariants` が
+*普遍*（常に成り立つ法則）を、`scenarios` が *個別*（具体的な振る舞いの例、
+主成功シナリオ、例外パターン）を表し、両者は補完関係にある。
 
 scenarios は**ブラックボックス**である。内部のデータモデルの値を直接組み立て・直接覗くことはしない。観測できるのは **インターフェースを通したものだけ**——呼び出しの応答・エラー・発行イベント——であり、事前状態も「作成」系インターフェースの呼び出しで組む。これにより内部表現を変えてもシナリオは壊れない。
 
@@ -551,6 +597,29 @@ scenarios は**ブラックボックス**である。内部のデータモデル
 
 ```yaml
 scenarios:
+  AuthorizationCodeExchange:
+    goal: Client が認可コードを token に交換する。
+    primary_actor: OAuth2Client
+    scope: OAuth2
+    level: user_goal
+    preconditions:
+      - AuthorizationCodeRecord は Issued である。
+      - Client は登録済み redirect_uri を持つ。
+    success_guarantees:
+      - AuthorizationCodeRecord は Redeemed になる。
+      - 同じ認可コードは再利用できない。
+    main_success:
+      - Client が Token に authorization_code grant を送る。
+      - System は PKCE verifier を検証する。
+      - System は redirect_uri 一致を検証する。
+      - System は AccessToken を発行する。
+    extensions:
+      - at: 2
+        condition: verifier が一致しない
+        steps:
+          - System は InvalidGrantError を返す。
+          - AuthorizationCodeRecord は Redeemed にならない。
+
 
   # ── 基本：作成し、操作し、観測する ──────────────────
   Backlog のタスクを開始すると InProgress になる:
@@ -598,11 +667,29 @@ scenarios:
 
 | プロパティ    | 型           | 必須 | 説明                                                            |
 | ------------- | ------------ | ---- | --------------------------------------------------------------- |
-| `steps`       | `string[]`   | ✓    | 自然文ステップの列。上から順に実行・評価される                  |
+| `goal`        | `string`     | –    | use case の達成目標                                             |
+| `primary_actor` | `string`  | –    | 主アクター                                                       |
+| `scope`       | `string`     | –    | 対象 context またはシステム                                      |
+| `level`       | `string`     | –    | Cockburn use case level（例 `user_goal`）                        |
+| `preconditions` | `string[]` | –    | 事前条件                                                         |
+| `success_guarantees` | `string[]` | – | 成功時に保証される結果                                      |
+| `main_success` | `string[]` | –    | 主成功シナリオ                                                   |
+| `extensions`  | `Extension[]` | –   | 例外・代替フロー                                                 |
+| `steps`       | `string[]`   | †    | 自然文ステップの列。上から順に実行・評価される                  |
 | `where`       | `object[]`   | –    | データ表。各行で `<列名>` を束縛し、行ごとに `steps` を反復する |
 | `tags`        | `string[]`   | –    | 分類タグ                                                        |
 | `description` | `string`     | –    | シナリオの補足説明                                              |
 | `annotations` | `Annotation` | –    | シナリオへの補助情報                                            |
+
+† `steps` または `main_success` のいずれかが必要。
+
+**Extension**:
+
+| プロパティ  | 型         | 必須 | 説明                         |
+| ----------- | ---------- | ---- | ---------------------------- |
+| `at`        | `string \| int` | – | 主成功シナリオの分岐位置     |
+| `condition` | `string`   | ✓    | 分岐条件                     |
+| `steps`     | `string[]` | ✓    | 例外・代替フローのステップ   |
 
 **ステップの種別**: 各ステップ文字列は次のいずれかに解決される。
 
@@ -634,21 +721,18 @@ scenarios:
 permissions:
   TaskOwnerCanComplete:
     actor: User
-    action: Complete
+    protects: [interfaces.CompleteTask]
+    operation: complete
     resource: Task
     allow_when: resource.assignee_id == actor.id
 
   AdminCanForceCancel:
     actor: User
-    action: Cancel
+    protects: [interfaces.CancelTask]
+    operation: force_cancel
     resource: Task
     allow_when: actor.role == Admin
 
-  ReadAllowedInOwnTenant:
-    actor: User
-    action: Read
-    resource: Task
-    allow_when: resource.tenant_id == actor.tenant_id
 ```
 
 **マップキー**: ルール名 (`<Name>`)。
@@ -658,7 +742,8 @@ permissions:
 | プロパティ    | 型           | 必須 | 説明                                                               |
 | ------------- | ------------ | ---- | ------------------------------------------------------------------ |
 | `actor`       | `string`     | ✓    | 主体のモデル名                                                     |
-| `action`      | `string`     | ✓    | アクション名（`vocabulary` に登録、`interfaces` 名と対応してよい） |
+| `protects`    | `string[]`   | –    | この認可ルールが保護する `interfaces.<name>` または use case 名 |
+| `operation`   | `string`     | –    | 人間向けの操作分類。ポリシーエンジンの action 名に使ってよい     |
 | `resource`    | `string`     | ✓    | 対象リソースのモデル名                                             |
 | `allow_when`  | `Expression` | –    | 許可する条件。省略時は無条件許可                                   |
 | `deny_when`   | `Expression` | –    | 拒否する条件（`allow_when` より優先）                              |
@@ -756,100 +841,11 @@ objectives:
 
 `security.policy` はアプリケーション・業界規格・組織ルールに依存するため、SCL コアでは列挙しない。特定の処理系やサンプルが解釈する policy 名は、その処理系側の仕様または ADR に記録する。
 
-### 3.9 assurance — 保証義務
+### 3.9 複数コンテキストの配置
 
-`assurance` は、規範要件を満たしたと判定するための主張、合否基準、必要な検証を宣言する。ここには検証結果を書かない。結果と承認はワークアイテムの `completion` に記録する。
+機能数が増え、変更の主軸が機能側に移ったシステムは、境界づけられたコンテキストに縦割りできる。各コンテキストは §2 冒頭の構造をそのまま持つ独立した SCL ドキュメントであり、コンテキスト間の関係は1つの `context-map.yaml` が宣言する。コンテキストが1つだけのシステムにはマップは不要。
 
-```yaml
-assurance:
-  ClientTenantIsolation:
-    claim: ClientAdmin は他 Tenant の Client を操作できない
-    risk: 他 Tenant の認証設定の侵害
-    risk_level: critical
-    derived_from:
-      interfaces: [CreateClient, UpdateClient, DeleteClient]
-      permissions: [ClientAdminMayManageOwnTenantClient]
-      invariants: [ClientBelongsToExactlyOneTenant]
-    acceptance:
-      all:
-        - evidence: CrossTenantAuthorizationTests
-          criterion: create update delete の全操作が Forbidden になる
-        - evidence: AuthorizationMutationCheck
-          criterion: tenant 比較を除去した変異をテストが検出する
-    evidence:
-      CrossTenantAuthorizationTests:
-        kind: test
-        producer: independent
-        evaluation: deterministic
-        environments: [ci]
-        recheck: affected_change
-        covers:
-          permissions: [ClientAdminMayManageOwnTenantClient]
-      AuthorizationMutationCheck:
-        kind: mutation_test
-        producer: independent
-        evaluation: deterministic
-        environments: [ci]
-        recheck: affected_change
-    approval:
-      when: [acceptance_not_met, exception_requested, permission_model_changed]
-      role: SecurityOwner
-```
-
-**保証義務のプロパティ**:
-
-| プロパティ | 型 | 必須 | 説明 |
-| ---------- | -- | ---- | ---- |
-| `claim` | `string` | ✓ | 真であると保証したい、単一の判定可能な主張 |
-| `risk` | `string` | ✓ | 主張が偽だった場合の損失 |
-| `risk_level` | `low` \| `medium` \| `high` \| `critical` | ✓ | 検証強度と承認者を決める等級 |
-| `derived_from` | `TraceRef` | ✓ | 主張の根拠となる SCL 要素 |
-| `acceptance` | `AcceptanceExpression` | ✓ | 検証結果に対する機械判定可能な合否条件 |
-| `evidence` | `map[string, EvidenceRequirement]` | ✓ | 必要な検証の宣言 |
-| `approval` | `ApprovalRequirement` | – | 人間の承認が必要になる条件 |
-| `annotations` | `Annotation` | – | 補助情報 |
-
-`TraceRef` は各 SCL セクション名をキー、要素名の配列を値とするマップである。参照先は存在しなければならない。`assurance` 自身を参照して保証義務を循環定義してはならない。
-
-`AcceptanceExpression` は `all`、`any`、`not` と、次のリーフから成る。
-
-| プロパティ | 型 | 必須 | 説明 |
-| ---------- | -- | ---- | ---- |
-| `evidence` | `string` | ✓ | 同じ保証義務内の検証名 |
-| `criterion` | `string` | ✓ | 成功を判定する具体的条件。単なる「テストが通る」は不可 |
-
-**EvidenceRequirement**:
-
-| プロパティ | 型 | 必須 | 説明 |
-| ---------- | -- | ---- | ---- |
-| `kind` | `test` \| `property_test` \| `model_check` \| `contract_test` \| `mutation_test` \| `static_analysis` \| `scan` \| `runtime_observation` \| `manual_inspection` | ✓ | 検証手法 |
-| `producer` | `generator` \| `independent` | ✓ | 検証結果の生成主体。高・重大リスクで `generator` のみは不可 |
-| `evaluation` | `deterministic` \| `heuristic` \| `human` | ✓ | 結果の判定方法 |
-| `environments` | `string[]` | ✓ | 検証を実行する環境 |
-| `recheck` | `once` \| `affected_change` \| `every_change` \| `release` \| `continuous` | ✓ | 再検証が必要になる条件 |
-| `covers` | `TraceRef` | ✓ | この検証が直接確認する要素 |
-| `procedure` | `string` | – | 再実行可能な手順または処理系非依存の記述 |
-| `oracle` | `string` | – | 期待値を実装と独立に決める合否判定基準 |
-
-`producer: independent` は、実装生成時の会話や自己申告をそのまま合格根拠にせず、隔離されたコンテキスト、別実装、別手法のいずれかで結果を得ることを意味する。`evaluation: deterministic` は、型検査、スキーマ検査、署名検証など、同じ入力から同じ判定を得る検査を意味する。`evaluation: heuristic` となる AI レビューは欠陥探索には使えるが、それだけで高・重大リスクの合否判定基準にしてはならない。
-
-**ApprovalRequirement（人間の承認条件）**:
-
-| プロパティ | 型 | 必須 | 説明 |
-| ---------- | -- | ---- | ---- |
-| `when` | `string[]` | ✓ | 人間の承認を要求する条件 |
-| `role` | `string` | ✓ | 判断責任を持つ役割 |
-| `decision_record` | `bool` | – | ADR または例外承認の記録を必須にするか。既定 `true` |
-
-処理系は少なくとも、合否基準の未充足を表す `acceptance_not_met`、例外承認の要求を表す `exception_requested`、リスク上昇を表す `risk_increased`、規範仕様の変更を表す `normative_spec_changed` を `when` の標準条件として解釈する。
-
-保証義務は、合格を表す `passed`、失敗を表す `failed`、未実施を表す `not_run`、例外承認済みを表す `exception_approved` のいずれかとして評価する。`not_run` は `passed` ではない。`exception_approved` には承認者、理由、対象範囲、補償策、期限または失効条件が必要であり、無期限の例外承認は許可しない。
-
-### 3.10 複数コンテキスト
-
-機能数が増え、変更の主軸が機能側に移ったシステムは、境界づけられたコンテキストに縦割りできる。各コンテキストは §2 冒頭の9セクション構造をそのまま持つ独立した SCL ドキュメントであり、コンテキスト間の関係は1つのコンテキストマップが宣言する。コンテキストが1つだけのシステムにはマップは不要。
-
-`bounded_contexts` は単一 SCL ドキュメント内にも書ける。複数 SCL ドキュメントへ分割した後は、内部モデルを直接共有せず、`publishes` と `depends_on` で公開言語を明示する。
+複数 SCL ドキュメントへ分割した後は、内部モデルを直接共有せず、`publishes` と `depends_on` で公開言語を明示する。
 
 **マップキー**: コンテキスト名。各コンテキストの SCL ドキュメントの `system` と対応する。
 

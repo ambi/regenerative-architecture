@@ -1,0 +1,99 @@
+id: wi-31-ra-idp-scl-physical-context-split
+title: ra-idp-go SCL を context-local ファイルへ完全分割する
+created_at: 2026-06-27
+status: completed
+authors: [tn]
+
+motivation: |
+  ra-idp-go/spec/scl.yaml は SCL 2.0 の `context_map` を持つようになったが、
+  実体はまだ単一巨大ファイルで、models / interfaces / states / invariants /
+  scenarios / permissions / objectives / user_experience が混在している。
+
+  Bounded Context ごとの再生成可能性と部分取得可能性を成立させるには、
+  context_map をルート正本とし、各 bounded context の SCL を物理的にも
+  context-local な `contexts/<context>.yaml` に分ける必要がある。
+
+scope:
+  examples:
+    - ra-idp-go/spec/scl.yaml を context_map だけを持つルート SCL にする。
+    - ra-idp-go/spec/contexts/*.yaml を作成し、各 context 所有の SCL 要素を移す。
+    - 共有語彙・標準・横断 UX は必要最小限の shared/system context に分ける。
+  tooling:
+    - yaml-check:scl が ra-idp-go の分割 SCL 群を検証するように更新する。
+    - scl-to-html:ra-idp-go がルート context_map を入力に使える状態にする。
+
+out_of_scope:
+  - Go 実装、生成コード、OpenAPI、ポリシー生成物の更新。
+  - 各 context の公開言語を完全に最小化する設計見直し。
+  - 既存の request / response DTO 全件 inline 化。
+
+affected_guarantees:
+  - 部分取得可能性: context ごとの SCL ファイルを単独で読める。
+  - 単一上流ソース性: ルート context_map と context-local SCL 群が論理正本になる。
+  - 検証可能性: 分割後の全 SCL ファイルが schema 検証を通る。
+
+verification:
+  - cmd: bun run yaml-check:all
+    in: tools
+  - cmd: bun test
+    in: tools
+  - cmd: bun run typecheck
+    in: tools
+  - cmd: bun run lint
+    in: tools
+
+risk: medium
+risk_notes: |
+  大きな仕様ファイルの機械分割であり、主なリスクは context 推定漏れと参照の
+  context 境界越えである。既存の annotations.bounded_context、context_map、
+  interface / permission / UX の名前対応を使い、検証で構文・schema 破壊を防ぐ。
+
+completion:
+  completed_at: 2026-06-27
+  summary: |
+    ra-idp-go/spec/scl.yaml を SCL 2.0 の root context map に縮小し、SCL 本体を
+    ra-idp-go/spec/contexts/*.yaml へ bounded context ごとに物理分割した。
+
+    旧 SCL の annotations.bounded_context と旧 bounded_contexts.owns_* を移行補助
+    情報として使い、models / states / interfaces / permissions / scenarios /
+    objectives / user_experience を context-local SCL へ移した。root は system、
+    spec_version、context_map だけを持つ。
+
+    yaml-check:scl は ra-idp-go の root SCL と全 context SCL を検証対象に含めるように
+    更新した。
+  semantic_diff:
+    before:
+      root_scl: ra-idp-go/spec/scl.yaml が context_map と全 SCL 要素を同居させる単一巨大ファイル
+      ownership: 要素の所有 context は annotation や旧 owns_* 情報に依存
+      validation: yaml-check:scl は ra-idp-go/spec/scl.yaml 単体を検証
+    after:
+      root_scl: ra-idp-go/spec/scl.yaml は context_map だけを持つ root SCL
+      ownership: 要素の所有 context は配置先の contexts/<context>.yaml で決まる
+      validation: yaml-check:scl は root SCL と contexts/*.yaml をまとめて検証
+  verification:
+    - cmd: bun run yaml-check:all
+      in: tools
+      result: ok, 80 work item file(s) and 13 SCL file(s) OK
+    - cmd: bun test
+      in: tools
+      result: ok, 119 pass
+    - cmd: bun run typecheck
+      in: tools
+      result: ok
+    - cmd: bun run lint
+      in: tools
+      result: ok
+  affected_guarantees_state:
+    - 部分取得可能性: pass。bounded context ごとの SCL ファイルを単独で取得できる。
+    - 単一上流ソース性: pass。root context_map と context-local SCL 群が ra-idp の論理正本になる。
+    - 検証可能性: pass。分割後の root SCL と全 context SCL が schema 検証を通る。
+  residual_risk:
+    - scenarios の一部は名前・interface・permission 対応から context を推定したため、意味的な再配置余地は残る。
+    - Saml context は context_map 上の予約済み境界として残り、現時点では実体要素を持たない。
+    - request / response DTO の全面 inline 化と公開言語の最小化は今回の物理分割の範囲外。
+  human_decisions:
+    - SCL 1.x 互換は切り捨てる。
+    - schemas セクションは置かない。
+    - assurance セクションは削除する。
+    - ra-idp-go の SCL は bounded context ごとの物理分割まで行う。
+    - context SCL は `contexts/<context>/scl.yaml` ではなく、平坦な `contexts/<context>.yaml` として置く。

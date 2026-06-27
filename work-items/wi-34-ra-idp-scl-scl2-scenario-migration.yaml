@@ -1,0 +1,49 @@
+id: wi-34-ra-idp-scl-scl2-scenario-migration
+title: ra-idp-go SCL の SCL 1.0 残存表現を SCL 2.0 scenario へ移行する
+created_at: 2026-06-27
+status: pending
+authors: [tn]
+
+motivation: |
+  ra-idp-go の context 分割後も、Scenarios が SCL 2.0 の
+  preconditions / trigger / main_success / extensions 形式へ十分に更新されていない。
+  また SCL 1.0 時代の Assurance や User Experience - Requirements に相当する
+  振る舞い保証・例外条件が、scenario 側へ移されきっていない。
+
+  SCL 2.0 では、保証すべき業務・プロトコルの振る舞いを scenario とその
+  extensions に寄せる。旧形式の残滓をなくし、HTML でも実装者が context ごとの
+  実行フローと例外条件を読める形にする。
+
+scope:
+  examples:
+    - ra-idp-go/spec/contexts/*.yaml の scenarios を SCL 2.0 形式へ更新する。
+    - 旧 Assurance 相当の must / never / fail-closed / audit / security guarantee を scenario extensions または invariants へ移す。
+    - User Experience - Requirements 相当の画面要件・入力検証・エラー表示・遷移条件を scenario に統合する。
+    - scenarios 以外にも SCL 1.0 の旧 root key、旧 field name、旧 narrative 形式が残っていないか点検して更新する。
+    - SCL schema / tests が旧形式を受け付けている場合は、必要に応じて SCL 2.0 側へ引き締める。
+
+out_of_scope:
+  - context 所有境界の大規模な再設計。
+  - HTML のタブ化や図化。
+  - Go 実装、OpenAPI、生成コードの更新。
+
+affected_guarantees:
+  - 単一上流ソース性: scenario が振る舞い保証と UX 例外条件の正本になる。
+  - 検証可能性: SCL 2.0 形式として schema と tests で検証できる。
+  - 簡潔性: SCL 1.0 の Assurance / UX Requirements 的な重複表現を残さない。
+
+verification:
+  - cmd: bun run yaml-check:all
+    in: tools
+  - cmd: bun test
+    in: tools
+  - cmd: bun run typecheck
+    in: tools
+  - cmd: bun run scl-to-html:ra-idp-go
+    in: tools
+
+risk: high
+risk_notes: |
+  旧 Assurance と UX Requirements を scenario へ移す作業は意味論変更を伴う。
+  単なる YAML 変換ではなく、各 context の正常系・代替系・失敗系を
+  Cockburn use case 風に読み直して移行する必要がある。

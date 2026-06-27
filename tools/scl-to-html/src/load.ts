@@ -9,10 +9,10 @@
  */
 
 import { readFile, readdir } from 'node:fs/promises'
-import { basename, extname, join } from 'node:path'
+import { basename, dirname, extname, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { splitTitle } from './markdown.ts'
-import type { ChangeEntry, DecisionDoc, SclDocument, WorkItem } from './types.ts'
+import type { ChangeEntry, DecisionDoc, SclBundle, SclDocument, WorkItem } from './types.ts'
 
 export async function loadScl(path: string): Promise<SclDocument> {
   const mod = await import(pathToFileURL(path).href)
@@ -21,6 +21,19 @@ export async function loadScl(path: string): Promise<SclDocument> {
     throw new Error(`SCL document ${path} did not parse to an object`)
   }
   return data as SclDocument
+}
+
+export async function loadSclBundle(path: string): Promise<SclBundle> {
+  const root = await loadScl(path)
+  const baseDir = dirname(path)
+  const contexts = []
+  for (const [name, entry] of Object.entries(root.context_map ?? {})) {
+    if (!entry.path) continue
+    const contextPath = resolve(baseDir, entry.path)
+    const document = await loadScl(contextPath)
+    contexts.push({ name, path: entry.path, document })
+  }
+  return { root, contexts }
 }
 
 const ADR_FILENAME_RE = /^ADR-(\d{1,4})-.+\.md$/i

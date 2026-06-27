@@ -1,0 +1,261 @@
+# ra-idp SigningKeys — SCL
+# Generated from ra-idp-go/spec/scl.yaml during SCL 2.0 context split.
+
+system: ra-idp
+spec_version: "2.0"
+context: SigningKeys
+models:
+  SignatureAlgorithm:
+    kind: enum
+    description: JWT 署名アルゴリズム。FAPI 2.0 が許容する asymmetric な強度の高いものに限定（HS256 等の対称鍵は除外）。
+    values:
+      - PS256
+      - ES256
+  SigningKeyState:
+    kind: enum
+    description: SigningKeyLifecycle 状態機械の取りうる状態列挙。Active が現行署名鍵、Verifying は JWKS に残るが署名はしない、Retired は JWKS から除去済、Archived は監査保管。
+    values:
+      - Active
+      - Verifying
+      - Retired
+      - Archived
+  SigningKey:
+    kind: entity
+    description: トークン署名用の非対称鍵。Active 1本＋Verifying 過去鍵 0本以上を JWKS に並べる（ADR-009 / SigningKeyMinJwksOverlap）。
+    identity: kid
+    fields:
+      kid:
+        type: String
+        constraints:
+          - non_empty
+      alg:
+        type: SignatureAlgorithm
+      public_jwk:
+        type: JWK
+      state:
+        type: SigningKeyState
+      created_at:
+        type: Timestamp
+      activated_at:
+        type: Timestamp
+        optional: true
+        description: 一度 Active となった時刻。
+      retired_at:
+        type: Timestamp
+        optional: true
+        description: Retired 状態に遷移した時刻。
+      archived_at:
+        type: Timestamp
+        optional: true
+  JWK:
+    kind: value_object
+    description: JSON Web Key (RFC 7517)。kid で識別される 1 件の公開鍵情報。
+    fields:
+      kty:
+        type: String
+      use:
+        type: String
+        optional: true
+      kid:
+        type: String
+      alg:
+        type: String
+        optional: true
+      extra:
+        type: JSON
+        optional: true
+  JWKS:
+    kind: value_object
+    description: JWK Set (RFC 7517 §5)。/jwks エンドポイントが返す公開鍵集合。クライアントがトークン署名を検証する際に取得する。
+    fields:
+      keys:
+        type: "JWK[]"
+  AdminKeyResponse:
+    kind: value_object
+    description: "管理者向けに公開する署名鍵のメタデータ。秘密鍵は当然返さず、JWKS と\n同じ公開鍵 JWK のみを含める。鍵の状態 (active / verifying) と作成時刻で\nローテーション可否を判断できる粒度を提供する。\n"
+    fields:
+      kid:
+        type: String
+        description: JWK Key ID。JWKS で配布されるものと同一。
+      alg:
+        type: SignatureAlgorithm
+        description: 署名アルゴリズム (現状 PS256 のみ)。
+      active:
+        type: Boolean
+        description: true のとき新規 ID Token / Access Token の署名鍵。false は verifying 用途で JWKS 残留。
+      created_at:
+        type: Timestamp
+        description: 鍵生成時刻 (SigningKeyMaxAge / SigningKeyMinJwksOverlap 評価の起点)。
+      public_jwk:
+        type: JSON
+        description: 公開鍵 JWK。JWKS と同じ表現。
+  AdminKeyListResponse:
+    kind: value_object
+    description: 全署名鍵の一覧。active が複数同時に存在することは無い (rotateInternal で旧鍵は非 active 化)。
+    fields:
+      keys:
+        type: "AdminKeyResponse[]"
+  AdminRotateKeyResponse:
+    kind: value_object
+    description: 鍵ローテーションの結果。新しい active 鍵と直前の active 鍵 (verifying へ降りた) の kid を返す。
+    fields:
+      next:
+        type: AdminKeyResponse
+        description: 新しい active 署名鍵。
+      previous:
+        type: AdminKeyResponse
+        optional: true
+        description: 直前まで active だった鍵 (初回ローテーション時は無し)。
+  SigningKeyRotated:
+    kind: event
+    description: JWKS の署名鍵が回転した（90 日ごと、または緊急回転、ADR-009/024）。
+    payload:
+      occurredAt:
+        type: Timestamp
+      newKid:
+        type: String
+      previousKid:
+        type: String
+        optional: true
+states:
+  SigningKeyLifecycle:
+    description: 署名鍵のライフサイクル（ADR-009 / SigningKeyMinJwksOverlap）。Active から Rotate で Verifying に降り、Retire で JWKS から外し、Archive で監査保管に入る。
+    target: SigningKey
+    initial: Active
+    terminal:
+      - Archived
+    transitions:
+      - from: Active
+        event: Rotate
+        to: Verifying
+      - from: Verifying
+        event: Retire
+        to: Retired
+      - from: Retired
+        event: Archive
+        to: Archived
+interfaces:
+  GetJwks:
+    description: JWKS (RFC 7517)
+    steps:
+      - JWKS を取得する
+    output:
+      jwks:
+        type: JWKS
+    read_only: true
+    bindings:
+      - kind: http
+        method: GET
+        path: /jwks
+  ListAdminKeys:
+    description: "管理者が JWKS に乗っている全署名鍵 (active + verifying) のメタデータを取得する。\nテナント横断は意味を持たない (現状 KeyStore は global)。Read 専用。\n"
+    output:
+      response:
+        type: AdminKeyListResponse
+    errors:
+      - AccessDeniedError
+    read_only: true
+    bindings:
+      - kind: http
+        method: GET
+        path: /api/admin/keys
+  GetAdminKey:
+    description: 管理者が kid を指定して 1 件取得する。存在しない kid は 404。
+    input:
+      kid:
+        type: String
+    output:
+      key:
+        type: AdminKeyResponse
+    errors:
+      - InvalidRequestError
+      - AccessDeniedError
+    read_only: true
+    bindings:
+      - kind: http
+        method: GET
+        path: "/api/admin/keys/{kid}"
+  RotateAdminKey:
+    description: "新しい署名鍵を生成し active を切り替える。旧 active 鍵は JWKS に\nverifying として残存し、SigningKeyMinJwksOverlap 期間後に Retire される\n(Retire 処理は別の運用ジョブ)。system_admin が default tenant 経路から\n実行できる。emits SigningKeyRotated。\n"
+    output:
+      response:
+        type: AdminRotateKeyResponse
+    errors:
+      - AccessDeniedError
+    emits:
+      - SigningKeyRotated
+    bindings:
+      - kind: http
+        method: POST
+        path: /api/admin/keys/rotate
+        successful_status_codes:
+          - "200"
+invariants:
+  SigningKeyMaxAge:
+    description: 有効な署名鍵は 90 日を超えない間隔で回転する（ADR-009）。
+    target: SigningKey
+    eventually: event == SigningKeyRotated
+    within: 90d
+    assuming: state == Active
+permissions:
+  AdminKeysRead:
+    description: "管理者による JWKS 鍵一覧の読み出し。署名鍵は global なので admin / system_admin\nどちらでも全件参照を許可する。秘密鍵を返さないため漏洩リスクは低い。\n"
+    actor: User
+    resource: AdminKeyResponse
+    allow_when:
+      and:
+        - (admin in actor.roles) or (system_admin in actor.roles)
+        - actor.disabled_at == null
+        - context.authenticated == true
+  AdminKeysRotate:
+    description: "署名鍵のローテーション。生成された新鍵が active になり、旧鍵は verifying に\n降りるため、JWKS 配布キャッシュが更新されるまで一時的な検証遅延が起きる。\n失敗は ra-idp 全体のトークン発行を停止させるため、system_admin が default\ntenant 経路から実行する場合のみ許可する。\n"
+    actor: User
+    resource: SigningKey
+    allow_when:
+      and:
+        - system_admin in actor.roles
+        - "actor.tenant_id == \"default\""
+        - actor.disabled_at == null
+        - context.authenticated == true
+objectives:
+  JwksLatency:
+    kind: slo
+    description: /jwks の p99 レイテンシ目標。クライアントの署名検証準備のため極めて低レイテンシ（20ms）を要求し、CDN キャッシュも前提とする。
+    metric: latency_p99
+    interface: GetJwks
+    target: "<20ms"
+    window: 30d
+  JwksErrorRate:
+    kind: slo
+    description: /jwks の 5xx 比率上限。全てのクライアントの署名検証経路に影響するため一桁厳しい 0.01% を要求。
+    metric: error_rate
+    interface: GetJwks
+    target: "<0.0001"
+    window: 30d
+  SigningKeyMaxAge:
+    kind: security
+    policy: max_age
+    target: SigningKey
+    value: 90d
+    reference: ADR-009
+  SigningKeyMinJwksOverlap:
+    kind: security
+    policy: min_jwks_overlap
+    value: 7d
+  SigningKeyArchiveRetention:
+    kind: retention
+    target: SigningKey
+    policy: archive
+    retention: 7y
+    description: 旧鍵で署名された監査トークンを検証するため。
+scenarios:
+  鍵回転後も旧 kid の JWKS エントリは保持される:
+    steps:
+      - "kid \"kid-old\" を \"kid-new\" に回転した署名鍵を用意する"
+      - JWKS を取得する
+      - "応答に kid \"kid-old\" と \"kid-new\" の両方が含まれる"
+  管理者は管理画面で署名鍵を回転でき旧 kid は JWKS に残る:
+    steps:
+      - "roles=[\"admin\"] のユーザー \"operator\" が管理画面の署名鍵一覧を開く"
+      - "管理者 \"operator\" が現在の署名鍵を回転する"
+      - JWKS に旧 kid と新 kid の両方が含まれる

@@ -1,0 +1,111 @@
+id: wi-30-scl-context-first-simplification
+title: SCL を context-first な小さい仕様核へ整理する
+created_at: 2026-06-27
+status: completed
+authors: [tn]
+
+motivation: |
+  現行 SCL は bounded_contexts の owns_*、vocabulary の全面必須登録、
+  models への interface-local request / response DTO 混入、permissions の
+  action 重複、assurance の過剰な詳細化により、仕様核として読むにも
+  HTML へ派生するにも複雑になっている。
+
+  Regenerative Architecture の単一上流ソースは単一巨大ファイルを意味しない。
+  Bounded Context ごとに正本を分け、context-map で公開言語と依存だけを
+  記述できるようにし、SCL 本体はドメインモデル、インターフェース契約、
+  状態機械、シナリオ、認可、目標に集中させる。
+
+scope:
+  documentation:
+    - SPECIFICATION_CORE_LANGUAGE.md を SCL 2.0 方針へ更新する。
+    - bounded_contexts.owns_* を削除し、context-map と context-local scl.yaml を標準にする。
+    - vocabulary を任意の glossary へ縮小する。
+    - interface-local request / response schema を interfaces 配下へ置けるようにする。
+    - scenario を Cockburn use case 風の preconditions / main_success / extensions へ拡張する。
+    - permissions から action 必須を外し、protects / operation を導入する。
+    - assurance セクションを削除し、例外パターンは scenarios 側へ寄せる。
+  examples:
+    - ra-idp-go/spec/scl.yaml を SCL 2.0 への移行例として更新する。
+  tooling:
+    - tools/yaml-check の SCL schema を SCL 2.0 専用に更新する。
+    - tools/scl-to-html の型と表示を新構造に追従させる。
+
+out_of_scope:
+  - ra-idp-go の実装コード変更。
+  - ra-idp-go/spec/scl.yaml の全 bounded context を物理ファイルへ完全分割すること。
+  - 既存の request / response DTO 全件を一度に inline 化すること。
+  - 認可エンジン、OpenAPI、Go binding など派生物生成の完全対応。
+
+affected_guarantees:
+  - 仕様核の単一上流ソース性: 複数ファイル化しても context-map と各 context SCL が論理正本になる。
+  - 部分取得可能性: Bounded Context 単位で AI が必要文脈を取得できる。
+  - 検証可能性: 更新後の SCL サンプルと work item が schema 検証を通る。
+  - 簡潔性: SCL 1.x 互換、schemas、assurance を残さない。
+
+verification:
+  - cmd: bun run yaml-check:all
+    in: tools
+  - cmd: bun test
+    in: tools
+  - cmd: bun run typecheck
+    in: tools
+
+risk: medium
+risk_notes: |
+  SCL の意味論変更を含むため中リスク。今回の実装は SCL 2.0 に切り替え、
+  旧 bounded_contexts / vocabulary / assurance / action 形式は schema で受け付けない。
+
+completion:
+  completed_at: 2026-06-27
+  summary: |
+    SCL を context-first な 2.0 形へ更新した。`bounded_contexts` / `owns_*` は
+    `context_map` に置き換え、`vocabulary` は補助的な `glossary` に改名した。
+    `schemas` と `assurance` は導入せず、request / response 形状は interface-local
+    な inline `fields` に置く方針へ整理した。
+
+    ra-idp-go/spec/scl.yaml は `spec_version: "2.0"`、`context_map`、`glossary` へ
+    移行し、代表例として SubmitBrowserLogin の request DTO を interface-local に
+    移した。permissions から permission と同名の `action` は削除した。
+
+    tools/yaml-check の SCL schema は SCL 2.0 専用にし、旧 root key と permission
+    `action` を受け付けない。tools/scl-to-html は context map / glossary / inline
+    schema / Cockburn 風 scenario / protects-based permission 表示に追従した。
+  semantic_diff:
+    before:
+      context_boundary: bounded_contexts が owns_* で各要素の所有を重複宣言
+      glossary: vocabulary が全概念の必須登録先として読める
+      dto_placement: request / response DTO が models の value_object に大量に並ぶ
+      permission: permission id と action が重複
+      assurance: 個別保証義務を SCL 内に詳細記述
+    after:
+      context_boundary: context_map は公開言語と依存だけを持ち、所有は context-local SCL で決まる
+      glossary: glossary は曖昧語・別名・翻訳・外部標準語の補助説明に限定
+      dto_placement: interface-local DTO は input / output の inline fields に置く
+      permission: permission id が認可判断名になり、保護対象は protects で表す
+      assurance: セクションを削除し、例外パターンは scenarios.extensions へ寄せる
+  verification:
+    - cmd: bun run yaml-check:all
+      in: tools
+      result: ok, 80 work item file(s) and 3 SCL file(s) OK
+    - cmd: bun test
+      in: tools
+      result: ok, 119 pass
+    - cmd: bun run typecheck
+      in: tools
+      result: ok
+    - cmd: bun run lint
+      in: tools
+      result: ok
+  affected_guarantees_state:
+    - 仕様核の単一上流ソース性: pass。複数 context は context_map と各 context SCL の論理正本として説明した。
+    - 部分取得可能性: pass。context_map は公開言語と依存だけを保持する形になった。
+    - 検証可能性: pass。SCL と work item YAML は schema 検証済み。
+    - 簡潔性: pass。SCL 2.0 schema は旧 root key、schemas、assurance、permission action を受け付けない。
+  residual_risk:
+    - ra-idp-go/spec/scl.yaml の request / response DTO は代表例だけ inline 化した。全 DTO 移行は別 WI で段階的に行う。
+    - context_map の path は将来の配置を示すが、物理的な context-local scl.yaml 分割は今回の範囲外。
+    - UI / state 遷移図の描画品質改善は renderer の構造追従までで、専用図レイアウトの作り込みは別作業。
+  human_decisions:
+    - SCL 1.x 互換は切り捨てる。
+    - schemas セクションは置かない。
+    - assurance セクションは削除する。

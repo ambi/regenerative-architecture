@@ -23,7 +23,7 @@ const sessionKey = (audience: PortalAudience) => `ra_oidc_token_${audience}`
 // access token 失効の手前で再取得するためのスキュー (秒)。
 const EXPIRY_SKEW_SECONDS = 30
 
-// activeBearer は現在のページが提示すべき access token。loadPageData が API を呼ぶ前に
+// activeBearer は現在のページが提示すべき access token。route loader が API を呼ぶ前に
 // ensureLoggedIn で設定し、request() が同期的に読み出して Authorization に付与する。
 let activeBearer: string | null = null
 

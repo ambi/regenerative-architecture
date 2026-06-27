@@ -3,7 +3,7 @@
   "vcs": { "enabled": false, "clientKind": "git", "useIgnoreFile": false },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!node_modules", "!dist", "!bun.lock"]
+    "includes": ["**", "!node_modules", "!dist", "!bun.lock", "!src/routeTree.gen.ts"]
   },
   "formatter": {
     "enabled": true,

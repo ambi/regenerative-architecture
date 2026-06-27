@@ -60,10 +60,13 @@ emergency bootstrap path so a broken OIDC client/key configuration cannot lock a
 
 ## Client-side routing
 
-The SPA uses TanStack Router for client-side navigation. Each path is a route whose `loader`
-resolves only that page's data (`resolvePageData`) and whose component dispatches on the resulting
-`kind` (ADR-061, wi-67). Internal admin/account navigation uses `<Link>`, so moving between pages
-does not reload the document or re-fetch every page's data — only the target route's loader runs.
+The SPA uses TanStack Router for client-side navigation with file-based routes under
+`src/routes/`. The Vite router plugin generates `src/routeTree.gen.ts` and applies automatic code
+splitting, including route loaders and components. Each route file owns its own `loader`, API
+requests, page component, and path params (ADR-061, wi-67). Files prefixed with `-` are route-local
+helpers and are excluded from route generation. Internal admin/account navigation uses `<Link>`, so
+moving between pages does not reload the document or re-fetch every page's data — only the target
+route's loader runs.
 The OIDC login guard (`ensureLoggedIn`) runs inside the loader, so it applies to both the initial
 load and in-app navigation. Auth-flow transitions (login/consent/callback and the OIDC redirects)
 remain full-page navigations by nature. The rendered page kind is asserted to the DOM via

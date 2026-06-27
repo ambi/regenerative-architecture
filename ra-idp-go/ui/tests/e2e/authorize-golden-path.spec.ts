@@ -101,7 +101,7 @@ function metaPage(view: Bun.WebView): Promise<unknown> {
   )
 }
 
-// waitForPage は SPA の bootstrap (loadPageData -> markPage) 完了まで待つ。
+// waitForPage は SPA の route loader と page marker の完了まで待つ。
 // window.location.assign による完全遷移後、meta が更新されるのは fetch 解決後のため。
 async function waitForPage(view: Bun.WebView, kind: string, timeoutMs = 15_000): Promise<void> {
   const deadline = Date.now() + timeoutMs

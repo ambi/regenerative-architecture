@@ -1,0 +1,61 @@
+id: wi-79-entra-real-tenant-end-to-end-verification
+title: Microsoft Entra ID 実テナントに対する WS-* / domain federation の end-to-end 検証
+created_at: 2026-06-28
+status: pending
+authors: [tn]
+
+motivation: |
+  WS-Federation passive ([[wi-61-ws-federation-passive-requestor-idp]])、WS-Trust active STS
+  ([[wi-62-ws-trust-active-sts]])、federation metadata / claim mapping
+  ([[wi-63-federation-metadata-and-claims-mapping]])、Entra domain federation preset
+  ([[wi-64-entra-domain-federation-m365-sso]])、Kerberos/SPNEGO 無音 SSO
+  ([[wi-65-kerberos-spnego-inbound-silent-sso]]) は、いずれもローカル検証 (unit / integration /
+  curl) では完結しているが、Microsoft Entra ID / Microsoft 365 の実テナントに対する
+  end-to-end 接続検証は各 WI のローカルスライス外に残っている。
+
+  実テナント検証は検証用テナントの domain federation 切替 (`Update-MgDomainFederationConfiguration`)
+  という破壊的変更を伴い、claim 形状・issuer・署名要件の僅かな不一致でも無言のサインイン失敗や
+  sourceAnchor 不一致によるアカウント重複を招く。これは個別 WI のローカル完了とは性質が異なる
+  運用検証であり、複数 WI に分散させると重複し追跡しづらい。本 WI で Entra ID 周りの実テナント
+  検証を一箇所に集約し、各 WI からは「実テナント検証は本 WI が担う」として範囲外にする。
+
+scope:
+  verification:
+    - >-
+      検証用 Entra テナントの検証済みドメインを ra-idp に federation 設定 (managed → federated 切替)
+      し、ブラウザサインイン (passive / wi-61) が成功し、発行 token に UPN / ImmutableID が
+      含まれることを確認する (wi-64)。
+    - >-
+      rich client / legacy active 認証経路 (WS-Trust usernamemixed / MEX、wi-62) で token が
+      発行され Microsoft 365 にサインインできることを確認する。
+    - federation metadata (wi-63) を Entra が取り込み、issuer / passive / active endpoint / 署名証明書が一致することを確認する。
+    - ドメイン参加 PC から Microsoft 365 への無音サインイン (wi-65) が成立することを確認する。
+    - Hybrid Azure AD Join のデバイス登録が未提供である旨が設定時に診断・案内されることを実テナントで確認する (wi-64、ADR-065)。
+    - 複数の検証済みドメインを 1 テナントで federation した場合に、ドメインごとに正しい profile / issuerUri へ解決されることを確認する。
+  documentation:
+    - 実テナント検証の手順・結果・既知の落とし穴 (claim 形状不一致・sourceAnchor 不一致) を運用ドキュメントに残す。
+
+out_of_scope:
+  - WS-Fed passive / WS-Trust active / metadata / Entra preset / 無音 SSO の実装 (wi-61〜65)。本 WI は実テナント検証のみ。
+  - Hybrid Azure AD Join のデバイス登録対応。Okta 同様の既知制約として未提供 (ADR-065)。
+  - Entra Connect (オンプレ同期) の同梱。sourceAnchor の供給はオンプレ側責務とする。
+
+affected_guarantees:
+  - claim 準拠: 実テナントが発行 token を受理し、UPN / ImmutableID が要求どおりに解釈される。
+  - issuer 一貫性: 発行 token の issuer が登録 IssuerUri と一致し Entra に受理される。
+  - sourceAnchor 安定性: ImmutableID がユーザーのライフサイクルを越えて安定し、アカウント重複を生まない。
+
+verification:
+  - >-
+    手動 (実テナント): test Entra テナントの検証済みドメインを ra-idp に federation 設定し、
+    ブラウザサインイン (passive) が成功し、token に UPN / ImmutableID が含まれることを確認する。
+  - '手動 (実テナント): rich client / active 認証 (WS-Trust) で Microsoft 365 にサインインできることを確認する。'
+  - '手動 (実テナント): ドメイン参加 PC から Microsoft 365 への無音サインインが成立することを確認する。'
+  - '手動 (実テナント): Hybrid Join 設定を試みると未提供である旨が診断・案内されることを確認する。'
+
+risk: high
+risk_notes: |
+  実テナント検証は domain federation 切替という破壊的変更を伴うため、本番ではなく検証用テナントで
+  行う。federation を誤設定するとテナント配下ユーザーのサインインを止めうるので、切替前に managed へ
+  戻す手順を用意する。Entra は claim 形状・issuer・署名要件に厳格で、誤ると無言のサインイン失敗や
+  sourceAnchor 不一致によるアカウント重複を招くため、検証は段階的に行い各段で token を確認する。

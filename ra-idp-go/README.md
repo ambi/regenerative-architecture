@@ -169,6 +169,36 @@ userinfo、フラグメントを拒否する。取得は 3 秒タイムアウト
 [Zog](https://zog.dev/) を使う。登録済みリダイレクト URI との一致、スコープ許可、
 状態遷移、PKCE など実行時コンテキストを必要とする検証はユースケース / ドメイン層に置く。
 
+### Microsoft Entra domain federation を設定する
+
+検証済みドメインを Microsoft 365 のサインインへ federation する手順（wi-64、ADR-065）。
+
+1. 管理 UI `/admin/federation/entra`（または `POST /api/admin/wsfed/entra-federation`）で
+   検証済み domain・sourceAnchor 属性（既定 `object_guid`）・IssuerUri を保存する。応答に
+   Entra へ登録する値（`IssuerUri` / `PassiveLogOnUri` / `ActiveLogOnUri` /
+   `MetadataExchangeUri`）と署名証明書の入手先（federation metadata）が表示される。
+2. Microsoft Graph PowerShell で federation を登録する。UI が示した値を
+   `Update-MgDomainFederationConfiguration`（旧 `Set-MsolDomainAuthentication`）へ渡す。
+
+   | UI が示す値           | `Update-MgDomainFederationConfiguration` | 旧 `Set-MsolDomainAuthentication` |
+   | --------------------- | ---------------------------------------- | --------------------------------- |
+   | `IssuerUri`           | `-IssuerUri`                             | `-IssuerUri`                      |
+   | `PassiveLogOnUri`     | `-PassiveSignInUri`                      | `-PassiveLogOnUri`               |
+   | `ActiveLogOnUri`      | `-ActiveSignInUri`                       | `-ActiveLogOnUri`                |
+   | `MetadataExchangeUri` | `-MetadataExchangeUri`                   | `-MetadataExchangeUri`           |
+   | federation metadata の X.509 | `-SigningCertificate`             | `-SigningCertificate`            |
+
+   `-PreferredAuthenticationProtocol wsFed`、`-FederatedIdpMfaBehavior` は運用方針に合わせて指定する。
+
+発行 token には UPN（`http://schemas.xmlsoap.org/claims/UPN`、既定で `preferred_username` から）と
+ImmutableID（sourceAnchor を base64 化、persistent NameID と
+`http://schemas.xmlsoap.org/claims/nameidentifier` に載る）が必須で、preset がこれを fail-closed で強制する。
+sourceAnchor はオンプレ AD の `objectGUID` 等の不変属性に束ねる（Entra Connect 等での供給はオンプレ側責務）。
+
+ドメイン参加 PC からの無音サインインは Kerberos/SPNEGO inbound（wi-65）を要する。
+Hybrid Azure AD Join の device registration は `windowstransport` + コンピュータアカウント Kerberos を
+要するため未提供で（Okta 同様の既知制約）、managed / PHS への切替または AD FS 併存を回避策とする。
+
 ## 検証
 
 ```bash

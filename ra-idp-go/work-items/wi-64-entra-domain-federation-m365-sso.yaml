@@ -1,7 +1,7 @@
 id: wi-64-entra-domain-federation-m365-sso
 title: Microsoft Entra domain federation で Microsoft 365 サインインと無音 SSO に対応する
 created_at: 2026-06-24
-status: in_progress
+status: completed
 authors: [tn]
 
 motivation: |
@@ -73,6 +73,11 @@ out_of_scope:
     Kerberos)。Okta 同様の既知制約として未提供とし、必要なら将来別 WI とする。
   - Entra Connect (オンプレ同期) の同梱。sourceAnchor の供給はオンプレ側責務とする。
   - Microsoft 365 以外の Entra 統合アプリ個別検証。
+  - >-
+    Microsoft Entra ID / Microsoft 365 の実テナントに対する end-to-end 接続検証
+    (domain federation 切替を伴う破壊的検証)。WS-* シリーズ共通の実テナント検証として
+    [[wi-79-entra-real-tenant-end-to-end-verification]] に集約する。本 WI はローカル検証
+    (unit / integration / curl) とプリセット配線・診断までで完了とする。
 
 affected_guarantees:
   - claim 準拠: Entra プリセットは UPN / ImmutableID / nameidentifier を満たさない限り設定を拒否する (fail-closed)。
@@ -92,12 +97,10 @@ verification:
     in: ra-idp-go
   - cmd: 'bun --cwd ra-idp-go/ui typecheck'
   - cmd: 'bun --cwd ra-idp-go/ui build'
+  - '手動: Hybrid Join 設定を試みると未提供である旨が API 応答 / UI で診断・案内されることを確認する。'
   - >-
-    手動 (実テナント): test Entra テナントの検証済みドメインを ra-idp に federation
-    設定し、ブラウザサインイン (passive) が成功し、token に UPN / ImmutableID が
-    含まれることを確認する。
-  - '手動 (実テナント): ドメイン参加 PC から Microsoft 365 への無音サインインが成立することを確認する。'
-  - '手動: Hybrid Join 設定を試みると未提供である旨が診断・案内されることを確認する。'
+    実テナント (passive / active サインイン・無音 SSO・claim 形状) の end-to-end 検証は
+    [[wi-79-entra-real-tenant-end-to-end-verification]] に集約する。
 
 risk: high
 risk_notes: |
@@ -107,4 +110,71 @@ risk_notes: |
   windowstransport + コンピュータアカウント Kerberos を要するため本 WI では提供せず
   (Okta 同様の既知制約)、managed/PHS への切替や AD FS 併存を回避策として案内する。
   無理に擬似実装しない。実テナント検証は破壊的変更 (ドメイン federation 切替) を伴うため
-  検証用テナントで行う。
+  検証用テナントで行う ([[wi-79-entra-real-tenant-end-to-end-verification]] に集約)。
+
+completion:
+  completed_at: 2026-06-28
+
+  summary: |
+    Entra domain federation profile (ADR-065) を WS-Federation context の RP preset として
+    実装した。管理 UI 「Entra ドメインフェデレーション」(/admin/federation/entra) と
+    `POST /api/admin/wsfed/entra-federation` で、検証済み domain・sourceAnchor 属性・IssuerUri を
+    受け取り、UPN / ImmutableID / persistent NameID を必須 claim とする WsFedRelyingParty を
+    upsert する。応答は Entra へ登録する PassiveLogOnUri / ActiveLogOnUri / MetadataExchangeUri と
+    署名証明書の入手先、Hybrid Join 非対応の既知制約を返す。sourceAnchor は objectGUID の GUID 文字列を
+    Microsoft byte order で base64 化 (既に base64 ならそのまま) して ImmutableID に正規化し、設定時は
+    既存 user の欠落・重複・変換不能を fail-closed で拒否、発行時 (passive wi-61 / active wi-62) も
+    ApplyEntraProfile → IssueClaims で required claim 未充足を fail-closed で拒否する。複数の検証済み
+    ドメインは domain ごとに issuerUri (既定 urn:ra-idp:entra:<domain>) の RP として共存し、サインイン時は
+    wtrealm で正しい profile へ解決する。README に Update-MgDomainFederationConfiguration への値マッピング・
+    required claims・無音 SSO 前提 (wi-65)・Hybrid Join 範囲外と回避策を追記した。
+
+  semantic_diff:
+    before: "WS-Fed RP は claim を手作業で設定する必要があり、Entra domain federation の厳密な claim 形状・sourceAnchor 変換・endpoint を保証できない"
+    after: "検証済みドメインを preset 一発で federation でき、UPN / ImmutableID / persistent NameID を fail-closed で強制し、Entra 登録値を提示する"
+
+  traceability:
+    specification:
+      - ra-idp-go/spec/contexts/ws-federation.yaml  # EntraFederationProfile, ConfigureEntraFederation, EntraFederationConfigured, AdminEntraFederation
+      - ra-idp-go/spec/contexts/tenancy.yaml  # EntraFederation 用語
+      - ra-idp-go/decisions/ADR-065-entra-domain-federation-profile.md
+    implementation:
+      - ra-idp-go/internal/spec/federation.go  # EntraFederationProfile, EntraFederationConfigured
+      - ra-idp-go/internal/wsfederation/domain/entra.go  # BuildEntraClaimPolicy, ApplyEntraProfile, NormalizeImmutableID
+      - ra-idp-go/internal/wsfederation/adapters/http/admin_entra_handler.go
+      - ra-idp-go/internal/wsfederation/adapters/http/wsfed_handler.go  # passive 発行時 fail-closed
+      - ra-idp-go/internal/wsfederation/adapters/http/wstrust_handler.go  # active 発行時 fail-closed
+      - ra-idp-go/internal/platform/persistence/memory/wsfed_relying_parties.go  # EntraProfile clone
+      - ra-idp-go/ui/src/features/admin-entra-federation/AdminEntraFederationPage.tsx
+      - ra-idp-go/README.md  # Microsoft Entra domain federation を設定する
+
+  affected_guarantees_state:
+    - "claim 準拠: preset は UPN / ImmutableID / nameidentifier を Required とし、未充足は設定時・発行時とも fail-closed"
+    - "issuer 一貫性: 発行 token の issuer / wtrealm / audience を IssuerUri に揃える"
+    - "sourceAnchor 安定性: ImmutableID は不変属性 (objectGUID 等) を Microsoft byte order base64 で正規化"
+    - "制約の明示: Hybrid Join 非対応を API 応答 known_limitations と UI Alert で診断・案内"
+    - "tenant isolation: Entra profile と RP は tenant ごとに分離し、複数ドメインは issuerUri で解決"
+    - "audit: EntraFederationConfigured を発行"
+
+  verification:
+    - cmd: "go build ./..."
+      in: ra-idp-go
+      result: ok
+    - cmd: "GOCACHE=/tmp/ra-idp-go-cache go test ./..."
+      in: ra-idp-go
+      result: ok
+    - cmd: "golangci-lint run ./..."
+      in: ra-idp-go
+      result: "0 issues"
+    - cmd: "bun --cwd ra-idp-go/ui typecheck"
+      result: ok
+    - cmd: "bun --cwd ra-idp-go/ui build"
+      result: ok
+
+  residual_risk:
+    - "Entra ID / Microsoft 365 の実テナント end-to-end 検証は未実施。[[wi-79-entra-real-tenant-end-to-end-verification]] に集約した。"
+    - "ドメイン参加 PC の無音サインインは [[wi-65-kerberos-spnego-inbound-silent-sso]] に依存する。"
+
+  human_decisions:
+    - "実テナント検証 (破壊的な domain federation 切替を伴う) を本 WI から外し、WS-* シリーズ共通の検証 WI [[wi-79-entra-real-tenant-end-to-end-verification]] に集約した。"
+    - "Entra federation は個別 Application 編集ではなくテナント単位設定として専用画面 (/admin/federation/entra) で扱った。"

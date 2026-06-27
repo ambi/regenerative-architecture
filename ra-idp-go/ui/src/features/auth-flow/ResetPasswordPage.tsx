@@ -59,8 +59,21 @@ export function ResetPasswordPage({ csrfToken, token }: { csrfToken: string; tok
               <div className="flex flex-col gap-2">
                 <Label htmlFor="new_password">新しいパスワード</Label>
                 <div className="relative">
-                  <IconLock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                  <Input id="new_password" name="new_password" type="password" className="pl-10" autoComplete="new-password" minLength={12} required autoFocus disabled={!token || submitting} />
+                  <IconLock
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                    size={18}
+                  />
+                  <Input
+                    id="new_password"
+                    name="new_password"
+                    type="password"
+                    className="pl-10"
+                    autoComplete="new-password"
+                    minLength={12}
+                    required
+                    autoFocus
+                    disabled={!token || submitting}
+                  />
                 </div>
               </div>
               <Button type="submit" size="lg" className="w-full" disabled={!token || submitting}>

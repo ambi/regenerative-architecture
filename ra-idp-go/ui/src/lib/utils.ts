@@ -26,7 +26,9 @@ const organizationAttributeKeys = new Set([
 
 export type AttributeGroupKey = 'profile' | 'organization' | 'custom'
 
-export function attributeGroupKey(def: Pick<UserAttributeDef, 'key' | 'oidc_scope'>): AttributeGroupKey {
+export function attributeGroupKey(
+  def: Pick<UserAttributeDef, 'key' | 'oidc_scope'>,
+): AttributeGroupKey {
   if (def.oidc_scope) return 'profile'
   return organizationAttributeKeys.has(def.key) ? 'organization' : 'custom'
 }

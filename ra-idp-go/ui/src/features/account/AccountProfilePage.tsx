@@ -7,11 +7,7 @@ import { Button } from '../../components/ui/button'
 import { Card } from '../../components/ui/card'
 import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
-import type {
-  AccountProfile,
-  AttributeValue,
-  UserAttributeDef,
-} from '../../types'
+import type { AccountProfile, AttributeValue, UserAttributeDef } from '../../types'
 
 // 編集フォーム上の属性値は文字列で保持し、保存時に AttributeValue へ整形する。
 type AttributeDraft = Record<string, string>
@@ -196,9 +192,7 @@ export function AccountProfilePage({
               <EditableAttributeGroups
                 defs={profile.editable_attributes}
                 values={attributes}
-                onChange={(key, next) =>
-                  setAttributes((current) => ({ ...current, [key]: next }))
-                }
+                onChange={(key, next) => setAttributes((current) => ({ ...current, [key]: next }))}
               />
 
               <div className="flex items-center gap-2">
@@ -306,7 +300,10 @@ function EditableAttributeGroups({
     <div className="grid gap-4 rounded-lg border border-slate-200 p-4">
       <p className="text-sm font-medium text-slate-700">追加項目</p>
       {groups.map((group) => (
-        <fieldset key={group.key} className="grid gap-3 border-t border-slate-100 pt-4 first:border-t-0 first:pt-0">
+        <fieldset
+          key={group.key}
+          className="grid gap-3 border-t border-slate-100 pt-4 first:border-t-0 first:pt-0"
+        >
           <legend className="text-xs font-bold uppercase tracking-normal text-slate-500">
             {group.title}
           </legend>

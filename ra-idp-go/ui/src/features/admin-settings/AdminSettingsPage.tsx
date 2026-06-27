@@ -32,8 +32,7 @@ const tabs: Tab[] = [
   {
     key: 'password-policy',
     label: 'パスワードポリシー',
-    description:
-      'テナント単位の上書き値。空欄のフィールドは RA Identity の標準値が適用されます。',
+    description: 'テナント単位の上書き値。空欄のフィールドは RA Identity の標準値が適用されます。',
     icon: IconShieldLock,
   },
   {
@@ -133,8 +132,8 @@ export function AdminSettingsPage({
             <Card className="p-6">
               <h2 className="text-base font-semibold text-slate-900">メール送信</h2>
               <p className="mt-2 text-sm text-slate-600">
-                送信先 SMTP の設定は ADR-035 に従い環境変数で管理しています。UI 経由の編集は
-                別 WI で扱います。
+                送信先 SMTP の設定は ADR-035 に従い環境変数で管理しています。UI 経由の編集は 別 WI
+                で扱います。
               </p>
             </Card>
           ) : null}
@@ -181,9 +180,7 @@ function GeneralTab({
       setNotice('表示名を更新しました。')
     } catch (cause) {
       setError(
-        cause instanceof AuthenticationAPIError
-          ? cause.message
-          : '設定を更新できませんでした。',
+        cause instanceof AuthenticationAPIError ? cause.message : '設定を更新できませんでした。',
       )
     } finally {
       setSaving(false)
@@ -428,7 +425,15 @@ function PasswordPolicyTab({
   )
 }
 
-function ReadSetting({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+function ReadSetting({
+  label,
+  value,
+  mono = false,
+}: {
+  label: string
+  value: string
+  mono?: boolean
+}) {
   return (
     <div className="rounded-lg border border-slate-200/80 bg-white/70 px-3 py-2.5">
       <dt className="text-xs text-slate-500">{label}</dt>

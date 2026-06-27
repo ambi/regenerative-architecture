@@ -45,7 +45,11 @@ export function AccountHomePage({
     >
       {summary.required_actions.length > 0 ? (
         <Card className="flex items-start gap-3 border-amber-200 bg-amber-50/70 p-4">
-          <IconAlertTriangle className="mt-0.5 shrink-0 text-amber-600" size={20} aria-hidden="true" />
+          <IconAlertTriangle
+            className="mt-0.5 shrink-0 text-amber-600"
+            size={20}
+            aria-hidden="true"
+          />
           <div>
             <p className="text-sm font-semibold text-amber-900">対応が必要な項目があります</p>
             <ul className="mt-1.5 flex flex-wrap gap-2">

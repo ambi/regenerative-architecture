@@ -1,9 +1,4 @@
-import {
-  IconCircleCheckFilled,
-  IconHelpCircle,
-  IconLock,
-  IconSparkles,
-} from '@tabler/icons-react'
+import { IconCircleCheckFilled, IconHelpCircle, IconLock, IconSparkles } from '@tabler/icons-react'
 import type { ReactNode } from 'react'
 import { Brand } from './Brand'
 

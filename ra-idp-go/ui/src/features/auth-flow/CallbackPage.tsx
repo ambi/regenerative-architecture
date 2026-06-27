@@ -31,7 +31,9 @@ export function CallbackPage({
         </div>
 
         <header className="flex max-w-md flex-col items-center gap-2.5">
-          <p className="eyebrow">{succeeded ? 'Authentication complete' : 'Authentication failed'}</p>
+          <p className="eyebrow">
+            {succeeded ? 'Authentication complete' : 'Authentication failed'}
+          </p>
           <h2 className="page-title">
             {succeeded ? 'ローカルデモ認証が完了しました' : '認証を完了できませんでした'}
           </h2>

@@ -1,10 +1,4 @@
-import {
-  IconCheck,
-  IconInfoCircle,
-  IconLogin,
-  IconLogout,
-  IconX,
-} from '@tabler/icons-react'
+import { IconCheck, IconInfoCircle, IconLogin, IconLogout, IconX } from '@tabler/icons-react'
 import { tenantURL } from '../../api'
 import { AuthShell } from '../../components/AuthShell'
 import { Button } from '../../components/ui/button'

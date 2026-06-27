@@ -40,8 +40,7 @@ export function AdminDashboardPage({
   auditEventCount24h: number
   recentEvents: AdminAuditEvent[]
 }) {
-  const showTenantsLink =
-    actorRoles.includes('system_admin') && actorTenantID === DEFAULT_TENANT_ID
+  const showTenantsLink = actorRoles.includes('system_admin') && actorTenantID === DEFAULT_TENANT_ID
 
   return (
     <AdminShell
@@ -58,12 +57,7 @@ export function AdminDashboardPage({
           tone="blue"
           hint={`有効 ${activeUserCount} / 無効 ${disabledUserCount}`}
         />
-        <MetricCard
-          label="登録アプリケーション"
-          value={clientCount}
-          icon={IconKey}
-          tone="violet"
-        />
+        <MetricCard label="登録アプリケーション" value={clientCount} icon={IconKey} tone="violet" />
         <MetricCard
           label="付与済みの同意"
           value={grantedConsentCount}
@@ -83,9 +77,7 @@ export function AdminDashboardPage({
           <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
             <div>
               <h2 className="text-sm font-semibold text-slate-900">直近の監査イベント</h2>
-              <p className="mt-0.5 text-xs text-slate-500">
-                過去 24 時間の最新 5 件です。
-              </p>
+              <p className="mt-0.5 text-xs text-slate-500">過去 24 時間の最新 5 件です。</p>
             </div>
             <a
               href={tenantURL('/admin/audit_events')}
@@ -193,10 +185,7 @@ function MetricCard({
   return (
     <Card className="group flex items-center gap-4 p-4 transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_22px_58px_-34px_rgb(15_23_42/48%)]">
       <span
-        className={cn(
-          'flex size-10 items-center justify-center rounded-lg ring-1',
-          tones[tone],
-        )}
+        className={cn('flex size-10 items-center justify-center rounded-lg ring-1', tones[tone])}
       >
         <Icon size={20} stroke={1.8} aria-hidden="true" />
       </span>

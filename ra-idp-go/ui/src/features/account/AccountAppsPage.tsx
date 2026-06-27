@@ -9,12 +9,7 @@ function initials(name: string): string {
 
 function AppTile({ app }: { app: MyApplication }) {
   const icon = app.icon_url ? (
-    <img
-      src={app.icon_url}
-      alt=""
-      className="size-12 rounded-xl object-cover"
-      aria-hidden="true"
-    />
+    <img src={app.icon_url} alt="" className="size-12 rounded-xl object-cover" aria-hidden="true" />
   ) : (
     <span className="flex size-12 items-center justify-center rounded-xl border border-blue-100 bg-blue-50 text-sm font-bold text-blue-700">
       {initials(app.name)}

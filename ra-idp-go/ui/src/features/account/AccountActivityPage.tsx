@@ -5,11 +5,7 @@ import {
   IconLogin2,
 } from '@tabler/icons-react'
 import { useState } from 'react'
-import {
-  AuthenticationAPIError,
-  revokeAccountSession,
-  revokeOtherAccountSessions,
-} from '../../api'
+import { AuthenticationAPIError, revokeAccountSession, revokeOtherAccountSessions } from '../../api'
 import { AccountShell } from '../../components/AccountShell'
 import { StepUpCancelledError, useStepUpGuard } from '../../components/StepUpDialog'
 import { Alert } from '../../components/ui/alert'
@@ -216,8 +212,8 @@ export function AccountActivityPage({
       <div className="flex items-start gap-3 rounded-xl bg-slate-50 p-3.5 text-xs leading-5 text-slate-600">
         <IconInfoCircle className="mt-0.5 shrink-0 text-slate-500" size={17} aria-hidden="true" />
         <p>
-          「終了」したセッションのブラウザは次回アクセス時に再ログインが必要になります。
-          IP アドレス・デバイス・場所の表示は今後のステージで追加します。
+          「終了」したセッションのブラウザは次回アクセス時に再ログインが必要になります。 IP
+          アドレス・デバイス・場所の表示は今後のステージで追加します。
         </p>
       </div>
       {dialog}

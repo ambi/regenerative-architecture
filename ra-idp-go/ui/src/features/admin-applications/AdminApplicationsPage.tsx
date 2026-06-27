@@ -204,7 +204,9 @@ function AssignmentsSection({
     <div className="space-y-2">
       <p className="text-xs font-semibold text-slate-500">割当 (ユーザー / グループ)</p>
       {assignments.length === 0 ? (
-        <p className="text-xs text-slate-400">割当はありません。未割当の利用者はログインできません。</p>
+        <p className="text-xs text-slate-400">
+          割当はありません。未割当の利用者はログインできません。
+        </p>
       ) : (
         <ul className="space-y-1">
           {assignments.map((a) => (

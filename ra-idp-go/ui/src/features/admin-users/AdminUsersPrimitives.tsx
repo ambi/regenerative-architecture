@@ -71,7 +71,13 @@ export function RoleList({ roles }: { roles: string[] }) {
   )
 }
 
-export function StatusBadge({ disabled, compact = false }: { disabled: boolean; compact?: boolean }) {
+export function StatusBadge({
+  disabled,
+  compact = false,
+}: {
+  disabled: boolean
+  compact?: boolean
+}) {
   return (
     <span
       className={cn(
@@ -116,7 +122,10 @@ type FieldProps = {
   required?: boolean
   minLength?: number
   description?: string
-} & Omit<ComponentProps<typeof Input>, 'id' | 'name' | 'type' | 'placeholder' | 'required' | 'minLength'>
+} & Omit<
+  ComponentProps<typeof Input>,
+  'id' | 'name' | 'type' | 'placeholder' | 'required' | 'minLength'
+>
 
 export function Field({ id, label, type = 'text', description, ...props }: FieldProps) {
   return (

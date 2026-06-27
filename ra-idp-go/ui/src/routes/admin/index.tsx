@@ -2,10 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { listAdminAuditEvents } from '../../api/admin'
 import { request } from '../../api/core'
 import { AdminDashboardPage } from '../../features/admin-dashboard/AdminDashboardPage'
-import type {
-  AdminClient,
-  AdminConsent,  AdminUser,
-} from '../../types'
+import type { AdminClient, AdminConsent, AdminUser } from '../../types'
 import { requirePortalAccount } from '../-guards'
 import { PageMarker } from '../-page'
 

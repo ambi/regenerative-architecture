@@ -9,12 +9,7 @@ import {
   IconShieldLock,
 } from '@tabler/icons-react'
 import { type FormEvent, useState } from 'react'
-import {
-  AuthenticationAPIError,
-  changePassword,
-  PasswordPolicyError,
-  tenantURL,
-} from '../../api'
+import { AuthenticationAPIError, changePassword, PasswordPolicyError, tenantURL } from '../../api'
 import { AuthShell } from '../../components/AuthShell'
 import { StepUpCancelledError, useStepUpGuard } from '../../components/StepUpDialog'
 import { Alert } from '../../components/ui/alert'

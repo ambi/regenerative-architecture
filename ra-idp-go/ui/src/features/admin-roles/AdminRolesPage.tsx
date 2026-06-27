@@ -195,7 +195,10 @@ function RoleDetails({
             <p className="mt-1 text-sm leading-6 text-slate-600">{role.description}</p>
             <div className="mt-3 flex flex-wrap gap-1.5">
               {role.aliases.map((alias) => (
-                <span key={alias} className="rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-600">
+                <span
+                  key={alias}
+                  className="rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-600"
+                >
                   {alias}
                 </span>
               ))}
@@ -266,15 +269,7 @@ function RoleDetails({
   )
 }
 
-function MetricCard({
-  label,
-  value,
-  hint,
-}: {
-  label: string
-  value: number
-  hint: string
-}) {
+function MetricCard({ label, value, hint }: { label: string; value: number; hint: string }) {
   return (
     <Card className="p-5">
       <p className="font-mono text-xs font-semibold text-slate-500">{label}</p>

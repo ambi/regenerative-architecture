@@ -156,7 +156,9 @@ export function AdminTenantAttributesPage({
                     </td>
                     <td className="px-5 py-3 text-slate-600">{def.type}</td>
                     <td className="px-5 py-3 text-slate-600">{VISIBILITY_LABEL[def.visibility]}</td>
-                    <td className="px-5 py-3 text-slate-600">{def.editable_by_user ? '可' : '不可'}</td>
+                    <td className="px-5 py-3 text-slate-600">
+                      {def.editable_by_user ? '可' : '不可'}
+                    </td>
                     <td className="px-5 py-3">
                       <div className="flex justify-end gap-1">
                         <Button
@@ -229,7 +231,12 @@ function AttributeEditorDialog({
       aria-modal="true"
       aria-labelledby="attribute-editor-title"
     >
-      <button type="button" className="absolute inset-0 cursor-default" aria-label="閉じる" onClick={onClose} />
+      <button
+        type="button"
+        className="absolute inset-0 cursor-default"
+        aria-label="閉じる"
+        onClick={onClose}
+      />
       <Card className="relative flex max-h-[88vh] w-full max-w-lg flex-col overflow-hidden shadow-2xl">
         <div className="flex items-start justify-between border-b border-slate-200 px-6 py-5">
           <h2 id="attribute-editor-title" className="text-xl font-semibold">
@@ -256,7 +263,9 @@ function AttributeEditorDialog({
                   placeholder="例: 部署"
                   onChange={(event) => patch({ label: event.target.value })}
                 />
-                <p className="text-xs text-slate-500">利用者・管理者に見せる日本語名。未設定なら key を表示します。</p>
+                <p className="text-xs text-slate-500">
+                  利用者・管理者に見せる日本語名。未設定なら key を表示します。
+                </p>
               </div>
               <div className="grid gap-1.5">
                 <Label htmlFor="attr-key">key</Label>

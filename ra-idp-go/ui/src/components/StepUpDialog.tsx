@@ -39,9 +39,7 @@ export function useStepUpGuard(csrfToken: string) {
       return await action()
     } catch (cause) {
       if (!isStepUpRequired(cause)) throw cause
-      const methods = await startStepUp(csrfToken).catch(
-        () => ['password'] as StepUpMethod[],
-      )
+      const methods = await startStepUp(csrfToken).catch(() => ['password'] as StepUpMethod[])
       await new Promise<void>((resolve, reject) => {
         setPending({ methods, resolve, reject })
       })
@@ -97,9 +95,7 @@ function StepUpDialog({ methods, csrfToken, onAuthenticated, onCancel }: StepUpD
       onAuthenticated()
     } catch (cause) {
       const message =
-        cause instanceof AuthenticationAPIError
-          ? cause.message
-          : '再認証に失敗しました。'
+        cause instanceof AuthenticationAPIError ? cause.message : '再認証に失敗しました。'
       setError(message)
       setBusy(false)
     }
@@ -184,7 +180,9 @@ function StepUpDialog({ methods, csrfToken, onAuthenticated, onCancel }: StepUpD
             </Button>
             <Button
               type="submit"
-              disabled={busy || credential.trim() === '' || (isTotp && credential.trim().length !== 6)}
+              disabled={
+                busy || credential.trim() === '' || (isTotp && credential.trim().length !== 6)
+              }
             >
               {busy ? '確認中…' : '再認証して続行'}
             </Button>

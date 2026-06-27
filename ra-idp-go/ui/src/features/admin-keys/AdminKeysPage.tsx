@@ -31,8 +31,7 @@ export function AdminKeysPage({
   const [notice, setNotice] = useState('')
   const [confirm, setConfirm] = useState(false)
 
-  const canRotate =
-    actorRoles.includes('system_admin') && actorTenantID === DEFAULT_TENANT_ID
+  const canRotate = actorRoles.includes('system_admin') && actorTenantID === DEFAULT_TENANT_ID
 
   async function refresh(preferred?: string) {
     const next = await listAdminKeys()
@@ -168,8 +167,8 @@ export function AdminKeysPage({
           <Card className="w-full max-w-md p-6">
             <h2 className="text-base font-semibold text-slate-900">署名鍵をローテートします</h2>
             <p className="mt-3 text-sm text-slate-600">
-              新しい active 鍵が生成され、旧 active 鍵は JWKS に verifying として残ります。
-              JWKS キャッシュが更新されるまで一時的な検証遅延が起きる可能性があります。
+              新しい active 鍵が生成され、旧 active 鍵は JWKS に verifying として残ります。 JWKS
+              キャッシュが更新されるまで一時的な検証遅延が起きる可能性があります。
             </p>
             <div className="mt-5 flex justify-end gap-2">
               <Button variant="outline" onClick={() => setConfirm(false)} disabled={busy}>

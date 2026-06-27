@@ -53,8 +53,8 @@ export function AccountDataPage({ username, isAdmin }: { username: string; isAdm
           <div>
             <p className="text-sm font-semibold text-slate-900">個人データのエクスポート</p>
             <p className="mt-1 text-sm leading-6 text-slate-600">
-              プロフィール (表示名・属性・メール・ライフサイクル) と、アクセスを許可した
-              アプリ (接続済みアプリ) を JSON ファイルとしてダウンロードします。サインイン
+              プロフィール (表示名・属性・メール・ライフサイクル) と、アクセスを許可した アプリ
+              (接続済みアプリ) を JSON ファイルとしてダウンロードします。サインイン
               履歴やセッションの同梱は今後対応します。
             </p>
           </div>

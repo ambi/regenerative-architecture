@@ -18,7 +18,11 @@ const DEFAULT_TENANT_ID = 'default'
 
 type EventKind = 'success' | 'fail' | 'aggregated'
 
-const FAIL_TYPES = new Set(['AuthenticationFailed', 'AuthenticationStepFailed', 'MfaChallengeFailed'])
+const FAIL_TYPES = new Set([
+  'AuthenticationFailed',
+  'AuthenticationStepFailed',
+  'MfaChallengeFailed',
+])
 const AGGREGATED_TYPES = new Set(['AuthenticationEventAggregated', 'LoginThrottled'])
 const AUTH_TYPES = new Set([
   'UserAuthenticated',
@@ -79,8 +83,7 @@ export function AdminAuditEventsPage({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
-  const canCrossTenant =
-    actorRoles.includes('system_admin') && actorTenantID === DEFAULT_TENANT_ID
+  const canCrossTenant = actorRoles.includes('system_admin') && actorTenantID === DEFAULT_TENANT_ID
 
   function buildQuery(): AdminAuditEventQuery {
     const parsedLimit = limit.trim() ? Number.parseInt(limit, 10) : undefined
@@ -155,13 +158,21 @@ export function AdminAuditEventsPage({
             </select>
           </Field>
           <Field label="対象ユーザー (sub)">
-            <Input value={sub} onChange={(e) => setSub(e.target.value)} placeholder="例: user_..." />
+            <Input
+              value={sub}
+              onChange={(e) => setSub(e.target.value)}
+              placeholder="例: user_..."
+            />
           </Field>
           <Field label="開始日時">
             <Input type="datetime-local" value={after} onChange={(e) => setAfter(e.target.value)} />
           </Field>
           <Field label="終了日時">
-            <Input type="datetime-local" value={before} onChange={(e) => setBefore(e.target.value)} />
+            <Input
+              type="datetime-local"
+              value={before}
+              onChange={(e) => setBefore(e.target.value)}
+            />
           </Field>
           <Field label="最大件数">
             <Input
@@ -248,7 +259,9 @@ export function AdminAuditEventsPage({
             {selected ? (
               <Button
                 variant="ghost"
-                onClick={() => navigator.clipboard?.writeText(JSON.stringify(selected.payload, null, 2))}
+                onClick={() =>
+                  navigator.clipboard?.writeText(JSON.stringify(selected.payload, null, 2))
+                }
                 aria-label="payload をコピー"
               >
                 <IconRefresh size={14} aria-hidden="true" />
@@ -284,7 +297,9 @@ export function AdminAuditEventsPage({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="grid gap-1.5">
-      <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</Label>
+      <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        {label}
+      </Label>
       {children}
     </div>
   )

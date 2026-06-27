@@ -5,6 +5,8 @@
   "scripts": {
     "build": "tsc --noEmit -p tsconfig.app.json && bun ./node_modules/vite/bin/vite.js build",
     "dev": "bun ./node_modules/vite/bin/vite.js",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
     "lint": "biome lint .",
     "lint:fix": "biome lint --write .",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",

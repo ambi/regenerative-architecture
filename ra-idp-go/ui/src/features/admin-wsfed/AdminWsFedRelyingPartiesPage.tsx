@@ -1,4 +1,11 @@
-import { IconDownload, IconPlus, IconServerBolt, IconTrash, IconWorldShare, IconX } from '@tabler/icons-react'
+import {
+  IconDownload,
+  IconPlus,
+  IconServerBolt,
+  IconTrash,
+  IconWorldShare,
+  IconX,
+} from '@tabler/icons-react'
 import { type FormEvent, useState } from 'react'
 import {
   AuthenticationAPIError,
@@ -14,11 +21,7 @@ import { Button } from '../../components/ui/button'
 import { Card } from '../../components/ui/card'
 import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
-import type {
-  WsFedClaimMappingRule,
-  WsFedRelyingParty,
-  WsFedTokenType,
-} from '../../types'
+import type { WsFedClaimMappingRule, WsFedRelyingParty, WsFedTokenType } from '../../types'
 
 const TOKEN_TYPE_SAML11: WsFedTokenType = 'urn:oasis:names:tc:SAML:1.0:assertion'
 const TOKEN_TYPE_SAML20: WsFedTokenType = 'urn:oasis:names:tc:SAML:2.0:assertion'
@@ -187,7 +190,11 @@ export function AdminWsFedRelyingPartiesPage({
       })
       setNotice(`${result.profile.domain} の Entra federation preset を保存しました。`)
     } catch (cause) {
-      setError(cause instanceof AuthenticationAPIError ? cause.message : 'Entra federation preset の保存に失敗しました。')
+      setError(
+        cause instanceof AuthenticationAPIError
+          ? cause.message
+          : 'Entra federation preset の保存に失敗しました。',
+      )
     }
   }
 
@@ -221,26 +228,49 @@ export function AdminWsFedRelyingPartiesPage({
         <div>
           <h2 className="text-sm font-semibold text-slate-900">Microsoft Entra federation</h2>
           <p className="mt-1 text-xs leading-5 text-slate-500">
-            Microsoft 365 domain federation 向けに、UPN / ImmutableID / persistent NameID の
-            preset を持つ WS-Fed RP を作成します。
+            Microsoft 365 domain federation 向けに、UPN / ImmutableID / persistent NameID の preset
+            を持つ WS-Fed RP を作成します。
           </p>
         </div>
-        <form className="grid gap-3 lg:grid-cols-[1fr_1fr_1fr_1fr_auto]" onSubmit={handleConfigureEntra}>
+        <form
+          className="grid gap-3 lg:grid-cols-[1fr_1fr_1fr_1fr_auto]"
+          onSubmit={handleConfigureEntra}
+        >
           <div className="grid gap-1.5">
             <Label htmlFor="entra_domain">検証済み domain</Label>
-            <Input id="entra_domain" value={entraDomain} placeholder="contoso.com" onChange={(e) => setEntraDomain(e.target.value)} required />
+            <Input
+              id="entra_domain"
+              value={entraDomain}
+              placeholder="contoso.com"
+              onChange={(e) => setEntraDomain(e.target.value)}
+              required
+            />
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="entra_source_anchor">sourceAnchor 属性</Label>
-            <Input id="entra_source_anchor" value={entraSourceAnchor} onChange={(e) => setEntraSourceAnchor(e.target.value)} required />
+            <Input
+              id="entra_source_anchor"
+              value={entraSourceAnchor}
+              onChange={(e) => setEntraSourceAnchor(e.target.value)}
+              required
+            />
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="entra_issuer">IssuerUri</Label>
-            <Input id="entra_issuer" value={entraIssuer} placeholder="空なら自動生成" onChange={(e) => setEntraIssuer(e.target.value)} />
+            <Input
+              id="entra_issuer"
+              value={entraIssuer}
+              placeholder="空なら自動生成"
+              onChange={(e) => setEntraIssuer(e.target.value)}
+            />
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="entra_reply">wreply URL</Label>
-            <Input id="entra_reply" value={entraReplyURL} onChange={(e) => setEntraReplyURL(e.target.value)} />
+            <Input
+              id="entra_reply"
+              value={entraReplyURL}
+              onChange={(e) => setEntraReplyURL(e.target.value)}
+            />
           </div>
           <div className="flex items-end">
             <Button type="submit">Preset を保存</Button>
@@ -257,7 +287,8 @@ export function AdminWsFedRelyingPartiesPage({
               ))}
             </div>
             <Alert>
-              Hybrid Azure AD Join のデバイス登録は未提供です。必要な場合は managed/PHS への切替または AD FS 併存を検討してください。
+              Hybrid Azure AD Join のデバイス登録は未提供です。必要な場合は managed/PHS
+              への切替または AD FS 併存を検討してください。
             </Alert>
           </div>
         ) : null}
@@ -449,7 +480,8 @@ export function AdminWsFedRelyingPartiesPage({
                   {rp.entra_profile ? (
                     <span>
                       <span className="font-semibold text-slate-700">Entra:</span>{' '}
-                      {rp.entra_profile.domain} / sourceAnchor {rp.entra_profile.source_anchor_attribute}
+                      {rp.entra_profile.domain} / sourceAnchor{' '}
+                      {rp.entra_profile.source_anchor_attribute}
                     </span>
                   ) : null}
                   <div className="flex flex-wrap gap-1.5">

@@ -78,7 +78,7 @@ export function AdminShell({
               >
                 <div className="hidden text-right sm:block">
                   <p className="text-sm font-semibold text-slate-800">
-              {actorUsername ?? 'administrator'}
+                    {actorUsername ?? 'administrator'}
                   </p>
                   <p className="text-xs text-slate-500">Organization administrator</p>
                 </div>
@@ -163,9 +163,7 @@ export function AdminShell({
                     )}
                   </ol>
                 </nav>
-                <h1 className="app-page-title mt-2">
-                  {title}
-                </h1>
+                <h1 className="app-page-title mt-2">{title}</h1>
                 {description ? (
                   <p className="mt-2 max-w-[70ch] text-sm text-slate-600">{description}</p>
                 ) : null}

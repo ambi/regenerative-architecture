@@ -164,7 +164,10 @@ export async function startTotpEnrollment(csrfToken: string): Promise<TotpEnroll
   })
   if (response.ok) return (await response.json()) as TotpEnrollmentStart
   const body = (await response.json().catch(() => ({}))) as APIError
-  throw new AuthenticationAPIError(body.message ?? '認証アプリの登録を開始できませんでした。', body.error)
+  throw new AuthenticationAPIError(
+    body.message ?? '認証アプリの登録を開始できませんでした。',
+    body.error,
+  )
 }
 
 export async function confirmTotpEnrollment(
@@ -212,6 +215,6 @@ export async function confirmEmailChange(csrfToken: string, token: string): Prom
 
 // 利用者ポータルの割当済みアプリ一覧 (wi-69)。visible 割当のみ返る。
 export async function listMyApplications(): Promise<MyApplication[]> {
-  return (await request<{ applications: MyApplication[] }>('/api/account/applications')).applications
+  return (await request<{ applications: MyApplication[] }>('/api/account/applications'))
+    .applications
 }
-

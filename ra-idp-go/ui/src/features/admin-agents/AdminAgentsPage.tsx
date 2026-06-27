@@ -39,9 +39,7 @@ import {
 } from '../../components/ui/dropdown-menu'
 import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
-import type {
-  AdminAgent,
-} from '../../types'
+import type { AdminAgent } from '../../types'
 
 const KIND_LABELS: Record<AdminAgent['kind'], string> = {
   autonomous: '自律',
@@ -243,7 +241,11 @@ export function AdminAgentsPage({
               </div>
               <div className="grid gap-1.5">
                 <Label htmlFor="agent-description">説明 (任意)</Label>
-                <Input id="agent-description" name="description" placeholder="請求書処理エージェント" />
+                <Input
+                  id="agent-description"
+                  name="description"
+                  placeholder="請求書処理エージェント"
+                />
               </div>
               <div className="grid gap-1.5">
                 <Label htmlFor="agent-kind">種別</Label>
@@ -413,10 +415,7 @@ export function AdminAgentDetailPage({
                   </DropdownMenuItem>
                 ) : null}
                 {!killed ? (
-                  <DropdownMenuItem
-                    className="text-rose-700"
-                    onSelect={() => setConfirmKill(true)}
-                  >
+                  <DropdownMenuItem className="text-rose-700" onSelect={() => setConfirmKill(true)}>
                     <IconPlayerStop size={17} aria-hidden="true" />
                     緊急停止 (kill)
                   </DropdownMenuItem>
@@ -612,7 +611,11 @@ function AgentDetailCard({
           >
             <span>このエージェントを削除しますか？バインドされた資格情報も解除されます。</span>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setConfirmDelete(false)} disabled={localBusy}>
+              <Button
+                variant="outline"
+                onClick={() => setConfirmDelete(false)}
+                disabled={localBusy}
+              >
                 取消
               </Button>
               <Button
@@ -899,7 +902,9 @@ function AgentEditorDialog({
                     onChange={(e) => setRoles(e.target.value)}
                     placeholder="invoice:read, invoice:write"
                   />
-                  <p className="text-xs text-slate-500">カンマ区切り。エージェントに付与されます。</p>
+                  <p className="text-xs text-slate-500">
+                    カンマ区切り。エージェントに付与されます。
+                  </p>
                 </div>
               </section>
             </div>

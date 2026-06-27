@@ -39,6 +39,9 @@ jobs:
       - name: Install UI dependencies
         working-directory: ra-idp-go/ui
         run: bun install --frozen-lockfile
+      - name: UI format check
+        working-directory: ra-idp-go/ui
+        run: bun run format:check
       - name: UI lint
         working-directory: ra-idp-go/ui
         run: bun run lint

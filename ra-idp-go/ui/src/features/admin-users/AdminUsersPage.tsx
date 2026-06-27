@@ -219,179 +219,179 @@ export function AdminUsersPage({
         title="ユーザー"
         description="組織のID、アクセスロール、アカウント状態を一元管理します。"
         actions={
-                <Button onClick={() => setShowCreate(true)}>
-                  <IconUserPlus size={17} aria-hidden="true" />
-                  ユーザーを追加
-                </Button>
+          <Button onClick={() => setShowCreate(true)}>
+            <IconUserPlus size={17} aria-hidden="true" />
+            ユーザーを追加
+          </Button>
         }
       >
-            <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="ユーザー概要">
-              <Metric label="総ユーザー" value={users.length} icon={IconUsers} tone="blue" />
-              <Metric
-                label="有効なアカウント"
-                value={activeCount}
-                icon={IconCircleCheck}
-                tone="green"
+        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="ユーザー概要">
+          <Metric label="総ユーザー" value={users.length} icon={IconUsers} tone="blue" />
+          <Metric
+            label="有効なアカウント"
+            value={activeCount}
+            icon={IconCircleCheck}
+            tone="green"
+          />
+          <Metric label="管理者" value={adminCount} icon={IconShield} tone="violet" />
+          <Metric label="MFA 登録済み" value={mfaCount} icon={IconKey} tone="amber" />
+        </section>
+
+        {error && <Alert>{error}</Alert>}
+        {notice && (
+          <div
+            role="status"
+            className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
+          >
+            <IconCheck size={18} aria-hidden="true" />
+            {notice}
+          </div>
+        )}
+
+        <Card className="overflow-hidden shadow-[0_1px_2px_rgb(15_23_42/4%)]">
+          <div className="flex flex-col gap-3 border-b border-slate-200 p-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="relative w-full max-w-xl">
+              <IconSearch
+                size={18}
+                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                aria-hidden="true"
               />
-              <Metric label="管理者" value={adminCount} icon={IconShield} tone="violet" />
-              <Metric label="MFA 登録済み" value={mfaCount} icon={IconKey} tone="amber" />
-            </section>
-
-            {error && <Alert>{error}</Alert>}
-            {notice && (
-              <div
-                role="status"
-                className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
-              >
-                <IconCheck size={18} aria-hidden="true" />
-                {notice}
-              </div>
-            )}
-
-            <Card className="overflow-hidden shadow-[0_1px_2px_rgb(15_23_42/4%)]">
-              <div className="flex flex-col gap-3 border-b border-slate-200 p-4 lg:flex-row lg:items-center lg:justify-between">
-                <div className="relative w-full max-w-xl">
-                  <IconSearch
-                    size={18}
-                    className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
-                    aria-hidden="true"
-                  />
-                  <Input
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                    className="h-10 pl-10"
-                    placeholder="名前、メール、ID、ロールで検索"
-                    aria-label="ユーザーを検索"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <IconAdjustments size={17} className="text-slate-400" aria-hidden="true" />
-                  <div className="flex rounded-lg border border-slate-200 bg-slate-50 p-0.5">
-                    {(['all', 'active', 'disabled'] as const).map((value) => (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() => setStatus(value)}
-                        className={cn(
-                          'rounded-md px-3 py-1.5 text-xs font-semibold transition-colors',
-                          status === value
-                            ? 'bg-white text-slate-900 shadow-sm'
-                            : 'text-slate-500 hover:text-slate-800',
-                        )}
-                      >
-                        {{ all: 'すべて', active: '有効', disabled: '無効' }[value]}
-                      </button>
-                    ))}
-                  </div>
-                  <Button
-                    variant="outline"
-                    className="size-9 px-0"
-                    disabled={busy}
-                    aria-label="一覧を再読み込み"
-                    onClick={() => void run(() => refresh(), '一覧を更新しました。')}
+              <Input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                className="h-10 pl-10"
+                placeholder="名前、メール、ID、ロールで検索"
+                aria-label="ユーザーを検索"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <IconAdjustments size={17} className="text-slate-400" aria-hidden="true" />
+              <div className="flex rounded-lg border border-slate-200 bg-slate-50 p-0.5">
+                {(['all', 'active', 'disabled'] as const).map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setStatus(value)}
+                    className={cn(
+                      'rounded-md px-3 py-1.5 text-xs font-semibold transition-colors',
+                      status === value
+                        ? 'bg-white text-slate-900 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-800',
+                    )}
                   >
-                    <IconRefresh size={16} aria-hidden="true" />
-                  </Button>
-                </div>
+                    {{ all: 'すべて', active: '有効', disabled: '無効' }[value]}
+                  </button>
+                ))}
               </div>
+              <Button
+                variant="outline"
+                className="size-9 px-0"
+                disabled={busy}
+                aria-label="一覧を再読み込み"
+                onClick={() => void run(() => refresh(), '一覧を更新しました。')}
+              >
+                <IconRefresh size={16} aria-hidden="true" />
+              </Button>
+            </div>
+          </div>
 
-              <div className="grid min-h-[520px] xl:grid-cols-[minmax(0,1.55fr)_400px]">
-                <div className="min-w-0 overflow-x-auto">
-                  <table className="w-full min-w-[760px] text-left text-sm">
-                    <thead className="border-b border-slate-200 bg-slate-50/80 text-[0.68rem] font-bold uppercase tracking-[0.08em] text-slate-500">
-                      <tr>
-                        <th className="px-5 py-3.5">ユーザー</th>
-                        <th className="px-5 py-3.5">アクセス</th>
-                        <th className="px-5 py-3.5">セキュリティ</th>
-                        <th className="px-5 py-3.5">状態</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {filteredUsers.map((user) => (
-                        <tr
-                          key={user.sub}
-                          onClick={() => selectUser(user)}
-                          className={cn(
-                            'cursor-pointer bg-white transition-colors hover:bg-slate-50',
-                            selectedSub === user.sub && 'bg-blue-50/60 hover:bg-blue-50/80',
-                          )}
-                        >
-                          <td className="px-5 py-4">
-                            <div className="flex items-center gap-3">
-                              <UserAvatar user={user} />
-                              <div className="min-w-0">
-                                <p className="truncate font-semibold text-slate-900">
-                                  {user.name || user.preferred_username}
-                                </p>
-                                <p className="truncate text-xs text-slate-500">
-                                  {user.email || `@${user.preferred_username}`}
-                                </p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-5 py-4">
-                            <RoleList roles={user.roles} />
-                          </td>
-                          <td className="px-5 py-4">
-                            <div className="flex items-center gap-2 text-xs text-slate-600">
-                              <span
-                                className={cn(
-                                  'flex size-6 items-center justify-center rounded-full',
-                                  user.mfa_enrolled
-                                    ? 'bg-emerald-50 text-emerald-700'
-                                    : 'bg-slate-100 text-slate-400',
-                                )}
-                              >
-                                <IconKey size={13} aria-hidden="true" />
-                              </span>
-                              {user.mfa_enrolled ? 'MFA' : 'Password'}
-                            </div>
-                          </td>
-                          <td className="px-5 py-4">
-                            <StatusBadge disabled={Boolean(user.disabled_at)} />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  {filteredUsers.length === 0 && (
-                    <div className="flex min-h-64 flex-col items-center justify-center px-6 text-center">
-                      <span className="flex size-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
-                        <IconSearch size={22} aria-hidden="true" />
-                      </span>
-                      <p className="mt-4 font-semibold text-slate-800">ユーザーが見つかりません</p>
-                      <p className="mt-1 text-sm text-slate-500">
-                        検索語または状態フィルターを変更してください。
-                      </p>
-                    </div>
-                  )}
+          <div className="grid min-h-[520px] xl:grid-cols-[minmax(0,1.55fr)_400px]">
+            <div className="min-w-0 overflow-x-auto">
+              <table className="w-full min-w-[760px] text-left text-sm">
+                <thead className="border-b border-slate-200 bg-slate-50/80 text-[0.68rem] font-bold uppercase tracking-[0.08em] text-slate-500">
+                  <tr>
+                    <th className="px-5 py-3.5">ユーザー</th>
+                    <th className="px-5 py-3.5">アクセス</th>
+                    <th className="px-5 py-3.5">セキュリティ</th>
+                    <th className="px-5 py-3.5">状態</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredUsers.map((user) => (
+                    <tr
+                      key={user.sub}
+                      onClick={() => selectUser(user)}
+                      className={cn(
+                        'cursor-pointer bg-white transition-colors hover:bg-slate-50',
+                        selectedSub === user.sub && 'bg-blue-50/60 hover:bg-blue-50/80',
+                      )}
+                    >
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <UserAvatar user={user} />
+                          <div className="min-w-0">
+                            <p className="truncate font-semibold text-slate-900">
+                              {user.name || user.preferred_username}
+                            </p>
+                            <p className="truncate text-xs text-slate-500">
+                              {user.email || `@${user.preferred_username}`}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4">
+                        <RoleList roles={user.roles} />
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-2 text-xs text-slate-600">
+                          <span
+                            className={cn(
+                              'flex size-6 items-center justify-center rounded-full',
+                              user.mfa_enrolled
+                                ? 'bg-emerald-50 text-emerald-700'
+                                : 'bg-slate-100 text-slate-400',
+                            )}
+                          >
+                            <IconKey size={13} aria-hidden="true" />
+                          </span>
+                          {user.mfa_enrolled ? 'MFA' : 'Password'}
+                        </div>
+                      </td>
+                      <td className="px-5 py-4">
+                        <StatusBadge disabled={Boolean(user.disabled_at)} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {filteredUsers.length === 0 && (
+                <div className="flex min-h-64 flex-col items-center justify-center px-6 text-center">
+                  <span className="flex size-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                    <IconSearch size={22} aria-hidden="true" />
+                  </span>
+                  <p className="mt-4 font-semibold text-slate-800">ユーザーが見つかりません</p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    検索語または状態フィルターを変更してください。
+                  </p>
                 </div>
+              )}
+            </div>
 
-                <aside className="border-t border-slate-200 bg-slate-50/40 xl:border-l xl:border-t-0">
-                  {selected ? (
-                    <UserDetails
-                      user={selected}
-                      csrfToken={csrfToken}
-                      busy={busy}
-                      onEdit={() => setShowUserEditor(true)}
-                      onDisabled={() => void handleDisabled(selected)}
-                      onDelete={() => setShowDelete(true)}
-                      onRequiredAction={(action, present) =>
-                        void handleRequiredAction(selected, action, present)
-                      }
-                    />
-                  ) : (
-                    <div className="flex h-full min-h-80 items-center justify-center p-8 text-center text-sm text-slate-500">
-                      ユーザーを選択すると詳細が表示されます。
-                    </div>
-                  )}
-                </aside>
-              </div>
-              <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50/70 px-5 py-3 text-xs text-slate-500">
-                <span>{filteredUsers.length} 件を表示</span>
-                <span>最終更新: {formatDateTime(new Date().toISOString())}</span>
-              </div>
-            </Card>
+            <aside className="border-t border-slate-200 bg-slate-50/40 xl:border-l xl:border-t-0">
+              {selected ? (
+                <UserDetails
+                  user={selected}
+                  csrfToken={csrfToken}
+                  busy={busy}
+                  onEdit={() => setShowUserEditor(true)}
+                  onDisabled={() => void handleDisabled(selected)}
+                  onDelete={() => setShowDelete(true)}
+                  onRequiredAction={(action, present) =>
+                    void handleRequiredAction(selected, action, present)
+                  }
+                />
+              ) : (
+                <div className="flex h-full min-h-80 items-center justify-center p-8 text-center text-sm text-slate-500">
+                  ユーザーを選択すると詳細が表示されます。
+                </div>
+              )}
+            </aside>
+          </div>
+          <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50/70 px-5 py-3 text-xs text-slate-500">
+            <span>{filteredUsers.length} 件を表示</span>
+            <span>最終更新: {formatDateTime(new Date().toISOString())}</span>
+          </div>
+        </Card>
       </AdminShell>
 
       {showCreate && (
@@ -458,7 +458,9 @@ export function AdminUserDetailPage({
       setNotice(success)
     } catch (cause) {
       setError(
-        cause instanceof AuthenticationAPIError ? cause.message : '管理操作を完了できませんでした。',
+        cause instanceof AuthenticationAPIError
+          ? cause.message
+          : '管理操作を完了できませんでした。',
       )
     } finally {
       setBusy(false)
@@ -643,7 +645,11 @@ export function AdminUserDetailPage({
                   label="状態"
                   value={user.disabled_at ? '無効' : '有効'}
                 />
-                <DetailRow icon={IconClock} label="作成日時" value={formatDateTime(user.created_at)} />
+                <DetailRow
+                  icon={IconClock}
+                  label="作成日時"
+                  value={formatDateTime(user.created_at)}
+                />
                 <DetailRow
                   icon={IconClock}
                   label="更新日時"
@@ -899,7 +905,9 @@ function UserGroupsSection({ user, csrfToken }: { user: AdminUser; csrfToken: st
       setAllGroups(all)
       setError('')
     } catch (err) {
-      setError(err instanceof AuthenticationAPIError ? err.message : 'グループの取得に失敗しました。')
+      setError(
+        err instanceof AuthenticationAPIError ? err.message : 'グループの取得に失敗しました。',
+      )
     }
   }, [sub])
 
@@ -917,7 +925,9 @@ function UserGroupsSection({ user, csrfToken }: { user: AdminUser; csrfToken: st
       setSelectedGroup('')
       await load()
     } catch (err) {
-      setError(err instanceof AuthenticationAPIError ? err.message : 'グループへの追加に失敗しました。')
+      setError(
+        err instanceof AuthenticationAPIError ? err.message : 'グループへの追加に失敗しました。',
+      )
     } finally {
       setAdding(false)
     }
@@ -1102,10 +1112,7 @@ function textToAttributeValue(def: UserAttributeDef, text: string): AttributeVal
   }
 }
 
-function attributeDraftFromUser(
-  user: AdminUser,
-  defs: UserAttributeDef[],
-): Record<string, string> {
+function attributeDraftFromUser(user: AdminUser, defs: UserAttributeDef[]): Record<string, string> {
   const draft: Record<string, string> = {}
   for (const def of defs) {
     const value = user.attributes?.[def.key]
@@ -1197,9 +1204,7 @@ function AdminAttributeEditorGroups({
         <h3 className="text-xs font-bold uppercase tracking-normal text-slate-400">
           アカウント情報
         </h3>
-        <p className="mt-1 text-xs leading-5 text-slate-500">
-          保存時に属性全体が置換されます。
-        </p>
+        <p className="mt-1 text-xs leading-5 text-slate-500">保存時に属性全体が置換されます。</p>
       </div>
       {groups.map((group) => (
         <fieldset key={group.key} className="grid gap-3 rounded-lg border border-slate-200 p-4">
@@ -1328,140 +1333,140 @@ function UserEditorDialog({
 
         <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
           <div className="min-h-0 flex-1 overflow-y-auto">
-          {confirming ? (
-            <div className="p-6">
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-                <div className="flex gap-3">
-                  <IconShield
-                    size={19}
-                    className="mt-0.5 shrink-0 text-amber-700"
-                    aria-hidden="true"
-                  />
-                  <div>
-                    <p className="text-sm font-semibold text-amber-950">ロール変更を含む更新です</p>
-                    <p className="mt-1 text-xs leading-5 text-amber-800">
-                      管理者ロールの追加・削除は管理コンソールへのアクセス権に影響します。
-                    </p>
+            {confirming ? (
+              <div className="p-6">
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                  <div className="flex gap-3">
+                    <IconShield
+                      size={19}
+                      className="mt-0.5 shrink-0 text-amber-700"
+                      aria-hidden="true"
+                    />
+                    <div>
+                      <p className="text-sm font-semibold text-amber-950">
+                        ロール変更を含む更新です
+                      </p>
+                      <p className="mt-1 text-xs leading-5 text-amber-800">
+                        管理者ロールの追加・削除は管理コンソールへのアクセス権に影響します。
+                      </p>
+                    </div>
                   </div>
                 </div>
+                <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                  <RoleDiff title="追加されるロール" roles={addedRoles} tone="add" />
+                  <RoleDiff title="削除されるロール" roles={removedRoles} tone="remove" />
+                </div>
+                {profileChanged && (
+                  <p className="mt-4 text-xs leading-5 text-slate-500">
+                    プロフィールの変更も同じ更新リクエストで保存されます。
+                  </p>
+                )}
               </div>
-              <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                <RoleDiff title="追加されるロール" roles={addedRoles} tone="add" />
-                <RoleDiff title="削除されるロール" roles={removedRoles} tone="remove" />
-              </div>
-              {profileChanged && (
-                <p className="mt-4 text-xs leading-5 text-slate-500">
-                  プロフィールの変更も同じ更新リクエストで保存されます。
-                </p>
-              )}
-            </div>
-          ) : (
-            <div className="grid gap-6 p-6">
-              <section className="grid gap-4">
-                <h3 className="text-xs font-bold uppercase tracking-[0.1em] text-slate-400">
-                  プロフィール
-                </h3>
-                <div className="grid gap-2">
-                  <Label htmlFor="user-editor-username">ユーザー名</Label>
+            ) : (
+              <div className="grid gap-6 p-6">
+                <section className="grid gap-4">
+                  <h3 className="text-xs font-bold uppercase tracking-[0.1em] text-slate-400">
+                    プロフィール
+                  </h3>
+                  <div className="grid gap-2">
+                    <Label htmlFor="user-editor-username">ユーザー名</Label>
+                    <Input
+                      id="user-editor-username"
+                      value={username}
+                      onChange={(event) => setUsername(event.target.value)}
+                      autoFocus
+                      required
+                      aria-invalid={usernameInvalid}
+                    />
+                    <p className="text-xs leading-5 text-slate-500">
+                      login 時に使われる識別子です。空にはできません。
+                    </p>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="user-editor-name">表示名</Label>
+                    <Input
+                      id="user-editor-name"
+                      value={name}
+                      onChange={(event) => setName(event.target.value)}
+                    />
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="grid gap-2">
+                      <Label htmlFor="user-editor-given-name">名 (given_name)</Label>
+                      <Input
+                        id="user-editor-given-name"
+                        value={givenName}
+                        onChange={(event) => setGivenName(event.target.value)}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="user-editor-family-name">姓 (family_name)</Label>
+                      <Input
+                        id="user-editor-family-name"
+                        value={familyName}
+                        onChange={(event) => setFamilyName(event.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="user-editor-email">メールアドレス</Label>
+                    <Input
+                      id="user-editor-email"
+                      type="email"
+                      value={email}
+                      onChange={(event) => {
+                        setEmail(event.target.value)
+                        setEmailVerifiedTouched(false)
+                      }}
+                    />
+                    {emailChanged && (
+                      <p className="text-xs leading-5 text-amber-700">
+                        メールを変更したため、確認済みフラグを既定で解除しています。
+                      </p>
+                    )}
+                  </div>
+                  <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 size-4 rounded border-slate-300"
+                      checked={effectiveEmailVerified}
+                      onChange={(event) => {
+                        setEmailVerified(event.target.checked)
+                        setEmailVerifiedTouched(true)
+                      }}
+                    />
+                    <span>
+                      <span className="block font-semibold text-slate-900">
+                        メール確認済みとして保存
+                      </span>
+                      <span className="mt-0.5 block text-xs leading-5 text-slate-500">
+                        組織側でメールアドレスの所有確認が完了している場合のみ選択します。
+                      </span>
+                    </span>
+                  </label>
+                </section>
+                <section className="grid gap-2 border-t border-slate-200 pt-5">
+                  <h3 className="text-xs font-bold uppercase tracking-[0.1em] text-slate-400">
+                    ロール
+                  </h3>
+                  <Label htmlFor="user-editor-roles">ロール</Label>
                   <Input
-                    id="user-editor-username"
-                    value={username}
-                    onChange={(event) => setUsername(event.target.value)}
-                    autoFocus
-                    required
-                    aria-invalid={usernameInvalid}
+                    id="user-editor-roles"
+                    value={roles}
+                    onChange={(event) => setRoles(event.target.value)}
+                    placeholder="admin, support"
                   />
                   <p className="text-xs leading-5 text-slate-500">
-                    login 時に使われる識別子です。空にはできません。
+                    複数指定する場合はカンマで区切ります。変更時は保存前に差分を確認します。
                   </p>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="user-editor-name">表示名</Label>
-                  <Input
-                    id="user-editor-name"
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                  />
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="grid gap-2">
-                    <Label htmlFor="user-editor-given-name">名 (given_name)</Label>
-                    <Input
-                      id="user-editor-given-name"
-                      value={givenName}
-                      onChange={(event) => setGivenName(event.target.value)}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="user-editor-family-name">姓 (family_name)</Label>
-                    <Input
-                      id="user-editor-family-name"
-                      value={familyName}
-                      onChange={(event) => setFamilyName(event.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="user-editor-email">メールアドレス</Label>
-                  <Input
-                    id="user-editor-email"
-                    type="email"
-                    value={email}
-                    onChange={(event) => {
-                      setEmail(event.target.value)
-                      setEmailVerifiedTouched(false)
-                    }}
-                  />
-                  {emailChanged && (
-                    <p className="text-xs leading-5 text-amber-700">
-                      メールを変更したため、確認済みフラグを既定で解除しています。
-                    </p>
-                  )}
-                </div>
-                <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                  <input
-                    type="checkbox"
-                    className="mt-0.5 size-4 rounded border-slate-300"
-                    checked={effectiveEmailVerified}
-                    onChange={(event) => {
-                      setEmailVerified(event.target.checked)
-                      setEmailVerifiedTouched(true)
-                    }}
-                  />
-                  <span>
-                    <span className="block font-semibold text-slate-900">
-                      メール確認済みとして保存
-                    </span>
-                    <span className="mt-0.5 block text-xs leading-5 text-slate-500">
-                      組織側でメールアドレスの所有確認が完了している場合のみ選択します。
-                    </span>
-                  </span>
-                </label>
-              </section>
-              <section className="grid gap-2 border-t border-slate-200 pt-5">
-                <h3 className="text-xs font-bold uppercase tracking-[0.1em] text-slate-400">
-                  ロール
-                </h3>
-                <Label htmlFor="user-editor-roles">ロール</Label>
-                <Input
-                  id="user-editor-roles"
-                  value={roles}
-                  onChange={(event) => setRoles(event.target.value)}
-                  placeholder="admin, support"
+                </section>
+                <AdminAttributeEditorGroups
+                  defs={attributeDefs}
+                  values={attrDraft}
+                  onChange={(key, next) => setAttrDraft((current) => ({ ...current, [key]: next }))}
                 />
-                <p className="text-xs leading-5 text-slate-500">
-                  複数指定する場合はカンマで区切ります。変更時は保存前に差分を確認します。
-                </p>
-              </section>
-              <AdminAttributeEditorGroups
-                defs={attributeDefs}
-                values={attrDraft}
-                onChange={(key, next) =>
-                  setAttrDraft((current) => ({ ...current, [key]: next }))
-                }
-              />
-            </div>
-          )}
+              </div>
+            )}
           </div>
           <div className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-6 py-4">
             <Button

@@ -123,7 +123,9 @@ export function AdminConsentsPage({
                   key={`${c.sub}:${c.client_id}`}
                   onClick={() => setSelected(c)}
                   className={`cursor-pointer border-t border-slate-100 hover:bg-slate-50 ${
-                    selected?.sub === c.sub && selected.client_id === c.client_id ? 'bg-blue-50/60' : ''
+                    selected?.sub === c.sub && selected.client_id === c.client_id
+                      ? 'bg-blue-50/60'
+                      : ''
                   }`}
                 >
                   <td className="px-4 py-3 font-mono text-xs">{c.sub}</td>

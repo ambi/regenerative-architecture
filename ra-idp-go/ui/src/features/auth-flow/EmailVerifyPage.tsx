@@ -16,9 +16,7 @@ export function EmailVerifyPage({ csrfToken, token }: { csrfToken: string; token
       await confirmEmailChange(csrfToken, token)
       setState('done')
     } catch (cause) {
-      setError(
-        cause instanceof AuthenticationAPIError ? cause.message : '確認に失敗しました。',
-      )
+      setError(cause instanceof AuthenticationAPIError ? cause.message : '確認に失敗しました。')
       setState('idle')
     }
   }

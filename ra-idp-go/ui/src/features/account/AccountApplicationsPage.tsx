@@ -43,7 +43,9 @@ export function AccountApplicationsPage({
       )
     } catch (cause) {
       setError(
-        cause instanceof AuthenticationAPIError ? cause.message : 'アクセスを取り消せませんでした。',
+        cause instanceof AuthenticationAPIError
+          ? cause.message
+          : 'アクセスを取り消せませんでした。',
       )
     } finally {
       setPending('')
@@ -74,7 +76,9 @@ export function AccountApplicationsPage({
                 {consent.client_id.slice(0, 2).toUpperCase()}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="font-mono text-sm font-semibold text-slate-900">{consent.client_id}</p>
+                <p className="font-mono text-sm font-semibold text-slate-900">
+                  {consent.client_id}
+                </p>
                 <p className="mt-0.5 text-xs text-slate-500">
                   {formatDate(consent.granted_at)} に許可
                 </p>

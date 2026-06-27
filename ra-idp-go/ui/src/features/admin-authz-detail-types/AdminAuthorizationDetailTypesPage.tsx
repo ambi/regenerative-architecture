@@ -13,9 +13,7 @@ import { Button } from '../../components/ui/button'
 import { Card } from '../../components/ui/card'
 import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
-import type {
-  AuthorizationDetailType,
-} from '../../types'
+import type { AuthorizationDetailType } from '../../types'
 
 type FormState = {
   type: string

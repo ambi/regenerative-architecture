@@ -60,8 +60,19 @@ export function ForgotPasswordPage({ csrfToken }: { csrfToken: string }) {
             <div className="flex flex-col gap-2">
               <Label htmlFor="email">メールアドレス</Label>
               <div className="relative">
-                <IconAt className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <Input id="email" name="email" type="email" className="pl-10" autoComplete="email" required autoFocus />
+                <IconAt
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+                  size={18}
+                />
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  className="pl-10"
+                  autoComplete="email"
+                  required
+                  autoFocus
+                />
               </div>
             </div>
             <Button type="submit" size="lg" className="w-full" disabled={submitting || submitted}>

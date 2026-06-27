@@ -173,4 +173,3 @@ export async function startDemoAuthorization() {
   })
   window.location.assign(`${tenantURL('/authorize')}?${parameters.toString()}`)
 }
-

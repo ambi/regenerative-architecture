@@ -596,7 +596,8 @@ export type UpdateAdminApplicationInput = {
 }
 
 export async function listAdminApplications(): Promise<AdminApplication[]> {
-  return (await request<{ applications: AdminApplication[] }>('/api/admin/applications')).applications
+  return (await request<{ applications: AdminApplication[] }>('/api/admin/applications'))
+    .applications
 }
 
 export async function createAdminApplication(

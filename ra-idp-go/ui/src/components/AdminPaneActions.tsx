@@ -1,11 +1,7 @@
 import { IconChevronRight, IconDotsVertical, IconPencil } from '@tabler/icons-react'
 import type { ReactNode } from 'react'
 import { Button } from './ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from './ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from './ui/dropdown-menu'
 
 // AdminPaneActions は一覧画面の右ペイン共通のアクション行 (wi-39)。
 // どのエンティティ (ユーザー / アプリケーション / グループ / ロール) でも
@@ -34,13 +30,7 @@ export function AdminPaneActions({
         </Button>
       ) : null}
       {onEdit ? (
-        <Button
-          type="button"
-          variant="outline"
-          className="flex-1"
-          disabled={busy}
-          onClick={onEdit}
-        >
+        <Button type="button" variant="outline" className="flex-1" disabled={busy} onClick={onEdit}>
           <IconPencil size={16} aria-hidden="true" />
           編集
         </Button>

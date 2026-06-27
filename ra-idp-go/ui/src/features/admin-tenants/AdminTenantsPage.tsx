@@ -34,9 +34,7 @@ export function AdminTenantsPage({
   async function refresh(preferredID?: string) {
     const next = await listAdminTenants()
     setTenants(next)
-    const match = preferredID
-      ? next.find((t) => t.id === preferredID)
-      : null
+    const match = preferredID ? next.find((t) => t.id === preferredID) : null
     setSelected(match ?? next[0] ?? null)
   }
 
@@ -75,10 +73,13 @@ export function AdminTenantsPage({
 
   async function handleToggleDisabled(target: AdminTenant) {
     const disabled = target.status === 'active'
-    await run(async () => {
-      await setAdminTenantDisabled(csrfToken, target.id, disabled)
-      await refresh(target.id)
-    }, disabled ? 'テナントを無効化しました。' : 'テナントを再有効化しました。')
+    await run(
+      async () => {
+        await setAdminTenantDisabled(csrfToken, target.id, disabled)
+        await refresh(target.id)
+      },
+      disabled ? 'テナントを無効化しました。' : 'テナントを再有効化しました。',
+    )
   }
 
   return (
@@ -137,14 +138,22 @@ export function AdminTenantsPage({
                     {t.id !== 'default' ? (
                       <Button
                         variant="ghost"
-                        className={t.status === 'active' ? 'text-rose-700 hover:bg-rose-50' : 'text-emerald-700 hover:bg-emerald-50'}
+                        className={
+                          t.status === 'active'
+                            ? 'text-rose-700 hover:bg-rose-50'
+                            : 'text-emerald-700 hover:bg-emerald-50'
+                        }
                         disabled={busy}
                         onClick={(e) => {
                           e.stopPropagation()
                           handleToggleDisabled(t)
                         }}
                       >
-                        {t.status === 'active' ? <IconBan size={14} aria-hidden="true" /> : <IconCheck size={14} aria-hidden="true" />}
+                        {t.status === 'active' ? (
+                          <IconBan size={14} aria-hidden="true" />
+                        ) : (
+                          <IconCheck size={14} aria-hidden="true" />
+                        )}
                         {t.status === 'active' ? '無効化' : '有効化'}
                       </Button>
                     ) : null}
@@ -184,10 +193,17 @@ export function AdminTenantsPage({
                 <Input id="tenant-display" name="display_name" required placeholder="Acme Inc." />
               </div>
               <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setShowCreate(false)} disabled={busy}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowCreate(false)}
+                  disabled={busy}
+                >
                   キャンセル
                 </Button>
-                <Button type="submit" disabled={busy}>作成</Button>
+                <Button type="submit" disabled={busy}>
+                  作成
+                </Button>
               </div>
             </form>
           </Card>
@@ -224,7 +240,9 @@ function TenantDetailCard({
         <dt className="text-slate-500">表示名</dt>
         <dd>{tenant.display_name}</dd>
         <dt className="text-slate-500">状態</dt>
-        <dd><StatusBadge status={tenant.status} /></dd>
+        <dd>
+          <StatusBadge status={tenant.status} />
+        </dd>
         <dt className="text-slate-500">作成</dt>
         <dd>{formatDate(tenant.created_at)}</dd>
         {tenant.disabled_at ? (
@@ -251,8 +269,12 @@ function TenantEditor({
   onSaved: (id: string) => void
 }) {
   const [displayName, setDisplayName] = useState(tenant.display_name)
-  const [minLength, setMinLength] = useState(tenant.password_policy_override?.min_length?.toString() ?? '')
-  const [maxLength, setMaxLength] = useState(tenant.password_policy_override?.max_length?.toString() ?? '')
+  const [minLength, setMinLength] = useState(
+    tenant.password_policy_override?.min_length?.toString() ?? '',
+  )
+  const [maxLength, setMaxLength] = useState(
+    tenant.password_policy_override?.max_length?.toString() ?? '',
+  )
   const [historyDepth, setHistoryDepth] = useState(
     tenant.password_policy_override?.history_depth?.toString() ?? '',
   )
@@ -297,7 +319,9 @@ function TenantEditor({
           onChange={(e) => setDisplayName(e.target.value)}
         />
       </div>
-      <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-slate-500">パスワードポリシー上書き</p>
+      <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+        パスワードポリシー上書き
+      </p>
       <p className="text-xs text-slate-500">空欄なら global default を継承します。</p>
       <div className="grid grid-cols-3 gap-2">
         <div className="grid gap-1.5">

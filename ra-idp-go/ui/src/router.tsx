@@ -37,6 +37,8 @@ const loadPageComponent: Record<PageKind, () => Promise<PageComponent>> = {
   'email-verify': () => import('./features/auth-flow/EmailVerifyPage').then((m) => m.EmailVerifyPage),
   'account-applications': () =>
     import('./features/account/AccountApplicationsPage').then((m) => m.AccountApplicationsPage),
+  'account-apps': () =>
+    import('./features/account/AccountAppsPage').then((m) => m.AccountAppsPage),
   'account-data': () => import('./features/account/AccountDataPage').then((m) => m.AccountDataPage),
   'account-security': () =>
     import('./features/account/AccountSecurityPage').then((m) => m.AccountSecurityPage),
@@ -54,6 +56,10 @@ const loadPageComponent: Record<PageKind, () => Promise<PageComponent>> = {
   'admin-roles': () => import('./features/admin-roles/AdminRolesPage').then((m) => m.AdminRolesPage),
   'admin-role-detail': () =>
     import('./features/admin-roles/AdminRolesPage').then((m) => m.AdminRoleDetailPage),
+  'admin-applications': () =>
+    import('./features/admin-applications/AdminApplicationsPage').then(
+      (m) => m.AdminApplicationsPage,
+    ),
   'admin-clients': () =>
     import('./features/admin-clients/AdminClientsPage').then((m) => m.AdminClientsPage),
   'admin-client-detail': () =>
@@ -189,6 +195,7 @@ const PAGE_PATHS = [
   '/account/emails',
   '/account/email/verify',
   '/account/applications',
+  '/account/apps',
   '/account/data',
   '/account/security',
   '/account/activity',
@@ -199,6 +206,7 @@ const PAGE_PATHS = [
   '/admin/users/$sub',
   '/admin/roles',
   '/admin/roles/$name',
+  '/admin/applications',
   '/admin/clients',
   '/admin/clients/$clientId',
   '/admin/consents',

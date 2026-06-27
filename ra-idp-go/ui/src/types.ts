@@ -174,6 +174,42 @@ export type AdminClientsPage = {
   clients: AdminClient[]
 }
 
+export type ApplicationKind = 'federated' | 'weblink'
+export type ApplicationStatus = 'active' | 'disabled'
+export type ProtocolBindingType = 'oidc' | 'saml' | 'wsfed'
+
+export type ProtocolBinding = {
+  type: ProtocolBindingType
+  client_id?: string
+  wtrealm?: string
+}
+
+export type AdminApplication = {
+  application_id: string
+  name: string
+  kind: ApplicationKind
+  status: ApplicationStatus
+  icon_url?: string
+  launch_url?: string
+  bindings: ProtocolBinding[]
+  created_at: string
+  updated_at: string
+}
+
+export type ApplicationAssignment = {
+  subject_type: 'user' | 'group'
+  subject_id: string
+  visibility: 'visible' | 'hidden'
+  created_at: string
+}
+
+export type AdminApplicationsPage = {
+  kind: 'admin-applications'
+  csrfToken: string
+  actorUsername?: string
+  applications: AdminApplication[]
+}
+
 export type AuthorizationDetailFieldRule = {
   name: string
   semantics: 'set' | 'at_most' | 'enum' | 'exact'
@@ -562,6 +598,21 @@ export type AccountApplicationsPage = {
   isAdmin: boolean
 }
 
+export type MyApplication = {
+  application_id: string
+  name: string
+  kind: ApplicationKind
+  icon_url?: string
+  launch_url?: string
+}
+
+export type AccountAppsPage = {
+  kind: 'account-apps'
+  username: string
+  applications: MyApplication[]
+  isAdmin: boolean
+}
+
 export type AccountDataPage = {
   kind: 'account-data'
   username: string
@@ -641,6 +692,7 @@ export type PageData =
   | AdminUsersPage
   | AdminUserDetailPage
   | AdminClientsPage
+  | AdminApplicationsPage
   | AdminAuthorizationDetailTypesPage
   | AdminWsFedRelyingPartiesPage
   | AdminConsentsPage
@@ -661,6 +713,7 @@ export type PageData =
   | AccountEmailsPage
   | EmailVerifyPage
   | AccountApplicationsPage
+  | AccountAppsPage
   | AccountDataPage
   | AccountSecurityPage
   | AccountActivityPage

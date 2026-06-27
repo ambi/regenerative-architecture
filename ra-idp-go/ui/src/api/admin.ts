@@ -1,5 +1,6 @@
 import type {
   AdminAgent,
+  AdminApplication,
   AdminAuditEvent,
   AdminClient,
   AdminConsent,
@@ -10,6 +11,11 @@ import type {
   AdminTenant,
   AdminUser,
   AdminUserGroups,
+  ApplicationAssignment,
+  ApplicationKind,
+  ApplicationStatus,
+  ProtocolBinding,
+  ProtocolBindingType,
   AuthorizationDetailType,
   TenantUserAttributeSchema,
   UserAttributeDef,
@@ -570,6 +576,109 @@ export async function unbindAdminAgentCredential(
 ): Promise<void> {
   await request(
     `/api/admin/agents/${encodeURIComponent(agentID)}/credentials/${encodeURIComponent(clientID)}`,
+    adminRequest(csrfToken, 'DELETE'),
+  )
+}
+
+// Application カタログ (wi-69)。
+export type CreateAdminApplicationInput = {
+  name: string
+  kind: ApplicationKind
+  icon_url?: string
+  launch_url?: string
+}
+
+export type UpdateAdminApplicationInput = {
+  name?: string
+  status?: ApplicationStatus
+  icon_url?: string
+  launch_url?: string
+}
+
+export async function listAdminApplications(): Promise<AdminApplication[]> {
+  return (await request<{ applications: AdminApplication[] }>('/api/admin/applications')).applications
+}
+
+export async function createAdminApplication(
+  csrfToken: string,
+  input: CreateAdminApplicationInput,
+): Promise<AdminApplication> {
+  return request('/api/admin/applications', adminRequest(csrfToken, 'POST', input))
+}
+
+export async function updateAdminApplication(
+  csrfToken: string,
+  id: string,
+  input: UpdateAdminApplicationInput,
+): Promise<AdminApplication> {
+  return request(
+    `/api/admin/applications/${encodeURIComponent(id)}`,
+    adminRequest(csrfToken, 'PATCH', input),
+  )
+}
+
+export async function deleteAdminApplication(csrfToken: string, id: string): Promise<void> {
+  await request(
+    `/api/admin/applications/${encodeURIComponent(id)}`,
+    adminRequest(csrfToken, 'DELETE'),
+  )
+}
+
+export async function attachProtocolBinding(
+  csrfToken: string,
+  id: string,
+  binding: ProtocolBinding,
+): Promise<AdminApplication> {
+  return request(
+    `/api/admin/applications/${encodeURIComponent(id)}/bindings`,
+    adminRequest(csrfToken, 'POST', binding),
+  )
+}
+
+export async function detachProtocolBinding(
+  csrfToken: string,
+  id: string,
+  bindingType: ProtocolBindingType,
+): Promise<void> {
+  await request(
+    `/api/admin/applications/${encodeURIComponent(id)}/bindings/${encodeURIComponent(bindingType)}`,
+    adminRequest(csrfToken, 'DELETE'),
+  )
+}
+
+export async function listApplicationAssignments(id: string): Promise<ApplicationAssignment[]> {
+  return (
+    await request<{ assignments: ApplicationAssignment[] }>(
+      `/api/admin/applications/${encodeURIComponent(id)}/assignments`,
+    )
+  ).assignments
+}
+
+export type AssignApplicationInput = {
+  subject_type: 'user' | 'group'
+  subject_id: string
+  visibility?: 'visible' | 'hidden'
+}
+
+export async function assignApplication(
+  csrfToken: string,
+  id: string,
+  input: AssignApplicationInput,
+): Promise<ApplicationAssignment> {
+  return request(
+    `/api/admin/applications/${encodeURIComponent(id)}/assignments`,
+    adminRequest(csrfToken, 'POST', input),
+  )
+}
+
+export async function unassignApplication(
+  csrfToken: string,
+  id: string,
+  subjectType: 'user' | 'group',
+  subjectID: string,
+): Promise<void> {
+  await request(
+    `/api/admin/applications/${encodeURIComponent(id)}/assignments/${encodeURIComponent(subjectType)}/${encodeURIComponent(subjectID)}`,
     adminRequest(csrfToken, 'DELETE'),
   )
 }

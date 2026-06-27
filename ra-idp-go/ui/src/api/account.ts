@@ -5,6 +5,7 @@ import type {
   AccountSession,
   AccountSignInActivity,
   AccountSummary,
+  MyApplication,
   TotpEnrollmentStart,
 } from '../types'
 import { adminRequest, AuthenticationAPIError, request, tenantURL, type APIError } from './core'
@@ -207,5 +208,10 @@ export async function confirmEmailChange(csrfToken: string, token: string): Prom
   if (response.ok) return
   const body = (await response.json().catch(() => ({}))) as APIError
   throw new AuthenticationAPIError(body.message ?? '確認に失敗しました。', body.error)
+}
+
+// 利用者ポータルの割当済みアプリ一覧 (wi-69)。visible 割当のみ返る。
+export async function listMyApplications(): Promise<MyApplication[]> {
+  return (await request<{ applications: MyApplication[] }>('/api/account/applications')).applications
 }
 

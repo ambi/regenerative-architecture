@@ -3,6 +3,7 @@ import {
   IconChevronDown,
   IconDatabaseCog,
   IconHistory,
+  IconLayoutGrid,
   IconLogout,
   IconMail,
   IconShieldLock,
@@ -30,6 +31,7 @@ import {
 // 「未実装機能を操作可能に見せない」方針に従い、実装済みのものだけ出す。
 export type AccountNavKey =
   | 'home'
+  | 'apps'
   | 'profile'
   | 'emails'
   | 'security'
@@ -39,6 +41,7 @@ export type AccountNavKey =
 
 const navItems: { key: AccountNavKey; label: string; href: string; icon: typeof IconUser }[] = [
   { key: 'home', label: 'ホーム', href: '/account', icon: IconUserCircle },
+  { key: 'apps', label: 'アプリ', href: '/account/apps', icon: IconLayoutGrid },
   { key: 'profile', label: 'アカウント情報', href: '/account/profile', icon: IconUser },
   { key: 'emails', label: 'メールアドレス', href: '/account/emails', icon: IconMail },
   { key: 'security', label: 'セキュリティ', href: '/account/security', icon: IconShieldLock },

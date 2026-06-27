@@ -1,5 +1,6 @@
 import {
   IconActivity,
+  IconApps,
   IconBuildingCommunity,
   IconCheckupList,
   IconForms,
@@ -21,6 +22,7 @@ export type AdminNavKey =
   | 'groups'
   | 'agents'
   | 'roles'
+  | 'applications'
   | 'clients'
   | 'wsfed'
   | 'authz-detail-types'
@@ -80,15 +82,22 @@ export function adminNavItems(active: AdminNavKey): AdminNavItem[] {
       active: active === 'roles',
     },
     {
+      key: 'applications',
+      label: 'アプリケーション',
+      icon: IconApps,
+      href: tenantURL('/admin/applications'),
+      active: active === 'applications',
+    },
+    {
       key: 'clients',
-      label: 'OAuth2/OIDC',
+      label: 'OAuth2/OIDC バインディング',
       icon: IconKey,
       href: tenantURL('/admin/clients'),
       active: active === 'clients',
     },
     {
       key: 'wsfed',
-      label: 'WS-Federation',
+      label: 'WS-Federation バインディング',
       icon: IconWorldShare,
       href: tenantURL('/admin/wsfed/relying-parties'),
       active: active === 'wsfed',

@@ -1,6 +1,7 @@
 import type {
   AccountActivityPage,
   AccountApplicationsPage,
+  AccountAppsPage,
   AccountDataPage,
   AccountEmailsPage,
   AccountHomePage,
@@ -15,6 +16,7 @@ import type {
   AdminClient,
   AdminClientDetailPage,
   AdminAuthorizationDetailTypesPage,
+  AdminApplicationsPage,
   AdminClientsPage,
   AdminConsent,
   AdminConsentsPage,
@@ -57,12 +59,14 @@ import {
   getSignInActivity,
   listAccountConsents,
   listAccountSessions,
+  listMyApplications,
 } from './account'
 import {
   getAdminAgent,
   getAdminClient,
   getAdminGroup,
   getAdminUser,
+  listAdminApplications,
   listAdminAuditEvents,
   listAuthorizationDetailTypes,
   listWsFedRelyingParties,
@@ -204,6 +208,16 @@ export async function resolvePageData(loc: PageLocation): Promise<PageData> {
       isAdmin: hasAdminRole(account.roles),
     } satisfies AccountApplicationsPage
   }
+  if (path === '/account/apps') {
+    const account = accountContext!
+    const applications = await listMyApplications()
+    return {
+      kind: 'account-apps',
+      username: account.preferred_username ?? 'account',
+      applications,
+      isAdmin: hasAdminRole(account.roles),
+    } satisfies AccountAppsPage
+  }
   if (path === '/account/data') {
     const account = accountContext!
     return {
@@ -339,6 +353,15 @@ export async function resolvePageData(loc: PageLocation): Promise<PageData> {
       count: usernames.length,
       usernames,
     } satisfies AdminRoleDetailPage
+  }
+  if (path === '/admin/applications') {
+    const applications = await listAdminApplications()
+    return {
+      kind: 'admin-applications',
+      csrfToken: adminAccount!.csrf_token,
+      actorUsername: adminAccount!.preferred_username,
+      applications,
+    } satisfies AdminApplicationsPage
   }
   if (path === '/admin/clients') {
     const clients = await request<AdminClientListResponse>('/api/admin/clients')

@@ -205,7 +205,7 @@ func TestCurrentSCLLoadsAllNormativeSections(t *testing.T) {
 		name string
 		size int
 	}{
-		{"bounded_contexts", len(s.BoundedContexts)},
+		{"context_map", len(s.ContextMap)},
 		{"standards", len(s.Standards)},
 		{"vocabulary", len(s.Vocabulary)},
 		{"models", len(s.Models)},
@@ -215,7 +215,6 @@ func TestCurrentSCLLoadsAllNormativeSections(t *testing.T) {
 		{"scenarios", len(s.Scenarios)},
 		{"permissions", len(s.Permissions)},
 		{"objectives", len(s.Objectives)},
-		{"assurance", len(s.Assurance)},
 		{"user_experience.screens", len(s.UserExperience.Screens)},
 	}
 	for _, section := range sections {
@@ -250,13 +249,6 @@ unknown_section: {}
 }
 
 func TestAssuranceEvidenceHasExecutableBindings(t *testing.T) {
-	s, err := spec.LoadSCL()
-	if err != nil {
-		t.Fatalf("load scl: %v", err)
-	}
-	if err := s.ValidateAssuranceManifest(); err != nil {
-		t.Fatal(err)
-	}
 	root := repositoryRoot(t)
 	for evidenceID, verifications := range spec.AssuranceManifest {
 		for _, verification := range verifications {

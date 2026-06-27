@@ -175,8 +175,6 @@ user_experience:
       standards:
         - RFC9700
         - FAPI2SecurityProfile
-      scenarios:
-        - browser login API の CSRF 不一致は拒否される
     - id: UX-NO-STORE
       category: privacy
       adoption: required

@@ -12,7 +12,7 @@ func (s *SCL) ValidateCoherence() error {
 	if s.SpecVersion == "" {
 		return fmt.Errorf("spec_version is required")
 	}
-	if err := s.validateBoundedContexts(); err != nil {
+	if err := s.validateContextMap(); err != nil {
 		return err
 	}
 	if err := s.validateModels(); err != nil {
@@ -25,9 +25,6 @@ func (s *SCL) ValidateCoherence() error {
 		return err
 	}
 	if err := s.validateUserExperienceReferences(); err != nil {
-		return err
-	}
-	if err := s.validateAssuranceReferences(); err != nil {
 		return err
 	}
 	return nil
@@ -54,12 +51,24 @@ func (s *SCL) validateModels() error {
 	}
 	for name, iface := range s.Interfaces {
 		for fieldName, field := range iface.Input {
-			if !s.validFieldType(field.Type) {
+			if field.Fields != nil {
+				for subFieldName, subField := range field.Fields {
+					if !s.validFieldType(subField.Type) {
+						return fmt.Errorf("interface %s input %s.%s: invalid type %s", name, fieldName, subFieldName, subField.Type)
+					}
+				}
+			} else if !s.validFieldType(field.Type) {
 				return fmt.Errorf("interface %s input %s: invalid type %s", name, fieldName, field.Type)
 			}
 		}
 		for fieldName, field := range iface.Output {
-			if !s.validFieldType(field.Type) {
+			if field.Fields != nil {
+				for subFieldName, subField := range field.Fields {
+					if !s.validFieldType(subField.Type) {
+						return fmt.Errorf("interface %s output %s.%s: invalid type %s", name, fieldName, subFieldName, subField.Type)
+					}
+				}
+			} else if !s.validFieldType(field.Type) {
 				return fmt.Errorf("interface %s output %s: invalid type %s", name, fieldName, field.Type)
 			}
 		}
@@ -91,50 +100,27 @@ func (s *SCL) validFieldType(fieldType string) bool {
 	return ok
 }
 
-func (s *SCL) validateBoundedContexts() error {
-	owners := map[string]string{}
-	for name, boundedContext := range s.BoundedContexts {
-		if boundedContext.Description == "" {
-			return fmt.Errorf("bounded context %s: description is required", name)
+// validateContextMap は context_map の各エントリ (description / depends_on) を検証し、
+// 依存先が既知の context であること、依存に uses が宣言されていること、循環が無いことを確認する。
+// 模型・interface 等の単一所有はロード時の合成 (キー衝突拒否) が保証する。
+func (s *SCL) validateContextMap() error {
+	for name, entry := range s.ContextMap {
+		if entry.Description == "" {
+			return fmt.Errorf("context %s: description is required", name)
 		}
-		owned := []struct {
-			section string
-			names   []string
-			values  map[string]struct{}
-		}{
-			{"models", boundedContext.OwnsModels, keysOf(s.Models)},
-			{"states", boundedContext.OwnsStates, keysOf(s.States)},
-			{"events", boundedContext.OwnsEvents, eventModelKeys(s.Models)},
-			{"interfaces", boundedContext.OwnsInterfaces, keysOf(s.Interfaces)},
-			{"invariants", boundedContext.OwnsInvariants, keysOf(s.Invariants)},
-			{"permissions", boundedContext.OwnsPermissions, keysOf(s.Permissions)},
-			{"objectives", boundedContext.OwnsObjectives, keysOf(s.Objectives)},
-		}
-		for _, group := range owned {
-			for _, item := range group.names {
-				if _, ok := group.values[item]; !ok {
-					return fmt.Errorf("bounded context %s: owns_%s references unknown %s", name, group.section, item)
-				}
-				key := group.section + ":" + item
-				if previous, ok := owners[key]; ok {
-					return fmt.Errorf("%s %s is owned by both %s and %s", group.section, item, previous, name)
-				}
-				owners[key] = name
+		for depName, dependency := range entry.DependsOn {
+			if _, ok := s.ContextMap[depName]; !ok {
+				return fmt.Errorf("context %s: depends_on references unknown context %s", name, depName)
 			}
-		}
-		for _, dependency := range boundedContext.DependsOn {
-			if _, ok := s.BoundedContexts[dependency.BoundedContext]; !ok {
-				return fmt.Errorf("bounded context %s: depends_on references unknown bounded context %s", name, dependency.BoundedContext)
-			}
-			if dependency.Reason == "" {
-				return fmt.Errorf("bounded context %s: dependency on %s requires reason", name, dependency.BoundedContext)
+			if len(dependency.Uses) == 0 {
+				return fmt.Errorf("context %s: dependency on %s requires uses", name, depName)
 			}
 		}
 	}
-	return validateBoundedContextCycles(s.BoundedContexts)
+	return validateContextMapCycles(s.ContextMap)
 }
 
-func validateBoundedContextCycles(boundedContexts map[string]BoundedContext) error {
+func validateContextMapCycles(contextMap map[string]ContextMapEntry) error {
 	const (
 		unvisited = iota
 		visiting
@@ -145,20 +131,20 @@ func validateBoundedContextCycles(boundedContexts map[string]BoundedContext) err
 	visit = func(name string) error {
 		switch state[name] {
 		case visiting:
-			return fmt.Errorf("bounded context dependency cycle includes %s", name)
+			return fmt.Errorf("context dependency cycle includes %s", name)
 		case visited:
 			return nil
 		}
 		state[name] = visiting
-		for _, dependency := range boundedContexts[name].DependsOn {
-			if err := visit(dependency.BoundedContext); err != nil {
+		for depName := range contextMap[name].DependsOn {
+			if err := visit(depName); err != nil {
 				return err
 			}
 		}
 		state[name] = visited
 		return nil
 	}
-	for name := range boundedContexts {
+	for name := range contextMap {
 		if err := visit(name); err != nil {
 			return err
 		}
@@ -268,40 +254,6 @@ func (s *SCL) validateUserExperienceReferences() error {
 	return nil
 }
 
-func (s *SCL) validateAssuranceReferences() error {
-	for name, obligation := range s.Assurance {
-		if err := s.validateReferences("assurance "+name+" derived_from", obligation.DerivedFrom); err != nil {
-			return err
-		}
-		if err := validateAcceptance(name, obligation.Acceptance, obligation.Evidence); err != nil {
-			return err
-		}
-		for evidenceName, evidence := range obligation.Evidence {
-			if err := s.validateReferences("assurance "+name+" evidence "+evidenceName, evidence.Covers); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func validateAcceptance(name string, acceptance AssuranceAcceptance, evidence map[string]AssuranceEvidence) error {
-	if acceptance.Evidence != "" {
-		if _, ok := evidence[acceptance.Evidence]; !ok {
-			return fmt.Errorf("assurance %s: acceptance references unknown evidence %s", name, acceptance.Evidence)
-		}
-	}
-	for _, child := range append(acceptance.All, acceptance.Any...) {
-		if err := validateAcceptance(name, child, evidence); err != nil {
-			return err
-		}
-	}
-	if acceptance.Not != nil {
-		return validateAcceptance(name, *acceptance.Not, evidence)
-	}
-	return nil
-}
-
 func (s *SCL) validateReferences(owner string, references map[string][]string) error {
 	sections := map[string]map[string]struct{}{
 		"standards":   keysOf(s.Standards),
@@ -313,7 +265,6 @@ func (s *SCL) validateReferences(owner string, references map[string][]string) e
 		"scenarios":   keysOf(s.Scenarios),
 		"permissions": keysOf(s.Permissions),
 		"objectives":  keysOf(s.Objectives),
-		"assurance":   keysOf(s.Assurance),
 	}
 	for section, names := range references {
 		values, ok := sections[section]
@@ -333,16 +284,6 @@ func keysOf[V any](values map[string]V) map[string]struct{} {
 	keys := make(map[string]struct{}, len(values))
 	for key := range values {
 		keys[key] = struct{}{}
-	}
-	return keys
-}
-
-func eventModelKeys(models map[string]Model) map[string]struct{} {
-	keys := map[string]struct{}{}
-	for name, model := range models {
-		if model.Kind == "event" {
-			keys[name] = struct{}{}
-		}
 	}
 	return keys
 }

@@ -668,5 +668,3 @@ user_experience:
         - UpdateTenant
         - DisableTenant
         - EnableTenant
-      scenarios:
-        - system_admin だけが /realms/default/admin/tenants を呼べ admin は 403

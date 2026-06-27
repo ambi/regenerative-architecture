@@ -1,7 +1,8 @@
 package spec
 
-import "fmt"
-
+// AssuranceVerification は assurance evidence ID を実行可能な検証 (テスト関数 / CI ジョブ) に
+// 束ねる Go 側レジストリ。SCL 2.0 では assurance セクションは spec から外れたため、本マニフェストは
+// テストと検証ファイルの対応を保つ独立した台帳として残す。
 type AssuranceVerification struct {
 	File  string
 	Check string
@@ -56,24 +57,4 @@ var AssuranceManifest = map[string][]AssuranceVerification{
 		{File: "ra-idp-go/internal/spec/coherence_test.go", Check: "TestCurrentSCLIsInternallyCoherent"},
 		{File: ".github/workflows/ra-idp-go-ci.yaml", Check: "Go tests and SCL coherence"},
 	},
-}
-
-func (s *SCL) ValidateAssuranceManifest() error {
-	expected := map[string]struct{}{}
-	for _, obligation := range s.Assurance {
-		for evidenceID := range obligation.Evidence {
-			expected[evidenceID] = struct{}{}
-		}
-	}
-	for evidenceID := range expected {
-		if len(AssuranceManifest[evidenceID]) == 0 {
-			return fmt.Errorf("assurance evidence %s has no verification binding", evidenceID)
-		}
-	}
-	for evidenceID := range AssuranceManifest {
-		if _, ok := expected[evidenceID]; !ok {
-			return fmt.Errorf("assurance manifest contains unknown evidence %s", evidenceID)
-		}
-	}
-	return nil
 }

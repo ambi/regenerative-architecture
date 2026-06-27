@@ -62,11 +62,15 @@ emergency bootstrap path so a broken OIDC client/key configuration cannot lock a
 
 The SPA uses TanStack Router for client-side navigation with file-based routes under
 `src/routes/`. The Vite router plugin generates `src/routeTree.gen.ts` and applies automatic code
-splitting, including route loaders and components. Each route file owns its own `loader`, API
-requests, page component, and path params (ADR-061, wi-67). Files prefixed with `-` are route-local
-helpers and are excluded from route generation. Internal admin/account navigation uses `<Link>`, so
-moving between pages does not reload the document or re-fetch every page's data — only the target
-route's loader runs.
+splitting, including route loaders and components. Route files follow the request path structure:
+`admin/route.tsx` and `account/route.tsx` are thin layout routes that render `<Outlet>`, while
+`admin/index.tsx`, `account/index.tsx`, and leaf route files own their own `loader`, API requests,
+page component, and path params (ADR-061, wi-67). Detail pages that should not render through a
+list page use TanStack Router's trailing underscore convention, for example
+`admin/users_/$sub.tsx` for `/admin/users/$sub`. Files prefixed with `-` are route-local helpers
+and are excluded from route generation. Internal admin/account navigation uses `<Link>`, so moving
+between pages does not reload the document or re-fetch every page's data — only the target route's
+loader runs.
 The OIDC login guard (`ensureLoggedIn`) runs inside the loader, so it applies to both the initial
 load and in-app navigation. Auth-flow transitions (login/consent/callback and the OIDC redirects)
 remain full-page navigations by nature. The rendered page kind is asserted to the DOM via

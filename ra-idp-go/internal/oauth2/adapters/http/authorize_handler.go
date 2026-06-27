@@ -665,6 +665,17 @@ func (d Deps) issueCodeURL(
 	authTime time.Time,
 ) (string, error) {
 	iss := core.RequestIssuer(c, d.Issuer)
+	// 割当ゲート (wi-69): client が Application binding に属する場合、未割当 subject には
+	// 認可コードを発行せず access_denied で RP へ返す (fail-closed, AssignmentGatesProtocol)。
+	allowed, err := d.ApplicationAccessAllowed(
+		c.Request().Context(), core.RequestTenantID(c), spec.ProtocolBindingOIDC, req.ClientID, sub,
+	)
+	if err != nil {
+		return "", err
+	}
+	if !allowed {
+		return authorizationErrorURL(req, iss, "access_denied", "この利用者はアプリケーションに割り当てられていません"), nil
+	}
 	out, err := usecases.CompleteLogin(c.Request().Context(), usecases.CompleteLoginDeps{
 		RequestStore: d.RequestStore,
 		CodeStore:    d.CodeStore,

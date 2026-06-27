@@ -63,6 +63,7 @@ bounded_contexts:
       - { bounded_context: Authentication, reason: Authorize は AuthenticationContext を Authentication から解決する。 }
       - { bounded_context: IdentityManagement, reason: UserInfo / ID Token claim と Agent client_credentials は identity principal 情報を参照する。 }
       - { bounded_context: SigningKeys, reason: ID Token / access token / JWK Set の署名鍵ライフサイクルと公開は SigningKeys が所有する。 }
+      - { bounded_context: Application, reason: "authorize は client が属する Application への割当を fail-closed で確認する (wi-69 / AssignmentGatesProtocol)。" }
 
   Application:
     description: |
@@ -117,6 +118,7 @@ bounded_contexts:
       - { bounded_context: Authentication, reason: WS-Fed passive は AuthenticationContext を参照し、WS-Trust usernamemixed は資格情報検証を再利用する。 }
       - { bounded_context: IdentityManagement, reason: WS-Fed / WS-Trust token の subject は User 属性から解決する。 }
       - { bounded_context: ClaimMapping, reason: WS-Fed / WS-Trust の assertion claim は ClaimMapping policy で組み立てる。 }
+      - { bounded_context: Application, reason: "WS-Fed sign-in は RP が属する Application への割当を fail-closed で確認する (wi-69 / AssignmentGatesProtocol)。" }
       - { bounded_context: SigningKeys, reason: SAML assertion 署名証明書と metadata への証明書広告は SigningKeys の鍵境界に従う。 }
 
   Saml:

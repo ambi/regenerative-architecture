@@ -52,6 +52,36 @@ func (r *ApplicationRepository) FindByID(_ context.Context, tenantID, applicatio
 	return cloneApplication(app), nil
 }
 
+func bindingKey(binding spec.ProtocolBinding) string {
+	switch binding.Type {
+	case spec.ProtocolBindingOIDC:
+		return binding.ClientID
+	case spec.ProtocolBindingWsFed:
+		return binding.Wtrealm
+	default:
+		return ""
+	}
+}
+
+func (r *ApplicationRepository) FindByBinding(_ context.Context, tenantID string, bindingType spec.ProtocolBindingType, key string) (*spec.Application, error) {
+	if key == "" {
+		return nil, nil
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	for _, app := range r.applications {
+		if app.TenantID != tenantID {
+			continue
+		}
+		for _, binding := range app.Bindings {
+			if binding.Type == bindingType && bindingKey(binding) == key {
+				return cloneApplication(app), nil
+			}
+		}
+	}
+	return nil, nil
+}
+
 func (r *ApplicationRepository) Save(_ context.Context, app *spec.Application) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()

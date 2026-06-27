@@ -85,6 +85,17 @@ func (d Deps) handleWsFedSignIn(c *echo.Context, req feddomain.WsFedSignInReques
 
 	now := time.Now().UTC()
 
+	// 割当ゲート (wi-69): RP が Application binding に属する場合、未割当 subject には
+	// assertion を発行しない (fail-closed, AssignmentGatesProtocol)。
+	allowed, err := d.ApplicationAccessAllowed(ctx, tenantID, spec.ProtocolBindingWsFed, rp.Wtrealm, authn.Sub)
+	if err != nil {
+		return err
+	}
+	if !allowed {
+		d.emit(&spec.WsFedSignInRejected{At: now, TenantID: tenantID, Wtrealm: rp.Wtrealm, Reason: "subject not assigned to application"})
+		return c.String(http.StatusForbidden, "この利用者はアプリケーションに割り当てられていません")
+	}
+
 	// wfresh: 認証が古すぎれば再認証のためログインへ誘導する。
 	if feddomain.RequiresFreshAuth(req.Wfresh, time.Unix(authn.AuthTime, 0), now) {
 		return c.Redirect(http.StatusSeeOther, loginRedirect(c))

@@ -13,6 +13,9 @@ type ApplicationRepository interface {
 	ListByTenant(ctx context.Context, tenantID string) ([]*spec.Application, error)
 	// FindByID は application_id に一致する Application を返す。存在しなければ (nil, nil)。
 	FindByID(ctx context.Context, tenantID, applicationID string) (*spec.Application, error)
+	// FindByBinding は指定 protocol binding (種別 + key: oidc は client_id / wsfed は wtrealm)
+	// を持つ Application を返す。割当ゲートの解決に使う。存在しなければ (nil, nil)。
+	FindByBinding(ctx context.Context, tenantID string, bindingType spec.ProtocolBindingType, key string) (*spec.Application, error)
 	// Save は Application を upsert する。
 	Save(ctx context.Context, app *spec.Application) error
 	// Delete は application_id に一致する Application を削除する (冪等)。

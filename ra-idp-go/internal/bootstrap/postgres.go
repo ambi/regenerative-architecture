@@ -76,7 +76,9 @@ func assemblePostgres(ctx context.Context) (*Dependencies, error) {
 		AuditEventRepo:          &postgres.AuditEventRepository{Pool: pool},
 		AuthEventBucketStore:    &postgres.AuthEventBucketStore{Pool: pool},
 		// federation RP の postgres 永続化は後続スライス。現状は in-memory で代替する。
-		WsFedRPRepo: memory.NewWsFedRelyingPartyRepository(),
+		WsFedRPRepo:               memory.NewWsFedRelyingPartyRepository(),
+		ApplicationRepo:           &postgres.ApplicationRepository{Pool: pool},
+		ApplicationAssignmentRepo: &postgres.ApplicationAssignmentRepository{Pool: pool},
 		Close: func() {
 			_ = valkeyClient.Close()
 			pool.Close()

@@ -7,7 +7,7 @@ export const Route = createFileRoute('/status')({
     const state = new URLSearchParams(location.searchStr).get('state')
     const supported = ['approved', 'denied', 'signed-out', 'authentication-required'] as const
     const status = supported.find((value) => value === state) ?? 'authentication-required'
-    return { kind: 'status', status }
+    return { status }
   },
   component: StatusRoute,
 })
@@ -15,7 +15,7 @@ export const Route = createFileRoute('/status')({
 function StatusRoute() {
   const data = Route.useLoaderData()
   return (
-    <PageMarker kind={data.kind}>
+    <PageMarker kind="status">
       <StatusPage {...data} />
     </PageMarker>
   )

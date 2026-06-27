@@ -7,7 +7,6 @@ export const Route = createFileRoute('/account/password')({
   loader: async ({ location }) => {
     const account = await requirePortalAccount('account', location.pathname, location.searchStr)
     return {
-      kind: 'change-password',
       csrfToken: account.csrf_token,
       sub: account.sub,
       preferredUsername: account.preferred_username,
@@ -20,7 +19,7 @@ export const Route = createFileRoute('/account/password')({
 function ChangePasswordRoute() {
   const data = Route.useLoaderData()
   return (
-    <PageMarker kind={data.kind}>
+    <PageMarker kind="change-password">
       <ChangePasswordPage {...data} />
     </PageMarker>
   )

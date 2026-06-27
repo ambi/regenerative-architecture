@@ -8,7 +8,7 @@ export const Route = createFileRoute('/account/')({
   loader: async ({ location }) => {
     const account = await requirePortalAccount('account', location.pathname, location.searchStr)
     const summary = await getAccountSummary()
-    return { kind: 'account-home', summary, isAdmin: hasAdminRole(account.roles) }
+    return { summary, isAdmin: hasAdminRole(account.roles) }
   },
   component: AccountHomeRoute,
 })
@@ -16,7 +16,7 @@ export const Route = createFileRoute('/account/')({
 function AccountHomeRoute() {
   const data = Route.useLoaderData()
   return (
-    <PageMarker kind={data.kind}>
+    <PageMarker kind="account-home">
       <AccountHomePage {...data} />
     </PageMarker>
   )

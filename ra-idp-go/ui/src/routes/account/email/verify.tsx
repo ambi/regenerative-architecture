@@ -7,7 +7,7 @@ export const Route = createFileRoute('/account/email/verify')({
   loader: async ({ location }) => {
     const ctx = await request<{ csrf_token: string }>('/api/account/email/verify_context')
     const token = new URLSearchParams(location.searchStr).get('token') ?? ''
-    return { kind: 'email-verify', csrfToken: ctx.csrf_token, token }
+    return { csrfToken: ctx.csrf_token, token }
   },
   component: EmailVerifyRoute,
 })
@@ -15,7 +15,7 @@ export const Route = createFileRoute('/account/email/verify')({
 function EmailVerifyRoute() {
   const data = Route.useLoaderData()
   return (
-    <PageMarker kind={data.kind}>
+    <PageMarker kind="email-verify">
       <EmailVerifyPage {...data} />
     </PageMarker>
   )

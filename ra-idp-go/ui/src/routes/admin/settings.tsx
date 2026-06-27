@@ -10,7 +10,6 @@ export const Route = createFileRoute('/admin/settings')({
     const account = await requirePortalAccount('admin', location.pathname, location.searchStr)
     const settings = await request<AdminSettings>('/api/admin/settings')
     return {
-      kind: 'admin-settings',
       csrfToken: account.csrf_token,
       actorUsername: account.preferred_username,
       actorRoles: account.roles ?? [],
@@ -24,7 +23,7 @@ export const Route = createFileRoute('/admin/settings')({
 function AdminSettingsRoute() {
   const data = Route.useLoaderData()
   return (
-    <PageMarker kind={data.kind}>
+    <PageMarker kind="admin-settings">
       <AdminSettingsPage {...data} />
     </PageMarker>
   )

@@ -7,7 +7,6 @@ export const Route = createFileRoute('/account/data')({
   loader: async ({ location }) => {
     const account = await requirePortalAccount('account', location.pathname, location.searchStr)
     return {
-      kind: 'account-data',
       username: account.preferred_username ?? 'account',
       isAdmin: hasAdminRole(account.roles),
     }
@@ -18,7 +17,7 @@ export const Route = createFileRoute('/account/data')({
 function AccountDataRoute() {
   const data = Route.useLoaderData()
   return (
-    <PageMarker kind={data.kind}>
+    <PageMarker kind="account-data">
       <AccountDataPage {...data} />
     </PageMarker>
   )

@@ -12,7 +12,6 @@ export const Route = createFileRoute('/admin/clients')({
     const account = await requirePortalAccount('admin', location.pathname, location.searchStr)
     const clients = await request<AdminClientListResponse>('/api/admin/clients')
     return {
-      kind: 'admin-clients',
       csrfToken: account.csrf_token,
       actorUsername: account.preferred_username,
       clients: clients.clients,
@@ -24,7 +23,7 @@ export const Route = createFileRoute('/admin/clients')({
 function AdminClientsRoute() {
   const data = Route.useLoaderData()
   return (
-    <PageMarker kind={data.kind}>
+    <PageMarker kind="admin-clients">
       <AdminClientsPage {...data} />
     </PageMarker>
   )

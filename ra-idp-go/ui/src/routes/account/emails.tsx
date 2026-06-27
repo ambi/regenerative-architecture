@@ -9,7 +9,6 @@ export const Route = createFileRoute('/account/emails')({
     const account = await requirePortalAccount('account', location.pathname, location.searchStr)
     const summary = await getAccountSummary()
     return {
-      kind: 'account-emails',
       csrfToken: account.csrf_token,
       email: summary.email,
       emailVerified: summary.email_verified,
@@ -22,7 +21,7 @@ export const Route = createFileRoute('/account/emails')({
 function AccountEmailsRoute() {
   const data = Route.useLoaderData()
   return (
-    <PageMarker kind={data.kind}>
+    <PageMarker kind="account-emails">
       <AccountEmailsPage {...data} />
     </PageMarker>
   )

@@ -9,7 +9,6 @@ export const Route = createFileRoute('/account/apps')({
     const account = await requirePortalAccount('account', location.pathname, location.searchStr)
     const applications = await listMyApplications()
     return {
-      kind: 'account-apps',
       username: account.preferred_username ?? 'account',
       applications,
       isAdmin: hasAdminRole(account.roles),
@@ -21,7 +20,7 @@ export const Route = createFileRoute('/account/apps')({
 function AccountAppsRoute() {
   const data = Route.useLoaderData()
   return (
-    <PageMarker kind={data.kind}>
+    <PageMarker kind="account-apps">
       <AccountAppsPage {...data} />
     </PageMarker>
   )

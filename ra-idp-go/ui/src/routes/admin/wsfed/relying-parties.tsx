@@ -9,7 +9,6 @@ export const Route = createFileRoute('/admin/wsfed/relying-parties')({
     const account = await requirePortalAccount('admin', location.pathname, location.searchStr)
     const relyingParties = await listWsFedRelyingParties()
     return {
-      kind: 'admin-wsfed-relying-parties',
       csrfToken: account.csrf_token,
       actorUsername: account.preferred_username,
       relyingParties,
@@ -21,7 +20,7 @@ export const Route = createFileRoute('/admin/wsfed/relying-parties')({
 function AdminWsFedRelyingPartiesRoute() {
   const data = Route.useLoaderData()
   return (
-    <PageMarker kind={data.kind}>
+    <PageMarker kind="admin-wsfed-relying-parties">
       <AdminWsFedRelyingPartiesPage {...data} />
     </PageMarker>
   )

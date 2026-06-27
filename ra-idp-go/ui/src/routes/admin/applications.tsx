@@ -9,7 +9,6 @@ export const Route = createFileRoute('/admin/applications')({
     const account = await requirePortalAccount('admin', location.pathname, location.searchStr)
     const applications = await listAdminApplications()
     return {
-      kind: 'admin-applications',
       csrfToken: account.csrf_token,
       actorUsername: account.preferred_username,
       applications,
@@ -21,7 +20,7 @@ export const Route = createFileRoute('/admin/applications')({
 function AdminApplicationsRoute() {
   const data = Route.useLoaderData()
   return (
-    <PageMarker kind={data.kind}>
+    <PageMarker kind="admin-applications">
       <AdminApplicationsPage {...data} />
     </PageMarker>
   )

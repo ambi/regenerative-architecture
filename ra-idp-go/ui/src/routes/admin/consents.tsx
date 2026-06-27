@@ -12,7 +12,6 @@ export const Route = createFileRoute('/admin/consents')({
     const account = await requirePortalAccount('admin', location.pathname, location.searchStr)
     const consents = await request<AdminConsentListResponse>('/api/admin/consents')
     return {
-      kind: 'admin-consents',
       csrfToken: account.csrf_token,
       actorUsername: account.preferred_username,
       consents: consents.consents,
@@ -24,7 +23,7 @@ export const Route = createFileRoute('/admin/consents')({
 function AdminConsentsRoute() {
   const data = Route.useLoaderData()
   return (
-    <PageMarker kind={data.kind}>
+    <PageMarker kind="admin-consents">
       <AdminConsentsPage {...data} />
     </PageMarker>
   )

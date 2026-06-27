@@ -13,7 +13,6 @@ export const Route = createFileRoute('/admin/tenant/attributes')({
       '/api/admin/tenant/user_attribute_schema',
     )
     return {
-      kind: 'admin-tenant-attributes',
       csrfToken: account.csrf_token,
       actorUsername: account.preferred_username,
       schema,
@@ -25,7 +24,7 @@ export const Route = createFileRoute('/admin/tenant/attributes')({
 function AdminTenantAttributesRoute() {
   const data = Route.useLoaderData()
   return (
-    <PageMarker kind={data.kind}>
+    <PageMarker kind="admin-tenant-attributes">
       <AdminTenantAttributesPage {...data} />
     </PageMarker>
   )

@@ -16,7 +16,6 @@ export const Route = createFileRoute('/admin/roles')({
       request<AdminUserListResponse>('/api/admin/users'),
     ])
     return {
-      kind: 'admin-roles',
       actorUsername: account.preferred_username,
       roles: roles.roles,
       users: users.users,
@@ -28,7 +27,7 @@ export const Route = createFileRoute('/admin/roles')({
 function AdminRolesRoute() {
   const data = Route.useLoaderData()
   return (
-    <PageMarker kind={data.kind}>
+    <PageMarker kind="admin-roles">
       <AdminRolesPage {...data} />
     </PageMarker>
   )

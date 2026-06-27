@@ -9,7 +9,6 @@ export const Route = createFileRoute('/admin/groups_/$groupId')({
     const account = await requirePortalAccount('admin', location.pathname, location.searchStr)
     const { group } = await getAdminGroup(params.groupId)
     return {
-      kind: 'admin-group-detail',
       csrfToken: account.csrf_token,
       actorUsername: account.preferred_username,
       group,
@@ -21,7 +20,7 @@ export const Route = createFileRoute('/admin/groups_/$groupId')({
 function AdminGroupDetailRoute() {
   const data = Route.useLoaderData()
   return (
-    <PageMarker kind={data.kind}>
+    <PageMarker kind="admin-group-detail">
       <AdminGroupDetailPage {...data} />
     </PageMarker>
   )

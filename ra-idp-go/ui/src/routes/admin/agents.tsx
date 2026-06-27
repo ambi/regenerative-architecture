@@ -10,7 +10,6 @@ export const Route = createFileRoute('/admin/agents')({
     const account = await requirePortalAccount('admin', location.pathname, location.searchStr)
     const agents = await request<{ agents: AdminAgent[] }>('/api/admin/agents')
     return {
-      kind: 'admin-agents',
       csrfToken: account.csrf_token,
       actorUsername: account.preferred_username,
       agents: agents.agents,
@@ -22,7 +21,7 @@ export const Route = createFileRoute('/admin/agents')({
 function AdminAgentsRoute() {
   const data = Route.useLoaderData()
   return (
-    <PageMarker kind={data.kind}>
+    <PageMarker kind="admin-agents">
       <AdminAgentsPage {...data} />
     </PageMarker>
   )

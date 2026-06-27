@@ -12,7 +12,6 @@ export const Route = createFileRoute('/admin/keys')({
     const account = await requirePortalAccount('admin', location.pathname, location.searchStr)
     const keys = await request<AdminKeyListResponse>('/api/admin/keys')
     return {
-      kind: 'admin-keys',
       csrfToken: account.csrf_token,
       actorUsername: account.preferred_username,
       actorRoles: account.roles ?? [],
@@ -26,7 +25,7 @@ export const Route = createFileRoute('/admin/keys')({
 function AdminKeysRoute() {
   const data = Route.useLoaderData()
   return (
-    <PageMarker kind={data.kind}>
+    <PageMarker kind="admin-keys">
       <AdminKeysPage {...data} />
     </PageMarker>
   )

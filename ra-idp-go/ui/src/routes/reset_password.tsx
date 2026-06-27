@@ -9,7 +9,6 @@ export const Route = createFileRoute('/reset_password')({
   loader: async ({ location }) => {
     const data = await request<PasswordResetContextResponse>('/api/auth/password_reset_context')
     return {
-      kind: 'reset-password',
       csrfToken: data.csrf_token,
       token: new URLSearchParams(location.searchStr).get('token') ?? '',
     }
@@ -20,7 +19,7 @@ export const Route = createFileRoute('/reset_password')({
 function ResetPasswordRoute() {
   const data = Route.useLoaderData()
   return (
-    <PageMarker kind={data.kind}>
+    <PageMarker kind="reset-password">
       <ResetPasswordPage {...data} />
     </PageMarker>
   )

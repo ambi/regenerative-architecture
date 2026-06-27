@@ -10,7 +10,6 @@ export const Route = createFileRoute('/callback')({
     }
     const parameters = new URLSearchParams(location.searchStr)
     return {
-      kind: 'callback',
       code: parameters.get('code') ?? undefined,
       error: parameters.get('error') ?? undefined,
       errorDescription: parameters.get('error_description') ?? undefined,
@@ -22,7 +21,7 @@ export const Route = createFileRoute('/callback')({
 function CallbackRoute() {
   const data = Route.useLoaderData()
   return (
-    <PageMarker kind={data.kind}>
+    <PageMarker kind="callback">
       <CallbackPage {...data} />
     </PageMarker>
   )

@@ -10,7 +10,6 @@ export const Route = createFileRoute('/account/profile')({
     const account = await requirePortalAccount('account', location.pathname, location.searchStr)
     const profile = await request<AccountProfile>('/api/account/profile')
     return {
-      kind: 'account-profile',
       csrfToken: account.csrf_token,
       profile,
       isAdmin: hasAdminRole(account.roles),
@@ -22,7 +21,7 @@ export const Route = createFileRoute('/account/profile')({
 function AccountProfileRoute() {
   const data = Route.useLoaderData()
   return (
-    <PageMarker kind={data.kind}>
+    <PageMarker kind="account-profile">
       <AccountProfilePage {...data} />
     </PageMarker>
   )

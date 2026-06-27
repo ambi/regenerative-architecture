@@ -21,7 +21,6 @@ export const Route = createFileRoute('/admin/roles_/$name')({
       .filter((u) => u.roles.includes(params.name))
       .map((u) => u.preferred_username)
     return {
-      kind: 'admin-role-detail',
       actorUsername: account.preferred_username,
       role,
       count: usernames.length,
@@ -34,7 +33,7 @@ export const Route = createFileRoute('/admin/roles_/$name')({
 function AdminRoleDetailRoute() {
   const data = Route.useLoaderData()
   return (
-    <PageMarker kind={data.kind}>
+    <PageMarker kind="admin-role-detail">
       <AdminRoleDetailPage {...data} />
     </PageMarker>
   )

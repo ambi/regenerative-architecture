@@ -25,7 +25,6 @@ export const Route = createFileRoute('/admin/')({
     ])
     const activeUserCount = users.users.filter((u) => !u.disabled_at).length
     return {
-      kind: 'admin-dashboard',
       csrfToken: account.csrf_token,
       actorUsername: account.preferred_username,
       actorRoles: account.roles ?? [],
@@ -45,7 +44,7 @@ export const Route = createFileRoute('/admin/')({
 function AdminDashboardRoute() {
   const data = Route.useLoaderData()
   return (
-    <PageMarker kind={data.kind}>
+    <PageMarker kind="admin-dashboard">
       <AdminDashboardPage {...data} />
     </PageMarker>
   )

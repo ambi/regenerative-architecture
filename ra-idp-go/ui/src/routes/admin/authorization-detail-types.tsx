@@ -9,7 +9,6 @@ export const Route = createFileRoute('/admin/authorization-detail-types')({
     const account = await requirePortalAccount('admin', location.pathname, location.searchStr)
     const types = await listAuthorizationDetailTypes()
     return {
-      kind: 'admin-authz-detail-types',
       csrfToken: account.csrf_token,
       actorUsername: account.preferred_username,
       types,
@@ -21,7 +20,7 @@ export const Route = createFileRoute('/admin/authorization-detail-types')({
 function AdminAuthorizationDetailTypesRoute() {
   const data = Route.useLoaderData()
   return (
-    <PageMarker kind={data.kind}>
+    <PageMarker kind="admin-authz-detail-types">
       <AdminAuthorizationDetailTypesPage {...data} />
     </PageMarker>
   )

@@ -9,7 +9,6 @@ export const Route = createFileRoute('/account/activity')({
     const account = await requirePortalAccount('account', location.pathname, location.searchStr)
     const [activities, sessions] = await Promise.all([getSignInActivity(), listAccountSessions()])
     return {
-      kind: 'account-activity',
       csrfToken: account.csrf_token,
       username: account.preferred_username ?? 'account',
       isAdmin: hasAdminRole(account.roles),
@@ -23,7 +22,7 @@ export const Route = createFileRoute('/account/activity')({
 function AccountActivityRoute() {
   const data = Route.useLoaderData()
   return (
-    <PageMarker kind={data.kind}>
+    <PageMarker kind="account-activity">
       <AccountActivityPage {...data} />
     </PageMarker>
   )

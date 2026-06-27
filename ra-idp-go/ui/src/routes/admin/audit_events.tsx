@@ -12,7 +12,6 @@ export const Route = createFileRoute('/admin/audit_events')({
     const account = await requirePortalAccount('admin', location.pathname, location.searchStr)
     const events = await request<AdminAuditEventListResponse>('/api/admin/audit_events')
     return {
-      kind: 'admin-audit-events',
       csrfToken: account.csrf_token,
       actorUsername: account.preferred_username,
       actorRoles: account.roles ?? [],
@@ -26,7 +25,7 @@ export const Route = createFileRoute('/admin/audit_events')({
 function AdminAuditEventsRoute() {
   const data = Route.useLoaderData()
   return (
-    <PageMarker kind={data.kind}>
+    <PageMarker kind="admin-audit-events">
       <AdminAuditEventsPage {...data} />
     </PageMarker>
   )

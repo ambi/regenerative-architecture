@@ -11,7 +11,7 @@ export const Route = createFileRoute('/device')({
     const data = await request<DeviceResponse>(
       `/api/auth/device?user_code=${encodeURIComponent(userCode)}`,
     )
-    return { kind: 'device', csrfToken: data.csrf_token, userCode: data.user_code }
+    return { csrfToken: data.csrf_token, userCode: data.user_code }
   },
   component: DeviceRoute,
 })
@@ -19,7 +19,7 @@ export const Route = createFileRoute('/device')({
 function DeviceRoute() {
   const data = Route.useLoaderData()
   return (
-    <PageMarker kind={data.kind}>
+    <PageMarker kind="device">
       <DevicePage {...data} />
     </PageMarker>
   )

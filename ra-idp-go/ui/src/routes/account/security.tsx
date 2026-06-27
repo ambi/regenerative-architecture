@@ -9,7 +9,6 @@ export const Route = createFileRoute('/account/security')({
     const account = await requirePortalAccount('account', location.pathname, location.searchStr)
     const security = await getAccountSecurity()
     return {
-      kind: 'account-security',
       csrfToken: account.csrf_token,
       username: account.preferred_username ?? 'account',
       isAdmin: hasAdminRole(account.roles),
@@ -22,7 +21,7 @@ export const Route = createFileRoute('/account/security')({
 function AccountSecurityRoute() {
   const data = Route.useLoaderData()
   return (
-    <PageMarker kind={data.kind}>
+    <PageMarker kind="account-security">
       <AccountSecurityPage {...data} />
     </PageMarker>
   )

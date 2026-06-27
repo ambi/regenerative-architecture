@@ -96,7 +96,12 @@ func (d Deps) handleWsFedSignIn(c *echo.Context, req feddomain.WsFedSignInReques
 		return c.String(http.StatusBadRequest, err.Error())
 	}
 
-	result, err := feddomain.IssueClaims(rp.ClaimPolicy, feddomain.ResolveUserAttributes(*user))
+	attrs, err := feddomain.ApplyEntraProfile(feddomain.ResolveUserAttributes(*user), rp.EntraProfile)
+	if err != nil {
+		d.emit(&spec.WsFedSignInRejected{At: now, TenantID: tenantID, Wtrealm: rp.Wtrealm, Reason: "entra profile failed"})
+		return c.String(http.StatusInternalServerError, "entra profile failed")
+	}
+	result, err := feddomain.IssueClaims(rp.ClaimPolicy, attrs)
 	if err != nil {
 		d.emit(&spec.WsFedSignInRejected{At: now, TenantID: tenantID, Wtrealm: rp.Wtrealm, Reason: "claim issuance failed"})
 		return c.String(http.StatusInternalServerError, "claim issuance failed")

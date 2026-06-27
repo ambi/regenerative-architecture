@@ -25,4 +25,5 @@ func RegisterRoutes(g *echo.Group, cd *core.Deps) {
 	g.GET("/api/admin/wsfed/relying-parties", d.handleListRelyingParties)
 	g.POST("/api/admin/wsfed/relying-parties", d.handleUpsertRelyingParty)
 	g.DELETE("/api/admin/wsfed/relying-parties", d.handleDeleteRelyingParty)
+	g.POST("/api/admin/wsfed/entra-federation", d.handleConfigureEntraFederation)
 }

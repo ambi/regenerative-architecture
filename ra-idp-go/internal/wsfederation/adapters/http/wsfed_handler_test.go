@@ -402,7 +402,16 @@ func wsTrustRST(now time.Time, messageID, appliesTo string) string {
 func newAdminServer(t *testing.T) *echo.Echo {
 	t.Helper()
 	userRepo := memory.NewUserRepository()
-	userRepo.Seed(&spec.User{Sub: "admin-1", TenantID: spec.DefaultTenantID, PreferredUsername: "admin", Roles: []string{"admin"}})
+	objectGUID := "6f9619ff-8b86-d011-b42d-00c04fc964ff"
+	userRepo.Seed(&spec.User{
+		Sub:               "admin-1",
+		TenantID:          spec.DefaultTenantID,
+		PreferredUsername: "admin@contoso.com",
+		Roles:             []string{"admin"},
+		Attributes: map[string]spec.AttributeValue{
+			"object_guid": {Type: spec.AttributeTypeString, String: &objectGUID},
+		},
+	})
 	e := echo.New()
 	httpadapter.Register(e, core.Deps{
 		Issuer:        "https://idp.example",
@@ -457,6 +466,43 @@ func TestAdminRelyingParty_ForbiddenForNonAdmin(t *testing.T) {
 	e, _ := newServer(t, &authdomain.AuthenticationContext{Sub: "user-1"}) // 非 admin
 	if rec := get(e, "/api/admin/wsfed/relying-parties"); rec.Code != http.StatusForbidden {
 		t.Fatalf("status=%d, want 403", rec.Code)
+	}
+}
+
+func TestAdminConfigureEntraFederation_CreatesPresetRelyingParty(t *testing.T) {
+	e := newAdminServer(t)
+	body := `{"domain":"contoso.com","source_anchor_attribute":"object_guid"}`
+	rec := doJSON(e, http.MethodPost, "/api/admin/wsfed/entra-federation", body)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	for _, want := range []string{
+		`"issuer_uri":"urn:ra-idp:entra:contoso.com"`,
+		`"source_anchor_attribute":"object_guid"`,
+		`"claim_type":"http://schemas.xmlsoap.org/claims/UPN"`,
+		`"claim_type":"http://schemas.xmlsoap.org/claims/nameidentifier"`,
+		`"ActiveLogOnUri":"https://idp.example/realms/default/trust/usernamemixed"`,
+		"Hybrid Azure AD Join device registration is not provided",
+	} {
+		if !strings.Contains(rec.Body.String(), want) {
+			t.Fatalf("response missing %q:\n%s", want, rec.Body.String())
+		}
+	}
+	list := get(e, "/api/admin/wsfed/relying-parties")
+	if !strings.Contains(list.Body.String(), `"entra_profile"`) {
+		t.Fatalf("configured RP missing entra_profile: %s", list.Body.String())
+	}
+}
+
+func TestAdminConfigureEntraFederation_RejectsMissingSourceAnchor(t *testing.T) {
+	e := newAdminServer(t)
+	body := `{"domain":"contoso.com","source_anchor_attribute":"missing_anchor"}`
+	rec := doJSON(e, http.MethodPost, "/api/admin/wsfed/entra-federation", body)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "sourceAnchor validation failed") {
+		t.Fatalf("missing sourceAnchor error not returned: %s", rec.Body.String())
 	}
 }
 

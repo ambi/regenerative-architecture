@@ -49,7 +49,12 @@ func (d Deps) handleWsTrustUsernameMixed(c *echo.Context) error {
 		return c.String(http.StatusUnauthorized, "invalid credentials")
 	}
 
-	result, err := feddomain.IssueClaims(rp.ClaimPolicy, feddomain.ResolveUserAttributes(*user))
+	attrs, err := feddomain.ApplyEntraProfile(feddomain.ResolveUserAttributes(*user), rp.EntraProfile)
+	if err != nil {
+		d.emit(&spec.WsTrustTokenRejected{At: now, TenantID: tenantID, AppliesTo: rst.AppliesTo, Reason: "entra profile failed"})
+		return c.String(http.StatusInternalServerError, "entra profile failed")
+	}
+	result, err := feddomain.IssueClaims(rp.ClaimPolicy, attrs)
 	if err != nil {
 		d.emit(&spec.WsTrustTokenRejected{At: now, TenantID: tenantID, AppliesTo: rst.AppliesTo, Reason: "claim issuance failed"})
 		return c.String(http.StatusInternalServerError, "claim issuance failed")

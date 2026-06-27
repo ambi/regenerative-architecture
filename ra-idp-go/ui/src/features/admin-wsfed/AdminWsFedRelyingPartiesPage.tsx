@@ -2,6 +2,8 @@ import { IconDownload, IconPlus, IconServerBolt, IconTrash, IconWorldShare, Icon
 import { type FormEvent, useState } from 'react'
 import {
   AuthenticationAPIError,
+  configureEntraFederation,
+  type ConfigureEntraFederationResponse,
   deleteWsFedRelyingParty,
   saveWsFedRelyingParty,
   tenantURL,
@@ -71,6 +73,11 @@ export function AdminWsFedRelyingPartiesPage({
   const [editing, setEditing] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm)
   const [creating, setCreating] = useState(false)
+  const [entraDomain, setEntraDomain] = useState('')
+  const [entraIssuer, setEntraIssuer] = useState('')
+  const [entraSourceAnchor, setEntraSourceAnchor] = useState('object_guid')
+  const [entraReplyURL, setEntraReplyURL] = useState('https://login.microsoftonline.com/login.srf')
+  const [entraResult, setEntraResult] = useState<ConfigureEntraFederationResponse | null>(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const endpointLinks = [
@@ -159,6 +166,28 @@ export function AdminWsFedRelyingPartiesPage({
     }
   }
 
+  async function handleConfigureEntra(event: FormEvent) {
+    event.preventDefault()
+    setError('')
+    setNotice('')
+    try {
+      const result = await configureEntraFederation(csrfToken, {
+        domain: entraDomain.trim(),
+        issuer_uri: entraIssuer.trim() || undefined,
+        source_anchor_attribute: entraSourceAnchor.trim(),
+        reply_url: entraReplyURL.trim() || undefined,
+      })
+      setEntraResult(result)
+      setItems((prev) => {
+        const others = prev.filter((rp) => rp.wtrealm !== result.relying_party.wtrealm)
+        return [...others, result.relying_party].sort((a, b) => a.wtrealm.localeCompare(b.wtrealm))
+      })
+      setNotice(`${result.profile.domain} の Entra federation preset を保存しました。`)
+    } catch (cause) {
+      setError(cause instanceof AuthenticationAPIError ? cause.message : 'Entra federation preset の保存に失敗しました。')
+    }
+  }
+
   const showForm = creating || editing !== null
 
   return (
@@ -184,6 +213,52 @@ export function AdminWsFedRelyingPartiesPage({
     >
       {error ? <Alert variant="destructive">{error}</Alert> : null}
       {notice ? <Alert variant="success">{notice}</Alert> : null}
+
+      <Card className="grid gap-4 p-4">
+        <div>
+          <h2 className="text-sm font-semibold text-slate-900">Microsoft Entra federation</h2>
+          <p className="mt-1 text-xs leading-5 text-slate-500">
+            Microsoft 365 domain federation 向けに、UPN / ImmutableID / persistent NameID の
+            preset を持つ WS-Fed RP を作成します。
+          </p>
+        </div>
+        <form className="grid gap-3 lg:grid-cols-[1fr_1fr_1fr_1fr_auto]" onSubmit={handleConfigureEntra}>
+          <div className="grid gap-1.5">
+            <Label htmlFor="entra_domain">検証済み domain</Label>
+            <Input id="entra_domain" value={entraDomain} placeholder="contoso.com" onChange={(e) => setEntraDomain(e.target.value)} required />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="entra_source_anchor">sourceAnchor 属性</Label>
+            <Input id="entra_source_anchor" value={entraSourceAnchor} onChange={(e) => setEntraSourceAnchor(e.target.value)} required />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="entra_issuer">IssuerUri</Label>
+            <Input id="entra_issuer" value={entraIssuer} placeholder="空なら自動生成" onChange={(e) => setEntraIssuer(e.target.value)} />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="entra_reply">wreply URL</Label>
+            <Input id="entra_reply" value={entraReplyURL} onChange={(e) => setEntraReplyURL(e.target.value)} />
+          </div>
+          <div className="flex items-end">
+            <Button type="submit">Preset を保存</Button>
+          </div>
+        </form>
+        {entraResult ? (
+          <div className="grid gap-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-xs">
+            <div className="grid gap-1 font-mono text-slate-700 sm:grid-cols-2">
+              {Object.entries(entraResult.powershell).map(([key, value]) => (
+                <div key={key} className="min-w-0">
+                  <span className="block font-sans font-semibold text-slate-600">{key}</span>
+                  <span className="block truncate">{value}</span>
+                </div>
+              ))}
+            </div>
+            <Alert>
+              Hybrid Azure AD Join のデバイス登録は未提供です。必要な場合は managed/PHS への切替または AD FS 併存を検討してください。
+            </Alert>
+          </div>
+        ) : null}
+      </Card>
 
       <div className="grid gap-2 rounded-md border border-slate-200 bg-slate-50 p-3 sm:grid-cols-3">
         {endpointLinks.map(({ label, href, value, icon: Icon }) => (
@@ -368,6 +443,12 @@ export function AdminWsFedRelyingPartiesPage({
                       ? 'SAML 2.0'
                       : 'SAML 1.1'}
                   </span>
+                  {rp.entra_profile ? (
+                    <span>
+                      <span className="font-semibold text-slate-700">Entra:</span>{' '}
+                      {rp.entra_profile.domain} / sourceAnchor {rp.entra_profile.source_anchor_attribute}
+                    </span>
+                  ) : null}
                   <div className="flex flex-wrap gap-1.5">
                     {(rp.claim_policy.rules ?? []).map((rule) => (
                       <span key={rule.claim_type} className="font-mono">

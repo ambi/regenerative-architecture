@@ -49,6 +49,17 @@ type ClaimMappingPolicy struct {
 	Rules  []ClaimMappingRule  `json:"rules,omitempty"`
 }
 
+// EntraFederationProfile は Microsoft Entra domain federation 用の RP preset (wi-64)。
+type EntraFederationProfile struct {
+	Domain                string `json:"domain"`
+	IssuerURI             string `json:"issuer_uri"`
+	SourceAnchorAttribute string `json:"source_anchor_attribute"`
+	ImmutableIDAttribute  string `json:"immutable_id_attribute"`
+	PassiveLogOnURI       string `json:"passive_logon_uri,omitempty"`
+	ActiveLogOnURI        string `json:"active_logon_uri,omitempty"`
+	MetadataExchangeURI   string `json:"metadata_exchange_uri,omitempty"`
+}
+
 // IssuedClaim は claim 発行エンジンの出力。1 つの claim 型と値群 (ADR-059)。
 type IssuedClaim struct {
 	ClaimType string   `json:"claim_type"`
@@ -76,15 +87,16 @@ func (t WsFedTokenType) Valid() bool {
 // WsFedRelyingParty は WS-Federation passive の relying party 登録 (ADR-059)。
 // wtrealm で識別し、許可 wreply の閉集合・audience・token type・claim policy を束ねる。
 type WsFedRelyingParty struct {
-	TenantID    string             `json:"tenant_id"`
-	Wtrealm     string             `json:"wtrealm"`
-	DisplayName string             `json:"display_name,omitempty"`
-	ReplyURLs   []string           `json:"reply_urls"`
-	Audience    string             `json:"audience,omitempty"`
-	TokenType   WsFedTokenType     `json:"token_type,omitempty"`
-	ClaimPolicy ClaimMappingPolicy `json:"claim_policy"`
-	CreatedAt   time.Time          `json:"created_at"`
-	UpdatedAt   *time.Time         `json:"updated_at,omitempty"`
+	TenantID     string                  `json:"tenant_id"`
+	Wtrealm      string                  `json:"wtrealm"`
+	DisplayName  string                  `json:"display_name,omitempty"`
+	ReplyURLs    []string                `json:"reply_urls"`
+	Audience     string                  `json:"audience,omitempty"`
+	TokenType    WsFedTokenType          `json:"token_type,omitempty"`
+	ClaimPolicy  ClaimMappingPolicy      `json:"claim_policy"`
+	EntraProfile *EntraFederationProfile `json:"entra_profile,omitempty"`
+	CreatedAt    time.Time               `json:"created_at"`
+	UpdatedAt    *time.Time              `json:"updated_at,omitempty"`
 }
 
 // EffectiveAudience は assertion に用いる audience を返す。未設定なら wtrealm。
@@ -157,3 +169,14 @@ type WsTrustTokenRejected struct {
 
 func (e *WsTrustTokenRejected) EventType() string     { return "WsTrustTokenRejected" }
 func (e *WsTrustTokenRejected) OccurredAt() time.Time { return e.At }
+
+// EntraFederationConfigured は Entra federation preset を設定した event (wi-64)。
+type EntraFederationConfigured struct {
+	At        time.Time `json:"-"`
+	TenantID  string    `json:"tenantId"`
+	Domain    string    `json:"domain"`
+	IssuerURI string    `json:"issuerUri"`
+}
+
+func (e *EntraFederationConfigured) EventType() string     { return "EntraFederationConfigured" }
+func (e *EntraFederationConfigured) OccurredAt() time.Time { return e.At }

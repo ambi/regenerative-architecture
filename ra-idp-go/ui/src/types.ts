@@ -217,6 +217,16 @@ export type WsFedClaimMappingPolicy = {
   rules?: WsFedClaimMappingRule[]
 }
 
+export type EntraFederationProfile = {
+  domain: string
+  issuer_uri: string
+  source_anchor_attribute: string
+  immutable_id_attribute: string
+  passive_logon_uri?: string
+  active_logon_uri?: string
+  metadata_exchange_uri?: string
+}
+
 export type WsFedTokenType =
   | 'urn:oasis:names:tc:SAML:1.0:assertion'
   | 'urn:oasis:names:tc:SAML:2.0:assertion'
@@ -229,6 +239,7 @@ export type WsFedRelyingParty = {
   audience?: string
   token_type?: WsFedTokenType
   claim_policy: WsFedClaimMappingPolicy
+  entra_profile?: EntraFederationProfile
   created_at: string
   updated_at?: string
 }

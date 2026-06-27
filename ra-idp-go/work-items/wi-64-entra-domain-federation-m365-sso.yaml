@@ -1,7 +1,7 @@
 id: wi-64-entra-domain-federation-m365-sso
 title: Microsoft Entra domain federation で Microsoft 365 サインインと無音 SSO に対応する
 created_at: 2026-06-24
-status: pending
+status: in_progress
 authors: [tn]
 
 motivation: |
@@ -38,6 +38,7 @@ scope:
       (Okta の Office 365 app 相当)。Hybrid Azure AD Join のデバイス登録は windowstransport +
       コンピュータアカウント Kerberos を要するためスコープ外とし、その理由 (Okta も同様の制約) と
       回避策 (managed/PHS への切替や AD FS 併存) をドキュメント方針として明記する。
+    - "ADR-065 で Entra domain federation profile、sourceAnchor 変換、Hybrid Join 非対応の判断を記録する。"
   scl:
     - >-
       新規 model: EntraFederationProfile (issuerUri / sourceAnchor source / claim preset)。
@@ -82,7 +83,7 @@ affected_guarantees:
   - audit: federation 設定変更とサインイン token 発行を監査に残す。
 
 verification:
-  - cmd: 'go test ./...'
+  - cmd: 'GOCACHE=/tmp/ra-idp-go-cache go test ./...'
     in: ra-idp-go
     reason: Entra プリセットの claim 充足判定・sourceAnchor 変換・issuer 一致・未充足拒否の境界。
   - cmd: 'golangci-lint run ./...'

@@ -13,6 +13,7 @@ import type {
   AuthorizationDetailType,
   TenantUserAttributeSchema,
   UserAttributeDef,
+  EntraFederationProfile,
   WsFedClaimMappingPolicy,
   WsFedRelyingParty,
   WsFedTokenType,
@@ -247,6 +248,27 @@ export async function deleteWsFedRelyingParty(csrfToken: string, wtrealm: string
     `/api/admin/wsfed/relying-parties?wtrealm=${encodeURIComponent(wtrealm)}`,
     adminRequest(csrfToken, 'DELETE'),
   )
+}
+
+export type ConfigureEntraFederationInput = {
+  domain: string
+  issuer_uri?: string
+  source_anchor_attribute: string
+  reply_url?: string
+}
+
+export type ConfigureEntraFederationResponse = {
+  profile: EntraFederationProfile
+  relying_party: WsFedRelyingParty
+  powershell: Record<string, string>
+  known_limitations: string[]
+}
+
+export async function configureEntraFederation(
+  csrfToken: string,
+  input: ConfigureEntraFederationInput,
+): Promise<ConfigureEntraFederationResponse> {
+  return request('/api/admin/wsfed/entra-federation', adminRequest(csrfToken, 'POST', input))
 }
 
 export async function listAdminConsents(): Promise<AdminConsent[]> {

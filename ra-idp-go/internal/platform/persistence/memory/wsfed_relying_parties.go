@@ -31,6 +31,10 @@ func cloneRelyingParty(rp *spec.WsFedRelyingParty) *spec.WsFedRelyingParty {
 	cloned := *rp
 	cloned.ReplyURLs = slices.Clone(rp.ReplyURLs)
 	cloned.ClaimPolicy.Rules = slices.Clone(rp.ClaimPolicy.Rules)
+	if rp.EntraProfile != nil {
+		profile := *rp.EntraProfile
+		cloned.EntraProfile = &profile
+	}
 	return &cloned
 }
 

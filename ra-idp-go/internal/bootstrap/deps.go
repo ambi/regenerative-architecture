@@ -8,6 +8,7 @@ import (
 	authports "ra-idp-go/internal/authentication/ports"
 	idmports "ra-idp-go/internal/identitymanagement/ports"
 	oauthports "ra-idp-go/internal/oauth2/ports"
+	samlports "ra-idp-go/internal/saml/ports"
 	tenantports "ra-idp-go/internal/tenancy/ports"
 	wsfederationports "ra-idp-go/internal/wsfederation/ports"
 )
@@ -41,6 +42,7 @@ type Dependencies struct {
 	AuditEventRepo            oauthports.AuditEventRepository
 	AuthEventBucketStore      authports.AuthEventBucketStore
 	WsFedRPRepo               wsfederationports.WsFedRelyingPartyRepository
+	SamlSPRepo                samlports.SamlServiceProviderRepository
 	ApplicationRepo           appports.ApplicationRepository
 	ApplicationAssignmentRepo appports.AssignmentRepository
 	Close                     func()

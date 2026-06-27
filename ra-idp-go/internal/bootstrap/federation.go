@@ -10,6 +10,7 @@ import (
 	"math/big"
 	"time"
 
+	samlports "ra-idp-go/internal/saml/ports"
 	"ra-idp-go/internal/spec"
 	"ra-idp-go/internal/wsfederation/adapters/samltoken"
 	wsfederationports "ra-idp-go/internal/wsfederation/ports"
@@ -62,4 +63,28 @@ func seedWsFedRelyingParty(ctx context.Context, repo wsfederationports.WsFedRely
 		CreatedAt: now,
 	}
 	return repo.Save(ctx, rp)
+}
+
+// seedSamlServiceProvider は SAML 2.0 Web Browser SSO のデモ用 service provider を投入する。
+func seedSamlServiceProvider(ctx context.Context, repo samlports.SamlServiceProviderRepository) error {
+	now := time.Now().UTC()
+	sp := &spec.SamlServiceProvider{
+		TenantID:    spec.DefaultTenantID,
+		EntityID:    "urn:ra-idp:demo-sp",
+		DisplayName: "Demo SAML SP",
+		ACSURLs:     []string{"https://sp.example/saml/acs"},
+		ClaimPolicy: spec.ClaimMappingPolicy{
+			NameID: spec.NameIdConfiguration{
+				Format:          spec.SamlNameIDFormatPersistent,
+				SourceAttribute: "sub",
+			},
+			Rules: []spec.ClaimMappingRule{
+				{ClaimType: "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress", Source: spec.ClaimSourceUserAttribute, SourceKey: "email"},
+				{ClaimType: "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name", Source: spec.ClaimSourceUserAttribute, SourceKey: "preferred_username", Required: true},
+			},
+		},
+		SignAssertion: true,
+		CreatedAt:     now,
+	}
+	return repo.Save(ctx, sp)
 }

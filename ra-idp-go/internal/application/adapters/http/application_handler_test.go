@@ -34,6 +34,7 @@ func newApplicationHandler(t *testing.T) *echo.Echo {
 		Issuer: "http://idp.test", UserRepo: users, GroupRepo: memory.NewGroupRepository(),
 		ApplicationRepo:           memory.NewApplicationRepository(),
 		ApplicationAssignmentRepo: memory.NewApplicationAssignmentRepository(),
+		SamlSPRepo:                memory.NewSamlServiceProviderRepository(),
 		AuthnResolver:             authusecases.DemoHeaderResolver{},
 		Emit:                      func(spec.DomainEvent) {},
 	})
@@ -148,6 +149,57 @@ func TestApplicationAdminCRUDAndAccountVisibility(t *testing.T) {
 	}
 	if apps := myApplications(t, e, "regular"); len(apps) != 0 {
 		t.Fatalf("hidden assignment should hide app from portal, got %d", len(apps))
+	}
+}
+
+// claim 規則を持たない SAML SP の詳細では rules が null ではなく [] になり、
+// UI が rules.length を参照してもクラッシュしない (作成直後の "認証を続行できません" 回帰)。
+func TestSamlApplicationDetailReturnsEmptyRulesNotNull(t *testing.T) {
+	e := newApplicationHandler(t)
+	csrf, cookie := appCSRF(t, e)
+
+	create := adminJSON(t, e, http.MethodPost, "/api/admin/applications", csrf, cookie, map[string]any{
+		"name":           "SAML App",
+		"type":           "saml",
+		"entity_id":      "https://sp.example.com",
+		"acs_urls":       []string{"https://sp.example.com/acs"},
+		"name_id_format": "urn:oasis:names:tc:SAML:2.0:nameid-format:persistent",
+		"name_id_source": "sub",
+	})
+	if create.Code != http.StatusCreated {
+		t.Fatalf("create status=%d body=%s", create.Code, create.Body.String())
+	}
+	var created struct {
+		Application struct {
+			ApplicationID string `json:"application_id"`
+		} `json:"application"`
+	}
+	if err := json.Unmarshal(create.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+
+	detail := adminJSON(t, e, http.MethodGet,
+		"/api/admin/applications/"+created.Application.ApplicationID, csrf, cookie, nil)
+	if detail.Code != http.StatusOK {
+		t.Fatalf("detail status=%d body=%s", detail.Code, detail.Body.String())
+	}
+	// 生 JSON に "rules":null が現れてはならない。
+	if bytes.Contains(detail.Body.Bytes(), []byte(`"rules":null`)) {
+		t.Fatalf("saml rules must serialize as [] not null: %s", detail.Body.String())
+	}
+	var body struct {
+		Saml *struct {
+			Rules []spec.ClaimMappingRule `json:"rules"`
+		} `json:"saml"`
+	}
+	if err := json.Unmarshal(detail.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if body.Saml == nil {
+		t.Fatalf("saml config missing: %s", detail.Body.String())
+	}
+	if body.Saml.Rules == nil {
+		t.Fatal("saml.rules decoded as nil; expected empty array")
 	}
 }
 

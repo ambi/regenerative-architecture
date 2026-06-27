@@ -129,10 +129,23 @@ export type ApplicationWsFedConfig = {
   rules: WsFedClaimMappingRule[]
 }
 
+export type ApplicationSamlConfig = {
+  entity_id: string
+  acs_urls: string[]
+  slo_url: string
+  audience: string
+  name_id_format: string
+  name_id_source: string
+  sign_assertion: boolean
+  sign_response: boolean
+  rules: WsFedClaimMappingRule[]
+}
+
 export type AdminApplicationDetail = {
   application: AdminApplication
   oidc?: ApplicationOidcConfig | null
   wsfed?: ApplicationWsFedConfig | null
+  saml?: ApplicationSamlConfig | null
 }
 
 export type AuthorizationDetailFieldRule = {

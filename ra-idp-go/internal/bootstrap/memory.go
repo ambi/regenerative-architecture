@@ -39,6 +39,7 @@ func assembleMemory() (*Dependencies, error) {
 		AuditEventRepo:            memory.NewAuditEventStore(0),
 		AuthEventBucketStore:      memory.NewAuthEventBucketStore(),
 		WsFedRPRepo:               memory.NewWsFedRelyingPartyRepository(),
+		SamlSPRepo:                memory.NewSamlServiceProviderRepository(),
 		ApplicationRepo:           memory.NewApplicationRepository(),
 		ApplicationAssignmentRepo: memory.NewApplicationAssignmentRepository(),
 		Close:                     func() {},

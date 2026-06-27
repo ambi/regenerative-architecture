@@ -75,9 +75,19 @@ func (r *ApplicationRepository) FindByBinding(ctx context.Context, tenantID stri
 			if binding.Type != bindingType {
 				continue
 			}
-			if (bindingType == spec.ProtocolBindingWsFed && binding.Wtrealm == key) ||
-				(bindingType != spec.ProtocolBindingWsFed && binding.ClientID == key) {
-				return app, nil
+			switch bindingType {
+			case spec.ProtocolBindingWsFed:
+				if binding.Wtrealm == key {
+					return app, nil
+				}
+			case spec.ProtocolBindingSAML:
+				if binding.EntityID == key {
+					return app, nil
+				}
+			default:
+				if binding.ClientID == key {
+					return app, nil
+				}
 			}
 		}
 	}

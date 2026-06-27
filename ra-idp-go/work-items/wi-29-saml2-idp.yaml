@@ -1,7 +1,7 @@
 id: wi-29-saml2-idp
 title: SAML 2.0 IdP を実装し、エンタープライズ SSO に対応する
 created_at: 2026-06-20
-status: pending
+status: completed
 authors: [tn]
 
 motivation: |

@@ -58,6 +58,7 @@ type AssertionInput struct {
 	Issuer       string                     // IdP の entityID (issuer)。
 	Audience     string                     // RP の entityID / wtrealm。
 	Recipient    string                     // 任意。bearer の Recipient (ACS / wreply)。
+	InResponseTo string                     // 任意。SP-initiated の AuthnRequest ID (SAML 2.0 のみ)。
 	IssueInstant time.Time                  // 発行時刻。
 	NotBefore    time.Time                  // 有効期間の開始。
 	NotOnOrAfter time.Time                  // 有効期間の終了。
@@ -125,6 +126,9 @@ func buildSAML20(in AssertionInput, id string) *etree.Element {
 	confirmationData.CreateAttr("NotOnOrAfter", in.NotOnOrAfter.UTC().Format(xmlDateTime))
 	if r := strings.TrimSpace(in.Recipient); r != "" {
 		confirmationData.CreateAttr("Recipient", r)
+	}
+	if irt := strings.TrimSpace(in.InResponseTo); irt != "" {
+		confirmationData.CreateAttr("InResponseTo", irt)
 	}
 
 	conditions := a.CreateElement("Conditions")

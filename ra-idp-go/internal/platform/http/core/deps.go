@@ -14,6 +14,7 @@ import (
 	idmports "ra-idp-go/internal/identitymanagement/ports"
 	oauthports "ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/platform/crypto"
+	samlports "ra-idp-go/internal/saml/ports"
 	"ra-idp-go/internal/spec"
 	tenantports "ra-idp-go/internal/tenancy/ports"
 	"ra-idp-go/internal/wsfederation/adapters/samltoken"
@@ -61,6 +62,7 @@ type Deps struct {
 	SessionManager             *authusecases.SessionManager
 	AuthnResolver              authdomain.AuthenticationContextResolver
 	WsFedRPRepo                wsfederationports.WsFedRelyingPartyRepository
+	SamlSPRepo                 samlports.SamlServiceProviderRepository
 	FederationSigner           *samltoken.Signer
 	ApplicationRepo            appports.ApplicationRepository
 	ApplicationAssignmentRepo  appports.AssignmentRepository

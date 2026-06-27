@@ -83,9 +83,9 @@ func (d Deps) handleGetApplication(c *echo.Context) error {
 	if app == nil {
 		return d.writeApplicationError(c, appusecases.ErrApplicationNotFound)
 	}
-	oidc, wsfed := d.resolveProtocolConfig(c, app)
+	oidc, wsfed, saml := d.resolveProtocolConfig(c, app)
 	return core.NoStoreJSON(c, http.StatusOK, map[string]any{
-		"application": toApplicationResponse(app), "oidc": oidc, "wsfed": wsfed,
+		"application": toApplicationResponse(app), "oidc": oidc, "wsfed": wsfed, "saml": saml,
 	})
 }
 

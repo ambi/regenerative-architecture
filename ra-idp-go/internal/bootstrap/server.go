@@ -50,6 +50,9 @@ func Run() error {
 		if err := seedWsFedRelyingParty(ctx, deps.WsFedRPRepo); err != nil {
 			return fmt.Errorf("seed federation relying party: %w", err)
 		}
+		if err := seedSamlServiceProvider(ctx, deps.SamlSPRepo); err != nil {
+			return fmt.Errorf("seed saml service provider: %w", err)
+		}
 		if err := seedDemoApplications(ctx, deps.ApplicationRepo, deps.ApplicationAssignmentRepo, time.Now().UTC()); err != nil {
 			return fmt.Errorf("seed demo applications: %w", err)
 		}
@@ -142,7 +145,7 @@ func Run() error {
 		TrustedForwardedHops:    envInt("TRUSTED_FORWARDED_HOPS", 0),
 		SentinelPasswordHash:    sentinelPasswordHash,
 		SessionManager:          sessionManager, AuthnResolver: sessionManager,
-		WsFedRPRepo: deps.WsFedRPRepo, FederationSigner: federationSigner,
+		WsFedRPRepo: deps.WsFedRPRepo, SamlSPRepo: deps.SamlSPRepo, FederationSigner: federationSigner,
 		ApplicationRepo: deps.ApplicationRepo, ApplicationAssignmentRepo: deps.ApplicationAssignmentRepo,
 		Emit: emit,
 		HealthInfo: httpcore.HealthInfo{

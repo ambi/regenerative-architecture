@@ -58,6 +58,8 @@ func bindingKey(binding spec.ProtocolBinding) string {
 		return binding.ClientID
 	case spec.ProtocolBindingWsFed:
 		return binding.Wtrealm
+	case spec.ProtocolBindingSAML:
+		return binding.EntityID
 	default:
 		return ""
 	}

@@ -133,7 +133,7 @@ context_map:
           - TenantRef
         reason: 署名鍵と証明書は tenant / realm 境界内に閉じる。
   WsFederation:
-    description: WS-Federation passive と WS-Trust active STS の trust、federationmetadata.xml、MEX、RST/RSTR、WS-Fed relying party binding を所有する。SAML assertion / claim release / signing key lifecycle の共有 capability には依存するが、SAML 2.0 SP binding は将来の Saml context が所有する (ADR-064)。
+    description: WS-Federation passive と WS-Trust active STS の trust、federationmetadata.xml、MEX、RST/RSTR、WS-Fed relying party binding を所有する。SAML assertion / claim release / signing key lifecycle の共有 capability には依存するが、SAML 2.0 SP binding は Saml context が所有する。
     path: contexts/ws-federation.yaml
     publishes:
       - WsFederationSignIn
@@ -170,8 +170,11 @@ context_map:
           - SigningKeyRef
         reason: SAML assertion 署名証明書と metadata への証明書広告は SigningKeys の鍵境界に従う。
   Saml:
-    description: "SAML 2.0 IdP の service provider binding、SAML metadata、AuthnRequest / Response、\nACS / SLO を将来所有する protocol context。現時点では [[wi-29-saml2-idp]] のための\n境界予約であり、WS-Fed / WS-Trust とは claim release と XML signing capability だけを共有する。\n"
+    description: "SAML 2.0 IdP の service provider binding、IdP metadata、AuthnRequest / Response、\nAssertionConsumerService / Single Logout を所有する protocol context。Web Browser SSO Profile に\n基づき SP-initiated / IdP-initiated SSO を提供する。WS-Fed / WS-Trust とは claim release と\nXML signing capability だけを共有する。\n"
     path: contexts/saml.yaml
+    publishes:
+      - SamlSingleSignOn
+      - PublishSamlMetadata
     depends_on:
       Tenancy:
         via: published_language
@@ -193,6 +196,11 @@ context_map:
         uses:
           - ClaimMappingPolicyRef
         reason: SAML AttributeStatement / NameID は ClaimMapping policy を利用する。
+      Application:
+        via: published_language
+        uses:
+          - ApplicationAssignmentRef
+        reason: SAML SSO は SP が属する Application への割当を fail-closed で確認する。
       SigningKeys:
         via: published_language
         uses:

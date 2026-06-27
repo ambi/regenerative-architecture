@@ -12,6 +12,7 @@ import (
 	idmhttp "ra-idp-go/internal/identitymanagement/adapters/http"
 	oauth2http "ra-idp-go/internal/oauth2/adapters/http"
 	"ra-idp-go/internal/platform/http/core"
+	samlhttp "ra-idp-go/internal/saml/adapters/http"
 	"ra-idp-go/internal/spec"
 	tenancyhttp "ra-idp-go/internal/tenancy/adapters/http"
 	wsfederationhttp "ra-idp-go/internal/wsfederation/adapters/http"
@@ -42,5 +43,6 @@ func registerTenantRoutes(g *echo.Group, d Deps) {
 	idmhttp.RegisterRoutes(g, d.Deps)
 	tenancyhttp.RegisterRoutes(g, d.Deps)
 	wsfederationhttp.RegisterRoutes(g, d.Deps)
+	samlhttp.RegisterRoutes(g, d.Deps)
 	apphttp.RegisterRoutes(g, d.Deps)
 }

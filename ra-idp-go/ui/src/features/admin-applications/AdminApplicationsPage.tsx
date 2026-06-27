@@ -29,6 +29,7 @@ import {
   unassignApplication,
   updateAdminApplication,
   updateApplicationOidcConfig,
+  updateApplicationSamlConfig,
   updateApplicationWsFedConfig,
 } from '../../api'
 import { AdminPaneActions } from '../../components/AdminPaneActions'
@@ -51,7 +52,7 @@ import type {
   WsFedTokenType,
 } from '../../types'
 
-type AppType = 'oidc' | 'wsfed' | 'weblink' | 'service'
+type AppType = 'oidc' | 'wsfed' | 'saml' | 'weblink' | 'service'
 
 const TOKEN_TYPE_SAML11: WsFedTokenType = 'urn:oasis:names:tc:SAML:1.0:assertion'
 const TOKEN_TYPE_SAML20: WsFedTokenType = 'urn:oasis:names:tc:SAML:2.0:assertion'
@@ -71,6 +72,12 @@ const APP_TYPES: { type: AppType; label: string; description: string; icon: type
     type: 'wsfed',
     label: 'WS-Federation',
     description: 'WS-Fed / SAML トークンを使う従来型のアプリ。',
+    icon: IconWorldShare,
+  },
+  {
+    type: 'saml',
+    label: 'SAML 2.0',
+    description: 'SAML 2.0 Web Browser SSO に対応するエンタープライズ向けアプリ。',
     icon: IconWorldShare,
   },
   {
@@ -108,6 +115,8 @@ const AUTH_METHODS: SelectOption[] = [
 ]
 
 const DEFAULT_NAMEID_FORMAT = NAMEID_FORMATS[0].value
+// SAML 2.0 の既定 NameID 形式は persistent (Okta / Entra の既定運用に合わせる)。
+const SAML_DEFAULT_NAMEID_FORMAT = 'urn:oasis:names:tc:SAML:2.0:nameid-format:persistent'
 const DEFAULT_NAMEID_SOURCE = 'sub'
 
 function listURL(): string {
@@ -707,6 +716,63 @@ export function AdminApplicationDetailPage({
               </section>
             ) : null}
 
+            {detail.saml ? (
+              <section className="grid gap-3 border-t border-slate-100 pt-5">
+                <div className="flex items-center gap-2">
+                  <IconWorldShare size={16} className="text-slate-400" aria-hidden="true" />
+                  <SectionTitle>SAML 2.0</SectionTitle>
+                </div>
+                <CopyableField label="エンティティ ID (SP)" value={detail.saml.entity_id} />
+                <ReadOnlyField label="ACS URL">
+                  <UriList values={detail.saml.acs_urls} />
+                </ReadOnlyField>
+                <ReadOnlyField label="SLO URL">
+                  <span className="break-all font-mono text-xs">{detail.saml.slo_url || '—'}</span>
+                </ReadOnlyField>
+                <ReadOnlyField label="NameID 形式">
+                  <span className="break-all font-mono text-xs">
+                    {NAMEID_FORMATS.find((f) => f.value === detail.saml?.name_id_format)?.label ??
+                      detail.saml.name_id_format}
+                  </span>
+                </ReadOnlyField>
+                <ReadOnlyField label="NameID ソース属性">
+                  <span className="font-mono text-xs">{detail.saml.name_id_source}</span>
+                </ReadOnlyField>
+                <ReadOnlyField label="Audience">
+                  <span className="font-mono text-xs">
+                    {detail.saml.audience || `${detail.saml.entity_id} (既定)`}
+                  </span>
+                </ReadOnlyField>
+                <ReadOnlyField label="署名">
+                  <span className="text-xs">
+                    {[
+                      detail.saml.sign_assertion ? 'アサーション署名' : '',
+                      detail.saml.sign_response ? 'レスポンス署名' : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' / ') || '署名なし'}
+                  </span>
+                </ReadOnlyField>
+                <ReadOnlyField label="claim mapping 規則">
+                  {detail.saml.rules.length === 0 ? (
+                    <span className="text-xs text-slate-400">NameID のみ</span>
+                  ) : (
+                    <ul className="flex flex-wrap gap-1.5">
+                      {detail.saml.rules.map((rule) => (
+                        <li
+                          key={rule.claim_type}
+                          className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-700"
+                        >
+                          {rule.claim_type.split('/').pop()}
+                          {rule.required ? '*' : ''}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </ReadOnlyField>
+              </section>
+            ) : null}
+
             {app.kind !== 'service' ? (
               <section className="grid gap-3 border-t border-slate-100 pt-5">
                 <SectionTitle>割り当て (ユーザー / グループ)</SectionTitle>
@@ -761,6 +827,20 @@ export function AdminApplicationEditPage({
   )
   const [rulesJSON, setRulesJSON] = useState(
     JSON.stringify(detail.wsfed?.rules ?? [], null, 2),
+  )
+  const [samlACS, setSamlACS] = useState((detail.saml?.acs_urls ?? []).join('\n'))
+  const [samlSLO, setSamlSLO] = useState(detail.saml?.slo_url ?? '')
+  const [samlAudience, setSamlAudience] = useState(detail.saml?.audience ?? '')
+  const [samlNameIDFormat, setSamlNameIDFormat] = useState(
+    detail.saml?.name_id_format || SAML_DEFAULT_NAMEID_FORMAT,
+  )
+  const [samlNameIDSource, setSamlNameIDSource] = useState(
+    detail.saml?.name_id_source || DEFAULT_NAMEID_SOURCE,
+  )
+  const [samlSignAssertion, setSamlSignAssertion] = useState(detail.saml?.sign_assertion ?? true)
+  const [samlSignResponse, setSamlSignResponse] = useState(detail.saml?.sign_response ?? false)
+  const [samlRulesJSON, setSamlRulesJSON] = useState(
+    JSON.stringify(detail.saml?.rules ?? [], null, 2),
   )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -838,6 +918,45 @@ export function AdminApplicationEditPage({
             token_type: tokenType,
             name_id_format: nameIDFormat,
             name_id_source: nameIDSource.trim(),
+            rules: nextRules,
+          })
+        }
+      }
+      if (detail.saml) {
+        let nextRules: WsFedClaimMappingRule[]
+        try {
+          const parsed = JSON.parse(samlRulesJSON || '[]')
+          if (!Array.isArray(parsed)) throw new Error('not an array')
+          nextRules = parsed
+        } catch {
+          setError('claim 規則の JSON が不正です。配列で指定してください。')
+          setSaving(false)
+          return
+        }
+        const nextACS = parseList(samlACS)
+        const changed =
+          nextACS.join(',') !== detail.saml.acs_urls.join(',') ||
+          samlSLO.trim() !== detail.saml.slo_url ||
+          samlAudience.trim() !== detail.saml.audience ||
+          samlNameIDFormat !== detail.saml.name_id_format ||
+          samlNameIDSource.trim() !== detail.saml.name_id_source ||
+          samlSignAssertion !== detail.saml.sign_assertion ||
+          samlSignResponse !== detail.saml.sign_response ||
+          JSON.stringify(nextRules) !== JSON.stringify(detail.saml.rules ?? [])
+        if (changed) {
+          if (nextACS.length === 0) {
+            setError('ACS URL を 1 つ以上指定してください。')
+            setSaving(false)
+            return
+          }
+          await updateApplicationSamlConfig(csrfToken, app.application_id, {
+            acs_urls: nextACS,
+            slo_url: samlSLO.trim(),
+            audience: samlAudience.trim(),
+            name_id_format: samlNameIDFormat,
+            name_id_source: samlNameIDSource.trim(),
+            sign_assertion: samlSignAssertion,
+            sign_response: samlSignResponse,
             rules: nextRules,
           })
         }
@@ -1070,6 +1189,107 @@ export function AdminApplicationEditPage({
                     spellCheck={false}
                     className="rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-xs focus:border-blue-600 focus:outline-none focus:ring-3 focus:ring-blue-600/10"
                     placeholder='[{"claim_type":"http://schemas.xmlsoap.org/claims/UPN","source":"user_attribute","source_key":"preferred_username","required":true}]'
+                  />
+                  <p className="text-xs text-slate-500">
+                    source は user_attribute / fixed / nameid。required:true の claim
+                    は値が解決できないと fail-closed で sign-in を拒否します。
+                  </p>
+                </div>
+              </section>
+            ) : null}
+
+            {detail.saml ? (
+              <section className="grid gap-4 border-t border-slate-200 pt-5">
+                <div className="flex items-center gap-2">
+                  <IconWorldShare size={16} className="text-slate-400" aria-hidden="true" />
+                  <SectionTitle>SAML 2.0</SectionTitle>
+                </div>
+                <CopyableField label="エンティティ ID (SP)" value={detail.saml.entity_id} />
+                <div className="grid gap-1.5">
+                  <Label htmlFor="edit-saml-acs">ACS URL</Label>
+                  <textarea
+                    id="edit-saml-acs"
+                    value={samlACS}
+                    onChange={(e) => setSamlACS(e.target.value)}
+                    rows={2}
+                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-xs focus:border-blue-600 focus:outline-none focus:ring-3 focus:ring-blue-600/10"
+                    placeholder="https://app.example.com/saml/acs"
+                  />
+                  <p className="text-xs text-slate-500">
+                    改行区切りで複数指定できます。AuthnRequest の ACS
+                    はこの許可集合に対して検証します (open redirect 防止)。
+                  </p>
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="edit-saml-slo">SLO URL (任意)</Label>
+                  <Input
+                    id="edit-saml-slo"
+                    value={samlSLO}
+                    onChange={(e) => setSamlSLO(e.target.value)}
+                    className="font-mono text-xs"
+                    placeholder="https://app.example.com/saml/slo"
+                  />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label>NameID 形式</Label>
+                  <Select
+                    value={samlNameIDFormat}
+                    onValueChange={setSamlNameIDFormat}
+                    options={NAMEID_FORMATS}
+                    className="w-full"
+                  />
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="edit-saml-nameid-source">NameID ソース属性</Label>
+                    <Input
+                      id="edit-saml-nameid-source"
+                      value={samlNameIDSource}
+                      onChange={(e) => setSamlNameIDSource(e.target.value)}
+                      placeholder="sub"
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="edit-saml-audience">Audience (任意)</Label>
+                    <Input
+                      id="edit-saml-audience"
+                      value={samlAudience}
+                      onChange={(e) => setSamlAudience(e.target.value)}
+                      className="font-mono text-xs"
+                      placeholder="未指定ならエンティティ ID を使用"
+                    />
+                  </div>
+                </div>
+                <div className="grid gap-2.5">
+                  <label className="flex items-center gap-3 text-sm font-medium text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={samlSignAssertion}
+                      onChange={(e) => setSamlSignAssertion(e.target.checked)}
+                      className="size-4"
+                    />
+                    アサーションに署名する
+                  </label>
+                  <label className="flex items-center gap-3 text-sm font-medium text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={samlSignResponse}
+                      onChange={(e) => setSamlSignResponse(e.target.checked)}
+                      className="size-4"
+                    />
+                    レスポンス全体に署名する (Okta / Entra の "Sign Response")
+                  </label>
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="edit-saml-rules">claim mapping 規則 (JSON)</Label>
+                  <textarea
+                    id="edit-saml-rules"
+                    value={samlRulesJSON}
+                    onChange={(e) => setSamlRulesJSON(e.target.value)}
+                    rows={8}
+                    spellCheck={false}
+                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-xs focus:border-blue-600 focus:outline-none focus:ring-3 focus:ring-blue-600/10"
+                    placeholder='[{"claim_type":"email","source":"user_attribute","source_key":"email","required":true}]'
                   />
                   <p className="text-xs text-slate-500">
                     source は user_attribute / fixed / nameid。required:true の claim
@@ -1338,6 +1558,12 @@ function CreateApplicationDialog({
   const [replyURLs, setReplyURLs] = useState('')
   const [nameIDFormat, setNameIDFormat] = useState(DEFAULT_NAMEID_FORMAT)
   const [nameIDSource, setNameIDSource] = useState(DEFAULT_NAMEID_SOURCE)
+  const [samlEntityID, setSamlEntityID] = useState('')
+  const [samlACSURLs, setSamlACSURLs] = useState('')
+  const [samlSLOURL, setSamlSLOURL] = useState('')
+  const [samlNameIDFormat, setSamlNameIDFormat] = useState(SAML_DEFAULT_NAMEID_FORMAT)
+  const [samlNameIDSource, setSamlNameIDSource] = useState(DEFAULT_NAMEID_SOURCE)
+  const [samlSignResponse, setSamlSignResponse] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [secret, setSecret] = useState<{ clientID: string; clientSecret: string } | null>(null)
@@ -1366,8 +1592,18 @@ function CreateApplicationDialog({
           type === 'oidc' && authMethod === 'tls_client_auth' ? tlsSubjectDN.trim() : undefined,
         wtrealm: type === 'wsfed' ? wtrealm.trim() : undefined,
         reply_urls: type === 'wsfed' ? parseList(replyURLs) : undefined,
-        name_id_format: type === 'wsfed' ? nameIDFormat : undefined,
-        name_id_source: type === 'wsfed' ? nameIDSource.trim() : undefined,
+        name_id_format:
+          type === 'wsfed' ? nameIDFormat : type === 'saml' ? samlNameIDFormat : undefined,
+        name_id_source:
+          type === 'wsfed'
+            ? nameIDSource.trim()
+            : type === 'saml'
+              ? samlNameIDSource.trim()
+              : undefined,
+        entity_id: type === 'saml' ? samlEntityID.trim() : undefined,
+        acs_urls: type === 'saml' ? parseList(samlACSURLs) : undefined,
+        slo_url: type === 'saml' ? samlSLOURL.trim() || undefined : undefined,
+        sign_response: type === 'saml' ? samlSignResponse : undefined,
       })
       const id = result.application.application_id
       if (result.client_secret && result.client_id) {
@@ -1660,6 +1896,73 @@ function CreateApplicationDialog({
                         placeholder="sub"
                       />
                     </div>
+                  </section>
+                ) : null}
+
+                {type === 'saml' ? (
+                  <section className="grid gap-4 border-t border-slate-200 pt-5">
+                    <SectionTitle>SAML 2.0</SectionTitle>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="app-saml-entity">エンティティ ID (SP)</Label>
+                      <Input
+                        id="app-saml-entity"
+                        value={samlEntityID}
+                        onChange={(e) => setSamlEntityID(e.target.value)}
+                        required
+                        className="font-mono text-xs"
+                        placeholder="https://app.example.com/saml/metadata"
+                      />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="app-saml-acs">ACS URL</Label>
+                      <textarea
+                        id="app-saml-acs"
+                        value={samlACSURLs}
+                        onChange={(e) => setSamlACSURLs(e.target.value)}
+                        rows={2}
+                        required
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-xs focus:border-blue-600 focus:outline-none focus:ring-3 focus:ring-blue-600/10"
+                        placeholder="https://app.example.com/saml/acs"
+                      />
+                      <p className="text-xs text-slate-500">改行区切りで複数指定できます。</p>
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="app-saml-slo">SLO URL (任意)</Label>
+                      <Input
+                        id="app-saml-slo"
+                        value={samlSLOURL}
+                        onChange={(e) => setSamlSLOURL(e.target.value)}
+                        className="font-mono text-xs"
+                        placeholder="https://app.example.com/saml/slo"
+                      />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label>NameID 形式</Label>
+                      <Select
+                        value={samlNameIDFormat}
+                        onValueChange={setSamlNameIDFormat}
+                        options={NAMEID_FORMATS}
+                        className="w-full"
+                      />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="app-saml-nameid-source">NameID ソース属性</Label>
+                      <Input
+                        id="app-saml-nameid-source"
+                        value={samlNameIDSource}
+                        onChange={(e) => setSamlNameIDSource(e.target.value)}
+                        placeholder="sub"
+                      />
+                    </div>
+                    <label className="flex items-center gap-3 text-sm font-medium text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={samlSignResponse}
+                        onChange={(e) => setSamlSignResponse(e.target.checked)}
+                        className="size-4"
+                      />
+                      レスポンス全体に署名する (既定はアサーション署名のみ)
+                    </label>
                   </section>
                 ) : null}
 

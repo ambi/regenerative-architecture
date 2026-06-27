@@ -97,10 +97,12 @@ func (v AssignmentVisibility) Valid() bool {
 }
 
 // ProtocolBinding は Application に紐づく protocol binding (wi-69, ADR-064)。
+// binding key は protocol ごとに異なる: OIDC は client_id、WS-Fed は wtrealm、SAML は entity_id。
 type ProtocolBinding struct {
 	Type     ProtocolBindingType `json:"type"`
 	ClientID string              `json:"client_id,omitempty"`
 	Wtrealm  string              `json:"wtrealm,omitempty"`
+	EntityID string              `json:"entity_id,omitempty"`
 }
 
 // Application は運用者向けの上位 aggregate (wi-69)。

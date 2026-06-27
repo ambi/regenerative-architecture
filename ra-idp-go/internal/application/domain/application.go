@@ -16,6 +16,7 @@ var (
 	ErrInvalidBindingType  = errors.New("invalid protocol binding type")
 	ErrOIDCBindingClientID = errors.New("oidc binding requires client_id")
 	ErrWsFedBindingWtrealm = errors.New("wsfed binding requires wtrealm")
+	ErrSAMLBindingEntityID = errors.New("saml binding requires entity_id")
 )
 
 // ValidateApplication は Application aggregate の不変条件を検証する (wi-69)。
@@ -60,6 +61,10 @@ func ValidateBinding(binding spec.ProtocolBinding) error {
 	case spec.ProtocolBindingWsFed:
 		if binding.Wtrealm == "" {
 			return ErrWsFedBindingWtrealm
+		}
+	case spec.ProtocolBindingSAML:
+		if binding.EntityID == "" {
+			return ErrSAMLBindingEntityID
 		}
 	}
 	return nil

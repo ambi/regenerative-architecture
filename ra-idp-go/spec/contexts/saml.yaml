@@ -1,12 +1,336 @@
 # ra-idp Saml — SCL
-# Generated from ra-idp-go/spec/scl.yaml during SCL 2.0 context split.
 
 system: ra-idp
 spec_version: "2.0"
 context: Saml
 glossary:
   Saml:
-    definition: SAML 2.0 IdP protocol family。Service Provider 向け metadata、AuthnRequest、SAMLResponse、ACS、SLO を扱う。
+    definition: SAML 2.0 IdP protocol family。Web Browser SSO Profile に基づき、SP-initiated / IdP-initiated SSO、IdP metadata 公開、署名済み SAMLResponse の発行、Single Logout を扱う。XML 署名・canonicalization は実績ある library に委ね、自前実装しない。
     aliases:
       - SAML
       - SAML2
+      - SAML 2.0
+models:
+  SamlBinding:
+    kind: enum
+    description: SAML 2.0 message binding。SP-initiated の AuthnRequest 受信と SAMLResponse 返送に用いる。HTTP-Redirect は GET でクエリに deflate+base64 を載せ、HTTP-POST は base64 を自動 POST フォームで運ぶ。
+    values:
+      - urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect
+      - urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST
+  SamlNameIDFormat:
+    kind: enum
+    description: 発行 assertion の NameID format。SP metadata と AuthnRequest の NameIDPolicy で要求しうる。AuthnRequest が unspecified 以外を指定した場合はそれを尊重し、未指定なら SP の claim policy に定めた format を用いる。
+    values:
+      - urn:oasis:names:tc:SAML:2.0:nameid-format:unspecified
+      - urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress
+      - urn:oasis:names:tc:SAML:2.0:nameid-format:persistent
+      - urn:oasis:names:tc:SAML:2.0:nameid-format:transient
+  SamlServiceProvider:
+    kind: entity
+    description: "SAML 2.0 Web Browser SSO の service provider (SP) 登録。entityID で識別し、許可する AssertionConsumerService URL の閉集合、audience、NameID format、署名方針、claim 発行 policy を束ねる。未登録 entityID・許可外 ACS URL は拒否する (open redirect 防止, fail-closed)。SP metadata は entityID / ACS / NameID format をまとめて取り込めるが、最終的な信頼境界は本登録が持つ。"
+    identity:
+      - tenant_id
+      - entity_id
+    fields:
+      tenant_id:
+        type: String
+        default: default
+        description: 所属テナント ID。SP 登録と SAML endpoint は realm ごとに分離する。
+      entity_id:
+        type: String
+        constraints:
+          - non_empty
+        description: SP の識別子 (SAML entityID)。AuthnRequest の Issuer と完全一致しなければならない。
+      display_name:
+        type: String
+        optional: true
+        description: 管理 UI 表示名。
+      acs_urls:
+        type: "String[]"
+        constraints:
+          - non_empty
+        description: 許可する AssertionConsumerService URL の閉集合。AuthnRequest が ACS URL を指定する場合はこの集合との完全一致のみ受理し、省略時は先頭を既定の返信先とする。
+      slo_url:
+        type: Uri
+        optional: true
+        description: SP の SingleLogoutService URL。Single Logout の返送先。
+      audience:
+        type: String
+        optional: true
+        description: 発行 assertion の AudienceRestriction。空なら entity_id を用いる。
+      claim_policy:
+        type: ClaimMappingPolicy
+        description: この SP 向けの NameID と attribute (claim) 発行 policy。
+      sign_assertion:
+        type: Boolean
+        default: true
+        description: 発行する Assertion を enveloped 署名するか。既定で署名する。
+      sign_response:
+        type: Boolean
+        default: false
+        description: Response 全体を enveloped 署名するか。SP が "Sign Response" を要求する場合に有効化する。
+      want_authn_requests_signed:
+        type: Boolean
+        default: false
+        description: SP が AuthnRequest を署名する旨を IdP metadata で広告するための記録。
+      created_at:
+        type: Timestamp
+      updated_at:
+        type: Timestamp
+  SamlAuthnRequest:
+    kind: value_object
+    description: SP-initiated SSO で受信した <samlp:AuthnRequest> から検証対象を抽出した中間表現。HTTP-Redirect は deflate+base64、HTTP-POST は base64 を復号して解析する。復号後 XML には上限を課し、deflate 爆弾を防ぐ。
+    fields:
+      id:
+        type: String
+        constraints:
+          - non_empty
+        description: 要求 ID。SAMLResponse の InResponseTo と assertion の SubjectConfirmationData に往復させる。
+      issuer:
+        type: String
+        constraints:
+          - non_empty
+        description: SP の entityID。登録済み SamlServiceProvider に解決する。
+      acs_url:
+        type: Uri
+        optional: true
+        description: 要求が指定する AssertionConsumerService URL。許可集合との完全一致のみ受理する。
+      destination:
+        type: Uri
+        optional: true
+        description: 要求が宛てた IdP の SSO endpoint URL。
+      name_id_format:
+        type: SamlNameIDFormat
+        optional: true
+        description: NameIDPolicy/@Format。unspecified 以外なら発行 assertion の NameID format に反映する。
+      force_authn:
+        type: Boolean
+        default: false
+        description: 再認証の要求。
+  SamlResponse:
+    kind: value_object
+    description: SP へ返送する <samlp:Response>。Status Success、IdP entityID の Issuer、署名済み Assertion を含み、SP 設定により Response 全体も署名する。Destination は確定した ACS URL、InResponseTo は SP-initiated の AuthnRequest ID。HTTP-POST binding で base64 化し ACS へ自動 POST する。
+    fields:
+      id:
+        type: String
+        constraints:
+          - non_empty
+        description: Response ID。
+      destination:
+        type: Uri
+        constraints:
+          - non_empty
+        description: 確定した ACS URL (許可集合内)。
+      in_response_to:
+        type: String
+        optional: true
+        description: SP-initiated の AuthnRequest ID。IdP-initiated では空。
+      issue_instant:
+        type: Timestamp
+      assertion:
+        type: SamlAssertion
+        description: 埋め込む署名済み assertion。
+  SamlAssertion:
+    kind: value_object
+    description: SAMLResponse に埋め込む <saml:Assertion>。Subject (NameID と bearer SubjectConfirmation)、AudienceRestriction、AuthnStatement、AttributeStatement を持つ。bearer SubjectConfirmationData は Recipient (ACS)、NotOnOrAfter、SP-initiated では InResponseTo を含む。
+    fields:
+      id:
+        type: String
+        constraints:
+          - non_empty
+      issuer:
+        type: String
+        constraints:
+          - non_empty
+        description: IdP の entityID。
+      audience:
+        type: String
+        constraints:
+          - non_empty
+        description: SP の audience (既定 entity_id)。
+      recipient:
+        type: Uri
+        description: bearer SubjectConfirmationData の Recipient (ACS URL)。
+      not_before:
+        type: Timestamp
+      not_on_or_after:
+        type: Timestamp
+      authn_instant:
+        type: Timestamp
+      name_id_format:
+        type: SamlNameIDFormat
+      name_id_value:
+        type: String
+        constraints:
+          - non_empty
+  SamlSignInIssued:
+    kind: event
+    description: SAML SSO で署名済み SAMLResponse を SP へ発行した。
+    payload:
+      occurredAt:
+        type: Timestamp
+      tenantId:
+        type: String
+        description: 発行したテナント ID。
+      entityId:
+        type: String
+        description: 発行先 SP の entityID。
+      sub:
+        type: String
+        description: subject (NameID 由来の user)。
+  SamlSignInRejected:
+    kind: event
+    description: "SAML SSO 要求を拒否した (未登録 entityID・許可外 ACS URL・未割当 subject・解析失敗など)。"
+    payload:
+      occurredAt:
+        type: Timestamp
+      tenantId:
+        type: String
+        description: 拒否したテナント ID。
+      entityId:
+        type: String
+        optional: true
+        description: 要求された SP entityID (判明していれば)。
+      reason:
+        type: String
+        description: 拒否理由の要約。
+  SamlLogout:
+    kind: event
+    description: SAML Single Logout でローカルセッションを破棄した。
+    payload:
+      occurredAt:
+        type: Timestamp
+      tenantId:
+        type: String
+        description: logout したテナント ID。
+      entityId:
+        type: String
+        optional: true
+        description: logout を要求した SP の entityID (判明していれば)。
+interfaces:
+  SamlSingleSignOn:
+    description: "SAML 2.0 Web Browser SSO の sign-in。SP-initiated は AuthnRequest を HTTP-Redirect / HTTP-POST binding で受信し、Issuer で service provider を解決して ACS URL を許可集合に限定する (open redirect 防止)。IdP-initiated は entityID クエリで対象 SP を選ぶ。未認証はログインへ誘導し、認証往復をまたいで要求を保つ。認証済みなら application 割当ゲートを fail-closed で適用し、未割当 subject には発行しない。SP の claim policy で発行した NameID と attribute を bearer SAML assertion に載せ、SP 設定に従って assertion / response を署名し、SAMLResponse を ACS へ HTTP-POST で自動送信する。InResponseTo・AudienceRestriction・Recipient・Destination を整合させる。"
+    steps:
+      - "service provider {entity_id} へ relay_state {relay_state} で sign-in する"
+    input:
+      saml_request:
+        type: String
+        optional: true
+        description: SP-initiated の AuthnRequest (binding に応じ deflate+base64 / base64)。IdP-initiated では空。
+      entity_id:
+        type: String
+        optional: true
+        description: IdP-initiated で対象 SP を指定する entityID。
+      relay_state:
+        type: String
+        optional: true
+        description: SP が往復させる不透明コンテキスト。SAMLResponse に同値で返す。
+    emits:
+      - SamlSignInIssued
+      - SamlSignInRejected
+    bindings:
+      - kind: http
+        method: GET
+        path: /saml/sso
+        request_form: query
+        successful_status_codes:
+          - "200"
+          - "303"
+      - kind: http
+        method: POST
+        path: /saml/sso
+        request_form: form
+        successful_status_codes:
+          - "200"
+          - "303"
+  SamlSingleLogout:
+    description: SAML Single Logout。ローカルセッションを破棄し、要求元 SP の SingleLogoutService が登録されていればそこへ返送する。判定不能・未登録の返送先へはリダイレクトしない (open redirect 防止)。
+    steps:
+      - "service provider {entity_id} で single logout する"
+    input:
+      entity_id:
+        type: String
+        optional: true
+        description: logout を要求した SP の entityID。
+      relay_state:
+        type: String
+        optional: true
+    emits:
+      - SamlLogout
+    bindings:
+      - kind: http
+        method: GET
+        path: /saml/slo
+        request_form: query
+        successful_status_codes:
+          - "200"
+          - "303"
+      - kind: http
+        method: POST
+        path: /saml/slo
+        request_form: form
+        successful_status_codes:
+          - "200"
+          - "303"
+  PublishSamlMetadata:
+    description: SAML 2.0 IdP metadata の公開。realm の entityID、SSO / SLO endpoint、対応 NameID format、token 署名検証用証明書を <EntityDescriptor><IDPSSODescriptor> として公開し、SP が取り込めるようにする。
+    read_only: true
+    bindings:
+      - kind: http
+        method: GET
+        path: /saml/metadata
+        successful_status_codes:
+          - "200"
+  RegisterSamlServiceProvider:
+    description: SAML service provider の登録 / 更新 (upsert)。entityID、許可 ACS URL、NameID format、audience、署名方針、claim policy を受け取り、テナント境界に閉じて保存する。entityID と ACS URL の閉集合は必須。
+    steps:
+      - "service provider {entity_id} を登録する"
+    input:
+      service_provider:
+        type: SamlServiceProvider
+    output:
+      service_provider:
+        type: SamlServiceProvider
+    errors:
+      - InvalidRequestError
+      - AccessDeniedError
+    bindings:
+      - kind: http
+        method: POST
+        path: /api/admin/saml/service-providers
+        request_body: json
+        successful_status_codes:
+          - "200"
+          - "201"
+  ListSamlServiceProviders:
+    description: テナント内の SAML service provider を entityID 昇順で一覧する。
+    output:
+      service_providers:
+        type: "SamlServiceProvider[]"
+    read_only: true
+    errors:
+      - AccessDeniedError
+    bindings:
+      - kind: http
+        method: GET
+        path: /api/admin/saml/service-providers
+        successful_status_codes:
+          - "200"
+  DeleteSamlServiceProvider:
+    description: entityID に一致する SAML service provider を削除する (冪等)。entityID は URI のため、path ではなくクエリで指定する。
+    steps:
+      - "service provider {entity_id} を削除する"
+    input:
+      entity_id:
+        type: String
+        description: 削除対象 SP の entityID。
+    errors:
+      - InvalidRequestError
+      - AccessDeniedError
+    bindings:
+      - kind: http
+        method: DELETE
+        path: /api/admin/saml/service-providers
+        request_form: query
+        successful_status_codes:
+          - "204"

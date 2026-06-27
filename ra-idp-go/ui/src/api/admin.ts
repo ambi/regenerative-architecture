@@ -508,7 +508,7 @@ export async function unbindAdminAgentCredential(
 // backend が OAuth2 client / WS-Fed RP を作成し、Application と binding を一括で作る。
 export type CreateAdminApplicationInput = {
   name: string
-  type: 'oidc' | 'wsfed' | 'weblink' | 'service'
+  type: 'oidc' | 'wsfed' | 'saml' | 'weblink' | 'service'
   icon_url?: string
   launch_url?: string
   // OIDC
@@ -524,6 +524,11 @@ export type CreateAdminApplicationInput = {
   reply_urls?: string[]
   name_id_format?: string
   name_id_source?: string
+  // SAML 2.0
+  entity_id?: string
+  acs_urls?: string[]
+  slo_url?: string
+  sign_response?: boolean
 }
 
 // OIDC を一括作成すると client_secret が一度だけ返る (再表示不可)。
@@ -555,6 +560,17 @@ export type UpdateApplicationWsFedInput = {
   token_type?: WsFedTokenType
   name_id_format?: string
   name_id_source?: string
+  rules?: WsFedClaimMappingRule[]
+}
+
+export type UpdateApplicationSamlInput = {
+  acs_urls?: string[]
+  slo_url?: string
+  audience?: string
+  name_id_format?: string
+  name_id_source?: string
+  sign_assertion?: boolean
+  sign_response?: boolean
   rules?: WsFedClaimMappingRule[]
 }
 
@@ -592,6 +608,17 @@ export async function updateApplicationWsFedConfig(
 ): Promise<void> {
   await request(
     `/api/admin/applications/${encodeURIComponent(id)}/wsfed`,
+    adminRequest(csrfToken, 'PATCH', input),
+  )
+}
+
+export async function updateApplicationSamlConfig(
+  csrfToken: string,
+  id: string,
+  input: UpdateApplicationSamlInput,
+): Promise<void> {
+  await request(
+    `/api/admin/applications/${encodeURIComponent(id)}/saml`,
     adminRequest(csrfToken, 'PATCH', input),
   )
 }

@@ -43,6 +43,11 @@ type createApplicationRequest struct {
 	ReplyURLs    []string `json:"reply_urls"`
 	NameIDFormat string   `json:"name_id_format"`
 	NameIDSource string   `json:"name_id_source"`
+	// SAML 2.0
+	EntityID     string   `json:"entity_id"`
+	ACSURLs      []string `json:"acs_urls"`
+	SLOURL       string   `json:"slo_url"`
+	SignResponse bool     `json:"sign_response"`
 }
 
 // oidcConfig / wsfedConfig はアプリ詳細に解決して返す protocol 設定。
@@ -69,6 +74,27 @@ type wsfedConfig struct {
 	NameIDFormat string                  `json:"name_id_format"`
 	NameIDSource string                  `json:"name_id_source"`
 	Rules        []spec.ClaimMappingRule `json:"rules"`
+}
+
+type samlConfig struct {
+	EntityID      string                  `json:"entity_id"`
+	ACSURLs       []string                `json:"acs_urls"`
+	SLOURL        string                  `json:"slo_url"`
+	Audience      string                  `json:"audience"`
+	NameIDFormat  string                  `json:"name_id_format"`
+	NameIDSource  string                  `json:"name_id_source"`
+	SignAssertion bool                    `json:"sign_assertion"`
+	SignResponse  bool                    `json:"sign_response"`
+	Rules         []spec.ClaimMappingRule `json:"rules"`
+}
+
+// nonNilRules は nil スライスを空スライスに正規化する。claim 規則を持たない RP/SP の
+// JSON が null ではなく [] になり、UI 側の .length 参照が安全になる。
+func nonNilRules(rules []spec.ClaimMappingRule) []spec.ClaimMappingRule {
+	if rules == nil {
+		return []spec.ClaimMappingRule{}
+	}
+	return rules
 }
 
 func (d Deps) handleCreateApplication(c *echo.Context) error {
@@ -178,8 +204,34 @@ func (d Deps) handleCreateApplication(c *echo.Context) error {
 		}
 		return core.NoStoreJSON(c, http.StatusCreated, map[string]any{"application": toApplicationResponse(app)})
 
+	case "saml":
+		if strings.TrimSpace(req.EntityID) == "" || len(req.ACSURLs) == 0 {
+			return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "entity ID と ACS URL を指定してください")
+		}
+		if d.SamlSPRepo == nil {
+			return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "SAML は利用できません")
+		}
+		sp := &spec.SamlServiceProvider{
+			TenantID: core.RequestTenantID(c), EntityID: req.EntityID, DisplayName: req.Name,
+			ACSURLs: req.ACSURLs, SLOURL: strings.TrimSpace(req.SLOURL),
+			ClaimPolicy: spec.ClaimMappingPolicy{NameID: spec.NameIdConfiguration{
+				Format: nonEmpty(req.NameIDFormat, spec.SamlNameIDFormatPersistent), SourceAttribute: nonEmpty(req.NameIDSource, defaultNameIDSource),
+			}},
+			SignAssertion: true, SignResponse: req.SignResponse,
+			CreatedAt: now,
+		}
+		if err := d.SamlSPRepo.Save(ctx, sp); err != nil {
+			return err
+		}
+		app, err := d.createCatalogApp(ctx, actor.Sub, req, now, spec.ApplicationFederated,
+			spec.ProtocolBinding{Type: spec.ProtocolBindingSAML, EntityID: req.EntityID})
+		if err != nil {
+			return d.writeApplicationError(c, err)
+		}
+		return core.NoStoreJSON(c, http.StatusCreated, map[string]any{"application": toApplicationResponse(app)})
+
 	default:
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "種別は oidc / wsfed / weblink のいずれかです")
+		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "種別は oidc / wsfed / saml / weblink のいずれかです")
 	}
 }
 
@@ -198,11 +250,12 @@ func (d Deps) createCatalogApp(ctx context.Context, actorSub string, req createA
 
 // resolveProtocolConfig は Application の binding から OAuth2 client / WS-Fed RP の
 // 実設定を解決して返す (アプリ詳細表示用)。
-func (d Deps) resolveProtocolConfig(c *echo.Context, app *spec.Application) (*oidcConfig, *wsfedConfig) {
+func (d Deps) resolveProtocolConfig(c *echo.Context, app *spec.Application) (*oidcConfig, *wsfedConfig, *samlConfig) {
 	ctx := c.Request().Context()
 	tenantID := core.RequestTenantID(c)
 	var oidc *oidcConfig
 	var wsfed *wsfedConfig
+	var saml *samlConfig
 	for _, binding := range app.Bindings {
 		switch binding.Type {
 		case spec.ProtocolBindingOIDC:
@@ -227,12 +280,25 @@ func (d Deps) resolveProtocolConfig(c *echo.Context, app *spec.Application) (*oi
 					Wtrealm: rp.Wtrealm, ReplyURLs: rp.ReplyURLs,
 					Audience: rp.Audience, TokenType: rp.EffectiveTokenType(),
 					NameIDFormat: rp.ClaimPolicy.NameID.Format, NameIDSource: rp.ClaimPolicy.NameID.SourceAttribute,
-					Rules: rp.ClaimPolicy.Rules,
+					Rules: nonNilRules(rp.ClaimPolicy.Rules),
+				}
+			}
+		case spec.ProtocolBindingSAML:
+			if d.SamlSPRepo == nil {
+				continue
+			}
+			if sp, err := d.SamlSPRepo.FindByEntityID(ctx, tenantID, binding.EntityID); err == nil && sp != nil {
+				saml = &samlConfig{
+					EntityID: sp.EntityID, ACSURLs: sp.ACSURLs, SLOURL: sp.SLOURL,
+					Audience: sp.Audience, NameIDFormat: sp.ClaimPolicy.NameID.Format,
+					NameIDSource:  sp.ClaimPolicy.NameID.SourceAttribute,
+					SignAssertion: sp.SignAssertion, SignResponse: sp.SignResponse,
+					Rules: nonNilRules(sp.ClaimPolicy.Rules),
 				}
 			}
 		}
 	}
-	return oidc, wsfed
+	return oidc, wsfed, saml
 }
 
 type updateOIDCRequest struct {
@@ -337,6 +403,73 @@ func (d Deps) handleUpdateWsFedConfig(c *echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
+type updateSamlRequest struct {
+	ACSURLs       *[]string                `json:"acs_urls"`
+	SLOURL        *string                  `json:"slo_url"`
+	Audience      *string                  `json:"audience"`
+	NameIDFormat  *string                  `json:"name_id_format"`
+	NameIDSource  *string                  `json:"name_id_source"`
+	SignAssertion *bool                    `json:"sign_assertion"`
+	SignResponse  *bool                    `json:"sign_response"`
+	Rules         *[]spec.ClaimMappingRule `json:"rules"`
+}
+
+func (d Deps) handleUpdateSamlConfig(c *echo.Context) error {
+	if err := d.VerifyBrowserRequest(c); err != nil {
+		return err
+	}
+	if _, err := d.RequireAdmin(c); err != nil {
+		return d.WriteAdminAccessError(c, err)
+	}
+	app, err := d.requireApp(c)
+	if err != nil {
+		return d.writeApplicationError(c, err)
+	}
+	entityID := bindingKeyOf(app, spec.ProtocolBindingSAML)
+	if entityID == "" || d.SamlSPRepo == nil {
+		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "SAML バインディングがありません")
+	}
+	ctx := c.Request().Context()
+	sp, err := d.SamlSPRepo.FindByEntityID(ctx, core.RequestTenantID(c), entityID)
+	if err != nil || sp == nil {
+		return core.WriteBrowserError(c, http.StatusNotFound, "not_found", "service provider が存在しません")
+	}
+	var req updateSamlRequest
+	if err := core.DecodeJSON(c.Request(), &req); err != nil {
+		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	}
+	if req.ACSURLs != nil {
+		sp.ACSURLs = *req.ACSURLs
+	}
+	if req.SLOURL != nil {
+		sp.SLOURL = strings.TrimSpace(*req.SLOURL)
+	}
+	if req.Audience != nil {
+		sp.Audience = strings.TrimSpace(*req.Audience)
+	}
+	if req.NameIDFormat != nil {
+		sp.ClaimPolicy.NameID.Format = *req.NameIDFormat
+	}
+	if req.NameIDSource != nil {
+		sp.ClaimPolicy.NameID.SourceAttribute = *req.NameIDSource
+	}
+	if req.SignAssertion != nil {
+		sp.SignAssertion = *req.SignAssertion
+	}
+	if req.SignResponse != nil {
+		sp.SignResponse = *req.SignResponse
+	}
+	if req.Rules != nil {
+		sp.ClaimPolicy.Rules = *req.Rules
+	}
+	now := time.Now().UTC()
+	sp.UpdatedAt = &now
+	if err := d.SamlSPRepo.Save(ctx, sp); err != nil {
+		return err
+	}
+	return c.NoContent(http.StatusNoContent)
+}
+
 func (d Deps) requireApp(c *echo.Context) (*spec.Application, error) {
 	app, err := d.ApplicationRepo.FindByID(c.Request().Context(), core.RequestTenantID(c), c.Param("application_id"))
 	if err != nil {
@@ -351,10 +484,14 @@ func (d Deps) requireApp(c *echo.Context) (*spec.Application, error) {
 func bindingKeyOf(app *spec.Application, bindingType spec.ProtocolBindingType) string {
 	for _, b := range app.Bindings {
 		if b.Type == bindingType {
-			if bindingType == spec.ProtocolBindingWsFed {
+			switch bindingType {
+			case spec.ProtocolBindingWsFed:
 				return b.Wtrealm
+			case spec.ProtocolBindingSAML:
+				return b.EntityID
+			default:
+				return b.ClientID
 			}
-			return b.ClientID
 		}
 	}
 	return ""

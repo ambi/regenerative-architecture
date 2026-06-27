@@ -1,0 +1,96 @@
+id: wi-78-rename-client-to-oauth2-client-vocabulary
+title: ドメイン語彙の Client を OAuth2Client にリネームし指示対象を明確にする
+created_at: 2026-06-27
+status: pending
+authors: [tn]
+
+motivation: |
+  ra-idp-go には Application (上位集約)、SAML SP、WS-Federation relying party など複数の
+  「接続先アプリケーション」概念が並ぶ。その中で OAuth2/OIDC の client 集約だけが接頭辞なしの
+  `Client` という語で表現されており、`Client` が何を指すのか文脈なしには判別できない。
+
+  [[wi-69-application-catalog-aggregate-and-assignment]] / [[ADR-064]] で Application を
+  単一導線に統合し、[[wi-76-fold-advanced-protocol-settings-into-application-editor]] /
+  [[ADR-066]] で低レベル client 画面を撤去した結果、`Client` 集約は内部 API としてのみ残った。
+  ユビキタス言語上、この集約を `OAuth2Client` と明示し、派生する admin DTO / interface /
+  permission / event も OAuth2 接頭辞で揃える。
+
+  ただし `client_id` / `client_secret` / `token_endpoint_auth_method` / `ClientCredentials`
+  (grant) / `ClientSecretBasic` (認証方式) / `InvalidClient` (エラー) などは RFC が定める wire
+  標準語であり、文脈上曖昧でない。これらは標準との整合のためリネームしない。
+
+target_state: |
+  - ドメイン集約 `Client` が `OAuth2Client` になる。
+  - admin 系の派生名が OAuth2 接頭辞で揃う:
+    AdminClientCreateRequest / UpdateRequest / Response / CreateResponse / ListResponse、
+    ListAdminClients / GetAdminClient / CreateAdminClient / UpdateAdminClient / DeleteAdminClient、
+    AdminClientsManage、AdminClientCreated / Updated / Deleted。
+  - RFC wire 標準語 (client_id, client_secret, token_endpoint_auth_method, ClientCredentials,
+    ClientSecretBasic, ClientSecretPost, InvalidClient, UnauthorizedClient 等) は不変。
+  - SCL・Go・UI が同じ語彙で揃い、spec↔impl の名前対応が保たれる。
+
+scope:
+  scl:
+    - >-
+      集約 Client → OAuth2Client、AdminClient* DTO、ListAdminClients 等 interface、
+      AdminClientsManage permission、AdminClient* event をリネーム。owns_models /
+      owns_interfaces / owns_permissions、screen/variant の interface 参照、語彙定義の文言を整合。
+    - RFC wire 標準語は対象外として明示的に残す。
+  go:
+    - >-
+      spec.Client → spec.OAuth2Client とその参照 (~56 箇所)、admin client use case /
+      handler / repository / event 型の改名。OAuth2 bounded context 中心。
+  ui:
+    - AdminClient TS 型と関連参照の改名。HTTP path (/api/admin/clients) の扱いは別途判断。
+  data:
+    - >-
+      永続化のテーブル/カラム名・JSON tag・HTTP path を変えるかは互換性の観点で決める。
+      wire/storage の後方互換を壊さない範囲に留める。
+
+out_of_scope:
+  - >-
+    [[wi-76-fold-advanced-protocol-settings-into-application-editor]] の機能変更。本 WI は
+    リネームのみで挙動・フィールドを変えない。
+  - RFC wire 標準語 (client_id 等) の改名。
+  - WS-Federation / SAML 側の語彙。
+
+initial_context:
+  features: [OAuth2, Application]
+  scl:
+    components: [OAuth2]
+    existing_roots: [Client]
+  decisions:
+    - decisions/ADR-064-protocol-contexts-and-application-catalog.md
+    - decisions/ADR-066-application-as-single-editor-surface.md
+  source:
+    - internal/oauth2/
+    - internal/application/
+    - ui/src/api/admin.ts
+
+affected_guarantees:
+  - >-
+    ubiquitous language: 接頭辞なしの Client が指す対象の曖昧さを解消し、OAuth2Client として
+    一意に読める状態にする。
+  - >-
+    behavior preservation: リネームのみで認証・トークン・管理操作の挙動を変えない。
+  - >-
+    spec-impl parity: SCL と Go / UI が同じ語彙で対応し、生成 HTML もロックステップ更新する。
+
+verification:
+  - cmd: 'GOCACHE=/tmp/ra-idp-go-cache go test ./...'
+    in: ra-idp-go
+  - cmd: 'golangci-lint run ./...'
+    in: ra-idp-go
+  - cmd: 'bun --cwd ra-idp-go/ui typecheck'
+  - cmd: 'bun --cwd ra-idp-go/ui lint'
+  - cmd: 'bun --cwd ra-idp-go/ui build'
+  - cmd: 'bun run yaml-check:scl'
+    in: tools
+  - >-
+    手動: 認可・トークン・管理 API のふるまいがリネーム前と同一であることを既存テストで確認する。
+
+risk: medium
+risk_notes: |
+  広域リネームは wire 標準語 (client_id 等) を巻き込むと標準乖離・後方互換破壊を招く。対象を
+  ドメイン集約とその admin 派生名に限定し、wire/storage 名は別判断で温存する。永続化スキーマや
+  HTTP path を変える場合はマイグレーション/互換層を伴う。挙動は変えない。

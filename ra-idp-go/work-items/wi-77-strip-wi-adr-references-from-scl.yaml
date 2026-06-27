@@ -1,0 +1,64 @@
+id: wi-77-strip-wi-adr-references-from-scl
+title: scl.yaml から wi / ADR / commit 参照を除去し純粋な仕様文にする
+created_at: 2026-06-27
+status: pending
+authors: [tn]
+
+motivation: |
+  scl.yaml はすべての層の最内にある純粋な仕様正本であり、外側のレイヤ (work-item /
+  ADR / git 履歴) に依存してはならない。しかし現状の scl.yaml には description などに
+  `(wi-69)`、`(ADR-064)`、`(commit a5e2ec8)` のような参照が ~345 箇所混入している。
+
+  これらは「どの wi で追加されたか」「どの ADR の決定か」という経緯・決定方針であって、
+  仕様の意味そのものではない。経緯は work-item / ADR 側が持つべきで、scl.yaml はより静的で
+  純粋な仕様文として記述されるべきである。本 WI は scl.yaml 全体から wi / ADR / commit 参照を
+  機械的かつ慎重に除去し、各文を意味を保ったまま平叙文へ整える。
+
+target_state: |
+  - scl.yaml の description / reason / definition その他の文章から、wi 番号・ADR 番号・
+    commit ハッシュへの参照が無くなる。
+  - 参照を削った文が日本語として自然な仕様文になっている (括弧だけが残る等の不整合がない)。
+  - 仕様の意味は変えない。型・フィールド・制約・列挙の定義は不変。
+
+scope:
+  scl:
+    - >-
+      scl.yaml 内の `(wi-NN)` / `(ADR-NNN)` / `(commit <hash>)` / `[[wi-...]]` /
+      `[[ADR-...]]` 参照を除去し、残る文を自然な仕様文に整える。意味は保持する。
+  verification_only:
+    - 仕様の意味不変を yaml-check と既存テストで担保する。
+
+out_of_scope:
+  - >-
+    [[wi-76-fold-advanced-protocol-settings-into-application-editor]] が触れる型の意味変更。
+    本 WI は参照除去のみで、フィールド追加・削除はしない。
+  - work-item / ADR 側の記述変更。経緯はそちらに残す。
+  - 生成 HTML のレイアウト変更 (参照除去に伴う再生成は行う)。
+
+initial_context:
+  scl:
+    components: []
+  source:
+    - spec/scl.yaml
+    - spec/ra-idp-go.html
+
+affected_guarantees:
+  - >-
+    layering: scl.yaml が外側レイヤ (work-item / ADR / git) に依存しない、最内の純粋仕様
+    正本である状態を回復する。
+  - >-
+    meaning preservation: 参照除去で型・フィールド・制約・列挙・scenario の意味を変えない。
+
+verification:
+  - cmd: 'bun run yaml-check:scl'
+    in: tools
+  - cmd: 'GOCACHE=/tmp/ra-idp-go-cache go test ./...'
+    in: ra-idp-go
+  - >-
+    手動: `grep -nE 'wi-[0-9]|ADR-[0-9]|commit [0-9a-f]{7}' spec/scl.yaml` が 0 件になる
+    ことを確認する。
+
+risk: low
+risk_notes: |
+  機械的な除去だが、文に織り込まれた参照を雑に消すと文意が壊れる。括弧の閉じ忘れや
+  二重スペースなど整形の崩れにも注意する。型・フィールド・制約の定義そのものには触れない。

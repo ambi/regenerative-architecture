@@ -4,6 +4,102 @@
 system: ra-idp
 spec_version: "2.0"
 context: IdentityManagement
+glossary:
+  Administrator:
+    definition: User.roles に admin を持ち、所属テナント内の管理 API を許可された認証済みユーザー。テナント境界を越える操作は SystemAdministrator に限定される。
+    aliases:
+      - admin
+      - 管理者
+      - TenantAdmin
+    not_to_confuse_with:
+      - term: Client
+        reason: Administrator は人間の User に付与されるロールであり、OAuth Client の権限ではない。
+      - term: SystemAdministrator
+        reason: Administrator はテナント内に閉じ、SystemAdministrator はテナント境界を越えて tenant lifecycle 操作と cross-tenant 管理を行える。
+  SystemAdministrator:
+    definition: "default control-plane tenant に所属し、User.roles に system_admin を持つ認証済みユーザー。テナント管理 (CRUD・disable・enable) と cross-tenant 操作を許可され、`/realms/default/admin/tenants/*` を呼び出せる。"
+    aliases:
+      - system_admin
+      - システム管理者
+  UserDisablement:
+    definition: User.disabled_at を設定して認証とセッション利用を停止する復活可能な管理操作。削除や PII purge とは異なる。
+    aliases:
+      - disable user
+      - アカウント無効化
+  UserDeletion:
+    definition: "User の tombstone 化と関連 aggregate の cascade 削除。`deleted_at` を設定し PII フィールドを匿名化、`sub` のみを audit のため保持する。`Deleted` は終端で復元できない。"
+    aliases:
+      - delete user
+      - anonymize user
+      - アカウント削除
+    not_to_confuse_with:
+      - term: UserDisablement
+        reason: Disable は復活可能で PII を残す。Delete は終端で PII を即時 anonymize する。
+  Deleted:
+    definition: "User の終端状態。`deleted_at != null` で PII が anonymize 済み。login / token / userinfo は active=false 相当。"
+    aliases:
+      - deleted
+  Delete:
+    definition: User を Deleted に遷移させる管理操作。tombstone 化と cascade を 1 オペレーションで実施する。
+    aliases:
+      - delete
+  Group:
+    definition: "tenant-scoped 集約。再利用可能なロール束 (roles[]) を持ち、所属する User にそのロールを一斉付与する。階層・deny ルール・属性自動所属は持たない (union のみ)。"
+    aliases:
+      - group
+      - グループ
+      - role group
+      - ロールグループ
+    not_to_confuse_with:
+      - term: Tenant
+        reason: Tenant は認可境界、Group はその境界内のロール束。Group は単独で認証境界を成さない。
+  GroupMembership:
+    definition: User と Group の所属関係 (GroupMember)。membership の追加・削除はそれぞれ監査イベントを伴う。effective_roles(user) = user.roles ∪ ⋃ membership.group.roles。
+    aliases:
+      - group membership
+      - グループ所属
+      - membership
+  EffectiveRoles:
+    definition: 認可判断で用いる User の有効ロール集合。user.roles と所属 Group の roles の和集合。admin RBAC ゲートと /account 自己コンテキストで参照する。
+    aliases:
+      - effective roles
+      - 有効ロール
+  Agent:
+    definition: tenant-scoped な非人間 (non-human) identity principal。自身の資格情報は持たず、AgentCredentialBinding で既存 OAuth2Client に束縛してトークンを得る。owner (所有者 User の sub) は必須。
+    aliases:
+      - agent
+      - エージェント
+      - AI agent
+      - non-human identity
+    not_to_confuse_with:
+      - term: User
+        reason: User は人間 identity。Agent は非人間 identity で owner User を必須に持つ。
+      - term: OAuth2Client
+        reason: OAuth2Client はアプリ登録 (資格情報の器)、Agent は identity principal。Agent は Client を束縛して稼働するが Client そのものではない。
+  Killed:
+    definition: Agent の緊急停止 (kill-switch) による一方向終端状態。Killed からは復帰できず、新規トークンを一切発行しない (fail-closed)。
+    aliases:
+      - killed
+  DisableAgent:
+    definition: "Agent を Active から Disabled に遷移させる可逆な運用停止。`/api/admin/agents/{agent_id}/disable` から発火。"
+    aliases:
+      - disable agent
+  EnableAgent:
+    definition: "Disabled の Agent を Active に戻す。`/api/admin/agents/{agent_id}/enable` から発火。"
+    aliases:
+      - enable agent
+  KillAgent:
+    definition: "Agent を Killed (一方向終端) に遷移させる緊急停止。`/api/admin/agents/{agent_id}/kill` から発火し、以後復帰不能。"
+    aliases:
+      - kill agent
+  Autonomous:
+    definition: Agent が人間の都度承認なしに自律実行する区分。
+    aliases:
+      - autonomous
+  Supervised:
+    definition: Agent が人間の監督下で実行する区分。
+    aliases:
+      - supervised
 models:
   UserStatus:
     kind: enum
@@ -1772,3 +1868,158 @@ scenarios:
       - "管理者がユーザー \"alice\" を再有効化する"
       - "ユーザー \"alice\" の disabled_at は空である"
       - "\"UserEnabled\" が発行される"
+user_experience:
+  screens:
+    AdminUsers:
+      route: /admin/users
+      purpose: 管理者が所属テナントのユーザーを一覧・詳細表示し、プロフィール、ロール、アカウント状態、必須アクション、所属グループを管理する。
+      interfaces:
+        - ListAdminUsers
+        - GetAdminUser
+        - CreateAdminUser
+        - UpdateAdminUser
+        - DisableAdminUser
+        - EnableAdminUser
+        - DeleteAdminUser
+        - SetUserRequiredAction
+        - ClearUserRequiredAction
+        - ListUserGroups
+        - AddGroupMember
+      states:
+        - ready
+        - loading
+        - submitting
+        - empty
+        - delete_confirmation
+        - access_denied
+        - service_error
+    AdminGroups:
+      route: /admin/groups
+      purpose: 管理者が複数ロールをまとめたグループを作成・更新・削除し、メンバーを追加・削除する。
+      interfaces:
+        - ListGroups
+        - GetGroup
+        - CreateGroup
+        - UpdateGroup
+        - DeleteGroup
+        - AddGroupMember
+        - RemoveGroupMember
+        - ListAdminUsers
+      states:
+        - ready
+        - loading
+        - submitting
+        - empty
+        - delete_confirmation
+        - access_denied
+        - service_error
+    AdminAgents:
+      route: /admin/agents
+      purpose: 管理者が非人間プリンシパル(エージェント)を登録・更新し、有効化・無効化・強制終了・削除と client 資格情報のバインド・アンバインドを行う。
+      interfaces:
+        - ListAgents
+        - GetAgent
+        - RegisterAgent
+        - UpdateAgent
+        - DisableAgent
+        - EnableAgent
+        - KillAgent
+        - DeleteAgent
+        - BindAgentCredential
+        - UnbindAgentCredential
+      states:
+        - ready
+        - loading
+        - submitting
+        - empty
+        - delete_confirmation
+        - access_denied
+        - service_error
+    AdminRoles:
+      route: /admin/roles
+      purpose: 管理ロールと各ロールに許可される操作、ロールを持つユーザー数を読み取り専用で一覧する。標準ロールは編集・削除できない。
+      states:
+        - ready
+        - loading
+        - empty
+        - access_denied
+        - service_error
+    AccountHome:
+      route: /account
+      purpose: end-userに自身のアカウント概要(最終ログイン、パスワード変更日時、MFA状態、未対応の必須アクション)を提示する。adminロールは含めない。
+      interfaces:
+        - GetAccountSummary
+      states:
+        - ready
+        - loading
+        - access_denied
+        - service_error
+    AccountProfile:
+      route: /account/profile
+      purpose: end-userが自身のプロフィール(表示名と editable_by_user=true の属性)を確認・更新する。
+      interfaces:
+        - GetUserProfile
+        - UpdateUserProfile
+      states:
+        - ready
+        - loading
+        - submitting
+        - access_denied
+        - service_error
+    AccountEmails:
+      route: /account/emails
+      purpose: end-userが primary email の変更を起票し、新アドレスへ確認リンクを送る。
+      interfaces:
+        - RequestEmailChange
+      states:
+        - ready
+        - submitting
+        - change_requested
+        - access_denied
+        - service_error
+    AccountEmailVerify:
+      route: /account/email/verify
+      purpose: メールで届いたワンタイムリンクを開き、新しいメールアドレスをアカウントへ確定する。
+      interfaces:
+        - ConfirmEmailChange
+      states:
+        - idle
+        - submitting
+        - done
+        - invalid_token
+        - service_error
+    AccountData:
+      route: /account/data
+      purpose: end-userが自身のプロフィールと同意を含むアカウントデータをエクスポートする。
+      interfaces:
+        - ExportAccountData
+      states:
+        - ready
+        - submitting
+        - exported
+        - access_denied
+        - service_error
+  transitions:
+    - from: AccountHome
+      to: AccountSecurity
+      trigger: security_selected
+    - from: AccountHome
+      to: AccountProfile
+      trigger: profile_selected
+    - from: AccountHome
+      to: AccountActivity
+      trigger: activity_selected
+    - from: AccountHome
+      to: AccountApplications
+      trigger: connected_apps_selected
+    - from: AccountEmails
+      to: AccountEmailVerify
+      trigger: email_verification_link_opened
+      interface: RequestEmailChange
+      external: true
+    - from: AdminUsers
+      to: AdminGroups
+      trigger: group_management_selected
+    - from: AdminUsers
+      to: AdminApplications
+      trigger: application_management_selected

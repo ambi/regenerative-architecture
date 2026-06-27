@@ -4,6 +4,32 @@
 system: ra-idp
 spec_version: "2.0"
 context: SigningKeys
+glossary:
+  SigningKeys:
+    definition: tenant-scoped signing key material のライフサイクルと公開を扱う境界。OAuth2/OIDC は JWK/JWKS、SAML/WS-* は X.509 証明書を使う。
+    aliases:
+      - KeyMaterial
+      - signing keys
+  Retire:
+    definition: SigningKey を Verifying から Retired に移す。
+    aliases:
+      - retire
+  Archive:
+    definition: SigningKey を Retired から Archived に移す。
+    aliases:
+      - archive
+  Verifying:
+    definition: 署名はしないが、過去発行トークンの検証のため JWKS に残っている状態。
+    aliases:
+      - verifying
+  Retired:
+    definition: JWKS から除去された状態。新規検証には使われない。
+    aliases:
+      - retired
+  Archived:
+    definition: 監査用に長期保管されている終端状態。鍵マテリアルは封印。
+    aliases:
+      - archived
 models:
   SignatureAlgorithm:
     kind: enum
@@ -21,7 +47,7 @@ models:
       - Archived
   SigningKey:
     kind: entity
-    description: トークン署名用の非対称鍵。Active 1本＋Verifying 過去鍵 0本以上を JWKS に並べる（ADR-009 / SigningKeyMinJwksOverlap）。
+    description: トークン署名用の非対称鍵。Active 1本＋Verifying 過去鍵 0本以上を JWKS に並べる（SigningKeyMinJwksOverlap）。
     identity: kid
     fields:
       kid:
@@ -108,7 +134,7 @@ models:
         description: 直前まで active だった鍵 (初回ローテーション時は無し)。
   SigningKeyRotated:
     kind: event
-    description: JWKS の署名鍵が回転した（90 日ごと、または緊急回転、ADR-009/024）。
+    description: JWKS の署名鍵が回転した（90 日ごと、または緊急回転）。
     payload:
       occurredAt:
         type: Timestamp
@@ -119,7 +145,7 @@ models:
         optional: true
 states:
   SigningKeyLifecycle:
-    description: 署名鍵のライフサイクル（ADR-009 / SigningKeyMinJwksOverlap）。Active から Rotate で Verifying に降り、Retire で JWKS から外し、Archive で監査保管に入る。
+    description: 署名鍵のライフサイクル（SigningKeyMinJwksOverlap）。Active から Rotate で Verifying に降り、Retire で JWKS から外し、Archive で監査保管に入る。
     target: SigningKey
     initial: Active
     terminal:
@@ -192,7 +218,7 @@ interfaces:
           - "200"
 invariants:
   SigningKeyMaxAge:
-    description: 有効な署名鍵は 90 日を超えない間隔で回転する（ADR-009）。
+    description: 有効な署名鍵は 90 日を超えない間隔で回転する。
     target: SigningKey
     eventually: event == SigningKeyRotated
     within: 90d
@@ -237,7 +263,6 @@ objectives:
     policy: max_age
     target: SigningKey
     value: 90d
-    reference: ADR-009
   SigningKeyMinJwksOverlap:
     kind: security
     policy: min_jwks_overlap
@@ -259,3 +284,19 @@ scenarios:
       - "roles=[\"admin\"] のユーザー \"operator\" が管理画面の署名鍵一覧を開く"
       - "管理者 \"operator\" が現在の署名鍵を回転する"
       - JWKS に旧 kid と新 kid の両方が含まれる
+user_experience:
+  screens:
+    AdminKeys:
+      route: /admin/keys
+      purpose: 管理者が署名鍵を一覧・参照し、回転する。回転後も旧 kid は JWKS で保持される。
+      interfaces:
+        - ListAdminKeys
+        - GetAdminKey
+        - RotateAdminKey
+      states:
+        - ready
+        - loading
+        - submitting
+        - empty
+        - access_denied
+        - service_error

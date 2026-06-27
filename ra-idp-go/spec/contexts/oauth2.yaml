@@ -4,6 +4,1094 @@
 system: ra-idp
 spec_version: "2.0"
 context: OAuth2
+standards:
+  RFC6749:
+    title: The OAuth 2.0 Authorization Framework
+    version: RFC 6749
+    url: https://www.rfc-editor.org/rfc/rfc6749.html
+    roles:
+      - AuthorizationServer
+    scope: Authorization Code、Refresh Token、Client Credentialsと共通エラー処理。
+    requirements:
+      - id: RFC6749-AUTHORIZATION-CODE
+        section: §4.1
+        strength: MUST
+        adoption: required
+        statement: Authorization Code Grantを認可エンドポイントとトークンエンドポイントで提供する。
+        relates_to:
+          interfaces:
+            - Authorize
+            - Token
+          states:
+            - AuthorizationCodeFlow
+      - id: RFC6749-CLIENT-CREDENTIALS
+        section: §4.4
+        strength: MAY
+        adoption: optional
+        statement: confidential clientに限りClient Credentials Grantを許可する。
+        relates_to:
+          interfaces:
+            - Token
+          permissions:
+            - TokenGrantClientCredentials
+      - id: RFC6749-IMPLICIT
+        section: §4.2
+        strength: MAY
+        adoption: excluded
+        statement: Implicit Grantを提供する。
+        reason: RFC 9700の勧告に従いAuthorization Code + PKCEへ限定する。
+        relates_to:
+          models:
+            - GrantType
+      - id: RFC6749-PASSWORD-GRANT
+        section: §4.3
+        strength: MAY
+        adoption: excluded
+        statement: Resource Owner Password Credentials Grantを提供する。
+        reason: RFC 9700により使用しない。
+        relates_to:
+          models:
+            - GrantType
+  RFC6750:
+    title: The OAuth 2.0 Authorization Framework Bearer Token Usage
+    version: RFC 6750
+    url: https://www.rfc-editor.org/rfc/rfc6750.html
+    roles:
+      - AuthorizationServer
+      - ResourceServer
+    scope: Bearer Access Tokenの提示方法とエラー応答。
+    requirements:
+      - id: RFC6750-AUTHORIZATION-HEADER
+        section: §2.1
+        strength: MUST
+        adoption: required
+        statement: Bearer Access TokenはAuthorizationヘッダーで受け付ける。
+        relates_to:
+          interfaces:
+            - UserInfo
+            - PostUserInfo
+      - id: RFC6750-QUERY-TOKEN
+        section: §2.3
+        strength: MAY
+        adoption: excluded
+        statement: URI query parameterによるAccess Token提示を受け付ける。
+        reason: URL、ログ、Refererへのトークン漏洩を避ける。
+  RFC7009:
+    title: OAuth 2.0 Token Revocation
+    version: RFC 7009
+    url: https://www.rfc-editor.org/rfc/rfc7009.html
+    roles:
+      - AuthorizationServer
+    scope: Access TokenとRefresh Tokenの失効。
+    requirements:
+      - id: RFC7009-REVOCATION-ENDPOINT
+        section: §2
+        strength: MUST
+        adoption: required
+        statement: 認証済みクライアントへトークン失効エンドポイントを提供する。
+        relates_to:
+          interfaces:
+            - Revoke
+          models:
+            - RevokeRequest
+      - id: RFC7009-UNKNOWN-TOKEN
+        section: §2.2
+        strength: MUST
+        adoption: required
+        statement: 無効または他クライアント所有のトークンに対しても成功応答を返し情報を漏らさない。
+        relates_to:
+          scenarios:
+            - 他クライアントの所有トークンの失効要求は静かに無視される
+  RFC7517:
+    title: JSON Web Key
+    version: RFC 7517
+    url: https://www.rfc-editor.org/rfc/rfc7517.html
+    roles:
+      - AuthorizationServer
+    scope: 署名検証鍵のJWK Set公開。
+    requirements:
+      - id: RFC7517-JWKS
+        section: §5
+        strength: MUST
+        adoption: required
+        statement: 公開可能な検証鍵をJWK Setとして配布する。
+        relates_to:
+          interfaces:
+            - GetJwks
+          models:
+            - JWK
+            - JWKS
+  RFC7518:
+    title: JSON Web Algorithms
+    version: RFC 7518
+    url: https://www.rfc-editor.org/rfc/rfc7518.html
+    roles:
+      - AuthorizationServer
+    scope: JWT署名に用いる暗号アルゴリズム。
+    requirements:
+      - id: RFC7518-SIGNATURE-ALGORITHMS
+        section: §3
+        strength: MUST
+        adoption: required
+        statement: JWT署名をPS256またはES256で行い、対称鍵署名をAccess TokenとID Tokenに使用しない。
+        relates_to:
+          models:
+            - SignatureAlgorithm
+            - SigningKey
+  RFC7519:
+    title: JSON Web Token
+    version: RFC 7519
+    url: https://www.rfc-editor.org/rfc/rfc7519.html
+    roles:
+      - AuthorizationServer
+    scope: Access Token、ID Token、client assertionのJWT表現。
+    requirements:
+      - id: RFC7519-REGISTERED-CLAIMS
+        section: §4.1
+        strength: MUST
+        adoption: required
+        statement: JWTのissuer、subject、audience、有効期限、発行時刻、一意識別子を用途に応じて検証・発行する。
+        relates_to:
+          models:
+            - AccessTokenClaims
+            - IdTokenClaims
+            - Audience
+  RFC7523:
+    title: JSON Web Token Profile for OAuth 2.0 Client Authentication and Authorization Grants
+    version: RFC 7523
+    url: https://www.rfc-editor.org/rfc/rfc7523.html
+    roles:
+      - AuthorizationServer
+    scope: private_key_jwtによるClient Authentication。
+    requirements:
+      - id: RFC7523-CLIENT-ASSERTION
+        section: "§2.2, §3"
+        strength: MAY
+        adoption: optional
+        statement: client assertionの署名、issuer、subject、audience、有効期限、jtiを検証する。
+        relates_to:
+          models:
+            - TokenEndpointAuthMethod
+          interfaces:
+            - Token
+            - Introspect
+            - Revoke
+  RFC7591:
+    title: OAuth 2.0 Dynamic Client Registration Protocol
+    version: RFC 7591
+    url: https://www.rfc-editor.org/rfc/rfc7591.html
+    roles:
+      - AuthorizationServer
+    scope: OAuth Client metadataの動的登録。
+    requirements:
+      - id: RFC7591-REGISTER
+        section: §3
+        strength: MAY
+        adoption: optional
+        statement: Client metadataを受け取りclient_idと登録結果を返す。
+        relates_to:
+          interfaces:
+            - RegisterClient
+          models:
+            - ClientRegistrationRequest
+            - OAuth2Client
+      - id: RFC7591-REDIRECT-URI
+        section: §2
+        strength: MUST
+        adoption: required
+        statement: Authorization Code Grantを利用するClientにはredirect_uri登録を要求する。
+        relates_to:
+          scenarios:
+            - redirect_uri が無いクライアント登録は拒否される
+  RFC7636:
+    title: Proof Key for Code Exchange by OAuth Public Clients
+    version: RFC 7636
+    url: https://www.rfc-editor.org/rfc/rfc7636.html
+    roles:
+      - AuthorizationServer
+    scope: Authorization Code横取り攻撃への対策。
+    requirements:
+      - id: RFC7636-VERIFY
+        section: §4.6
+        strength: MUST
+        adoption: required
+        statement: Token requestのcode_verifierを認可時のcode_challengeと照合する。
+        relates_to:
+          interfaces:
+            - Authorize
+            - Token
+          invariants:
+            - PkceRoundTrip
+      - id: RFC7636-S256
+        section: §4.2
+        strength: SHOULD
+        adoption: required
+        statement: code_challenge_methodはS256だけを許可する。
+        relates_to:
+          models:
+            - CodeChallengeMethod
+      - id: RFC7636-PLAIN
+        section: §4.2
+        strength: MAY
+        adoption: excluded
+        statement: plain code challenge methodを許可する。
+        reason: 認可コード横取り耐性をS256へ統一する。
+  RFC7662:
+    title: OAuth 2.0 Token Introspection
+    version: RFC 7662
+    url: https://www.rfc-editor.org/rfc/rfc7662.html
+    roles:
+      - AuthorizationServer
+    scope: Resource Serverによるトークン状態照会。
+    requirements:
+      - id: RFC7662-INTROSPECT
+        section: §2
+        strength: MUST
+        adoption: required
+        statement: 認証済みResource Serverへactive状態と許可されたメタデータを返す。
+        relates_to:
+          interfaces:
+            - Introspect
+          models:
+            - IntrospectionRequest
+            - IntrospectionResponse
+      - id: RFC7662-INACTIVE
+        section: §2.2
+        strength: MUST
+        adoption: required
+        statement: 無効なトークンにはactive=falseだけを返す。
+        relates_to:
+          scenarios:
+            - 失効済みトークンの introspection は active=false のみ返す
+  RFC7800:
+    title: Proof-of-Possession Key Semantics for JSON Web Tokens
+    version: RFC 7800
+    url: https://www.rfc-editor.org/rfc/rfc7800.html
+    roles:
+      - AuthorizationServer
+      - ResourceServer
+    scope: JWT cnf claimによるproof-of-possession key表現。
+    requirements:
+      - id: RFC7800-CONFIRMATION
+        section: §3
+        strength: MAY
+        adoption: optional
+        statement: Sender-constrained tokenの確認鍵情報をcnf claimへ格納する。
+        relates_to:
+          models:
+            - SenderConstraintCnf
+            - AccessTokenClaims
+  RFC8176:
+    title: Authentication Method Reference Values
+    version: RFC 8176
+    url: https://www.rfc-editor.org/rfc/rfc8176.html
+    roles:
+      - OpenIDProvider
+    scope: ID Token等へ記録する認証方法参照値。
+    requirements:
+      - id: RFC8176-AMR
+        section: §2
+        strength: MAY
+        adoption: required
+        statement: 実際に成立した認証方法をamr値として記録する。
+        relates_to:
+          models:
+            - AuthenticationContext
+            - IdTokenClaims
+            - AccessTokenClaims
+  RFC8414:
+    title: OAuth 2.0 Authorization Server Metadata
+    version: RFC 8414
+    url: https://www.rfc-editor.org/rfc/rfc8414.html
+    roles:
+      - AuthorizationServer
+    scope: Authorization Server metadataの公開。
+    requirements:
+      - id: RFC8414-METADATA
+        section: §3
+        strength: MUST
+        adoption: required
+        statement: issuerと利用可能なエンドポイント・機能をmetadata文書として公開する。
+        relates_to:
+          interfaces:
+            - GetOauthAuthorizationServer
+          models:
+            - DiscoveryDocument
+  RFC8628:
+    title: OAuth 2.0 Device Authorization Grant
+    version: RFC 8628
+    url: https://www.rfc-editor.org/rfc/rfc8628.html
+    roles:
+      - AuthorizationServer
+    scope: 入力制約のあるデバイス向け認可。
+    requirements:
+      - id: RFC8628-DEVICE-AUTHORIZATION
+        section: §3.1-3.3
+        strength: MUST
+        adoption: optional
+        statement: device_code、user_code、verification_uriを発行しResourceOwnerの判断を受け付ける。
+        relates_to:
+          interfaces:
+            - DeviceAuthorization
+            - GetBrowserDeviceContext
+            - SubmitBrowserDevice
+          states:
+            - DeviceCodeFlow
+      - id: RFC8628-POLLING
+        section: §3.5
+        strength: MUST
+        adoption: required
+        statement: authorization_pending、slow_down、expired_tokenのポーリング意味論を守る。
+        relates_to:
+          scenarios:
+            - 承認前のデバイス交換は authorization_pending を返す
+            - ポーリング間隔より短い再試行は slow_down を返す
+            - 期限切れの device_code は expired_token を返す
+  RFC8705:
+    title: OAuth 2.0 Mutual-TLS Client Authentication and Certificate-Bound Access Tokens
+    version: RFC 8705
+    url: https://www.rfc-editor.org/rfc/rfc8705.html
+    roles:
+      - AuthorizationServer
+    scope: mTLS Client Authenticationと証明書バインドAccess Token。
+    requirements:
+      - id: RFC8705-CLIENT-AUTH
+        section: §2
+        strength: MAY
+        adoption: optional
+        statement: 登録済みSubject DNと検証済みクライアント証明書を照合してClientを認証する。
+        relates_to:
+          interfaces:
+            - Token
+            - Introspect
+            - Revoke
+      - id: RFC8705-CERT-BOUND
+        section: §3
+        strength: MAY
+        adoption: optional
+        statement: Access Tokenをクライアント証明書thumbprintへバインドしResource access時に照合する。
+        relates_to:
+          models:
+            - SenderConstraintCnf
+          interfaces:
+            - UserInfo
+            - PostUserInfo
+  RFC8707:
+    title: Resource Indicators for OAuth 2.0
+    version: RFC 8707
+    url: https://www.rfc-editor.org/rfc/rfc8707.html
+    roles:
+      - AuthorizationServer
+    scope: Access Token audienceの明示と権限最小化。
+    requirements:
+      - id: RFC8707-AUDIENCE
+        section: §2
+        strength: SHOULD
+        adoption: required
+        statement: 発行するAccess Tokenへ非空のaudienceを設定し、意図しないResource Serverでの利用を防ぐ。
+        relates_to:
+          invariants:
+            - AllAccessTokensCarryAudience
+          models:
+            - AccessTokenClaims
+  RFC9068:
+    title: JSON Web Token Profile for OAuth 2.0 Access Tokens
+    version: RFC 9068
+    url: https://www.rfc-editor.org/rfc/rfc9068.html
+    roles:
+      - AuthorizationServer
+    scope: JWT形式Access Tokenのクレームと署名。
+    requirements:
+      - id: RFC9068-CLAIMS
+        section: §2.2
+        strength: MUST
+        adoption: required
+        statement: JWT Access Tokenへiss、sub、aud、exp、iat、jti、client_idを含める。
+        relates_to:
+          models:
+            - AccessTokenClaims
+      - id: RFC9068-ASYMMETRIC-SIGNATURE
+        section: §2.1
+        strength: MUST
+        adoption: required
+        statement: Access Tokenを非対称アルゴリズムで署名し公開鍵で検証可能にする。
+        relates_to:
+          models:
+            - SignatureAlgorithm
+            - SigningKey
+          interfaces:
+            - GetJwks
+  RFC9126:
+    title: OAuth 2.0 Pushed Authorization Requests
+    version: RFC 9126
+    url: https://www.rfc-editor.org/rfc/rfc9126.html
+    roles:
+      - AuthorizationServer
+    scope: 認可パラメータの事前送信とrequest_uri参照。
+    requirements:
+      - id: RFC9126-PAR
+        section: §2
+        strength: MAY
+        adoption: optional
+        statement: Client認証済みPARを保存し短命なrequest_uriを返す。
+        relates_to:
+          interfaces:
+            - PushAuthorizationRequest
+            - Authorize
+          models:
+            - PARRecord
+            - ParResponse
+      - id: RFC9126-SINGLE-USE
+        section: §2.2
+        strength: SHOULD
+        adoption: required
+        statement: request_uriは短命かつ一度だけ使用可能とする。
+        relates_to:
+          objectives:
+            - ParRequestUriLifetime
+          states:
+            - PARRecordLifecycle
+  RFC9207:
+    title: OAuth 2.0 Authorization Server Issuer Identification
+    version: RFC 9207
+    url: https://www.rfc-editor.org/rfc/rfc9207.html
+    roles:
+      - AuthorizationServer
+    scope: Authorization responseにおけるmix-up攻撃対策。
+    requirements:
+      - id: RFC9207-ISS
+        section: §2
+        strength: MUST
+        adoption: required
+        statement: Authorization responseへissuer識別子を含める。
+        relates_to:
+          interfaces:
+            - Authorize
+          models:
+            - DiscoveryDocument
+  RFC9449:
+    title: OAuth 2.0 Demonstrating Proof of Possession
+    version: RFC 9449
+    url: https://www.rfc-editor.org/rfc/rfc9449.html
+    roles:
+      - AuthorizationServer
+      - ResourceServer
+    scope: DPoP proofと公開鍵バインドAccess Token。
+    requirements:
+      - id: RFC9449-PROOF
+        section: §4-7
+        strength: MAY
+        adoption: optional
+        statement: DPoP proofの署名、htm、htu、iat、jtiを検証する。
+        relates_to:
+          interfaces:
+            - Token
+            - UserInfo
+            - PostUserInfo
+          invariants:
+            - DpopJtiUniquenessWithinWindow
+      - id: RFC9449-TOKEN-BINDING
+        section: §6
+        strength: MUST
+        adoption: optional
+        statement: DPoP利用時はAccess Tokenへjktを含め、提示proofの鍵と照合する。
+        relates_to:
+          models:
+            - SenderConstraintCnf
+            - AccessTokenClaims
+  RFC9700:
+    title: Best Current Practice for OAuth 2.0 Security
+    version: RFC 9700 / BCP 240
+    url: https://www.rfc-editor.org/rfc/rfc9700.html
+    roles:
+      - AuthorizationServer
+    scope: OAuth 2.0の現行セキュリティベストプラクティス。
+    requirements:
+      - id: RFC9700-REDIRECT-MATCH
+        section: "§2.1, §4.1.3"
+        strength: MUST
+        adoption: required
+        statement: redirect_uriは登録値と完全一致させ、未検証URIへリダイレクトしない。
+        relates_to:
+          invariants:
+            - RedirectUriExactMatch
+          scenarios:
+            - 未登録の redirect_uri へはリダイレクトしない
+      - id: RFC9700-AUTHORIZATION-CODE
+        section: §2.1.1
+        strength: MUST
+        adoption: required
+        statement: redirect-based flowはAuthorization Code GrantとPKCEで保護する。
+        relates_to:
+          interfaces:
+            - Authorize
+            - Token
+          invariants:
+            - PkceRoundTrip
+      - id: RFC9700-SENDER-CONSTRAINT
+        section: §2.2.1
+        strength: SHOULD
+        adoption: optional
+        statement: 高セキュリティClientではAccess TokenをDPoPまたはmTLSでsender-constrainedにする。
+        relates_to:
+          models:
+            - SenderConstraintKind
+            - SenderConstraintCnf
+      - id: RFC9700-REFRESH-REPLAY
+        section: "§2.2.2, §4.14"
+        strength: MUST
+        adoption: required
+        statement: Refresh Tokenをローテーションし再利用検知時に関連トークンを失効する。
+        relates_to:
+          states:
+            - RefreshTokenLifecycle
+          invariants:
+            - RefreshFamilyTransitiveRevoke
+            - RefreshRotationParentInvariants
+  OpenIDConnectCore:
+    title: OpenID Connect Core 1.0 incorporating errata set 1
+    version: Final
+    url: https://openid.net/specs/openid-connect-core-1_0-18.html
+    roles:
+      - OpenIDProvider
+    scope: Authorization Code Flow、ID Token、UserInfo、認証セッション。
+    requirements:
+      - id: OIDC-CORE-CODE-FLOW
+        section: §3.1
+        strength: MUST
+        adoption: required
+        statement: code response typeによるOpenID Connect Authenticationを提供する。
+        relates_to:
+          interfaces:
+            - Authorize
+            - Token
+          models:
+            - IdTokenClaims
+      - id: OIDC-CORE-ID-TOKEN
+        section: §2
+        strength: MUST
+        adoption: required
+        statement: ID Tokenへiss、sub、aud、exp、iatと認証コンテキストを含める。
+        relates_to:
+          models:
+            - IdTokenClaims
+            - AuthenticationContext
+      - id: OIDC-CORE-USERINFO
+        section: §5.3
+        strength: SHOULD
+        adoption: required
+        statement: openid scopeのAccess Tokenに対してsubを含むUserInfoを返す。
+        relates_to:
+          interfaces:
+            - UserInfo
+            - PostUserInfo
+          models:
+            - UserInfoResponse
+      - id: OIDC-CORE-HYBRID-IMPLICIT
+        section: §3.2-3.3
+        strength: MAY
+        adoption: excluded
+        statement: Implicit FlowおよびHybrid Flowを提供する。
+        reason: front-channel token発行を避けcode response typeだけを採用する。
+  OpenIDConnectDiscovery:
+    title: OpenID Connect Discovery 1.0 incorporating errata set 1
+    version: Final
+    url: https://openid.net/specs/openid-connect-discovery-1_0-21.html
+    roles:
+      - OpenIDProvider
+    scope: OpenID Provider metadataの公開。
+    requirements:
+      - id: OIDC-DISCOVERY-CONFIGURATION
+        section: §4
+        strength: MUST
+        adoption: required
+        statement: well-known configurationからissuer、endpoints、supported metadataを公開する。
+        relates_to:
+          interfaces:
+            - GetOpenidConfiguration
+          models:
+            - DiscoveryDocument
+  OpenIDConnectRPInitiatedLogout:
+    title: OpenID Connect RP-Initiated Logout 1.0
+    version: Final
+    url: https://openid.net/specs/openid-connect-rpinitiated-1_0.html
+    roles:
+      - OpenIDProvider
+    scope: RPから開始するEnd-User session終了。
+    requirements:
+      - id: OIDC-LOGOUT-ENDPOINT
+        section: §2
+        strength: MUST
+        adoption: required
+        statement: end_session_endpointを公開しRPからのlogout要求を受け付ける。
+        relates_to:
+          interfaces:
+            - EndSession
+            - GetOpenidConfiguration
+      - id: OIDC-LOGOUT-REDIRECT
+        section: §3
+        strength: MUST
+        adoption: required
+        statement: post_logout_redirect_uriはClientに登録済みの値だけを許可する。
+        relates_to:
+          scenarios:
+            - RP-Initiated Logout は登録済み post_logout_redirect_uri にだけリダイレクトする
+            - 未登録 post_logout_redirect_uri は拒否される
+  FAPI2SecurityProfile:
+    title: FAPI 2.0 Security Profile
+    version: Final
+    url: https://openid.net/specs/fapi-security-profile-2_0-final.html
+    roles:
+      - AuthorizationServer
+    scope: confidential client向け高セキュリティOAuthプロファイル。
+    requirements:
+      - id: FAPI2-PROFILE-SELECTION
+        section: §5.3
+        strength: MUST
+        adoption: optional
+        statement: Fapi2SecurityProfileを選択したClientにだけ本プロファイルの追加制約を適用する。
+        relates_to:
+          models:
+            - FapiProfile
+            - OAuth2Client
+      - id: FAPI2-PAR-PKCE
+        section: §5.3.2
+        strength: MUST
+        adoption: optional
+        statement: FAPI ClientはPARとS256 PKCEを使用する。
+        relates_to:
+          interfaces:
+            - PushAuthorizationRequest
+            - Authorize
+          scenarios:
+            - FAPI クライアントは PAR なしの直接認可リクエストを拒否される
+      - id: FAPI2-CLIENT-AUTH
+        section: §5.3.2
+        strength: MUST
+        adoption: optional
+        statement: FAPI Clientはprivate_key_jwtまたはmTLSで認証する。
+        relates_to:
+          models:
+            - TokenEndpointAuthMethod
+      - id: FAPI2-SENDER-CONSTRAINT
+        section: §5.3.2
+        strength: MUST
+        adoption: optional
+        statement: FAPI Access TokenをDPoPまたはmTLSでsender-constrainedにする。
+        relates_to:
+          models:
+            - AccessTokenSenderConstraint
+            - SenderConstraintCnf
+glossary:
+  ResourceOwner:
+    definition: 保護リソースに対するアクセス権限を付与できる実体。本アプリではエンドユーザー。
+    aliases:
+      - resource_owner
+      - リソースオーナー
+      - EndUser
+    not_to_confuse_with:
+      - term: Client
+        reason: Client はアプリケーション、ResourceOwner は人間。OAuth では明確に区別される。
+  Client:
+    definition: ResourceOwner に代わって保護リソースへのアクセスを要求するアプリケーション。client_id で識別される。
+    aliases:
+      - client
+      - クライアント
+      - RelyingParty
+  AuthorizationServer:
+    definition: ResourceOwner を認証し Client にトークンを発行するサーバー。本アプリそのもの。OIDC では IdP と同義。
+    aliases:
+      - authorization_server
+      - IdP
+      - IdentityProvider
+  ResourceServer:
+    definition: AccessToken を提示する Client に対して保護リソースを返すサーバー。本アプリの外部。
+    aliases:
+      - resource_server
+  Public:
+    definition: "client_secret を安全に保持できない Client（SPA, ネイティブアプリ）。PKCE 必須。"
+    aliases:
+      - public
+  Confidential:
+    definition: サーバーサイドで client_secret または private_key を保持できる Client。
+    aliases:
+      - confidential
+  AuthorizationCode:
+    definition: 短命（60秒以下）の一度限り使用される中間トークン。/authorize で発行され /token で交換される。grant_type 値「authorization_code」と同じ文字列を共有する（RFC 6749 §4.1）。
+    aliases:
+      - authorization_code
+      - 認可コード
+  RefreshToken:
+    definition: AccessToken の再発行に使うトークン。提示のたびにローテーションされる。絶対 TTL 30 日。grant_type 値「refresh_token」と同じ文字列を共有する（RFC 6749 §6）。
+    aliases:
+      - refresh_token
+      - リフレッシュトークン
+  ClientCredentials:
+    definition: Client 自身が認可主体となる machine-to-machine フロー (RFC 6749 §4.4)。confidential のみ。
+    aliases:
+      - client_credentials
+      - M2Mグラント
+  DeviceCode:
+    definition: 入力制約のあるデバイス向けのデバイス認可グラント (RFC 8628)。grant_type は URN。
+    aliases:
+      - urn:ietf:params:oauth:grant-type:device_code
+      - device_code
+      - デバイスコード
+  TokenExchange:
+    definition: 既存トークンを別トークンに交換するトークン交換グラント (RFC 8693)。本アプリは自己発行トークンの委任 (delegation) のみを扱い、subject_token / actor_token は本 IdP が発行したものに限る。grant_type は URN。
+    aliases:
+      - urn:ietf:params:oauth:grant-type:token-exchange
+      - token-exchange
+      - トークン交換
+  AuthorizationDetails:
+    definition: 構造化された細粒度の権限要求 (RFC 9396)。type で識別される JSON オブジェクトの配列として、対象・操作・上限・条件を表し、/authorize・/par・/token で要求・同意・トークン反映する。本アプリは受理する type をテナント登録スキーマに限定し fail-closed に検証する。
+    aliases:
+      - authorization_details
+      - RAR
+      - Rich Authorization Requests
+      - リッチ認可リクエスト
+  AccessToken:
+    definition: ResourceServer にアクセスする際に提示するトークン。JWT (PS256 / ES256) として発行、TTL 600秒。
+    aliases:
+      - access_token
+      - アクセストークン
+    not_to_confuse_with:
+      - term: IdToken
+        reason: AccessToken は API アクセス用、IdToken は認証情報の表明用。混同してはならない。
+  IdToken:
+    definition: OIDC が定める、ResourceOwner の認証結果を表明する JWT。iss/sub/aud/exp/iat/auth_time/nonce/azp を含む。
+    aliases:
+      - id_token
+      - IDトークン
+  Pkce:
+    definition: Proof Key for Code Exchange (RFC 7636)。code_challenge / code_verifier で認可コード横取り攻撃を防ぐ。本アプリでは例外なく必須。
+    aliases:
+      - pkce
+      - PKCE
+    not_to_confuse_with:
+      - term: Dpop
+        reason: PKCE は認可コード保護、DPoP はトークン保護。攻撃面が異なる。
+  Dpop:
+    definition: Demonstrating Proof of Possession (RFC 9449)。JWK サムプリント (jkt) でトークンを所有鍵にバインドする。
+    aliases:
+      - dpop
+      - DPoP
+  Mtls:
+    definition: Mutual-TLS Client Authentication (RFC 8705)。TLS クライアント証明書で Client を認証する。
+    aliases:
+      - mtls
+      - mTLS
+      - tls_client_auth
+  Par:
+    definition: Pushed Authorization Requests (RFC 9126)。/par に認可リクエストを事前 POST し /authorize は request_uri のみで参照する。FAPI 2.0 必須。
+    aliases:
+      - par
+      - PAR
+  SenderConstrainedToken:
+    definition: 所有証明（DPoP または mTLS）と組み合わさったトークン。所有者以外による再利用を防ぐ。
+  Issuer:
+    definition: トークンを発行した AuthorizationServer の URL 識別子。
+    aliases:
+      - iss
+  Subject:
+    definition: トークンの主体（通常は ResourceOwner）の仮名化された識別子。削除後も監査ログに残る。
+    aliases:
+      - sub
+    not_to_confuse_with:
+      - term: PreferredUsername
+        reason: sub は仮名化された安定識別子、preferred_username は表示用の文字列。
+  Audience:
+    definition: トークンの想定受信者の識別子。通常は Client の client_id。
+    aliases:
+      - aud
+  JwtId:
+    definition: JWT 一意識別子。リプレイ防止と監査の追跡に使用。
+    aliases:
+      - jti
+  Nonce:
+    definition: Client が認可リクエストに含め、ID トークンに含めて返される値。IDトークンのリプレイ防止。
+  Scope:
+    definition: Client が要求する権限の集合。Client メタデータで宣言された集合の部分集合でなければならない。
+  Consent:
+    definition: ResourceOwner が Client に対して特定の Scope を付与する意思表示。tenant / subject / client / scopes / granted_at / expires_at を永続化する。管理者は参照と撤回だけが可能で、付与や scope 拡張を代行できない。
+    aliases:
+      - consent
+      - 同意
+  AdminConsentManagement:
+    definition: Administrator が所属テナント内の Consent を監査目的で参照し、必要時に撤回する管理操作。同意の作成や scope 拡張は含まない。
+    aliases:
+      - consent administration
+      - 同意管理
+  PreferredUsername:
+    definition: 表示用のユーザー名。可変。
+    aliases:
+      - preferred_username
+  ClientSecretBasic:
+    definition: HTTP Basic 認証（レガシークライアント向け）。
+    aliases:
+      - client_secret_basic
+  ClientSecretPost:
+    definition: フォームボディ内のクレデンシャル。
+    aliases:
+      - client_secret_post
+  PrivateKeyJwt:
+    definition: RFC 7523 — client_assertion による署名済み JWT 認証。confidential 推奨。
+    aliases:
+      - private_key_jwt
+  TlsClientAuth:
+    definition: RFC 8705 §2 — Mutual-TLS Client Authentication（PKI 結合）。Mtls 機構の一形態を token_endpoint_auth_method の値として表現したもの。
+    aliases:
+      - tls_client_auth
+    not_to_confuse_with:
+      - term: Mtls
+        reason: Mtls は機構（mTLS）の一般名、TlsClientAuth は token_endpoint_auth_method 値として使う具体的な wire 形式。
+  None:
+    definition: クライアント認証なし（public クライアント、PKCE が代替防御）。
+    aliases:
+      - none
+  PS256:
+    definition: RSASSA-PSS using SHA-256 (RFC 7518)。
+  ES256:
+    definition: ECDSA using P-256 and SHA-256 (RFC 7518)。
+  S256:
+    definition: PKCE code_challenge_method=S256。code_challenge は BASE64URL-ENCODE(SHA256(code_verifier))。
+    aliases:
+      - S256
+  Hwk:
+    definition: RFC 8176 の hardware-secured key 認証メソッド。
+    aliases:
+      - hwk
+  Swk:
+    definition: RFC 8176 の software-secured key 認証メソッド。
+    aliases:
+      - swk
+  Code:
+    definition: response_type=code。本アプリが対応する唯一のレスポンスタイプ。
+    aliases:
+      - code
+  Query:
+    definition: authorization response parameters を redirect_uri の query component で返す response_mode。
+    aliases:
+      - query
+  FormPost:
+    definition: authorization response parameters を自動送信 HTML form で返す response_mode。
+    aliases:
+      - form_post
+  InvalidRequest:
+    definition: OAuth error code invalid_request。必須パラメータ欠落、不正値、重複などのリクエスト不備。
+    aliases:
+      - invalid_request
+  InvalidClient:
+    definition: OAuth error code invalid_client。クライアント認証失敗。
+    aliases:
+      - invalid_client
+  InvalidGrant:
+    definition: OAuth error code invalid_grant。認可コード、refresh token、device_code などの grant が無効。
+    aliases:
+      - invalid_grant
+  UnauthorizedClient:
+    definition: OAuth error code unauthorized_client。クライアントが当該 grant_type を使えない。
+    aliases:
+      - unauthorized_client
+  UnsupportedGrantType:
+    definition: OAuth error code unsupported_grant_type。未対応の grant_type。
+    aliases:
+      - unsupported_grant_type
+  InvalidScope:
+    definition: OAuth error code invalid_scope。要求 scope が不正、未知、または許可外。
+    aliases:
+      - invalid_scope
+  InvalidToken:
+    definition: Bearer token error code invalid_token。トークンが無効、期限切れ、改ざん、または失効済み。
+    aliases:
+      - invalid_token
+  InvalidDpopProof:
+    definition: DPoP error code invalid_dpop_proof。DPoP proof JWT の検証失敗。
+    aliases:
+      - invalid_dpop_proof
+  AccessDenied:
+    definition: OAuth error code access_denied。ResourceOwner またはポリシーによる拒否。
+    aliases:
+      - access_denied
+  ExpiredToken:
+    definition: Device Authorization Grant error code expired_token。device_code が期限切れ。
+    aliases:
+      - expired_token
+  InsufficientScope:
+    definition: Bearer token error code insufficient_scope。提示 token の scope が不足。
+    aliases:
+      - insufficient_scope
+  ServerError:
+    definition: OAuth error code server_error。AuthorizationServer 側の予期せぬ内部エラー。
+    aliases:
+      - server_error
+  Fapi2SecurityProfile:
+    definition: FAPI 2.0 Security Profile。tls_client_auth または private_key_jwt + PAR 必須。
+    aliases:
+      - fapi_2_security_profile
+  Received:
+    definition: 認可リクエストを受信した直後の初期状態。
+    aliases:
+      - received
+  AuthenticationPending:
+    definition: ResourceOwner の認証を待っている状態。
+    aliases:
+      - authentication_pending
+  Authenticated:
+    definition: ResourceOwner の認証が完了した状態。
+    aliases:
+      - authenticated
+  ConsentPending:
+    definition: ResourceOwner に Scope への同意を求めている状態。
+    aliases:
+      - consent_pending
+  Consented:
+    definition: ResourceOwner が要求 Scope に同意した状態。
+    aliases:
+      - consented
+  CodeIssued:
+    definition: AuthorizationCode を Client に発行した状態。
+    aliases:
+      - code_issued
+  Exchanged:
+    definition: AuthorizationCode が /token で正常に交換された終端状態。
+    aliases:
+      - exchanged
+  Rejected:
+    definition: 認可リクエストが拒否された終端状態。
+    aliases:
+      - rejected
+  Expired:
+    definition: 期限切れにより無効化された終端状態。
+    aliases:
+      - expired
+  Validate:
+    definition: 認可リクエストの構文・必須パラメータ・redirect_uri を検証する。検証成功で AuthenticationPending へ遷移し、ログイン UI 提示を含む。
+    aliases:
+      - validate
+  AuthenticateUser:
+    definition: ResourceOwner の認証を実行する。
+    aliases:
+      - authenticate_user
+  RequestConsent:
+    definition: ResourceOwner に Scope への同意を求める（同意 UI 表示）。
+    aliases:
+      - request_consent
+  GrantConsent:
+    definition: ResourceOwner が同意を付与する。
+    aliases:
+      - grant_consent
+  IssueCode:
+    definition: AuthorizationCode を Client に発行する。
+    aliases:
+      - issue_code
+  RedeemCode:
+    definition: Client が AuthorizationCode を /token で AccessToken と交換する。
+    aliases:
+      - redeem_code
+  Reject:
+    definition: 認可リクエストを拒否する。
+    aliases:
+      - reject
+  Expire:
+    definition: 期限切れにより認可リクエストを無効化する。
+    aliases:
+      - expire
+  Issued:
+    definition: device_code と user_code を発行した初期状態。
+    aliases:
+      - issued
+  UserCodeEntered:
+    definition: ユーザーが verification_uri で user_code を入力した状態。
+    aliases:
+      - user_code_entered
+  AuthorizationPending:
+    definition: ユーザー承認待ち状態（device_code フロー）。
+    aliases:
+      - authorization_pending
+  Approved:
+    definition: ユーザーが承認した状態。
+    aliases:
+      - approved
+  Denied:
+    definition: ユーザーが拒否した、または user_code 誤り過多で失敗した状態。
+    aliases:
+      - denied
+  EnterUserCode:
+    definition: ユーザーが verification_uri で user_code を入力する。
+    aliases:
+      - enter_user_code
+  Approve:
+    definition: ユーザーが承認する。
+    aliases:
+      - approve
+  Deny:
+    definition: ユーザーが拒否する。
+    aliases:
+      - deny
+  Exchange:
+    definition: デバイスが /token で device_code を交換する。
+    aliases:
+      - exchange
+  SlowDown:
+    definition: ポーリング間隔を増やすよう指示する。
+    aliases:
+      - slow_down
+  Active:
+    definition: トークンまたは鍵が現在有効で第一線で使われている状態。RefreshToken と SigningKey で共用。
+    aliases:
+      - active
+  Rotated:
+    definition: 子トークンに引き継がれ親が消費された状態。家族失効の対象になりうる。
+    aliases:
+      - rotated
+  Revoked:
+    definition: 失効済み。/revoke もしくは家族失効により遷移する。RefreshToken と Consent で共用。
+    aliases:
+      - revoked
+  Rotate:
+    definition: 親 RefreshToken を Rotated とし、新しい子トークンを発行する。
+    aliases:
+      - rotate
+  RevokeToken:
+    definition: トークンを失効させる（/revoke または家族失効）。
+    aliases:
+      - revoke_token
+  Redeemed:
+    definition: 認可コードが /token で正規に交換された終端状態（AuthorizationCodeRecord）。AuthorizationCodeFlow の Exchanged と並行。
+    aliases:
+      - redeemed
+  Stored:
+    definition: /par で受領済みかつ未参照の request_uri。
+    aliases:
+      - stored
+  Used:
+    definition: request_uri が一度参照済みの終端状態。再使用不可。
+    aliases:
+      - used
+  Use:
+    definition: /authorize から request_uri を参照する。一度きり。
+    aliases:
+      - use
+  Granted:
+    definition: 同意が付与された状態（Consent の初期状態）。
+    aliases:
+      - granted
+  RevokeConsent:
+    definition: ResourceOwner が同意を撤回する（GDPR Art.7(3)）。
+    aliases:
+      - revoke_consent
+  Implicit:
+    definition: implicit grant は RFC 9700 §2.1.2 により参照実装から除外する。
+    aliases:
+      - __excluded_implicit
+    not_to_confuse_with:
+      - term: AuthorizationCode
+        reason: 旧 implicit が担っていた SPA 向けトークン発行は authorization_code + nonce + PKCE が代替する。
+  PasswordGrant:
+    definition: Resource Owner Password Credentials grant は RFC 9700 §2.4 により参照実装から除外する。
+    aliases:
+      - __excluded_password
 models:
   ClientType:
     kind: enum
@@ -124,7 +1212,7 @@ models:
       - Expired
   AuthorizationDetailFieldSemantics:
     kind: enum
-    description: authorization_details の登録スキーマで各フィールドが担うダウンスコープ半順序 (ADR-050)。 set は集合包含 (要求 ⊆ 同意/元)、at_most は単調減少 (要求 ≤ 同意/元)、enum は許可列挙からの完全一致、 exact は不透明値の完全一致。判定不能はすべて拒否側へ倒す (fail-closed)。
+    description: authorization_details の登録スキーマで各フィールドが担うダウンスコープ半順序。 set は集合包含 (要求 ⊆ 同意/元)、at_most は単調減少 (要求 ≤ 同意/元)、enum は許可列挙からの完全一致、 exact は不透明値の完全一致。判定不能はすべて拒否側へ倒す (fail-closed)。
     values:
       - set
       - at_most
@@ -164,7 +1252,7 @@ models:
       tenant_id:
         type: String
         default: default
-        description: "所属テナント ID (ADR-032 / ADR-034)。客は (tenant_id, client_id) で一意。"
+        description: "所属テナント ID。客は (tenant_id, client_id) で一意。"
       client_id:
         type: String
         constraints:
@@ -236,7 +1324,7 @@ models:
       tenant_id:
         type: String
         default: default
-        description: 所属テナント ID (ADR-034)。
+        description: 所属テナント ID。
       sub:
         type: String
       client_id:
@@ -260,10 +1348,10 @@ models:
       authorization_details:
         type: "AuthorizationDetail[]"
         optional: true
-        description: RFC 9396 — ユーザーが同意した構造化詳細。発行・交換時の部分集合判定の基準 (ADR-050)。
+        description: RFC 9396 — ユーザーが同意した構造化詳細。発行・交換時の部分集合判定の基準。
   AuthorizationDetail:
     kind: value_object
-    description: RFC 9396 authorization_details の 1 要素。type で識別される構造化された細粒度権限を表す。 要求・同意・トークン反映を通じて一貫して扱い、登録済み AuthorizationDetailType に対し fail-closed に検証する (ADR-050)。
+    description: RFC 9396 authorization_details の 1 要素。type で識別される構造化された細粒度権限を表す。 要求・同意・トークン反映を通じて一貫して扱い、登録済み AuthorizationDetailType に対し fail-closed に検証する。
     fields:
       type:
         type: String
@@ -296,7 +1384,7 @@ models:
         description: "type 固有の構造化フィールド (例: instructedAmount, creditorAccount)。登録スキーマで意味論を束縛する。"
   AuthorizationDetailFieldRule:
     kind: value_object
-    description: AuthorizationDetailsSchema の 1 フィールド規則。ダウンスコープ半順序と許可値を定義する (ADR-050)。
+    description: AuthorizationDetailsSchema の 1 フィールド規則。ダウンスコープ半順序と許可値を定義する。
     fields:
       name:
         type: String
@@ -316,7 +1404,7 @@ models:
         description: semantics が set / enum のとき許可される値の閉集合 (空なら無制限)。
   AuthorizationDetailsSchema:
     kind: value_object
-    description: "ある type の構造的スキーマ。受理するフィールドと各フィールドのダウンスコープ半順序を列挙する。 未登録フィールド・スキーマ不適合・許可外値はすべて拒否する (fail-closed, ADR-050)。"
+    description: "ある type の構造的スキーマ。受理するフィールドと各フィールドのダウンスコープ半順序を列挙する。 未登録フィールド・スキーマ不適合・許可外値はすべて拒否する (fail-closed)。"
     fields:
       rules:
         type: "AuthorizationDetailFieldRule[]"
@@ -325,7 +1413,7 @@ models:
         description: フィールド規則の集合。
   AuthorizationDetailType:
     kind: entity
-    description: テナントが登録する authorization_details の type 定義。type 識別子・検証スキーマ・同意 UI の 表示テンプレートを束ねる。Enabled な type のみ受理する (ADR-050)。管理は AdminAuthorizationDetailTypesManage で保護する。
+    description: テナントが登録する authorization_details の type 定義。type 識別子・検証スキーマ・同意 UI の 表示テンプレートを束ねる。Enabled な type のみ受理する。管理は AdminAuthorizationDetailTypesManage で保護する。
     identity:
       - tenant_id
       - type
@@ -333,7 +1421,7 @@ models:
       tenant_id:
         type: String
         default: default
-        description: 所属テナント ID (ADR-034)。
+        description: 所属テナント ID。
       type:
         type: String
         constraints:
@@ -364,7 +1452,7 @@ models:
       tenant_id:
         type: String
         default: default
-        description: 所属テナント ID (ADR-034)。/token のリプレイ検出を join なしで効かせるため明示する。
+        description: 所属テナント ID。/token のリプレイ検出を join なしで効かせるため明示する。
       hash:
         type: String
         description: SHA-256 ハッシュ。
@@ -404,7 +1492,7 @@ models:
       tenant_id:
         type: String
         default: default
-        description: 所属テナント ID (ADR-034)。
+        description: 所属テナント ID。
       state:
         type: AuthorizationCodeState
       client_id:
@@ -457,7 +1545,7 @@ models:
       authorization_details:
         type: "AuthorizationDetail[]"
         optional: true
-        description: RFC 9396 — クライアントが要求した構造化詳細。検証済み・登録 type 適合済みのものを保持する (ADR-050)。
+        description: RFC 9396 — クライアントが要求した構造化詳細。検証済み・登録 type 適合済みのものを保持する。
       created_at:
         type: Timestamp
       expires_at:
@@ -474,7 +1562,7 @@ models:
       tenant_id:
         type: String
         default: default
-        description: 所属テナント ID (ADR-034)。
+        description: 所属テナント ID。
       authorization_request_id:
         type: UUID
       client_id:
@@ -505,7 +1593,7 @@ models:
       authorization_details:
         type: "AuthorizationDetail[]"
         optional: true
-        description: RFC 9396 — 同意済み構造化詳細。交換で発行トークンへ反映する (ADR-050)。
+        description: RFC 9396 — 同意済み構造化詳細。交換で発行トークンへ反映する。
       state:
         type: AuthorizationCodeRecordState
       issued_at:
@@ -530,7 +1618,7 @@ models:
       tenant_id:
         type: String
         default: default
-        description: 所属テナント ID (ADR-034)。
+        description: 所属テナント ID。
       client_id:
         type: String
       parameters:
@@ -553,7 +1641,7 @@ models:
       tenant_id:
         type: String
         default: default
-        description: 所属テナント ID (ADR-034)。
+        description: 所属テナント ID。
       user_code:
         type: String
         description: 紛らわしい文字を避けた短いコード。
@@ -656,7 +1744,7 @@ models:
       authorization_details:
         type: "AuthorizationDetail[]"
         optional: true
-        description: RFC 9396 — トークンに束縛された構造化詳細。RS の検証点 (ADR-050)。optional で後方互換 (ADR-012)。
+        description: RFC 9396 — トークンに束縛された構造化詳細。RS の検証点。optional で後方互換。
   IdTokenClaims:
     kind: value_object
     description: OIDC ID Token クレーム。TTL 3600 秒。
@@ -843,7 +1931,7 @@ models:
       authorization_details_types_supported:
         type: "String[]"
         optional: true
-        description: "RFC 9396 — 当テナントで受理する authorization_details の type 一覧 (Enabled な AuthorizationDetailType から導出, ADR-050)。"
+        description: "RFC 9396 — 当テナントで受理する authorization_details の type 一覧 (Enabled な AuthorizationDetailType から導出)。"
   ClientRegistrationRequest:
     kind: value_object
     description: /register への動的クライアント登録リクエスト本体 (RFC 7591)。登録後の OAuth2Client は本リクエストの内容から派生する。
@@ -897,7 +1985,7 @@ models:
         optional: true
   AuthorizationDetailTypeRequest:
     kind: value_object
-    description: 管理者が authorization_details type を登録・更新する JSON リクエスト (RFC 9396 / ADR-050)。type は作成時のみ。
+    description: 管理者が authorization_details type を登録・更新する JSON リクエスト (RFC 9396)。type は作成時のみ。
     fields:
       type:
         type: String
@@ -922,7 +2010,7 @@ models:
         optional: true
   AuthorizationDetailTypeResponse:
     kind: value_object
-    description: authorization_details type 表現。管理 UI の一覧と詳細で同じ表現を返す (ADR-050)。
+    description: authorization_details type 表現。管理 UI の一覧と詳細で同じ表現を返す。
     fields:
       tenant_id:
         type: String
@@ -943,7 +2031,7 @@ models:
         type: Timestamp
   AuthorizationDetailTypeListResponse:
     kind: value_object
-    description: 管理 API の authorization_details type 一覧 (ADR-050)。
+    description: 管理 API の authorization_details type 一覧。
     fields:
       types:
         type: "AuthorizationDetailTypeResponse[]"
@@ -1113,7 +2201,7 @@ models:
         type: "AdminConsentResponse[]"
   AccountConsentResponse:
     kind: value_object
-    description: "end-user の account portal が返す「接続済みアプリ」1 件 (self-service, wi-21)。\n自分の sub に固定されるため sub / tenant_id は出さない。client_id・付与 scope・\n付与/失効日時のみを表示用に返す。\n"
+    description: "end-user の account portal が返す「接続済みアプリ」1 件 (self-service)。\n自分の sub に固定されるため sub / tenant_id は出さない。client_id・付与 scope・\n付与/失効日時のみを表示用に返す。\n"
     fields:
       client_id:
         type: String
@@ -1127,7 +2215,7 @@ models:
         type: Timestamp
   AccountConsentListResponse:
     kind: value_object
-    description: "end-user 自身の接続済みアプリ (active な Consent) 一覧 (self-service, wi-21)。"
+    description: "end-user 自身の接続済みアプリ (active な Consent) 一覧 (self-service)。"
     fields:
       consents:
         type: "AccountConsentResponse[]"
@@ -1142,7 +2230,7 @@ models:
       category:
         type: String
         optional: true
-        description: イベントカテゴリ絞り込み (wi-44)。authentication / success / fail / aggregated / user / group / client / consent / token / tenant / key。
+        description: イベントカテゴリ絞り込み。authentication / success / fail / aggregated / user / group / client / consent / token / tenant / key。
       sub:
         type: String
         optional: true
@@ -1614,7 +2702,7 @@ models:
         type: String
   AuthorizationDetailsRequested:
     kind: event
-    description: RFC 9396 — クライアントが /authorize・/par・/token で authorization_details を要求し、登録 type 適合検証を通過した (ADR-050)。
+    description: RFC 9396 — クライアントが /authorize・/par・/token で authorization_details を要求し、登録 type 適合検証を通過した。
     payload:
       occurredAt:
         type: Timestamp
@@ -1631,7 +2719,7 @@ models:
         description: 要求された詳細の type 一覧。
   AuthorizationDetailsConsented:
     kind: event
-    description: RFC 9396 — ResourceOwner が提示された authorization_details に同意した。発行・交換の部分集合判定の基準となる (ADR-050)。
+    description: RFC 9396 — ResourceOwner が提示された authorization_details に同意した。発行・交換の部分集合判定の基準となる。
     payload:
       occurredAt:
         type: Timestamp
@@ -1645,7 +2733,7 @@ models:
         type: "String[]"
   AuthorizationDetailsRejected:
     kind: event
-    description: "RFC 9396 — authorization_details の構文不正・未登録 type・スキーマ不適合・同意逸脱・ダウンスコープ超過により要求を拒否した (fail-closed, ADR-050)。"
+    description: "RFC 9396 — authorization_details の構文不正・未登録 type・スキーマ不適合・同意逸脱・ダウンスコープ超過により要求を拒否した (fail-closed)。"
     payload:
       occurredAt:
         type: Timestamp
@@ -1729,7 +2817,7 @@ models:
         type: String
   RefreshTokenRotated:
     kind: event
-    description: RefreshToken を /token で交換し、新しい子トークンを発行して親を Rotated 状態にした (ADR-004)。
+    description: RefreshToken を /token で交換し、新しい子トークンを発行して親を Rotated 状態にした。
     payload:
       occurredAt:
         type: Timestamp
@@ -1775,7 +2863,7 @@ models:
         type: Boolean
   TokenExchanged:
     kind: event
-    description: RFC 8693 — トークン交換による委任トークンを発行した。delegationDepth は発行トークンの act 入れ子の深さ (ADR-049 の DelegationChainExtended はこのフィールドへ折り畳んだ)。
+    description: RFC 8693 — トークン交換による委任トークンを発行した。delegationDepth は発行トークンの act 入れ子の深さ。
     payload:
       occurredAt:
         type: Timestamp
@@ -2344,7 +3432,7 @@ interfaces:
         successful_status_codes:
           - "200"
   ListAuthorizationDetailTypes:
-    description: 管理者が所属テナントの authorization_details type を一覧する (RFC 9396 / ADR-050)。
+    description: 管理者が所属テナントの authorization_details type を一覧する (RFC 9396)。
     output:
       response:
         type: AuthorizationDetailTypeListResponse
@@ -2356,7 +3444,7 @@ interfaces:
         method: GET
         path: /api/admin/authorization-detail-types
   GetAuthorizationDetailType:
-    description: 管理者が単一 type を取得する。別テナントの type は未存在として扱う (ADR-050)。
+    description: 管理者が単一 type を取得する。別テナントの type は未存在として扱う。
     input:
       type:
         type: String
@@ -2372,7 +3460,7 @@ interfaces:
         method: GET
         path: "/api/admin/authorization-detail-types/{type}"
   CreateAuthorizationDetailType:
-    description: 管理者が所属テナントに authorization_details type を登録する (ADR-050)。
+    description: 管理者が所属テナントに authorization_details type を登録する。
     input:
       request:
         type: AuthorizationDetailTypeRequest
@@ -2390,7 +3478,7 @@ interfaces:
         successful_status_codes:
           - "201"
   UpdateAuthorizationDetailType:
-    description: 管理者が type の schema / display_template / description / state を更新する (ADR-050)。
+    description: 管理者が type の schema / display_template / description / state を更新する。
     input:
       type:
         type: String
@@ -2408,7 +3496,7 @@ interfaces:
         path: "/api/admin/authorization-detail-types/{type}"
         request_form: body
   DeleteAuthorizationDetailType:
-    description: 管理者が type を削除する (ADR-050)。発行済みトークンは失効まで有効。
+    description: 管理者が type を削除する。発行済みトークンは失効まで有効。
     input:
       type:
         type: String
@@ -2554,7 +3642,7 @@ interfaces:
         successful_status_codes:
           - "204"
   ListMyConsents:
-    description: "認証済みユーザーが自身の接続済みアプリ (active な Consent) 一覧を取得する\n(self-service, wi-21)。対象は actor.sub に固定し、他人の Consent は返さない。\n"
+    description: "認証済みユーザーが自身の接続済みアプリ (active な Consent) 一覧を取得する\n(self-service)。対象は actor.sub に固定し、他人の Consent は返さない。\n"
     output:
       response:
         type: AccountConsentListResponse
@@ -2582,7 +3670,7 @@ interfaces:
         successful_status_codes:
           - "204"
   ListAdminAuditEvents:
-    description: "管理者が所属テナントの監査用 DomainEvent を時系列降順で取得する。SOC / コンプライアンス\n用途を想定し、ページング (after / before / limit) と type / sub による絞り込みを提供する。\n認証イベント (ログイン成功 / 失敗 / MFA / セッション / 集約) も同一ストアに属し、category\n(authentication / success / fail / aggregated / user / group / client / consent / token /\ntenant / key) で絞り込んでセキュリティ調査や運用調査に使える (wi-44 で認証イベント専用\nビューを本検索に統合)。system_admin であれば default tenant 経路から全テナント横断、admin は\n所属テナント内に閉じる。\n"
+    description: "管理者が所属テナントの監査用 DomainEvent を時系列降順で取得する。SOC / コンプライアンス\n用途を想定し、ページング (after / before / limit) と type / sub による絞り込みを提供する。\n認証イベント (ログイン成功 / 失敗 / MFA / セッション / 集約) も同一ストアに属し、category\n(authentication / success / fail / aggregated / user / group / client / consent / token /\ntenant / key) で絞り込んでセキュリティ調査や運用調査に使える。system_admin であれば default tenant 経路から全テナント横断、admin は\n所属テナント内に閉じる。\n"
     input:
       query:
         type: AuditEventQuery
@@ -2598,7 +3686,7 @@ interfaces:
         method: GET
         path: /api/admin/audit_events
   ExportAdminAuditEvents:
-    description: "管理者が監査イベント (認証イベントを含む) を期間 / フィルタ指定でエクスポートする (wi-44)。\nSIEM への streaming は別 WI で、本 interface は 1 回分のダウンロードを返すのみ。\nフィルタは ListAdminAuditEvents と同じ AuditEventQuery。permission は AdminAuditEventsRead。\n"
+    description: "管理者が監査イベント (認証イベントを含む) を期間 / フィルタ指定でエクスポートする。\nSIEM への streaming は別 WI で、本 interface は 1 回分のダウンロードを返すのみ。\nフィルタは ListAdminAuditEvents と同じ AuditEventQuery。permission は AdminAuditEventsRead。\n"
     input:
       query:
         type: AuditEventQuery
@@ -2714,7 +3802,7 @@ invariants:
           - Expired
     within: 15m
   RefreshTokenAbsoluteTtl:
-    description: RefreshToken の絶対 TTL は通常 TTL 以上（ローテーション越境不可、ADR-004）。
+    description: RefreshToken の絶対 TTL は通常 TTL 以上（ローテーション越境不可）。
     target: RefreshTokenRecord
     always: absolute_expires_at >= expires_at
   RedirectUriExactMatch:
@@ -2725,7 +3813,7 @@ invariants:
         in: client.redirect_uris
         satisfies: x == request.redirect_uri
   PkceMandatory:
-    description: 認可コードフローのすべての要求に対して code_challenge を必須とする（例外なし、ADR-002）。
+    description: 認可コードフローのすべての要求に対して code_challenge を必須とする（例外なし）。
     assuming: event == ValidateAuthorizeRequest
     always: exists(request.code_challenge) and request.code_challenge_method == S256
   AccessTokenIssuedOnlyAfterConsent:
@@ -3033,7 +4121,6 @@ objectives:
     kind: lifetime
     target: AccessTokenClaims
     ttl: 600s
-    reference: ADR-002
   IdTokenLifetime:
     kind: lifetime
     target: IdTokenClaims
@@ -3046,7 +4133,6 @@ objectives:
     kind: lifetime
     target: RefreshTokenRecord
     ttl: 30d
-    reference: ADR-004
     description: ローテーション越境不可
   DeviceCodeLifetime:
     kind: lifetime
@@ -3267,7 +4353,7 @@ scenarios:
       - "エラー \"InvalidGrantError\""
       - "\"AC1\" の状態は \"Expired\""
   absolute_expires_at を超えた refresh token はローテーション不可:
-    description: ADR-004 — ローテーションで延長されない絶対 TTL。
+    description: ローテーションで延長されない絶対 TTL。
     steps:
       - "absolute_expires_at \"2026-01-01T00:00:00Z\" の refresh token \"RT1\" を用意する"
       - "時刻が \"2026-01-02T00:00:00Z\" になる"
@@ -3408,26 +4494,207 @@ scenarios:
       - 応答の issuer は base URL + /realms/acme
       - 応答の authorization_endpoint は base URL + /realms/acme/authorize
   他テナントの client_id を使うと invalid_client で拒否される:
-    description: ADR-034 のクロステナントガード。クライアントの所属テナントとリクエストテナントが一致しない場合は existence を漏らさず拒否する。
+    description: クロステナントガード。クライアントの所属テナントとリクエストテナントが一致しない場合は existence を漏らさず拒否する。
     steps:
       - "tenant_id \"acme\" に client_id \"web-app\" を登録する"
       - "\"/realms/default/token\" に client_id \"web-app\" で交換を要求する"
       - "エラー \"InvalidClientError\""
   他テナントの認可コードを別テナントの token endpoint で交換できない:
-    description: ADR-034。code 解決時に record.tenant_id != ctx.tenant_id を確認。
+    description: クロステナントガード。code 解決時に record.tenant_id != ctx.tenant_id を確認。
     steps:
       - "tenant_id \"acme\" で認可コード \"AC1\" を発行する"
       - "\"/realms/default/token\" で認可コード \"AC1\" を交換する"
       - "エラー \"InvalidGrantError\""
   他テナントのリフレッシュトークンを別テナントの token endpoint で再発行できない:
-    description: ADR-034。refresh_token 解決時に record.tenant_id != ctx.tenant_id を確認し、存在しないトークンと同じ応答にする。
+    description: クロステナントガード。refresh_token 解決時に record.tenant_id != ctx.tenant_id を確認し、存在しないトークンと同じ応答にする。
     steps:
       - "tenant_id \"acme\" でリフレッシュトークン \"RT1\" を発行する"
       - "\"/realms/default/token\" でリフレッシュトークン \"RT1\" を再発行する"
       - "エラー \"InvalidGrantError\""
   他テナントの device_code を別テナントの token endpoint で交換できない:
-    description: ADR-034。device flow の record.tenant_id != ctx.tenant_id を確認。
+    description: クロステナントガード。device flow の record.tenant_id != ctx.tenant_id を確認。
     steps:
       - "tenant_id \"acme\" で device_code \"DC1\" を発行し承認する"
       - "\"/realms/default/token\" で device_code \"DC1\" を交換する"
       - "エラー \"InvalidGrantError\""
+user_experience:
+  screens:
+    Home:
+      route: /
+      purpose: IdPの稼働状態と認証開始方法を示し、ローカルデモでは認可要求を開始する。
+      interfaces:
+        - Authorize
+        - GetOpenidConfiguration
+      states:
+        - ready
+        - unavailable
+    Consent:
+      route: /consent
+      purpose: Client名と要求Scopeを示し、ResourceOwnerの許可または拒否を取得する。
+      interfaces:
+        - GetBrowserTransaction
+        - SubmitBrowserConsent
+      states:
+        - ready
+        - submitting
+        - denied
+        - expired_transaction
+        - service_error
+    Device:
+      route: /device
+      purpose: 入力制約デバイスのuser_codeを確認し、ResourceOwnerの許可または拒否を取得する。
+      interfaces:
+        - GetBrowserDeviceContext
+        - SubmitBrowserDevice
+      states:
+        - ready
+        - submitting
+        - invalid_code
+        - expired_code
+        - approved
+        - denied
+        - authentication_required
+    Status:
+      route: /status
+      purpose: device承認、拒否、logout、再認証要求などの終端状態を明示する。
+      states:
+        - approved
+        - denied
+        - signed_out
+        - authentication_required
+        - error
+    Callback:
+      route: /callback
+      purpose: ローカルデモClientの認可成功またはOAuthエラーを表示する。
+      states:
+        - success
+        - oauth_error
+        - invalid_response
+    AdminAuthorizationDetailTypes:
+      route: /admin/authorization-detail-types
+      purpose: 管理者が RAR (RFC 9396) の authorization_details type とそのフィールドスキーマを一覧・作成・更新・削除する。
+      interfaces:
+        - ListAuthorizationDetailTypes
+        - GetAuthorizationDetailType
+        - CreateAuthorizationDetailType
+        - UpdateAuthorizationDetailType
+        - DeleteAuthorizationDetailType
+      states:
+        - ready
+        - loading
+        - submitting
+        - empty
+        - delete_confirmation
+        - access_denied
+        - service_error
+    AdminConsents:
+      route: /admin/consents
+      purpose: 管理者が所属テナントの同意を一覧・参照し、撤回する。付与や scope 拡張の代行はできない。
+      interfaces:
+        - ListAdminConsents
+        - GetAdminConsent
+        - RevokeAdminConsent
+      states:
+        - ready
+        - loading
+        - submitting
+        - empty
+        - access_denied
+        - service_error
+    AdminAuditEvents:
+      route: /admin/audit_events
+      purpose: 管理者が監査イベントを対象ユーザーや期間で絞り込んで一覧・参照し、エクスポートする。
+      interfaces:
+        - ListAdminAuditEvents
+        - GetAdminAuditEvent
+        - ExportAdminAuditEvents
+      states:
+        - ready
+        - loading
+        - empty
+        - access_denied
+        - service_error
+    AccountApplications:
+      route: /account/applications
+      purpose: end-userが自身のアカウントへのアクセスを許可した接続済みアプリ(同意)を一覧し、撤回する。
+      interfaces:
+        - ListMyConsents
+        - RevokeMyConsent
+      states:
+        - ready
+        - loading
+        - submitting
+        - empty
+        - access_denied
+        - service_error
+  transitions:
+    - from: Home
+      to: Login
+      trigger: authorization_started
+      interface: Authorize
+    - from: Consent
+      trigger: consent_allowed
+      interface: SubmitBrowserConsent
+      external: true
+    - from: Consent
+      trigger: consent_denied
+      interface: SubmitBrowserConsent
+      external: true
+    - from: Device
+      to: Status
+      trigger: device_approved
+      interface: SubmitBrowserDevice
+    - from: Device
+      to: Status
+      trigger: device_denied
+      interface: SubmitBrowserDevice
+    - to: Status
+      trigger: session_ended
+      interface: EndSession
+    - to: Callback
+      trigger: local_demo_authorization_response
+      external: true
+  requirements:
+    - id: UX-TRANSACTION-BOUND
+      category: security
+      adoption: required
+      statement: Consentは有効なHttpOnly authorization transaction cookieなしでは表示も送信もできない。LoginとTotpは通常同cookieに拘束し、管理画面への直接ログイン時だけ同一realmの/admin配下へ検証済みreturn_toで継続できる。
+      screens:
+        - Login
+        - Totp
+        - Consent
+      interfaces:
+        - GetBrowserTransaction
+        - SubmitBrowserLogin
+        - SubmitBrowserTotp
+        - SubmitBrowserConsent
+      standards:
+        - RFC9700
+    - id: UX-REGISTERED-REDIRECT
+      category: security
+      adoption: required
+      statement: Browser flowの外部遷移先は検証済みredirect_uriまたはpost_logout_redirect_uriだけとする。
+      screens:
+        - Login
+        - Totp
+        - Consent
+        - Status
+      interfaces:
+        - Authorize
+        - SubmitBrowserLogin
+        - SubmitBrowserTotp
+        - SubmitBrowserConsent
+        - EndSession
+      standards:
+        - RFC9700
+        - OpenIDConnectRPInitiatedLogout
+      invariants:
+        - RedirectUriExactMatch
+    - id: UX-CLIENT-CONTEXT
+      category: usability
+      adoption: required
+      statement: Consent画面は判断前にClientと要求ScopeをResourceOwnerへ明示する。
+      screens:
+        - Consent
+      interfaces:
+        - GetBrowserTransaction

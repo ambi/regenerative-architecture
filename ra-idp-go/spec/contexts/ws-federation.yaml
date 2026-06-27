@@ -4,6 +4,13 @@
 system: ra-idp
 spec_version: "2.0"
 context: WsFederation
+glossary:
+  WsFederation:
+    definition: WS-Federation passive と WS-Trust active STS を組み合わせた WS-* protocol family。
+    aliases:
+      - WS-Federation
+      - WS-Trust
+      - WS-Fed
 models:
   WsFedTokenType:
     kind: enum
@@ -388,3 +395,16 @@ interfaces:
         method: POST
         path: /api/admin/wsfed/entra-federation
         request_body: json
+user_experience:
+  screens:
+    AdminEntraFederation:
+      route: /admin/federation/entra
+      purpose: "管理者がテナント単位で Microsoft Entra domain federation を設定する。検証済みドメイン・\nIssuerUri・sourceAnchor 属性を入力すると、UPN / ImmutableID / persistent NameID の\nclaim preset を持つ relying party を upsert し、Entra に登録する PassiveLogOnUri /\nActiveLogOnUri / MetadataExchangeUri を提示する。個別アプリの設定ではなくドメイン連携の\nため、Application 編集ではなくテナント設定として扱う。\n"
+      interfaces:
+        - ConfigureEntraFederation
+      states:
+        - ready
+        - loading
+        - submitting
+        - access_denied
+        - service_error

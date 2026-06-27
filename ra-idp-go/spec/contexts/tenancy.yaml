@@ -4,6 +4,45 @@
 system: ra-idp
 spec_version: "2.0"
 context: Tenancy
+glossary:
+  Tenant:
+    definition: 独立した認可境界。Client / User / Consent / 鍵 / ポリシーがこの境界に閉じる。URL 上は Realm という別名で表現される。
+    aliases:
+      - tenant
+      - テナント
+      - Realm
+      - realm
+    not_to_confuse_with:
+      - term: Client
+        reason: Tenant は境界、Client は境界内のアプリケーション。Tenant は人間/組織を表し、Client はそのテナント所属のアプリ。
+  DefaultTenant:
+    definition: "起動時に自動作成される `id == \"default\"` のテナント。単一テナント運用時の互換と、未 prefix HTTP リクエストの解決先を兼ねる。"
+    aliases:
+      - default tenant
+      - デフォルトテナント
+  TenantDisablement:
+    definition: "Tenant.disabled_at を設定してテナント単位で `/authorize` / `/token` / `/login` 等を停止する復活可能な操作。テナント物理削除とは独立。"
+    aliases:
+      - disable tenant
+      - テナント無効化
+  EntraFederation:
+    definition: Microsoft Entra ID の検証済みドメインを WS-Federation / WS-Trust の federated IdP として接続する profile。
+    aliases:
+      - Microsoft365Federation
+      - AzureADFederation
+      - M365Federation
+  Disabled:
+    definition: 復活可能な無効化状態。Tenant と (慣例的に) User の disabled_at 経路で共有される。
+    aliases:
+      - disabled
+  Disable:
+    definition: "対象を Disabled に遷移させる。Tenant では `/realms/default/admin/tenants/{id}/disable` から発火。"
+    aliases:
+      - disable
+  Enable:
+    definition: "Disabled の対象を Active に戻す。Tenant では `/realms/default/admin/tenants/{id}/enable` から発火。"
+    aliases:
+      - enable
 models:
   TenantStatus:
     kind: enum
@@ -550,3 +589,62 @@ scenarios:
       - "tenant_id \"acme\" を無効化する"
       - "\"/realms/acme/authorize\" にリクエストを送る"
       - "エラー \"InvalidRequestError\""
+user_experience:
+  screens:
+    AdminTenants:
+      route: /admin/tenants
+      purpose: control plane (system_admin) がテナントを一覧・作成・更新し、有効化・無効化する。default テナントは削除・無効化できない。
+      interfaces:
+        - ListTenants
+        - GetTenant
+        - CreateTenant
+        - UpdateTenant
+        - DisableTenant
+        - EnableTenant
+      states:
+        - ready
+        - loading
+        - submitting
+        - empty
+        - access_denied
+        - service_error
+    AdminTenantAttributes:
+      route: /admin/tenant/attributes
+      purpose: 管理者がテナント固有のカスタムユーザー属性スキーマを定義・更新する。組み込み属性はコードが提供する。
+      interfaces:
+        - GetTenantUserAttributeSchema
+        - UpdateTenantUserAttributeSchema
+      states:
+        - ready
+        - loading
+        - submitting
+        - access_denied
+        - service_error
+    AdminSettings:
+      route: /admin/settings
+      purpose: 管理者がパスワードポリシーなど所属テナントの設定を参照・更新する。
+      interfaces:
+        - GetAdminSettings
+        - UpdateAdminSettings
+      states:
+        - ready
+        - loading
+        - submitting
+        - access_denied
+        - service_error
+  requirements:
+    - id: UX-ADMIN-CONTROL-PLANE
+      category: security
+      adoption: required
+      statement: テナント管理画面はcontrol plane(/realms/default配下)かつsystem_adminロールでのみ到達でき、通常テナントの管理者には導線も操作も提供しない。
+      screens:
+        - AdminTenants
+      interfaces:
+        - ListTenants
+        - GetTenant
+        - CreateTenant
+        - UpdateTenant
+        - DisableTenant
+        - EnableTenant
+      scenarios:
+        - system_admin だけが /realms/default/admin/tenants を呼べ admin は 403

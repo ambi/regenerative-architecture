@@ -4,6 +4,81 @@
 system: ra-idp
 spec_version: "2.0"
 context: Authentication
+standards:
+  RFC6238:
+    title: TOTP Time-Based One-Time Password Algorithm
+    version: RFC 6238
+    url: https://www.rfc-editor.org/rfc/rfc6238.html
+    roles:
+      - Verifier
+    scope: 時刻ベースワンタイムパスワードによる第二要素認証。
+    requirements:
+      - id: RFC6238-TOTP
+        section: §4
+        strength: MUST
+        adoption: optional
+        statement: TOTP factor利用時は共有秘密と時間ステップからOTPを生成・検証する。
+        relates_to:
+          models:
+            - MfaFactor
+            - MfaFactorType
+            - AuthenticationContext
+  NISTSP80063B4:
+    title: Digital Identity Guidelines — Authentication and Authenticator Management
+    version: NIST SP 800-63B-4
+    url: https://pages.nist.gov/800-63-4/sp800-63b.html
+    roles:
+      - Verifier
+    scope: PasswordとAuthenticatorのライフサイクル・検証要件。
+    requirements:
+      - id: NIST63B4-PASSWORD-MINIMUM
+        section: §3.1.1.2
+        strength: MUST
+        adoption: excluded
+        statement: 単一要素認証に使用するPasswordへ15文字以上の最小長を要求する。
+        reason: 現行システム要件は12文字であり、NIST SP 800-63B-4への完全準拠は表明しない。
+      - id: NIST63B4-NO-COMPOSITION
+        section: §3.1.1.2
+        strength: MUST NOT
+        adoption: required
+        statement: 文字種混在などPassword composition ruleを課さない。
+      - id: NIST63B4-PASSWORD-STORAGE
+        section: §3.1.1.2
+        strength: MUST
+        adoption: required
+        statement: Passwordをsaltとcost factorを持つoffline attack耐性のあるhashとして保存する。
+        relates_to:
+          models:
+            - User
+  WebAuthnLevel3:
+    title: Web Authentication — An API for accessing Public Key Credentials Level 3
+    version: Candidate Recommendation Snapshot
+    url: https://www.w3.org/TR/webauthn-3/
+    roles:
+      - RelyingParty
+      - UserInterface
+    scope: 公開鍵Credentialを用いたphishing-resistantな認証。
+    requirements:
+      - id: WEBAUTHN3-AUTHENTICATION
+        section: §5
+        strength: MAY
+        adoption: optional
+        statement: WebAuthn factor利用時はoriginとRelying Partyにscopeされた公開鍵Credentialを検証する。
+        relates_to:
+          models:
+            - MfaFactor
+            - MfaFactorType
+            - AuthenticationContext
+glossary:
+  Totp:
+    definition: RFC 6238 に基づく time-based one-time password。
+    aliases:
+      - totp
+      - otp
+  Webauthn:
+    definition: WebAuthn credential による認証。
+    aliases:
+      - webauthn
 models:
   MfaFactorType:
     kind: enum
@@ -81,7 +156,7 @@ models:
         optional: true
   AccountMfaFactor:
     kind: value_object
-    description: "self-service セキュリティ画面で提示する MFA factor 1 件の射影 (wi-21)。secret は\n返さず、種別・ラベル・作成/最終利用時刻のみ。現状 TOTP のみ。\n"
+    description: "self-service セキュリティ画面で提示する MFA factor 1 件の射影。secret は\n返さず、種別・ラベル・作成/最終利用時刻のみ。現状 TOTP のみ。\n"
     fields:
       type:
         type: MfaFactorType
@@ -95,7 +170,7 @@ models:
         optional: true
   AccountSecurityResponse:
     kind: value_object
-    description: "`/api/account/security` の返り値 (end-user account portal のセキュリティ概要, wi-21)。\nパスワード変更日時と MFA (TOTP) の登録状態をまとめる。step-up auth (ADR-043) は本\nステージでは未導入。\n"
+    description: "`/api/account/security` の返り値 (end-user account portal のセキュリティ概要)。\nパスワード変更日時と MFA (TOTP) の登録状態をまとめる。step-up auth は本\nステージでは未導入。\n"
     fields:
       password_changed_at:
         type: Timestamp
@@ -106,7 +181,7 @@ models:
         type: "AccountMfaFactor[]"
   TOTPEnrollmentStart:
     kind: value_object
-    description: "TOTP 登録開始の返り値 (self-service, wi-21)。secret はクライアントが確認まで保持し、\notpauth_uri は QR / 手動登録のために提示する。secret は確認 (ConfirmTotpEnrollment) で\n送り返されるまで永続化しない。\n"
+    description: "TOTP 登録開始の返り値 (self-service)。secret はクライアントが確認まで保持し、\notpauth_uri は QR / 手動登録のために提示する。secret は確認 (ConfirmTotpEnrollment) で\n送り返されるまで永続化しない。\n"
     fields:
       secret:
         type: String
@@ -124,7 +199,7 @@ models:
         type: String
   TOTPEnrollmentConfirmRequest:
     kind: value_object
-    description: "TOTP 登録確認リクエスト (self-service, wi-21)。secret は開始時の値、code はその secret\nから生成した現在のコード (所持証明)。\n"
+    description: "TOTP 登録確認リクエスト (self-service)。secret は開始時の値、code はその secret\nから生成した現在のコード (所持証明)。\n"
     fields:
       secret:
         type: String
@@ -138,7 +213,7 @@ models:
           - non_empty
   MfaFactorRemoveRequest:
     kind: value_object
-    description: "MFA factor 解除リクエスト (self-service, wi-21)。code は所持証明としての現在の TOTP\nコード。解除は本人 + 所持証明を要求する。\n"
+    description: "MFA factor 解除リクエスト (self-service)。code は所持証明としての現在の TOTP\nコード。解除は本人 + 所持証明を要求する。\n"
     fields:
       code:
         type: String
@@ -146,7 +221,7 @@ models:
           - non_empty
   UserSignInActivity:
     kind: value_object
-    description: "ユーザー本人のサインイン履歴 1 件の射影 (wi-20 スライス 1)。本スライスは既存の監査\nイベントストア (UserAuthenticated) から導出するため、保持する属性は発生時刻と\n認証手段 (amr) のみ。IP / UA / sessionId / clientId の付加は後続スライス (ADR-041) で\nイベント側を拡張してから足す。\n"
+    description: "ユーザー本人のサインイン履歴 1 件の射影。本スライスは既存の監査\nイベントストア (UserAuthenticated) から導出するため、保持する属性は発生時刻と\n認証手段 (amr) のみ。IP / UA / sessionId / clientId の付加は後続で\nイベント側を拡張してから足す。\n"
     fields:
       occurred_at:
         type: Timestamp
@@ -160,7 +235,7 @@ models:
         type: "UserSignInActivity[]"
   SessionEndReason:
     kind: enum
-    description: "LoginSession 終了の理由 (wi-20)。self_revoke / admin_revoke は本人 / admin の明示的な\n失効、logout / idle / absolute は自動失効、password_change / mfa_change は資格情報変更に\n伴う失効。\n"
+    description: "LoginSession 終了の理由。self_revoke / admin_revoke は本人 / admin の明示的な\n失効、logout / idle / absolute は自動失効、password_change / mfa_change は資格情報変更に\n伴う失効。\n"
     values:
       - logout
       - idle
@@ -172,7 +247,7 @@ models:
       - other
   AccountSession:
     kind: value_object
-    description: "self-service セッション一覧の 1 件の射影 (wi-20 スライス 2)。secret は持たず、識別子と\n認証情報のみ。current は呼び出し元の現在のセッションかどうか。started_at は LoginSession の\nauth_time、expires_at は失効予定時刻。\n"
+    description: "self-service セッション一覧の 1 件の射影。secret は持たず、識別子と\n認証情報のみ。current は呼び出し元の現在のセッションかどうか。started_at は LoginSession の\nauth_time、expires_at は失効予定時刻。\n"
     fields:
       id:
         type: String
@@ -194,7 +269,7 @@ models:
         type: "AccountSession[]"
   AuthenticationEventBucket:
     kind: value_object
-    description: "認証イベント集約 (bucket) 1 件の admin 表示用射影 (wi-20 スライス 3)。攻撃時に個別の\nログイン失敗を 5 分窓へ集約した結果で、window_start は窓の開始時刻、count はその窓の\n累計件数、first_seen / last_seen は窓内の初出・最終時刻。key_hash は SHA-256 hex で\n平文を含まない。tenant 境界内に閉じる。\n"
+    description: "認証イベント集約 (bucket) 1 件の admin 表示用射影。攻撃時に個別の\nログイン失敗を 5 分窓へ集約した結果で、window_start は窓の開始時刻、count はその窓の\n累計件数、first_seen / last_seen は窓内の初出・最終時刻。key_hash は SHA-256 hex で\n平文を含まない。tenant 境界内に閉じる。\n"
     fields:
       kind:
         type: String
@@ -217,7 +292,7 @@ models:
         type: "AuthenticationEventBucket[]"
   StepUpMethod:
     kind: enum
-    description: "step-up 再認証に使える factor (ADR-043)。password は常時、totp は enrolled 時のみ\n利用できる。\n"
+    description: "step-up 再認証に使える factor。password は常時、totp は enrolled 時のみ\n利用できる。\n"
     values:
       - password
       - totp
@@ -268,7 +343,7 @@ models:
           sensitive: true
   BrowserForgotPasswordRequest:
     kind: value_object
-    description: SPA が POST /api/auth/forgot_password に送る JSON。未認証経路。anti-enumeration のため email 存在有無に関わらず常に 204 を返す (ADR-030)。
+    description: SPA が POST /api/auth/forgot_password に送る JSON。未認証経路。anti-enumeration のため email 存在有無に関わらず常に 204 を返す。
     fields:
       email:
         type: String
@@ -276,7 +351,7 @@ models:
           pii: true
   BrowserResetPasswordRequest:
     kind: value_object
-    description: SPA が POST /api/auth/reset_password に送る JSON。email リンクに含まれた単発消費 token と新パスワードを受ける (ADR-030)。
+    description: SPA が POST /api/auth/reset_password に送る JSON。email リンクに含まれた単発消費 token と新パスワードを受ける。
     fields:
       token:
         type: String
@@ -289,7 +364,7 @@ models:
   PasswordResetTokenRecord:
     kind: entity
     identity: token_hash
-    description: "パスワードリセット用の単発消費トークン (ADR-030)。\ntoken は base64url の 32 バイト乱数で、保存時は SHA-256 hash のみ。\n期限切れ / consume 済みの行は GC するが、INSERT 時に同 sub の未消費を\n失効させる軽い掃除も行う。\n"
+    description: "パスワードリセット用の単発消費トークン。\ntoken は base64url の 32 バイト乱数で、保存時は SHA-256 hash のみ。\n期限切れ / consume 済みの行は GC するが、INSERT 時に同 sub の未消費を\n失効させる軽い掃除も行う。\n"
     fields:
       sub:
         type: String
@@ -306,7 +381,7 @@ models:
         optional: true
   UserAuthenticated:
     kind: event
-    description: "ResourceOwner の認証が成功した。amr は実際に経由した認証手段の一覧 (OIDC Core §2)。\nwi-44 / ADR-041 で産業標準の属性を optional 拡張した (後方互換: 既存 payload は破壊しない)。\nIP / username / device は ADR-046 の PII ポリシーに従い truncated / hash で持つ。\n"
+    description: "ResourceOwner の認証が成功した。amr は実際に経由した認証手段の一覧 (OIDC Core §2)。"
     payload:
       occurredAt:
         type: Timestamp
@@ -332,11 +407,11 @@ models:
       ipTruncated:
         type: String
         optional: true
-        description: IPv4 /24・IPv6 /48 に丸めた IP (ADR-046)。
+        description: IPv4 /24・IPv6 /48 に丸めた IP。
       ipHash:
         type: String
         optional: true
-        description: tenant salt 付き IP の SHA-256 hex (ADR-046)。
+        description: tenant salt 付き IP の SHA-256 hex。
       uaHash:
         type: String
         optional: true
@@ -355,7 +430,7 @@ models:
         description: リスクスコア (本 WI ではフィールド確保のみ、値は null)。
   AuthenticationFailed:
     kind: event
-    description: "ResourceOwner の認証が失敗した。レートリミット・不正検知の入力イベント。username は PII として扱う\n(ADR-046: 失敗イベント限定で平文を 7 日保持し、以後 sweep で粒度を落とす。usernameHash は first-class)。\nwi-44 / ADR-041 で IP / device / session の optional 属性を後方互換で拡張した。\n"
+    description: "ResourceOwner の認証が失敗した。レートリミット・不正検知の入力イベント。username は PII として扱う\n(失敗イベント限定で平文を 7 日保持し、以後 sweep で粒度を落とす。usernameHash は first-class)。\n"
     payload:
       occurredAt:
         type: Timestamp
@@ -370,7 +445,7 @@ models:
       usernameHash:
         type: String
         optional: true
-        description: tenant salt 付き username (lowercased) の SHA-256 hex (ADR-046)。
+        description: tenant salt 付き username (lowercased) の SHA-256 hex。
       reason:
         type: String
         optional: true
@@ -383,11 +458,11 @@ models:
       ipTruncated:
         type: String
         optional: true
-        description: IPv4 /24・IPv6 /48 に丸めた IP (ADR-046)。
+        description: IPv4 /24・IPv6 /48 に丸めた IP。
       ipHash:
         type: String
         optional: true
-        description: tenant salt 付き IP の SHA-256 hex (ADR-046)。
+        description: tenant salt 付き IP の SHA-256 hex。
       uaHash:
         type: String
         optional: true
@@ -414,7 +489,7 @@ models:
         type: String
   LoginThrottled:
     kind: event
-    description: ログイン試行が per-account / per-IP のスロットリング閾値に到達してロックされた (ADR-029)。SIEM の credential stuffing / brute-force 検知の入力イベント。keyHash は username / IP の SHA-256 で、平文を audit log に流さない。
+    description: ログイン試行が per-account / per-IP のスロットリング閾値に到達してロックされた。SIEM の credential stuffing / brute-force 検知の入力イベント。keyHash は username / IP の SHA-256 で、平文を audit log に流さない。
     payload:
       occurredAt:
         type: Timestamp
@@ -431,7 +506,7 @@ models:
         type: Integer
   AuthenticationEventAggregated:
     kind: event
-    description: "クレデンシャル試行洪水時に、個別の AuthenticationFailed を 1 行ずつ書かず\n(tenantId, kind, keyHash, 5 分窓) の bucket に集約したことを表す (wi-20 /\nADR-029 の throttle 判定と keyHash を共有する)。1 つの窓につき最初の 1 件だけ\nemit し、以後の増分は bucket store の count に積む。したがって本 payload の\ncount は emit 時点の値で、実体の件数は ListAuthenticationEventBuckets で観測する。\nkeyHash は SHA-256 hex で平文を audit log に流さない (LoginThrottled と同方針)。\n"
+    description: "クレデンシャル試行洪水時に、個別の AuthenticationFailed を 1 行ずつ書かず\n(tenantId, kind, keyHash, 5 分窓) の bucket に集約したことを表す。1 つの窓につき最初の 1 件だけ\nemit し、以後の増分は bucket store の count に積む。したがって本 payload の\ncount は emit 時点の値で、実体の件数は ListAuthenticationEventBuckets で観測する。\nkeyHash は SHA-256 hex で平文を audit log に流さない (LoginThrottled と同方針)。\n"
     payload:
       occurredAt:
         type: Timestamp
@@ -475,7 +550,7 @@ models:
         optional: true
   AuthenticationStepFailed:
     kind: event
-    description: 多段認証フローの 1 ステップが失敗した。usernameHash は ADR-046 の hash。
+    description: 多段認証フローの 1 ステップが失敗した。
     payload:
       occurredAt:
         type: Timestamp
@@ -586,7 +661,7 @@ models:
         type: String
   FederatedAuthenticated:
     kind: event
-    description: 外部 IdP 経由の federated login が成功した (adapter 本体は wi-30)。
+    description: 外部 IdP 経由の federated login が成功した。
     payload:
       occurredAt:
         type: Timestamp
@@ -602,7 +677,7 @@ models:
         optional: true
   SessionImpersonationStarted:
     kind: event
-    description: "admin が user として操作するセッションを開始した (impersonation)。本人通知を前提とする\n監査事象で、ADR-045/046 により retention 短縮の対象外。本 WI はフィールドのみ用意し、\n機能本体の有効化は本人通知 WI 後とする (ADR-041)。\n"
+    description: "admin が user として操作するセッションを開始した (impersonation)。本人通知を前提とする\n監査事象で、retention 短縮の対象外。\n"
     payload:
       occurredAt:
         type: Timestamp
@@ -618,7 +693,7 @@ models:
         type: String
   SessionImpersonationEnded:
     kind: event
-    description: impersonation セッションを終了した。retention 短縮の対象外 (ADR-045)。
+    description: impersonation セッションを終了した。retention 短縮の対象外。
     payload:
       occurredAt:
         type: Timestamp
@@ -632,7 +707,7 @@ models:
         type: String
   PasswordResetRequested:
     kind: event
-    description: "パスワードリセットリンクを発行した。anti-enumeration のため\n「リクエストが届いた」ことのみ記録し、発行有無 (verified email を持つ\nuser が存在したか) は別途 EmailSent イベントで観測する (ADR-030)。\nemailHash は SHA-256 で、平文を audit log に流さない。\n"
+    description: "パスワードリセットリンクを発行した。anti-enumeration のため\n「リクエストが届いた」ことのみ記録し、発行有無 (verified email を持つ\nuser が存在したか) は別途 EmailSent イベントで観測する。\nemailHash は SHA-256 で、平文を audit log に流さない。\n"
     payload:
       occurredAt:
         type: Timestamp
@@ -644,7 +719,7 @@ models:
         description: 送信元 email の SHA-256 hex
   EmailSent:
     kind: event
-    description: "EmailSender port 経由でメールを送信した。fail-open の port なので\n送信失敗時も use case 層には伝播しないが、本イベントの有無で\nSIEM 側からは観測できる (ADR-030)。to は SHA-256 hash で記録する。\n"
+    description: "EmailSender port 経由でメールを送信した。fail-open の port なので\n送信失敗時も use case 層には伝播しないが、本イベントの有無で\nSIEM 側からは観測できる。to は SHA-256 hash で記録する。\n"
     payload:
       occurredAt:
         type: Timestamp
@@ -658,7 +733,7 @@ models:
         type: Boolean
   MfaFactorEnrolled:
     kind: event
-    description: "本人が self-service で MFA factor (現状 TOTP) を登録した (wi-21)。secret は audit に\n流さず種別だけを残す。User.mfa_enrolled を true にする。\n"
+    description: "本人が self-service で MFA factor (現状 TOTP) を登録した。secret は audit に\n流さず種別だけを残す。User.mfa_enrolled を true にする。\n"
     payload:
       occurredAt:
         type: Timestamp
@@ -671,7 +746,7 @@ models:
         type: MfaFactorType
   MfaFactorRemoved:
     kind: event
-    description: "本人が self-service で MFA factor を解除した (wi-21)。解除は有効な TOTP コードによる\n所持証明を伴う。User.mfa_enrolled を false に戻す。\n"
+    description: "本人が self-service で MFA factor を解除した。解除は有効な TOTP コードによる\n所持証明を伴う。User.mfa_enrolled を false に戻す。\n"
     payload:
       occurredAt:
         type: Timestamp
@@ -684,7 +759,7 @@ models:
         type: MfaFactorType
   SessionEnded:
     kind: event
-    description: "LoginSession が終了した (wi-20)。本人 / admin の明示的な失効では actorSub が操作者、\nreason が self_revoke / admin_revoke になる。OAuth クライアントへ発行済みの refresh\ntoken はセッションに 1:1 で紐づかないため本スライスでは失効しない。\n"
+    description: "LoginSession が終了した。本人 / admin の明示的な失効では actorSub が操作者、\nreason が self_revoke / admin_revoke になる。OAuth クライアントへ発行済みの refresh\ntoken はセッションに 1:1 で紐づかないため本スライスでは失効しない。\n"
     payload:
       occurredAt:
         type: Timestamp
@@ -702,7 +777,7 @@ models:
         type: SessionEndReason
   StepUpRequested:
     kind: event
-    description: "本人が高 sensitivity 操作のための step-up 再認証を開始した (ADR-043 / wi-43)。\n利用可能な factor の提示要求であり、まだ再認証は成立していない。\n"
+    description: "本人が高 sensitivity 操作のための step-up 再認証を開始した。\n利用可能な factor の提示要求であり、まだ再認証は成立していない。\n"
     payload:
       occurredAt:
         type: Timestamp
@@ -715,7 +790,7 @@ models:
         type: String
   StepUpCompleted:
     kind: event
-    description: "step-up 再認証が成立した (ADR-043 / wi-43)。method は再認証に使った factor\n(password | totp)。検証材料 (パスワード / コード) は payload に含めない。\n"
+    description: "step-up 再認証が成立した。method は再認証に使った factor\n(password | totp)。検証材料 (パスワード / コード) は payload に含めない。\n"
     payload:
       occurredAt:
         type: Timestamp
@@ -798,7 +873,7 @@ interfaces:
         path: /api/auth/change_password
         request_body: json
   GetAccountSecurity:
-    description: "認証済みユーザーが自身のセキュリティ概要を取得する (self-service)。対象は actor.sub に\n固定。パスワード変更日時と MFA (TOTP) 登録状態を返す (wi-21 / ADR-042)。\n"
+    description: "認証済みユーザーが自身のセキュリティ概要を取得する (self-service)。対象は actor.sub に\n固定。パスワード変更日時と MFA (TOTP) 登録状態を返す。\n"
     output:
       security:
         type: AccountSecurityResponse
@@ -854,7 +929,7 @@ interfaces:
         path: /api/account/mfa/totp/remove
         request_form: body
   ListMySignInActivity:
-    description: "認証済みユーザーが自身の直近サインイン履歴を取得する (self-service, wi-20)。対象は\nactor.sub に固定。既存の監査イベントストア (UserAuthenticated) から発生時刻の降順で\n最大 limit 件を返す。limit 既定 10 / 上限 50。\n"
+    description: "認証済みユーザーが自身の直近サインイン履歴を取得する (self-service)。対象は\nactor.sub に固定。既存の監査イベントストア (UserAuthenticated) から発生時刻の降順で\n最大 limit 件を返す。limit 既定 10 / 上限 50。\n"
     output:
       activity:
         type: UserSignInActivityResponse
@@ -866,7 +941,7 @@ interfaces:
         method: GET
         path: /api/account/signin_activity
   ListUserSignInActivity:
-    description: "admin が対象ユーザーのサインイン履歴を取得する (wi-20)。tenant 境界内に限定し、\nパス sub のユーザーの UserAuthenticated を発生時刻の降順で最大 limit 件返す。\n"
+    description: "admin が対象ユーザーのサインイン履歴を取得する。tenant 境界内に限定し、\nパス sub のユーザーの UserAuthenticated を発生時刻の降順で最大 limit 件返す。\n"
     output:
       activity:
         type: UserSignInActivityResponse
@@ -878,7 +953,7 @@ interfaces:
         method: GET
         path: "/api/admin/users/{sub}/signin_activity"
   ListAuthenticationEventBuckets:
-    description: "admin が認証イベント集約 (bucket) を一覧する (wi-20 スライス 3)。攻撃時に個別行へ\n落とさず 5 分窓へ集約したログイン失敗などを、所属テナント境界内で window_start の\n降順に返す。permission は AdminAuditEventsRead を再利用する。limit 既定 50 / 上限 200。\n"
+    description: "admin が認証イベント集約 (bucket) を一覧する。攻撃時に個別行へ\n落とさず 5 分窓へ集約したログイン失敗などを、所属テナント境界内で window_start の\n降順に返す。permission は AdminAuditEventsRead を再利用する。limit 既定 50 / 上限 200。\n"
     output:
       buckets:
         type: AuthenticationEventBucketListResponse
@@ -890,7 +965,7 @@ interfaces:
         method: GET
         path: /api/admin/authentication_event_buckets
   ListMySessions:
-    description: "認証済みユーザーが自身の有効なセッションを取得する (self-service, wi-20)。対象は\nactor.sub に固定。現在のセッションを current=true でマークし、開始時刻の降順で返す。\n"
+    description: "認証済みユーザーが自身の有効なセッションを取得する (self-service)。対象は\nactor.sub に固定。現在のセッションを current=true でマークし、開始時刻の降順で返す。\n"
     output:
       sessions:
         type: AccountSessionListResponse
@@ -902,7 +977,7 @@ interfaces:
         method: GET
         path: /api/account/sessions
   RevokeMySession:
-    description: "認証済みユーザーが自身のセッション 1 件を失効する (self-service, wi-20)。対象が本人の\nものでなければ拒否する。失効は LoginSession を物理削除して SSO セッションを終了する。\n"
+    description: "認証済みユーザーが自身のセッション 1 件を失効する (self-service)。対象が本人の\nものでなければ拒否する。失効は LoginSession を物理削除して SSO セッションを終了する。\n"
     errors:
       - InvalidRequestError
       - AccessDeniedError
@@ -915,7 +990,7 @@ interfaces:
         successful_status_codes:
           - "204"
   RevokeMyOtherSessions:
-    description: "認証済みユーザーが現在のセッションを除く自身の全セッションを失効する (self-service,\nwi-20)。\"他のセッションを全て終了\" 操作。\n"
+    description: "認証済みユーザーが現在のセッションを除く自身の全セッションを失効する (self-service)。\"他のセッションを全て終了\" 操作。\n"
     errors:
       - AccessDeniedError
     emits:
@@ -929,7 +1004,7 @@ interfaces:
         successful_status_codes:
           - "204"
   StartStepUpAuthentication:
-    description: "高 sensitivity 操作の前段として step-up 再認証を開始する (self-service, ADR-043 /\nwi-43)。actor 本人のセッションに固定し、利用可能な factor (password 常時 / totp は\nenrolled 時) を返す。本 interface 自体には step-up を要求しない (再認証の入口のため)。\n"
+    description: "高 sensitivity 操作の前段として step-up 再認証を開始する (self-service)。actor 本人のセッションに固定し、利用可能な factor (password 常時 / totp は\nenrolled 時) を返す。本 interface 自体には step-up を要求しない (再認証の入口のため)。\n"
     output:
       methods:
         type: StepUpStartResponse
@@ -943,7 +1018,7 @@ interfaces:
         path: /api/account/step_up/start
         request_form: body
   CompleteStepUpAuthentication:
-    description: "提示された factor (password または totp コード) を検証し、成立すればセッションに\nstep_up_at を刻む (ADR-043 / wi-43)。以降 recency 窓 (5 分) 内は step_up: required の\n操作を許可する。検証失敗は AccessDeniedError。\n"
+    description: "提示された factor (password または totp コード) を検証し、成立すればセッションに\nstep_up_at を刻む。以降 recency 窓 (5 分) 内は step_up: required の\n操作を許可する。検証失敗は AccessDeniedError。\n"
     input:
       request:
         type: StepUpCompleteRequest
@@ -958,7 +1033,7 @@ interfaces:
         path: /api/account/step_up/complete
         request_form: body
   RequestPasswordReset:
-    description: "未認証ユーザーがパスワードリセットリンクの送信を要求する (ADR-030)。\nanti-enumeration のため、email の存在有無に関わらず常に 204 を返し、\nverified email を持つ user が見つかった場合のみ token を発行して\nEmailSender 経由で送信する。\n"
+    description: "未認証ユーザーがパスワードリセットリンクの送信を要求する。\nanti-enumeration のため、email の存在有無に関わらず常に 204 を返し、\nverified email を持つ user が見つかった場合のみ token を発行して\nEmailSender 経由で送信する。\n"
     steps:
       - 未認証ユーザーが email を指定して reset リンクを要求する
     input:
@@ -973,7 +1048,7 @@ interfaces:
         path: /api/auth/forgot_password
         request_body: json
   ResetPasswordWithToken:
-    description: "reset リンクから戻ってきたユーザーが新パスワードを設定する (ADR-030)。\ntoken を単発消費し、PasswordPolicy objective / PasswordHistoryNoReuse /\nBreachedPasswordChecker を通過した new_password で User.password_hash を\n更新する。成功時 PasswordChanged を emit。\n"
+    description: "reset リンクから戻ってきたユーザーが新パスワードを設定する。\ntoken を単発消費し、PasswordPolicy objective / PasswordHistoryNoReuse /\nBreachedPasswordChecker を通過した new_password で User.password_hash を\n更新する。成功時 PasswordChanged を emit。\n"
     steps:
       - 未認証ユーザーが reset token と new_password で reset を完了する
     input:
@@ -991,7 +1066,7 @@ interfaces:
         request_body: json
 invariants:
   PasswordHistoryNoReuse:
-    description: "change-password 受領時、新パスワードは同一 sub の直近 history_depth 件のハッシュと\n一致してはならない。ADR-027 / PasswordPolicy.value.history_depth。\n反例: 直前のパスワードを再設定でき、漏洩済みクレデンシャルでログイン可能なまま。\n"
+    description: "change-password 受領時、新パスワードは同一 sub の直近 history_depth 件のハッシュと\n一致してはならない。反例: 直前のパスワードを再設定でき、漏洩済みクレデンシャルでログイン可能なまま。\n"
     assuming: event == ChangePassword
     never:
       exists:
@@ -1008,7 +1083,6 @@ objectives:
       forbid_user_identifier_similarity: true
       common_password_dictionary: bundled
       history_depth: 5
-    reference: ADR-026 / ADR-027 / ADR-028
   LoginThrottlePolicy:
     kind: security
     policy: login_throttle
@@ -1022,7 +1096,6 @@ objectives:
         max_failures: 30
         window_seconds: 900
         lockout_seconds: 900
-    reference: ADR-029
   AuthenticationContextPolicy:
     kind: security
     policy: authentication_context
@@ -1055,7 +1128,6 @@ objectives:
     target: PasswordResetTokenRecord
     ttl: 1800s
     single_use: true
-    reference: ADR-030
   LoginSessionSecurity:
     kind: security
     policy: browser_session_cookie
@@ -1063,14 +1135,13 @@ objectives:
     value:
       http_only: true
       same_site: Lax
-    reference: ADR-013
   PiiPurgeAfterDeletion:
     kind: retention
     target: User
     policy: purge_pii_after
     retention: 0s
     reference: GDPR Art. 17
-    note: "ADR-036 により Delete は即時 anonymize cascade で実施し、preferred_username / name / email / password_hash / mfa_* / roles を削除と同時に消去する。`sub` のみを audit のため保持する。"
+    note: "Delete は即時 anonymize cascade で実施し、preferred_username / name / email / password_hash / mfa_* / roles を削除と同時に消去する。`sub` のみを audit のため保持する。"
 scenarios:
   有効なトークンの introspection は active=true を返す:
     steps:
@@ -1134,7 +1205,7 @@ scenarios:
       - "ユーザー \"alice\" がユーザー一覧を取得する"
       - "エラー \"AccessDeniedError\""
   管理者はグループを作成しユーザーを所属させると有効ロールにグループ由来ロールが乗る:
-    description: ADR-038。effective_roles(user) = user.roles ∪ group.roles。membership 操作は監査イベントを伴う。
+    description: effective_roles(user) = user.roles ∪ group.roles。membership 操作は監査イベントを伴う。
     steps:
       - "roles=[\"admin\"] のユーザー \"operator\" が認証済みである"
       - "管理者 \"operator\" が roles=[\"catalog:read\"] のグループ \"engineering\" を作成する"
@@ -1179,7 +1250,7 @@ scenarios:
       - "ユーザー \"alice\" が 12 文字未満のパスワードを送信する"
       - "エラー \"PasswordPolicyError\""
   ユーザーはメールアドレス変更を起票し確認リンクで確定できる:
-    description: wi-21。新アドレスへ送ったワンタイムリンクの確認で primary email を確定する。
+    description: 新アドレスへ送ったワンタイムリンクの確認で primary email を確定する。
     steps:
       - "ユーザー \"alice\" が認証済みでメールアドレス画面を開く"
       - "ユーザー \"alice\" が新しいメールアドレスへの変更を起票する"
@@ -1187,7 +1258,7 @@ scenarios:
       - "ユーザー \"alice\" が確認リンクのトークンで変更を確定する"
       - primary email が新しいアドレスへ更新される
   ユーザーは TOTP factor を登録して有効化できる:
-    description: wi-21。secret はクライアントが確認まで保持し、確認時のコード検証で有効化する。
+    description: secret はクライアントが確認まで保持し、確認時のコード検証で有効化する。
     steps:
       - "ユーザー \"alice\" が認証済みでセキュリティ画面を開く"
       - "ユーザー \"alice\" が TOTP 登録を開始する"
@@ -1195,7 +1266,7 @@ scenarios:
       - "ユーザー \"alice\" がその secret に対する正しいコードで登録を確認する"
       - セキュリティ概要の MFA 状態が登録済みになる
   TOTP factor の解除は step-up 再認証を要求する:
-    description: ADR-043。機微操作は step-up を成立させてから実行する。
+    description: 機微操作は step-up を成立させてから実行する。
     steps:
       - "ユーザー \"alice\" が登録済み TOTP factor を持ち認証済みである"
       - "ユーザー \"alice\" が step-up なしで TOTP factor の解除を試みる"
@@ -1203,7 +1274,6 @@ scenarios:
       - "ユーザー \"alice\" が step-up を成立させ現在の TOTP コードで解除する"
       - TOTP factor が解除される
   ユーザーは自分の有効なセッションを一覧して失効できる:
-    description: wi-20。
     steps:
       - "ユーザー \"alice\" が複数の有効なセッションを持ち認証済みである"
       - "ユーザー \"alice\" がアクティビティ画面でセッション一覧を取得する"
@@ -1256,7 +1326,7 @@ scenarios:
       - "エラー \"InvalidRequestError\""
       - LoginSession は authentication_pending のままである
   system_admin だけが /realms/default/admin/tenants を呼べ admin は 403:
-    description: ADR-032 の RBAC 境界。
+    description: RBAC 境界。
     steps:
       - "roles=[\"system_admin\"] のユーザー \"ops\" が認証済みである"
       - "ユーザー \"ops\" が /realms/default/admin/tenants にアクセスする"
@@ -1264,3 +1334,144 @@ scenarios:
       - "roles=[\"admin\"] のユーザー \"tadmin\" が認証済みである"
       - "ユーザー \"tadmin\" が /realms/default/admin/tenants にアクセスする"
       - "エラー \"AccessDeniedError\""
+user_experience:
+  screens:
+    Login:
+      route: /login
+      purpose: Authorization transactionに結び付いたResourceOwnerの認証情報を取得する。
+      interfaces:
+        - GetBrowserTransaction
+        - SubmitBrowserLogin
+      states:
+        - ready
+        - submitting
+        - invalid_credentials
+        - expired_transaction
+        - service_error
+    Totp:
+      route: /totp
+      purpose: authentication_pending状態のLoginSessionに対し、登録済みTOTP factorのコードを取得する。
+      interfaces:
+        - GetBrowserTransaction
+        - SubmitBrowserTotp
+      states:
+        - ready
+        - submitting
+        - invalid_code
+        - expired_transaction
+        - service_error
+    ForgotPassword:
+      route: /forgot_password
+      purpose: 未ログインのResourceOwnerがメールアドレスを入力してパスワード再設定リンクを要求する。アカウントの存在有無は開示しない。
+      interfaces:
+        - RequestPasswordReset
+      states:
+        - ready
+        - submitting
+        - submitted
+        - service_error
+    ResetPassword:
+      route: /reset_password
+      purpose: メールで届いたリセットトークンで新しいパスワードを設定する。
+      interfaces:
+        - ResetPasswordWithToken
+      states:
+        - ready
+        - submitting
+        - success
+        - invalid_token
+        - weak_password
+        - service_error
+    AccountSecurity:
+      route: /account/security
+      purpose: "end-userがパスワード変更日時と MFA (TOTP) 状態を確認し、TOTP factor を登録・解除する。\n機微操作には step-up 再認証を要求する。\n"
+      interfaces:
+        - GetAccountSecurity
+        - StartTotpEnrollment
+        - ConfirmTotpEnrollment
+        - RemoveTotpFactor
+        - StartStepUpAuthentication
+        - CompleteStepUpAuthentication
+      states:
+        - ready
+        - loading
+        - submitting
+        - enrolling
+        - step_up_required
+        - access_denied
+        - service_error
+    ChangePassword:
+      route: /account/password
+      purpose: end-userが現在のパスワードを確認したうえで新しいパスワードへ変更する。
+      interfaces:
+        - ChangePassword
+      states:
+        - ready
+        - submitting
+        - weak_password
+        - invalid_credentials
+        - success
+        - service_error
+    AccountActivity:
+      route: /account/activity
+      purpose: end-userが自身の有効なセッションを一覧して個別または一括で失効させ、最近のサインイン履歴を確認する。
+      interfaces:
+        - ListMySessions
+        - RevokeMySession
+        - RevokeMyOtherSessions
+        - ListMySignInActivity
+      states:
+        - ready
+        - loading
+        - submitting
+        - empty
+        - access_denied
+        - service_error
+  transitions:
+    - from: Login
+      to: Totp
+      trigger: password_succeeded_and_factor_required
+      interface: SubmitBrowserLogin
+    - from: Totp
+      to: Consent
+      trigger: factor_succeeded_and_consent_required
+      interface: SubmitBrowserTotp
+    - from: Totp
+      trigger: factor_succeeded_and_consent_exists
+      interface: SubmitBrowserTotp
+      external: true
+    - from: Login
+      to: Consent
+      trigger: authentication_succeeded_and_consent_required
+      interface: SubmitBrowserLogin
+    - from: Login
+      trigger: authentication_succeeded_and_consent_exists
+      interface: SubmitBrowserLogin
+      external: true
+    - from: Login
+      to: ForgotPassword
+      trigger: password_reset_requested
+    - from: ForgotPassword
+      to: ResetPassword
+      trigger: reset_link_opened
+      interface: RequestPasswordReset
+      external: true
+    - from: ResetPassword
+      to: Login
+      trigger: password_reset_succeeded
+      interface: ResetPasswordWithToken
+    - from: AccountSecurity
+      to: ChangePassword
+      trigger: change_password_selected
+  requirements:
+    - id: UX-ACCOUNT-STEP-UP
+      category: security
+      adoption: required
+      statement: TOTP factorの登録・解除など機微なセキュリティ操作は、step-up再認証を成立させてから実行する。
+      screens:
+        - AccountSecurity
+      interfaces:
+        - StartStepUpAuthentication
+        - CompleteStepUpAuthentication
+        - ConfirmTotpEnrollment
+        - RemoveTotpFactor

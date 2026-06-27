@@ -4,3 +4,9 @@
 system: ra-idp
 spec_version: "2.0"
 context: Saml
+glossary:
+  Saml:
+    definition: SAML 2.0 IdP protocol family。Service Provider 向け metadata、AuthnRequest、SAMLResponse、ACS、SLO を扱う。
+    aliases:
+      - SAML
+      - SAML2

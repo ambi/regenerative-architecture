@@ -1,7 +1,7 @@
 id: wi-33-ra-idp-scl-context-ownership-cleanup
 title: ra-idp-go SCL の System 集約要素を正しい context へ再配置する
 created_at: 2026-06-27
-status: pending
+status: completed
 authors: [tn]
 
 motivation: |
@@ -43,3 +43,40 @@ risk_notes: |
   要素の意味的な所有 context を判断する作業であり、誤配置すると context 間の
   公開言語が曖昧になる。context_map の depends_on / publishes と各要素の名前、
   関連 interface / scenario / permission を照合しながら移す。
+
+completion:
+  completed_at: 2026-06-28
+  summary: |
+    System context に集約されていた user_experience を、各 screen が参照する
+    interface の所有 context へ分配した。screen 33 件のうち 32 件を
+    Authentication / OAuth2 / IdentityManagement / Application / SigningKeys /
+    Tenancy / WsFederation へ移し、複数 context を横断する AdminDashboard ハブ
+    だけを System に残した。transition 26 件は source screen の所有 context へ振り、
+    AdminDashboard 起点のハブ遷移だけ System に残した。requirement 17 件は
+    横断的なもの (CSRF / NO-STORE / NO-CREDENTIAL-ECHO / ADMIN-TENANT-SCOPE /
+    ACCOUNT-SELF-SCOPE / アクセシビリティ / locale) を System に残し、context 固有の
+    ものを所有 context へ移した。さらに ClaimMapping glossary と重複していた
+    System standards の ClaimMappingPolicy を削除した。
+  semantic_diff:
+    before:
+      system_ux: System が全 screen / transition / requirement を保持
+      system_standards: context 固有の ClaimMappingPolicy が standards に重複
+      partial_retrieval: context 固有 UX を context SCL だけでは取得できない
+    after:
+      system_ux: System は横断 UX (AdminDashboard・横断 requirement・accessibility/locale) のみ保持
+      system_standards: WCAG22 と GDPR の横断標準のみ
+      partial_retrieval: 各 context の screen / transition / 固有 requirement はその context SCL で取得できる
+  verification:
+    - cmd: bun run yaml-check:all
+      in: tools
+      result: ok, all SCL and work-item files OK
+    - cmd: bun run scl-to-html:ra-idp-go
+      in: tools
+      result: ok, regenerated ra-idp-go/spec/ra-idp-go.html
+  affected_guarantees_state:
+    - 部分取得可能性: pass。context 固有の語彙・標準・UX をその context SCL だけで取得できる。
+    - 単一上流ソース性: pass。所有 context と配置先が一致した。
+    - 検証可能性: pass。再配置後も全 SCL ファイルが schema 検証を通る。
+  human_decisions:
+    - ブラウザ認可フローの screen は所有 context へ分配し、context をまたぐ transition は source context 側に残す。
+    - 全画面にかかる accessibility / locale 要件は横断 UX として System に残す。

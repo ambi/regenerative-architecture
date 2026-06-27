@@ -4,6 +4,13 @@
 system: ra-idp
 spec_version: "2.0"
 context: ClaimMapping
+glossary:
+  ClaimMappingPolicy:
+    definition: identity principal の属性を外部 application / relying party / service provider / client へ出すための属性解決と出力許可の規則。
+    aliases:
+      - ClaimMappingPolicy
+      - attribute release
+      - claim mapping
 models:
   ClaimMappingSource:
     kind: enum

@@ -4,42 +4,53 @@
 system: ra-idp
 spec_version: "2.0"
 context: Application
+glossary:
+  Application:
+    definition: 運用者が接続・割当・監査する業務アプリケーション。OIDC client、SAML SP、WS-Fed RP は Application に紐づく protocol binding である。
+    aliases:
+      - アプリケーション
+      - Application
+  ProtocolBinding:
+    definition: "Application を特定 protocol で接続するための設定。例: OAuth2Client、SAML ServiceProvider、WS-Fed RelyingParty。"
+    aliases:
+      - binding
+      - protocol_binding
 models:
   ApplicationKind:
     kind: enum
-    description: Application の種別。federated は SSO フェデレーションを束ねる業務アプリ、weblink は SSO しない外部リンク、service は M2M / client_credentials の API クライアント (Okta の API Services 相当。ポータルタイル・利用者割当を持たない) (wi-69)。
+    description: Application の種別。federated は SSO フェデレーションを束ねる業務アプリ、weblink は SSO しない外部リンク、service は M2M / client_credentials の API クライアント (Okta の API Services 相当。ポータルタイル・利用者割当を持たない)。
     values:
       - federated
       - weblink
       - service
   ApplicationStatus:
     kind: enum
-    description: Application の有効状態 (wi-69)。
+    description: Application の有効状態。
     values:
       - active
       - disabled
   ProtocolBindingType:
     kind: enum
-    description: "Application に接続する protocol binding の種別 (wi-69, ADR-064)。"
+    description: "Application に接続する protocol binding の種別。"
     values:
       - oidc
       - saml
       - wsfed
   AssignmentSubjectType:
     kind: enum
-    description: Application 割当の対象種別 (wi-69)。
+    description: Application 割当の対象種別。
     values:
       - user
       - group
   AssignmentVisibility:
     kind: enum
-    description: 割当の可視性。hidden はポータル一覧から除外するがプロトコル利用は許可する (wi-69)。
+    description: 割当の可視性。hidden はポータル一覧から除外するがプロトコル利用は許可する。
     values:
       - visible
       - hidden
   ApplicationProvisionType:
     kind: enum
-    description: 一括作成で選ぶアプリ種別。oidc / wsfed は federated Application と対応する OAuth2 client / WS-Fed RP を同時に作成し、weblink は SSO なしの外部リンク、service は M2M / client_credentials の OAuth2 client (service kind) を作る (wi-69)。
+    description: 一括作成で選ぶアプリ種別。oidc / wsfed は federated Application と対応する OAuth2 client / WS-Fed RP を同時に作成し、weblink は SSO なしの外部リンク、service は M2M / client_credentials の OAuth2 client (service kind) を作る。
     values:
       - oidc
       - wsfed
@@ -47,7 +58,7 @@ models:
       - service
   ProtocolBinding:
     kind: value_object
-    description: "Application に紐づく protocol binding。OIDC client / WS-Fed RP / 将来 SAML SP への 参照を opaque key で保持する。binding の wire 挙動は各 protocol context が所有する (wi-69, ADR-064)。"
+    description: "Application に紐づく protocol binding。OIDC client / WS-Fed RP / 将来 SAML SP への 参照を opaque key で保持する。binding の wire 挙動は各 protocol context が所有する。"
     fields:
       type:
         type: ProtocolBindingType
@@ -62,7 +73,7 @@ models:
         description: wsfed binding が指す WS-Fed RP の wtrealm。
   Application:
     kind: entity
-    description: "運用者が「接続する業務アプリケーション」として扱う上位 aggregate。OIDC client / SAML SP / WS-Fed RP を protocol binding として束ね、表示名・アイコン・状態・割当を所有する。 weblink kind は binding を持たない外部リンク (wi-69, ADR-064)。"
+    description: "運用者が「接続する業務アプリケーション」として扱う上位 aggregate。OIDC client / SAML SP / WS-Fed RP を protocol binding として束ね、表示名・アイコン・状態・割当を所有する。 weblink kind は binding を持たない外部リンク。"
     identity:
       - tenant_id
       - application_id
@@ -70,7 +81,7 @@ models:
       tenant_id:
         type: String
         default: default
-        description: 所属テナント ID (ADR-034)。
+        description: 所属テナント ID。
       application_id:
         type: UUID
         description: Application 識別子。
@@ -102,7 +113,7 @@ models:
         type: Timestamp
   ApplicationAssignment:
     kind: entity
-    description: Application へのユーザー / グループ割当。割当はポータル可視性とフェデレーション利用可否を fail-closed で制御する。hidden は一覧に出さないがプロトコル利用は許可する (wi-69)。
+    description: Application へのユーザー / グループ割当。割当はポータル可視性とフェデレーション利用可否を fail-closed で制御する。hidden は一覧に出さないがプロトコル利用は許可する。
     identity:
       - tenant_id
       - application_id
@@ -131,7 +142,7 @@ models:
         type: Timestamp
   AdminApplicationResponse:
     kind: value_object
-    description: 管理 API が返す Application 表現 (wi-69)。
+    description: 管理 API が返す Application 表現。
     fields:
       application_id:
         type: UUID
@@ -155,7 +166,7 @@ models:
         type: Timestamp
   AdminApplicationListResponse:
     kind: value_object
-    description: Application 一覧レスポンス (wi-69)。
+    description: Application 一覧レスポンス。
     fields:
       applications:
         type: "AdminApplicationResponse[]"
@@ -219,7 +230,7 @@ models:
         description: type=wsfed の NameID ソース属性。
   AdminApplicationCreateResponse:
     kind: value_object
-    description: 一括作成の結果。type=oidc のときは生成した OAuth2 client の client_id / client_secret を 一度だけ返す (再表示不可) (wi-69)。
+    description: 一括作成の結果。type=oidc のときは生成した OAuth2 client の client_id / client_secret を 一度だけ返す (再表示不可)。
     fields:
       application:
         type: AdminApplicationResponse
@@ -275,7 +286,7 @@ models:
         type: "ClaimMappingRule[]"
   AdminApplicationDetailResponse:
     kind: value_object
-    description: アプリ詳細レスポンス。Application 本体に加え、binding から解決した protocol 実設定を含む (wi-69)。
+    description: アプリ詳細レスポンス。Application 本体に加え、binding から解決した protocol 実設定を含む。
     fields:
       application:
         type: AdminApplicationResponse
@@ -347,7 +358,7 @@ models:
         optional: true
   ProtocolBindingRequest:
     kind: value_object
-    description: protocol binding の接続リクエスト (wi-69)。
+    description: protocol binding の接続リクエスト。
     fields:
       type:
         type: ProtocolBindingType
@@ -359,7 +370,7 @@ models:
         optional: true
   ApplicationAssignmentRequest:
     kind: value_object
-    description: Application 割当リクエスト。visibility 省略時は visible (wi-69)。
+    description: Application 割当リクエスト。visibility 省略時は visible。
     fields:
       subject_type:
         type: AssignmentSubjectType
@@ -372,7 +383,7 @@ models:
         optional: true
   ApplicationAssignmentResponse:
     kind: value_object
-    description: 割当表現 (wi-69)。
+    description: 割当表現。
     fields:
       subject_type:
         type: AssignmentSubjectType
@@ -384,13 +395,13 @@ models:
         type: Timestamp
   ApplicationAssignmentListResponse:
     kind: value_object
-    description: 割当一覧レスポンス (wi-69)。
+    description: 割当一覧レスポンス。
     fields:
       assignments:
         type: "ApplicationAssignmentResponse[]"
   MyApplication:
     kind: value_object
-    description: 利用者ポータルに表示する割当済みアプリ 1 件 (wi-69)。
+    description: 利用者ポータルに表示する割当済みアプリ 1 件。
     fields:
       application_id:
         type: UUID
@@ -406,13 +417,13 @@ models:
         optional: true
   MyApplicationListResponse:
     kind: value_object
-    description: 利用者ポータルの割当済みアプリ一覧 (wi-69)。
+    description: 利用者ポータルの割当済みアプリ一覧。
     fields:
       applications:
         type: "MyApplication[]"
   ApplicationCreated:
     kind: event
-    description: Application を作成した (wi-69)。
+    description: Application を作成した。
     payload:
       occurredAt:
         type: Timestamp
@@ -424,7 +435,7 @@ models:
         type: String
   ApplicationUpdated:
     kind: event
-    description: Application のメタデータを更新した (wi-69)。
+    description: Application のメタデータを更新した。
     payload:
       occurredAt:
         type: Timestamp
@@ -438,7 +449,7 @@ models:
         type: "String[]"
   ApplicationDeleted:
     kind: event
-    description: Application を削除した (wi-69)。
+    description: Application を削除した。
     payload:
       occurredAt:
         type: Timestamp
@@ -450,7 +461,7 @@ models:
         type: String
   ProtocolBindingAttached:
     kind: event
-    description: Application に protocol binding を接続した (wi-69)。
+    description: Application に protocol binding を接続した。
     payload:
       occurredAt:
         type: Timestamp
@@ -464,7 +475,7 @@ models:
         type: String
   ProtocolBindingDetached:
     kind: event
-    description: Application から protocol binding を解除した (wi-69)。
+    description: Application から protocol binding を解除した。
     payload:
       occurredAt:
         type: Timestamp
@@ -478,7 +489,7 @@ models:
         type: String
   ApplicationAssigned:
     kind: event
-    description: Application にユーザー / グループを割当てた (wi-69)。
+    description: Application にユーザー / グループを割当てた。
     payload:
       occurredAt:
         type: Timestamp
@@ -494,7 +505,7 @@ models:
         type: String
   ApplicationUnassigned:
     kind: event
-    description: Application の割当を解除した (wi-69)。
+    description: Application の割当を解除した。
     payload:
       occurredAt:
         type: Timestamp
@@ -818,3 +829,65 @@ scenarios:
       - "roles=[\"admin\"] のユーザー \"operator\" が管理ダッシュボードを開く"
       - ユーザー数・登録アプリケーション数・付与済み同意数・直近 24 時間の監査イベント数が表示される
       - 最近の監査イベントが表示される
+user_experience:
+  screens:
+    AdminApplications:
+      route: /admin/applications
+      purpose: "管理者が OAuth2 / WS-Federation / service の各種クライアントを単一の「アプリケーション」として\n一覧・作成・更新・削除し、protocol binding の追加・削除、OIDC / WS-Fed の設定、\nユーザー/グループへの割り当てを行う統合画面。OIDC の高度な設定 (grant / response 種別・PAR・\nDPoP、作成時に確定する認証方式) もここで編集し、専用の低レベル client 画面は持たない。\n生成された client_secret は作成成功直後に一度だけ表示する。\n"
+      interfaces:
+        - ListAdminApplications
+        - GetAdminApplication
+        - CreateAdminApplication
+        - UpdateAdminApplication
+        - DeleteAdminApplication
+        - AttachProtocolBinding
+        - DetachProtocolBinding
+        - UpdateApplicationOidcConfig
+        - UpdateApplicationWsFedConfig
+        - ListApplicationAssignments
+        - AssignApplication
+        - UnassignApplication
+        - ListAdminUsers
+        - ListGroups
+      states:
+        - ready
+        - loading
+        - submitting
+        - empty
+        - secret_issued
+        - delete_confirmation
+        - access_denied
+        - service_error
+    AccountApps:
+      route: /account/apps
+      purpose: end-userが利用できるアプリケーションをタイルで一覧し、起動する。
+      interfaces:
+        - ListMyApplications
+      states:
+        - ready
+        - loading
+        - empty
+        - access_denied
+        - service_error
+  transitions:
+    - from: AdminApplications
+      to: AdminUsers
+      trigger: user_management_selected
+  requirements:
+    - id: UX-ADMIN-CLIENT-SECRET
+      category: security
+      adoption: required
+      statement: AdminApplicationsはOIDCアプリ作成で生成されたclient_secretを作成成功直後に一度だけ表示し、再取得できないことを明示する。client_secret_hashは表示しない。
+      screens:
+        - AdminApplications
+      interfaces:
+        - CreateAdminApplication
+        - GetAdminApplication
+    - id: UX-ADMIN-CLIENT-DELETE-CONFIRMATION
+      category: usability
+      adoption: required
+      statement: AdminApplicationsはアプリケーション削除前に対象を示す確認操作を要求する。
+      screens:
+        - AdminApplications
+      interfaces:
+        - DeleteAdminApplication

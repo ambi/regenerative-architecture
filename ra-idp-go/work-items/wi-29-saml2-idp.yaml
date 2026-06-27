@@ -44,7 +44,11 @@ out_of_scope:
 affected_guarantees:
   - XML signature safety: unsigned / tampered request/response を受け入れない。
   - audience restriction: assertion は登録 SP の entityID に限定する。
-  - replay protection: AuthnRequest ID / assertion ID を短期 replay store で管理する。
+  - >-
+    replay protection (IdP): IdP が発行する assertion は NotBefore / NotOnOrAfter の
+    時間窓と InResponseTo 相関で保護する。アサーションを消費する側 (SP) の
+    assertion ID replay 管理は SAML プロファイル上 SP の責務であり、ra-idp が SP / RP として
+    外部アサーションを消費する側の replay 防御は inbound federation ([[wi-30-inbound-federation-and-identity-broker]]) で扱う。
   - tenant isolation: SP metadata と SAML endpoints は realm ごとに分離する。
   - audit: SAML login / SLO / metadata change を監査に残す。
 
@@ -91,7 +95,7 @@ completion:
   affected_guarantees_state:
     - { guarantee: "XML signature safety", state: held, note: "goxmldsig で response/assertion を署名。XML 処理を自前実装せず署名検証経路を library に委譲。" }
     - { guarantee: "audience restriction", state: held, note: "assertion の Audience を登録 SP の entityID に限定。" }
-    - { guarantee: "replay protection", state: partial, note: "AuthnRequest / assertion ID の短期 replay store は未実装。InResponseTo / Destination 検証は実施。今後の課題として residual_risk に記録。" }
+    - { guarantee: "replay protection (IdP)", state: held, note: "IdP として発行 assertion を NotBefore / NotOnOrAfter の時間窓 (-1min / +5min) と InResponseTo 相関で保護。アサーション消費側の ID replay 管理は SAML 上 SP の責務で、ra-idp が消費側になる inbound federation (wi-30) が扱う。受信 AuthnRequest の署名検証 + 要求 ID replay store は defense-in-depth として residual_risk 参照。" }
     - { guarantee: "tenant isolation", state: held, note: "SP metadata と /saml/* endpoint を realm (tenant) ごとに分離。SamlSPRepo は tenant scope。" }
     - { guarantee: "audit", state: held, note: "SAML login / SLO / SP 変更をイベント emit。" }
   verification:
@@ -102,6 +106,6 @@ completion:
     - { cmd: "bun --cwd ra-idp-go/ui lint", result: passed }
     - { cmd: "bun --cwd ra-idp-go/ui build", result: passed }
   residual_risk:
-    - "AuthnRequest ID / assertion ID の replay store が未実装。短時間の assertion 再送を完全には防げない (NotOnOrAfter / InResponseTo に依存)。replay store を後続 WI で追加すること。"
+    - "defense-in-depth: 受信 AuthnRequest の XML 署名検証と要求 ID の短期 replay store は未実装 (現状は時間窓 + InResponseTo + ACS 許可集合で担保)。SP 署名要求を強制する環境では署名検証 -> IssueInstant 鮮度 -> 要求 ID replay の順で後続 hardening WI として追加する。アサーション消費側の replay は wi-30 の責務。"
     - "encrypted assertion は out_of_scope のまま未対応。要件化時に追加 WI とする。"
     - "test SP からの SP-initiated SSO / metadata import 後の SLO 成立は手動 E2E 未実施。ハンドラ / ドメインのユニットテストは緑。"

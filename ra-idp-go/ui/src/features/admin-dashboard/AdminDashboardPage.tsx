@@ -131,7 +131,7 @@ export function AdminDashboardPage({
               description="新しい組織アカウントを作成します。"
             />
             <QuickLink
-              href={tenantURL('/admin/clients')}
+              href={tenantURL('/admin/applications')}
               icon={IconKey}
               label="アプリケーションを追加"
               description="アプリケーションを登録します。"

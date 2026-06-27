@@ -1,10 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { listWsFedRelyingParties } from '../../../api/admin'
-import { AdminWsFedRelyingPartiesPage } from '../../../features/admin-wsfed/AdminWsFedRelyingPartiesPage'
+import { AdminEntraFederationPage } from '../../../features/admin-entra-federation/AdminEntraFederationPage'
 import { requirePortalAccount } from '../../-guards'
 import { PageMarker } from '../../-page'
 
-export const Route = createFileRoute('/admin/wsfed/relying-parties')({
+export const Route = createFileRoute('/admin/federation/entra')({
   loader: async ({ location }) => {
     const account = await requirePortalAccount('admin', location.pathname, location.searchStr)
     const relyingParties = await listWsFedRelyingParties()
@@ -14,14 +14,14 @@ export const Route = createFileRoute('/admin/wsfed/relying-parties')({
       relyingParties,
     }
   },
-  component: AdminWsFedRelyingPartiesRoute,
+  component: AdminEntraFederationRoute,
 })
 
-function AdminWsFedRelyingPartiesRoute() {
+function AdminEntraFederationRoute() {
   const data = Route.useLoaderData()
   return (
-    <PageMarker kind="admin-wsfed-relying-parties">
-      <AdminWsFedRelyingPartiesPage {...data} />
+    <PageMarker kind="admin-entra-federation">
+      <AdminEntraFederationPage {...data} />
     </PageMarker>
   )
 }

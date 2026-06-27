@@ -47,9 +47,18 @@ import type {
   AdminUser,
   ApplicationAssignment,
   ApplicationStatus,
+  WsFedClaimMappingRule,
+  WsFedTokenType,
 } from '../../types'
 
 type AppType = 'oidc' | 'wsfed' | 'weblink' | 'service'
+
+const TOKEN_TYPE_SAML11: WsFedTokenType = 'urn:oasis:names:tc:SAML:1.0:assertion'
+const TOKEN_TYPE_SAML20: WsFedTokenType = 'urn:oasis:names:tc:SAML:2.0:assertion'
+const WSFED_TOKEN_TYPES: SelectOption[] = [
+  { value: TOKEN_TYPE_SAML11, label: 'SAML 1.1 (Entra / AD FS 既定)' },
+  { value: TOKEN_TYPE_SAML20, label: 'SAML 2.0' },
+]
 
 const APP_TYPES: { type: AppType; label: string; description: string; icon: typeof IconKey }[] = [
   {
@@ -87,6 +96,15 @@ const NAMEID_FORMATS: SelectOption[] = [
 const STATUS_OPTIONS: SelectOption[] = [
   { value: 'active', label: '有効' },
   { value: 'disabled', label: '無効' },
+]
+
+// OIDC client の token endpoint 認証方式。作成時に確定し以後不変。
+const AUTH_METHODS: SelectOption[] = [
+  { value: 'client_secret_basic', label: 'client_secret_basic' },
+  { value: 'client_secret_post', label: 'client_secret_post' },
+  { value: 'private_key_jwt', label: 'private_key_jwt' },
+  { value: 'tls_client_auth', label: 'tls_client_auth' },
+  { value: 'none', label: 'none (public)' },
 ]
 
 const DEFAULT_NAMEID_FORMAT = NAMEID_FORMATS[0].value
@@ -176,6 +194,17 @@ function ReadOnlyField({ label, children }: { label: string; children: ReactNode
     <div>
       <dt className="text-xs font-bold uppercase tracking-normal text-slate-400">{label}</dt>
       <dd className="mt-1 text-sm text-slate-700">{children}</dd>
+    </div>
+  )
+}
+
+// ReadonlyMeta は更新契約上の不変項目 (認証方式・クライアント種別・FAPI プロファイル) を
+// 編集欄ではなく小さなラベル付きテキストで示し、「ここでは変えられない」ことを伝える。
+function ReadonlyMeta({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <p className="font-semibold text-slate-500">{label}</p>
+      <p className="mt-0.5 break-all font-mono text-slate-800">{value || '—'}</p>
     </div>
   )
 }
@@ -594,6 +623,31 @@ export function AdminApplicationDetailPage({
                 <ReadOnlyField label="スコープ">
                   <span className="font-mono text-xs">{detail.oidc.scope || '—'}</span>
                 </ReadOnlyField>
+                <ReadOnlyField label="グラント種別">
+                  <span className="font-mono text-xs">
+                    {detail.oidc.grant_types.join(', ') || '—'}
+                  </span>
+                </ReadOnlyField>
+                <ReadOnlyField label="レスポンス種別">
+                  <span className="font-mono text-xs">
+                    {detail.oidc.response_types.join(', ') || '—'}
+                  </span>
+                </ReadOnlyField>
+                <div className="grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs sm:grid-cols-3">
+                  <ReadonlyMeta label="クライアント種別" value={detail.oidc.client_type} />
+                  <ReadonlyMeta label="認証方式" value={detail.oidc.token_endpoint_auth_method} />
+                  <ReadonlyMeta label="FAPI プロファイル" value={detail.oidc.fapi_profile} />
+                </div>
+                <ReadOnlyField label="セキュリティ">
+                  <span className="text-xs text-slate-700">
+                    {[
+                      detail.oidc.require_pushed_authorization_requests ? 'PAR 必須' : '',
+                      detail.oidc.dpop_bound_access_tokens ? 'DPoP バインド' : '',
+                    ]
+                      .filter(Boolean)
+                      .join(', ') || '標準'}
+                  </span>
+                </ReadOnlyField>
                 {app.kind === 'service' ? (
                   <p className="text-xs text-slate-500">
                     client_credentials グラントで動く M2M
@@ -621,6 +675,34 @@ export function AdminApplicationDetailPage({
                 </ReadOnlyField>
                 <ReadOnlyField label="NameID ソース属性">
                   <span className="font-mono text-xs">{detail.wsfed.name_id_source}</span>
+                </ReadOnlyField>
+                <ReadOnlyField label="Audience">
+                  <span className="font-mono text-xs">
+                    {detail.wsfed.audience || `${detail.wsfed.wtrealm} (既定)`}
+                  </span>
+                </ReadOnlyField>
+                <ReadOnlyField label="トークン種別">
+                  <span className="text-xs">
+                    {WSFED_TOKEN_TYPES.find((t) => t.value === detail.wsfed?.token_type)?.label ??
+                      detail.wsfed.token_type}
+                  </span>
+                </ReadOnlyField>
+                <ReadOnlyField label="claim mapping 規則">
+                  {detail.wsfed.rules.length === 0 ? (
+                    <span className="text-xs text-slate-400">NameID のみ</span>
+                  ) : (
+                    <ul className="flex flex-wrap gap-1.5">
+                      {detail.wsfed.rules.map((rule) => (
+                        <li
+                          key={rule.claim_type}
+                          className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-700"
+                        >
+                          {rule.claim_type.split('/').pop()}
+                          {rule.required ? '*' : ''}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </ReadOnlyField>
               </section>
             ) : null}
@@ -658,12 +740,27 @@ export function AdminApplicationEditPage({
   const [status, setStatus] = useState<ApplicationStatus>(app.status)
   const [redirects, setRedirects] = useState((detail.oidc?.redirect_uris ?? []).join('\n'))
   const [scope, setScope] = useState(detail.oidc?.scope ?? '')
+  const [grantTypes, setGrantTypes] = useState((detail.oidc?.grant_types ?? []).join(', '))
+  const [responseTypes, setResponseTypes] = useState(
+    (detail.oidc?.response_types ?? []).join(', '),
+  )
+  const [requirePAR, setRequirePAR] = useState(
+    detail.oidc?.require_pushed_authorization_requests ?? false,
+  )
+  const [dpopBound, setDpopBound] = useState(detail.oidc?.dpop_bound_access_tokens ?? false)
   const [replies, setReplies] = useState((detail.wsfed?.reply_urls ?? []).join('\n'))
+  const [audience, setAudience] = useState(detail.wsfed?.audience ?? '')
+  const [tokenType, setTokenType] = useState<WsFedTokenType>(
+    detail.wsfed?.token_type || TOKEN_TYPE_SAML11,
+  )
   const [nameIDFormat, setNameIDFormat] = useState(
     detail.wsfed?.name_id_format || DEFAULT_NAMEID_FORMAT,
   )
   const [nameIDSource, setNameIDSource] = useState(
     detail.wsfed?.name_id_source || DEFAULT_NAMEID_SOURCE,
+  )
+  const [rulesJSON, setRulesJSON] = useState(
+    JSON.stringify(detail.wsfed?.rules ?? [], null, 2),
   )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -688,27 +785,60 @@ export function AdminApplicationEditPage({
       }
       if (detail.oidc) {
         const nextRedirects = parseList(redirects)
+        const nextGrants = parseList(grantTypes)
+        const nextResponses = parseList(responseTypes)
         const redirectsChanged =
           app.kind !== 'service' && nextRedirects.join(',') !== detail.oidc.redirect_uris.join(',')
         const scopeChanged = scope.trim() !== detail.oidc.scope
-        if (redirectsChanged || scopeChanged) {
+        const grantsChanged = nextGrants.join(',') !== detail.oidc.grant_types.join(',')
+        const responsesChanged = nextResponses.join(',') !== detail.oidc.response_types.join(',')
+        const parChanged = requirePAR !== detail.oidc.require_pushed_authorization_requests
+        const dpopChanged = dpopBound !== detail.oidc.dpop_bound_access_tokens
+        if (
+          redirectsChanged ||
+          scopeChanged ||
+          grantsChanged ||
+          responsesChanged ||
+          parChanged ||
+          dpopChanged
+        ) {
           await updateApplicationOidcConfig(csrfToken, app.application_id, {
             redirect_uris: redirectsChanged ? nextRedirects : undefined,
             scope: scopeChanged ? scope.trim() : undefined,
+            grant_types: grantsChanged ? nextGrants : undefined,
+            response_types: responsesChanged ? nextResponses : undefined,
+            require_pushed_authorization_requests: parChanged ? requirePAR : undefined,
+            dpop_bound_access_tokens: dpopChanged ? dpopBound : undefined,
           })
         }
       }
       if (detail.wsfed) {
+        let nextRules: WsFedClaimMappingRule[]
+        try {
+          const parsed = JSON.parse(rulesJSON || '[]')
+          if (!Array.isArray(parsed)) throw new Error('not an array')
+          nextRules = parsed
+        } catch {
+          setError('claim 規則の JSON が不正です。配列で指定してください。')
+          setSaving(false)
+          return
+        }
         const nextReplies = parseList(replies)
         const changed =
           nextReplies.join(',') !== detail.wsfed.reply_urls.join(',') ||
+          audience.trim() !== detail.wsfed.audience ||
+          tokenType !== detail.wsfed.token_type ||
           nameIDFormat !== detail.wsfed.name_id_format ||
-          nameIDSource.trim() !== detail.wsfed.name_id_source
+          nameIDSource.trim() !== detail.wsfed.name_id_source ||
+          JSON.stringify(nextRules) !== JSON.stringify(detail.wsfed.rules ?? [])
         if (changed) {
           await updateApplicationWsFedConfig(csrfToken, app.application_id, {
             reply_urls: nextReplies,
+            audience: audience.trim(),
+            token_type: tokenType,
             name_id_format: nameIDFormat,
             name_id_source: nameIDSource.trim(),
+            rules: nextRules,
           })
         }
       }
@@ -816,6 +946,60 @@ export function AdminApplicationEditPage({
                     placeholder="openid profile email"
                   />
                 </div>
+                {app.kind !== 'service' ? (
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="edit-grant-types">グラント種別</Label>
+                      <Input
+                        id="edit-grant-types"
+                        value={grantTypes}
+                        onChange={(e) => setGrantTypes(e.target.value)}
+                        className="font-mono text-xs"
+                        placeholder="authorization_code, refresh_token"
+                      />
+                      <p className="text-xs text-slate-500">カンマ区切り。</p>
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="edit-response-types">レスポンス種別</Label>
+                      <Input
+                        id="edit-response-types"
+                        value={responseTypes}
+                        onChange={(e) => setResponseTypes(e.target.value)}
+                        className="font-mono text-xs"
+                        placeholder="code"
+                      />
+                      <p className="text-xs text-slate-500">カンマ区切り。</p>
+                    </div>
+                  </div>
+                ) : null}
+                <div className="grid gap-2.5">
+                  <label className="flex items-center gap-3 text-sm font-medium text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={requirePAR}
+                      onChange={(e) => setRequirePAR(e.target.checked)}
+                      className="size-4"
+                    />
+                    PAR (Pushed Authorization Requests) を必須にする
+                  </label>
+                  <label className="flex items-center gap-3 text-sm font-medium text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={dpopBound}
+                      onChange={(e) => setDpopBound(e.target.checked)}
+                      className="size-4"
+                    />
+                    DPoP bound access token を要求する
+                  </label>
+                </div>
+                <div className="grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs sm:grid-cols-3">
+                  <ReadonlyMeta label="クライアント種別" value={detail.oidc.client_type} />
+                  <ReadonlyMeta
+                    label="認証方式"
+                    value={detail.oidc.token_endpoint_auth_method}
+                  />
+                  <ReadonlyMeta label="FAPI プロファイル" value={detail.oidc.fapi_profile} />
+                </div>
               </section>
             ) : null}
 
@@ -854,6 +1038,43 @@ export function AdminApplicationEditPage({
                     onChange={(e) => setNameIDSource(e.target.value)}
                     placeholder="sub"
                   />
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="edit-audience">Audience (任意)</Label>
+                    <Input
+                      id="edit-audience"
+                      value={audience}
+                      onChange={(e) => setAudience(e.target.value)}
+                      className="font-mono text-xs"
+                      placeholder="未指定なら wtrealm を使用"
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label>トークン種別 (SAML バージョン)</Label>
+                    <Select
+                      value={tokenType}
+                      onValueChange={(v) => setTokenType(v as WsFedTokenType)}
+                      options={WSFED_TOKEN_TYPES}
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="edit-wsfed-rules">claim mapping 規則 (JSON)</Label>
+                  <textarea
+                    id="edit-wsfed-rules"
+                    value={rulesJSON}
+                    onChange={(e) => setRulesJSON(e.target.value)}
+                    rows={8}
+                    spellCheck={false}
+                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-xs focus:border-blue-600 focus:outline-none focus:ring-3 focus:ring-blue-600/10"
+                    placeholder='[{"claim_type":"http://schemas.xmlsoap.org/claims/UPN","source":"user_attribute","source_key":"preferred_username","required":true}]'
+                  />
+                  <p className="text-xs text-slate-500">
+                    source は user_attribute / fixed / nameid。required:true の claim
+                    は値が解決できないと fail-closed で sign-in を拒否します。
+                  </p>
                 </div>
               </section>
             ) : null}
@@ -1109,6 +1330,10 @@ function CreateApplicationDialog({
   const [launchURL, setLaunchURL] = useState('')
   const [redirectURIs, setRedirectURIs] = useState('')
   const [scope, setScope] = useState('')
+  const [clientType, setClientType] = useState<'confidential' | 'public'>('confidential')
+  const [authMethod, setAuthMethod] = useState('client_secret_basic')
+  const [jwksURI, setJwksURI] = useState('')
+  const [tlsSubjectDN, setTlsSubjectDN] = useState('')
   const [wtrealm, setWtrealm] = useState('')
   const [replyURLs, setReplyURLs] = useState('')
   const [nameIDFormat, setNameIDFormat] = useState(DEFAULT_NAMEID_FORMAT)
@@ -1132,7 +1357,13 @@ function CreateApplicationDialog({
         icon_url: iconURL.trim() || undefined,
         launch_url: launchURL.trim() || undefined,
         redirect_uris: type === 'oidc' ? parseList(redirectURIs) : undefined,
-        scope: type === 'service' ? scope.trim() || undefined : undefined,
+        scope:
+          type === 'service' || type === 'oidc' ? scope.trim() || undefined : undefined,
+        client_type: type === 'oidc' ? clientType : undefined,
+        token_endpoint_auth_method: type === 'oidc' ? authMethod : undefined,
+        jwks_uri: type === 'oidc' && authMethod === 'private_key_jwt' ? jwksURI.trim() : undefined,
+        tls_client_auth_subject_dn:
+          type === 'oidc' && authMethod === 'tls_client_auth' ? tlsSubjectDN.trim() : undefined,
         wtrealm: type === 'wsfed' ? wtrealm.trim() : undefined,
         reply_urls: type === 'wsfed' ? parseList(replyURLs) : undefined,
         name_id_format: type === 'wsfed' ? nameIDFormat : undefined,
@@ -1315,6 +1546,73 @@ function CreateApplicationDialog({
                         とシークレットは自動生成されます。
                       </p>
                     </div>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="app-oidc-scope">スコープ (任意)</Label>
+                      <Input
+                        id="app-oidc-scope"
+                        value={scope}
+                        onChange={(e) => setScope(e.target.value)}
+                        className="font-mono text-xs"
+                        placeholder="openid profile email"
+                      />
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="grid gap-1.5">
+                        <Label>クライアント種別</Label>
+                        <Select
+                          value={clientType}
+                          onValueChange={(v) => {
+                            const next = v as 'confidential' | 'public'
+                            setClientType(next)
+                            setAuthMethod(next === 'public' ? 'none' : 'client_secret_basic')
+                          }}
+                          options={[
+                            { value: 'confidential', label: 'confidential' },
+                            { value: 'public', label: 'public' },
+                          ]}
+                          className="w-full"
+                        />
+                      </div>
+                      <div className="grid gap-1.5">
+                        <Label>認証方式</Label>
+                        <Select
+                          value={authMethod}
+                          onValueChange={setAuthMethod}
+                          options={AUTH_METHODS}
+                          className="w-full"
+                        />
+                      </div>
+                    </div>
+                    {authMethod === 'private_key_jwt' ? (
+                      <div className="grid gap-1.5">
+                        <Label htmlFor="app-jwks-uri">JWKS URI</Label>
+                        <Input
+                          id="app-jwks-uri"
+                          type="url"
+                          value={jwksURI}
+                          onChange={(e) => setJwksURI(e.target.value)}
+                          className="font-mono text-xs"
+                          placeholder="https://app.example.com/jwks.json"
+                          required
+                        />
+                      </div>
+                    ) : null}
+                    {authMethod === 'tls_client_auth' ? (
+                      <div className="grid gap-1.5">
+                        <Label htmlFor="app-tls-dn">TLS クライアント証明書 Subject DN</Label>
+                        <Input
+                          id="app-tls-dn"
+                          value={tlsSubjectDN}
+                          onChange={(e) => setTlsSubjectDN(e.target.value)}
+                          className="font-mono text-xs"
+                          placeholder="CN=app,OU=clients,O=example"
+                          required
+                        />
+                      </div>
+                    ) : null}
+                    <p className="text-xs text-slate-500">
+                      認証方式は作成時に確定し、以後は変更できません。
+                    </p>
                   </section>
                 ) : null}
 

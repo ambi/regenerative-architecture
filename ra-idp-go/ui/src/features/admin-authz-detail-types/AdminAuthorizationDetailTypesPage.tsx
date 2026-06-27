@@ -278,7 +278,7 @@ export function AdminAuthorizationDetailTypesPage({
       )}
 
       <p className="text-xs text-slate-400">
-        <a className="underline" href={tenantURL('/admin/clients')}>
+        <a className="underline" href={tenantURL('/admin/applications')}>
           アプリケーション
         </a>{' '}
         が要求した詳細は、ここで定義した検証ルールで fail-closed に検査されます。

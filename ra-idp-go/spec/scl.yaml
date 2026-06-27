@@ -4049,18 +4049,22 @@ models:
     kind: value_object
     description: >-
       Application 一括作成リクエスト。種別を選び、対応するプロトコル設定もまとめて受け取る。
-      backend が OAuth2 client / WS-Fed RP を作成し、Application と protocol binding を一括で作る (wi-69)。
+      backend が OAuth2 client / WS-Fed RP を作成し、Application と protocol binding を一括で作る。
     fields:
-      name:           { type: String, constraints: [non_empty] }
-      type:           { type: ApplicationProvisionType, description: "oidc / wsfed / weblink。" }
-      icon_url:       { type: String, optional: true }
-      launch_url:     { type: String, optional: true, description: "ポータルのタイルから開く起動 URL。weblink では必須。" }
-      redirect_uris:  { type: "String[]", optional: true, description: "type=oidc のとき必須。生成する OAuth2 client のリダイレクト URI。" }
-      scope:          { type: String, optional: true, description: "type=service の OAuth2 client スコープ (client_credentials)。" }
-      wtrealm:        { type: String, optional: true, description: "type=wsfed のとき必須。生成する WS-Fed RP の wtrealm。" }
-      reply_urls:     { type: "String[]", optional: true, description: "type=wsfed のとき必須。許可する wreply。" }
-      name_id_format: { type: String, optional: true, description: "type=wsfed の NameID 形式。" }
-      name_id_source: { type: String, optional: true, description: "type=wsfed の NameID ソース属性。" }
+      name:                       { type: String, constraints: [non_empty] }
+      type:                       { type: ApplicationProvisionType, description: "oidc / wsfed / weblink。" }
+      icon_url:                   { type: String, optional: true }
+      launch_url:                 { type: String, optional: true, description: "ポータルのタイルから開く起動 URL。weblink では必須。" }
+      redirect_uris:              { type: "String[]", optional: true, description: "type=oidc のとき必須。生成する OAuth2 client のリダイレクト URI。" }
+      scope:                      { type: String, optional: true, description: "生成する OAuth2 client のスコープ。" }
+      client_type:                { type: ClientType, optional: true, description: "type=oidc の生成 client 種別。既定は confidential。" }
+      token_endpoint_auth_method: { type: TokenEndpointAuthMethod, optional: true, description: "type=oidc の生成 client 認証方式。作成時に確定し以後不変。" }
+      jwks_uri:                   { type: Uri, optional: true, description: "token_endpoint_auth_method=private_key_jwt の公開鍵 JWKS URI。" }
+      tls_client_auth_subject_dn: { type: String, optional: true, description: "token_endpoint_auth_method=tls_client_auth の証明書 Subject DN。" }
+      wtrealm:                    { type: String, optional: true, description: "type=wsfed のとき必須。生成する WS-Fed RP の wtrealm。" }
+      reply_urls:                 { type: "String[]", optional: true, description: "type=wsfed のとき必須。許可する wreply。" }
+      name_id_format:             { type: String, optional: true, description: "type=wsfed の NameID 形式。" }
+      name_id_source:             { type: String, optional: true, description: "type=wsfed の NameID ソース属性。" }
 
   AdminApplicationCreateResponse:
     kind: value_object
@@ -4074,20 +4078,36 @@ models:
 
   ApplicationOidcConfig:
     kind: value_object
-    description: Application の OIDC binding が指す OAuth2 client の実設定 (アプリ詳細表示用) (wi-69)。
+    description: >-
+      Application の OIDC binding が指す OAuth2 client の実設定 (アプリ詳細表示用)。advanced
+      項目を含む。token_endpoint_auth_method / client_type / fapi_profile は更新契約上の不変項目で
+      表示専用。
     fields:
-      client_id:     { type: String }
-      redirect_uris: { type: "String[]" }
-      scope:         { type: String }
+      client_id:                              { type: String }
+      client_type:                            { type: ClientType }
+      redirect_uris:                          { type: "String[]" }
+      grant_types:                            { type: "GrantType[]" }
+      response_types:                         { type: "ResponseType[]" }
+      token_endpoint_auth_method:             { type: TokenEndpointAuthMethod }
+      scope:                                  { type: String }
+      require_pushed_authorization_requests:  { type: Boolean }
+      dpop_bound_access_tokens:               { type: Boolean }
+      fapi_profile:                           { type: FapiProfile }
 
   ApplicationWsFedConfig:
     kind: value_object
-    description: Application の WS-Fed binding が指す relying party の実設定 (アプリ詳細表示用) (wi-69)。
+    description: >-
+      Application の WS-Fed binding が指す relying party の実設定 (アプリ詳細表示用)。per-RP の
+      advanced 項目 (audience / token_type / claim 規則) を含む。Entra domain federation は
+      テナント単位の設定として別に扱う。
     fields:
       wtrealm:        { type: String }
       reply_urls:     { type: "String[]" }
+      audience:       { type: String }
+      token_type:     { type: WsFedTokenType }
       name_id_format: { type: String }
       name_id_source: { type: String }
+      rules:          { type: "ClaimMappingRule[]" }
 
   AdminApplicationDetailResponse:
     kind: value_object
@@ -4099,22 +4119,33 @@ models:
 
   ApplicationOidcConfigUpdateRequest:
     kind: value_object
-    description: OIDC binding 設定の更新リクエスト。指定フィールドのみ変更する (wi-69)。
+    description: >-
+      OIDC binding 設定の更新リクエスト。指定フィールドのみ変更する。advanced 項目を含む。
+      token_endpoint_auth_method など更新契約上の不変項目は含めない。
     fields:
-      redirect_uris: { type: "String[]", optional: true }
-      scope:         { type: String, optional: true }
+      redirect_uris:                          { type: "String[]", optional: true }
+      grant_types:                            { type: "GrantType[]", optional: true }
+      response_types:                         { type: "ResponseType[]", optional: true }
+      scope:                                  { type: String, optional: true }
+      require_pushed_authorization_requests:  { type: Boolean, optional: true }
+      dpop_bound_access_tokens:               { type: Boolean, optional: true }
 
   ApplicationWsFedConfigUpdateRequest:
     kind: value_object
-    description: WS-Federation binding 設定の更新リクエスト。指定フィールドのみ変更する (wi-69)。
+    description: >-
+      WS-Federation binding 設定の更新リクエスト。指定フィールドのみ変更する。per-RP の advanced
+      項目 (audience / token_type / claim 規則) を含む。Entra domain federation は対象外。
     fields:
       reply_urls:     { type: "String[]", optional: true }
+      audience:       { type: String, optional: true }
+      token_type:     { type: WsFedTokenType, optional: true }
       name_id_format: { type: String, optional: true }
       name_id_source: { type: String, optional: true }
+      rules:          { type: "ClaimMappingRule[]", optional: true }
 
   AdminApplicationUpdateRequest:
     kind: value_object
-    description: Application 更新リクエスト。指定フィールドのみ変更する (wi-69)。
+    description: Application 更新リクエスト。指定フィールドのみ変更する。
     fields:
       name:       { type: String, optional: true }
       status:     { type: ApplicationStatus, optional: true }
@@ -7632,9 +7663,11 @@ user_experience:
       route: /admin/applications
       purpose: |
         管理者が OAuth2 / WS-Federation / service の各種クライアントを単一の「アプリケーション」として
-        一覧・作成・更新・削除し、protocol binding の追加・削除、OIDC / WS-Fed 個別設定、Entra 連携、
-        ユーザー/グループへの割り当てを行う統合画面 (commit a5e2ec8)。
-      interfaces: [ListAdminApplications, GetAdminApplication, CreateAdminApplication, UpdateAdminApplication, DeleteAdminApplication, AttachProtocolBinding, DetachProtocolBinding, UpdateApplicationOidcConfig, UpdateApplicationWsFedConfig, ConfigureEntraFederation, ListApplicationAssignments, AssignApplication, UnassignApplication, ListAdminUsers, ListGroups]
+        一覧・作成・更新・削除し、protocol binding の追加・削除、OIDC / WS-Fed の設定、
+        ユーザー/グループへの割り当てを行う統合画面。OIDC の高度な設定 (grant / response 種別・PAR・
+        DPoP、作成時に確定する認証方式) もここで編集し、専用の低レベル client 画面は持たない。
+        生成された client_secret は作成成功直後に一度だけ表示する。
+      interfaces: [ListAdminApplications, GetAdminApplication, CreateAdminApplication, UpdateAdminApplication, DeleteAdminApplication, AttachProtocolBinding, DetachProtocolBinding, UpdateApplicationOidcConfig, UpdateApplicationWsFedConfig, ListApplicationAssignments, AssignApplication, UnassignApplication, ListAdminUsers, ListGroups]
       states: [ready, loading, submitting, empty, secret_issued, delete_confirmation, access_denied, service_error]
     AdminAuthorizationDetailTypes:
       route: /admin/authorization-detail-types
@@ -7671,22 +7704,16 @@ user_experience:
       purpose: 管理者がパスワードポリシーなど所属テナントの設定を参照・更新する。
       interfaces: [GetAdminSettings, UpdateAdminSettings]
       states: [ready, loading, submitting, access_denied, service_error]
-    AdminClients:
-      route: /admin/clients
+    AdminEntraFederation:
+      route: /admin/federation/entra
       purpose: |
-        OAuth2 client の低レベル設定を直接編集する advanced 画面。通常運用は AdminApplications に
-        一本化されており、サイドバー導線を持たず URL 直叩きでのみ到達する (commit a5e2ec8)。
-        生成された client_secret は作成成功直後に一度だけ表示する。
-      interfaces: [ListAdminClients, GetAdminClient, CreateAdminClient, UpdateAdminClient, DeleteAdminClient]
-      states: [ready, loading, submitting, empty, secret_issued, delete_confirmation, access_denied, service_error]
-    AdminWsFedRelyingParties:
-      route: /admin/wsfed/relying-parties
-      purpose: |
-        WS-Federation relying party の低レベル設定を直接編集する advanced 画面。通常運用は
-        AdminApplications に一本化されており、サイドバー導線を持たず URL 直叩きでのみ到達する。
-        Entra 連携の設定もここから行える。
+        管理者がテナント単位で Microsoft Entra domain federation を設定する。検証済みドメイン・
+        IssuerUri・sourceAnchor 属性を入力すると、UPN / ImmutableID / persistent NameID の
+        claim preset を持つ relying party を upsert し、Entra に登録する PassiveLogOnUri /
+        ActiveLogOnUri / MetadataExchangeUri を提示する。個別アプリの設定ではなくドメイン連携の
+        ため、Application 編集ではなくテナント設定として扱う。
       interfaces: [ConfigureEntraFederation]
-      states: [ready, loading, submitting, empty, delete_confirmation, access_denied, service_error]
+      states: [ready, loading, submitting, access_denied, service_error]
 
     AccountHome:
       route: /account
@@ -7795,7 +7822,7 @@ user_experience:
       category: security
       adoption: required
       statement: 状態変更を伴うブラウザAPIはSameSite cookieとリクエストトークンを照合してCSRFを拒否する。
-      screens: [Login, Totp, Consent, Device, ForgotPassword, ResetPassword, ChangePassword, AccountProfile, AccountEmails, AccountEmailVerify, AccountSecurity, AccountActivity, AccountApplications, AdminUsers, AdminGroups, AdminAgents, AdminApplications, AdminAuthorizationDetailTypes, AdminConsents, AdminKeys, AdminTenants, AdminTenantAttributes, AdminSettings, AdminClients, AdminWsFedRelyingParties]
+      screens: [Login, Totp, Consent, Device, ForgotPassword, ResetPassword, ChangePassword, AccountProfile, AccountEmails, AccountEmailVerify, AccountSecurity, AccountActivity, AccountApplications, AdminUsers, AdminGroups, AdminAgents, AdminApplications, AdminAuthorizationDetailTypes, AdminConsents, AdminKeys, AdminTenants, AdminTenantAttributes, AdminSettings, AdminEntraFederation]
       interfaces: [SubmitBrowserLogin, SubmitBrowserTotp, SubmitBrowserConsent, SubmitBrowserDevice, RequestPasswordReset, ResetPasswordWithToken, ChangePassword, UpdateUserProfile, RequestEmailChange, ConfirmEmailChange, ConfirmTotpEnrollment, RemoveTotpFactor, RevokeMySession, RevokeMyOtherSessions, RevokeMyConsent, CreateAdminUser, UpdateAdminUser, DisableAdminUser, EnableAdminUser, DeleteAdminUser, CreateGroup, UpdateGroup, DeleteGroup, AddGroupMember, RemoveGroupMember, RegisterAgent, UpdateAgent, DisableAgent, EnableAgent, KillAgent, DeleteAgent, CreateAdminApplication, UpdateAdminApplication, DeleteAdminApplication, RevokeAdminConsent, RotateAdminKey, CreateTenant, UpdateTenant, DisableTenant, EnableTenant, UpdateTenantUserAttributeSchema, UpdateAdminSettings, CreateAdminClient, UpdateAdminClient, DeleteAdminClient]
       standards: [RFC9700, FAPI2SecurityProfile]
       scenarios: [browser login API の CSRF 不一致は拒否される]
@@ -7803,7 +7830,7 @@ user_experience:
       category: privacy
       adoption: required
       statement: 認証トランザクション、CSRF token、user_code、管理対象データ、自己アカウントデータを含むブラウザAPI応答は保存キャッシュを禁止する。
-      screens: [Login, Totp, Consent, Device, AccountHome, AccountProfile, AccountSecurity, AccountActivity, AccountApplications, AccountData, AdminUsers, AdminGroups, AdminAgents, AdminApplications, AdminConsents, AdminAuditEvents, AdminKeys, AdminTenants, AdminSettings, AdminClients]
+      screens: [Login, Totp, Consent, Device, AccountHome, AccountProfile, AccountSecurity, AccountActivity, AccountApplications, AccountData, AdminUsers, AdminGroups, AdminAgents, AdminApplications, AdminConsents, AdminAuditEvents, AdminKeys, AdminTenants, AdminSettings]
       interfaces: [GetBrowserTransaction, GetBrowserDeviceContext, GetAccountSummary, GetUserProfile, GetAccountSecurity, ListMySessions, ListMyConsents, ExportAccountData, ListAdminUsers, ListGroups, ListAgents, ListAdminApplications, ListAdminConsents, ListAdminAuditEvents, ListAdminKeys, ListTenants, ListAdminClients, GetAdminClient, CreateAdminClient, UpdateAdminClient]
     - id: UX-NO-CREDENTIAL-ECHO
       category: privacy
@@ -7813,20 +7840,20 @@ user_experience:
     - id: UX-ADMIN-CLIENT-SECRET
       category: security
       adoption: required
-      statement: AdminClientsは生成されたclient_secretを作成成功直後に一度だけ表示し、再取得できないことを明示する。client_secret_hashは表示しない。
-      screens: [AdminClients]
-      interfaces: [CreateAdminClient, GetAdminClient, ListAdminClients]
+      statement: AdminApplicationsはOIDCアプリ作成で生成されたclient_secretを作成成功直後に一度だけ表示し、再取得できないことを明示する。client_secret_hashは表示しない。
+      screens: [AdminApplications]
+      interfaces: [CreateAdminApplication, GetAdminApplication]
     - id: UX-ADMIN-CLIENT-DELETE-CONFIRMATION
       category: usability
       adoption: required
-      statement: AdminClientsはclient削除前に対象client_idと影響を示す確認操作を要求する。
-      screens: [AdminClients]
-      interfaces: [DeleteAdminClient]
+      statement: AdminApplicationsはアプリケーション削除前に対象を示す確認操作を要求する。
+      screens: [AdminApplications]
+      interfaces: [DeleteAdminApplication]
     - id: UX-ADMIN-TENANT-SCOPE
       category: security
       adoption: required
       statement: 管理画面は現在のrealm prefixを維持し、所属テナント内のリソース(User、Group、Agent、Application/Client、Consent、AuditEvent、Key、設定、属性スキーマ)だけを表示・変更する。
-      screens: [AdminDashboard, AdminUsers, AdminGroups, AdminAgents, AdminRoles, AdminApplications, AdminAuthorizationDetailTypes, AdminConsents, AdminAuditEvents, AdminKeys, AdminTenantAttributes, AdminSettings, AdminClients, AdminWsFedRelyingParties]
+      screens: [AdminDashboard, AdminUsers, AdminGroups, AdminAgents, AdminRoles, AdminApplications, AdminAuthorizationDetailTypes, AdminConsents, AdminAuditEvents, AdminKeys, AdminTenantAttributes, AdminSettings, AdminEntraFederation]
       interfaces: [ListAdminUsers, ListGroups, ListAgents, ListAdminApplications, ListAuthorizationDetailTypes, ListAdminConsents, ListAdminAuditEvents, ListAdminKeys, GetTenantUserAttributeSchema, GetAdminSettings, ListAdminClients, GetAdminClient, CreateAdminClient, UpdateAdminClient, DeleteAdminClient]
     - id: UX-ADMIN-CONTROL-PLANE
       category: security
@@ -7865,7 +7892,7 @@ user_experience:
       category: accessibility
       adoption: required
       statement: すべての入力、表示切替、許可、拒否、再試行をキーボードだけで操作可能にする。
-      screens: [Home, Login, Totp, Consent, Device, Status, Callback, ForgotPassword, ResetPassword, AccountHome, AccountApps, AccountProfile, AccountEmails, AccountEmailVerify, AccountSecurity, ChangePassword, AccountActivity, AccountApplications, AccountData, AdminDashboard, AdminUsers, AdminGroups, AdminAgents, AdminRoles, AdminApplications, AdminAuthorizationDetailTypes, AdminConsents, AdminAuditEvents, AdminKeys, AdminTenants, AdminTenantAttributes, AdminSettings, AdminClients, AdminWsFedRelyingParties]
+      screens: [Home, Login, Totp, Consent, Device, Status, Callback, ForgotPassword, ResetPassword, AccountHome, AccountApps, AccountProfile, AccountEmails, AccountEmailVerify, AccountSecurity, ChangePassword, AccountActivity, AccountApplications, AccountData, AdminDashboard, AdminUsers, AdminGroups, AdminAgents, AdminRoles, AdminApplications, AdminAuthorizationDetailTypes, AdminConsents, AdminAuditEvents, AdminKeys, AdminTenants, AdminTenantAttributes, AdminSettings, AdminEntraFederation]
       standards: [WCAG22]
     - id: UX-FOCUS
       category: accessibility
@@ -7883,7 +7910,7 @@ user_experience:
       category: accessibility
       adoption: required
       statement: 非同期送信の失敗と認証結果を支援技術へ通知し、送信中は重複操作を防ぐ。
-      screens: [Login, Totp, Consent, Device, Status, Callback, ForgotPassword, ResetPassword, ChangePassword, AccountProfile, AccountEmails, AccountEmailVerify, AccountSecurity, AccountActivity, AccountApplications, AccountData, AdminUsers, AdminGroups, AdminAgents, AdminApplications, AdminAuthorizationDetailTypes, AdminConsents, AdminKeys, AdminTenants, AdminTenantAttributes, AdminSettings, AdminClients, AdminWsFedRelyingParties]
+      screens: [Login, Totp, Consent, Device, Status, Callback, ForgotPassword, ResetPassword, ChangePassword, AccountProfile, AccountEmails, AccountEmailVerify, AccountSecurity, AccountActivity, AccountApplications, AccountData, AdminUsers, AdminGroups, AdminAgents, AdminApplications, AdminAuthorizationDetailTypes, AdminConsents, AdminKeys, AdminTenants, AdminTenantAttributes, AdminSettings, AdminEntraFederation]
       standards: [WCAG22]
     - id: UX-LOCALE
       category: localization

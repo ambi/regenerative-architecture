@@ -3,7 +3,6 @@ import type {
   AdminApplication,
   AdminApplicationDetail,
   AdminAuditEvent,
-  AdminClient,
   AdminConsent,
   AdminGroup,
   AdminGroupMember,
@@ -20,14 +19,13 @@ import type {
   TenantUserAttributeSchema,
   UserAttributeDef,
   EntraFederationProfile,
-  WsFedClaimMappingPolicy,
+  WsFedClaimMappingRule,
   WsFedRelyingParty,
   WsFedTokenType,
 } from '../types'
 import { adminRequest, request, tenantURL } from './core'
 
 type AdminUserListResponse = { users: AdminUser[] }
-type AdminClientListResponse = { clients: AdminClient[] }
 type AdminConsentListResponse = { consents: AdminConsent[] }
 type AdminAuditEventListResponse = { events: AdminAuditEvent[] }
 type AdminKeyListResponse = { keys: AdminKey[] }
@@ -125,63 +123,6 @@ export async function deleteAdminUser(
   )
 }
 
-export type CreateAdminClientInput = {
-  client_name?: string
-  client_type: 'public' | 'confidential'
-  redirect_uris: string[]
-  grant_types: string[]
-  response_types: string[]
-  token_endpoint_auth_method: AdminClient['token_endpoint_auth_method']
-  scope: string
-  jwks_uri?: string
-  tls_client_auth_subject_dn?: string
-  require_pushed_authorization_requests: boolean
-  dpop_bound_access_tokens: boolean
-}
-
-export type UpdateAdminClientInput = {
-  client_name?: string
-  redirect_uris: string[]
-  grant_types: string[]
-  response_types: string[]
-  scope: string
-  require_pushed_authorization_requests: boolean
-  dpop_bound_access_tokens: boolean
-}
-
-export async function listAdminClients(): Promise<AdminClient[]> {
-  return (await request<AdminClientListResponse>('/api/admin/clients')).clients
-}
-
-export async function getAdminClient(clientID: string): Promise<AdminClient> {
-  return request<AdminClient>(`/api/admin/clients/${encodeURIComponent(clientID)}`)
-}
-
-export async function createAdminClient(
-  csrfToken: string,
-  input: CreateAdminClientInput,
-): Promise<{ client: AdminClient; client_secret?: string }> {
-  return request('/api/admin/clients', adminRequest(csrfToken, 'POST', input))
-}
-
-export async function updateAdminClient(
-  csrfToken: string,
-  clientID: string,
-  input: UpdateAdminClientInput,
-): Promise<AdminClient> {
-  return request(
-    `/api/admin/clients/${encodeURIComponent(clientID)}`,
-    adminRequest(csrfToken, 'PATCH', input),
-  )
-}
-
-export async function deleteAdminClient(csrfToken: string, clientID: string): Promise<void> {
-  await request(
-    `/api/admin/clients/${encodeURIComponent(clientID)}`,
-    adminRequest(csrfToken, 'DELETE'),
-  )
-}
-
 // authorization_details type (RFC 9396 / ADR-050) の管理 API クライアント。
 export type AuthorizationDetailTypeInput = {
   type?: string
@@ -227,26 +168,9 @@ export async function deleteAuthorizationDetailType(
 
 type WsFedRelyingPartyListResponse = { relying_parties: WsFedRelyingParty[] | null }
 
-export type WsFedRelyingPartyInput = {
-  wtrealm: string
-  display_name?: string
-  reply_urls: string[]
-  audience?: string
-  token_type?: WsFedTokenType
-  claim_policy: WsFedClaimMappingPolicy
-}
-
 export async function listWsFedRelyingParties(): Promise<WsFedRelyingParty[]> {
   const response = await request<WsFedRelyingPartyListResponse>('/api/admin/wsfed/relying-parties')
   return response.relying_parties ?? []
-}
-
-// saveWsFedRelyingParty は wtrealm を upsert キーとして登録/更新する (POST 冪等)。
-export async function saveWsFedRelyingParty(
-  csrfToken: string,
-  input: WsFedRelyingPartyInput,
-): Promise<WsFedRelyingParty> {
-  return request('/api/admin/wsfed/relying-parties', adminRequest(csrfToken, 'POST', input))
 }
 
 export async function deleteWsFedRelyingParty(csrfToken: string, wtrealm: string): Promise<void> {
@@ -589,8 +513,12 @@ export type CreateAdminApplicationInput = {
   launch_url?: string
   // OIDC
   redirect_uris?: string[]
-  // service (M2M / client_credentials)
+  // OIDC / service の生成 client 設定。認証方式は作成時に確定し以後不変。
   scope?: string
+  client_type?: 'public' | 'confidential'
+  token_endpoint_auth_method?: string
+  jwks_uri?: string
+  tls_client_auth_subject_dn?: string
   // WS-Federation
   wtrealm?: string
   reply_urls?: string[]
@@ -614,13 +542,20 @@ export type UpdateAdminApplicationInput = {
 
 export type UpdateApplicationOidcInput = {
   redirect_uris?: string[]
+  grant_types?: string[]
+  response_types?: string[]
   scope?: string
+  require_pushed_authorization_requests?: boolean
+  dpop_bound_access_tokens?: boolean
 }
 
 export type UpdateApplicationWsFedInput = {
   reply_urls?: string[]
+  audience?: string
+  token_type?: WsFedTokenType
   name_id_format?: string
   name_id_source?: string
+  rules?: WsFedClaimMappingRule[]
 }
 
 export async function listAdminApplications(): Promise<AdminApplication[]> {

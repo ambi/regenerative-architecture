@@ -29,7 +29,6 @@ import { Route as AdminRolesRouteImport } from './routes/admin/roles'
 import { Route as AdminKeysRouteImport } from './routes/admin/keys'
 import { Route as AdminGroupsRouteImport } from './routes/admin/groups'
 import { Route as AdminConsentsRouteImport } from './routes/admin/consents'
-import { Route as AdminClientsRouteImport } from './routes/admin/clients'
 import { Route as AdminAuthorizationDetailTypesRouteImport } from './routes/admin/authorization-detail-types'
 import { Route as AdminAudit_eventsRouteImport } from './routes/admin/audit_events'
 import { Route as AdminApplicationsRouteImport } from './routes/admin/applications'
@@ -42,12 +41,11 @@ import { Route as AccountDataRouteImport } from './routes/account/data'
 import { Route as AccountAppsRouteImport } from './routes/account/apps'
 import { Route as AccountApplicationsRouteImport } from './routes/account/applications'
 import { Route as AccountActivityRouteImport } from './routes/account/activity'
-import { Route as AdminWsfedRelyingPartiesRouteImport } from './routes/admin/wsfed/relying-parties'
 import { Route as AdminUsersSubRouteImport } from './routes/admin/users_/$sub'
 import { Route as AdminTenantAttributesRouteImport } from './routes/admin/tenant/attributes'
 import { Route as AdminRolesNameRouteImport } from './routes/admin/roles_/$name'
 import { Route as AdminGroupsGroupIdRouteImport } from './routes/admin/groups_/$groupId'
-import { Route as AdminClientsClientIdRouteImport } from './routes/admin/clients_/$clientId'
+import { Route as AdminFederationEntraRouteImport } from './routes/admin/federation/entra'
 import { Route as AdminApplicationsApplicationIdRouteImport } from './routes/admin/applications_/$applicationId'
 import { Route as AdminAgentsAgentIdRouteImport } from './routes/admin/agents_/$agentId'
 import { Route as AccountEmailVerifyRouteImport } from './routes/account/email/verify'
@@ -154,11 +152,6 @@ const AdminConsentsRoute = AdminConsentsRouteImport.update({
   path: '/consents',
   getParentRoute: () => AdminRouteRoute,
 } as any)
-const AdminClientsRoute = AdminClientsRouteImport.update({
-  id: '/clients',
-  path: '/clients',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
 const AdminAuthorizationDetailTypesRoute =
   AdminAuthorizationDetailTypesRouteImport.update({
     id: '/authorization-detail-types',
@@ -220,12 +213,6 @@ const AccountActivityRoute = AccountActivityRouteImport.update({
   path: '/activity',
   getParentRoute: () => AccountRouteRoute,
 } as any)
-const AdminWsfedRelyingPartiesRoute =
-  AdminWsfedRelyingPartiesRouteImport.update({
-    id: '/wsfed/relying-parties',
-    path: '/wsfed/relying-parties',
-    getParentRoute: () => AdminRouteRoute,
-  } as any)
 const AdminUsersSubRoute = AdminUsersSubRouteImport.update({
   id: '/users_/$sub',
   path: '/users/$sub',
@@ -246,9 +233,9 @@ const AdminGroupsGroupIdRoute = AdminGroupsGroupIdRouteImport.update({
   path: '/groups/$groupId',
   getParentRoute: () => AdminRouteRoute,
 } as any)
-const AdminClientsClientIdRoute = AdminClientsClientIdRouteImport.update({
-  id: '/clients_/$clientId',
-  path: '/clients/$clientId',
+const AdminFederationEntraRoute = AdminFederationEntraRouteImport.update({
+  id: '/federation/entra',
+  path: '/federation/entra',
   getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminApplicationsApplicationIdRoute =
@@ -304,7 +291,6 @@ export interface FileRoutesByFullPath {
   '/admin/applications': typeof AdminApplicationsRoute
   '/admin/audit_events': typeof AdminAudit_eventsRoute
   '/admin/authorization-detail-types': typeof AdminAuthorizationDetailTypesRoute
-  '/admin/clients': typeof AdminClientsRoute
   '/admin/consents': typeof AdminConsentsRoute
   '/admin/groups': typeof AdminGroupsRoute
   '/admin/keys': typeof AdminKeysRoute
@@ -317,12 +303,11 @@ export interface FileRoutesByFullPath {
   '/account/email/verify': typeof AccountEmailVerifyRoute
   '/admin/agents/$agentId': typeof AdminAgentsAgentIdRoute
   '/admin/applications/$applicationId': typeof AdminApplicationsApplicationIdRouteWithChildren
-  '/admin/clients/$clientId': typeof AdminClientsClientIdRoute
+  '/admin/federation/entra': typeof AdminFederationEntraRoute
   '/admin/groups/$groupId': typeof AdminGroupsGroupIdRoute
   '/admin/roles/$name': typeof AdminRolesNameRoute
   '/admin/tenant/attributes': typeof AdminTenantAttributesRoute
   '/admin/users/$sub': typeof AdminUsersSubRoute
-  '/admin/wsfed/relying-parties': typeof AdminWsfedRelyingPartiesRoute
   '/admin/applications/$applicationId/edit': typeof AdminApplicationsApplicationIdEditRoute
   '/admin/applications/$applicationId/': typeof AdminApplicationsApplicationIdIndexRoute
 }
@@ -348,7 +333,6 @@ export interface FileRoutesByTo {
   '/admin/applications': typeof AdminApplicationsRoute
   '/admin/audit_events': typeof AdminAudit_eventsRoute
   '/admin/authorization-detail-types': typeof AdminAuthorizationDetailTypesRoute
-  '/admin/clients': typeof AdminClientsRoute
   '/admin/consents': typeof AdminConsentsRoute
   '/admin/groups': typeof AdminGroupsRoute
   '/admin/keys': typeof AdminKeysRoute
@@ -360,12 +344,11 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminIndexRoute
   '/account/email/verify': typeof AccountEmailVerifyRoute
   '/admin/agents/$agentId': typeof AdminAgentsAgentIdRoute
-  '/admin/clients/$clientId': typeof AdminClientsClientIdRoute
+  '/admin/federation/entra': typeof AdminFederationEntraRoute
   '/admin/groups/$groupId': typeof AdminGroupsGroupIdRoute
   '/admin/roles/$name': typeof AdminRolesNameRoute
   '/admin/tenant/attributes': typeof AdminTenantAttributesRoute
   '/admin/users/$sub': typeof AdminUsersSubRoute
-  '/admin/wsfed/relying-parties': typeof AdminWsfedRelyingPartiesRoute
   '/admin/applications/$applicationId/edit': typeof AdminApplicationsApplicationIdEditRoute
   '/admin/applications/$applicationId': typeof AdminApplicationsApplicationIdIndexRoute
 }
@@ -394,7 +377,6 @@ export interface FileRoutesById {
   '/admin/applications': typeof AdminApplicationsRoute
   '/admin/audit_events': typeof AdminAudit_eventsRoute
   '/admin/authorization-detail-types': typeof AdminAuthorizationDetailTypesRoute
-  '/admin/clients': typeof AdminClientsRoute
   '/admin/consents': typeof AdminConsentsRoute
   '/admin/groups': typeof AdminGroupsRoute
   '/admin/keys': typeof AdminKeysRoute
@@ -407,12 +389,11 @@ export interface FileRoutesById {
   '/account/email/verify': typeof AccountEmailVerifyRoute
   '/admin/agents_/$agentId': typeof AdminAgentsAgentIdRoute
   '/admin/applications_/$applicationId': typeof AdminApplicationsApplicationIdRouteWithChildren
-  '/admin/clients_/$clientId': typeof AdminClientsClientIdRoute
+  '/admin/federation/entra': typeof AdminFederationEntraRoute
   '/admin/groups_/$groupId': typeof AdminGroupsGroupIdRoute
   '/admin/roles_/$name': typeof AdminRolesNameRoute
   '/admin/tenant/attributes': typeof AdminTenantAttributesRoute
   '/admin/users_/$sub': typeof AdminUsersSubRoute
-  '/admin/wsfed/relying-parties': typeof AdminWsfedRelyingPartiesRoute
   '/admin/applications_/$applicationId/edit': typeof AdminApplicationsApplicationIdEditRoute
   '/admin/applications_/$applicationId/': typeof AdminApplicationsApplicationIdIndexRoute
 }
@@ -442,7 +423,6 @@ export interface FileRouteTypes {
     | '/admin/applications'
     | '/admin/audit_events'
     | '/admin/authorization-detail-types'
-    | '/admin/clients'
     | '/admin/consents'
     | '/admin/groups'
     | '/admin/keys'
@@ -455,12 +435,11 @@ export interface FileRouteTypes {
     | '/account/email/verify'
     | '/admin/agents/$agentId'
     | '/admin/applications/$applicationId'
-    | '/admin/clients/$clientId'
+    | '/admin/federation/entra'
     | '/admin/groups/$groupId'
     | '/admin/roles/$name'
     | '/admin/tenant/attributes'
     | '/admin/users/$sub'
-    | '/admin/wsfed/relying-parties'
     | '/admin/applications/$applicationId/edit'
     | '/admin/applications/$applicationId/'
   fileRoutesByTo: FileRoutesByTo
@@ -486,7 +465,6 @@ export interface FileRouteTypes {
     | '/admin/applications'
     | '/admin/audit_events'
     | '/admin/authorization-detail-types'
-    | '/admin/clients'
     | '/admin/consents'
     | '/admin/groups'
     | '/admin/keys'
@@ -498,12 +476,11 @@ export interface FileRouteTypes {
     | '/admin'
     | '/account/email/verify'
     | '/admin/agents/$agentId'
-    | '/admin/clients/$clientId'
+    | '/admin/federation/entra'
     | '/admin/groups/$groupId'
     | '/admin/roles/$name'
     | '/admin/tenant/attributes'
     | '/admin/users/$sub'
-    | '/admin/wsfed/relying-parties'
     | '/admin/applications/$applicationId/edit'
     | '/admin/applications/$applicationId'
   id:
@@ -531,7 +508,6 @@ export interface FileRouteTypes {
     | '/admin/applications'
     | '/admin/audit_events'
     | '/admin/authorization-detail-types'
-    | '/admin/clients'
     | '/admin/consents'
     | '/admin/groups'
     | '/admin/keys'
@@ -544,12 +520,11 @@ export interface FileRouteTypes {
     | '/account/email/verify'
     | '/admin/agents_/$agentId'
     | '/admin/applications_/$applicationId'
-    | '/admin/clients_/$clientId'
+    | '/admin/federation/entra'
     | '/admin/groups_/$groupId'
     | '/admin/roles_/$name'
     | '/admin/tenant/attributes'
     | '/admin/users_/$sub'
-    | '/admin/wsfed/relying-parties'
     | '/admin/applications_/$applicationId/edit'
     | '/admin/applications_/$applicationId/'
   fileRoutesById: FileRoutesById
@@ -710,13 +685,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminConsentsRouteImport
       parentRoute: typeof AdminRouteRoute
     }
-    '/admin/clients': {
-      id: '/admin/clients'
-      path: '/clients'
-      fullPath: '/admin/clients'
-      preLoaderRoute: typeof AdminClientsRouteImport
-      parentRoute: typeof AdminRouteRoute
-    }
     '/admin/authorization-detail-types': {
       id: '/admin/authorization-detail-types'
       path: '/authorization-detail-types'
@@ -801,13 +769,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccountActivityRouteImport
       parentRoute: typeof AccountRouteRoute
     }
-    '/admin/wsfed/relying-parties': {
-      id: '/admin/wsfed/relying-parties'
-      path: '/wsfed/relying-parties'
-      fullPath: '/admin/wsfed/relying-parties'
-      preLoaderRoute: typeof AdminWsfedRelyingPartiesRouteImport
-      parentRoute: typeof AdminRouteRoute
-    }
     '/admin/users_/$sub': {
       id: '/admin/users_/$sub'
       path: '/users/$sub'
@@ -836,11 +797,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminGroupsGroupIdRouteImport
       parentRoute: typeof AdminRouteRoute
     }
-    '/admin/clients_/$clientId': {
-      id: '/admin/clients_/$clientId'
-      path: '/clients/$clientId'
-      fullPath: '/admin/clients/$clientId'
-      preLoaderRoute: typeof AdminClientsClientIdRouteImport
+    '/admin/federation/entra': {
+      id: '/admin/federation/entra'
+      path: '/federation/entra'
+      fullPath: '/admin/federation/entra'
+      preLoaderRoute: typeof AdminFederationEntraRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/admin/applications_/$applicationId': {
@@ -934,7 +895,6 @@ interface AdminRouteRouteChildren {
   AdminApplicationsRoute: typeof AdminApplicationsRoute
   AdminAudit_eventsRoute: typeof AdminAudit_eventsRoute
   AdminAuthorizationDetailTypesRoute: typeof AdminAuthorizationDetailTypesRoute
-  AdminClientsRoute: typeof AdminClientsRoute
   AdminConsentsRoute: typeof AdminConsentsRoute
   AdminGroupsRoute: typeof AdminGroupsRoute
   AdminKeysRoute: typeof AdminKeysRoute
@@ -945,12 +905,11 @@ interface AdminRouteRouteChildren {
   AdminIndexRoute: typeof AdminIndexRoute
   AdminAgentsAgentIdRoute: typeof AdminAgentsAgentIdRoute
   AdminApplicationsApplicationIdRoute: typeof AdminApplicationsApplicationIdRouteWithChildren
-  AdminClientsClientIdRoute: typeof AdminClientsClientIdRoute
+  AdminFederationEntraRoute: typeof AdminFederationEntraRoute
   AdminGroupsGroupIdRoute: typeof AdminGroupsGroupIdRoute
   AdminRolesNameRoute: typeof AdminRolesNameRoute
   AdminTenantAttributesRoute: typeof AdminTenantAttributesRoute
   AdminUsersSubRoute: typeof AdminUsersSubRoute
-  AdminWsfedRelyingPartiesRoute: typeof AdminWsfedRelyingPartiesRoute
 }
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
@@ -958,7 +917,6 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminApplicationsRoute: AdminApplicationsRoute,
   AdminAudit_eventsRoute: AdminAudit_eventsRoute,
   AdminAuthorizationDetailTypesRoute: AdminAuthorizationDetailTypesRoute,
-  AdminClientsRoute: AdminClientsRoute,
   AdminConsentsRoute: AdminConsentsRoute,
   AdminGroupsRoute: AdminGroupsRoute,
   AdminKeysRoute: AdminKeysRoute,
@@ -970,12 +928,11 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminAgentsAgentIdRoute: AdminAgentsAgentIdRoute,
   AdminApplicationsApplicationIdRoute:
     AdminApplicationsApplicationIdRouteWithChildren,
-  AdminClientsClientIdRoute: AdminClientsClientIdRoute,
+  AdminFederationEntraRoute: AdminFederationEntraRoute,
   AdminGroupsGroupIdRoute: AdminGroupsGroupIdRoute,
   AdminRolesNameRoute: AdminRolesNameRoute,
   AdminTenantAttributesRoute: AdminTenantAttributesRoute,
   AdminUsersSubRoute: AdminUsersSubRoute,
-  AdminWsfedRelyingPartiesRoute: AdminWsfedRelyingPartiesRoute,
 }
 
 const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(

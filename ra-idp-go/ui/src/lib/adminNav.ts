@@ -11,6 +11,7 @@ import {
   IconUsersGroup,
   IconUserShield,
   IconUsers,
+  IconWorldShare,
 } from '@tabler/icons-react'
 import { tenantBasePath, tenantURL } from '../api'
 
@@ -21,8 +22,7 @@ export type AdminNavKey =
   | 'agents'
   | 'roles'
   | 'applications'
-  | 'oauth2'
-  | 'wsfed'
+  | 'entra-federation'
   | 'authz-detail-types'
   | 'consents'
   | 'audit-events'
@@ -114,9 +114,9 @@ export function adminNavItems(active: AdminNavKey): AdminNavItem[] {
       href: tenantURL('/admin/keys'),
       active: active === 'keys',
     },
-    // OAuth2 クライアント / WS-Federation RP の低レベル設定は「アプリケーション」に一本化した
-    // ため、専用のサイドバー導線は持たない (Okta 流)。/admin/clients・/admin/wsfed/relying-parties
-    // は URL 直叩きで到達できる advanced 面として残す。
+    // OAuth2 クライアント / WS-Federation RP の設定は「アプリケーション」に一本化した。
+    // 高度な OIDC 設定 (grant / response 種別・PAR・DPoP、作成時の認証方式) もアプリ編集画面に
+    // 畳んだため、専用の低レベル client 画面は撤去した。
   ]
   if (isControlPlane()) {
     items.push({
@@ -134,6 +134,13 @@ export function adminNavItems(active: AdminNavKey): AdminNavItem[] {
     icon: IconForms,
     href: tenantURL('/admin/tenant/attributes'),
     active: active === 'tenant-attributes',
+  })
+  items.push({
+    key: 'entra-federation',
+    label: 'Entra 連携',
+    icon: IconWorldShare,
+    href: tenantURL('/admin/federation/entra'),
+    active: active === 'entra-federation',
   })
   items.push({
     key: 'settings',

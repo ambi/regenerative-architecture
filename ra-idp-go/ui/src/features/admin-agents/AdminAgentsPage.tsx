@@ -690,12 +690,7 @@ function AgentDetailCard({
                 key={clientID}
                 className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
               >
-                <a
-                  className="truncate font-mono text-blue-700 hover:underline"
-                  href={tenantURL(`/admin/clients/${encodeURIComponent(clientID)}`)}
-                >
-                  {clientID}
-                </a>
+                <span className="truncate font-mono text-slate-700">{clientID}</span>
                 <Button
                   variant="ghost"
                   className="text-rose-700 hover:bg-rose-50"

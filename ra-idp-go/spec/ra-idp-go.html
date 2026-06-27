@@ -23,7 +23,7 @@
       <div class="eyebrow">Specification Core Language · spec 1.2</div>
       <h1>ra-idp</h1>
     </header>
-    <div class="stats"><a class="stat" href="#standards"><span class="stat-num">30</span><span class="stat-label">standards</span></a><a class="stat" href="#bounded_contexts"><span class="stat-num">9</span><span class="stat-label">bounded contexts</span></a><a class="stat" href="#vocabulary"><span class="stat-num">130</span><span class="stat-label">vocabulary</span></a><a class="stat" href="#models"><span class="stat-num">293</span><span class="stat-label">models</span></a><a class="stat" href="#interfaces"><span class="stat-num">119</span><span class="stat-label">interfaces</span></a><a class="stat" href="#states"><span class="stat-num">11</span><span class="stat-label">states</span></a><a class="stat" href="#invariants"><span class="stat-num">24</span><span class="stat-label">invariants</span></a><a class="stat" href="#scenarios"><span class="stat-num">93</span><span class="stat-label">scenarios</span></a><a class="stat" href="#permissions"><span class="stat-num">28</span><span class="stat-label">permissions</span></a><a class="stat" href="#objectives"><span class="stat-num">54</span><span class="stat-label">objectives</span></a><a class="stat" href="#assurance"><span class="stat-num">5</span><span class="stat-label">assurance</span></a><a class="stat" href="#user_experience"><span class="stat-num">34</span><span class="stat-label">user experience</span></a></div>
+    <div class="stats"><a class="stat" href="#standards"><span class="stat-num">30</span><span class="stat-label">standards</span></a><a class="stat" href="#bounded_contexts"><span class="stat-num">9</span><span class="stat-label">bounded contexts</span></a><a class="stat" href="#vocabulary"><span class="stat-num">130</span><span class="stat-label">vocabulary</span></a><a class="stat" href="#models"><span class="stat-num">293</span><span class="stat-label">models</span></a><a class="stat" href="#interfaces"><span class="stat-num">119</span><span class="stat-label">interfaces</span></a><a class="stat" href="#states"><span class="stat-num">11</span><span class="stat-label">states</span></a><a class="stat" href="#invariants"><span class="stat-num">24</span><span class="stat-label">invariants</span></a><a class="stat" href="#scenarios"><span class="stat-num">93</span><span class="stat-label">scenarios</span></a><a class="stat" href="#permissions"><span class="stat-num">28</span><span class="stat-label">permissions</span></a><a class="stat" href="#objectives"><span class="stat-num">54</span><span class="stat-label">objectives</span></a><a class="stat" href="#assurance"><span class="stat-num">5</span><span class="stat-label">assurance</span></a><a class="stat" href="#user_experience"><span class="stat-num">33</span><span class="stat-label">user experience</span></a></div>
   </section>
   <section id="standards">
     <h2>Standards <span class="count">30</span></h2>
@@ -7886,7 +7886,7 @@ modal に出す選択肢)。
   </article>
 <article class="card" id="model-adminapplicationcreaterequest">
     <header><h3>AdminApplicationCreateRequest</h3><span class="badge badge-kind-value_object">value object</span></header>
-    <p class="desc">Application 一括作成リクエスト。種別を選び、対応するプロトコル設定もまとめて受け取る。 backend が OAuth2 client / WS-Fed RP を作成し、Application と protocol binding を一括で作る (wi-69)。</p>
+    <p class="desc">Application 一括作成リクエスト。種別を選び、対応するプロトコル設定もまとめて受け取る。 backend が OAuth2 client / WS-Fed RP を作成し、Application と protocol binding を一括で作る。</p>
 
     <table class="fields">
     <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
@@ -7925,7 +7925,31 @@ modal に出す選択肢)。
     <td><code class="type">String</code></td>
     <td><span class="badge badge-optional">optional</span></td>
     <td><span class="muted">—</span></td>
-    <td>type=service の OAuth2 client スコープ (client_credentials)。</td>
+    <td>生成する OAuth2 client のスコープ。</td>
+  </tr><tr>
+    <td><code class="name">client_type</code></td>
+    <td><code class="type">ClientType</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td>type=oidc の生成 client 種別。既定は confidential。</td>
+  </tr><tr>
+    <td><code class="name">token_endpoint_auth_method</code></td>
+    <td><code class="type">TokenEndpointAuthMethod</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td>type=oidc の生成 client 認証方式。作成時に確定し以後不変。</td>
+  </tr><tr>
+    <td><code class="name">jwks_uri</code></td>
+    <td><code class="type">Uri</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td>token_endpoint_auth_method=private_key_jwt の公開鍵 JWKS URI。</td>
+  </tr><tr>
+    <td><code class="name">tls_client_auth_subject_dn</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td>token_endpoint_auth_method=tls_client_auth の証明書 Subject DN。</td>
   </tr><tr>
     <td><code class="name">wtrealm</code></td>
     <td><code class="type">String</code></td>
@@ -7982,7 +8006,7 @@ modal に出す選択肢)。
   </article>
 <article class="card" id="model-applicationoidcconfig">
     <header><h3>ApplicationOidcConfig</h3><span class="badge badge-kind-value_object">value object</span></header>
-    <p class="desc">Application の OIDC binding が指す OAuth2 client の実設定 (アプリ詳細表示用) (wi-69)。</p>
+    <p class="desc">Application の OIDC binding が指す OAuth2 client の実設定 (アプリ詳細表示用)。advanced 項目を含む。token_endpoint_auth_method / client_type / fapi_profile は更新契約上の不変項目で 表示専用。</p>
 
     <table class="fields">
     <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
@@ -7993,8 +8017,32 @@ modal に出す選択肢)。
     <td><span class="muted">—</span></td>
     <td></td>
   </tr><tr>
+    <td><code class="name">client_type</code></td>
+    <td><code class="type">ClientType</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
     <td><code class="name">redirect_uris</code></td>
     <td><code class="type">String[]</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">grant_types</code></td>
+    <td><code class="type">GrantType[]</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">response_types</code></td>
+    <td><code class="type">ResponseType[]</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">token_endpoint_auth_method</code></td>
+    <td><code class="type">TokenEndpointAuthMethod</code></td>
     <td><span class="badge badge-required">required</span></td>
     <td><span class="muted">—</span></td>
     <td></td>
@@ -8004,12 +8052,30 @@ modal に出す選択肢)。
     <td><span class="badge badge-required">required</span></td>
     <td><span class="muted">—</span></td>
     <td></td>
+  </tr><tr>
+    <td><code class="name">require_pushed_authorization_requests</code></td>
+    <td><code class="type">Boolean</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">dpop_bound_access_tokens</code></td>
+    <td><code class="type">Boolean</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">fapi_profile</code></td>
+    <td><code class="type">FapiProfile</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
   </tr></tbody>
   </table>
   </article>
 <article class="card" id="model-applicationwsfedconfig">
     <header><h3>ApplicationWsFedConfig</h3><span class="badge badge-kind-value_object">value object</span></header>
-    <p class="desc">Application の WS-Fed binding が指す relying party の実設定 (アプリ詳細表示用) (wi-69)。</p>
+    <p class="desc">Application の WS-Fed binding が指す relying party の実設定 (アプリ詳細表示用)。per-RP の advanced 項目 (audience / token_type / claim 規則) を含む。Entra domain federation は テナント単位の設定として別に扱う。</p>
 
     <table class="fields">
     <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
@@ -8026,6 +8092,18 @@ modal に出す選択肢)。
     <td><span class="muted">—</span></td>
     <td></td>
   </tr><tr>
+    <td><code class="name">audience</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">token_type</code></td>
+    <td><code class="type">WsFedTokenType</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
     <td><code class="name">name_id_format</code></td>
     <td><code class="type">String</code></td>
     <td><span class="badge badge-required">required</span></td>
@@ -8034,6 +8112,12 @@ modal に出す選択肢)。
   </tr><tr>
     <td><code class="name">name_id_source</code></td>
     <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">rules</code></td>
+    <td><code class="type">ClaimMappingRule[]</code></td>
     <td><span class="badge badge-required">required</span></td>
     <td><span class="muted">—</span></td>
     <td></td>
@@ -8069,7 +8153,7 @@ modal に出す選択肢)。
   </article>
 <article class="card" id="model-applicationoidcconfigupdaterequest">
     <header><h3>ApplicationOidcConfigUpdateRequest</h3><span class="badge badge-kind-value_object">value object</span></header>
-    <p class="desc">OIDC binding 設定の更新リクエスト。指定フィールドのみ変更する (wi-69)。</p>
+    <p class="desc">OIDC binding 設定の更新リクエスト。指定フィールドのみ変更する。advanced 項目を含む。 token_endpoint_auth_method など更新契約上の不変項目は含めない。</p>
 
     <table class="fields">
     <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
@@ -8080,8 +8164,32 @@ modal に出す選択肢)。
     <td><span class="muted">—</span></td>
     <td></td>
   </tr><tr>
+    <td><code class="name">grant_types</code></td>
+    <td><code class="type">GrantType[]</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">response_types</code></td>
+    <td><code class="type">ResponseType[]</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
     <td><code class="name">scope</code></td>
     <td><code class="type">String</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">require_pushed_authorization_requests</code></td>
+    <td><code class="type">Boolean</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">dpop_bound_access_tokens</code></td>
+    <td><code class="type">Boolean</code></td>
     <td><span class="badge badge-optional">optional</span></td>
     <td><span class="muted">—</span></td>
     <td></td>
@@ -8090,13 +8198,25 @@ modal に出す選択肢)。
   </article>
 <article class="card" id="model-applicationwsfedconfigupdaterequest">
     <header><h3>ApplicationWsFedConfigUpdateRequest</h3><span class="badge badge-kind-value_object">value object</span></header>
-    <p class="desc">WS-Federation binding 設定の更新リクエスト。指定フィールドのみ変更する (wi-69)。</p>
+    <p class="desc">WS-Federation binding 設定の更新リクエスト。指定フィールドのみ変更する。per-RP の advanced 項目 (audience / token_type / claim 規則) を含む。Entra domain federation は対象外。</p>
 
     <table class="fields">
     <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
     <tbody><tr>
     <td><code class="name">reply_urls</code></td>
     <td><code class="type">String[]</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">audience</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">token_type</code></td>
+    <td><code class="type">WsFedTokenType</code></td>
     <td><span class="badge badge-optional">optional</span></td>
     <td><span class="muted">—</span></td>
     <td></td>
@@ -8112,12 +8232,18 @@ modal に出す選択肢)。
     <td><span class="badge badge-optional">optional</span></td>
     <td><span class="muted">—</span></td>
     <td></td>
+  </tr><tr>
+    <td><code class="name">rules</code></td>
+    <td><code class="type">ClaimMappingRule[]</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
   </tr></tbody>
   </table>
   </article>
 <article class="card" id="model-adminapplicationupdaterequest">
     <header><h3>AdminApplicationUpdateRequest</h3><span class="badge badge-kind-value_object">value object</span></header>
-    <p class="desc">Application 更新リクエスト。指定フィールドのみ変更する (wi-69)。</p>
+    <p class="desc">Application 更新リクエスト。指定フィールドのみ変更する。</p>
 
     <table class="fields">
     <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
@@ -17641,13 +17767,13 @@ tenant 経路から実行する場合のみ許可する。
       </article></div>
   </section>
 <section id="user_experience">
-    <h2>User Experience <span class="count">34</span></h2>
+    <h2>User Experience <span class="count">33</span></h2>
     <p class="lead">ブラウザ画面、画面遷移、セキュリティ・プライバシー・アクセシビリティ要件。</p>
     <dl class="kv">
     <dt>accessibility</dt><dd><a class="chip" href="#std-wcag22">WCAG22</a> <span class="badge">AA</span></dd>
     <dt>locales</dt><dd><span class="chip">ja</span> <span class="chip">en</span></dd>
   </dl>
-    <div class="group"><h3 class="grp-title">Screens <span class="count">34</span></h3><div class="cards"><article class="card" id="screen-home">
+    <div class="group"><h3 class="grp-title">Screens <span class="count">33</span></h3><div class="cards"><article class="card" id="screen-home">
         <header><h3>Home</h3><span class="chip chip-hint">/</span></header>
         <p class="desc">IdPの稼働状態と認証開始方法を示し、ローカルデモでは認可要求を開始する。</p>
         <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-iface-ref" href="#iface-authorize">Authorize</a> <a class="chip chip-iface-ref" href="#iface-getopenidconfiguration">GetOpenidConfiguration</a></div>
@@ -17710,10 +17836,12 @@ tenant 経路から実行する場合のみ許可する。
       </article><article class="card" id="screen-adminapplications">
         <header><h3>AdminApplications</h3><span class="chip chip-hint">/admin/applications</span></header>
         <p class="desc">管理者が OAuth2 / WS-Federation / service の各種クライアントを単一の「アプリケーション」として
-一覧・作成・更新・削除し、protocol binding の追加・削除、OIDC / WS-Fed 個別設定、Entra 連携、
-ユーザー/グループへの割り当てを行う統合画面 (commit a5e2ec8)。
+一覧・作成・更新・削除し、protocol binding の追加・削除、OIDC / WS-Fed の設定、
+ユーザー/グループへの割り当てを行う統合画面。OIDC の高度な設定 (grant / response 種別・PAR・
+DPoP、作成時に確定する認証方式) もここで編集し、専用の低レベル client 画面は持たない。
+生成された client_secret は作成成功直後に一度だけ表示する。
 </p>
-        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-iface-ref" href="#iface-listadminapplications">ListAdminApplications</a> <a class="chip chip-iface-ref" href="#iface-getadminapplication">GetAdminApplication</a> <a class="chip chip-iface-ref" href="#iface-createadminapplication">CreateAdminApplication</a> <a class="chip chip-iface-ref" href="#iface-updateadminapplication">UpdateAdminApplication</a> <a class="chip chip-iface-ref" href="#iface-deleteadminapplication">DeleteAdminApplication</a> <a class="chip chip-iface-ref" href="#iface-attachprotocolbinding">AttachProtocolBinding</a> <a class="chip chip-iface-ref" href="#iface-detachprotocolbinding">DetachProtocolBinding</a> <a class="chip chip-iface-ref" href="#iface-updateapplicationoidcconfig">UpdateApplicationOidcConfig</a> <a class="chip chip-iface-ref" href="#iface-updateapplicationwsfedconfig">UpdateApplicationWsFedConfig</a> <a class="chip chip-iface-ref" href="#iface-configureentrafederation">ConfigureEntraFederation</a> <a class="chip chip-iface-ref" href="#iface-listapplicationassignments">ListApplicationAssignments</a> <a class="chip chip-iface-ref" href="#iface-assignapplication">AssignApplication</a> <a class="chip chip-iface-ref" href="#iface-unassignapplication">UnassignApplication</a> <a class="chip chip-iface-ref" href="#iface-listadminusers">ListAdminUsers</a> <a class="chip chip-iface-ref" href="#iface-listgroups">ListGroups</a></div>
+        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-iface-ref" href="#iface-listadminapplications">ListAdminApplications</a> <a class="chip chip-iface-ref" href="#iface-getadminapplication">GetAdminApplication</a> <a class="chip chip-iface-ref" href="#iface-createadminapplication">CreateAdminApplication</a> <a class="chip chip-iface-ref" href="#iface-updateadminapplication">UpdateAdminApplication</a> <a class="chip chip-iface-ref" href="#iface-deleteadminapplication">DeleteAdminApplication</a> <a class="chip chip-iface-ref" href="#iface-attachprotocolbinding">AttachProtocolBinding</a> <a class="chip chip-iface-ref" href="#iface-detachprotocolbinding">DetachProtocolBinding</a> <a class="chip chip-iface-ref" href="#iface-updateapplicationoidcconfig">UpdateApplicationOidcConfig</a> <a class="chip chip-iface-ref" href="#iface-updateapplicationwsfedconfig">UpdateApplicationWsFedConfig</a> <a class="chip chip-iface-ref" href="#iface-listapplicationassignments">ListApplicationAssignments</a> <a class="chip chip-iface-ref" href="#iface-assignapplication">AssignApplication</a> <a class="chip chip-iface-ref" href="#iface-unassignapplication">UnassignApplication</a> <a class="chip chip-iface-ref" href="#iface-listadminusers">ListAdminUsers</a> <a class="chip chip-iface-ref" href="#iface-listgroups">ListGroups</a></div>
         <div class="chip-row"><span class="chip">ready</span> <span class="chip">loading</span> <span class="chip">submitting</span> <span class="chip">empty</span> <span class="chip">secret_issued</span> <span class="chip">delete_confirmation</span> <span class="chip">access_denied</span> <span class="chip">service_error</span></div>
       </article><article class="card" id="screen-adminauthorizationdetailtypes">
         <header><h3>AdminAuthorizationDetailTypes</h3><span class="chip chip-hint">/admin/authorization-detail-types</span></header>
@@ -17750,22 +17878,16 @@ tenant 経路から実行する場合のみ許可する。
         <p class="desc">管理者がパスワードポリシーなど所属テナントの設定を参照・更新する。</p>
         <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-iface-ref" href="#iface-getadminsettings">GetAdminSettings</a> <a class="chip chip-iface-ref" href="#iface-updateadminsettings">UpdateAdminSettings</a></div>
         <div class="chip-row"><span class="chip">ready</span> <span class="chip">loading</span> <span class="chip">submitting</span> <span class="chip">access_denied</span> <span class="chip">service_error</span></div>
-      </article><article class="card" id="screen-adminclients">
-        <header><h3>AdminClients</h3><span class="chip chip-hint">/admin/clients</span></header>
-        <p class="desc">OAuth2 client の低レベル設定を直接編集する advanced 画面。通常運用は AdminApplications に
-一本化されており、サイドバー導線を持たず URL 直叩きでのみ到達する (commit a5e2ec8)。
-生成された client_secret は作成成功直後に一度だけ表示する。
-</p>
-        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-iface-ref" href="#iface-listadminclients">ListAdminClients</a> <a class="chip chip-iface-ref" href="#iface-getadminclient">GetAdminClient</a> <a class="chip chip-iface-ref" href="#iface-createadminclient">CreateAdminClient</a> <a class="chip chip-iface-ref" href="#iface-updateadminclient">UpdateAdminClient</a> <a class="chip chip-iface-ref" href="#iface-deleteadminclient">DeleteAdminClient</a></div>
-        <div class="chip-row"><span class="chip">ready</span> <span class="chip">loading</span> <span class="chip">submitting</span> <span class="chip">empty</span> <span class="chip">secret_issued</span> <span class="chip">delete_confirmation</span> <span class="chip">access_denied</span> <span class="chip">service_error</span></div>
-      </article><article class="card" id="screen-adminwsfedrelyingparties">
-        <header><h3>AdminWsFedRelyingParties</h3><span class="chip chip-hint">/admin/wsfed/relying-parties</span></header>
-        <p class="desc">WS-Federation relying party の低レベル設定を直接編集する advanced 画面。通常運用は
-AdminApplications に一本化されており、サイドバー導線を持たず URL 直叩きでのみ到達する。
-Entra 連携の設定もここから行える。
+      </article><article class="card" id="screen-adminentrafederation">
+        <header><h3>AdminEntraFederation</h3><span class="chip chip-hint">/admin/federation/entra</span></header>
+        <p class="desc">管理者がテナント単位で Microsoft Entra domain federation を設定する。検証済みドメイン・
+IssuerUri・sourceAnchor 属性を入力すると、UPN / ImmutableID / persistent NameID の
+claim preset を持つ relying party を upsert し、Entra に登録する PassiveLogOnUri /
+ActiveLogOnUri / MetadataExchangeUri を提示する。個別アプリの設定ではなくドメイン連携の
+ため、Application 編集ではなくテナント設定として扱う。
 </p>
         <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-iface-ref" href="#iface-configureentrafederation">ConfigureEntraFederation</a></div>
-        <div class="chip-row"><span class="chip">ready</span> <span class="chip">loading</span> <span class="chip">submitting</span> <span class="chip">empty</span> <span class="chip">delete_confirmation</span> <span class="chip">access_denied</span> <span class="chip">service_error</span></div>
+        <div class="chip-row"><span class="chip">ready</span> <span class="chip">loading</span> <span class="chip">submitting</span> <span class="chip">access_denied</span> <span class="chip">service_error</span></div>
       </article><article class="card" id="screen-accounthome">
         <header><h3>AccountHome</h3><span class="chip chip-hint">/account</span></header>
         <p class="desc">end-userに自身のアカウント概要(最終ログイン、パスワード変更日時、MFA状態、未対応の必須アクション)を提示する。adminロールは含めない。</p>
@@ -17976,7 +18098,7 @@ Entra 連携の設定もここから行える。
           <span class="badge badge-category">security</span>
         </header>
         <p>状態変更を伴うブラウザAPIはSameSite cookieとリクエストトークンを照合してCSRFを拒否する。</p>
-        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-login">Login</a> <a class="chip" href="#screen-totp">Totp</a> <a class="chip" href="#screen-consent">Consent</a> <a class="chip" href="#screen-device">Device</a> <a class="chip" href="#screen-forgotpassword">ForgotPassword</a> <a class="chip" href="#screen-resetpassword">ResetPassword</a> <a class="chip" href="#screen-changepassword">ChangePassword</a> <a class="chip" href="#screen-accountprofile">AccountProfile</a> <a class="chip" href="#screen-accountemails">AccountEmails</a> <a class="chip" href="#screen-accountemailverify">AccountEmailVerify</a> <a class="chip" href="#screen-accountsecurity">AccountSecurity</a> <a class="chip" href="#screen-accountactivity">AccountActivity</a> <a class="chip" href="#screen-accountapplications">AccountApplications</a> <a class="chip" href="#screen-adminusers">AdminUsers</a> <a class="chip" href="#screen-admingroups">AdminGroups</a> <a class="chip" href="#screen-adminagents">AdminAgents</a> <a class="chip" href="#screen-adminapplications">AdminApplications</a> <a class="chip" href="#screen-adminauthorizationdetailtypes">AdminAuthorizationDetailTypes</a> <a class="chip" href="#screen-adminconsents">AdminConsents</a> <a class="chip" href="#screen-adminkeys">AdminKeys</a> <a class="chip" href="#screen-admintenants">AdminTenants</a> <a class="chip" href="#screen-admintenantattributes">AdminTenantAttributes</a> <a class="chip" href="#screen-adminsettings">AdminSettings</a> <a class="chip" href="#screen-adminclients">AdminClients</a> <a class="chip" href="#screen-adminwsfedrelyingparties">AdminWsFedRelyingParties</a></div>
+        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-login">Login</a> <a class="chip" href="#screen-totp">Totp</a> <a class="chip" href="#screen-consent">Consent</a> <a class="chip" href="#screen-device">Device</a> <a class="chip" href="#screen-forgotpassword">ForgotPassword</a> <a class="chip" href="#screen-resetpassword">ResetPassword</a> <a class="chip" href="#screen-changepassword">ChangePassword</a> <a class="chip" href="#screen-accountprofile">AccountProfile</a> <a class="chip" href="#screen-accountemails">AccountEmails</a> <a class="chip" href="#screen-accountemailverify">AccountEmailVerify</a> <a class="chip" href="#screen-accountsecurity">AccountSecurity</a> <a class="chip" href="#screen-accountactivity">AccountActivity</a> <a class="chip" href="#screen-accountapplications">AccountApplications</a> <a class="chip" href="#screen-adminusers">AdminUsers</a> <a class="chip" href="#screen-admingroups">AdminGroups</a> <a class="chip" href="#screen-adminagents">AdminAgents</a> <a class="chip" href="#screen-adminapplications">AdminApplications</a> <a class="chip" href="#screen-adminauthorizationdetailtypes">AdminAuthorizationDetailTypes</a> <a class="chip" href="#screen-adminconsents">AdminConsents</a> <a class="chip" href="#screen-adminkeys">AdminKeys</a> <a class="chip" href="#screen-admintenants">AdminTenants</a> <a class="chip" href="#screen-admintenantattributes">AdminTenantAttributes</a> <a class="chip" href="#screen-adminsettings">AdminSettings</a> <a class="chip" href="#screen-adminentrafederation">AdminEntraFederation</a></div>
         <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-submitbrowserlogin">SubmitBrowserLogin</a> <a class="chip chip-ref" href="#iface-submitbrowsertotp">SubmitBrowserTotp</a> <a class="chip chip-ref" href="#iface-submitbrowserconsent">SubmitBrowserConsent</a> <a class="chip chip-ref" href="#iface-submitbrowserdevice">SubmitBrowserDevice</a> <a class="chip chip-ref" href="#iface-requestpasswordreset">RequestPasswordReset</a> <a class="chip chip-ref" href="#iface-resetpasswordwithtoken">ResetPasswordWithToken</a> <a class="chip chip-ref" href="#iface-changepassword">ChangePassword</a> <a class="chip chip-ref" href="#iface-updateuserprofile">UpdateUserProfile</a> <a class="chip chip-ref" href="#iface-requestemailchange">RequestEmailChange</a> <a class="chip chip-ref" href="#iface-confirmemailchange">ConfirmEmailChange</a> <a class="chip chip-ref" href="#iface-confirmtotpenrollment">ConfirmTotpEnrollment</a> <a class="chip chip-ref" href="#iface-removetotpfactor">RemoveTotpFactor</a> <a class="chip chip-ref" href="#iface-revokemysession">RevokeMySession</a> <a class="chip chip-ref" href="#iface-revokemyothersessions">RevokeMyOtherSessions</a> <a class="chip chip-ref" href="#iface-revokemyconsent">RevokeMyConsent</a> <a class="chip chip-ref" href="#iface-createadminuser">CreateAdminUser</a> <a class="chip chip-ref" href="#iface-updateadminuser">UpdateAdminUser</a> <a class="chip chip-ref" href="#iface-disableadminuser">DisableAdminUser</a> <a class="chip chip-ref" href="#iface-enableadminuser">EnableAdminUser</a> <a class="chip chip-ref" href="#iface-deleteadminuser">DeleteAdminUser</a> <a class="chip chip-ref" href="#iface-creategroup">CreateGroup</a> <a class="chip chip-ref" href="#iface-updategroup">UpdateGroup</a> <a class="chip chip-ref" href="#iface-deletegroup">DeleteGroup</a> <a class="chip chip-ref" href="#iface-addgroupmember">AddGroupMember</a> <a class="chip chip-ref" href="#iface-removegroupmember">RemoveGroupMember</a> <a class="chip chip-ref" href="#iface-registeragent">RegisterAgent</a> <a class="chip chip-ref" href="#iface-updateagent">UpdateAgent</a> <a class="chip chip-ref" href="#iface-disableagent">DisableAgent</a> <a class="chip chip-ref" href="#iface-enableagent">EnableAgent</a> <a class="chip chip-ref" href="#iface-killagent">KillAgent</a> <a class="chip chip-ref" href="#iface-deleteagent">DeleteAgent</a> <a class="chip chip-ref" href="#iface-createadminapplication">CreateAdminApplication</a> <a class="chip chip-ref" href="#iface-updateadminapplication">UpdateAdminApplication</a> <a class="chip chip-ref" href="#iface-deleteadminapplication">DeleteAdminApplication</a> <a class="chip chip-ref" href="#iface-revokeadminconsent">RevokeAdminConsent</a> <a class="chip chip-ref" href="#iface-rotateadminkey">RotateAdminKey</a> <a class="chip chip-ref" href="#iface-createtenant">CreateTenant</a> <a class="chip chip-ref" href="#iface-updatetenant">UpdateTenant</a> <a class="chip chip-ref" href="#iface-disabletenant">DisableTenant</a> <a class="chip chip-ref" href="#iface-enabletenant">EnableTenant</a> <a class="chip chip-ref" href="#iface-updatetenantuserattributeschema">UpdateTenantUserAttributeSchema</a> <a class="chip chip-ref" href="#iface-updateadminsettings">UpdateAdminSettings</a> <a class="chip chip-ref" href="#iface-createadminclient">CreateAdminClient</a> <a class="chip chip-ref" href="#iface-updateadminclient">UpdateAdminClient</a> <a class="chip chip-ref" href="#iface-deleteadminclient">DeleteAdminClient</a></div><div class="reference-row"><span class="reference-label">standards</span><a class="chip chip-ref" href="#std-rfc9700">RFC9700</a> <a class="chip chip-ref" href="#std-fapi2securityprofile">FAPI2SecurityProfile</a></div><div class="reference-row"><span class="reference-label">scenarios</span><a class="chip chip-ref" href="#scn-browser-login-api-csrf">browser login API の CSRF 不一致は拒否される</a></div>
       </article><article class="requirement" id="ux-ux-no-store">
         <header>
@@ -17985,7 +18107,7 @@ Entra 連携の設定もここから行える。
           <span class="badge badge-category">privacy</span>
         </header>
         <p>認証トランザクション、CSRF token、user_code、管理対象データ、自己アカウントデータを含むブラウザAPI応答は保存キャッシュを禁止する。</p>
-        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-login">Login</a> <a class="chip" href="#screen-totp">Totp</a> <a class="chip" href="#screen-consent">Consent</a> <a class="chip" href="#screen-device">Device</a> <a class="chip" href="#screen-accounthome">AccountHome</a> <a class="chip" href="#screen-accountprofile">AccountProfile</a> <a class="chip" href="#screen-accountsecurity">AccountSecurity</a> <a class="chip" href="#screen-accountactivity">AccountActivity</a> <a class="chip" href="#screen-accountapplications">AccountApplications</a> <a class="chip" href="#screen-accountdata">AccountData</a> <a class="chip" href="#screen-adminusers">AdminUsers</a> <a class="chip" href="#screen-admingroups">AdminGroups</a> <a class="chip" href="#screen-adminagents">AdminAgents</a> <a class="chip" href="#screen-adminapplications">AdminApplications</a> <a class="chip" href="#screen-adminconsents">AdminConsents</a> <a class="chip" href="#screen-adminauditevents">AdminAuditEvents</a> <a class="chip" href="#screen-adminkeys">AdminKeys</a> <a class="chip" href="#screen-admintenants">AdminTenants</a> <a class="chip" href="#screen-adminsettings">AdminSettings</a> <a class="chip" href="#screen-adminclients">AdminClients</a></div>
+        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-login">Login</a> <a class="chip" href="#screen-totp">Totp</a> <a class="chip" href="#screen-consent">Consent</a> <a class="chip" href="#screen-device">Device</a> <a class="chip" href="#screen-accounthome">AccountHome</a> <a class="chip" href="#screen-accountprofile">AccountProfile</a> <a class="chip" href="#screen-accountsecurity">AccountSecurity</a> <a class="chip" href="#screen-accountactivity">AccountActivity</a> <a class="chip" href="#screen-accountapplications">AccountApplications</a> <a class="chip" href="#screen-accountdata">AccountData</a> <a class="chip" href="#screen-adminusers">AdminUsers</a> <a class="chip" href="#screen-admingroups">AdminGroups</a> <a class="chip" href="#screen-adminagents">AdminAgents</a> <a class="chip" href="#screen-adminapplications">AdminApplications</a> <a class="chip" href="#screen-adminconsents">AdminConsents</a> <a class="chip" href="#screen-adminauditevents">AdminAuditEvents</a> <a class="chip" href="#screen-adminkeys">AdminKeys</a> <a class="chip" href="#screen-admintenants">AdminTenants</a> <a class="chip" href="#screen-adminsettings">AdminSettings</a></div>
         <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-getbrowsertransaction">GetBrowserTransaction</a> <a class="chip chip-ref" href="#iface-getbrowserdevicecontext">GetBrowserDeviceContext</a> <a class="chip chip-ref" href="#iface-getaccountsummary">GetAccountSummary</a> <a class="chip chip-ref" href="#iface-getuserprofile">GetUserProfile</a> <a class="chip chip-ref" href="#iface-getaccountsecurity">GetAccountSecurity</a> <a class="chip chip-ref" href="#iface-listmysessions">ListMySessions</a> <a class="chip chip-ref" href="#iface-listmyconsents">ListMyConsents</a> <a class="chip chip-ref" href="#iface-exportaccountdata">ExportAccountData</a> <a class="chip chip-ref" href="#iface-listadminusers">ListAdminUsers</a> <a class="chip chip-ref" href="#iface-listgroups">ListGroups</a> <a class="chip chip-ref" href="#iface-listagents">ListAgents</a> <a class="chip chip-ref" href="#iface-listadminapplications">ListAdminApplications</a> <a class="chip chip-ref" href="#iface-listadminconsents">ListAdminConsents</a> <a class="chip chip-ref" href="#iface-listadminauditevents">ListAdminAuditEvents</a> <a class="chip chip-ref" href="#iface-listadminkeys">ListAdminKeys</a> <a class="chip chip-ref" href="#iface-listtenants">ListTenants</a> <a class="chip chip-ref" href="#iface-listadminclients">ListAdminClients</a> <a class="chip chip-ref" href="#iface-getadminclient">GetAdminClient</a> <a class="chip chip-ref" href="#iface-createadminclient">CreateAdminClient</a> <a class="chip chip-ref" href="#iface-updateadminclient">UpdateAdminClient</a></div>
       </article><article class="requirement" id="ux-ux-no-credential-echo">
         <header>
@@ -18002,18 +18124,18 @@ Entra 連携の設定もここから行える。
           <span class="badge badge-adoption-required">required</span>
           <span class="badge badge-category">security</span>
         </header>
-        <p>AdminClientsは生成されたclient_secretを作成成功直後に一度だけ表示し、再取得できないことを明示する。client_secret_hashは表示しない。</p>
-        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-adminclients">AdminClients</a></div>
-        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-createadminclient">CreateAdminClient</a> <a class="chip chip-ref" href="#iface-getadminclient">GetAdminClient</a> <a class="chip chip-ref" href="#iface-listadminclients">ListAdminClients</a></div>
+        <p>AdminApplicationsはOIDCアプリ作成で生成されたclient_secretを作成成功直後に一度だけ表示し、再取得できないことを明示する。client_secret_hashは表示しない。</p>
+        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-adminapplications">AdminApplications</a></div>
+        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-createadminapplication">CreateAdminApplication</a> <a class="chip chip-ref" href="#iface-getadminapplication">GetAdminApplication</a></div>
       </article><article class="requirement" id="ux-ux-admin-client-delete-confirmation">
         <header>
           <code class="name">UX-ADMIN-CLIENT-DELETE-CONFIRMATION</code>
           <span class="badge badge-adoption-required">required</span>
           <span class="badge badge-category">usability</span>
         </header>
-        <p>AdminClientsはclient削除前に対象client_idと影響を示す確認操作を要求する。</p>
-        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-adminclients">AdminClients</a></div>
-        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-deleteadminclient">DeleteAdminClient</a></div>
+        <p>AdminApplicationsはアプリケーション削除前に対象を示す確認操作を要求する。</p>
+        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-adminapplications">AdminApplications</a></div>
+        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-deleteadminapplication">DeleteAdminApplication</a></div>
       </article><article class="requirement" id="ux-ux-admin-tenant-scope">
         <header>
           <code class="name">UX-ADMIN-TENANT-SCOPE</code>
@@ -18021,7 +18143,7 @@ Entra 連携の設定もここから行える。
           <span class="badge badge-category">security</span>
         </header>
         <p>管理画面は現在のrealm prefixを維持し、所属テナント内のリソース(User、Group、Agent、Application/Client、Consent、AuditEvent、Key、設定、属性スキーマ)だけを表示・変更する。</p>
-        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-admindashboard">AdminDashboard</a> <a class="chip" href="#screen-adminusers">AdminUsers</a> <a class="chip" href="#screen-admingroups">AdminGroups</a> <a class="chip" href="#screen-adminagents">AdminAgents</a> <a class="chip" href="#screen-adminroles">AdminRoles</a> <a class="chip" href="#screen-adminapplications">AdminApplications</a> <a class="chip" href="#screen-adminauthorizationdetailtypes">AdminAuthorizationDetailTypes</a> <a class="chip" href="#screen-adminconsents">AdminConsents</a> <a class="chip" href="#screen-adminauditevents">AdminAuditEvents</a> <a class="chip" href="#screen-adminkeys">AdminKeys</a> <a class="chip" href="#screen-admintenantattributes">AdminTenantAttributes</a> <a class="chip" href="#screen-adminsettings">AdminSettings</a> <a class="chip" href="#screen-adminclients">AdminClients</a> <a class="chip" href="#screen-adminwsfedrelyingparties">AdminWsFedRelyingParties</a></div>
+        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-admindashboard">AdminDashboard</a> <a class="chip" href="#screen-adminusers">AdminUsers</a> <a class="chip" href="#screen-admingroups">AdminGroups</a> <a class="chip" href="#screen-adminagents">AdminAgents</a> <a class="chip" href="#screen-adminroles">AdminRoles</a> <a class="chip" href="#screen-adminapplications">AdminApplications</a> <a class="chip" href="#screen-adminauthorizationdetailtypes">AdminAuthorizationDetailTypes</a> <a class="chip" href="#screen-adminconsents">AdminConsents</a> <a class="chip" href="#screen-adminauditevents">AdminAuditEvents</a> <a class="chip" href="#screen-adminkeys">AdminKeys</a> <a class="chip" href="#screen-admintenantattributes">AdminTenantAttributes</a> <a class="chip" href="#screen-adminsettings">AdminSettings</a> <a class="chip" href="#screen-adminentrafederation">AdminEntraFederation</a></div>
         <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#iface-listadminusers">ListAdminUsers</a> <a class="chip chip-ref" href="#iface-listgroups">ListGroups</a> <a class="chip chip-ref" href="#iface-listagents">ListAgents</a> <a class="chip chip-ref" href="#iface-listadminapplications">ListAdminApplications</a> <a class="chip chip-ref" href="#iface-listauthorizationdetailtypes">ListAuthorizationDetailTypes</a> <a class="chip chip-ref" href="#iface-listadminconsents">ListAdminConsents</a> <a class="chip chip-ref" href="#iface-listadminauditevents">ListAdminAuditEvents</a> <a class="chip chip-ref" href="#iface-listadminkeys">ListAdminKeys</a> <a class="chip chip-ref" href="#iface-gettenantuserattributeschema">GetTenantUserAttributeSchema</a> <a class="chip chip-ref" href="#iface-getadminsettings">GetAdminSettings</a> <a class="chip chip-ref" href="#iface-listadminclients">ListAdminClients</a> <a class="chip chip-ref" href="#iface-getadminclient">GetAdminClient</a> <a class="chip chip-ref" href="#iface-createadminclient">CreateAdminClient</a> <a class="chip chip-ref" href="#iface-updateadminclient">UpdateAdminClient</a> <a class="chip chip-ref" href="#iface-deleteadminclient">DeleteAdminClient</a></div>
       </article><article class="requirement" id="ux-ux-admin-control-plane">
         <header>
@@ -18075,7 +18197,7 @@ Entra 連携の設定もここから行える。
           <span class="badge badge-category">accessibility</span>
         </header>
         <p>すべての入力、表示切替、許可、拒否、再試行をキーボードだけで操作可能にする。</p>
-        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-home">Home</a> <a class="chip" href="#screen-login">Login</a> <a class="chip" href="#screen-totp">Totp</a> <a class="chip" href="#screen-consent">Consent</a> <a class="chip" href="#screen-device">Device</a> <a class="chip" href="#screen-status">Status</a> <a class="chip" href="#screen-callback">Callback</a> <a class="chip" href="#screen-forgotpassword">ForgotPassword</a> <a class="chip" href="#screen-resetpassword">ResetPassword</a> <a class="chip" href="#screen-accounthome">AccountHome</a> <a class="chip" href="#screen-accountapps">AccountApps</a> <a class="chip" href="#screen-accountprofile">AccountProfile</a> <a class="chip" href="#screen-accountemails">AccountEmails</a> <a class="chip" href="#screen-accountemailverify">AccountEmailVerify</a> <a class="chip" href="#screen-accountsecurity">AccountSecurity</a> <a class="chip" href="#screen-changepassword">ChangePassword</a> <a class="chip" href="#screen-accountactivity">AccountActivity</a> <a class="chip" href="#screen-accountapplications">AccountApplications</a> <a class="chip" href="#screen-accountdata">AccountData</a> <a class="chip" href="#screen-admindashboard">AdminDashboard</a> <a class="chip" href="#screen-adminusers">AdminUsers</a> <a class="chip" href="#screen-admingroups">AdminGroups</a> <a class="chip" href="#screen-adminagents">AdminAgents</a> <a class="chip" href="#screen-adminroles">AdminRoles</a> <a class="chip" href="#screen-adminapplications">AdminApplications</a> <a class="chip" href="#screen-adminauthorizationdetailtypes">AdminAuthorizationDetailTypes</a> <a class="chip" href="#screen-adminconsents">AdminConsents</a> <a class="chip" href="#screen-adminauditevents">AdminAuditEvents</a> <a class="chip" href="#screen-adminkeys">AdminKeys</a> <a class="chip" href="#screen-admintenants">AdminTenants</a> <a class="chip" href="#screen-admintenantattributes">AdminTenantAttributes</a> <a class="chip" href="#screen-adminsettings">AdminSettings</a> <a class="chip" href="#screen-adminclients">AdminClients</a> <a class="chip" href="#screen-adminwsfedrelyingparties">AdminWsFedRelyingParties</a></div>
+        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-home">Home</a> <a class="chip" href="#screen-login">Login</a> <a class="chip" href="#screen-totp">Totp</a> <a class="chip" href="#screen-consent">Consent</a> <a class="chip" href="#screen-device">Device</a> <a class="chip" href="#screen-status">Status</a> <a class="chip" href="#screen-callback">Callback</a> <a class="chip" href="#screen-forgotpassword">ForgotPassword</a> <a class="chip" href="#screen-resetpassword">ResetPassword</a> <a class="chip" href="#screen-accounthome">AccountHome</a> <a class="chip" href="#screen-accountapps">AccountApps</a> <a class="chip" href="#screen-accountprofile">AccountProfile</a> <a class="chip" href="#screen-accountemails">AccountEmails</a> <a class="chip" href="#screen-accountemailverify">AccountEmailVerify</a> <a class="chip" href="#screen-accountsecurity">AccountSecurity</a> <a class="chip" href="#screen-changepassword">ChangePassword</a> <a class="chip" href="#screen-accountactivity">AccountActivity</a> <a class="chip" href="#screen-accountapplications">AccountApplications</a> <a class="chip" href="#screen-accountdata">AccountData</a> <a class="chip" href="#screen-admindashboard">AdminDashboard</a> <a class="chip" href="#screen-adminusers">AdminUsers</a> <a class="chip" href="#screen-admingroups">AdminGroups</a> <a class="chip" href="#screen-adminagents">AdminAgents</a> <a class="chip" href="#screen-adminroles">AdminRoles</a> <a class="chip" href="#screen-adminapplications">AdminApplications</a> <a class="chip" href="#screen-adminauthorizationdetailtypes">AdminAuthorizationDetailTypes</a> <a class="chip" href="#screen-adminconsents">AdminConsents</a> <a class="chip" href="#screen-adminauditevents">AdminAuditEvents</a> <a class="chip" href="#screen-adminkeys">AdminKeys</a> <a class="chip" href="#screen-admintenants">AdminTenants</a> <a class="chip" href="#screen-admintenantattributes">AdminTenantAttributes</a> <a class="chip" href="#screen-adminsettings">AdminSettings</a> <a class="chip" href="#screen-adminentrafederation">AdminEntraFederation</a></div>
         <div class="reference-row"><span class="reference-label">standards</span><a class="chip chip-ref" href="#std-wcag22">WCAG22</a></div>
       </article><article class="requirement" id="ux-ux-focus">
         <header>
@@ -18102,7 +18224,7 @@ Entra 連携の設定もここから行える。
           <span class="badge badge-category">accessibility</span>
         </header>
         <p>非同期送信の失敗と認証結果を支援技術へ通知し、送信中は重複操作を防ぐ。</p>
-        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-login">Login</a> <a class="chip" href="#screen-totp">Totp</a> <a class="chip" href="#screen-consent">Consent</a> <a class="chip" href="#screen-device">Device</a> <a class="chip" href="#screen-status">Status</a> <a class="chip" href="#screen-callback">Callback</a> <a class="chip" href="#screen-forgotpassword">ForgotPassword</a> <a class="chip" href="#screen-resetpassword">ResetPassword</a> <a class="chip" href="#screen-changepassword">ChangePassword</a> <a class="chip" href="#screen-accountprofile">AccountProfile</a> <a class="chip" href="#screen-accountemails">AccountEmails</a> <a class="chip" href="#screen-accountemailverify">AccountEmailVerify</a> <a class="chip" href="#screen-accountsecurity">AccountSecurity</a> <a class="chip" href="#screen-accountactivity">AccountActivity</a> <a class="chip" href="#screen-accountapplications">AccountApplications</a> <a class="chip" href="#screen-accountdata">AccountData</a> <a class="chip" href="#screen-adminusers">AdminUsers</a> <a class="chip" href="#screen-admingroups">AdminGroups</a> <a class="chip" href="#screen-adminagents">AdminAgents</a> <a class="chip" href="#screen-adminapplications">AdminApplications</a> <a class="chip" href="#screen-adminauthorizationdetailtypes">AdminAuthorizationDetailTypes</a> <a class="chip" href="#screen-adminconsents">AdminConsents</a> <a class="chip" href="#screen-adminkeys">AdminKeys</a> <a class="chip" href="#screen-admintenants">AdminTenants</a> <a class="chip" href="#screen-admintenantattributes">AdminTenantAttributes</a> <a class="chip" href="#screen-adminsettings">AdminSettings</a> <a class="chip" href="#screen-adminclients">AdminClients</a> <a class="chip" href="#screen-adminwsfedrelyingparties">AdminWsFedRelyingParties</a></div>
+        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#screen-login">Login</a> <a class="chip" href="#screen-totp">Totp</a> <a class="chip" href="#screen-consent">Consent</a> <a class="chip" href="#screen-device">Device</a> <a class="chip" href="#screen-status">Status</a> <a class="chip" href="#screen-callback">Callback</a> <a class="chip" href="#screen-forgotpassword">ForgotPassword</a> <a class="chip" href="#screen-resetpassword">ResetPassword</a> <a class="chip" href="#screen-changepassword">ChangePassword</a> <a class="chip" href="#screen-accountprofile">AccountProfile</a> <a class="chip" href="#screen-accountemails">AccountEmails</a> <a class="chip" href="#screen-accountemailverify">AccountEmailVerify</a> <a class="chip" href="#screen-accountsecurity">AccountSecurity</a> <a class="chip" href="#screen-accountactivity">AccountActivity</a> <a class="chip" href="#screen-accountapplications">AccountApplications</a> <a class="chip" href="#screen-accountdata">AccountData</a> <a class="chip" href="#screen-adminusers">AdminUsers</a> <a class="chip" href="#screen-admingroups">AdminGroups</a> <a class="chip" href="#screen-adminagents">AdminAgents</a> <a class="chip" href="#screen-adminapplications">AdminApplications</a> <a class="chip" href="#screen-adminauthorizationdetailtypes">AdminAuthorizationDetailTypes</a> <a class="chip" href="#screen-adminconsents">AdminConsents</a> <a class="chip" href="#screen-adminkeys">AdminKeys</a> <a class="chip" href="#screen-admintenants">AdminTenants</a> <a class="chip" href="#screen-admintenantattributes">AdminTenantAttributes</a> <a class="chip" href="#screen-adminsettings">AdminSettings</a> <a class="chip" href="#screen-adminentrafederation">AdminEntraFederation</a></div>
         <div class="reference-row"><span class="reference-label">standards</span><a class="chip chip-ref" href="#std-wcag22">WCAG22</a></div>
       </article><article class="requirement" id="ux-ux-locale">
         <header>

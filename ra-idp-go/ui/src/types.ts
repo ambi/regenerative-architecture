@@ -104,17 +104,29 @@ export type ApplicationAssignment = {
 }
 
 // プロトコル設定はアプリ詳細で解決される。OAuth2 client / WS-Fed RP の実設定を映す。
+// advanced 項目を含め、低レベル client 画面を廃してアプリ編集画面に集約する (wi-76)。
+// client_type / token_endpoint_auth_method / fapi_profile は更新契約上の不変項目で表示専用。
 export type ApplicationOidcConfig = {
   client_id: string
+  client_type: 'public' | 'confidential'
   redirect_uris: string[]
+  grant_types: string[]
+  response_types: string[]
+  token_endpoint_auth_method: string
   scope: string
+  require_pushed_authorization_requests: boolean
+  dpop_bound_access_tokens: boolean
+  fapi_profile: string
 }
 
 export type ApplicationWsFedConfig = {
   wtrealm: string
   reply_urls: string[]
+  audience: string
+  token_type: WsFedTokenType
   name_id_format: string
   name_id_source: string
+  rules: WsFedClaimMappingRule[]
 }
 
 export type AdminApplicationDetail = {

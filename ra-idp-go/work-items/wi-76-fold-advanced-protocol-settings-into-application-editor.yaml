@@ -1,0 +1,188 @@
+id: wi-76-fold-advanced-protocol-settings-into-application-editor
+title: 高度なプロトコル設定をアプリケーション編集画面へ畳み、低レベル client / RP 画面を撤去する
+created_at: 2026-06-27
+status: completed
+authors: [tn]
+
+motivation: |
+  [[wi-69-application-catalog-aggregate-and-assignment]] (commit a5e2ec8) は OAuth2 client /
+  WS-Federation relying party / service client を単一の「アプリケーション」へ統合し、サイドバー
+  導線をアプリケーションに一本化した。一方で低レベルの AdminClients (/admin/clients) と
+  AdminWsFedRelyingParties (/admin/wsfed/relying-parties) は「advanced 面」として URL 直叩きの
+  みで残された (scl.yaml AdminClients / AdminWsFedRelyingParties screen, adminNav.ts:117-119)。
+
+  この残置は、アプリケーション編集画面の編集インターフェース (ApplicationOidcConfigUpdateRequest /
+  ApplicationWsFedConfigUpdateRequest) が日常運用の最小集合しか公開していないことに起因する。
+  以下の高度な OAuth2 / WS-Fed 設定は低レベル画面からしか編集できず、アプリケーション編集画面
+  からは到達不能になっている。
+
+  - OIDC: grant_types, response_types, token_endpoint_auth_method, jwks_uri / jwks,
+    tls_client_auth_subject_dn, fapi_profile, require_pushed_authorization_requests,
+    dpop_bound_access_tokens (AdminClientCreateRequest / AdminClientUpdateRequest 参照)
+  - WS-Fed: Entra domain federation 設定 (ConfigureEntraFederation)
+
+  結果として「アプリケーション」が単一導線である」という統合の主張が崩れ、URL を知る管理者
+  だけが advanced 設定に触れられる隠れ導線が残っている。本 WI は advanced 項目をアプリケーション
+  編集画面に「詳細設定」として畳み、機能ギャップを埋めたうえで 2 つの低レベル画面を撤去し、
+  アプリケーションを名実ともに単一の編集面にする。
+
+target_state: |
+  - アプリケーション編集画面 (AdminApplications) が、OIDC / WS-Fed binding の高度な設定を
+    「詳細設定」セクションとして編集できる。低レベル画面でしか触れなかった項目がすべて
+    アプリケーション経由で編集可能になる。
+  - token_endpoint_auth_method のような不変項目 (AdminClientUpdateRequest が変更対象から
+    除外しているもの) は読み取り専用で表示し、編集対象に含めない。
+  - AdminClients (/admin/clients) と AdminWsFedRelyingParties (/admin/wsfed/relying-parties)
+    の screen 定義・UI route・page が撤去され、URL 直叩きの隠れ導線が無くなる。
+  - 撤去後、低レベル CRUD interface (ListAdminClients 等) と HTTP endpoint を「内部 API として
+    残すか」「撤去するか」を decision で確定し、SCL 上の screen→interface 参照を整合させる。
+
+scope:
+  decision:
+    - >-
+      ADR-064 (protocol contexts and application catalog) に追補するか新規 ADR を起こし、
+      「アプリケーションを単一編集面とする。低レベル client / RP 専用画面は撤去する」方針と、
+      token_endpoint_auth_method 等の不変項目の扱い、低レベル HTTP API (/api/admin/clients,
+      /api/admin/wsfed) を内部 API として残すか撤去するかを確定する。
+  scl:
+    - >-
+      ApplicationOidcConfigUpdateRequest に advanced OIDC 項目 (grant_types, response_types,
+      require_pushed_authorization_requests, dpop_bound_access_tokens, fapi_profile, jwks_uri,
+      jwks, tls_client_auth_subject_dn) を追加する。token_endpoint_auth_method は変更対象に
+      含めない (immutable)。
+    - >-
+      ApplicationOidcConfig (詳細レスポンス) を拡張し、表示用に advanced 項目と
+      token_endpoint_auth_method を含める。
+    - >-
+      ApplicationWsFedConfigUpdateRequest / ApplicationWsFedConfig に Entra federation を含む
+      WS-Fed advanced 設定を表現し、UpdateApplicationWsFedConfig からの編集に寄せる。
+    - >-
+      AdminClients / AdminWsFedRelyingParties screen 定義と、各 variant の screens 列、これらを
+      参照する assurance statement を撤去・整合する。低レベル interface の screen 参照を解消する。
+    - >-
+      Entra domain federation はテナント/ドメインレベルの操作のため、Application 編集ではなく
+      専用のテナント設定画面に移す (ADR-066)。per-RP の WS-Fed 設定 (audience / token_type /
+      claim mapping) は Application 編集画面に畳む。
+  go:
+    - >-
+      application detail resolver が OAuth2 client / WS-Fed RP から advanced 項目を読み出して
+      ApplicationOidcConfig / ApplicationWsFedConfig に載せる。
+    - >-
+      UpdateApplicationOidcConfig / UpdateApplicationWsFedConfig が advanced 項目を背後の
+      client / RP 更新へ委譲する (既存 admin client / RP 更新 use case を再利用)。
+    - 低レベル HTTP route の扱いを decision に従って整理する。
+  ui:
+    - >-
+      admin-applications のアプリ編集画面に「詳細設定」セクションを追加し、advanced OIDC /
+      WS-Fed 項目を編集できるようにする。不変項目は読み取り専用表示。
+    - >-
+      admin-clients / admin-wsfed の feature・route を撤去する。adminNav.ts の advanced URL
+      コメントを更新する。
+
+out_of_scope:
+  - >-
+    アプリケーションアイコンの画像アップロード ([[wi-74-application-icon-image-upload]])、
+    sign-on policy ([[wi-71-application-sign-on-policy]])、claim release override
+    ([[wi-73-per-application-claim-release-override]]) など他の編集面拡張。
+  - 新しい OAuth2 / WS-Fed プロトコル機能の追加。既存項目の編集導線の集約のみを扱う。
+  - >-
+    client_secret rotation の導線変更 ([[wi-25-client-secret-rotation]])。既存挙動を維持し、
+    必要なら参照のみ更新する。
+
+initial_context:
+  features: [Application, OAuth2]
+  scl:
+    components: [Application, OAuth2]
+    related_components: [WsFederation]
+    existing_roots: [Application]
+  decisions:
+    - decisions/ADR-064-protocol-contexts-and-application-catalog.md
+    - decisions/ADR-008-client-authentication-methods.md
+    - decisions/ADR-006-par-mandatory-fapi-clients.md
+  source:
+    - internal/application/
+    - ui/src/features/admin-applications/
+    - ui/src/features/admin-clients/
+    - ui/src/features/admin-wsfed/
+    - ui/src/lib/adminNav.ts
+  stop_before_reading:
+    - internal/oauth2/usecases/role_policies.go
+
+affected_guarantees:
+  - >-
+    no hidden surface: advanced プロトコル設定への到達導線をアプリケーション編集画面へ集約し、
+    URL を知る者だけが触れる隠れ導線を残さない。
+  - >-
+    immutability: token_endpoint_auth_method など更新契約上の不変項目を編集対象に昇格させず、
+    読み取り専用で扱う。
+  - >-
+    secret confidentiality: client_secret / client_secret_hash は応答契約に含めず、回転は専用
+    導線のまま維持する。
+  - >-
+    tenant isolation: advanced 編集も所属テナントの client / RP に限定し、別テナントへ越境しない。
+  - >-
+    spec-impl parity: scl.yaml と internal/spec、生成 HTML を同一変更でロックステップ更新する。
+
+verification:
+  - cmd: 'GOCACHE=/tmp/ra-idp-go-cache go test ./...'
+    in: ra-idp-go
+  - cmd: 'golangci-lint run ./...'
+    in: ra-idp-go
+  - cmd: 'bun --cwd ra-idp-go/ui typecheck'
+  - cmd: 'bun --cwd ra-idp-go/ui lint'
+  - cmd: 'bun --cwd ra-idp-go/ui build'
+  - cmd: 'bun run yaml-check:work-items'
+    in: tools
+  - cmd: 'bun run yaml-check:scl'
+    in: tools
+  - >-
+    手動: アプリ編集画面で OIDC アプリの grant_types / DPoP / PAR / FAPI profile を変更 →
+    保存 → 再取得すると反映されている。token_endpoint_auth_method は読み取り専用。
+  - >-
+    手動: /admin/clients と /admin/wsfed/relying-parties が到達不能 (撤去) になり、
+    同等の編集がアプリ編集画面で完結することを確認する。
+
+risk: medium
+risk_notes: |
+  advanced 項目を application binding 経由の更新へ委譲する際、背後の client / RP 更新契約
+  (不変項目・検証) を取りこぼすと、PKCE 必須 (ADR-002)・FAPI で PAR 必須 (ADR-006)・
+  認証方式 (ADR-008) などの不変条件を回避できてしまう。既存 admin client / RP 更新 use case を
+  再利用し、application 経由でも同じ検証を通すこと。低レベル画面・route の撤去では、撤去対象を
+  参照する SCL の screen 列・assurance・生成 HTML の取りこぼしに注意する (spec-impl parity)。
+  低レベル HTTP API を残すか撤去するかは decision で明示し、残す場合も UI からの到達導線は持たせない。
+
+completion:
+  completed_at: 2026-06-27
+  summary: |
+    OIDC / WS-Federation の advanced 設定を Application 編集画面に畳み、低レベルの AdminClients /
+    AdminWsFedRelyingParties 画面を撤去した。ADR-066 を起票。
+
+    - OIDC: ApplicationOidcConfig / *UpdateRequest / AdminApplicationCreateRequest に
+      grant_types / response_types / PAR / DPoP と作成時の client_type / 認証方式 / jwks_uri /
+      tls_client_auth_subject_dn を追加。詳細リゾルバと UpdateClient 委譲で編集、作成フローで
+      認証方式を確定 (以後不変)。token_endpoint_auth_method 等は読み取り専用表示。
+    - WS-Fed: ApplicationWsFedConfig / *UpdateRequest に audience / token_type / claim 規則を
+      追加し、Application 編集画面に畳んだ。Entra domain federation はテナント/ドメイン単位の
+      操作のため、専用テナント設定画面 AdminEntraFederation (/admin/federation/entra) に分離。
+    - 画面撤去: AdminClients (/admin/clients) と AdminWsFedRelyingParties
+      (/admin/wsfed/relying-parties) の screen 定義・UI route・page・未使用 API ラッパを撤去。
+      低レベル HTTP API (/api/admin/clients, /api/admin/wsfed) は内部 API として存置。
+    - 旧導線 (ダッシュボード等) を /admin/applications へ修正。spec twin と生成 HTML を
+      lockstep 更新。scl.yaml には wi / ADR 参照を入れず純粋仕様文で記述。
+  affected_guarantees_state:
+    - { guarantee: "no hidden surface", state: held, note: "advanced 設定への到達導線をアプリ編集画面に集約。URL 直叩きの隠れ画面を撤去した。" }
+    - { guarantee: "immutability", state: held, note: "token_endpoint_auth_method は編集 request に含めず読み取り専用表示。" }
+    - { guarantee: "secret confidentiality", state: held, note: "client_secret は作成直後一度だけ表示 (UX-ADMIN-CLIENT-SECRET を AdminApplications に移設)。hash は非表示。" }
+    - { guarantee: "tenant isolation", state: held, note: "advanced 編集も所属テナントの client / RP に限定。" }
+    - { guarantee: "spec-impl parity", state: held, note: "scl.yaml / 生成 HTML / Go / UI を同一変更で更新。" }
+  verification:
+    - { cmd: "GOCACHE=/tmp/ra-idp-go-cache go test ./...", in: ra-idp-go, result: passed }
+    - { cmd: "golangci-lint run ./...", in: ra-idp-go, result: passed }
+    - { cmd: "bun --cwd ra-idp-go/ui typecheck", result: passed }
+    - { cmd: "bun --cwd ra-idp-go/ui lint", result: passed }
+    - { cmd: "bun --cwd ra-idp-go/ui build", result: passed }
+    - { cmd: "bun run yaml-check:scl", in: tools, result: passed }
+    - { cmd: "bun run yaml-check:work-items", in: tools, result: passed }
+  residual_risk:
+    - "Application 作成フローの advanced 認証 (private_key_jwt / tls_client_auth) は手動 E2E 未実施。既存ユニット/ハンドラテストは緑。"
+    - "WS-Fed claim 規則は JSON テキスト編集のまま。スキーマ支援 UI は今後の課題。"

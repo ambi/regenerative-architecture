@@ -32,8 +32,12 @@ type createApplicationRequest struct {
 	LaunchURL string `json:"launch_url"`
 	// OIDC
 	RedirectURIs []string `json:"redirect_uris"`
-	// service (M2M / client_credentials)
-	Scope string `json:"scope"`
+	// OIDC / service の生成 client 設定。auth 方式は作成時に確定し以後不変。
+	Scope                   string                       `json:"scope"`
+	ClientType              spec.ClientType              `json:"client_type"`
+	TokenEndpointAuthMethod spec.TokenEndpointAuthMethod `json:"token_endpoint_auth_method"`
+	JwksURI                 string                       `json:"jwks_uri"`
+	TLSClientAuthSubjectDN  string                       `json:"tls_client_auth_subject_dn"`
 	// WS-Federation
 	Wtrealm      string   `json:"wtrealm"`
 	ReplyURLs    []string `json:"reply_urls"`
@@ -42,17 +46,29 @@ type createApplicationRequest struct {
 }
 
 // oidcConfig / wsfedConfig はアプリ詳細に解決して返す protocol 設定。
+// advanced 項目を含めてアプリ編集画面に集約する (wi-76, ADR-066)。
+// ClientType / TokenEndpointAuthMethod / FapiProfile は更新契約上の不変項目で表示専用。
 type oidcConfig struct {
-	ClientID     string   `json:"client_id"`
-	RedirectURIs []string `json:"redirect_uris"`
-	Scope        string   `json:"scope"`
+	ClientID                string                       `json:"client_id"`
+	ClientType              spec.ClientType              `json:"client_type"`
+	RedirectURIs            []string                     `json:"redirect_uris"`
+	GrantTypes              []spec.GrantType             `json:"grant_types"`
+	ResponseTypes           []spec.ResponseType          `json:"response_types"`
+	TokenEndpointAuthMethod spec.TokenEndpointAuthMethod `json:"token_endpoint_auth_method"`
+	Scope                   string                       `json:"scope"`
+	RequirePAR              bool                         `json:"require_pushed_authorization_requests"`
+	DpopBoundAccessTokens   bool                         `json:"dpop_bound_access_tokens"`
+	FapiProfile             spec.FapiProfile             `json:"fapi_profile"`
 }
 
 type wsfedConfig struct {
-	Wtrealm      string   `json:"wtrealm"`
-	ReplyURLs    []string `json:"reply_urls"`
-	NameIDFormat string   `json:"name_id_format"`
-	NameIDSource string   `json:"name_id_source"`
+	Wtrealm      string                  `json:"wtrealm"`
+	ReplyURLs    []string                `json:"reply_urls"`
+	Audience     string                  `json:"audience"`
+	TokenType    spec.WsFedTokenType     `json:"token_type"`
+	NameIDFormat string                  `json:"name_id_format"`
+	NameIDSource string                  `json:"name_id_source"`
+	Rules        []spec.ClaimMappingRule `json:"rules"`
 }
 
 func (d Deps) handleCreateApplication(c *echo.Context) error {
@@ -85,15 +101,22 @@ func (d Deps) handleCreateApplication(c *echo.Context) error {
 		if len(req.RedirectURIs) == 0 {
 			return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "リダイレクト URI を 1 つ以上指定してください")
 		}
+		registration := oauthusecases.RegisterClientInput{
+			ClientName: req.Name, ClientType: req.ClientType, RedirectURIs: req.RedirectURIs,
+			GrantTypes:              []spec.GrantType{spec.GrantAuthorizationCode, spec.GrantRefreshToken},
+			ResponseTypes:           []spec.ResponseType{spec.ResponseTypeCode},
+			TokenEndpointAuthMethod: req.TokenEndpointAuthMethod, Scope: nonEmpty(req.Scope, defaultOIDCScope),
+		}
+		if dn := strings.TrimSpace(req.TLSClientAuthSubjectDN); dn != "" {
+			registration.TlsClientAuthSubjectDN = &dn
+		}
+		if uri := strings.TrimSpace(req.JwksURI); uri != "" {
+			registration.JwksURI = &uri
+		}
 		result, err := oauthusecases.CreateClient(ctx, oauthusecases.ClientDeps{ClientRepo: d.ClientRepo, Emit: d.Emit}, oauthusecases.CreateClientInput{
-			ActorSub: actor.Sub,
-			Registration: oauthusecases.RegisterClientInput{
-				ClientName: req.Name, ClientType: spec.ClientConfidential, RedirectURIs: req.RedirectURIs,
-				GrantTypes:              []spec.GrantType{spec.GrantAuthorizationCode, spec.GrantRefreshToken},
-				ResponseTypes:           []spec.ResponseType{spec.ResponseTypeCode},
-				TokenEndpointAuthMethod: spec.AuthMethodClientSecretBasic, Scope: defaultOIDCScope,
-			},
-			Now: now,
+			ActorSub:     actor.Sub,
+			Registration: registration,
+			Now:          now,
 		})
 		if err != nil {
 			return d.writeApplicationError(c, err)
@@ -187,7 +210,13 @@ func (d Deps) resolveProtocolConfig(c *echo.Context, app *spec.Application) (*oi
 				continue
 			}
 			if client, err := d.ClientRepo.FindByID(ctx, tenantID, binding.ClientID); err == nil && client != nil {
-				oidc = &oidcConfig{ClientID: client.ClientID, RedirectURIs: client.RedirectURIs, Scope: client.Scope}
+				oidc = &oidcConfig{
+					ClientID: client.ClientID, ClientType: client.ClientType, RedirectURIs: client.RedirectURIs,
+					GrantTypes: client.GrantTypes, ResponseTypes: client.ResponseTypes,
+					TokenEndpointAuthMethod: client.TokenEndpointAuthMethod, Scope: client.Scope,
+					RequirePAR:            client.RequirePushedAuthorizationRequests,
+					DpopBoundAccessTokens: client.DpopBoundAccessTokens, FapiProfile: client.FapiProfile,
+				}
 			}
 		case spec.ProtocolBindingWsFed:
 			if d.WsFedRPRepo == nil {
@@ -196,7 +225,9 @@ func (d Deps) resolveProtocolConfig(c *echo.Context, app *spec.Application) (*oi
 			if rp, err := d.WsFedRPRepo.FindByWtrealm(ctx, tenantID, binding.Wtrealm); err == nil && rp != nil {
 				wsfed = &wsfedConfig{
 					Wtrealm: rp.Wtrealm, ReplyURLs: rp.ReplyURLs,
+					Audience: rp.Audience, TokenType: rp.EffectiveTokenType(),
 					NameIDFormat: rp.ClaimPolicy.NameID.Format, NameIDSource: rp.ClaimPolicy.NameID.SourceAttribute,
+					Rules: rp.ClaimPolicy.Rules,
 				}
 			}
 		}
@@ -205,8 +236,12 @@ func (d Deps) resolveProtocolConfig(c *echo.Context, app *spec.Application) (*oi
 }
 
 type updateOIDCRequest struct {
-	RedirectURIs *[]string `json:"redirect_uris"`
-	Scope        *string   `json:"scope"`
+	RedirectURIs    *[]string            `json:"redirect_uris"`
+	GrantTypes      *[]spec.GrantType    `json:"grant_types"`
+	ResponseTypes   *[]spec.ResponseType `json:"response_types"`
+	Scope           *string              `json:"scope"`
+	RequirePAR      *bool                `json:"require_pushed_authorization_requests"`
+	DpopBoundTokens *bool                `json:"dpop_bound_access_tokens"`
 }
 
 func (d Deps) handleUpdateOIDCConfig(c *echo.Context) error {
@@ -230,7 +265,10 @@ func (d Deps) handleUpdateOIDCConfig(c *echo.Context) error {
 		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	if _, err := oauthusecases.UpdateClient(c.Request().Context(), oauthusecases.ClientDeps{ClientRepo: d.ClientRepo, Emit: d.Emit}, oauthusecases.UpdateClientInput{
-		ActorSub: actor.Sub, ClientID: clientID, RedirectURIs: req.RedirectURIs, Scope: req.Scope, Now: time.Now().UTC(),
+		ActorSub: actor.Sub, ClientID: clientID,
+		RedirectURIs: req.RedirectURIs, GrantTypes: req.GrantTypes, ResponseTypes: req.ResponseTypes,
+		Scope: req.Scope, RequirePAR: req.RequirePAR, DpopBoundTokens: req.DpopBoundTokens,
+		Now: time.Now().UTC(),
 	}); err != nil {
 		return d.writeApplicationError(c, err)
 	}
@@ -238,9 +276,12 @@ func (d Deps) handleUpdateOIDCConfig(c *echo.Context) error {
 }
 
 type updateWsFedRequest struct {
-	ReplyURLs    *[]string `json:"reply_urls"`
-	NameIDFormat *string   `json:"name_id_format"`
-	NameIDSource *string   `json:"name_id_source"`
+	ReplyURLs    *[]string                `json:"reply_urls"`
+	Audience     *string                  `json:"audience"`
+	TokenType    *spec.WsFedTokenType     `json:"token_type"`
+	NameIDFormat *string                  `json:"name_id_format"`
+	NameIDSource *string                  `json:"name_id_source"`
+	Rules        *[]spec.ClaimMappingRule `json:"rules"`
 }
 
 func (d Deps) handleUpdateWsFedConfig(c *echo.Context) error {
@@ -270,11 +311,23 @@ func (d Deps) handleUpdateWsFedConfig(c *echo.Context) error {
 	if req.ReplyURLs != nil {
 		rp.ReplyURLs = *req.ReplyURLs
 	}
+	if req.Audience != nil {
+		rp.Audience = strings.TrimSpace(*req.Audience)
+	}
+	if req.TokenType != nil {
+		if *req.TokenType != "" && !req.TokenType.Valid() {
+			return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "token_type が不正です")
+		}
+		rp.TokenType = *req.TokenType
+	}
 	if req.NameIDFormat != nil {
 		rp.ClaimPolicy.NameID.Format = *req.NameIDFormat
 	}
 	if req.NameIDSource != nil {
 		rp.ClaimPolicy.NameID.SourceAttribute = *req.NameIDSource
+	}
+	if req.Rules != nil {
+		rp.ClaimPolicy.Rules = *req.Rules
 	}
 	now := time.Now().UTC()
 	rp.UpdatedAt = &now

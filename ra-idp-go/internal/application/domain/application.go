@@ -1,4 +1,4 @@
-// Package domain は ApplicationCatalog の aggregate 不変条件を所有する (wi-69)。
+// Package domain は Application の aggregate 不変条件を所有する (wi-69)。
 package domain
 
 import (

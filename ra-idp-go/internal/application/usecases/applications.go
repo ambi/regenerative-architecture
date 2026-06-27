@@ -1,7 +1,7 @@
 package usecases
 
 // 管理者向け Application メタデータ操作 (Create / Update / Delete) と protocol binding
-// の接続 / 解除。SCL ApplicationCatalog bounded context の admin interface 群 (wi-69)。
+// の接続 / 解除。SCL Application bounded context の admin interface 群 (wi-69)。
 
 import (
 	"context"
@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"ra-idp-go/internal/applicationcatalog/domain"
-	"ra-idp-go/internal/applicationcatalog/ports"
+	"ra-idp-go/internal/application/domain"
+	"ra-idp-go/internal/application/ports"
 	"ra-idp-go/internal/spec"
 	"ra-idp-go/internal/tenancy"
 )

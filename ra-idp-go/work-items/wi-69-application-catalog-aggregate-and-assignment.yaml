@@ -1,5 +1,5 @@
 id: wi-69-application-catalog-aggregate-and-assignment
-title: ApplicationCatalog を上位 aggregate として実装し、protocol binding・割当・プロビジョニングを束ねる
+title: Application を上位 aggregate として実装し、protocol binding・割当・プロビジョニングを束ねる
 created_at: 2026-06-27
 status: pending
 authors: [tn]
@@ -12,7 +12,7 @@ motivation: |
   アイコン・共通監査・共通ポリシーはプロトコルをまたいで共有される設定である。
 
   ra-idp-go は [[wi-68-protocol-context-and-application-catalog-realignment]] で
-  `ApplicationCatalog` bounded context を SCL / ADR-064 上に語彙予約したが、本体 aggregate は
+  `Application` bounded context を SCL / ADR-064 上に語彙予約したが、本体 aggregate は
   未実装で、管理 UI は依然プロトコル別 (`/admin/clients` = OAuth2/OIDC client、
   `/admin/wsfed` = WS-Fed RP) に分かれている。利用者ポータルにアプリケーション一覧も無い。
   本 WI はこの予約済み境界の本体を実装し、OIDC client / SAML SP / WS-Fed RP を
@@ -36,7 +36,7 @@ motivation: |
 scope:
   decision:
     - >-
-      新規 ADR-066: ApplicationCatalog 本体の aggregate 設計を確定する。Application と
+      新規 ADR-066: Application 本体の aggregate 設計を確定する。Application と
       ProtocolBinding (oidc / saml / wsfed) の関係 (federated app は 0..N binding を所有し、
       weblink app は binding を持たない外部リンク)、既存 OAuth2Client / WsFedRelyingParty /
       将来 SAML SP を binding として参照するか吸収するかの所有方針、Assignment による
@@ -44,7 +44,7 @@ scope:
       所有境界を決める。ADR-064 の決定 6/7 を本体実装として具体化する。
   scl:
     - >-
-      ApplicationCatalog に owns_models を与える: Application / ApplicationStatus /
+      Application に owns_models を与える: Application / ApplicationStatus /
       ApplicationKind (federated / weblink) / ProtocolBinding / ProtocolBindingType
       (oidc / saml / wsfed) / ApplicationAssignment / AssignmentSubject (user / group) /
       AssignmentVisibility (visible / hidden) / ApplicationIcon / ProvisioningBinding /
@@ -66,7 +66,7 @@ scope:
       MyApplicationsRead。
     - >-
       既存 OAuth2 の AdminClient 系 interface と WsFederation の WsFedRelyingParty を
-      ProtocolBinding として ApplicationCatalog に従属させる依存関係を SCL に反映する。
+      ProtocolBinding として Application に従属させる依存関係を SCL に反映する。
   go:
     - Application 集約と Postgres / memory adapter (applications / protocol_bindings / application_assignments / provisioning_bindings テーブル、tenant scope、binding から既存 client / RP への外部キー)。
     - >-
@@ -85,9 +85,9 @@ scope:
     - README に Application = protocol binding + 割当 + provisioning という関係図を追記する。
 
 initial_context:
-  features: [ApplicationCatalog, OAuth2, WsFederation, Tenancy]
+  features: [Application, OAuth2, WsFederation, Tenancy]
   scl:
-    components: [ApplicationCatalog]
+    components: [Application]
     related_components: [OAuth2, WsFederation, IdentityManagement, Tenancy]
     existing_roots: [Application, ListAdminClients, WsFedRelyingParty, Group, User]
   decisions:
@@ -115,7 +115,7 @@ affected_guarantees:
   - product language clarity: 運用者・利用者は protocol を意識せず Application 単位で接続・割当・起動できる。
   - assignment fail-closed: 未割当 subject はポータルにアプリが出ず、どの protocol binding でもフェデレーションを開始/完了できない。
   - protocol isolation: Application は上位 aggregate に留まり、OAuth2 / WsFederation / Saml の protocol state machine と wire contract を吸収しない。
-  - traceability: SCL の ApplicationCatalog owns_* と実装ディレクトリ・UI ナビが一致する。
+  - traceability: SCL の Application owns_* と実装ディレクトリ・UI ナビが一致する。
   - tenant isolation: Application・binding・割当・icon・provisioning binding はすべて realm 境界内に閉じる。
   - audit: create/update/delete/assign/unassign/binding 接続解除を監査に残す。
 

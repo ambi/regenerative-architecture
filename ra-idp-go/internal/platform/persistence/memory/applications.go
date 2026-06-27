@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	"ra-idp-go/internal/applicationcatalog/ports"
+	"ra-idp-go/internal/application/ports"
 	"ra-idp-go/internal/spec"
 )
 

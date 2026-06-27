@@ -1,4 +1,4 @@
-// Package ports は ApplicationCatalog bounded context の永続境界 (port) を定義する (wi-69)。
+// Package ports は Application bounded context の永続境界 (port) を定義する (wi-69)。
 package ports
 
 import (

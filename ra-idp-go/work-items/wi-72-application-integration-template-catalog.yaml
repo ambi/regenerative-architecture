@@ -12,7 +12,7 @@ motivation: |
   これが SSO 導入の摩擦を大きく下げている。
 
   [[wi-69-application-catalog-aggregate-and-assignment]] で Application を手で作れるようになるが、
-  毎回 binding と claim を一から設定するのは煩雑で誤りやすい。本 WI は ApplicationCatalog に
+  毎回 binding と claim を一から設定するのは煩雑で誤りやすい。本 WI は Application に
   テンプレートカタログを追加し、テンプレートから Application を instantiate できるようにする。
   デモ IdP として「既知アプリを数クリックで接続する」現代 IdP の体験を示す。
 
@@ -20,13 +20,13 @@ scope:
   decision:
     - >-
       新規 ADR-068: テンプレートの所有と供給形態を確定する。テンプレートは
-      ApplicationCatalog が所有する read-only カタログ (リポジトリ同梱の宣言データ) とし、
+      Application が所有する read-only カタログ (リポジトリ同梱の宣言データ) とし、
       テナント横断の共有定義と、テナント独自テンプレート登録を許すかを決める。テンプレートが
       規定する内容 (推奨 binding type、既定 claim release、icon、必須入力フィールドの schema、
       ベンダー metadata) と、instantiate 時に Application へコピーする範囲を決める。
   scl:
     - >-
-      ApplicationCatalog に ApplicationTemplate / TemplateProtocolDefault /
+      Application に ApplicationTemplate / TemplateProtocolDefault /
       TemplateClaimDefault / TemplateInputField を追加する。
     - >-
       interface: ListApplicationTemplates / GetApplicationTemplate /
@@ -46,10 +46,10 @@ scope:
     - README にテンプレート定義の追加方法と同梱例を書く。
 
 initial_context:
-  features: [ApplicationCatalog, Tenancy]
+  features: [Application, Tenancy]
   scl:
-    components: [ApplicationCatalog]
-    related_components: [OAuth2, WsFederation, ClaimRelease, Tenancy]
+    components: [Application]
+    related_components: [OAuth2, WsFederation, ClaimMapping, Tenancy]
     existing_roots: [Application, ProtocolBinding]
   decisions:
     - decisions/ADR-064-protocol-contexts-and-application-catalog.md

@@ -1,4 +1,4 @@
-// Package usecases は ApplicationCatalog の admin / account 操作を実装する (wi-69)。
+// Package usecases は Application の admin / account 操作を実装する (wi-69)。
 package usecases
 
 import (

@@ -2,7 +2,7 @@ package spec
 
 import "time"
 
-// ApplicationCatalog の双子定義 (wi-69, ADR-064)。
+// Application の双子定義 (wi-69, ADR-064)。
 //
 // Application は運用者が「接続する業務アプリケーション」として扱う上位 aggregate。
 // OIDC client / SAML SP / WS-Fed RP を protocol binding として束ね、表示名・アイコン・
@@ -100,7 +100,7 @@ type ProtocolBinding struct {
 	Wtrealm  string              `json:"wtrealm,omitempty"`
 }
 
-// Application は ApplicationCatalog の上位 aggregate (wi-69)。
+// Application は運用者向けの上位 aggregate (wi-69)。
 type Application struct {
 	TenantID      string            `json:"tenant_id"`
 	ApplicationID string            `json:"application_id"`

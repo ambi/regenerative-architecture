@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"ra-idp-go/internal/applicationcatalog/ports"
+	"ra-idp-go/internal/application/ports"
 	"ra-idp-go/internal/spec"
 	"ra-idp-go/internal/tenancy"
 )

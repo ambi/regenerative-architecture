@@ -2,7 +2,7 @@ package spec
 
 import "time"
 
-// ClaimRelease / WsFederation の双子定義 (ADR-059 / ADR-064)。
+// ClaimMapping / WsFederation の双子定義 (ADR-059 / ADR-064)。
 //
 // WS-Federation / WS-Trust / SAML が共有する宣言的 claim mapping と、claim 発行
 // エンジンの出力を表す。XML 署名・assertion 直列化は本ファイルの範囲外で、これらは

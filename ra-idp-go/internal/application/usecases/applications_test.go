@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"ra-idp-go/internal/applicationcatalog/ports"
-	appusecases "ra-idp-go/internal/applicationcatalog/usecases"
+	"ra-idp-go/internal/application/ports"
+	appusecases "ra-idp-go/internal/application/usecases"
 	"ra-idp-go/internal/platform/persistence/memory"
 	"ra-idp-go/internal/spec"
 	"ra-idp-go/internal/tenancy"

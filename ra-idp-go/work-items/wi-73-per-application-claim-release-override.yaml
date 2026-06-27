@@ -11,10 +11,10 @@ motivation: |
   プロトコル (OIDC claim / SAML AttributeStatement / WS-Fed claim URI) をまたいで効く。
 
   ra-idp-go は ADR-059 / [[wi-63-federation-metadata-and-claims-mapping]] で宣言的・fail-closed な
-  ClaimMappingPolicy を持ち、ADR-064 で `ClaimRelease` を protocol-neutral capability として
+  ClaimMappingPolicy を持ち、ADR-064 で `ClaimMapping` を protocol-neutral capability として
   分離した。ただし現状の release policy はテナント/プロトコル既定の粒度で、アプリ単位の上書きが
   ない。本 WI は [[wi-69-application-catalog-aggregate-and-assignment]] の Application に
-  claim release の上書きをぶら下げ、ClaimRelease が解決時にアプリ別ルールを適用できるようにする。
+  claim release の上書きをぶら下げ、ClaimMapping が解決時にアプリ別ルールを適用できるようにする。
 
 scope:
   decision:
@@ -22,23 +22,23 @@ scope:
       ADR-059 への追補 (または軽量 ADR-069): claim release 解決の優先順位を確定する。
       テナント既定 → Application 上書き → (将来 assignment 単位) の合成順序、未定義属性の
       fail-closed 維持、上書きが各 protocol の wire projection (OIDC/SAML/WS-Fed) に
-      どう反映されるかを決める。所有は ClaimRelease、アプリ紐付けは ApplicationCatalog。
+      どう反映されるかを決める。所有は ClaimMapping、アプリ紐付けは Application。
   scl:
     - >-
-      ClaimRelease に ApplicationClaimReleasePolicy (Application を参照する ClaimMappingPolicy の
+      ClaimMapping に ApplicationClaimMappingPolicy (Application を参照する ClaimMappingPolicy の
       上書きセット) を追加し、IssuedClaim 解決時に合成する。
     - >-
       interface: 管理者の Application 配下 claim release CRUD。解決自体は既存の claim 発行経路
       (UserInfo / ID Token / SAML AttributeStatement / WS-Fed) に組み込む。
     - >-
-      アプリ別上書きは属性 claim だけでなく subject 識別子も対象にする。ClaimRelease の
+      アプリ別上書きは属性 claim だけでなく subject 識別子も対象にする。ClaimMapping の
       NameIdConfiguration をアプリ単位で写像し、OIDC `sub` / SAML NameID / WS-Fed の
       主体識別子を Application ごとに決められるようにする (下流 SP がメール以外でアカウントを
       突き合わせるケース)。per-user の literal override は SWA / password-vault 導入時の将来 WI。
-    - event: ApplicationClaimReleaseUpdated。
+    - event: ApplicationClaimMappingUpdated。
     - >-
-      invariant: ClaimReleaseFailClosed の維持 (上書きでも未許可属性は出さない)、
-      ClaimReleaseResolvedPerApplication (アプリ別ルールが全 protocol projection に効く)。
+      invariant: ClaimMappingFailClosed の維持 (上書きでも未許可属性は出さない)、
+      ClaimMappingResolvedPerApplication (アプリ別ルールが全 protocol projection に効く)。
     - permission: 既存 AdminApplicationsManage を再利用、または AdminApplicationClaimsManage を追加。
   go:
     - per-application claim release policy の persistence (application_claim_release テーブル、tenant scope)。
@@ -51,10 +51,10 @@ scope:
     - admin: Application 詳細に claim release エディタ (出力属性の選択・写像・既定からの差分表示)。
 
 initial_context:
-  features: [ClaimRelease, ApplicationCatalog, OAuth2, WsFederation]
+  features: [ClaimMapping, Application, OAuth2, WsFederation]
   scl:
-    components: [ClaimRelease]
-    related_components: [ApplicationCatalog, OAuth2, WsFederation, IdentityManagement]
+    components: [ClaimMapping]
+    related_components: [Application, OAuth2, WsFederation, IdentityManagement]
     existing_roots: [ClaimMappingPolicy, ClaimMappingRule, IssuedClaim, Application]
   decisions:
     - decisions/ADR-059-federation-bounded-context-and-claim-issuance.md

@@ -64,13 +64,13 @@ bounded_contexts:
       - { bounded_context: IdentityManagement, reason: UserInfo / ID Token claim と Agent client_credentials は identity principal 情報を参照する。 }
       - { bounded_context: SigningKeys, reason: ID Token / access token / JWK Set の署名鍵ライフサイクルと公開は SigningKeys が所有する。 }
 
-  ApplicationCatalog:
+  Application:
     description: |
       運用者が「接続する業務アプリケーション」として扱う上位概念を所有する。OIDC client /
       SAML SP / WS-Fed RP は Application の protocol binding であり、表示名、アイコン、
       ライフサイクル、割当はここに集約する (ADR-064, wi-69)。割当はポータル可視性と
       フェデレーション利用可否を fail-closed で制御する。protocol binding の wire 挙動は
-      各 protocol context が所有し、ApplicationCatalog は binding を opaque key で参照する。
+      各 protocol context が所有し、Application は binding を opaque key で参照する。
     owns_models: [ApplicationKind, ApplicationStatus, ProtocolBindingType, AssignmentSubjectType, AssignmentVisibility, ProtocolBinding, Application, ApplicationAssignment, AdminApplicationResponse, AdminApplicationListResponse, AdminApplicationCreateRequest, AdminApplicationUpdateRequest, ProtocolBindingRequest, ApplicationAssignmentRequest, ApplicationAssignmentResponse, ApplicationAssignmentListResponse, MyApplication, MyApplicationListResponse]
     owns_events: [ApplicationCreated, ApplicationUpdated, ApplicationDeleted, ProtocolBindingAttached, ProtocolBindingDetached, ApplicationAssigned, ApplicationUnassigned]
     owns_interfaces: [ListAdminApplications, GetAdminApplication, CreateAdminApplication, UpdateAdminApplication, DeleteAdminApplication, AttachProtocolBinding, DetachProtocolBinding, ListApplicationAssignments, AssignApplication, UnassignApplication, ListMyApplications]
@@ -80,7 +80,7 @@ bounded_contexts:
       - { bounded_context: Tenancy, reason: Application・binding・割当は realm 境界内に閉じる。 }
       - { bounded_context: IdentityManagement, reason: 割当の subject は User / Group の identity principal である。 }
 
-  ClaimRelease:
+  ClaimMapping:
     description: |
       identity principal の属性を外部 relying party / service provider / client へ出すための
       release policy と protocol-neutral な claim projection を所有する。属性解決と出力許可を
@@ -116,7 +116,7 @@ bounded_contexts:
       - { bounded_context: Tenancy, reason: WS-Fed RP trust と endpoint は realm 境界内に閉じる。 }
       - { bounded_context: Authentication, reason: WS-Fed passive は AuthenticationContext を参照し、WS-Trust usernamemixed は資格情報検証を再利用する。 }
       - { bounded_context: IdentityManagement, reason: WS-Fed / WS-Trust token の subject は User 属性から解決する。 }
-      - { bounded_context: ClaimRelease, reason: WS-Fed / WS-Trust の assertion claim は ClaimRelease policy で組み立てる。 }
+      - { bounded_context: ClaimMapping, reason: WS-Fed / WS-Trust の assertion claim は ClaimMapping policy で組み立てる。 }
       - { bounded_context: SigningKeys, reason: SAML assertion 署名証明書と metadata への証明書広告は SigningKeys の鍵境界に従う。 }
 
   Saml:
@@ -128,7 +128,7 @@ bounded_contexts:
       - { bounded_context: Tenancy, reason: SAML SP trust と metadata は realm 境界内に閉じる。 }
       - { bounded_context: Authentication, reason: SAML SSO は AuthenticationContext を参照する。 }
       - { bounded_context: IdentityManagement, reason: SAML assertion の subject は User 属性から解決する。 }
-      - { bounded_context: ClaimRelease, reason: SAML AttributeStatement / NameID は ClaimRelease policy を利用する。 }
+      - { bounded_context: ClaimMapping, reason: SAML AttributeStatement / NameID は ClaimMapping policy を利用する。 }
       - { bounded_context: SigningKeys, reason: SAML assertion / metadata 署名は SigningKeys の鍵境界に従う。 }
 
 # =================================================================
@@ -766,12 +766,12 @@ vocabulary:
     aliases: [resource_server]
   Application:
     definition: 運用者が接続・割当・監査する業務アプリケーション。OIDC client、SAML SP、WS-Fed RP は Application に紐づく protocol binding である。
-    aliases: [アプリケーション, ApplicationCatalog]
+    aliases: [アプリケーション, Application]
   ProtocolBinding:
     definition: >-
       Application を特定 protocol で接続するための設定。例: OAuth2Client、SAML ServiceProvider、WS-Fed RelyingParty。
     aliases: [binding, protocol_binding]
-  ClaimReleasePolicy:
+  ClaimMappingPolicy:
     definition: identity principal の属性を外部 application / relying party / service provider / client へ出すための属性解決と出力許可の規則。
     aliases: [ClaimMappingPolicy, attribute release, claim mapping]
   WsFederation:
@@ -3771,7 +3771,7 @@ models:
 
 
   # ---------------------------------------------------------------
-  # ClaimRelease / WsFederation — protocol-neutral claim release と WS-* binding
+  # ClaimMapping / WsFederation — protocol-neutral claim release と WS-* binding
   # ---------------------------------------------------------------
 
   ClaimMappingSource:
@@ -3941,7 +3941,7 @@ models:
       domain:     { type: String, description: "Entra 検証済み domain。" }
       issuerUri:  { type: String, description: "Entra に登録する IssuerUri。" }
 
-  # ---------- ApplicationCatalog (wi-69, ADR-064) ----------
+  # ---------- Application (wi-69, ADR-064) ----------
   ApplicationKind:
     kind: enum
     description: Application が SSO フェデレーションを束ねる federated か、SSO しない外部リンク weblink か (wi-69)。
@@ -3984,7 +3984,7 @@ models:
       SAML SP / WS-Fed RP を protocol binding として束ね、表示名・アイコン・状態・割当を所有する。
       weblink kind は binding を持たない外部リンク (wi-69, ADR-064)。
     identity: [tenant_id, application_id]
-    annotations: { bounded_context: ApplicationCatalog }
+    annotations: { bounded_context: Application }
     fields:
       tenant_id:      { type: String, default: "default", description: "所属テナント ID (ADR-034)。" }
       application_id: { type: UUID, description: "Application 識別子。" }
@@ -4003,7 +4003,7 @@ models:
       Application へのユーザー / グループ割当。割当はポータル可視性とフェデレーション利用可否を
       fail-closed で制御する。hidden は一覧に出さないがプロトコル利用は許可する (wi-69)。
     identity: [tenant_id, application_id, subject_type, subject_id]
-    annotations: { bounded_context: ApplicationCatalog }
+    annotations: { bounded_context: Application }
     fields:
       tenant_id:      { type: String, default: "default", description: "所属テナント ID。" }
       application_id: { type: UUID, description: "対象 Application。" }
@@ -5424,7 +5424,7 @@ interfaces:
     bindings:
       - { kind: http, method: PUT, path: /api/admin/tenant/user_attribute_schema, request_form: body }
 
-  # ---------- ApplicationCatalog (wi-69) ----------
+  # ---------- Application (wi-69) ----------
   ListAdminApplications:
     description: 管理者が所属テナントの Application を一覧する。
     output:
@@ -5868,7 +5868,7 @@ invariants:
         - "len(error_description) == len(error_description_constant)"  # メッセージは固定文字列
 
 
-  # ---------- ApplicationCatalog (wi-69) ----------
+  # ---------- Application (wi-69) ----------
   AssignmentGatesProtocol:
     description: |
       未割当の subject はどの protocol binding でもフェデレーションを開始 / 完了できない。
@@ -6747,7 +6747,7 @@ permissions:
         - "context.authenticated == true"
 
 
-  # ---------- ApplicationCatalog (wi-69) ----------
+  # ---------- Application (wi-69) ----------
   AdminApplicationsManage:
     description: 所属テナント内の Application 一覧・取得・作成・更新・削除・binding 接続/解除。
     actor: User

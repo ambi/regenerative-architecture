@@ -39,8 +39,8 @@ func TestSMTPEmailSenderSendsPlaintextMessage(t *testing.T) {
 	requireLineContains(t, transcript, "RCPT TO:<alice@example.com>")
 
 	body := server.dataBody()
-	requireBodyContains(t, body, "From: noreply@ra-idp.test")
-	requireBodyContains(t, body, "To: alice@example.com")
+	requireBodyContains(t, body, "From: <noreply@ra-idp.test>")
+	requireBodyContains(t, body, "To: <alice@example.com>")
 	requireBodyContains(t, body, "MIME-Version: 1.0")
 	requireBodyContains(t, body, "Content-Type: text/plain; charset=utf-8")
 	requireBodyContains(t, body, "Content-Transfer-Encoding: base64")
@@ -99,8 +99,8 @@ func TestBuildRFC5322MessageMultipart(t *testing.T) {
 		t.Fatalf("buildRFC5322Message: %v", err)
 	}
 	for _, want := range []string{
-		"From: noreply@ra-idp.test",
-		"To: bob@example.com",
+		"From: <noreply@ra-idp.test>",
+		"To: <bob@example.com>",
 		"Subject: verify",
 		"Date: Mon, 15 Jun 2026 12:00:00 +0000",
 		"@ra-idp.test>",
@@ -110,13 +110,13 @@ func TestBuildRFC5322MessageMultipart(t *testing.T) {
 		"Content-Type: text/html; charset=utf-8",
 		"Content-Transfer-Encoding: base64",
 		encodeMIMEBody("plain body"),
-		encodeMIMEBody("&lt;p&gt;html body&lt;/p&gt;"),
+		encodeMIMEBody("<p>html body</p>"),
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("missing %q in body:\n%s", want, body)
 		}
 	}
-	for _, unsafe := range []string{"plain body", "<p>html body</p>", "&lt;p&gt;html body&lt;/p&gt;"} {
+	for _, unsafe := range []string{"plain body", "<p>html body</p>"} {
 		if strings.Contains(body, unsafe) {
 			t.Errorf("raw content %q reached SMTP DATA:\n%s", unsafe, body)
 		}
@@ -139,9 +139,8 @@ func TestBuildRFC5322MessageHTMLOnly(t *testing.T) {
 		t.Errorf("expected base64 transfer encoding, got:\n%s", body)
 	}
 	if strings.Contains(body, "<p>only html</p>") ||
-		strings.Contains(body, "&lt;p&gt;only html&lt;/p&gt;") ||
-		!strings.Contains(body, encodeMIMEBody("&lt;p&gt;only html&lt;/p&gt;")) {
-		t.Errorf("expected escaped and encoded HTML body, got:\n%s", body)
+		!strings.Contains(body, encodeMIMEBody("<p>only html</p>")) {
+		t.Errorf("expected base64-encoded HTML body, got:\n%s", body)
 	}
 	if strings.Contains(body, "multipart/alternative") {
 		t.Errorf("unexpected multipart for HTML-only message:\n%s", body)
@@ -166,7 +165,7 @@ func TestBuildRFC5322MessageSanitizesUntrustedContent(t *testing.T) {
 	for _, want := range []string{
 		"Subject: reset Bcc: attacker@example.com",
 		encodeMIMEBody("line1\r\nline2"),
-		encodeMIMEBody(`&lt;script&gt;alert(1)&lt;/script&gt;&lt;a href=&#34;javascript:alert(1)&#34;&gt;x&lt;/a&gt;`),
+		encodeMIMEBody(`<script>alert(1)</script><a href="javascript:alert(1)">x</a>`),
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("missing sanitized content %q in body:\n%s", want, body)
@@ -176,7 +175,6 @@ func TestBuildRFC5322MessageSanitizesUntrustedContent(t *testing.T) {
 		"line1\r\nline2",
 		"<script>",
 		"javascript:alert(1)",
-		"&lt;script&gt;alert(1)&lt;/script&gt;",
 	} {
 		if strings.Contains(body, unsafe) {
 			t.Errorf("raw unsafe content %q reached SMTP DATA:\n%s", unsafe, body)

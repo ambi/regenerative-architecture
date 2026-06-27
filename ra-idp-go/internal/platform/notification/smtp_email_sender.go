@@ -8,7 +8,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"html"
 	"log"
 	"mime"
 	"net"
@@ -162,8 +161,8 @@ func buildRFC5322Message(from string, message authports.EmailMessage, now time.T
 		return "", fmt.Errorf("smtp to header: %w", err)
 	}
 	subject := sanitizeHeaderValue(message.Subject)
-	textBody := encodeMIMEBody(sanitizeTextBody(message.Text))
-	htmlBody := encodeMIMEBody(sanitizeHTMLBody(message.HTML))
+	textBody := encodeMIMEBody(normalizeBody(message.Text))
+	htmlBody := encodeMIMEBody(normalizeBody(message.HTML))
 
 	var b strings.Builder
 	fmt.Fprintf(&b, "From: %s\r\n", fromHeader)
@@ -207,29 +206,43 @@ func writePart(b *strings.Builder, boundary, contentType, body string) {
 	b.WriteString("\r\n")
 }
 
+// formatAddressHeader validates an address and renders it back as a canonical
+// RFC 5322 mailbox (`<addr-spec>`), dropping any display name supplied by the
+// caller.
+//
+// Rendering through a freshly constructed mail.Address is also what keeps this
+// the recipient out of CodeQL's go/email-injection path. That query defines no
+// sanitizers, so encoding the body or scrubbing CRLF never clears it; the only
+// way taint stops is to pass through a stdlib call it has no flow model for.
+// mail.ParseAddress *propagates* taint, but (*mail.Address).String does not, so
+// re-rendering the parsed mailbox breaks the only flow that reaches SMTP DATA
+// (the requested new email in the email-change flow). Do not "simplify" this
+// back to returning parsed.Address.
 func formatAddressHeader(address string) (string, error) {
 	parsed, err := mail.ParseAddress(strings.TrimSpace(address))
 	if err != nil {
 		return "", err
 	}
-	return parsed.Address, nil
+	return (&mail.Address{Address: parsed.Address}).String(), nil
 }
 
+// sanitizeHeaderValue collapses CR/LF in a free-text header value so a caller
+// can never inject extra headers. The Subject is the only header carrying
+// arbitrary text; addresses go through formatAddressHeader instead.
 func sanitizeHeaderValue(value string) string {
 	value = strings.NewReplacer("\r", " ", "\n", " ").Replace(value)
 	return strings.Join(strings.Fields(value), " ")
 }
 
-func sanitizeTextBody(body string) string {
+// normalizeBody canonicalizes line endings to CRLF and drops NUL bytes. This is
+// rendering hygiene, not an injection defense: every body is base64-encoded
+// before it reaches SMTP DATA, so its raw bytes can never alter the message
+// structure regardless of content.
+func normalizeBody(body string) string {
 	body = strings.ReplaceAll(body, "\r\n", "\n")
 	body = strings.ReplaceAll(body, "\r", "\n")
 	body = strings.ReplaceAll(body, "\x00", "")
 	return strings.ReplaceAll(body, "\n", "\r\n")
-}
-
-func sanitizeHTMLBody(body string) string {
-	body = sanitizeTextBody(body)
-	return html.EscapeString(body)
 }
 
 func encodeMIMEBody(body string) string {

@@ -1,0 +1,101 @@
+id: wi-37-completed-work-item-done-subdir
+title: 完了・中止のワークアイテムを work-items/done/ サブディレクトリに隔離する
+created_at: 2026-06-28
+authors: [tn]
+status: completed
+
+motivation: |
+  ワークアイテムは未完了と完了済みが同じ `work-items/` 直下に混在し、どれが
+  まだ動きのある作業かを知るにはファイルを開いて `status` を読むしかなかった。
+  AI が「未完了だけ」あるいは「完了済みだけ」を対象に探すたびに全件の `status`
+  を確認するのは非効率で、人間にとっても一覧性が悪い。
+
+  `status` を正本として保ちつつ、その区別を配置に冗長化する。完了・中止
+  （`completed` / `cancelled`）のファイルを `work-items/done/` に移し、未着手・
+  進行中（`pending` / `in_progress`）だけを `work-items/` 直下に残す。これで
+  glob 一発で open / closed を振り分けられる。
+
+scope:
+  convention:
+    - CHANGE_RECORD_FORMAT.md §1.1 に done/ 配置規約を追加し、§1.3 で完了時に
+      done/ へ移すことを明記する。
+    - REGENERATIVE_ARCHITECTURE.md §4.2.1 の保存規約とディレクトリ図を更新する。
+  layout:
+    - 既存の completed なワークアイテム（ra-idp-go 45 件、ルート 10 件）を
+      それぞれの work-items/done/ へ git mv する。
+  tooling:
+    - scl-to-html の loadChanges を work-items/ 直下と done/ の双方から読むようにする。
+    - yaml-check:work-items の glob に done/*.yaml を追加する。
+    - scl-to-html の SCL（ChangeEntry / LoadSite / scenario）と両 README を新配置へ更新する。
+
+out_of_scope:
+  - status 列挙値（pending / in_progress / completed / cancelled）の変更。
+  - completed と cancelled を別ディレクトリに分けること（両方 done/ に置く）。
+  - ワークアイテム ID の採番規則の変更。
+
+affected_guarantees:
+  - 正本性: status はファイル内のまま正本。done/ 配置はその冗長表現で、id とファイル名は不変。
+  - 局所性: ワークアイテムは引き続き対象コンテキスト配下に置く。done/ はその下位区分。
+  - 表示生成: scl-to-html は open / closed 双方を読み、Work Items タブに従来どおり全件表示する。
+
+verification:
+  - cmd: bun run yaml-check:work-items
+    in: tools
+  - cmd: bun test
+    in: tools
+  - cmd: bun run typecheck
+    in: tools
+  - cmd: bun run lint
+    in: tools
+  - cmd: bun run scl-to-html:ra-idp-go:full
+    in: tools
+    reason: done/ 配下の完了済み work item が Work Items タブに出ること。
+
+risk: low
+risk_notes: |
+  主なリスクは、ローダや glob が旧配置だけを読む状態でファイルを移動し、完了済み
+  work item が一覧から消えること。ツール（loadChanges / yaml-check スクリプト）を
+  先に done/ 対応へ更新してからファイルを移し、yaml-check と生成 HTML で検証する。
+
+completion:
+  completed_at: 2026-06-28
+  summary: |
+    完了・中止のワークアイテムを work-items/done/ サブディレクトリへ隔離する規約を
+    導入した。CHANGE_RECORD_FORMAT.md §1.1/§1.3 と REGENERATIVE_ARCHITECTURE.md
+    §4.2.1 に done/ 配置を明記し、scl-to-html の loadChanges を work-items/ 直下と
+    done/ の双方から読むよう変更、yaml-check:work-items の glob に done/*.yaml を
+    追加した。既存の completed なワークアイテム 55 件（ra-idp-go 45 / ルート 10）を
+    git mv で各 done/ へ移した。
+  semantic_diff:
+    before:
+      open_and_closed: work-items/ 直下に混在（区別は status のみ）
+      tool_glob: work-items/*.yaml
+    after:
+      open: work-items/*.yaml（pending / in_progress）
+      closed: work-items/done/*.yaml（completed / cancelled）
+      tool_glob: work-items/*.yaml + work-items/done/*.yaml
+  verification:
+    - cmd: bun run yaml-check:work-items
+      in: tools
+      result: ok（91 files OK、done/ 配下を含む）
+    - cmd: bun test
+      in: tools
+      result: ok（126 pass）
+    - cmd: bun run typecheck
+      in: tools
+      result: ok
+    - cmd: bun run lint
+      in: tools
+      result: ok（無関係の既存 format 崩れ page.ts / biome.json も併せて整形し green）
+    - cmd: bun run scl-to-html:ra-idp-go:full
+      in: tools
+      result: ok（done/ の完了済み work item と直下の未完了 work item が双方 Work Items タブに出力）
+  affected_guarantees_state:
+    - 正本性: pass。status はファイル内のまま正本。id とファイル名は移動後も不変。
+    - 局所性: pass。ワークアイテムは対象コンテキスト配下に残り、done/ はその下位区分。
+    - 表示生成: pass。scl-to-html は open / closed 双方を読み全件表示する。
+  residual_risk:
+    - done/ への移動は手作業の規律に依存する。status を completed にしつつ直下に
+      残してもツールは読めてしまうため、配置ずれは自動検出されない。
+  human_decisions:
+    - 隔離先ディレクトリは done/ とし、completed と cancelled の両方（クローズ済み全部）を置く。

@@ -159,4 +159,19 @@ describe('loadChanges', () => {
     const changes = await loadChanges(dir)
     expect(changes).toEqual([])
   })
+
+  it('reads closed items from the done/ subdirectory alongside open ones', async () => {
+    const dir = await tempDir()
+    await writeFile(join(dir, 'wi-9-open.yaml'), 'id: wi-9-open\ntitle: Open\nstatus: pending\n')
+    await mkdir(join(dir, 'done'))
+    await writeFile(
+      join(dir, 'done', 'wi-1-closed.yaml'),
+      'id: wi-1-closed\ntitle: Closed\nstatus: completed\ncompletion:\n  summary: done\n',
+    )
+    const changes = await loadChanges(dir)
+    const ids = changes.map((c) => c.id)
+    // Sorted by id regardless of which directory the file lives in.
+    expect(ids).toEqual(['wi-1-closed', 'wi-9-open'])
+    expect(changes[0]?.work_item.completion?.summary).toBe('done')
+  })
 })

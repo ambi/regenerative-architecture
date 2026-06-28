@@ -34,7 +34,7 @@ bun scl-to-html \
 | --------- | ---------------------------------------------------------------- |
 | SCL       | SPECIFICATION_CORE_LANGUAGE.md §3 の 12 セクションをカード表示   |
 | Decisions | CONCEPTION + CONCEPTION_BASELINE + ADR-NNN-…md (指定時のみ)      |
-| Work Items | work-items/*.yaml (指定時のみ)                                  |
+| Work Items | work-items/*.yaml + work-items/done/*.yaml (指定時のみ)         |
 
 URL ハッシュは `#tab=<name>&sec=<section-id>` 形式でルーティング。JS 無効でも
 生成されたタブの内容が縦に並んで読める (degraded mode)。

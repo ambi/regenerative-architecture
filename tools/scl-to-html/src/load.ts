@@ -66,16 +66,30 @@ export async function loadDecisions(dir: string): Promise<DecisionDoc[]> {
   return out
 }
 
+/** Closed (completed / cancelled) work items live in this subdirectory. */
+const DONE_SUBDIR = 'done'
+
+async function listYamlFiles(dir: string): Promise<string[]> {
+  try {
+    const entries = await readdir(dir, { withFileTypes: true })
+    return entries
+      .filter((e) => e.isFile() && extname(e.name) === '.yaml')
+      .map((e) => join(dir, e.name))
+  } catch {
+    // A missing directory (e.g. no done/ yet) just yields no files.
+    return []
+  }
+}
+
 export async function loadChanges(dir: string): Promise<ChangeEntry[]> {
-  const entries = await readdir(dir, { withFileTypes: true })
-  const files = entries
-    .filter((e) => e.isFile() && extname(e.name) === '.yaml')
-    .map((e) => e.name)
-    .sort()
+  // Open items live directly under `dir`; closed ones under `dir/done/`.
+  // Both are rendered — the on-disk split only marks open vs closed.
+  const open = await listYamlFiles(dir)
+  const done = await listYamlFiles(join(dir, DONE_SUBDIR))
+  const files = [...open, ...done].sort((a, b) => basename(a).localeCompare(basename(b)))
   const out: ChangeEntry[] = []
-  for (const file of files) {
-    const id = basename(file, '.yaml')
-    const wiPath = join(dir, file)
+  for (const wiPath of files) {
+    const id = basename(wiPath, '.yaml')
     let work_item: WorkItem
     try {
       const mod = await import(pathToFileURL(wiPath).href)

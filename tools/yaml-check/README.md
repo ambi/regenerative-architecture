@@ -25,7 +25,7 @@ bun yaml-check --help
 
 | 名前        | 対象                          | 由来                                |
 | ----------- | ----------------------------- | ----------------------------------- |
-| `work-item` | `*/work-items/<id>.yaml`      | `REGENERATIVE_ARCHITECTURE.md` §4.2 |
+| `work-item` | `*/work-items/<id>.yaml`（完了は `done/` 配下）| `REGENERATIVE_ARCHITECTURE.md` §4.2 |
 | `scl`       | `*/spec/scl.yaml`             | `SPECIFICATION_CORE_LANGUAGE.md` §2–§3 |
 
 未知のスキーマ名を渡すと、ファイル検査を一切行わずに exit code 2 を返す。
@@ -35,7 +35,7 @@ bun yaml-check --help
 `tools/package.json` から:
 
 ```bash
-bun run yaml-check:work-items          # */work-items/*.yaml
+bun run yaml-check:work-items          # */work-items/*.yaml と */work-items/done/*.yaml
 bun run yaml-check:scl                 # ra-idp-go の context 分割 SCL 群 + tools SCL
 bun run yaml-check:all                 # 上 2 つを直列で
 ```

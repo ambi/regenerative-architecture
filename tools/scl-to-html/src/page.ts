@@ -48,15 +48,11 @@ const renderTabBar = (tabs: TabKey[], active: TabKey): string => {
 
 const renderTocFor = (key: TabKey, items: TocItem[]): string => {
   const list = items
-    .map(
-      (item) => {
-        const contextAttr =
-          key === 'scl' && item.sclContext
-            ? ` data-scl-context-item="${esc(item.sclContext)}"`
-            : ''
-        return `<li${contextAttr}><a data-sec="${esc(item.id)}" href="${esc(`#tab=${key}&sec=${item.id}`)}">${esc(item.label)}</a></li>`
-      },
-    )
+    .map((item) => {
+      const contextAttr =
+        key === 'scl' && item.sclContext ? ` data-scl-context-item="${esc(item.sclContext)}"` : ''
+      return `<li${contextAttr}><a data-sec="${esc(item.id)}" href="${esc(`#tab=${key}&sec=${item.id}`)}">${esc(item.label)}</a></li>`
+    })
     .join('')
   return `<nav class="toc" data-toc-for="${esc(key)}" aria-label="${esc(TAB_LABELS[key])} contents">
     <div class="toc-title">${esc(TAB_LABELS[key])}</div>

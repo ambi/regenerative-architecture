@@ -27,8 +27,8 @@ glossary:
 
   ChangeEntry:
     definition: |
-      work-items/<id>.yaml 1 件分のレコード。完了情報は
-      work_item.completion に含める。Work Items タブの 1 カード。
+      work-items/<id>.yaml 1 件分のレコード（完了・中止は work-items/done/<id>.yaml）。
+      完了情報は work_item.completion に含める。Work Items タブの 1 カード。
 
   HtmlDocument:
     definition: |
@@ -163,7 +163,7 @@ interfaces:
     input:
       scl_path:        { type: Path, description: "SCL YAML パス" }
       decisions_dir:   { type: Path, optional: true, description: "CONCEPTION*.md + ADR-*.md のディレクトリ" }
-      work_items_dir:  { type: Path, optional: true, description: "work-items/*.yaml のディレクトリ" }
+      work_items_dir:  { type: Path, optional: true, description: "work-items/*.yaml と work-items/done/*.yaml を読むディレクトリ" }
     output:
       input: { type: SiteInput }
     read_only: true
@@ -308,6 +308,13 @@ scenarios:
       - 出力に Work Items タブが現れる
       - 出力に work item の id をアンカーに持つカードが 1 つ含まれる
       - 出力に completion の summary が含まれる
+
+  done/ サブディレクトリのクローズ済み work item も同じタブに並ぶ:
+    steps:
+      - work-items/ 直下に未完了の work item を置く
+      - work-items/done/ に完了済みの work item を置く
+      - "そのディレクトリを LoadSite で読み込み Render に渡す"
+      - 出力に両方の work item の id をアンカーに持つカードが含まれる
 
   --scl だけ与えれば Decisions / Work Items タブは空表示で生成できる:
     steps:

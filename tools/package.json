@@ -12,7 +12,7 @@
     "scl-to-html:ra-idp-go:full": "bun run scl-to-html/src/main.ts --scl ../ra-idp-go/spec/scl.yaml --decisions ../ra-idp-go/decisions --work-items ../ra-idp-go/work-items --title ra-idp-go --out ../ra-idp-go/spec/ra-idp-go.full.html",
     "scl-to-html:self": "bun run scl-to-html/src/main.ts --scl scl-to-html/spec/scl.yaml --title scl-to-html --out scl-to-html/spec/scl-to-html.html",
     "yaml-check": "bun run yaml-check/src/main.ts",
-    "yaml-check:work-items": "bun run yaml-check/src/main.ts --schema=work-item '../ra-idp-go/work-items/*.yaml' '../work-items/*.yaml'",
+    "yaml-check:work-items": "bun run yaml-check/src/main.ts --schema=work-item '../ra-idp-go/work-items/*.yaml' '../ra-idp-go/work-items/done/*.yaml' '../work-items/*.yaml' '../work-items/done/*.yaml'",
     "yaml-check:scl": "bun run yaml-check/src/main.ts --schema=scl ../ra-idp-go/spec/scl.yaml '../ra-idp-go/spec/contexts/*.yaml' ../tools/scl-to-html/spec/scl.yaml ../tools/yaml-check/spec/scl.yaml",
     "yaml-check:all": "bun run yaml-check:work-items && bun run yaml-check:scl"
   },

@@ -20,6 +20,21 @@ type ApplicationRepository interface {
 	Save(ctx context.Context, app *spec.Application) error
 	// Delete は application_id に一致する Application を削除する (冪等)。
 	Delete(ctx context.Context, tenantID, applicationID string) error
+	// RemoveCategory はテナント内の全 Application の category_ids から指定カテゴリを除く
+	// (カテゴリ削除時のクリーンアップ, wi-70)。
+	RemoveCategory(ctx context.Context, tenantID, categoryID string) error
+}
+
+// ApplicationCategoryRepository は ApplicationCategory の永続境界 (wi-70, ADR-069)。
+type ApplicationCategoryRepository interface {
+	// ListByTenant はテナント内のカテゴリを position 昇順 (同値は name 昇順) で返す。
+	ListByTenant(ctx context.Context, tenantID string) ([]*spec.ApplicationCategory, error)
+	// FindByID は category_id に一致するカテゴリを返す。存在しなければ (nil, nil)。
+	FindByID(ctx context.Context, tenantID, categoryID string) (*spec.ApplicationCategory, error)
+	// Save はカテゴリを upsert する。
+	Save(ctx context.Context, category *spec.ApplicationCategory) error
+	// Delete は category_id に一致するカテゴリを削除する (冪等)。
+	Delete(ctx context.Context, tenantID, categoryID string) error
 }
 
 // SubjectRef は割当の対象 (user / group) を表す参照 (wi-69)。

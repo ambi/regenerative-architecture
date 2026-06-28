@@ -5,7 +5,7 @@ import { AuthenticationAPIError } from '../../api/core'
 import { AccountShell } from '../../components/AccountShell'
 import { Button } from '../../components/ui/button'
 import { Card } from '../../components/ui/card'
-import type { MyApplication } from '../../types'
+import type { MyApplication, PortalCategory } from '../../types'
 
 function initials(name: string): string {
   return name.trim().slice(0, 2).toUpperCase() || '??'
@@ -105,14 +105,44 @@ function ReorderRow({
   )
 }
 
+function AppGrid({ apps }: { apps: MyApplication[] }) {
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+      {apps.map((app) => (
+        <AppTile key={app.application_id} app={app} />
+      ))}
+    </div>
+  )
+}
+
+type Section = { key: string; name: string; apps: MyApplication[] }
+
+// buildSections は manual order を保ったまま、各カテゴリ (position 昇順) にアプリを振り分ける。
+// 1 アプリは付与された各カテゴリに現れ、カテゴリ未付与のアプリは末尾の「その他」へ集める。
+function buildSections(apps: MyApplication[], categories: PortalCategory[]): Section[] {
+  const sections: Section[] = categories.map((category) => ({
+    key: category.category_id,
+    name: category.name,
+    apps: apps.filter((app) => app.category_ids.includes(category.category_id)),
+  }))
+  const known = new Set(categories.map((category) => category.category_id))
+  const uncategorized = apps.filter((app) => !app.category_ids.some((id) => known.has(id)))
+  if (uncategorized.length > 0) {
+    sections.push({ key: '__uncategorized__', name: 'その他', apps: uncategorized })
+  }
+  return sections.filter((section) => section.apps.length > 0)
+}
+
 export function AccountAppsPage({
   username,
   applications,
+  categories,
   csrfToken,
   isAdmin,
 }: {
   username: string
   applications: MyApplication[]
+  categories: PortalCategory[]
   csrfToken: string
   isAdmin: boolean
 }) {
@@ -164,6 +194,8 @@ export function AccountAppsPage({
 
   const editing = draft !== null
   const items = draft ?? order
+  const sections = buildSections(items, categories)
+  const grouped = categories.length > 0
 
   return (
     <AccountShell
@@ -209,12 +241,17 @@ export function AccountAppsPage({
                 />
               ))}
             </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-              {items.map((app) => (
-                <AppTile key={app.application_id} app={app} />
+          ) : grouped ? (
+            <div className="flex flex-col gap-6">
+              {sections.map((section) => (
+                <section key={section.key} className="flex flex-col gap-3">
+                  <h2 className="text-sm font-semibold text-slate-500">{section.name}</h2>
+                  <AppGrid apps={section.apps} />
+                </section>
               ))}
             </div>
+          ) : (
+            <AppGrid apps={items} />
           )}
         </div>
       )}

@@ -6,6 +6,7 @@ import type {
   AccountSignInActivity,
   AccountSummary,
   MyApplication,
+  PortalCategory,
   TotpEnrollmentStart,
 } from '../types'
 import { adminRequest, AuthenticationAPIError, request, tenantURL, type APIError } from './core'
@@ -213,10 +214,18 @@ export async function confirmEmailChange(csrfToken: string, token: string): Prom
   throw new AuthenticationAPIError(body.message ?? '確認に失敗しました。', body.error)
 }
 
-// 利用者ポータルの割当済みアプリ一覧 (wi-69)。visible 割当のみ返る。
-export async function listMyApplications(): Promise<MyApplication[]> {
-  return (await request<{ applications: MyApplication[] }>('/api/account/applications'))
-    .applications
+// 利用者ポータルの割当済みアプリ一覧とカテゴリ定義 (wi-69, wi-70)。visible 割当のみ返り、
+// categories は管理者定義のセクション見出しを position 昇順で含む。
+export type MyPortal = {
+  applications: MyApplication[]
+  categories: PortalCategory[]
+}
+
+export async function listMyApplications(): Promise<MyPortal> {
+  const body = await request<{ applications: MyApplication[]; categories: PortalCategory[] }>(
+    '/api/account/applications',
+  )
+  return { applications: body.applications, categories: body.categories ?? [] }
 }
 
 // 利用者ごとの手動並び順 (wi-70)。未保存なら空配列が返る。

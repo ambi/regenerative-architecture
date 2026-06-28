@@ -7,10 +7,11 @@ import { PageMarker } from '../-page'
 export const Route = createFileRoute('/account/apps')({
   loader: async ({ location }) => {
     const account = await requirePortalAccount('account', location.pathname, location.searchStr)
-    const applications = await listMyApplications()
+    const portal = await listMyApplications()
     return {
       username: account.preferred_username ?? 'account',
-      applications,
+      applications: portal.applications,
+      categories: portal.categories,
       csrfToken: account.csrf_token,
       isAdmin: hasAdminRole(account.roles),
     }

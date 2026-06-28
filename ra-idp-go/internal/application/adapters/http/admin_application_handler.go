@@ -27,6 +27,7 @@ type applicationResponse struct {
 	IconURL       string                    `json:"icon_url,omitempty"`
 	LaunchURL     string                    `json:"launch_url,omitempty"`
 	Bindings      []protocolBindingResponse `json:"bindings"`
+	CategoryIDs   []string                  `json:"category_ids"`
 	CreatedAt     time.Time                 `json:"created_at"`
 	UpdatedAt     time.Time                 `json:"updated_at"`
 }
@@ -246,9 +247,13 @@ func toApplicationResponse(app *spec.Application) applicationResponse {
 	for i, b := range app.Bindings {
 		bindings[i] = protocolBindingResponse{Type: b.Type, ClientID: b.ClientID, Wtrealm: b.Wtrealm}
 	}
+	categoryIDs := app.CategoryIDs
+	if categoryIDs == nil {
+		categoryIDs = []string{}
+	}
 	return applicationResponse{
 		ApplicationID: app.ApplicationID, Name: app.Name, Kind: app.Kind, Status: app.Status,
-		IconURL: app.IconURL, LaunchURL: app.LaunchURL, Bindings: bindings,
+		IconURL: app.IconURL, LaunchURL: app.LaunchURL, Bindings: bindings, CategoryIDs: categoryIDs,
 		CreatedAt: app.CreatedAt, UpdatedAt: app.UpdatedAt,
 	}
 }

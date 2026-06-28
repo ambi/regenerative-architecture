@@ -16,7 +16,7 @@ import (
 // 永続化する (wi-69)。protocol binding は JSONB に格納し、参照はテナント境界に閉じる。
 type ApplicationRepository struct{ Pool *pgxpool.Pool }
 
-const applicationSelect = `SELECT tenant_id,application_id,name,kind,status,icon_url,launch_url,bindings,created_at,updated_at FROM applications`
+const applicationSelect = `SELECT tenant_id,application_id,name,kind,status,icon_url,launch_url,bindings,category_ids,created_at,updated_at FROM applications`
 
 func scanApplication(row rowScanner) (*spec.Application, error) {
 	var (
@@ -24,7 +24,7 @@ func scanApplication(row rowScanner) (*spec.Application, error) {
 		bindings []byte
 	)
 	err := row.Scan(&app.TenantID, &app.ApplicationID, &app.Name, &app.Kind, &app.Status,
-		&app.IconURL, &app.LaunchURL, &bindings, &app.CreatedAt, &app.UpdatedAt)
+		&app.IconURL, &app.LaunchURL, &bindings, &app.CategoryIDs, &app.CreatedAt, &app.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
@@ -36,6 +36,9 @@ func scanApplication(row rowScanner) (*spec.Application, error) {
 		if err := json.Unmarshal(bindings, &app.Bindings); err != nil {
 			return nil, err
 		}
+	}
+	if app.CategoryIDs == nil {
+		app.CategoryIDs = []string{}
 	}
 	return &app, nil
 }
@@ -103,20 +106,31 @@ func (r *ApplicationRepository) Save(ctx context.Context, app *spec.Application)
 	if err != nil {
 		return err
 	}
+	categoryIDs := app.CategoryIDs
+	if categoryIDs == nil {
+		categoryIDs = []string{}
+	}
 	_, err = r.Pool.Exec(ctx, `
-INSERT INTO applications (tenant_id,application_id,name,kind,status,icon_url,launch_url,bindings,created_at,updated_at)
-VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+INSERT INTO applications (tenant_id,application_id,name,kind,status,icon_url,launch_url,bindings,category_ids,created_at,updated_at)
+VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
 ON CONFLICT (tenant_id,application_id) DO UPDATE SET name=EXCLUDED.name,kind=EXCLUDED.kind,
  status=EXCLUDED.status,icon_url=EXCLUDED.icon_url,launch_url=EXCLUDED.launch_url,
- bindings=EXCLUDED.bindings,updated_at=EXCLUDED.updated_at`,
+ bindings=EXCLUDED.bindings,category_ids=EXCLUDED.category_ids,updated_at=EXCLUDED.updated_at`,
 		app.TenantID, app.ApplicationID, app.Name, app.Kind, app.Status, app.IconURL, app.LaunchURL,
-		encoded, app.CreatedAt, app.UpdatedAt)
+		encoded, categoryIDs, app.CreatedAt, app.UpdatedAt)
 	return err
 }
 
 func (r *ApplicationRepository) Delete(ctx context.Context, tenantID, applicationID string) error {
 	_, err := r.Pool.Exec(ctx,
 		"DELETE FROM applications WHERE tenant_id=$1 AND application_id=$2", tenantID, applicationID)
+	return err
+}
+
+func (r *ApplicationRepository) RemoveCategory(ctx context.Context, tenantID, categoryID string) error {
+	_, err := r.Pool.Exec(ctx,
+		"UPDATE applications SET category_ids=array_remove(category_ids,$2) WHERE tenant_id=$1 AND $2=ANY(category_ids)",
+		tenantID, categoryID)
 	return err
 }
 
@@ -235,5 +249,61 @@ VALUES ($1,$2,$3,$4)
 ON CONFLICT (tenant_id,user_sub) DO UPDATE SET
  application_ids=EXCLUDED.application_ids,updated_at=EXCLUDED.updated_at`,
 		o.TenantID, o.UserSub, ids, o.UpdatedAt)
+	return err
+}
+
+// ApplicationCategoryRepository は ApplicationCategory を PostgreSQL に永続化する (wi-70, ADR-069)。
+// すべてテナント境界に閉じる。
+type ApplicationCategoryRepository struct{ Pool *pgxpool.Pool }
+
+const categorySelect = `SELECT tenant_id,category_id,name,position,created_at,updated_at FROM application_categories`
+
+func scanCategory(row rowScanner) (*spec.ApplicationCategory, error) {
+	var c spec.ApplicationCategory
+	err := row.Scan(&c.TenantID, &c.CategoryID, &c.Name, &c.Position, &c.CreatedAt, &c.UpdatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
+func (r *ApplicationCategoryRepository) ListByTenant(ctx context.Context, tenantID string) ([]*spec.ApplicationCategory, error) {
+	rows, err := r.Pool.Query(ctx, categorySelect+" WHERE tenant_id=$1 ORDER BY position,name", tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []*spec.ApplicationCategory{}
+	for rows.Next() {
+		c, err := scanCategory(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, c)
+	}
+	return out, rows.Err()
+}
+
+func (r *ApplicationCategoryRepository) FindByID(ctx context.Context, tenantID, categoryID string) (*spec.ApplicationCategory, error) {
+	return scanCategory(r.Pool.QueryRow(ctx,
+		categorySelect+" WHERE tenant_id=$1 AND category_id=$2", tenantID, categoryID))
+}
+
+func (r *ApplicationCategoryRepository) Save(ctx context.Context, c *spec.ApplicationCategory) error {
+	_, err := r.Pool.Exec(ctx, `
+INSERT INTO application_categories (tenant_id,category_id,name,position,created_at,updated_at)
+VALUES ($1,$2,$3,$4,$5,$6)
+ON CONFLICT (tenant_id,category_id) DO UPDATE SET
+ name=EXCLUDED.name,position=EXCLUDED.position,updated_at=EXCLUDED.updated_at`,
+		c.TenantID, c.CategoryID, c.Name, c.Position, c.CreatedAt, c.UpdatedAt)
+	return err
+}
+
+func (r *ApplicationCategoryRepository) Delete(ctx context.Context, tenantID, categoryID string) error {
+	_, err := r.Pool.Exec(ctx,
+		"DELETE FROM application_categories WHERE tenant_id=$1 AND category_id=$2", tenantID, categoryID)
 	return err
 }

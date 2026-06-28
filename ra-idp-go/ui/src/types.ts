@@ -92,6 +92,15 @@ export type AdminApplication = {
   icon_url?: string
   launch_url?: string
   bindings: ProtocolBinding[]
+  category_ids: string[]
+  created_at: string
+  updated_at: string
+}
+
+export type ApplicationCategory = {
+  category_id: string
+  name: string
+  position: number
   created_at: string
   updated_at: string
 }
@@ -404,6 +413,12 @@ export type MyApplication = {
   kind: ApplicationKind
   icon_url?: string
   launch_url?: string
+  category_ids: string[]
+}
+
+export type PortalCategory = {
+  category_id: string
+  name: string
 }
 
 export type AccountMfaFactor = {

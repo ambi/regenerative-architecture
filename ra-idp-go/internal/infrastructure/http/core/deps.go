@@ -67,6 +67,7 @@ type Deps struct {
 	ApplicationRepo            appports.ApplicationRepository
 	ApplicationAssignmentRepo  appports.AssignmentRepository
 	ApplicationOrderingRepo    appports.ApplicationOrderingRepository
+	ApplicationCategoryRepo    appports.ApplicationCategoryRepository
 	Emit                       func(spec.DomainEvent)
 	HealthInfo                 HealthInfo
 }

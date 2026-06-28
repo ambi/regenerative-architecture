@@ -1,7 +1,7 @@
 id: wi-70-application-portal-ordering-and-grouping
 title: 利用者ポータルのアプリケーション一覧に並び替えと分類を入れる
 created_at: 2026-06-27
-status: pending
+status: completed
 authors: [tn]
 
 motivation: |
@@ -87,3 +87,86 @@ risk_notes: |
   ポータル表示順とグルーピングの UX 機能で、認証/認可の wire behavior には影響しない。
   カテゴリ表示が割当境界を越えてアプリを露出しないことだけ確認する。
   wi-69 の Application / Assignment 実装に依存するため、後続として実装する。
+
+completion:
+  completed_at: 2026-06-28
+
+  summary: |
+    利用者ポータルのアプリ一覧に「並び替え」と「分類」を入れた。並び順 (slice 1) は
+    ApplicationCatalog が tenant_id + user_sub をキーに per-user の手動順を所有し、既定は
+    name 昇順。手動順を割当済み visible アプリの上に重ね、未割当 id は除外、手動順に無い
+    アプリは name 昇順で末尾に付ける。分類 (slice 2) は管理者が tenant 単位で
+    ApplicationCategory を定義し Application に 0..N 個付与する。利用者ポータルはカテゴリ
+    定義 (position 昇順) でタイルをセクション表示し、未分類は「その他」に集める。所有関係は
+    ADR-069 が定める。
+
+  semantic_diff:
+    before: "ポータルは割当済みアプリを name 昇順の単一グリッドで表示し、並べ替えも分類もできない"
+    after: "利用者は手動で並び替え、管理者はカテゴリで分類し、ポータルはセクション表示する"
+
+  traceability:
+    specification:
+      - ra-idp-go/spec/contexts/application.yaml models.ApplicationOrdering
+      - ra-idp-go/spec/contexts/application.yaml models.ApplicationCategory
+      - ra-idp-go/spec/contexts/application.yaml interfaces.GetMyApplicationOrder
+      - ra-idp-go/spec/contexts/application.yaml interfaces.ReorderMyApplications
+      - ra-idp-go/spec/contexts/application.yaml interfaces.ListApplicationCategories
+      - ra-idp-go/spec/contexts/application.yaml interfaces.CreateApplicationCategory
+      - ra-idp-go/spec/contexts/application.yaml interfaces.UpdateApplicationCategory
+      - ra-idp-go/spec/contexts/application.yaml interfaces.DeleteApplicationCategory
+      - ra-idp-go/spec/contexts/application.yaml interfaces.SetApplicationCategories
+      - ra-idp-go/spec/contexts/application.yaml permissions.AdminApplicationCategoriesManage
+    implementation:
+      - ra-idp-go/internal/spec/applications.go
+      - ra-idp-go/internal/spec/policy.go
+      - ra-idp-go/internal/oauth2/usecases/role_policies.go
+      - ra-idp-go/internal/application/ports/repository.go
+      - ra-idp-go/internal/application/usecases/orderings.go
+      - ra-idp-go/internal/application/usecases/categories.go
+      - ra-idp-go/internal/application/adapters/http/account_application_handler.go
+      - ra-idp-go/internal/application/adapters/http/admin_category_handler.go
+      - ra-idp-go/internal/application/adapters/http/routes.go
+      - ra-idp-go/internal/infrastructure/persistence/memory/applications.go
+      - ra-idp-go/internal/infrastructure/persistence/postgres/applications.go
+      - ra-idp-go/deploy/migrations/0019_application_orderings.sql
+      - ra-idp-go/deploy/migrations/0020_application_categories.sql
+      - ra-idp-go/ui/src/features/account/AccountAppsPage.tsx
+      - ra-idp-go/ui/src/features/admin-applications/AdminApplicationsPage.tsx
+      - ra-idp-go/ui/src/api/account.ts
+      - ra-idp-go/ui/src/api/admin.ts
+    tests:
+      - ra-idp-go/internal/application/usecases/orderings_test.go
+      - ra-idp-go/internal/application/usecases/categories_test.go
+      - ra-idp-go/internal/application/adapters/http/account_application_order_test.go
+      - ra-idp-go/internal/application/adapters/http/account_category_test.go
+
+  affected_guarantees_state:
+    - "findability: ポータルは手動順とカテゴリセクションで割当アプリを整理して表示する。"
+    - "assignment scoping: ListMyApplications は visible 割当のみを対象にし、カテゴリ表示も同じ集合だけを並べる。未割当アプリは露出しない。"
+    - "tenant isolation: ApplicationOrdering は tenant_id + user_sub、ApplicationCategory と付与は tenant_id 境界に閉じる。"
+
+  decisions:
+    - decisions/ADR-069-portal-application-ordering-and-grouping.md
+
+  verification:
+    - cmd: "GOCACHE=/tmp/ra-idp-go-cache go test ./..."
+      in: ra-idp-go
+      result: ok
+    - cmd: "golangci-lint run ./..."
+      in: ra-idp-go
+      result: "0 issues"
+    - cmd: "bun run typecheck"
+      in: ra-idp-go/ui
+      result: ok
+    - cmd: "bun run lint"
+      in: ra-idp-go/ui
+      result: ok
+    - cmd: "bun run build"
+      in: ra-idp-go/ui
+      result: ok
+    - cmd: "bun run yaml-check:scl"
+      in: tools
+      result: ok
+    - cmd: "bun run yaml-check:work-items"
+      in: tools
+      result: ok

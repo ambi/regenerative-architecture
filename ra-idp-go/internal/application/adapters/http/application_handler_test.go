@@ -35,6 +35,7 @@ func newApplicationHandler(t *testing.T) *echo.Echo {
 		ApplicationRepo:           memory.NewApplicationRepository(),
 		ApplicationAssignmentRepo: memory.NewApplicationAssignmentRepository(),
 		ApplicationOrderingRepo:   memory.NewApplicationOrderingRepository(),
+		ApplicationCategoryRepo:   memory.NewApplicationCategoryRepository(),
 		SamlSPRepo:                memory.NewSamlServiceProviderRepository(),
 		AuthnResolver:             authusecases.DemoHeaderResolver{},
 		Emit:                      func(spec.DomainEvent) {},

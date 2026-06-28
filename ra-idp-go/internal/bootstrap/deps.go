@@ -46,6 +46,7 @@ type Dependencies struct {
 	ApplicationRepo           appports.ApplicationRepository
 	ApplicationAssignmentRepo appports.AssignmentRepository
 	ApplicationOrderingRepo   appports.ApplicationOrderingRepository
+	ApplicationCategoryRepo   appports.ApplicationCategoryRepository
 	Close                     func()
 }
 

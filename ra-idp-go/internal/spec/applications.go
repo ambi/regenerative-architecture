@@ -115,8 +115,20 @@ type Application struct {
 	IconURL       string            `json:"icon_url,omitempty"`
 	LaunchURL     string            `json:"launch_url,omitempty"`
 	Bindings      []ProtocolBinding `json:"bindings"`
+	CategoryIDs   []string          `json:"category_ids"`
 	CreatedAt     time.Time         `json:"created_at"`
 	UpdatedAt     time.Time         `json:"updated_at"`
+}
+
+// ApplicationCategory は管理者が tenant 単位で定義するポータルの分類セクション (wi-70, ADR-069)。
+// Application に 0..N 個付与され、利用者ポータルはこのカテゴリ単位でタイルをセクション表示する。
+type ApplicationCategory struct {
+	TenantID   string    `json:"tenant_id"`
+	CategoryID string    `json:"category_id"`
+	Name       string    `json:"name"`
+	Position   int       `json:"position"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 
 // ApplicationAssignment は Application へのユーザー / グループ割当 (wi-69)。
@@ -221,3 +233,36 @@ type ApplicationUnassigned struct {
 
 func (e *ApplicationUnassigned) EventType() string     { return "ApplicationUnassigned" }
 func (e *ApplicationUnassigned) OccurredAt() time.Time { return e.At }
+
+// ApplicationCategoryCreated は ApplicationCategory を作成した event (wi-70)。
+type ApplicationCategoryCreated struct {
+	At         time.Time `json:"-"`
+	TenantID   string    `json:"tenantId"`
+	ActorSub   string    `json:"actorSub"`
+	CategoryID string    `json:"categoryId"`
+}
+
+func (e *ApplicationCategoryCreated) EventType() string     { return "ApplicationCategoryCreated" }
+func (e *ApplicationCategoryCreated) OccurredAt() time.Time { return e.At }
+
+// ApplicationCategoryUpdated は ApplicationCategory を更新した event (wi-70)。
+type ApplicationCategoryUpdated struct {
+	At         time.Time `json:"-"`
+	TenantID   string    `json:"tenantId"`
+	ActorSub   string    `json:"actorSub"`
+	CategoryID string    `json:"categoryId"`
+}
+
+func (e *ApplicationCategoryUpdated) EventType() string     { return "ApplicationCategoryUpdated" }
+func (e *ApplicationCategoryUpdated) OccurredAt() time.Time { return e.At }
+
+// ApplicationCategoryDeleted は ApplicationCategory を削除した event (wi-70)。
+type ApplicationCategoryDeleted struct {
+	At         time.Time `json:"-"`
+	TenantID   string    `json:"tenantId"`
+	ActorSub   string    `json:"actorSub"`
+	CategoryID string    `json:"categoryId"`
+}
+
+func (e *ApplicationCategoryDeleted) EventType() string     { return "ApplicationCategoryDeleted" }
+func (e *ApplicationCategoryDeleted) OccurredAt() time.Time { return e.At }

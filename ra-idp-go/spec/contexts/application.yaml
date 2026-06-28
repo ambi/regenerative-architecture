@@ -107,6 +107,35 @@ models:
       bindings:
         type: "ProtocolBinding[]"
         description: 接続済み protocol binding。weblink は空。
+      category_ids:
+        type: "UUID[]"
+        description: 付与された ApplicationCategory の id 群 (0..N)。ポータルのセクション分類に使う (ADR-069)。
+      created_at:
+        type: Timestamp
+      updated_at:
+        type: Timestamp
+  ApplicationCategory:
+    kind: entity
+    description: "管理者が tenant 単位で定義するポータルの分類セクション (ADR-069)。Application に 0..N 個\n付与され、利用者ポータルはこのカテゴリ単位でタイルをセクション表示する。割当境界は越えず、\nセクションには利用者に割当済みのアプリだけが並ぶ。\n"
+    identity:
+      - tenant_id
+      - category_id
+    fields:
+      tenant_id:
+        type: String
+        default: default
+        description: 所属テナント ID。
+      category_id:
+        type: UUID
+        description: カテゴリ識別子。
+      name:
+        type: String
+        constraints:
+          - non_empty
+        description: セクション表示名。
+      position:
+        type: Integer
+        description: セクションの表示順。小さいほど先。同値は name 昇順。
       created_at:
         type: Timestamp
       updated_at:
@@ -160,6 +189,8 @@ models:
         optional: true
       bindings:
         type: "ProtocolBinding[]"
+      category_ids:
+        type: "UUID[]"
       created_at:
         type: Timestamp
       updated_at:
@@ -170,6 +201,43 @@ models:
     fields:
       applications:
         type: "AdminApplicationResponse[]"
+  AdminApplicationCategoryRequest:
+    kind: value_object
+    description: ApplicationCategory の作成 / 更新リクエスト。position 省略時は末尾扱い (ADR-069)。
+    fields:
+      name:
+        type: String
+        constraints:
+          - non_empty
+      position:
+        type: Integer
+        optional: true
+  AdminApplicationCategoryResponse:
+    kind: value_object
+    description: 管理 API が返す ApplicationCategory 表現。
+    fields:
+      category_id:
+        type: UUID
+      name:
+        type: String
+      position:
+        type: Integer
+      created_at:
+        type: Timestamp
+      updated_at:
+        type: Timestamp
+  AdminApplicationCategoryListResponse:
+    kind: value_object
+    description: ApplicationCategory 一覧レスポンス。position 昇順 (同値は name 昇順)。
+    fields:
+      categories:
+        type: "AdminApplicationCategoryResponse[]"
+  ApplicationCategoriesRequest:
+    kind: value_object
+    description: Application に付与するカテゴリ集合を置き換えるリクエスト。category_ids は所属テナントの 既存カテゴリのみを含む (ADR-069)。
+    fields:
+      category_ids:
+        type: "UUID[]"
   AdminApplicationCreateRequest:
     kind: value_object
     description: Application 一括作成リクエスト。種別を選び、対応するプロトコル設定もまとめて受け取る。 backend が OAuth2 client / WS-Fed RP を作成し、Application と protocol binding を一括で作る。
@@ -415,12 +483,25 @@ models:
       launch_url:
         type: String
         optional: true
+      category_ids:
+        type: "UUID[]"
+        description: 付与カテゴリの id 群。ポータルはこれでタイルをセクションに振り分ける (ADR-069)。
+  PortalApplicationCategory:
+    kind: value_object
+    description: 利用者ポータルのセクション見出し 1 件。tenant のカテゴリ定義を position 昇順で表す (ADR-069)。
+    fields:
+      category_id:
+        type: UUID
+      name:
+        type: String
   MyApplicationListResponse:
     kind: value_object
-    description: 利用者ポータルの割当済みアプリ一覧。手動並び順があればそれを優先し、無ければ name 昇順。
+    description: "利用者ポータルの割当済みアプリ一覧。手動並び順があればそれを優先し、無ければ name 昇順。\ncategories は tenant のカテゴリ定義を position 昇順で含み、ポータルはこれをセクション見出しに使う (ADR-069)。\n"
     fields:
       applications:
         type: "MyApplication[]"
+      categories:
+        type: "PortalApplicationCategory[]"
   ApplicationOrdering:
     kind: entity
     description: "利用者ポータルでの手動並び順 (ADR-069)。tenant_id + user_sub をキーに、Application の\n表示順を application_id の順序列として持つ。順序列に在って現在は未割当の application は\n一覧から除外し、順序列に無い割当アプリは name 昇順で末尾に付ける。\n"
@@ -543,6 +624,42 @@ models:
       subjectType:
         type: String
       subjectId:
+        type: String
+  ApplicationCategoryCreated:
+    kind: event
+    description: ApplicationCategory を作成した。
+    payload:
+      occurredAt:
+        type: Timestamp
+      tenantId:
+        type: String
+      actorSub:
+        type: String
+      categoryId:
+        type: String
+  ApplicationCategoryUpdated:
+    kind: event
+    description: ApplicationCategory を更新した。
+    payload:
+      occurredAt:
+        type: Timestamp
+      tenantId:
+        type: String
+      actorSub:
+        type: String
+      categoryId:
+        type: String
+  ApplicationCategoryDeleted:
+    kind: event
+    description: ApplicationCategory を削除した。付与済みの Application からも除かれる。
+    payload:
+      occurredAt:
+        type: Timestamp
+      tenantId:
+        type: String
+      actorSub:
+        type: String
+      categoryId:
         type: String
 interfaces:
   ListAdminApplications:
@@ -761,8 +878,96 @@ interfaces:
         path: "/api/admin/applications/{application_id}/assignments/{subject_type}/{subject_id}"
         successful_status_codes:
           - "204"
+  ListApplicationCategories:
+    description: 管理者が所属テナントの ApplicationCategory を position 昇順で一覧する。
+    output:
+      response:
+        type: AdminApplicationCategoryListResponse
+    errors:
+      - AccessDeniedError
+    read_only: true
+    bindings:
+      - kind: http
+        method: GET
+        path: /api/admin/application-categories
+  CreateApplicationCategory:
+    description: 管理者が ApplicationCategory を作成する。
+    input:
+      request:
+        type: AdminApplicationCategoryRequest
+    output:
+      category:
+        type: AdminApplicationCategoryResponse
+    errors:
+      - InvalidRequestError
+      - AccessDeniedError
+    emits:
+      - ApplicationCategoryCreated
+    bindings:
+      - kind: http
+        method: POST
+        path: /api/admin/application-categories
+        request_form: body
+        successful_status_codes:
+          - "201"
+  UpdateApplicationCategory:
+    description: 管理者が ApplicationCategory の名前 / 並び順を更新する。
+    input:
+      category_id:
+        type: String
+      request:
+        type: AdminApplicationCategoryRequest
+    output:
+      category:
+        type: AdminApplicationCategoryResponse
+    errors:
+      - InvalidRequestError
+      - AccessDeniedError
+    emits:
+      - ApplicationCategoryUpdated
+    bindings:
+      - kind: http
+        method: PATCH
+        path: "/api/admin/application-categories/{category_id}"
+        request_form: body
+  DeleteApplicationCategory:
+    description: 管理者が ApplicationCategory を削除する (冪等)。付与済みの Application からも除く。
+    input:
+      category_id:
+        type: String
+    errors:
+      - InvalidRequestError
+      - AccessDeniedError
+    emits:
+      - ApplicationCategoryDeleted
+    bindings:
+      - kind: http
+        method: DELETE
+        path: "/api/admin/application-categories/{category_id}"
+        successful_status_codes:
+          - "204"
+  SetApplicationCategories:
+    description: 管理者が Application に付与するカテゴリ集合を置き換える。所属テナントの既存カテゴリのみ受け付ける。
+    input:
+      application_id:
+        type: String
+      request:
+        type: ApplicationCategoriesRequest
+    output:
+      application:
+        type: AdminApplicationResponse
+    errors:
+      - InvalidRequestError
+      - AccessDeniedError
+    emits:
+      - ApplicationUpdated
+    bindings:
+      - kind: http
+        method: PUT
+        path: "/api/admin/applications/{application_id}/categories"
+        request_form: body
   ListMyApplications:
-    description: "利用者が自分に割当済み (visible) の Application を一覧する。hidden 割当は除外する。\n手動並び順 (ApplicationOrdering) があればそれを優先し、無ければ name 昇順 (ADR-069)。\n"
+    description: "利用者が自分に割当済み (visible) の Application を一覧する。hidden 割当は除外する。\n手動並び順 (ApplicationOrdering) があればそれを優先し、無ければ name 昇順。応答の categories は\ntenant のカテゴリ定義を position 昇順で含み、各アプリの category_ids でセクションに振り分ける (ADR-069)。\n"
     output:
       response:
         type: MyApplicationListResponse
@@ -825,6 +1030,16 @@ permissions:
     description: Application へのユーザー / グループ割当の参照・追加・削除。
     actor: User
     resource: ApplicationAssignment
+    allow_when:
+      and:
+        - admin in actor.roles
+        - actor.disabled_at == null
+        - context.authenticated == true
+        - actor.tenant_id == resource.tenant_id
+  AdminApplicationCategoriesManage:
+    description: 所属テナント内の ApplicationCategory の参照・作成・更新・削除と Application への付与。
+    actor: User
+    resource: ApplicationCategory
     allow_when:
       and:
         - admin in actor.roles
@@ -922,6 +1137,11 @@ user_experience:
         - ListApplicationAssignments
         - AssignApplication
         - UnassignApplication
+        - ListApplicationCategories
+        - CreateApplicationCategory
+        - UpdateApplicationCategory
+        - DeleteApplicationCategory
+        - SetApplicationCategories
         - ListAdminUsers
         - ListGroups
       states:
@@ -935,9 +1155,11 @@ user_experience:
         - service_error
     AccountApps:
       route: /account/apps
-      purpose: end-userが利用できるアプリケーションをタイルで一覧し、起動する。
+      purpose: "end-user が利用できるアプリケーションをタイルで一覧し、起動する。管理者が定義したカテゴリ\nごとにセクション表示し、利用者は手動で並び替えられる (ADR-069)。\n"
       interfaces:
         - ListMyApplications
+        - GetMyApplicationOrder
+        - ReorderMyApplications
       states:
         - ready
         - loading

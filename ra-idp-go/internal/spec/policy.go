@@ -114,6 +114,7 @@ const (
 	ActionAdminAuthorizationDetailTypesManage = "admin:authorization_detail_types_manage"
 	ActionAdminApplicationsManage             = "admin:applications_manage"
 	ActionAdminApplicationAssignmentsManage   = "admin:application_assignments_manage"
+	ActionAdminApplicationCategoriesManage    = "admin:application_categories_manage"
 	ActionAdminFederationTrustsManage         = "admin:federation_trusts_manage"
 	ActionMyApplicationsRead                  = "account:applications_read"
 )
@@ -147,6 +148,7 @@ var actionNameMapping = map[string]string{
 	"AdminAuthorizationDetailTypesManage": ActionAdminAuthorizationDetailTypesManage,
 	"AdminApplicationsManage":             ActionAdminApplicationsManage,
 	"AdminApplicationAssignmentsManage":   ActionAdminApplicationAssignmentsManage,
+	"AdminApplicationCategoriesManage":    ActionAdminApplicationCategoriesManage,
 	"AdminFederationTrustsManage":         ActionAdminFederationTrustsManage,
 	"MyApplicationsRead":                  ActionMyApplicationsRead,
 }
@@ -229,6 +231,9 @@ var actionRules = map[string][]string{
 		"actor_is_admin", "actor_is_active", "actor_is_authenticated", "actor_and_resource_share_tenant",
 	},
 	ActionAdminApplicationAssignmentsManage: {
+		"actor_is_admin", "actor_is_active", "actor_is_authenticated", "actor_and_resource_share_tenant",
+	},
+	ActionAdminApplicationCategoriesManage: {
 		"actor_is_admin", "actor_is_active", "actor_is_authenticated", "actor_and_resource_share_tenant",
 	},
 	ActionAdminFederationTrustsManage: {

@@ -48,6 +48,7 @@ var rolePermissionInterfaces = map[string][]string{
 	"AdminAuthorizationDetailTypesManage": {"ListAuthorizationDetailTypes", "GetAuthorizationDetailType", "CreateAuthorizationDetailType", "UpdateAuthorizationDetailType", "DeleteAuthorizationDetailType"},
 	"AdminApplicationsManage":             {"ListAdminApplications", "GetAdminApplication", "CreateAdminApplication", "UpdateAdminApplication", "DeleteAdminApplication", "AttachProtocolBinding", "DetachProtocolBinding", "UpdateApplicationOidcConfig", "UpdateApplicationWsFedConfig"},
 	"AdminApplicationAssignmentsManage":   {"ListApplicationAssignments", "AssignApplication", "UnassignApplication"},
+	"AdminApplicationCategoriesManage":    {"ListApplicationCategories", "CreateApplicationCategory", "UpdateApplicationCategory", "DeleteApplicationCategory", "SetApplicationCategories"},
 	"AdminFederationTrustsManage":         {"RegisterSamlServiceProvider", "ListSamlServiceProviders", "DeleteSamlServiceProvider", "RegisterWsFedRelyingParty", "ListWsFedRelyingParties", "DeleteWsFedRelyingParty"},
 }
 

@@ -43,6 +43,7 @@ func assembleMemory() (*Dependencies, error) {
 		ApplicationRepo:           memory.NewApplicationRepository(),
 		ApplicationAssignmentRepo: memory.NewApplicationAssignmentRepository(),
 		ApplicationOrderingRepo:   memory.NewApplicationOrderingRepository(),
+		ApplicationCategoryRepo:   memory.NewApplicationCategoryRepository(),
 		Close:                     func() {},
 	}, nil
 }

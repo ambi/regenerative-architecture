@@ -79,6 +79,7 @@ func assemblePostgres(ctx context.Context) (*Dependencies, error) {
 		ApplicationRepo:           &postgres.ApplicationRepository{Pool: pool},
 		ApplicationAssignmentRepo: &postgres.ApplicationAssignmentRepository{Pool: pool},
 		ApplicationOrderingRepo:   &postgres.ApplicationOrderingRepository{Pool: pool},
+		ApplicationCategoryRepo:   &postgres.ApplicationCategoryRepository{Pool: pool},
 		Close: func() {
 			_ = valkeyClient.Close()
 			pool.Close()

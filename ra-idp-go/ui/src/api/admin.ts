@@ -3,6 +3,7 @@ import type {
   AdminApplication,
   AdminApplicationDetail,
   AdminAuditEvent,
+  ApplicationCategory,
   AdminConsent,
   AdminGroup,
   AdminGroupMember,
@@ -701,5 +702,62 @@ export async function unassignApplication(
   await request(
     `/api/admin/applications/${encodeURIComponent(id)}/assignments/${encodeURIComponent(subjectType)}/${encodeURIComponent(subjectID)}`,
     adminRequest(csrfToken, 'DELETE'),
+  )
+}
+
+// ApplicationCategory の管理 (wi-70, ADR-069)。tenant 単位で定義し Application に付与する。
+export async function listApplicationCategories(): Promise<ApplicationCategory[]> {
+  return (await request<{ categories: ApplicationCategory[] }>('/api/admin/application-categories'))
+    .categories
+}
+
+export type ApplicationCategoryInput = {
+  name: string
+  position?: number
+}
+
+export async function createApplicationCategory(
+  csrfToken: string,
+  input: ApplicationCategoryInput,
+): Promise<ApplicationCategory> {
+  return (
+    await request<{ category: ApplicationCategory }>(
+      '/api/admin/application-categories',
+      adminRequest(csrfToken, 'POST', input),
+    )
+  ).category
+}
+
+export async function updateApplicationCategory(
+  csrfToken: string,
+  categoryID: string,
+  input: ApplicationCategoryInput,
+): Promise<ApplicationCategory> {
+  return (
+    await request<{ category: ApplicationCategory }>(
+      `/api/admin/application-categories/${encodeURIComponent(categoryID)}`,
+      adminRequest(csrfToken, 'PATCH', input),
+    )
+  ).category
+}
+
+export async function deleteApplicationCategory(
+  csrfToken: string,
+  categoryID: string,
+): Promise<void> {
+  await request(
+    `/api/admin/application-categories/${encodeURIComponent(categoryID)}`,
+    adminRequest(csrfToken, 'DELETE'),
+  )
+}
+
+export async function setApplicationCategories(
+  csrfToken: string,
+  id: string,
+  categoryIDs: string[],
+): Promise<AdminApplication> {
+  return request(
+    `/api/admin/applications/${encodeURIComponent(id)}/categories`,
+    adminRequest(csrfToken, 'PUT', { category_ids: categoryIDs }),
   )
 }

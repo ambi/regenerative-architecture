@@ -3,7 +3,7 @@
 ## ステータス
 採用。`spec/contexts/application.yaml` と `internal/application/` に反映。
 本 ADR は所有関係のみを定め、wire 挙動の規範は SCL が所有する。
-並び替え (slice 1) を先行採用し、分類 (slice 2) は同じ所有方針で後続する。
+並び替え (slice 1) と分類 (slice 2) を同じ所有方針で実装した。
 
 ## コンテキスト
 wi-69 / ADR-064 で利用者ポータルに割当済みアプリのタイル一覧が入った。

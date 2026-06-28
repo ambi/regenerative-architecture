@@ -151,6 +151,7 @@ func Run() error {
 		WsFedRPRepo: deps.WsFedRPRepo, SamlSPRepo: deps.SamlSPRepo, FederationSigner: federationSigner,
 		ApplicationRepo: deps.ApplicationRepo, ApplicationAssignmentRepo: deps.ApplicationAssignmentRepo,
 		ApplicationOrderingRepo: deps.ApplicationOrderingRepo,
+		ApplicationCategoryRepo: deps.ApplicationCategoryRepo,
 		Emit:                    emit,
 		HealthInfo: httpcore.HealthInfo{
 			Persistence:   runtime.Persistence,

@@ -22,6 +22,12 @@ type myApplicationResponse struct {
 	Kind          spec.ApplicationKind `json:"kind"`
 	IconURL       string               `json:"icon_url,omitempty"`
 	LaunchURL     string               `json:"launch_url,omitempty"`
+	CategoryIDs   []string             `json:"category_ids"`
+}
+
+type portalCategoryResponse struct {
+	CategoryID string `json:"category_id"`
+	Name       string `json:"name"`
 }
 
 type reorderMyApplicationsRequest struct {
@@ -49,12 +55,36 @@ func (d Deps) handleListMyApplications(c *echo.Context) error {
 	apps = appusecases.ApplyManualOrder(apps, order)
 	out := make([]myApplicationResponse, len(apps))
 	for i, app := range apps {
+		categoryIDs := app.CategoryIDs
+		if categoryIDs == nil {
+			categoryIDs = []string{}
+		}
 		out[i] = myApplicationResponse{
 			ApplicationID: app.ApplicationID, Name: app.Name, Kind: app.Kind,
-			IconURL: app.IconURL, LaunchURL: app.LaunchURL,
+			IconURL: app.IconURL, LaunchURL: app.LaunchURL, CategoryIDs: categoryIDs,
 		}
 	}
-	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"applications": out})
+	categories, err := d.portalCategories(ctx)
+	if err != nil {
+		return err
+	}
+	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"applications": out, "categories": categories})
+}
+
+// portalCategories は tenant のカテゴリ定義を position 昇順でポータル用に整形する (wi-70)。
+func (d Deps) portalCategories(ctx context.Context) ([]portalCategoryResponse, error) {
+	if d.ApplicationCategoryRepo == nil {
+		return []portalCategoryResponse{}, nil
+	}
+	categories, err := appusecases.ListCategories(ctx, d.categoryDeps())
+	if err != nil {
+		return nil, err
+	}
+	out := make([]portalCategoryResponse, len(categories))
+	for i, category := range categories {
+		out[i] = portalCategoryResponse{CategoryID: category.CategoryID, Name: category.Name}
+	}
+	return out, nil
 }
 
 // subjectsForUser は割当解決に使う subject 群 (本人 + 所属グループ) を組み立てる (wi-69)。

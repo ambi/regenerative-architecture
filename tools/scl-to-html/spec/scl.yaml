@@ -53,6 +53,11 @@ glossary:
       context_map.depends_on などが該当する。
     aliases: [xref]
 
+  DiagramView:
+    definition: |
+      context_map、states、user_experience から派生する SVG 図表示。
+      node / edge は SCL の宣言から決定的に生成され、手書き図を正本にしない。
+
   Render:
     definition: 入力 (SCL + DecisionDoc[] + ChangeEntry[]) を HtmlDocument に変換する射影。決定的で副作用を持たない。
 
@@ -127,6 +132,14 @@ models:
     description: Render の出力。
     fields:
       content: { type: String, constraints: [non_empty] }
+
+  DiagramView:
+    kind: value_object
+    description: SCL の関係構造から派生する図表示。SVG と閲覧操作は HtmlDocument に埋め込まれる。
+    fields:
+      kind: { type: String, description: "context_map / state_machine / ux_transition" }
+      nodes: { type: "DiagramNode[]" }
+      edges: { type: "DiagramEdge[]" }
 
   SiteInput:
     kind: value_object
@@ -274,6 +287,12 @@ invariants:
     always: "HtmlDocument's visual presentation follows the reader's light/dark preference"
     severity: must
 
+  diagram_views_are_derived:
+    description: Context Map、状態遷移、UX 遷移の図は SCL から派生し、外部資産や手書き図に依存しない。
+    target: Render
+    always: "if scl.context_map or scl.states or scl.user_experience.transitions exists, html contains DiagramView derived only from those SCL sections"
+    severity: must
+
 # =================================================================
 # 5. scenarios
 # =================================================================
@@ -315,6 +334,15 @@ scenarios:
       - work-items/done/ に完了済みの work item を置く
       - "そのディレクトリを LoadSite で読み込み Render に渡す"
       - 出力に両方の work item の id をアンカーに持つカードが含まれる
+
+  Context Map・状態遷移・UX 遷移は図として確認できる:
+    steps:
+      - context_map、states.transitions、user_experience.transitions を持つ SCL を用意する
+      - "それを Render に渡す"
+      - 出力に context dependency diagram が含まれる
+      - 出力に state transition diagram が含まれる
+      - 出力に screen transition diagram が含まれる
+      - 各 diagram の node / edge は対応する SCL 要素の詳細カードへ遷移できる
 
   --scl だけ与えれば Decisions / Work Items タブは空表示で生成できる:
     steps:

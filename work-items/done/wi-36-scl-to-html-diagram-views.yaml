@@ -1,0 +1,121 @@
+id: wi-36-scl-to-html-diagram-views
+title: scl-to-html に Context Map・状態遷移・UX 遷移の図表示を追加する
+created_at: 2026-06-27
+status: completed
+authors: [tn]
+
+motivation: |
+  HTML 版 SCL はテキストと表で構造を確認できるが、context 間依存、
+  state machine、UX screen transition は関係性を図で見た方が理解しやすい。
+  特に ra-idp-go のような複数 protocol / 複数 context の仕様では、
+  図表示がないと全体像と遷移の把握に時間がかかる。
+
+scope:
+  tooling:
+    - Context Map を context node と dependency edge の図として表示する。
+    - States を state node と transition edge の図として表示する。
+    - User Experience の screens / transitions を画面遷移図として表示する。
+    - 図と既存の詳細カードを相互リンクさせる。
+    - 図が大きい場合でも pan / zoom / fit-to-view できるようにする。
+    - 静的 HTML として生成しても図が表示される実装方式を選ぶ。
+
+out_of_scope:
+  - SCL の context 再配置。
+  - scenarios の SCL 2.0 移行。
+  - context タブ UI の導入。
+
+affected_guarantees:
+  - 可視化可能性: context map、state transitions、UX transitions を図として確認できる。
+  - 単一上流ソース性: 図は SCL YAML から派生生成され、手書き図を正本にしない。
+  - 検証可能性: 代表的な context map / state / UX transition の描画出力をテストで固定する。
+
+verification:
+  - cmd: bun test
+    in: tools
+  - cmd: bun run typecheck
+    in: tools
+  - cmd: bun run lint
+    in: tools
+  - cmd: bun run scl-to-html:ra-idp-go
+    in: tools
+
+risk: medium
+risk_notes: |
+  図の自動レイアウトは仕様サイズに左右される。初期実装では過度に複雑な
+  レイアウト最適化を避け、SCL から安定した node / edge を生成することと、
+  大きい図でも閲覧操作で破綻しないことを優先する。
+
+completion:
+  completed_at: 2026-06-29
+  summary: |
+    scl-to-html の SCL タブに Context Map、状態遷移、UX 画面遷移の SVG 図を追加した。
+    図は SCL YAML から派生し、既存の詳細カードへリンクする。生成 HTML は外部資産に
+    依存せず、埋め込み JS で pan / zoom / fit-to-view を提供する。
+  semantic_diff:
+    - Context Map セクションで context node と dependency edge を図として確認できる。
+    - States セクションで state node と transition edge を図として確認できる。
+    - User Experience セクションで screen node と transition edge を図として確認できる。
+    - 既存のカード、表、タブ構造、CLI 引数、入力 YAML 形式は変更していない。
+  traceability:
+    specification:
+      - tools/scl-to-html/spec/scl.yaml
+    implementation:
+      - tools/scl-to-html/src/render-scl.ts
+      - tools/scl-to-html/src/page.ts
+    tests:
+      - tools/scl-to-html/src/render.test.ts
+    generated:
+      - tools/scl-to-html/spec/scl-to-html.html
+      - ra-idp-go/spec/ra-idp-go.html
+  verification:
+    - cmd: bun test
+      in: tools
+      result: passed
+      summary: 127 pass, 0 fail
+    - cmd: bun run typecheck
+      in: tools
+      result: passed
+    - cmd: bun run lint
+      in: tools
+      result: passed
+    - cmd: bun run yaml-check:scl
+      in: tools
+      result: passed
+      summary: All 13 SCL files OK
+    - cmd: bun run scl-to-html:self
+      in: tools
+      result: passed
+      summary: Wrote tools/scl-to-html/spec/scl-to-html.html
+    - cmd: bun run scl-to-html:ra-idp-go
+      in: tools
+      result: passed
+      summary: Wrote ra-idp-go/spec/ra-idp-go.html
+  evidence:
+    - id: bun-test
+      kind: test
+      result: passed
+      command: bun test
+      summary: 127 pass, 0 fail
+    - id: typecheck
+      kind: test
+      result: passed
+      command: bun run typecheck
+      summary: TypeScript noEmit completed successfully
+    - id: lint
+      kind: lint
+      result: passed
+      command: bun run lint
+      summary: biome check completed successfully
+    - id: yaml-check-scl
+      kind: static_analysis
+      result: passed
+      command: bun run yaml-check:scl
+      summary: All 13 SCL files OK
+  affected_guarantees_state:
+    - 可視化可能性: passed — 3 種の関係構造を SVG 図で表示する。
+    - 単一上流ソース性: passed — 図は SCL の context_map / states / user_experience から派生する。
+    - 検証可能性: passed — 代表 fixture の diagram 出力を render.test.ts で固定した。
+  residual_risk:
+    - |
+      自動レイアウトは単純なグリッド配置であり、大規模仕様では意味的なクラスタリングまでは行わない。
+      pan / zoom / fit-to-view により閲覧可能性を維持し、将来必要ならレイアウト改善を別 WI で扱う。

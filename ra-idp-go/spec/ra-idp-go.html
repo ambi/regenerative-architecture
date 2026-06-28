@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ra-idp-go</title>
-<style>:root{color-scheme:light dark;--bg:#fbfbfd;--surface:#ffffff;--surface-2:#f4f4f7;--fg:#1c1c1f;--fg-soft:#54545a;--muted:#8a8a92;--border:#e5e5ea;--accent:#5b5be6;--accent-soft:#eeeefb;--ok:#117a3d;--ok-soft:rgba(17,122,61,.12);--warn:#a25400;--warn-soft:rgba(162,84,0,.14);--danger:#b3261e;--danger-soft:rgba(179,38,30,.1);--code-bg:#f1f1f5;--shadow:0 1px 2px rgba(0,0,0,.04),0 4px 16px rgba(0,0,0,.04);}@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--surface:#16181f;--surface-2:#1c1f27;--fg:#e6e6ea;--fg-soft:#b0b0b8;--muted:#7a7a85;--border:#2a2d36;--accent:#8b8bff;--accent-soft:#1f2030;--ok:#5bcc8d;--ok-soft:rgba(91,204,141,.15);--warn:#e0a04f;--warn-soft:rgba(224,160,79,.15);--danger:#ff7a72;--danger-soft:rgba(255,122,114,.15);--code-bg:#1c1f27;--shadow:0 1px 2px rgba(0,0,0,.4),0 4px 16px rgba(0,0,0,.3);}}*,*::before,*::after{box-sizing:border-box;}html,body{margin:0;padding:0;}body{background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Hiragino Sans','Noto Sans JP',system-ui,sans-serif;font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased;}a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}code,pre,.name,.path,.type,.chip,.expr{font-family:ui-monospace,'SF Mono','JetBrains Mono',Menlo,Consolas,monospace;}code{background:var(--code-bg);padding:1px 6px;border-radius:4px;font-size:0.88em;}.app-header{position:sticky;top:0;z-index:10;background:color-mix(in srgb,var(--bg) 90%,transparent);backdrop-filter:saturate(180%) blur(8px);border-bottom:1px solid var(--border);}.app-header-row{display:flex;gap:24px;align-items:center;max-width:1320px;margin:0 auto;padding:12px 24px;}.app-title{font-weight:700;letter-spacing:-0.01em;font-size:15px;color:var(--fg);}.tab-bar{display:flex;gap:4px;}.tab-link{padding:6px 12px;border-radius:8px;font-size:14px;color:var(--fg-soft);border:1px solid transparent;}.tab-link:hover{background:var(--surface-2);text-decoration:none;}.tab-link.active{background:var(--accent-soft);color:var(--accent);font-weight:600;border-color:color-mix(in srgb,var(--accent) 30%,transparent);}.layout{display:grid;grid-template-columns:240px minmax(0,1fr);gap:40px;max-width:1320px;margin:0 auto;padding:24px 24px 96px;}@media (max-width:900px){.layout{grid-template-columns:1fr;padding:16px;gap:24px;}.toc{position:static;max-height:none;}}.toc{position:sticky;top:80px;align-self:start;max-height:calc(100vh - 100px);overflow-y:auto;font-size:14px;display:none;}.toc.active{display:block;}.toc-title{font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;}.toc ol{list-style:none;padding:0;margin:0;}.toc li{padding:4px 0;}.toc a{display:block;padding:4px 8px 4px 10px;border-radius:6px;color:var(--fg-soft);border-left:2px solid transparent;transition:background-color .12s,color .12s,border-color .12s;}.toc a:hover{background:var(--surface-2);color:var(--fg);text-decoration:none;}.toc a.active{background:var(--accent-soft);color:var(--accent);font-weight:600;border-left-color:var(--accent);}.js .toc li[data-scl-context-item]{display:none;}.js .toc li[data-scl-context-item].context-visible{display:list-item;}main{min-width:0;}.tab{display:block;}.js .tab{display:none;}.js .tab.active{display:block;}.context-tab-bar{position:sticky;top:57px;z-index:5;display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin:-8px 0 24px;padding:8px 0 10px;background:color-mix(in srgb,var(--bg) 94%,transparent);backdrop-filter:saturate(180%) blur(8px);border-bottom:1px solid var(--border);}.context-tab-link{display:inline-flex;align-items:center;min-height:30px;padding:5px 10px;border-radius:8px;font-size:13px;color:var(--fg-soft);border:1px solid transparent;}.context-tab-link:hover{background:var(--surface-2);color:var(--fg);text-decoration:none;}.context-tab-link.active{background:var(--accent-soft);color:var(--accent);font-weight:600;border-color:color-mix(in srgb,var(--accent) 30%,transparent);}.scl-context-pane{display:block;}.js .scl-context-pane{display:none;}.js .scl-context-pane.active{display:block;}section{margin-bottom:56px;scroll-margin-top:88px;}.page-header{margin-bottom:24px;}.eyebrow{font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--accent);margin-bottom:4px;}.page-header h1{font-size:38px;letter-spacing:-0.02em;margin:0 0 8px;}.page-meta{display:flex;gap:8px;flex-wrap:wrap;}.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:8px;}.stat{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;color:var(--fg);display:flex;flex-direction:column;gap:2px;transition:border-color .15s,transform .15s;}.stat:hover{border-color:var(--accent);text-decoration:none;transform:translateY(-1px);}.stat-num{font-size:24px;font-weight:700;letter-spacing:-0.02em;}.stat-label{font-size:12px;color:var(--muted);text-transform:capitalize;}section>h2{font-size:26px;margin:0 0 6px;letter-spacing:-0.01em;border-bottom:1px solid var(--border);padding-bottom:10px;display:flex;align-items:baseline;gap:10px;}section>h2 .count,.grp-title .count{font-size:13px;font-weight:500;color:var(--muted);background:var(--surface-2);padding:2px 8px;border-radius:999px;border:1px solid var(--border);}.lead{color:var(--fg-soft);margin:8px 0 20px;}.group{margin-top:24px;}.grp-title{font-size:14px;font-weight:600;color:var(--fg-soft);text-transform:capitalize;margin:16px 0 12px;display:flex;align-items:baseline;gap:8px;}.grp-title .count{font-size:11px;padding:1px 7px;}.cards{display:grid;gap:14px;}.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;box-shadow:var(--shadow);transition:border-color .15s,box-shadow .15s;}.card:target{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft),var(--shadow);}.card header{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;}.card header h3{font-size:17px;font-weight:600;letter-spacing:-0.01em;margin:0;}.desc{color:var(--fg-soft);margin:4px 0 12px;white-space:pre-wrap;}.label{font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin:10px 0 4px;}.label.ok{color:var(--ok);}.label.danger{color:var(--danger);}.badge{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent);letter-spacing:0.02em;border:1px solid transparent;}.badge-required{background:var(--danger-soft);color:var(--danger);}.badge-optional{background:var(--surface-2);color:var(--muted);border-color:var(--border);}.badge-readonly,.badge-idempotent{background:var(--surface-2);color:var(--fg-soft);border-color:var(--border);}.badge-version{background:var(--surface-2);color:var(--fg-soft);border-color:var(--border);}.badge-context{background:var(--warn-soft);color:var(--warn);}.badge-kind-entity{background:rgba(91,91,230,.14);color:var(--accent);}.badge-kind-value_object{background:var(--surface-2);color:var(--fg-soft);border:1px solid var(--border);}.badge-kind-enum{background:var(--ok-soft);color:var(--ok);}.badge-kind-event{background:var(--warn-soft);color:var(--warn);}.badge-kind-error{background:var(--danger-soft);color:var(--danger);}.badge-kind-slo,.badge-kind-lifetime,.badge-kind-security,.badge-kind-retention{background:var(--accent-soft);color:var(--accent);}.badge-method-get{background:var(--ok-soft);color:var(--ok);}.badge-method-post{background:rgba(91,91,230,.14);color:var(--accent);}.badge-method-put,.badge-method-patch{background:var(--warn-soft);color:var(--warn);}.badge-method-delete{background:var(--danger-soft);color:var(--danger);}.badge-severity-must,.badge-severity-critical{background:var(--danger-soft);color:var(--danger);}.badge-severity-should,.badge-severity-high{background:var(--warn-soft);color:var(--warn);}.badge-severity-medium{background:var(--warn-soft);color:var(--warn);}.badge-severity-low{background:var(--ok-soft);color:var(--ok);}.badge-adoption-required{background:var(--ok-soft);color:var(--ok);}.badge-adoption-optional{background:var(--warn-soft);color:var(--warn);}.badge-adoption-excluded{background:var(--danger-soft);color:var(--danger);}.badge-strength,.badge-category{background:var(--surface-2);color:var(--fg-soft);border-color:var(--border);}.badge-status-pending{background:var(--surface-2);color:var(--fg-soft);border-color:var(--border);}.badge-status-progress{background:var(--accent-soft);color:var(--accent);}.badge-status-done{background:var(--ok-soft);color:var(--ok);}.badge-status-cancelled{background:var(--surface-2);color:var(--muted);border-color:var(--border);}.badge-risk-low{background:var(--ok-soft);color:var(--ok);}.badge-risk-medium{background:var(--warn-soft);color:var(--warn);}.badge-risk-high{background:var(--danger-soft);color:var(--danger);}.badge-risk-critical{background:var(--danger-soft);color:var(--danger);font-weight:700;}.badge-has-cr{background:var(--ok-soft);color:var(--ok);}.badge-adr-num{background:var(--accent-soft);color:var(--accent);font-weight:700;}.badge-conception{background:var(--warn-soft);color:var(--warn);font-weight:700;}.chip{display:inline-block;background:var(--surface-2);color:var(--fg-soft);border:1px solid var(--border);padding:1px 8px;border-radius:6px;margin:2px 2px 2px 0;font-size:12px;}a.chip{transition:border-color .15s,color .15s;}a.chip:hover{color:var(--accent);border-color:var(--accent);text-decoration:none;}.chip-alias{background:var(--surface-2);}.chip-constraint{background:var(--accent-soft);color:var(--accent);border-color:transparent;}.chip-annotation{background:var(--warn-soft);color:var(--warn);border-color:transparent;}.chip-default{background:var(--surface-2);color:var(--muted);}.chip-enum{background:var(--ok-soft);color:var(--ok);border-color:transparent;}.chip-event-ref{background:var(--warn-soft);color:var(--warn);border-color:transparent;}.chip-error-ref{background:var(--danger-soft);color:var(--danger);border-color:transparent;}.chip-iface-ref{background:rgba(91,91,230,.14);color:var(--accent);border-color:transparent;}.chip-initial{background:rgba(91,91,230,.14);color:var(--accent);border-color:transparent;font-weight:600;}.chip-terminal{background:var(--warn-soft);color:var(--warn);border-color:transparent;}.chip-tag{background:var(--surface-2);color:var(--fg-soft);}.chip-hint{background:var(--surface-2);color:var(--muted);}.chip-has-cr{background:var(--ok-soft);color:var(--ok);border-color:transparent;}.name{color:var(--fg);font-weight:600;}.type{color:var(--fg-soft);}.path{background:var(--surface-2);border:1px solid var(--border);padding:2px 8px;border-radius:6px;font-size:13px;}.muted{color:var(--muted);}.text{color:var(--fg);}.kv{display:grid;grid-template-columns:minmax(120px,max-content) 1fr;gap:4px 14px;align-items:baseline;margin:6px 0;}.kv dt{color:var(--muted);font-size:13px;font-weight:500;padding-top:2px;}.kv dd{margin:0;min-width:0;color:var(--fg);}.kv dl.kv{margin:0;}.vlist{margin:4px 0 0;padding-left:18px;}.vlist li{margin:3px 0;}.chip-row{display:flex;flex-wrap:wrap;gap:4px;}table.fields{width:100%;border-collapse:collapse;font-size:14px;margin:8px 0;}table.fields th,table.fields td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top;}table.fields thead th{font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);border-bottom:2px solid var(--border);}table.fields tbody tr:last-child td{border-bottom:none;}.enum-vals{display:flex;flex-wrap:wrap;gap:4px;}.vocab-list{display:grid;gap:12px;margin-top:12px;}.vocab-entry{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 18px;display:grid;grid-template-columns:minmax(160px,200px) 1fr;gap:18px;align-items:start;}.vocab-entry:target{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);}@media (max-width:720px){.vocab-entry{grid-template-columns:1fr;}}.vocab-name{padding-top:2px;display:flex;flex-wrap:wrap;gap:6px;align-items:baseline;}.vocab-name .name{font-size:15px;}.def{margin:0 0 8px;color:var(--fg);}.aliases{font-size:13px;color:var(--fg-soft);}.aliases-label{font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-right:6px;}.ntcw{margin-top:10px;padding:8px 10px;background:var(--warn-soft);border-radius:8px;font-size:13px;}.ntcw-label{font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--warn);margin-bottom:4px;}.ntcw ul{margin:0;padding-left:18px;color:var(--fg-soft);}.ntcw li{margin:2px 0;}.sm-row{display:flex;gap:12px;flex-wrap:wrap;align-items:baseline;margin:6px 0 8px;}.sm-row .label{min-width:100px;margin:0;}.sub{margin-top:10px;}.io{margin-top:10px;}.iface-step{margin:6px 0 2px;}.step-tpl{color:var(--fg-soft);}.scn-steps{margin:8px 0 0;padding-left:26px;}.scn-step{padding:3px 0;line-height:1.7;}.scn-step::marker{color:var(--muted);font-size:0.85em;}.step-arg{background:var(--surface-2);color:var(--fg);border:1px solid var(--border);padding:0 5px;border-radius:4px;}.chip-ref{background:var(--accent-soft);color:var(--accent);border-color:transparent;}.requirements{display:grid;gap:10px;margin-top:12px;}.requirement{border:1px solid var(--border);border-radius:9px;padding:12px 14px;background:var(--surface-2);}.requirement:target{border-color:var(--accent);}.requirement header{display:flex;flex-wrap:wrap;align-items:center;gap:7px;}.requirement p{margin:7px 0 0;}.exclusion-reason{color:var(--danger);}.reference-row{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-top:8px;}.reference-label{min-width:92px;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;}.clause{margin:10px 0;padding:10px 12px;background:var(--surface-2);border-radius:8px;}.clause-label{font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}.clause-label.ok{color:var(--ok);}.clause-label.danger{color:var(--danger);}.clause-label.accent{color:var(--accent);}.clause-label.muted{color:var(--muted);}.expr{display:inline-block;padding:2px 8px;background:var(--surface);border:1px solid var(--border);border-radius:4px;font-size:13px;}.expr-list{margin:0;padding-left:18px;}.expr-list li{margin:4px 0;}.expr-op{margin:6px 0 6px 12px;}.expr-op-label{font-size:11px;font-weight:700;letter-spacing:0.08em;color:var(--accent);margin-bottom:4px;}.expr-quant{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:4px 0 4px 12px;padding:4px 8px;background:var(--surface);border:1px solid var(--border);border-radius:6px;}.expr-quant-sym{color:var(--accent);font-weight:700;font-size:14px;}.clause-assuming{background:var(--surface);border:1px solid var(--border);}.clause-eventually{background:var(--accent-soft);}.within{font-size:11px;font-weight:500;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:6px;}.acceptance{margin:6px 0;padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:6px;}.acceptance-label{font-size:11px;font-weight:700;letter-spacing:0.08em;color:var(--accent);margin-bottom:4px;}.acceptance-leaf{margin:4px 0;}.bindings{display:grid;gap:10px;margin-top:6px;}.binding{display:grid;grid-template-columns:minmax(80px,max-content) 1fr;gap:12px;align-items:start;padding:10px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;}.binding-kind{padding-top:2px;}.binding-body{min-width:0;}.binding-head{display:flex;flex-wrap:wrap;gap:6px;align-items:center;}.binding-body .io{margin-top:8px;}.binding-body .kv{margin:6px 0;}.badge-bkind-http{background:rgba(91,91,230,.14);color:var(--accent);}.badge-bkind-grpc{background:var(--ok-soft);color:var(--ok);}.badge-bkind-cli{background:var(--warn-soft);color:var(--warn);}.badge-bkind-event{background:rgba(91,91,230,.10);color:var(--accent);}.badge-bkind-graphql{background:var(--danger-soft);color:var(--danger);}.badge-bkind-sdk{background:var(--surface);color:var(--fg-soft);border:1px solid var(--border);}.badge-bkind-schedule{background:var(--warn-soft);color:var(--warn);}.badge-direction-produce{background:var(--accent-soft);color:var(--accent);}.badge-direction-consume{background:var(--ok-soft);color:var(--ok);}.badge-gql-query{background:var(--ok-soft);color:var(--ok);}.badge-gql-mutation{background:rgba(91,91,230,.14);color:var(--accent);}.badge-gql-subscription{background:var(--warn-soft);color:var(--warn);}.step-kind-label{font-size:10px;font-weight:700;letter-spacing:0.1em;padding:2px 6px;border-radius:4px;background:var(--surface-2);color:var(--muted);}.md{color:var(--fg);}.md h1,.md h2,.md h3,.md h4{letter-spacing:-0.01em;margin:18px 0 8px;}.md h1{font-size:22px;}.md h2{font-size:18px;border-bottom:1px solid var(--border);padding-bottom:4px;}.md h3{font-size:16px;}.md h4{font-size:14px;color:var(--fg-soft);}.md p{margin:8px 0;}.md ul,.md ol{padding-left:22px;margin:8px 0;}.md li{margin:3px 0;}.md code{background:var(--code-bg);padding:1px 6px;border-radius:4px;}.md pre{background:var(--code-bg);padding:12px 14px;border-radius:8px;overflow-x:auto;border:1px solid var(--border);}.md pre code{background:transparent;padding:0;}.md blockquote{border-left:3px solid var(--accent);padding:4px 14px;margin:10px 0;background:var(--accent-soft);color:var(--fg-soft);border-radius:4px;}.md table{border-collapse:collapse;margin:10px 0;font-size:14px;width:100%;}.md th,.md td{padding:6px 10px;border:1px solid var(--border);text-align:left;}.md th{background:var(--surface-2);}.md hr{border:none;border-top:1px solid var(--border);margin:18px 0;}.md a{color:var(--accent);}.decision .doc-toc{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:6px 12px;margin:6px 0 12px;font-size:13px;}.decision .doc-toc summary{cursor:pointer;font-weight:600;color:var(--fg-soft);padding:4px 0;}.decision .doc-toc ol{padding-left:22px;}.decision .doc-toc li.lvl-1{font-weight:600;}.decision .doc-toc li.lvl-2{padding-left:8px;}.decision .doc-toc li.lvl-3{padding-left:16px;color:var(--muted);}.adr-index{display:grid;gap:6px;margin:12px 0 24px;}.adr-index-row{display:grid;grid-template-columns:100px minmax(150px,1fr) 2fr;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--fg);transition:border-color .15s;}.adr-index-row:hover{border-color:var(--accent);text-decoration:none;}.adr-index-row .adr-num{color:var(--accent);font-weight:700;}.adr-index-row .adr-title{font-weight:600;}.adr-index-row .adr-preview{color:var(--muted);font-size:13px;line-height:1.4;overflow:hidden;}@media (max-width:720px){.adr-index-row{grid-template-columns:1fr;gap:4px;}}.ch-index{display:grid;gap:6px;margin:12px 0 24px;}.ch-index-row{display:grid;grid-template-columns:120px minmax(0,1fr) auto auto auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--fg);transition:border-color .15s;}.ch-index-row:hover{border-color:var(--accent);text-decoration:none;}.ch-index-row .ch-id{color:var(--muted);font-size:12px;}.ch-index-row .ch-title{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}.work-item,.completion-record{margin-top:8px;}.wi-header,.cr-header{display:flex;flex-wrap:wrap;gap:8px;align-items:baseline;margin-bottom:8px;}.wi-header h4,.cr-header h4{margin:0;font-size:15px;}.wi-meta,.cr-meta{display:flex;flex-wrap:wrap;gap:4px;}.change-block{margin:6px 0;padding:8px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;}.change-block summary{cursor:pointer;font-weight:600;color:var(--fg-soft);padding:2px 0;font-size:13px;text-transform:uppercase;letter-spacing:0.06em;}.change-block[open] summary{color:var(--accent);margin-bottom:6px;}.change-block p{margin:6px 0;}.scope-group{margin:8px 0;}.scope-group h4{font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin:4px 0;}.change-list{padding-left:22px;margin:6px 0;}.change-list li{margin:4px 0;}.completion-record{margin-top:16px;padding-top:14px;border-top:1px dashed var(--border);}</style>
+<style>:root{color-scheme:light dark;--bg:#fbfbfd;--surface:#ffffff;--surface-2:#f4f4f7;--fg:#1c1c1f;--fg-soft:#54545a;--muted:#8a8a92;--border:#e5e5ea;--accent:#5b5be6;--accent-soft:#eeeefb;--ok:#117a3d;--ok-soft:rgba(17,122,61,.12);--warn:#a25400;--warn-soft:rgba(162,84,0,.14);--danger:#b3261e;--danger-soft:rgba(179,38,30,.1);--code-bg:#f1f1f5;--shadow:0 1px 2px rgba(0,0,0,.04),0 4px 16px rgba(0,0,0,.04);}@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--surface:#16181f;--surface-2:#1c1f27;--fg:#e6e6ea;--fg-soft:#b0b0b8;--muted:#7a7a85;--border:#2a2d36;--accent:#8b8bff;--accent-soft:#1f2030;--ok:#5bcc8d;--ok-soft:rgba(91,204,141,.15);--warn:#e0a04f;--warn-soft:rgba(224,160,79,.15);--danger:#ff7a72;--danger-soft:rgba(255,122,114,.15);--code-bg:#1c1f27;--shadow:0 1px 2px rgba(0,0,0,.4),0 4px 16px rgba(0,0,0,.3);}}*,*::before,*::after{box-sizing:border-box;}html,body{margin:0;padding:0;}body{background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Hiragino Sans','Noto Sans JP',system-ui,sans-serif;font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased;}a{color:var(--accent);text-decoration:none;}a:hover{text-decoration:underline;}code,pre,.name,.path,.type,.chip,.expr{font-family:ui-monospace,'SF Mono','JetBrains Mono',Menlo,Consolas,monospace;}code{background:var(--code-bg);padding:1px 6px;border-radius:4px;font-size:0.88em;}.app-header{position:sticky;top:0;z-index:10;background:color-mix(in srgb,var(--bg) 90%,transparent);backdrop-filter:saturate(180%) blur(8px);border-bottom:1px solid var(--border);}.app-header-row{display:flex;gap:24px;align-items:center;max-width:1320px;margin:0 auto;padding:12px 24px;}.app-title{font-weight:700;letter-spacing:-0.01em;font-size:15px;color:var(--fg);}.tab-bar{display:flex;gap:4px;}.tab-link{padding:6px 12px;border-radius:8px;font-size:14px;color:var(--fg-soft);border:1px solid transparent;}.tab-link:hover{background:var(--surface-2);text-decoration:none;}.tab-link.active{background:var(--accent-soft);color:var(--accent);font-weight:600;border-color:color-mix(in srgb,var(--accent) 30%,transparent);}.layout{display:grid;grid-template-columns:240px minmax(0,1fr);gap:40px;max-width:1320px;margin:0 auto;padding:24px 24px 96px;}@media (max-width:900px){.layout{grid-template-columns:1fr;padding:16px;gap:24px;}.toc{position:static;max-height:none;}}.toc{position:sticky;top:80px;align-self:start;max-height:calc(100vh - 100px);overflow-y:auto;font-size:14px;display:none;}.toc.active{display:block;}.toc-title{font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;}.toc ol{list-style:none;padding:0;margin:0;}.toc li{padding:4px 0;}.toc a{display:block;padding:4px 8px 4px 10px;border-radius:6px;color:var(--fg-soft);border-left:2px solid transparent;transition:background-color .12s,color .12s,border-color .12s;}.toc a:hover{background:var(--surface-2);color:var(--fg);text-decoration:none;}.toc a.active{background:var(--accent-soft);color:var(--accent);font-weight:600;border-left-color:var(--accent);}.js .toc li[data-scl-context-item]{display:none;}.js .toc li[data-scl-context-item].context-visible{display:list-item;}main{min-width:0;}.tab{display:block;}.js .tab{display:none;}.js .tab.active{display:block;}.context-tab-bar{position:sticky;top:57px;z-index:5;display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin:-8px 0 24px;padding:8px 0 10px;background:color-mix(in srgb,var(--bg) 94%,transparent);backdrop-filter:saturate(180%) blur(8px);border-bottom:1px solid var(--border);}.context-tab-link{display:inline-flex;align-items:center;min-height:30px;padding:5px 10px;border-radius:8px;font-size:13px;color:var(--fg-soft);border:1px solid transparent;}.context-tab-link:hover{background:var(--surface-2);color:var(--fg);text-decoration:none;}.context-tab-link.active{background:var(--accent-soft);color:var(--accent);font-weight:600;border-color:color-mix(in srgb,var(--accent) 30%,transparent);}.scl-context-pane{display:block;}.js .scl-context-pane{display:none;}.js .scl-context-pane.active{display:block;}section{margin-bottom:56px;scroll-margin-top:88px;}.page-header{margin-bottom:24px;}.eyebrow{font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--accent);margin-bottom:4px;}.page-header h1{font-size:38px;letter-spacing:-0.02em;margin:0 0 8px;}.page-meta{display:flex;gap:8px;flex-wrap:wrap;}.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:8px;}.stat{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;color:var(--fg);display:flex;flex-direction:column;gap:2px;transition:border-color .15s,transform .15s;}.stat:hover{border-color:var(--accent);text-decoration:none;transform:translateY(-1px);}.stat-num{font-size:24px;font-weight:700;letter-spacing:-0.02em;}.stat-label{font-size:12px;color:var(--muted);text-transform:capitalize;}section>h2{font-size:26px;margin:0 0 6px;letter-spacing:-0.01em;border-bottom:1px solid var(--border);padding-bottom:10px;display:flex;align-items:baseline;gap:10px;}section>h2 .count,.grp-title .count{font-size:13px;font-weight:500;color:var(--muted);background:var(--surface-2);padding:2px 8px;border-radius:999px;border:1px solid var(--border);}.lead{color:var(--fg-soft);margin:8px 0 20px;}.group{margin-top:24px;}.grp-title{font-size:14px;font-weight:600;color:var(--fg-soft);text-transform:capitalize;margin:16px 0 12px;display:flex;align-items:baseline;gap:8px;}.grp-title .count{font-size:11px;padding:1px 7px;}.cards{display:grid;gap:14px;}.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;box-shadow:var(--shadow);transition:border-color .15s,box-shadow .15s;}.card:target{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft),var(--shadow);}.card header{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;}.card header h3{font-size:17px;font-weight:600;letter-spacing:-0.01em;margin:0;}.desc{color:var(--fg-soft);margin:4px 0 12px;white-space:pre-wrap;}.label{font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin:10px 0 4px;}.label.ok{color:var(--ok);}.label.danger{color:var(--danger);}.badge{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent);letter-spacing:0.02em;border:1px solid transparent;}.badge-required{background:var(--danger-soft);color:var(--danger);}.badge-optional{background:var(--surface-2);color:var(--muted);border-color:var(--border);}.badge-readonly,.badge-idempotent{background:var(--surface-2);color:var(--fg-soft);border-color:var(--border);}.badge-version{background:var(--surface-2);color:var(--fg-soft);border-color:var(--border);}.badge-context{background:var(--warn-soft);color:var(--warn);}.badge-kind-entity{background:rgba(91,91,230,.14);color:var(--accent);}.badge-kind-value_object{background:var(--surface-2);color:var(--fg-soft);border:1px solid var(--border);}.badge-kind-enum{background:var(--ok-soft);color:var(--ok);}.badge-kind-event{background:var(--warn-soft);color:var(--warn);}.badge-kind-error{background:var(--danger-soft);color:var(--danger);}.badge-kind-slo,.badge-kind-lifetime,.badge-kind-security,.badge-kind-retention{background:var(--accent-soft);color:var(--accent);}.badge-method-get{background:var(--ok-soft);color:var(--ok);}.badge-method-post{background:rgba(91,91,230,.14);color:var(--accent);}.badge-method-put,.badge-method-patch{background:var(--warn-soft);color:var(--warn);}.badge-method-delete{background:var(--danger-soft);color:var(--danger);}.badge-severity-must,.badge-severity-critical{background:var(--danger-soft);color:var(--danger);}.badge-severity-should,.badge-severity-high{background:var(--warn-soft);color:var(--warn);}.badge-severity-medium{background:var(--warn-soft);color:var(--warn);}.badge-severity-low{background:var(--ok-soft);color:var(--ok);}.badge-adoption-required{background:var(--ok-soft);color:var(--ok);}.badge-adoption-optional{background:var(--warn-soft);color:var(--warn);}.badge-adoption-excluded{background:var(--danger-soft);color:var(--danger);}.badge-strength,.badge-category{background:var(--surface-2);color:var(--fg-soft);border-color:var(--border);}.badge-status-pending{background:var(--surface-2);color:var(--fg-soft);border-color:var(--border);}.badge-status-progress{background:var(--accent-soft);color:var(--accent);}.badge-status-done{background:var(--ok-soft);color:var(--ok);}.badge-status-cancelled{background:var(--surface-2);color:var(--muted);border-color:var(--border);}.badge-risk-low{background:var(--ok-soft);color:var(--ok);}.badge-risk-medium{background:var(--warn-soft);color:var(--warn);}.badge-risk-high{background:var(--danger-soft);color:var(--danger);}.badge-risk-critical{background:var(--danger-soft);color:var(--danger);font-weight:700;}.badge-has-cr{background:var(--ok-soft);color:var(--ok);}.badge-adr-num{background:var(--accent-soft);color:var(--accent);font-weight:700;}.badge-conception{background:var(--warn-soft);color:var(--warn);font-weight:700;}.chip{display:inline-block;background:var(--surface-2);color:var(--fg-soft);border:1px solid var(--border);padding:1px 8px;border-radius:6px;margin:2px 2px 2px 0;font-size:12px;}a.chip{transition:border-color .15s,color .15s;}a.chip:hover{color:var(--accent);border-color:var(--accent);text-decoration:none;}.chip-alias{background:var(--surface-2);}.chip-constraint{background:var(--accent-soft);color:var(--accent);border-color:transparent;}.chip-annotation{background:var(--warn-soft);color:var(--warn);border-color:transparent;}.chip-default{background:var(--surface-2);color:var(--muted);}.chip-enum{background:var(--ok-soft);color:var(--ok);border-color:transparent;}.chip-event-ref{background:var(--warn-soft);color:var(--warn);border-color:transparent;}.chip-error-ref{background:var(--danger-soft);color:var(--danger);border-color:transparent;}.chip-iface-ref{background:rgba(91,91,230,.14);color:var(--accent);border-color:transparent;}.chip-initial{background:rgba(91,91,230,.14);color:var(--accent);border-color:transparent;font-weight:600;}.chip-terminal{background:var(--warn-soft);color:var(--warn);border-color:transparent;}.chip-tag{background:var(--surface-2);color:var(--fg-soft);}.chip-hint{background:var(--surface-2);color:var(--muted);}.chip-has-cr{background:var(--ok-soft);color:var(--ok);border-color:transparent;}.name{color:var(--fg);font-weight:600;}.type{color:var(--fg-soft);}.path{background:var(--surface-2);border:1px solid var(--border);padding:2px 8px;border-radius:6px;font-size:13px;}.muted{color:var(--muted);}.text{color:var(--fg);}.kv{display:grid;grid-template-columns:minmax(120px,max-content) 1fr;gap:4px 14px;align-items:baseline;margin:6px 0;}.kv dt{color:var(--muted);font-size:13px;font-weight:500;padding-top:2px;}.kv dd{margin:0;min-width:0;color:var(--fg);}.kv dl.kv{margin:0;}.vlist{margin:4px 0 0;padding-left:18px;}.vlist li{margin:3px 0;}.chip-row{display:flex;flex-wrap:wrap;gap:4px;}table.fields{width:100%;border-collapse:collapse;font-size:14px;margin:8px 0;}table.fields th,table.fields td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top;}table.fields thead th{font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);border-bottom:2px solid var(--border);}table.fields tbody tr:last-child td{border-bottom:none;}.enum-vals{display:flex;flex-wrap:wrap;gap:4px;}.vocab-list{display:grid;gap:12px;margin-top:12px;}.vocab-entry{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 18px;display:grid;grid-template-columns:minmax(160px,200px) 1fr;gap:18px;align-items:start;}.vocab-entry:target{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);}@media (max-width:720px){.vocab-entry{grid-template-columns:1fr;}}.vocab-name{padding-top:2px;display:flex;flex-wrap:wrap;gap:6px;align-items:baseline;}.vocab-name .name{font-size:15px;}.def{margin:0 0 8px;color:var(--fg);}.aliases{font-size:13px;color:var(--fg-soft);}.aliases-label{font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-right:6px;}.ntcw{margin-top:10px;padding:8px 10px;background:var(--warn-soft);border-radius:8px;font-size:13px;}.ntcw-label{font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--warn);margin-bottom:4px;}.ntcw ul{margin:0;padding-left:18px;color:var(--fg-soft);}.ntcw li{margin:2px 0;}.sm-row{display:flex;gap:12px;flex-wrap:wrap;align-items:baseline;margin:6px 0 8px;}.sm-row .label{min-width:100px;margin:0;}.sub{margin-top:10px;}.io{margin-top:10px;}.diagram-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin:14px 0 18px;box-shadow:var(--shadow);}.diagram-head{display:flex;justify-content:space-between;gap:16px;align-items:start;margin-bottom:10px;}.diagram-head h3{margin:0;font-size:17px;letter-spacing:-0.01em;}.diagram-head .desc{margin-bottom:0;}.diagram-tools{display:flex;gap:4px;flex:0 0 auto;}.diagram-tools button{min-width:32px;height:30px;padding:0 9px;border-radius:7px;border:1px solid var(--border);background:var(--surface-2);color:var(--fg-soft);font:inherit;font-size:13px;cursor:pointer;}.diagram-tools button:hover{color:var(--accent);border-color:var(--accent);}.diagram-viewport{overflow:hidden;border:1px solid var(--border);border-radius:9px;background:var(--surface-2);min-height:260px;cursor:grab;}.diagram-viewport.dragging{cursor:grabbing;}.diagram-viewport svg{display:block;width:100%;height:320px;touch-action:none;}.diagram-edge line{stroke:var(--muted);stroke-width:1.6;}.diagram-edge text{fill:var(--fg-soft);font-size:11px;text-anchor:middle;paint-order:stroke;stroke:var(--surface-2);stroke-width:5px;stroke-linejoin:round;}.diagram-node rect{fill:var(--surface);stroke:var(--border);stroke-width:1.4;filter:drop-shadow(0 2px 4px rgba(0,0,0,.08));}.diagram-node text{fill:var(--fg);font-size:13px;font-weight:600;text-anchor:middle;dominant-baseline:middle;}.diagram-node-initial rect{stroke:var(--accent);fill:var(--accent-soft);}.diagram-node-terminal rect{stroke:var(--warn);fill:var(--warn-soft);}.diagram-node-external rect{stroke-dasharray:5 4;fill:var(--surface-2);}.diagram-card a:hover .diagram-node rect{stroke:var(--accent);}.diagram-card a:hover .diagram-node text{fill:var(--accent);}.diagram-card marker path{fill:var(--muted);}@media (max-width:720px){.diagram-head{flex-direction:column;}.diagram-viewport svg{height:260px;}}.iface-step{margin:6px 0 2px;}.step-tpl{color:var(--fg-soft);}.scn-steps{margin:8px 0 0;padding-left:26px;}.scn-step{padding:3px 0;line-height:1.7;}.scn-step::marker{color:var(--muted);font-size:0.85em;}.step-arg{background:var(--surface-2);color:var(--fg);border:1px solid var(--border);padding:0 5px;border-radius:4px;}.chip-ref{background:var(--accent-soft);color:var(--accent);border-color:transparent;}.requirements{display:grid;gap:10px;margin-top:12px;}.requirement{border:1px solid var(--border);border-radius:9px;padding:12px 14px;background:var(--surface-2);}.requirement:target{border-color:var(--accent);}.requirement header{display:flex;flex-wrap:wrap;align-items:center;gap:7px;}.requirement p{margin:7px 0 0;}.exclusion-reason{color:var(--danger);}.reference-row{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-top:8px;}.reference-label{min-width:92px;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;}.clause{margin:10px 0;padding:10px 12px;background:var(--surface-2);border-radius:8px;}.clause-label{font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}.clause-label.ok{color:var(--ok);}.clause-label.danger{color:var(--danger);}.clause-label.accent{color:var(--accent);}.clause-label.muted{color:var(--muted);}.expr{display:inline-block;padding:2px 8px;background:var(--surface);border:1px solid var(--border);border-radius:4px;font-size:13px;}.expr-list{margin:0;padding-left:18px;}.expr-list li{margin:4px 0;}.expr-op{margin:6px 0 6px 12px;}.expr-op-label{font-size:11px;font-weight:700;letter-spacing:0.08em;color:var(--accent);margin-bottom:4px;}.expr-quant{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:4px 0 4px 12px;padding:4px 8px;background:var(--surface);border:1px solid var(--border);border-radius:6px;}.expr-quant-sym{color:var(--accent);font-weight:700;font-size:14px;}.clause-assuming{background:var(--surface);border:1px solid var(--border);}.clause-eventually{background:var(--accent-soft);}.within{font-size:11px;font-weight:500;color:var(--muted);text-transform:none;letter-spacing:0;margin-left:6px;}.acceptance{margin:6px 0;padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:6px;}.acceptance-label{font-size:11px;font-weight:700;letter-spacing:0.08em;color:var(--accent);margin-bottom:4px;}.acceptance-leaf{margin:4px 0;}.bindings{display:grid;gap:10px;margin-top:6px;}.binding{display:grid;grid-template-columns:minmax(80px,max-content) 1fr;gap:12px;align-items:start;padding:10px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;}.binding-kind{padding-top:2px;}.binding-body{min-width:0;}.binding-head{display:flex;flex-wrap:wrap;gap:6px;align-items:center;}.binding-body .io{margin-top:8px;}.binding-body .kv{margin:6px 0;}.badge-bkind-http{background:rgba(91,91,230,.14);color:var(--accent);}.badge-bkind-grpc{background:var(--ok-soft);color:var(--ok);}.badge-bkind-cli{background:var(--warn-soft);color:var(--warn);}.badge-bkind-event{background:rgba(91,91,230,.10);color:var(--accent);}.badge-bkind-graphql{background:var(--danger-soft);color:var(--danger);}.badge-bkind-sdk{background:var(--surface);color:var(--fg-soft);border:1px solid var(--border);}.badge-bkind-schedule{background:var(--warn-soft);color:var(--warn);}.badge-direction-produce{background:var(--accent-soft);color:var(--accent);}.badge-direction-consume{background:var(--ok-soft);color:var(--ok);}.badge-gql-query{background:var(--ok-soft);color:var(--ok);}.badge-gql-mutation{background:rgba(91,91,230,.14);color:var(--accent);}.badge-gql-subscription{background:var(--warn-soft);color:var(--warn);}.step-kind-label{font-size:10px;font-weight:700;letter-spacing:0.1em;padding:2px 6px;border-radius:4px;background:var(--surface-2);color:var(--muted);}.md{color:var(--fg);}.md h1,.md h2,.md h3,.md h4{letter-spacing:-0.01em;margin:18px 0 8px;}.md h1{font-size:22px;}.md h2{font-size:18px;border-bottom:1px solid var(--border);padding-bottom:4px;}.md h3{font-size:16px;}.md h4{font-size:14px;color:var(--fg-soft);}.md p{margin:8px 0;}.md ul,.md ol{padding-left:22px;margin:8px 0;}.md li{margin:3px 0;}.md code{background:var(--code-bg);padding:1px 6px;border-radius:4px;}.md pre{background:var(--code-bg);padding:12px 14px;border-radius:8px;overflow-x:auto;border:1px solid var(--border);}.md pre code{background:transparent;padding:0;}.md blockquote{border-left:3px solid var(--accent);padding:4px 14px;margin:10px 0;background:var(--accent-soft);color:var(--fg-soft);border-radius:4px;}.md table{border-collapse:collapse;margin:10px 0;font-size:14px;width:100%;}.md th,.md td{padding:6px 10px;border:1px solid var(--border);text-align:left;}.md th{background:var(--surface-2);}.md hr{border:none;border-top:1px solid var(--border);margin:18px 0;}.md a{color:var(--accent);}.decision .doc-toc{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:6px 12px;margin:6px 0 12px;font-size:13px;}.decision .doc-toc summary{cursor:pointer;font-weight:600;color:var(--fg-soft);padding:4px 0;}.decision .doc-toc ol{padding-left:22px;}.decision .doc-toc li.lvl-1{font-weight:600;}.decision .doc-toc li.lvl-2{padding-left:8px;}.decision .doc-toc li.lvl-3{padding-left:16px;color:var(--muted);}.adr-index{display:grid;gap:6px;margin:12px 0 24px;}.adr-index-row{display:grid;grid-template-columns:100px minmax(150px,1fr) 2fr;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--fg);transition:border-color .15s;}.adr-index-row:hover{border-color:var(--accent);text-decoration:none;}.adr-index-row .adr-num{color:var(--accent);font-weight:700;}.adr-index-row .adr-title{font-weight:600;}.adr-index-row .adr-preview{color:var(--muted);font-size:13px;line-height:1.4;overflow:hidden;}@media (max-width:720px){.adr-index-row{grid-template-columns:1fr;gap:4px;}}.ch-index{display:grid;gap:6px;margin:12px 0 24px;}.ch-index-row{display:grid;grid-template-columns:120px minmax(0,1fr) auto auto auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--fg);transition:border-color .15s;}.ch-index-row:hover{border-color:var(--accent);text-decoration:none;}.ch-index-row .ch-id{color:var(--muted);font-size:12px;}.ch-index-row .ch-title{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}.work-item,.completion-record{margin-top:8px;}.wi-header,.cr-header{display:flex;flex-wrap:wrap;gap:8px;align-items:baseline;margin-bottom:8px;}.wi-header h4,.cr-header h4{margin:0;font-size:15px;}.wi-meta,.cr-meta{display:flex;flex-wrap:wrap;gap:4px;}.change-block{margin:6px 0;padding:8px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;}.change-block summary{cursor:pointer;font-weight:600;color:var(--fg-soft);padding:2px 0;font-size:13px;text-transform:uppercase;letter-spacing:0.06em;}.change-block[open] summary{color:var(--accent);margin-bottom:6px;}.change-block p{margin:6px 0;}.scope-group{margin:8px 0;}.scope-group h4{font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin:4px 0;}.change-list{padding-left:22px;margin:6px 0;}.change-list li{margin:4px 0;}.completion-record{margin-top:16px;padding-top:14px;border-top:1px dashed var(--border);}</style>
 </head>
 <body>
 <header class="app-header">
@@ -33,7 +33,136 @@
   <section id="context_map">
     <h2>Context Map <span class="count">10</span></h2>
     <p class="lead">Bounded Context 間の公開言語と依存方向。</p>
-    <div class="cards"><article class="card" id="ctx-system">
+    <div class="diagram-card" id="diagram-context-map">
+    <div class="diagram-head">
+      <div>
+        <div class="label">Diagram</div>
+        <h3>Context dependencies</h3>
+        <p class="desc">Context node と dependency edge は context_map から派生する。</p>
+      </div>
+      <div class="diagram-tools" aria-label="Context dependencies controls">
+        <button type="button" data-diagram-zoom="in" title="Zoom in">+</button>
+        <button type="button" data-diagram-zoom="out" title="Zoom out">-</button>
+        <button type="button" data-diagram-fit title="Fit to view">Fit</button>
+      </div>
+    </div>
+    <div class="diagram-viewport" data-diagram>
+      <svg viewBox="0 0 1024 382" data-diagram-svg data-diagram-viewbox="0 0 1024 382" role="img" aria-label="Context dependencies">
+        <defs>
+          <marker id="arrow-context-map" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z"></path>
+          </marker>
+        </defs>
+        <a href="#ctx-tenancy"><g class="diagram-edge" id="diagram-context-map-edge-0">
+        <line x1="548.0" y1="65.0" x2="476.0" y2="65.0" marker-end="url(#arrow-context-map)"></line>
+        <text x="512.0" y="59.0">published_language</text>
+      </g></a><a href="#ctx-tenancy"><g class="diagram-edge" id="diagram-context-map-edge-1">
+        <line x1="804.0" y1="65.0" x2="476.0" y2="65.0" marker-end="url(#arrow-context-map)"></line>
+        <text x="640.0" y="59.0">published_language</text>
+      </g></a><a href="#ctx-identitymanagement"><g class="diagram-edge" id="diagram-context-map-edge-2">
+        <line x1="804.0" y1="65.0" x2="732.0" y2="65.0" marker-end="url(#arrow-context-map)"></line>
+        <text x="768.0" y="59.0">published_language</text>
+      </g></a><a href="#ctx-tenancy"><g class="diagram-edge" id="diagram-context-map-edge-3">
+        <line x1="210.5" y1="178.2" x2="301.5" y2="77.8" marker-end="url(#arrow-context-map)"></line>
+        <text x="256.0" y="122.0">published_language</text>
+      </g></a><a href="#ctx-authentication"><g class="diagram-edge" id="diagram-context-map-edge-4">
+        <line x1="218.8" y1="186.3" x2="805.2" y2="69.7" marker-end="url(#arrow-context-map)"></line>
+        <text x="512.0" y="122.0">published_language</text>
+      </g></a><a href="#ctx-identitymanagement"><g class="diagram-edge" id="diagram-context-map-edge-5">
+        <line x1="217.3" y1="184.1" x2="550.7" y2="71.9" marker-end="url(#arrow-context-map)"></line>
+        <text x="384.0" y="122.0">published_language</text>
+      </g></a><a href="#ctx-signingkeys"><g class="diagram-edge" id="diagram-context-map-edge-6">
+        <line x1="220.0" y1="191.0" x2="804.0" y2="191.0" marker-end="url(#arrow-context-map)"></line>
+        <text x="512.0" y="185.0">published_language</text>
+      </g></a><a href="#ctx-application"><g class="diagram-edge" id="diagram-context-map-edge-7">
+        <line x1="220.0" y1="191.0" x2="292.0" y2="191.0" marker-end="url(#arrow-context-map)"></line>
+        <text x="256.0" y="185.0">published_language</text>
+      </g></a><a href="#ctx-tenancy"><g class="diagram-edge" id="diagram-context-map-edge-8">
+        <line x1="384.0" y1="162.0" x2="384.0" y2="94.0" marker-end="url(#arrow-context-map)"></line>
+        <text x="384.0" y="122.0">published_language</text>
+      </g></a><a href="#ctx-identitymanagement"><g class="diagram-edge" id="diagram-context-map-edge-9">
+        <line x1="466.5" y1="178.2" x2="557.5" y2="77.8" marker-end="url(#arrow-context-map)"></line>
+        <text x="512.0" y="122.0">published_language</text>
+      </g></a><a href="#ctx-tenancy"><g class="diagram-edge" id="diagram-context-map-edge-10">
+        <line x1="557.5" y1="178.2" x2="466.5" y2="77.8" marker-end="url(#arrow-context-map)"></line>
+        <text x="512.0" y="122.0">published_language</text>
+      </g></a><a href="#ctx-identitymanagement"><g class="diagram-edge" id="diagram-context-map-edge-11">
+        <line x1="640.0" y1="162.0" x2="640.0" y2="94.0" marker-end="url(#arrow-context-map)"></line>
+        <text x="640.0" y="122.0">published_language</text>
+      </g></a><a href="#ctx-tenancy"><g class="diagram-edge" id="diagram-context-map-edge-12">
+        <line x1="806.7" y1="184.1" x2="473.3" y2="71.9" marker-end="url(#arrow-context-map)"></line>
+        <text x="640.0" y="122.0">published_language</text>
+      </g></a><a href="#ctx-tenancy"><g class="diagram-edge" id="diagram-context-map-edge-13">
+        <line x1="193.6" y1="296.7" x2="318.4" y2="85.3" marker-end="url(#arrow-context-map)"></line>
+        <text x="256.0" y="185.0">published_language</text>
+      </g></a><a href="#ctx-authentication"><g class="diagram-edge" id="diagram-context-map-edge-14">
+        <line x1="215.4" y1="308.0" x2="808.6" y2="74.0" marker-end="url(#arrow-context-map)"></line>
+        <text x="512.0" y="185.0">published_language</text>
+      </g></a><a href="#ctx-identitymanagement"><g class="diagram-edge" id="diagram-context-map-edge-15">
+        <line x1="210.5" y1="304.2" x2="557.5" y2="77.8" marker-end="url(#arrow-context-map)"></line>
+        <text x="384.0" y="185.0">published_language</text>
+      </g></a><a href="#ctx-claimmapping"><g class="diagram-edge" id="diagram-context-map-edge-16">
+        <line x1="217.3" y1="310.1" x2="550.7" y2="197.9" marker-end="url(#arrow-context-map)"></line>
+        <text x="384.0" y="248.0">published_language</text>
+      </g></a><a href="#ctx-application"><g class="diagram-edge" id="diagram-context-map-edge-17">
+        <line x1="210.5" y1="304.2" x2="301.5" y2="203.8" marker-end="url(#arrow-context-map)"></line>
+        <text x="256.0" y="248.0">published_language</text>
+      </g></a><a href="#ctx-signingkeys"><g class="diagram-edge" id="diagram-context-map-edge-18">
+        <line x1="218.8" y1="312.3" x2="805.2" y2="195.7" marker-end="url(#arrow-context-map)"></line>
+        <text x="512.0" y="248.0">published_language</text>
+      </g></a><a href="#ctx-tenancy"><g class="diagram-edge" id="diagram-context-map-edge-19">
+        <line x1="384.0" y1="288.0" x2="384.0" y2="94.0" marker-end="url(#arrow-context-map)"></line>
+        <text x="384.0" y="185.0">published_language</text>
+      </g></a><a href="#ctx-authentication"><g class="diagram-edge" id="diagram-context-map-edge-20">
+        <line x1="466.5" y1="304.2" x2="813.5" y2="77.8" marker-end="url(#arrow-context-map)"></line>
+        <text x="640.0" y="185.0">published_language</text>
+      </g></a><a href="#ctx-identitymanagement"><g class="diagram-edge" id="diagram-context-map-edge-21">
+        <line x1="449.6" y1="296.7" x2="574.4" y2="85.3" marker-end="url(#arrow-context-map)"></line>
+        <text x="512.0" y="185.0">published_language</text>
+      </g></a><a href="#ctx-claimmapping"><g class="diagram-edge" id="diagram-context-map-edge-22">
+        <line x1="466.5" y1="304.2" x2="557.5" y2="203.8" marker-end="url(#arrow-context-map)"></line>
+        <text x="512.0" y="248.0">published_language</text>
+      </g></a><a href="#ctx-application"><g class="diagram-edge" id="diagram-context-map-edge-23">
+        <line x1="384.0" y1="288.0" x2="384.0" y2="220.0" marker-end="url(#arrow-context-map)"></line>
+        <text x="384.0" y="248.0">published_language</text>
+      </g></a><a href="#ctx-signingkeys"><g class="diagram-edge" id="diagram-context-map-edge-24">
+        <line x1="473.3" y1="310.1" x2="806.7" y2="197.9" marker-end="url(#arrow-context-map)"></line>
+        <text x="640.0" y="248.0">published_language</text>
+      </g></a>
+        <a href="#ctx-system"><g class="diagram-node diagram-node-context" id="diagram-context-map-node-system">
+        <rect x="36" y="36" width="184" height="58" rx="8"></rect>
+        <text x="128" y="70">System</text>
+      </g></a><a href="#ctx-tenancy"><g class="diagram-node diagram-node-context" id="diagram-context-map-node-tenancy">
+        <rect x="292" y="36" width="184" height="58" rx="8"></rect>
+        <text x="384" y="70">Tenancy</text>
+      </g></a><a href="#ctx-identitymanagement"><g class="diagram-node diagram-node-context" id="diagram-context-map-node-identitymanagement">
+        <rect x="548" y="36" width="184" height="58" rx="8"></rect>
+        <text x="640" y="70">IdentityManagement</text>
+      </g></a><a href="#ctx-authentication"><g class="diagram-node diagram-node-context" id="diagram-context-map-node-authentication">
+        <rect x="804" y="36" width="184" height="58" rx="8"></rect>
+        <text x="896" y="70">Authentication</text>
+      </g></a><a href="#ctx-oauth2"><g class="diagram-node diagram-node-context" id="diagram-context-map-node-oauth2">
+        <rect x="36" y="162" width="184" height="58" rx="8"></rect>
+        <text x="128" y="196">OAuth2</text>
+      </g></a><a href="#ctx-application"><g class="diagram-node diagram-node-context" id="diagram-context-map-node-application">
+        <rect x="292" y="162" width="184" height="58" rx="8"></rect>
+        <text x="384" y="196">Application</text>
+      </g></a><a href="#ctx-claimmapping"><g class="diagram-node diagram-node-context" id="diagram-context-map-node-claimmapping">
+        <rect x="548" y="162" width="184" height="58" rx="8"></rect>
+        <text x="640" y="196">ClaimMapping</text>
+      </g></a><a href="#ctx-signingkeys"><g class="diagram-node diagram-node-context" id="diagram-context-map-node-signingkeys">
+        <rect x="804" y="162" width="184" height="58" rx="8"></rect>
+        <text x="896" y="196">SigningKeys</text>
+      </g></a><a href="#ctx-wsfederation"><g class="diagram-node diagram-node-context" id="diagram-context-map-node-wsfederation">
+        <rect x="36" y="288" width="184" height="58" rx="8"></rect>
+        <text x="128" y="322">WsFederation</text>
+      </g></a><a href="#ctx-saml"><g class="diagram-node diagram-node-context" id="diagram-context-map-node-saml">
+        <rect x="292" y="288" width="184" height="58" rx="8"></rect>
+        <text x="384" y="322">Saml</text>
+      </g></a>
+      </svg>
+    </div>
+  </div><div class="cards"><article class="card" id="ctx-system">
     <header><h3>System</h3><span class="chip chip-hint">contexts/system.yaml</span></header>
     <p class="desc">外部標準、共有語彙、横断ユーザー体験、context 横断シナリオを所有する。</p>
 
@@ -235,6 +364,34 @@ XML signing capability だけを共有する。
     <dt>accessibility</dt><dd><a class="chip" href="#context-system-std-wcag22">WCAG22</a> <span class="badge">AA</span></dd>
     <dt>locales</dt><dd><span class="chip">ja</span> <span class="chip">en</span></dd>
   </dl>
+    <div class="diagram-card" id="context-system-diagram-ux-transitions">
+    <div class="diagram-head">
+      <div>
+        <div class="label">Diagram</div>
+        <h3>Screen transitions</h3>
+        <p class="desc">Screen node と transition edge は user_experience.screens / transitions から派生する。</p>
+      </div>
+      <div class="diagram-tools" aria-label="Screen transitions controls">
+        <button type="button" data-diagram-zoom="in" title="Zoom in">+</button>
+        <button type="button" data-diagram-zoom="out" title="Zoom out">-</button>
+        <button type="button" data-diagram-fit title="Fit to view">Fit</button>
+      </div>
+    </div>
+    <div class="diagram-viewport" data-diagram>
+      <svg viewBox="0 0 256 130" data-diagram-svg data-diagram-viewbox="0 0 256 130" role="img" aria-label="Screen transitions">
+        <defs>
+          <marker id="arrow-ux-transitions" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z"></path>
+          </marker>
+        </defs>
+
+        <a href="#context-system-screen-admindashboard"><g class="diagram-node diagram-node-screen" id="context-system-diagram-ux-transitions-node-admindashboard">
+        <rect x="36" y="36" width="184" height="58" rx="8"></rect>
+        <text x="128" y="70">AdminDashboard</text>
+      </g></a>
+      </svg>
+    </div>
+  </div>
     <div class="group"><h3 class="grp-title">Screens <span class="count">1</span></h3><div class="cards"><article class="card" id="context-system-screen-admindashboard">
         <header><h3>AdminDashboard</h3><span class="chip chip-hint">/admin</span></header>
         <p class="desc">管理者にテナントのユーザー数・登録アプリケーション数・付与済み同意数・直近24時間の監査イベント数と最近のイベントを集約表示する。</p>
@@ -1357,7 +1514,43 @@ password_policy_override が objectives.PasswordPolicy の標準値より弱い�
 <section id="context-tenancy-states">
     <h2>States <span class="count">1</span></h2>
 
-    <div class="cards"><article class="card" id="context-tenancy-state-tenantlifecycle">
+    <div class="diagram-card" id="context-tenancy-diagram-state-tenantlifecycle">
+    <div class="diagram-head">
+      <div>
+        <div class="label">Diagram</div>
+        <h3>TenantLifecycle transitions</h3>
+        <p class="desc">State node と transition edge は states.transitions から派生する。</p>
+      </div>
+      <div class="diagram-tools" aria-label="TenantLifecycle transitions controls">
+        <button type="button" data-diagram-zoom="in" title="Zoom in">+</button>
+        <button type="button" data-diagram-zoom="out" title="Zoom out">-</button>
+        <button type="button" data-diagram-fit title="Fit to view">Fit</button>
+      </div>
+    </div>
+    <div class="diagram-viewport" data-diagram>
+      <svg viewBox="0 0 512 130" data-diagram-svg data-diagram-viewbox="0 0 512 130" role="img" aria-label="TenantLifecycle transitions">
+        <defs>
+          <marker id="arrow-state-tenantlifecycle" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z"></path>
+          </marker>
+        </defs>
+        <a href="#context-tenancy-state-tenantlifecycle"><g class="diagram-edge" id="context-tenancy-diagram-state-tenantlifecycle-edge-0">
+        <line x1="220.0" y1="65.0" x2="292.0" y2="65.0" marker-end="url(#arrow-state-tenantlifecycle)"></line>
+        <text x="256.0" y="59.0">Disable</text>
+      </g></a><a href="#context-tenancy-state-tenantlifecycle"><g class="diagram-edge" id="context-tenancy-diagram-state-tenantlifecycle-edge-1">
+        <line x1="292.0" y1="65.0" x2="220.0" y2="65.0" marker-end="url(#arrow-state-tenantlifecycle)"></line>
+        <text x="256.0" y="59.0">Enable</text>
+      </g></a>
+        <a href="#context-tenancy-state-tenantlifecycle"><g class="diagram-node diagram-node-initial" id="context-tenancy-diagram-state-tenantlifecycle-node-active">
+        <rect x="36" y="36" width="184" height="58" rx="8"></rect>
+        <text x="128" y="70">Active</text>
+      </g></a><a href="#context-tenancy-state-tenantlifecycle"><g class="diagram-node diagram-node-state" id="context-tenancy-diagram-state-tenantlifecycle-node-disabled">
+        <rect x="292" y="36" width="184" height="58" rx="8"></rect>
+        <text x="384" y="70">Disabled</text>
+      </g></a>
+      </svg>
+    </div>
+  </div><div class="cards"><article class="card" id="context-tenancy-state-tenantlifecycle">
     <header><h3>TenantLifecycle</h3></header>
     <p class="desc">テナント のライフサイクル。Active で通常稼働、Disable で全プロトコルルートを停止、Enable で復帰。物理削除は本フェーズ対象外。</p>
     <dl class="kv"><dt>target</dt><dd><code>Tenant</code></dd><dt>initial</dt><dd><span class="chip chip-initial">Active</span></dd></dl>
@@ -1486,6 +1679,40 @@ PasswordPolicy より弱い場合 use case 側で reject する。
 
 
   </dl>
+    <div class="diagram-card" id="context-tenancy-diagram-ux-transitions">
+    <div class="diagram-head">
+      <div>
+        <div class="label">Diagram</div>
+        <h3>Screen transitions</h3>
+        <p class="desc">Screen node と transition edge は user_experience.screens / transitions から派生する。</p>
+      </div>
+      <div class="diagram-tools" aria-label="Screen transitions controls">
+        <button type="button" data-diagram-zoom="in" title="Zoom in">+</button>
+        <button type="button" data-diagram-zoom="out" title="Zoom out">-</button>
+        <button type="button" data-diagram-fit title="Fit to view">Fit</button>
+      </div>
+    </div>
+    <div class="diagram-viewport" data-diagram>
+      <svg viewBox="0 0 512 256" data-diagram-svg data-diagram-viewbox="0 0 512 256" role="img" aria-label="Screen transitions">
+        <defs>
+          <marker id="arrow-ux-transitions" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z"></path>
+          </marker>
+        </defs>
+
+        <a href="#context-tenancy-screen-admintenants"><g class="diagram-node diagram-node-screen" id="context-tenancy-diagram-ux-transitions-node-admintenants">
+        <rect x="36" y="36" width="184" height="58" rx="8"></rect>
+        <text x="128" y="70">AdminTenants</text>
+      </g></a><a href="#context-tenancy-screen-admintenantattributes"><g class="diagram-node diagram-node-screen" id="context-tenancy-diagram-ux-transitions-node-admintenantattributes">
+        <rect x="292" y="36" width="184" height="58" rx="8"></rect>
+        <text x="384" y="70">AdminTenantAttributes</text>
+      </g></a><a href="#context-tenancy-screen-adminsettings"><g class="diagram-node diagram-node-screen" id="context-tenancy-diagram-ux-transitions-node-adminsettings">
+        <rect x="36" y="162" width="184" height="58" rx="8"></rect>
+        <text x="128" y="196">AdminSettings</text>
+      </g></a>
+      </svg>
+    </div>
+  </div>
     <div class="group"><h3 class="grp-title">Screens <span class="count">3</span></h3><div class="cards"><article class="card" id="context-tenancy-screen-admintenants">
         <header><h3>AdminTenants</h3><span class="chip chip-hint">/admin/tenants</span></header>
         <p class="desc">control plane (system_admin) がテナントを一覧・作成・更新し、有効化・無効化する。default テナントは削除・無効化できない。</p>
@@ -4839,7 +5066,126 @@ change-password 画面へ強制誘導される (本人の変更で自動解除)�
 <section id="context-identitymanagement-states">
     <h2>States <span class="count">3</span></h2>
 
-    <div class="cards"><article class="card" id="context-identitymanagement-state-userlifecycle">
+    <div class="diagram-card" id="context-identitymanagement-diagram-state-userlifecycle">
+    <div class="diagram-head">
+      <div>
+        <div class="label">Diagram</div>
+        <h3>UserLifecycle transitions</h3>
+        <p class="desc">State node と transition edge は states.transitions から派生する。</p>
+      </div>
+      <div class="diagram-tools" aria-label="UserLifecycle transitions controls">
+        <button type="button" data-diagram-zoom="in" title="Zoom in">+</button>
+        <button type="button" data-diagram-zoom="out" title="Zoom out">-</button>
+        <button type="button" data-diagram-fit title="Fit to view">Fit</button>
+      </div>
+    </div>
+    <div class="diagram-viewport" data-diagram>
+      <svg viewBox="0 0 512 256" data-diagram-svg data-diagram-viewbox="0 0 512 256" role="img" aria-label="UserLifecycle transitions">
+        <defs>
+          <marker id="arrow-state-userlifecycle" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z"></path>
+          </marker>
+        </defs>
+        <a href="#context-identitymanagement-state-userlifecycle"><g class="diagram-edge" id="context-identitymanagement-diagram-state-userlifecycle-edge-0">
+        <line x1="220.0" y1="65.0" x2="292.0" y2="65.0" marker-end="url(#arrow-state-userlifecycle)"></line>
+        <text x="256.0" y="59.0">Disable</text>
+      </g></a><a href="#context-identitymanagement-state-userlifecycle"><g class="diagram-edge" id="context-identitymanagement-diagram-state-userlifecycle-edge-1">
+        <line x1="128.0" y1="94.0" x2="128.0" y2="162.0" marker-end="url(#arrow-state-userlifecycle)"></line>
+        <text x="128.0" y="122.0">Delete</text>
+      </g></a><a href="#context-identitymanagement-state-userlifecycle"><g class="diagram-edge" id="context-identitymanagement-diagram-state-userlifecycle-edge-2">
+        <line x1="292.0" y1="65.0" x2="220.0" y2="65.0" marker-end="url(#arrow-state-userlifecycle)"></line>
+        <text x="256.0" y="59.0">Enable</text>
+      </g></a><a href="#context-identitymanagement-state-userlifecycle"><g class="diagram-edge" id="context-identitymanagement-diagram-state-userlifecycle-edge-3">
+        <line x1="301.5" y1="77.8" x2="210.5" y2="178.2" marker-end="url(#arrow-state-userlifecycle)"></line>
+        <text x="256.0" y="122.0">Delete</text>
+      </g></a>
+        <a href="#context-identitymanagement-state-userlifecycle"><g class="diagram-node diagram-node-initial" id="context-identitymanagement-diagram-state-userlifecycle-node-active">
+        <rect x="36" y="36" width="184" height="58" rx="8"></rect>
+        <text x="128" y="70">Active</text>
+      </g></a><a href="#context-identitymanagement-state-userlifecycle"><g class="diagram-node diagram-node-state" id="context-identitymanagement-diagram-state-userlifecycle-node-disabled">
+        <rect x="292" y="36" width="184" height="58" rx="8"></rect>
+        <text x="384" y="70">Disabled</text>
+      </g></a><a href="#context-identitymanagement-state-userlifecycle"><g class="diagram-node diagram-node-terminal" id="context-identitymanagement-diagram-state-userlifecycle-node-deleted">
+        <rect x="36" y="162" width="184" height="58" rx="8"></rect>
+        <text x="128" y="196">Deleted</text>
+      </g></a>
+      </svg>
+    </div>
+  </div>
+<div class="diagram-card" id="context-identitymanagement-diagram-state-grouplifecycle">
+    <div class="diagram-head">
+      <div>
+        <div class="label">Diagram</div>
+        <h3>GroupLifecycle transitions</h3>
+        <p class="desc">State node と transition edge は states.transitions から派生する。</p>
+      </div>
+      <div class="diagram-tools" aria-label="GroupLifecycle transitions controls">
+        <button type="button" data-diagram-zoom="in" title="Zoom in">+</button>
+        <button type="button" data-diagram-zoom="out" title="Zoom out">-</button>
+        <button type="button" data-diagram-fit title="Fit to view">Fit</button>
+      </div>
+    </div>
+    <div class="diagram-viewport" data-diagram>
+      <svg viewBox="0 0 256 130" data-diagram-svg data-diagram-viewbox="0 0 256 130" role="img" aria-label="GroupLifecycle transitions">
+        <defs>
+          <marker id="arrow-state-grouplifecycle" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z"></path>
+          </marker>
+        </defs>
+
+        <a href="#context-identitymanagement-state-grouplifecycle"><g class="diagram-node diagram-node-initial" id="context-identitymanagement-diagram-state-grouplifecycle-node-active">
+        <rect x="36" y="36" width="184" height="58" rx="8"></rect>
+        <text x="128" y="70">Active</text>
+      </g></a>
+      </svg>
+    </div>
+  </div>
+<div class="diagram-card" id="context-identitymanagement-diagram-state-agentlifecycle">
+    <div class="diagram-head">
+      <div>
+        <div class="label">Diagram</div>
+        <h3>AgentLifecycle transitions</h3>
+        <p class="desc">State node と transition edge は states.transitions から派生する。</p>
+      </div>
+      <div class="diagram-tools" aria-label="AgentLifecycle transitions controls">
+        <button type="button" data-diagram-zoom="in" title="Zoom in">+</button>
+        <button type="button" data-diagram-zoom="out" title="Zoom out">-</button>
+        <button type="button" data-diagram-fit title="Fit to view">Fit</button>
+      </div>
+    </div>
+    <div class="diagram-viewport" data-diagram>
+      <svg viewBox="0 0 512 256" data-diagram-svg data-diagram-viewbox="0 0 512 256" role="img" aria-label="AgentLifecycle transitions">
+        <defs>
+          <marker id="arrow-state-agentlifecycle" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z"></path>
+          </marker>
+        </defs>
+        <a href="#context-identitymanagement-state-agentlifecycle"><g class="diagram-edge" id="context-identitymanagement-diagram-state-agentlifecycle-edge-0">
+        <line x1="220.0" y1="65.0" x2="292.0" y2="65.0" marker-end="url(#arrow-state-agentlifecycle)"></line>
+        <text x="256.0" y="59.0">DisableAgent</text>
+      </g></a><a href="#context-identitymanagement-state-agentlifecycle"><g class="diagram-edge" id="context-identitymanagement-diagram-state-agentlifecycle-edge-1">
+        <line x1="292.0" y1="65.0" x2="220.0" y2="65.0" marker-end="url(#arrow-state-agentlifecycle)"></line>
+        <text x="256.0" y="59.0">EnableAgent</text>
+      </g></a><a href="#context-identitymanagement-state-agentlifecycle"><g class="diagram-edge" id="context-identitymanagement-diagram-state-agentlifecycle-edge-2">
+        <line x1="128.0" y1="94.0" x2="128.0" y2="162.0" marker-end="url(#arrow-state-agentlifecycle)"></line>
+        <text x="128.0" y="122.0">KillAgent</text>
+      </g></a><a href="#context-identitymanagement-state-agentlifecycle"><g class="diagram-edge" id="context-identitymanagement-diagram-state-agentlifecycle-edge-3">
+        <line x1="301.5" y1="77.8" x2="210.5" y2="178.2" marker-end="url(#arrow-state-agentlifecycle)"></line>
+        <text x="256.0" y="122.0">KillAgent</text>
+      </g></a>
+        <a href="#context-identitymanagement-state-agentlifecycle"><g class="diagram-node diagram-node-initial" id="context-identitymanagement-diagram-state-agentlifecycle-node-active">
+        <rect x="36" y="36" width="184" height="58" rx="8"></rect>
+        <text x="128" y="70">Active</text>
+      </g></a><a href="#context-identitymanagement-state-agentlifecycle"><g class="diagram-node diagram-node-state" id="context-identitymanagement-diagram-state-agentlifecycle-node-disabled">
+        <rect x="292" y="36" width="184" height="58" rx="8"></rect>
+        <text x="384" y="70">Disabled</text>
+      </g></a><a href="#context-identitymanagement-state-agentlifecycle"><g class="diagram-node diagram-node-terminal" id="context-identitymanagement-diagram-state-agentlifecycle-node-killed">
+        <rect x="36" y="162" width="184" height="58" rx="8"></rect>
+        <text x="128" y="196">Killed</text>
+      </g></a>
+      </svg>
+    </div>
+  </div><div class="cards"><article class="card" id="context-identitymanagement-state-userlifecycle">
     <header><h3>UserLifecycle</h3></header>
     <p class="desc">User aggregate のライフサイクル。Active が通常稼働、
 Disable で復活可能な無効化、Delete で tombstone 化 (anonymize cascade) と
@@ -5056,6 +5402,67 @@ use case 側で reject する (自爆防止)。
 
 
   </dl>
+    <div class="diagram-card" id="context-identitymanagement-diagram-ux-transitions">
+    <div class="diagram-head">
+      <div>
+        <div class="label">Diagram</div>
+        <h3>Screen transitions</h3>
+        <p class="desc">Screen node と transition edge は user_experience.screens / transitions から派生する。</p>
+      </div>
+      <div class="diagram-tools" aria-label="Screen transitions controls">
+        <button type="button" data-diagram-zoom="in" title="Zoom in">+</button>
+        <button type="button" data-diagram-zoom="out" title="Zoom out">-</button>
+        <button type="button" data-diagram-fit title="Fit to view">Fit</button>
+      </div>
+    </div>
+    <div class="diagram-viewport" data-diagram>
+      <svg viewBox="0 0 768 382" data-diagram-svg data-diagram-viewbox="0 0 768 382" role="img" aria-label="Screen transitions">
+        <defs>
+          <marker id="arrow-ux-transitions" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z"></path>
+          </marker>
+        </defs>
+        <a href="#context-identitymanagement-screen-accountprofile"><g class="diagram-edge" id="context-identitymanagement-diagram-ux-transitions-edge-1">
+        <line x1="476.0" y1="191.0" x2="548.0" y2="191.0" marker-end="url(#arrow-ux-transitions)"></line>
+        <text x="512.0" y="185.0">profile_selected</text>
+      </g></a><a href="#context-identitymanagement-screen-accountemailverify"><g class="diagram-edge" id="context-identitymanagement-diagram-ux-transitions-edge-4">
+        <line x1="220.0" y1="317.0" x2="292.0" y2="317.0" marker-end="url(#arrow-ux-transitions)"></line>
+        <text x="256.0" y="311.0">email_verification_link_opened</text>
+      </g></a><a href="#context-identitymanagement-screen-admingroups"><g class="diagram-edge" id="context-identitymanagement-diagram-ux-transitions-edge-5">
+        <line x1="220.0" y1="65.0" x2="292.0" y2="65.0" marker-end="url(#arrow-ux-transitions)"></line>
+        <text x="256.0" y="59.0">group_management_selected</text>
+      </g></a>
+        <a href="#context-identitymanagement-screen-adminusers"><g class="diagram-node diagram-node-screen" id="context-identitymanagement-diagram-ux-transitions-node-adminusers">
+        <rect x="36" y="36" width="184" height="58" rx="8"></rect>
+        <text x="128" y="70">AdminUsers</text>
+      </g></a><a href="#context-identitymanagement-screen-admingroups"><g class="diagram-node diagram-node-screen" id="context-identitymanagement-diagram-ux-transitions-node-admingroups">
+        <rect x="292" y="36" width="184" height="58" rx="8"></rect>
+        <text x="384" y="70">AdminGroups</text>
+      </g></a><a href="#context-identitymanagement-screen-adminagents"><g class="diagram-node diagram-node-screen" id="context-identitymanagement-diagram-ux-transitions-node-adminagents">
+        <rect x="548" y="36" width="184" height="58" rx="8"></rect>
+        <text x="640" y="70">AdminAgents</text>
+      </g></a><a href="#context-identitymanagement-screen-adminroles"><g class="diagram-node diagram-node-screen" id="context-identitymanagement-diagram-ux-transitions-node-adminroles">
+        <rect x="36" y="162" width="184" height="58" rx="8"></rect>
+        <text x="128" y="196">AdminRoles</text>
+      </g></a><a href="#context-identitymanagement-screen-accounthome"><g class="diagram-node diagram-node-screen" id="context-identitymanagement-diagram-ux-transitions-node-accounthome">
+        <rect x="292" y="162" width="184" height="58" rx="8"></rect>
+        <text x="384" y="196">AccountHome</text>
+      </g></a><a href="#context-identitymanagement-screen-accountprofile"><g class="diagram-node diagram-node-screen" id="context-identitymanagement-diagram-ux-transitions-node-accountprofile">
+        <rect x="548" y="162" width="184" height="58" rx="8"></rect>
+        <text x="640" y="196">AccountProfile</text>
+      </g></a><a href="#context-identitymanagement-screen-accountemails"><g class="diagram-node diagram-node-screen" id="context-identitymanagement-diagram-ux-transitions-node-accountemails">
+        <rect x="36" y="288" width="184" height="58" rx="8"></rect>
+        <text x="128" y="322">AccountEmails</text>
+      </g></a><a href="#context-identitymanagement-screen-accountemailverify"><g class="diagram-node diagram-node-screen" id="context-identitymanagement-diagram-ux-transitions-node-accountemailverify">
+        <rect x="292" y="288" width="184" height="58" rx="8"></rect>
+        <text x="384" y="322">AccountEmailVerify</text>
+      </g></a><a href="#context-identitymanagement-screen-accountdata"><g class="diagram-node diagram-node-screen" id="context-identitymanagement-diagram-ux-transitions-node-accountdata">
+        <rect x="548" y="288" width="184" height="58" rx="8"></rect>
+        <text x="640" y="322">AccountData</text>
+      </g></a>
+      </svg>
+    </div>
+  </div>
     <div class="group"><h3 class="grp-title">Screens <span class="count">9</span></h3><div class="cards"><article class="card" id="context-identitymanagement-screen-adminusers">
         <header><h3>AdminUsers</h3><span class="chip chip-hint">/admin/users</span></header>
         <p class="desc">管理者が所属テナントのユーザーを一覧・詳細表示し、プロフィール、ロール、アカウント状態、必須アクション、所属グループを管理する。</p>
@@ -7652,7 +8059,7 @@ BreachedPasswordChecker を通過した new_password で User.password_hash を
       <div class="cards"><article class="card" id="context-authentication-obj-passwordpolicy">
     <header><h3>PasswordPolicy</h3><span class="badge badge-kind-security">security</span></header>
 
-    <dl class="kv"><dt>policy</dt><dd><span class="text">password_policy</span></dd><dt>target</dt><dd><span class="text">User</span></dd><dt>value</dt><dd><dl class="kv"><dt>min_length</dt><dd><code>12</code></dd><dt>max_length</dt><dd><code>128</code></dd><dt>forbid_user_identifier_similarity</dt><dd><code>true</code></dd><dt>common_password_dictionary</dt><dd><span class="text">bundled</span></dd><dt>history_depth</dt><dd><code>5</code></dd></dl></dd></dl>
+    <dl class="kv"><dt>policy</dt><dd><span class="text">password_policy</span></dd><dt>target</dt><dd><span class="text">User</span></dd><dt>value</dt><dd><dl class="kv"><dt>min_length</dt><dd><code>12</code></dd><dt>max_length</dt><dd><code>128</code></dd><dt>forbid_user_identifier_similarity</dt><dd><code>true</code></dd><dt>common_password_dictionary</dt><dd><span class="text">bundled</span></dd><dt>history_depth</dt><dd><code>5</code></dd><dt>breached_password_check_enabled</dt><dd><code>false</code></dd></dl></dd></dl>
   </article>
 <article class="card" id="context-authentication-obj-loginthrottlepolicy">
     <header><h3>LoginThrottlePolicy</h3><span class="badge badge-kind-security">security</span></header>
@@ -7691,6 +8098,76 @@ BreachedPasswordChecker を通過した new_password で User.password_hash を
 
 
   </dl>
+    <div class="diagram-card" id="context-authentication-diagram-ux-transitions">
+    <div class="diagram-head">
+      <div>
+        <div class="label">Diagram</div>
+        <h3>Screen transitions</h3>
+        <p class="desc">Screen node と transition edge は user_experience.screens / transitions から派生する。</p>
+      </div>
+      <div class="diagram-tools" aria-label="Screen transitions controls">
+        <button type="button" data-diagram-zoom="in" title="Zoom in">+</button>
+        <button type="button" data-diagram-zoom="out" title="Zoom out">-</button>
+        <button type="button" data-diagram-fit title="Fit to view">Fit</button>
+      </div>
+    </div>
+    <div class="diagram-viewport" data-diagram>
+      <svg viewBox="0 0 768 382" data-diagram-svg data-diagram-viewbox="0 0 768 382" role="img" aria-label="Screen transitions">
+        <defs>
+          <marker id="arrow-ux-transitions" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z"></path>
+          </marker>
+        </defs>
+        <a href="#context-authentication-screen-totp"><g class="diagram-edge" id="context-authentication-diagram-ux-transitions-edge-0">
+        <line x1="220.0" y1="65.0" x2="292.0" y2="65.0" marker-end="url(#arrow-ux-transitions)"></line>
+        <text x="256.0" y="59.0">password_succeeded_and_factor_required</text>
+      </g></a><g class="diagram-edge" id="context-authentication-diagram-ux-transitions-edge-2">
+        <line x1="384.0" y1="94.0" x2="384.0" y2="288.0" marker-end="url(#arrow-ux-transitions)"></line>
+        <text x="384.0" y="185.0">factor_succeeded_and_consent_exists</text>
+      </g><g class="diagram-edge" id="context-authentication-diagram-ux-transitions-edge-4">
+        <line x1="193.6" y1="85.3" x2="318.4" y2="296.7" marker-end="url(#arrow-ux-transitions)"></line>
+        <text x="256.0" y="185.0">authentication_succeeded_and_consent_exists</text>
+      </g><a href="#context-authentication-screen-forgotpassword"><g class="diagram-edge" id="context-authentication-diagram-ux-transitions-edge-5">
+        <line x1="220.0" y1="65.0" x2="548.0" y2="65.0" marker-end="url(#arrow-ux-transitions)"></line>
+        <text x="384.0" y="59.0">password_reset_requested</text>
+      </g></a><a href="#context-authentication-screen-resetpassword"><g class="diagram-edge" id="context-authentication-diagram-ux-transitions-edge-6">
+        <line x1="550.7" y1="71.9" x2="217.3" y2="184.1" marker-end="url(#arrow-ux-transitions)"></line>
+        <text x="384.0" y="122.0">reset_link_opened</text>
+      </g></a><a href="#context-authentication-screen-login"><g class="diagram-edge" id="context-authentication-diagram-ux-transitions-edge-7">
+        <line x1="128.0" y1="162.0" x2="128.0" y2="94.0" marker-end="url(#arrow-ux-transitions)"></line>
+        <text x="128.0" y="122.0">password_reset_succeeded</text>
+      </g></a><a href="#context-authentication-screen-changepassword"><g class="diagram-edge" id="context-authentication-diagram-ux-transitions-edge-8">
+        <line x1="476.0" y1="191.0" x2="548.0" y2="191.0" marker-end="url(#arrow-ux-transitions)"></line>
+        <text x="512.0" y="185.0">change_password_selected</text>
+      </g></a>
+        <a href="#context-authentication-screen-login"><g class="diagram-node diagram-node-screen" id="context-authentication-diagram-ux-transitions-node-login">
+        <rect x="36" y="36" width="184" height="58" rx="8"></rect>
+        <text x="128" y="70">Login</text>
+      </g></a><a href="#context-authentication-screen-totp"><g class="diagram-node diagram-node-screen" id="context-authentication-diagram-ux-transitions-node-totp">
+        <rect x="292" y="36" width="184" height="58" rx="8"></rect>
+        <text x="384" y="70">Totp</text>
+      </g></a><a href="#context-authentication-screen-forgotpassword"><g class="diagram-node diagram-node-screen" id="context-authentication-diagram-ux-transitions-node-forgotpassword">
+        <rect x="548" y="36" width="184" height="58" rx="8"></rect>
+        <text x="640" y="70">ForgotPassword</text>
+      </g></a><a href="#context-authentication-screen-resetpassword"><g class="diagram-node diagram-node-screen" id="context-authentication-diagram-ux-transitions-node-resetpassword">
+        <rect x="36" y="162" width="184" height="58" rx="8"></rect>
+        <text x="128" y="196">ResetPassword</text>
+      </g></a><a href="#context-authentication-screen-accountsecurity"><g class="diagram-node diagram-node-screen" id="context-authentication-diagram-ux-transitions-node-accountsecurity">
+        <rect x="292" y="162" width="184" height="58" rx="8"></rect>
+        <text x="384" y="196">AccountSecurity</text>
+      </g></a><a href="#context-authentication-screen-changepassword"><g class="diagram-node diagram-node-screen" id="context-authentication-diagram-ux-transitions-node-changepassword">
+        <rect x="548" y="162" width="184" height="58" rx="8"></rect>
+        <text x="640" y="196">ChangePassword</text>
+      </g></a><a href="#context-authentication-screen-accountactivity"><g class="diagram-node diagram-node-screen" id="context-authentication-diagram-ux-transitions-node-accountactivity">
+        <rect x="36" y="288" width="184" height="58" rx="8"></rect>
+        <text x="128" y="322">AccountActivity</text>
+      </g></a><g class="diagram-node diagram-node-external" id="context-authentication-diagram-ux-transitions-node-external">
+        <rect x="292" y="288" width="184" height="58" rx="8"></rect>
+        <text x="384" y="322">External</text>
+      </g>
+      </svg>
+    </div>
+  </div>
     <div class="group"><h3 class="grp-title">Screens <span class="count">7</span></h3><div class="cards"><article class="card" id="context-authentication-screen-login">
         <header><h3>Login</h3><span class="chip chip-hint">/login</span></header>
         <p class="desc">Authorization transactionに結び付いたResourceOwnerの認証情報を取得する。</p>
@@ -14199,7 +14676,339 @@ SIEM への streaming は別 WI で、本 interface は 1 回分のダウンロ�
 <section id="context-oauth2-states">
     <h2>States <span class="count">6</span></h2>
 
-    <div class="cards"><article class="card" id="context-oauth2-state-authorizationcodeflow">
+    <div class="diagram-card" id="context-oauth2-diagram-state-authorizationcodeflow">
+    <div class="diagram-head">
+      <div>
+        <div class="label">Diagram</div>
+        <h3>AuthorizationCodeFlow transitions</h3>
+        <p class="desc">State node と transition edge は states.transitions から派生する。</p>
+      </div>
+      <div class="diagram-tools" aria-label="AuthorizationCodeFlow transitions controls">
+        <button type="button" data-diagram-zoom="in" title="Zoom in">+</button>
+        <button type="button" data-diagram-zoom="out" title="Zoom out">-</button>
+        <button type="button" data-diagram-fit title="Fit to view">Fit</button>
+      </div>
+    </div>
+    <div class="diagram-viewport" data-diagram>
+      <svg viewBox="0 0 768 382" data-diagram-svg data-diagram-viewbox="0 0 768 382" role="img" aria-label="AuthorizationCodeFlow transitions">
+        <defs>
+          <marker id="arrow-state-authorizationcodeflow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z"></path>
+          </marker>
+        </defs>
+        <a href="#context-oauth2-state-authorizationcodeflow"><g class="diagram-edge" id="context-oauth2-diagram-state-authorizationcodeflow-edge-0">
+        <line x1="220.0" y1="65.0" x2="292.0" y2="65.0" marker-end="url(#arrow-state-authorizationcodeflow)"></line>
+        <text x="256.0" y="59.0">Validate</text>
+      </g></a><a href="#context-oauth2-state-authorizationcodeflow"><g class="diagram-edge" id="context-oauth2-diagram-state-authorizationcodeflow-edge-1">
+        <line x1="220.0" y1="65.0" x2="548.0" y2="65.0" marker-end="url(#arrow-state-authorizationcodeflow)"></line>
+        <text x="384.0" y="59.0">Reject</text>
+      </g></a><a href="#context-oauth2-state-authorizationcodeflow"><g class="diagram-edge" id="context-oauth2-diagram-state-authorizationcodeflow-edge-2">
+        <line x1="301.5" y1="77.8" x2="210.5" y2="178.2" marker-end="url(#arrow-state-authorizationcodeflow)"></line>
+        <text x="256.0" y="122.0">AuthenticateUser</text>
+      </g></a><a href="#context-oauth2-state-authorizationcodeflow"><g class="diagram-edge" id="context-oauth2-diagram-state-authorizationcodeflow-edge-3">
+        <line x1="476.0" y1="65.0" x2="548.0" y2="65.0" marker-end="url(#arrow-state-authorizationcodeflow)"></line>
+        <text x="512.0" y="59.0">Reject</text>
+      </g></a><a href="#context-oauth2-state-authorizationcodeflow"><g class="diagram-edge" id="context-oauth2-diagram-state-authorizationcodeflow-edge-4">
+        <line x1="384.0" y1="94.0" x2="384.0" y2="162.0" marker-end="url(#arrow-state-authorizationcodeflow)"></line>
+        <text x="384.0" y="122.0">Expire</text>
+      </g></a><a href="#context-oauth2-state-authorizationcodeflow"><g class="diagram-edge" id="context-oauth2-diagram-state-authorizationcodeflow-edge-5">
+        <line x1="220.0" y1="191.0" x2="548.0" y2="191.0" marker-end="url(#arrow-state-authorizationcodeflow)"></line>
+        <text x="384.0" y="185.0">RequestConsent</text>
+      </g></a><a href="#context-oauth2-state-authorizationcodeflow"><g class="diagram-edge" id="context-oauth2-diagram-state-authorizationcodeflow-edge-6">
+        <line x1="128.0" y1="220.0" x2="128.0" y2="288.0" marker-end="url(#arrow-state-authorizationcodeflow)"></line>
+        <text x="128.0" y="248.0">IssueCode</text>
+      </g></a><a href="#context-oauth2-state-authorizationcodeflow"><g class="diagram-edge" id="context-oauth2-diagram-state-authorizationcodeflow-edge-7">
+        <line x1="217.3" y1="184.1" x2="550.7" y2="71.9" marker-end="url(#arrow-state-authorizationcodeflow)"></line>
+        <text x="384.0" y="122.0">Reject</text>
+      </g></a><a href="#context-oauth2-state-authorizationcodeflow"><g class="diagram-edge" id="context-oauth2-diagram-state-authorizationcodeflow-edge-8">
+        <line x1="557.5" y1="203.8" x2="466.5" y2="304.2" marker-end="url(#arrow-state-authorizationcodeflow)"></line>
+        <text x="512.0" y="248.0">GrantConsent</text>
+      </g></a><a href="#context-oauth2-state-authorizationcodeflow"><g class="diagram-edge" id="context-oauth2-diagram-state-authorizationcodeflow-edge-9">
+        <line x1="640.0" y1="162.0" x2="640.0" y2="94.0" marker-end="url(#arrow-state-authorizationcodeflow)"></line>
+        <text x="640.0" y="122.0">Reject</text>
+      </g></a><a href="#context-oauth2-state-authorizationcodeflow"><g class="diagram-edge" id="context-oauth2-diagram-state-authorizationcodeflow-edge-10">
+        <line x1="548.0" y1="191.0" x2="476.0" y2="191.0" marker-end="url(#arrow-state-authorizationcodeflow)"></line>
+        <text x="512.0" y="185.0">Expire</text>
+      </g></a><a href="#context-oauth2-state-authorizationcodeflow"><g class="diagram-edge" id="context-oauth2-diagram-state-authorizationcodeflow-edge-11">
+        <line x1="292.0" y1="317.0" x2="220.0" y2="317.0" marker-end="url(#arrow-state-authorizationcodeflow)"></line>
+        <text x="256.0" y="311.0">IssueCode</text>
+      </g></a><a href="#context-oauth2-state-authorizationcodeflow"><g class="diagram-edge" id="context-oauth2-diagram-state-authorizationcodeflow-edge-12">
+        <line x1="449.6" y1="296.7" x2="574.4" y2="85.3" marker-end="url(#arrow-state-authorizationcodeflow)"></line>
+        <text x="512.0" y="185.0">Reject</text>
+      </g></a><a href="#context-oauth2-state-authorizationcodeflow"><g class="diagram-edge" id="context-oauth2-diagram-state-authorizationcodeflow-edge-13">
+        <line x1="220.0" y1="317.0" x2="548.0" y2="317.0" marker-end="url(#arrow-state-authorizationcodeflow)"></line>
+        <text x="384.0" y="311.0">RedeemCode</text>
+      </g></a><a href="#context-oauth2-state-authorizationcodeflow"><g class="diagram-edge" id="context-oauth2-diagram-state-authorizationcodeflow-edge-14">
+        <line x1="210.5" y1="304.2" x2="301.5" y2="203.8" marker-end="url(#arrow-state-authorizationcodeflow)"></line>
+        <text x="256.0" y="248.0">Expire</text>
+      </g></a>
+        <a href="#context-oauth2-state-authorizationcodeflow"><g class="diagram-node diagram-node-initial" id="context-oauth2-diagram-state-authorizationcodeflow-node-received">
+        <rect x="36" y="36" width="184" height="58" rx="8"></rect>
+        <text x="128" y="70">Received</text>
+      </g></a><a href="#context-oauth2-state-authorizationcodeflow"><g class="diagram-node diagram-node-state" id="context-oauth2-diagram-state-authorizationcodeflow-node-authenticationpending">
+        <rect x="292" y="36" width="184" height="58" rx="8"></rect>
+        <text x="384" y="70">AuthenticationPending</text>
+      </g></a><a href="#context-oauth2-state-authorizationcodeflow"><g class="diagram-node diagram-node-terminal" id="context-oauth2-diagram-state-authorizationcodeflow-node-rejected">
+        <rect x="548" y="36" width="184" height="58" rx="8"></rect>
+        <text x="640" y="70">Rejected</text>
+      </g></a><a href="#context-oauth2-state-authorizationcodeflow"><g class="diagram-node diagram-node-state" id="context-oauth2-diagram-state-authorizationcodeflow-node-authenticated">
+        <rect x="36" y="162" width="184" height="58" rx="8"></rect>
+        <text x="128" y="196">Authenticated</text>
+      </g></a><a href="#context-oauth2-state-authorizationcodeflow"><g class="diagram-node diagram-node-terminal" id="context-oauth2-diagram-state-authorizationcodeflow-node-expired">
+        <rect x="292" y="162" width="184" height="58" rx="8"></rect>
+        <text x="384" y="196">Expired</text>
+      </g></a><a href="#context-oauth2-state-authorizationcodeflow"><g class="diagram-node diagram-node-state" id="context-oauth2-diagram-state-authorizationcodeflow-node-consentpending">
+        <rect x="548" y="162" width="184" height="58" rx="8"></rect>
+        <text x="640" y="196">ConsentPending</text>
+      </g></a><a href="#context-oauth2-state-authorizationcodeflow"><g class="diagram-node diagram-node-state" id="context-oauth2-diagram-state-authorizationcodeflow-node-codeissued">
+        <rect x="36" y="288" width="184" height="58" rx="8"></rect>
+        <text x="128" y="322">CodeIssued</text>
+      </g></a><a href="#context-oauth2-state-authorizationcodeflow"><g class="diagram-node diagram-node-state" id="context-oauth2-diagram-state-authorizationcodeflow-node-consented">
+        <rect x="292" y="288" width="184" height="58" rx="8"></rect>
+        <text x="384" y="322">Consented</text>
+      </g></a><a href="#context-oauth2-state-authorizationcodeflow"><g class="diagram-node diagram-node-terminal" id="context-oauth2-diagram-state-authorizationcodeflow-node-exchanged">
+        <rect x="548" y="288" width="184" height="58" rx="8"></rect>
+        <text x="640" y="322">Exchanged</text>
+      </g></a>
+      </svg>
+    </div>
+  </div>
+<div class="diagram-card" id="context-oauth2-diagram-state-devicecodeflow">
+    <div class="diagram-head">
+      <div>
+        <div class="label">Diagram</div>
+        <h3>DeviceCodeFlow transitions</h3>
+        <p class="desc">State node と transition edge は states.transitions から派生する。</p>
+      </div>
+      <div class="diagram-tools" aria-label="DeviceCodeFlow transitions controls">
+        <button type="button" data-diagram-zoom="in" title="Zoom in">+</button>
+        <button type="button" data-diagram-zoom="out" title="Zoom out">-</button>
+        <button type="button" data-diagram-fit title="Fit to view">Fit</button>
+      </div>
+    </div>
+    <div class="diagram-viewport" data-diagram>
+      <svg viewBox="0 0 768 256" data-diagram-svg data-diagram-viewbox="0 0 768 256" role="img" aria-label="DeviceCodeFlow transitions">
+        <defs>
+          <marker id="arrow-state-devicecodeflow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z"></path>
+          </marker>
+        </defs>
+        <a href="#context-oauth2-state-devicecodeflow"><g class="diagram-edge" id="context-oauth2-diagram-state-devicecodeflow-edge-0">
+        <line x1="220.0" y1="65.0" x2="292.0" y2="65.0" marker-end="url(#arrow-state-devicecodeflow)"></line>
+        <text x="256.0" y="59.0">EnterUserCode</text>
+      </g></a><a href="#context-oauth2-state-devicecodeflow"><g class="diagram-edge" id="context-oauth2-diagram-state-devicecodeflow-edge-1">
+        <line x1="220.0" y1="65.0" x2="548.0" y2="65.0" marker-end="url(#arrow-state-devicecodeflow)"></line>
+        <text x="384.0" y="59.0">Expire</text>
+      </g></a><a href="#context-oauth2-state-devicecodeflow"><g class="diagram-edge" id="context-oauth2-diagram-state-devicecodeflow-edge-2">
+        <line x1="301.5" y1="77.8" x2="210.5" y2="178.2" marker-end="url(#arrow-state-devicecodeflow)"></line>
+        <text x="256.0" y="122.0">Approve</text>
+      </g></a><a href="#context-oauth2-state-devicecodeflow"><g class="diagram-edge" id="context-oauth2-diagram-state-devicecodeflow-edge-3">
+        <line x1="384.0" y1="94.0" x2="384.0" y2="162.0" marker-end="url(#arrow-state-devicecodeflow)"></line>
+        <text x="384.0" y="122.0">Deny</text>
+      </g></a><a href="#context-oauth2-state-devicecodeflow"><g class="diagram-edge" id="context-oauth2-diagram-state-devicecodeflow-edge-4">
+        <line x1="476.0" y1="65.0" x2="548.0" y2="65.0" marker-end="url(#arrow-state-devicecodeflow)"></line>
+        <text x="512.0" y="59.0">Expire</text>
+      </g></a><a href="#context-oauth2-state-devicecodeflow"><g class="diagram-edge" id="context-oauth2-diagram-state-devicecodeflow-edge-5">
+        <line x1="220.0" y1="191.0" x2="548.0" y2="191.0" marker-end="url(#arrow-state-devicecodeflow)"></line>
+        <text x="384.0" y="185.0">Exchange</text>
+      </g></a><a href="#context-oauth2-state-devicecodeflow"><g class="diagram-edge" id="context-oauth2-diagram-state-devicecodeflow-edge-6">
+        <line x1="217.3" y1="184.1" x2="550.7" y2="71.9" marker-end="url(#arrow-state-devicecodeflow)"></line>
+        <text x="384.0" y="122.0">Expire</text>
+      </g></a>
+        <a href="#context-oauth2-state-devicecodeflow"><g class="diagram-node diagram-node-initial" id="context-oauth2-diagram-state-devicecodeflow-node-issued">
+        <rect x="36" y="36" width="184" height="58" rx="8"></rect>
+        <text x="128" y="70">Issued</text>
+      </g></a><a href="#context-oauth2-state-devicecodeflow"><g class="diagram-node diagram-node-state" id="context-oauth2-diagram-state-devicecodeflow-node-usercodeentered">
+        <rect x="292" y="36" width="184" height="58" rx="8"></rect>
+        <text x="384" y="70">UserCodeEntered</text>
+      </g></a><a href="#context-oauth2-state-devicecodeflow"><g class="diagram-node diagram-node-terminal" id="context-oauth2-diagram-state-devicecodeflow-node-expired">
+        <rect x="548" y="36" width="184" height="58" rx="8"></rect>
+        <text x="640" y="70">Expired</text>
+      </g></a><a href="#context-oauth2-state-devicecodeflow"><g class="diagram-node diagram-node-state" id="context-oauth2-diagram-state-devicecodeflow-node-approved">
+        <rect x="36" y="162" width="184" height="58" rx="8"></rect>
+        <text x="128" y="196">Approved</text>
+      </g></a><a href="#context-oauth2-state-devicecodeflow"><g class="diagram-node diagram-node-terminal" id="context-oauth2-diagram-state-devicecodeflow-node-denied">
+        <rect x="292" y="162" width="184" height="58" rx="8"></rect>
+        <text x="384" y="196">Denied</text>
+      </g></a><a href="#context-oauth2-state-devicecodeflow"><g class="diagram-node diagram-node-terminal" id="context-oauth2-diagram-state-devicecodeflow-node-exchanged">
+        <rect x="548" y="162" width="184" height="58" rx="8"></rect>
+        <text x="640" y="196">Exchanged</text>
+      </g></a>
+      </svg>
+    </div>
+  </div>
+<div class="diagram-card" id="context-oauth2-diagram-state-refreshtokenlifecycle">
+    <div class="diagram-head">
+      <div>
+        <div class="label">Diagram</div>
+        <h3>RefreshTokenLifecycle transitions</h3>
+        <p class="desc">State node と transition edge は states.transitions から派生する。</p>
+      </div>
+      <div class="diagram-tools" aria-label="RefreshTokenLifecycle transitions controls">
+        <button type="button" data-diagram-zoom="in" title="Zoom in">+</button>
+        <button type="button" data-diagram-zoom="out" title="Zoom out">-</button>
+        <button type="button" data-diagram-fit title="Fit to view">Fit</button>
+      </div>
+    </div>
+    <div class="diagram-viewport" data-diagram>
+      <svg viewBox="0 0 512 256" data-diagram-svg data-diagram-viewbox="0 0 512 256" role="img" aria-label="RefreshTokenLifecycle transitions">
+        <defs>
+          <marker id="arrow-state-refreshtokenlifecycle" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z"></path>
+          </marker>
+        </defs>
+        <a href="#context-oauth2-state-refreshtokenlifecycle"><g class="diagram-edge" id="context-oauth2-diagram-state-refreshtokenlifecycle-edge-0">
+        <line x1="220.0" y1="65.0" x2="292.0" y2="65.0" marker-end="url(#arrow-state-refreshtokenlifecycle)"></line>
+        <text x="256.0" y="59.0">Rotate</text>
+      </g></a><a href="#context-oauth2-state-refreshtokenlifecycle"><g class="diagram-edge" id="context-oauth2-diagram-state-refreshtokenlifecycle-edge-1">
+        <line x1="128.0" y1="94.0" x2="128.0" y2="162.0" marker-end="url(#arrow-state-refreshtokenlifecycle)"></line>
+        <text x="128.0" y="122.0">RevokeToken</text>
+      </g></a><a href="#context-oauth2-state-refreshtokenlifecycle"><g class="diagram-edge" id="context-oauth2-diagram-state-refreshtokenlifecycle-edge-2">
+        <line x1="210.5" y1="77.8" x2="301.5" y2="178.2" marker-end="url(#arrow-state-refreshtokenlifecycle)"></line>
+        <text x="256.0" y="122.0">Expire</text>
+      </g></a><a href="#context-oauth2-state-refreshtokenlifecycle"><g class="diagram-edge" id="context-oauth2-diagram-state-refreshtokenlifecycle-edge-3">
+        <line x1="301.5" y1="77.8" x2="210.5" y2="178.2" marker-end="url(#arrow-state-refreshtokenlifecycle)"></line>
+        <text x="256.0" y="122.0">RevokeToken</text>
+      </g></a><a href="#context-oauth2-state-refreshtokenlifecycle"><g class="diagram-edge" id="context-oauth2-diagram-state-refreshtokenlifecycle-edge-4">
+        <line x1="384.0" y1="94.0" x2="384.0" y2="162.0" marker-end="url(#arrow-state-refreshtokenlifecycle)"></line>
+        <text x="384.0" y="122.0">Expire</text>
+      </g></a>
+        <a href="#context-oauth2-state-refreshtokenlifecycle"><g class="diagram-node diagram-node-initial" id="context-oauth2-diagram-state-refreshtokenlifecycle-node-active">
+        <rect x="36" y="36" width="184" height="58" rx="8"></rect>
+        <text x="128" y="70">Active</text>
+      </g></a><a href="#context-oauth2-state-refreshtokenlifecycle"><g class="diagram-node diagram-node-state" id="context-oauth2-diagram-state-refreshtokenlifecycle-node-rotated">
+        <rect x="292" y="36" width="184" height="58" rx="8"></rect>
+        <text x="384" y="70">Rotated</text>
+      </g></a><a href="#context-oauth2-state-refreshtokenlifecycle"><g class="diagram-node diagram-node-terminal" id="context-oauth2-diagram-state-refreshtokenlifecycle-node-revoked">
+        <rect x="36" y="162" width="184" height="58" rx="8"></rect>
+        <text x="128" y="196">Revoked</text>
+      </g></a><a href="#context-oauth2-state-refreshtokenlifecycle"><g class="diagram-node diagram-node-terminal" id="context-oauth2-diagram-state-refreshtokenlifecycle-node-expired">
+        <rect x="292" y="162" width="184" height="58" rx="8"></rect>
+        <text x="384" y="196">Expired</text>
+      </g></a>
+      </svg>
+    </div>
+  </div>
+<div class="diagram-card" id="context-oauth2-diagram-state-authorizationcoderecordlifecycle">
+    <div class="diagram-head">
+      <div>
+        <div class="label">Diagram</div>
+        <h3>AuthorizationCodeRecordLifecycle transitions</h3>
+        <p class="desc">State node と transition edge は states.transitions から派生する。</p>
+      </div>
+      <div class="diagram-tools" aria-label="AuthorizationCodeRecordLifecycle transitions controls">
+        <button type="button" data-diagram-zoom="in" title="Zoom in">+</button>
+        <button type="button" data-diagram-zoom="out" title="Zoom out">-</button>
+        <button type="button" data-diagram-fit title="Fit to view">Fit</button>
+      </div>
+    </div>
+    <div class="diagram-viewport" data-diagram>
+      <svg viewBox="0 0 512 256" data-diagram-svg data-diagram-viewbox="0 0 512 256" role="img" aria-label="AuthorizationCodeRecordLifecycle transitions">
+        <defs>
+          <marker id="arrow-state-authorizationcoderecordlifecycle" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z"></path>
+          </marker>
+        </defs>
+        <a href="#context-oauth2-state-authorizationcoderecordlifecycle"><g class="diagram-edge" id="context-oauth2-diagram-state-authorizationcoderecordlifecycle-edge-0">
+        <line x1="220.0" y1="65.0" x2="292.0" y2="65.0" marker-end="url(#arrow-state-authorizationcoderecordlifecycle)"></line>
+        <text x="256.0" y="59.0">RedeemCode</text>
+      </g></a><a href="#context-oauth2-state-authorizationcoderecordlifecycle"><g class="diagram-edge" id="context-oauth2-diagram-state-authorizationcoderecordlifecycle-edge-1">
+        <line x1="128.0" y1="94.0" x2="128.0" y2="162.0" marker-end="url(#arrow-state-authorizationcoderecordlifecycle)"></line>
+        <text x="128.0" y="122.0">Expire</text>
+      </g></a>
+        <a href="#context-oauth2-state-authorizationcoderecordlifecycle"><g class="diagram-node diagram-node-initial" id="context-oauth2-diagram-state-authorizationcoderecordlifecycle-node-issued">
+        <rect x="36" y="36" width="184" height="58" rx="8"></rect>
+        <text x="128" y="70">Issued</text>
+      </g></a><a href="#context-oauth2-state-authorizationcoderecordlifecycle"><g class="diagram-node diagram-node-terminal" id="context-oauth2-diagram-state-authorizationcoderecordlifecycle-node-redeemed">
+        <rect x="292" y="36" width="184" height="58" rx="8"></rect>
+        <text x="384" y="70">Redeemed</text>
+      </g></a><a href="#context-oauth2-state-authorizationcoderecordlifecycle"><g class="diagram-node diagram-node-terminal" id="context-oauth2-diagram-state-authorizationcoderecordlifecycle-node-expired">
+        <rect x="36" y="162" width="184" height="58" rx="8"></rect>
+        <text x="128" y="196">Expired</text>
+      </g></a>
+      </svg>
+    </div>
+  </div>
+<div class="diagram-card" id="context-oauth2-diagram-state-consentlifecycle">
+    <div class="diagram-head">
+      <div>
+        <div class="label">Diagram</div>
+        <h3>ConsentLifecycle transitions</h3>
+        <p class="desc">State node と transition edge は states.transitions から派生する。</p>
+      </div>
+      <div class="diagram-tools" aria-label="ConsentLifecycle transitions controls">
+        <button type="button" data-diagram-zoom="in" title="Zoom in">+</button>
+        <button type="button" data-diagram-zoom="out" title="Zoom out">-</button>
+        <button type="button" data-diagram-fit title="Fit to view">Fit</button>
+      </div>
+    </div>
+    <div class="diagram-viewport" data-diagram>
+      <svg viewBox="0 0 512 256" data-diagram-svg data-diagram-viewbox="0 0 512 256" role="img" aria-label="ConsentLifecycle transitions">
+        <defs>
+          <marker id="arrow-state-consentlifecycle" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z"></path>
+          </marker>
+        </defs>
+        <a href="#context-oauth2-state-consentlifecycle"><g class="diagram-edge" id="context-oauth2-diagram-state-consentlifecycle-edge-0">
+        <line x1="220.0" y1="65.0" x2="292.0" y2="65.0" marker-end="url(#arrow-state-consentlifecycle)"></line>
+        <text x="256.0" y="59.0">RevokeConsent</text>
+      </g></a><a href="#context-oauth2-state-consentlifecycle"><g class="diagram-edge" id="context-oauth2-diagram-state-consentlifecycle-edge-1">
+        <line x1="128.0" y1="94.0" x2="128.0" y2="162.0" marker-end="url(#arrow-state-consentlifecycle)"></line>
+        <text x="128.0" y="122.0">Expire</text>
+      </g></a>
+        <a href="#context-oauth2-state-consentlifecycle"><g class="diagram-node diagram-node-initial" id="context-oauth2-diagram-state-consentlifecycle-node-granted">
+        <rect x="36" y="36" width="184" height="58" rx="8"></rect>
+        <text x="128" y="70">Granted</text>
+      </g></a><a href="#context-oauth2-state-consentlifecycle"><g class="diagram-node diagram-node-terminal" id="context-oauth2-diagram-state-consentlifecycle-node-revoked">
+        <rect x="292" y="36" width="184" height="58" rx="8"></rect>
+        <text x="384" y="70">Revoked</text>
+      </g></a><a href="#context-oauth2-state-consentlifecycle"><g class="diagram-node diagram-node-terminal" id="context-oauth2-diagram-state-consentlifecycle-node-expired">
+        <rect x="36" y="162" width="184" height="58" rx="8"></rect>
+        <text x="128" y="196">Expired</text>
+      </g></a>
+      </svg>
+    </div>
+  </div>
+<div class="diagram-card" id="context-oauth2-diagram-state-parrecordlifecycle">
+    <div class="diagram-head">
+      <div>
+        <div class="label">Diagram</div>
+        <h3>PARRecordLifecycle transitions</h3>
+        <p class="desc">State node と transition edge は states.transitions から派生する。</p>
+      </div>
+      <div class="diagram-tools" aria-label="PARRecordLifecycle transitions controls">
+        <button type="button" data-diagram-zoom="in" title="Zoom in">+</button>
+        <button type="button" data-diagram-zoom="out" title="Zoom out">-</button>
+        <button type="button" data-diagram-fit title="Fit to view">Fit</button>
+      </div>
+    </div>
+    <div class="diagram-viewport" data-diagram>
+      <svg viewBox="0 0 512 256" data-diagram-svg data-diagram-viewbox="0 0 512 256" role="img" aria-label="PARRecordLifecycle transitions">
+        <defs>
+          <marker id="arrow-state-parrecordlifecycle" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z"></path>
+          </marker>
+        </defs>
+        <a href="#context-oauth2-state-parrecordlifecycle"><g class="diagram-edge" id="context-oauth2-diagram-state-parrecordlifecycle-edge-0">
+        <line x1="220.0" y1="65.0" x2="292.0" y2="65.0" marker-end="url(#arrow-state-parrecordlifecycle)"></line>
+        <text x="256.0" y="59.0">Use</text>
+      </g></a><a href="#context-oauth2-state-parrecordlifecycle"><g class="diagram-edge" id="context-oauth2-diagram-state-parrecordlifecycle-edge-1">
+        <line x1="128.0" y1="94.0" x2="128.0" y2="162.0" marker-end="url(#arrow-state-parrecordlifecycle)"></line>
+        <text x="128.0" y="122.0">Expire</text>
+      </g></a>
+        <a href="#context-oauth2-state-parrecordlifecycle"><g class="diagram-node diagram-node-initial" id="context-oauth2-diagram-state-parrecordlifecycle-node-stored">
+        <rect x="36" y="36" width="184" height="58" rx="8"></rect>
+        <text x="128" y="70">Stored</text>
+      </g></a><a href="#context-oauth2-state-parrecordlifecycle"><g class="diagram-node diagram-node-terminal" id="context-oauth2-diagram-state-parrecordlifecycle-node-used">
+        <rect x="292" y="36" width="184" height="58" rx="8"></rect>
+        <text x="384" y="70">Used</text>
+      </g></a><a href="#context-oauth2-state-parrecordlifecycle"><g class="diagram-node diagram-node-terminal" id="context-oauth2-diagram-state-parrecordlifecycle-node-expired">
+        <rect x="36" y="162" width="184" height="58" rx="8"></rect>
+        <text x="128" y="196">Expired</text>
+      </g></a>
+      </svg>
+    </div>
+  </div><div class="cards"><article class="card" id="context-oauth2-state-authorizationcodeflow">
     <header><h3>AuthorizationCodeFlow</h3></header>
     <p class="desc">/authorize から /token に至る authorization request のライフサイクル。</p>
     <dl class="kv"><dt>target</dt><dd><code>AuthorizationRequest</code></dd><dt>initial</dt><dd><span class="chip chip-initial">Received</span></dd><dt>terminal</dt><dd><span class="chip chip-terminal">Exchanged</span> <span class="chip chip-terminal">Rejected</span> <span class="chip chip-terminal">Expired</span></dd></dl>
@@ -15372,6 +16181,73 @@ system_admin は default tenant 経路から全テナント横断的に参照で
 
 
   </dl>
+    <div class="diagram-card" id="context-oauth2-diagram-ux-transitions">
+    <div class="diagram-head">
+      <div>
+        <div class="label">Diagram</div>
+        <h3>Screen transitions</h3>
+        <p class="desc">Screen node と transition edge は user_experience.screens / transitions から派生する。</p>
+      </div>
+      <div class="diagram-tools" aria-label="Screen transitions controls">
+        <button type="button" data-diagram-zoom="in" title="Zoom in">+</button>
+        <button type="button" data-diagram-zoom="out" title="Zoom out">-</button>
+        <button type="button" data-diagram-fit title="Fit to view">Fit</button>
+      </div>
+    </div>
+    <div class="diagram-viewport" data-diagram>
+      <svg viewBox="0 0 1024 382" data-diagram-svg data-diagram-viewbox="0 0 1024 382" role="img" aria-label="Screen transitions">
+        <defs>
+          <marker id="arrow-ux-transitions" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z"></path>
+          </marker>
+        </defs>
+        <g class="diagram-edge" id="context-oauth2-diagram-ux-transitions-edge-1">
+        <line x1="384.0" y1="94.0" x2="384.0" y2="288.0" marker-end="url(#arrow-ux-transitions)"></line>
+        <text x="384.0" y="185.0">consent_allowed</text>
+      </g><g class="diagram-edge" id="context-oauth2-diagram-ux-transitions-edge-2">
+        <line x1="384.0" y1="94.0" x2="384.0" y2="288.0" marker-end="url(#arrow-ux-transitions)"></line>
+        <text x="384.0" y="185.0">consent_denied</text>
+      </g><a href="#context-oauth2-screen-status"><g class="diagram-edge" id="context-oauth2-diagram-ux-transitions-edge-3">
+        <line x1="732.0" y1="65.0" x2="804.0" y2="65.0" marker-end="url(#arrow-ux-transitions)"></line>
+        <text x="768.0" y="59.0">device_approved</text>
+      </g></a><a href="#context-oauth2-screen-status"><g class="diagram-edge" id="context-oauth2-diagram-ux-transitions-edge-4">
+        <line x1="732.0" y1="65.0" x2="804.0" y2="65.0" marker-end="url(#arrow-ux-transitions)"></line>
+        <text x="768.0" y="59.0">device_denied</text>
+      </g></a>
+        <a href="#context-oauth2-screen-home"><g class="diagram-node diagram-node-screen" id="context-oauth2-diagram-ux-transitions-node-home">
+        <rect x="36" y="36" width="184" height="58" rx="8"></rect>
+        <text x="128" y="70">Home</text>
+      </g></a><a href="#context-oauth2-screen-consent"><g class="diagram-node diagram-node-screen" id="context-oauth2-diagram-ux-transitions-node-consent">
+        <rect x="292" y="36" width="184" height="58" rx="8"></rect>
+        <text x="384" y="70">Consent</text>
+      </g></a><a href="#context-oauth2-screen-device"><g class="diagram-node diagram-node-screen" id="context-oauth2-diagram-ux-transitions-node-device">
+        <rect x="548" y="36" width="184" height="58" rx="8"></rect>
+        <text x="640" y="70">Device</text>
+      </g></a><a href="#context-oauth2-screen-status"><g class="diagram-node diagram-node-screen" id="context-oauth2-diagram-ux-transitions-node-status">
+        <rect x="804" y="36" width="184" height="58" rx="8"></rect>
+        <text x="896" y="70">Status</text>
+      </g></a><a href="#context-oauth2-screen-callback"><g class="diagram-node diagram-node-screen" id="context-oauth2-diagram-ux-transitions-node-callback">
+        <rect x="36" y="162" width="184" height="58" rx="8"></rect>
+        <text x="128" y="196">Callback</text>
+      </g></a><a href="#context-oauth2-screen-adminauthorizationdetailtypes"><g class="diagram-node diagram-node-screen" id="context-oauth2-diagram-ux-transitions-node-adminauthorizationdetailtypes">
+        <rect x="292" y="162" width="184" height="58" rx="8"></rect>
+        <text x="384" y="196">AdminAuthorizationDetailTypes</text>
+      </g></a><a href="#context-oauth2-screen-adminconsents"><g class="diagram-node diagram-node-screen" id="context-oauth2-diagram-ux-transitions-node-adminconsents">
+        <rect x="548" y="162" width="184" height="58" rx="8"></rect>
+        <text x="640" y="196">AdminConsents</text>
+      </g></a><a href="#context-oauth2-screen-adminauditevents"><g class="diagram-node diagram-node-screen" id="context-oauth2-diagram-ux-transitions-node-adminauditevents">
+        <rect x="804" y="162" width="184" height="58" rx="8"></rect>
+        <text x="896" y="196">AdminAuditEvents</text>
+      </g></a><a href="#context-oauth2-screen-accountapplications"><g class="diagram-node diagram-node-screen" id="context-oauth2-diagram-ux-transitions-node-accountapplications">
+        <rect x="36" y="288" width="184" height="58" rx="8"></rect>
+        <text x="128" y="322">AccountApplications</text>
+      </g></a><g class="diagram-node diagram-node-external" id="context-oauth2-diagram-ux-transitions-node-external">
+        <rect x="292" y="288" width="184" height="58" rx="8"></rect>
+        <text x="384" y="322">External</text>
+      </g>
+      </svg>
+    </div>
+  </div>
     <div class="group"><h3 class="grp-title">Screens <span class="count">9</span></h3><div class="cards"><article class="card" id="context-oauth2-screen-home">
         <header><h3>Home</h3><span class="chip chip-hint">/</span></header>
         <p class="desc">IdPの稼働状態と認証開始方法を示し、ローカルデモでは認可要求を開始する。</p>
@@ -15490,7 +16366,7 @@ system_admin は default tenant 経路から全テナント横断的に参照で
       <div class="eyebrow">Bounded Context · contexts/application.yaml</div>
       <h1>Application</h1>
     </header>
-    <div class="stats"><a class="stat" href="#context-application-glossary"><span class="stat-num">2</span><span class="stat-label">glossary</span></a><a class="stat" href="#context-application-models"><span class="stat-num">32</span><span class="stat-label">models</span></a><a class="stat" href="#context-application-interfaces"><span class="stat-num">13</span><span class="stat-label">interfaces</span></a><a class="stat" href="#context-application-invariants"><span class="stat-num">2</span><span class="stat-label">invariants</span></a><a class="stat" href="#context-application-scenarios"><span class="stat-num">4</span><span class="stat-label">scenarios</span></a><a class="stat" href="#context-application-permissions"><span class="stat-num">3</span><span class="stat-label">permissions</span></a><a class="stat" href="#context-application-user_experience"><span class="stat-num">2</span><span class="stat-label">user experience</span></a></div>
+    <div class="stats"><a class="stat" href="#context-application-glossary"><span class="stat-num">2</span><span class="stat-label">glossary</span></a><a class="stat" href="#context-application-models"><span class="stat-num">44</span><span class="stat-label">models</span></a><a class="stat" href="#context-application-interfaces"><span class="stat-num">20</span><span class="stat-label">interfaces</span></a><a class="stat" href="#context-application-invariants"><span class="stat-num">2</span><span class="stat-label">invariants</span></a><a class="stat" href="#context-application-scenarios"><span class="stat-num">4</span><span class="stat-label">scenarios</span></a><a class="stat" href="#context-application-permissions"><span class="stat-num">4</span><span class="stat-label">permissions</span></a><a class="stat" href="#context-application-user_experience"><span class="stat-num">2</span><span class="stat-label">user experience</span></a></div>
   </section>
   <section id="context-application-glossary">
     <h2>Glossary <span class="count">2</span></h2>
@@ -15515,10 +16391,10 @@ system_admin は default tenant 経路から全テナント横断的に参照で
     </article></div>
   </section>
 <section id="context-application-models">
-    <h2>Models <span class="count">32</span></h2>
+    <h2>Models <span class="count">44</span></h2>
 
     <div class="group">
-      <h3 class="grp-title">entity <span class="count">2</span></h3>
+      <h3 class="grp-title">entity <span class="count">4</span></h3>
       <div class="cards"><article class="card" id="context-application-model-application">
     <header><h3>Application</h3><span class="badge badge-kind-entity">entity</span></header>
     <p class="desc">運用者が「接続する業務アプリケーション」として扱う上位 aggregate。OIDC client / SAML SP / WS-Fed RP を protocol binding として束ね、表示名・アイコン・状態・割当を所有する。 weblink kind は binding を持たない外部リンク。</p>
@@ -15573,6 +16449,60 @@ system_admin は default tenant 経路から全テナント横断的に参照で
     <td><span class="badge badge-required">required</span></td>
     <td><span class="muted">—</span></td>
     <td>接続済み protocol binding。weblink は空。</td>
+  </tr><tr>
+    <td><code class="name">category_ids</code></td>
+    <td><code class="type">UUID[]</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td>付与された ApplicationCategory の id 群 (0..N)。ポータルのセクション分類に使う (ADR-069)。</td>
+  </tr><tr>
+    <td><code class="name">created_at</code></td>
+    <td><code class="type">Timestamp</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">updated_at</code></td>
+    <td><code class="type">Timestamp</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="context-application-model-applicationcategory">
+    <header><h3>ApplicationCategory</h3><span class="badge badge-kind-entity">entity</span></header>
+    <p class="desc">管理者が tenant 単位で定義するポータルの分類セクション (ADR-069)。Application に 0..N 個
+付与され、利用者ポータルはこのカテゴリ単位でタイルをセクション表示する。割当境界は越えず、
+セクションには利用者に割当済みのアプリだけが並ぶ。
+</p>
+    <dl class="kv"><dt>identity</dt><dd><code>tenant_id, category_id</code></dd></dl>
+    <table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">tenant_id</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="chip chip-default">default: default</span></td>
+    <td>所属テナント ID。</td>
+  </tr><tr>
+    <td><code class="name">category_id</code></td>
+    <td><code class="type">UUID</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td>カテゴリ識別子。</td>
+  </tr><tr>
+    <td><code class="name">name</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="chip chip-constraint">non empty</span></td>
+    <td>セクション表示名。</td>
+  </tr><tr>
+    <td><code class="name">position</code></td>
+    <td><code class="type">Integer</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td>セクションの表示順。小さいほど先。同値は name 昇順。</td>
   </tr><tr>
     <td><code class="name">created_at</code></td>
     <td><code class="type">Timestamp</code></td>
@@ -15632,10 +16562,40 @@ system_admin は default tenant 経路から全テナント横断的に参照で
     <td></td>
   </tr></tbody>
   </table>
+  </article>
+<article class="card" id="context-application-model-applicationordering">
+    <header><h3>ApplicationOrdering</h3><span class="badge badge-kind-entity">entity</span></header>
+    <p class="desc">利用者ポータルでの手動並び順 (ADR-069)。tenant_id + user_sub をキーに、Application の
+表示順を application_id の順序列として持つ。順序列に在って現在は未割当の application は
+一覧から除外し、順序列に無い割当アプリは name 昇順で末尾に付ける。
+</p>
+    <dl class="kv"><dt>identity</dt><dd><code>tenant_id, user_sub</code></dd></dl>
+    <table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">tenant_id</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">user_sub</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">application_ids</code></td>
+    <td><code class="type">UUID[]</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
   </article></div>
     </div>
 <div class="group">
-      <h3 class="grp-title">value object <span class="count">17</span></h3>
+      <h3 class="grp-title">value object <span class="count">24</span></h3>
       <div class="cards"><article class="card" id="context-application-model-protocolbinding">
     <header><h3>ProtocolBinding</h3><span class="badge badge-kind-value_object">value object</span></header>
     <p class="desc">Application に紐づく protocol binding。OIDC client / WS-Fed RP / 将来 SAML SP への 参照を opaque key で保持する。binding の wire 挙動は各 protocol context が所有する。</p>
@@ -15712,6 +16672,12 @@ system_admin は default tenant 経路から全テナント横断的に参照で
     <td><span class="muted">—</span></td>
     <td></td>
   </tr><tr>
+    <td><code class="name">category_ids</code></td>
+    <td><code class="type">UUID[]</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
     <td><code class="name">created_at</code></td>
     <td><code class="type">Timestamp</code></td>
     <td><span class="badge badge-required">required</span></td>
@@ -15735,6 +16701,96 @@ system_admin は default tenant 経路から全テナント横断的に参照で
     <tbody><tr>
     <td><code class="name">applications</code></td>
     <td><code class="type">AdminApplicationResponse[]</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="context-application-model-adminapplicationcategoryrequest">
+    <header><h3>AdminApplicationCategoryRequest</h3><span class="badge badge-kind-value_object">value object</span></header>
+    <p class="desc">ApplicationCategory の作成 / 更新リクエスト。position 省略時は末尾扱い (ADR-069)。</p>
+
+    <table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">name</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="chip chip-constraint">non empty</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">position</code></td>
+    <td><code class="type">Integer</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="context-application-model-adminapplicationcategoryresponse">
+    <header><h3>AdminApplicationCategoryResponse</h3><span class="badge badge-kind-value_object">value object</span></header>
+    <p class="desc">管理 API が返す ApplicationCategory 表現。</p>
+
+    <table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">category_id</code></td>
+    <td><code class="type">UUID</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">name</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">position</code></td>
+    <td><code class="type">Integer</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">created_at</code></td>
+    <td><code class="type">Timestamp</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">updated_at</code></td>
+    <td><code class="type">Timestamp</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="context-application-model-adminapplicationcategorylistresponse">
+    <header><h3>AdminApplicationCategoryListResponse</h3><span class="badge badge-kind-value_object">value object</span></header>
+    <p class="desc">ApplicationCategory 一覧レスポンス。position 昇順 (同値は name 昇順)。</p>
+
+    <table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">categories</code></td>
+    <td><code class="type">AdminApplicationCategoryResponse[]</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="context-application-model-applicationcategoriesrequest">
+    <header><h3>ApplicationCategoriesRequest</h3><span class="badge badge-kind-value_object">value object</span></header>
+    <p class="desc">Application に付与するカテゴリ集合を置き換えるリクエスト。category_ids は所属テナントの 既存カテゴリのみを含む (ADR-069)。</p>
+
+    <table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">category_ids</code></td>
+    <td><code class="type">UUID[]</code></td>
     <td><span class="badge badge-required">required</span></td>
     <td><span class="muted">—</span></td>
     <td></td>
@@ -16269,18 +17325,83 @@ system_admin は default tenant 経路から全テナント横断的に参照で
     <td><span class="badge badge-optional">optional</span></td>
     <td><span class="muted">—</span></td>
     <td></td>
+  </tr><tr>
+    <td><code class="name">category_ids</code></td>
+    <td><code class="type">UUID[]</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td>付与カテゴリの id 群。ポータルはこれでタイルをセクションに振り分ける (ADR-069)。</td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="context-application-model-portalapplicationcategory">
+    <header><h3>PortalApplicationCategory</h3><span class="badge badge-kind-value_object">value object</span></header>
+    <p class="desc">利用者ポータルのセクション見出し 1 件。tenant のカテゴリ定義を position 昇順で表す (ADR-069)。</p>
+
+    <table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">category_id</code></td>
+    <td><code class="type">UUID</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">name</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
   </tr></tbody>
   </table>
   </article>
 <article class="card" id="context-application-model-myapplicationlistresponse">
     <header><h3>MyApplicationListResponse</h3><span class="badge badge-kind-value_object">value object</span></header>
-    <p class="desc">利用者ポータルの割当済みアプリ一覧。</p>
+    <p class="desc">利用者ポータルの割当済みアプリ一覧。手動並び順があればそれを優先し、無ければ name 昇順。
+categories は tenant のカテゴリ定義を position 昇順で含み、ポータルはこれをセクション見出しに使う (ADR-069)。
+</p>
 
     <table class="fields">
     <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
     <tbody><tr>
     <td><code class="name">applications</code></td>
     <td><code class="type">MyApplication[]</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">categories</code></td>
+    <td><code class="type">PortalApplicationCategory[]</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="context-application-model-reordermyapplicationsrequest">
+    <header><h3>ReorderMyApplicationsRequest</h3><span class="badge badge-kind-value_object">value object</span></header>
+    <p class="desc">利用者が自分のポータル手動並び順を保存する。application_ids は自分に割当済み visible なアプリのみを含む。</p>
+
+    <table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">application_ids</code></td>
+    <td><code class="type">UUID[]</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="context-application-model-myapplicationorderresponse">
+    <header><h3>MyApplicationOrderResponse</h3><span class="badge badge-kind-value_object">value object</span></header>
+    <p class="desc">利用者が保存済みのポータル手動並び順。未保存なら application_ids は空。</p>
+
+    <table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">application_ids</code></td>
+    <td><code class="type">UUID[]</code></td>
     <td><span class="badge badge-required">required</span></td>
     <td><span class="muted">—</span></td>
     <td></td>
@@ -16328,7 +17449,7 @@ system_admin は default tenant 経路から全テナント横断的に参照で
   </article></div>
     </div>
 <div class="group">
-      <h3 class="grp-title">event <span class="count">7</span></h3>
+      <h3 class="grp-title">event <span class="count">10</span></h3>
       <div class="cards"><article class="card" id="context-application-model-applicationcreated">
     <header><h3>ApplicationCreated</h3><span class="badge badge-kind-event">event</span></header>
     <p class="desc">Application を作成した。</p>
@@ -16601,11 +17722,110 @@ system_admin は default tenant 経路から全テナント横断的に参照で
     <td></td>
   </tr></tbody>
   </table>
+  </article>
+<article class="card" id="context-application-model-applicationcategorycreated">
+    <header><h3>ApplicationCategoryCreated</h3><span class="badge badge-kind-event">event</span></header>
+    <p class="desc">ApplicationCategory を作成した。</p>
+
+    <div class="label">Payload</div><table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">occurredAt</code></td>
+    <td><code class="type">Timestamp</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">tenantId</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">actorSub</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">categoryId</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="context-application-model-applicationcategoryupdated">
+    <header><h3>ApplicationCategoryUpdated</h3><span class="badge badge-kind-event">event</span></header>
+    <p class="desc">ApplicationCategory を更新した。</p>
+
+    <div class="label">Payload</div><table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">occurredAt</code></td>
+    <td><code class="type">Timestamp</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">tenantId</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">actorSub</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">categoryId</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="context-application-model-applicationcategorydeleted">
+    <header><h3>ApplicationCategoryDeleted</h3><span class="badge badge-kind-event">event</span></header>
+    <p class="desc">ApplicationCategory を削除した。付与済みの Application からも除かれる。</p>
+
+    <div class="label">Payload</div><table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">occurredAt</code></td>
+    <td><code class="type">Timestamp</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">tenantId</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">actorSub</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">categoryId</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
   </article></div>
     </div>
   </section>
 <section id="context-application-interfaces">
-    <h2>Interfaces <span class="count">13</span></h2>
+    <h2>Interfaces <span class="count">20</span></h2>
     <p class="lead">外部との契約。入力・出力・エラー・発行イベントと、それを露出する複数のトランスポート (bindings)。</p>
     <div class="cards"><article class="card" id="context-application-iface-listadminapplications">
     <header><h3>ListAdminApplications</h3><span class="badge badge-readonly">read-only</span></header>
@@ -16990,9 +18210,172 @@ system_admin は default tenant 経路から全テナント横断的に参照で
     <div class="binding-body"><div class="binding-head"><span class="badge badge-method-delete">DELETE</span> <code class="path">/api/admin/applications/{application_id}/assignments/{subject_type}/{subject_id}</code> <span class="chip chip-hint">response: 204</span></div></div>
   </div></div></div>
   </article>
+<article class="card" id="context-application-iface-listapplicationcategories">
+    <header><h3>ListApplicationCategories</h3><span class="badge badge-readonly">read-only</span></header>
+    <p class="desc">管理者が所属テナントの ApplicationCategory を position 昇順で一覧する。</p>
+
+    <div class="io">
+    <div class="label">Output</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">response</code></td>
+    <td><code class="type">AdminApplicationCategoryListResponse</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io"><div class="label">Errors</div><div class="chip-row"><a class="chip chip-error-ref" href="#context-application-model-accessdeniederror">AccessDeniedError</a></div></div>
+<div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
+    <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
+    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-get">GET</span> <code class="path">/api/admin/application-categories</code></div></div>
+  </div></div></div>
+  </article>
+<article class="card" id="context-application-iface-createapplicationcategory">
+    <header><h3>CreateApplicationCategory</h3></header>
+    <p class="desc">管理者が ApplicationCategory を作成する。</p>
+
+    <div class="io">
+    <div class="label">Input</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">request</code></td>
+    <td><code class="type">AdminApplicationCategoryRequest</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io">
+    <div class="label">Output</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">category</code></td>
+    <td><code class="type">AdminApplicationCategoryResponse</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io"><div class="label">Errors</div><div class="chip-row"><a class="chip chip-error-ref" href="#context-application-model-invalidrequesterror">InvalidRequestError</a> <a class="chip chip-error-ref" href="#context-application-model-accessdeniederror">AccessDeniedError</a></div></div>
+<div class="io"><div class="label">Emits</div><div class="chip-row"><a class="chip chip-event-ref" href="#context-application-model-applicationcategorycreated">ApplicationCategoryCreated</a></div></div>
+<div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
+    <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
+    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-post">POST</span> <code class="path">/api/admin/application-categories</code> <span class="chip chip-hint">response: 201</span> <span class="chip chip-hint">form: body</span></div></div>
+  </div></div></div>
+  </article>
+<article class="card" id="context-application-iface-updateapplicationcategory">
+    <header><h3>UpdateApplicationCategory</h3></header>
+    <p class="desc">管理者が ApplicationCategory の名前 / 並び順を更新する。</p>
+
+    <div class="io">
+    <div class="label">Input</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">category_id</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">request</code></td>
+    <td><code class="type">AdminApplicationCategoryRequest</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io">
+    <div class="label">Output</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">category</code></td>
+    <td><code class="type">AdminApplicationCategoryResponse</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io"><div class="label">Errors</div><div class="chip-row"><a class="chip chip-error-ref" href="#context-application-model-invalidrequesterror">InvalidRequestError</a> <a class="chip chip-error-ref" href="#context-application-model-accessdeniederror">AccessDeniedError</a></div></div>
+<div class="io"><div class="label">Emits</div><div class="chip-row"><a class="chip chip-event-ref" href="#context-application-model-applicationcategoryupdated">ApplicationCategoryUpdated</a></div></div>
+<div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
+    <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
+    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-patch">PATCH</span> <code class="path">/api/admin/application-categories/{category_id}</code> <span class="chip chip-hint">form: body</span></div></div>
+  </div></div></div>
+  </article>
+<article class="card" id="context-application-iface-deleteapplicationcategory">
+    <header><h3>DeleteApplicationCategory</h3></header>
+    <p class="desc">管理者が ApplicationCategory を削除する (冪等)。付与済みの Application からも除く。</p>
+
+    <div class="io">
+    <div class="label">Input</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">category_id</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io"><div class="label">Errors</div><div class="chip-row"><a class="chip chip-error-ref" href="#context-application-model-invalidrequesterror">InvalidRequestError</a> <a class="chip chip-error-ref" href="#context-application-model-accessdeniederror">AccessDeniedError</a></div></div>
+<div class="io"><div class="label">Emits</div><div class="chip-row"><a class="chip chip-event-ref" href="#context-application-model-applicationcategorydeleted">ApplicationCategoryDeleted</a></div></div>
+<div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
+    <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
+    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-delete">DELETE</span> <code class="path">/api/admin/application-categories/{category_id}</code> <span class="chip chip-hint">response: 204</span></div></div>
+  </div></div></div>
+  </article>
+<article class="card" id="context-application-iface-setapplicationcategories">
+    <header><h3>SetApplicationCategories</h3></header>
+    <p class="desc">管理者が Application に付与するカテゴリ集合を置き換える。所属テナントの既存カテゴリのみ受け付ける。</p>
+
+    <div class="io">
+    <div class="label">Input</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">application_id</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">request</code></td>
+    <td><code class="type">ApplicationCategoriesRequest</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io">
+    <div class="label">Output</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">application</code></td>
+    <td><code class="type">AdminApplicationResponse</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io"><div class="label">Errors</div><div class="chip-row"><a class="chip chip-error-ref" href="#context-application-model-invalidrequesterror">InvalidRequestError</a> <a class="chip chip-error-ref" href="#context-application-model-accessdeniederror">AccessDeniedError</a></div></div>
+<div class="io"><div class="label">Emits</div><div class="chip-row"><a class="chip chip-event-ref" href="#context-application-model-applicationupdated">ApplicationUpdated</a></div></div>
+<div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
+    <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
+    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-put">PUT</span> <code class="path">/api/admin/applications/{application_id}/categories</code> <span class="chip chip-hint">form: body</span></div></div>
+  </div></div></div>
+  </article>
 <article class="card" id="context-application-iface-listmyapplications">
     <header><h3>ListMyApplications</h3><span class="badge badge-readonly">read-only</span></header>
-    <p class="desc">利用者が自分に割当済み (visible) の Application を一覧する。hidden 割当は除外する。</p>
+    <p class="desc">利用者が自分に割当済み (visible) の Application を一覧する。hidden 割当は除外する。
+手動並び順 (ApplicationOrdering) があればそれを優先し、無ければ name 昇順。応答の categories は
+tenant のカテゴリ定義を position 昇順で含み、各アプリの category_ids でセクションに振り分ける (ADR-069)。
+</p>
 
     <div class="io">
     <div class="label">Output</div>
@@ -17010,6 +18393,64 @@ system_admin は default tenant 経路から全テナント横断的に参照で
 <div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
     <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
     <div class="binding-body"><div class="binding-head"><span class="badge badge-method-get">GET</span> <code class="path">/api/account/applications</code></div></div>
+  </div></div></div>
+  </article>
+<article class="card" id="context-application-iface-getmyapplicationorder">
+    <header><h3>GetMyApplicationOrder</h3><span class="badge badge-readonly">read-only</span></header>
+    <p class="desc">利用者が保存済みのポータル手動並び順を取得する。未保存なら空配列を返す (ADR-069)。</p>
+
+    <div class="io">
+    <div class="label">Output</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">response</code></td>
+    <td><code class="type">MyApplicationOrderResponse</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io"><div class="label">Errors</div><div class="chip-row"><a class="chip chip-error-ref" href="#context-application-model-accessdeniederror">AccessDeniedError</a></div></div>
+<div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
+    <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
+    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-get">GET</span> <code class="path">/api/account/applications/order</code></div></div>
+  </div></div></div>
+  </article>
+<article class="card" id="context-application-iface-reordermyapplications">
+    <header><h3>ReorderMyApplications</h3></header>
+    <p class="desc">利用者が自分のポータル手動並び順を保存する。application_ids は自分に割当済み visible な
+アプリのみを含み、それ以外を含むと拒否する (ADR-069)。
+</p>
+
+    <div class="io">
+    <div class="label">Input</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">request</code></td>
+    <td><code class="type">ReorderMyApplicationsRequest</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io">
+    <div class="label">Output</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">response</code></td>
+    <td><code class="type">MyApplicationOrderResponse</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io"><div class="label">Errors</div><div class="chip-row"><a class="chip chip-error-ref" href="#context-application-model-invalidrequesterror">InvalidRequestError</a> <a class="chip chip-error-ref" href="#context-application-model-accessdeniederror">AccessDeniedError</a></div></div>
+<div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
+    <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
+    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-put">PUT</span> <code class="path">/api/account/applications/order</code> <span class="chip chip-hint">form: body</span></div></div>
   </div></div></div>
   </article></div>
   </section>
@@ -17091,7 +18532,7 @@ authorize / WS-Fed sign-in / 将来 SAML SSO は割当を fail-closed で確認�
   </article></div>
   </section>
 <section id="context-application-permissions">
-    <h2>Permissions <span class="count">3</span></h2>
+    <h2>Permissions <span class="count">4</span></h2>
     <p class="lead">誰が、何に対して、どんな条件で何ができるかを宣言する認可ルール。</p>
     <div class="cards"><article class="card" id="context-application-perm-adminapplicationsmanage">
     <header><h3>AdminApplicationsManage</h3></header>
@@ -17106,6 +18547,15 @@ authorize / WS-Fed sign-in / 将来 SAML SSO は割当を fail-closed で確認�
     <header><h3>AdminApplicationAssignmentsManage</h3></header>
     <p class="desc">Application へのユーザー / グループ割当の参照・追加・削除。</p>
     <dl class="kv"><dt>actor</dt><dd><code class="name">User</code></dd><dt>operation</dt><dd><span class="muted">—</span></dd><dt>resource</dt><dd><code class="name">ApplicationAssignment</code></dd></dl>
+    <div class="clause"><div class="clause-label ok">allow when</div><div class="expr-op">
+    <div class="expr-op-label">AND</div>
+    <ul class="expr-list"><li><code class="expr">admin in actor.roles</code></li><li><code class="expr">actor.disabled_at == null</code></li><li><code class="expr">context.authenticated == true</code></li><li><code class="expr">actor.tenant_id == resource.tenant_id</code></li></ul>
+  </div></div>
+  </article>
+<article class="card" id="context-application-perm-adminapplicationcategoriesmanage">
+    <header><h3>AdminApplicationCategoriesManage</h3></header>
+    <p class="desc">所属テナント内の ApplicationCategory の参照・作成・更新・削除と Application への付与。</p>
+    <dl class="kv"><dt>actor</dt><dd><code class="name">User</code></dd><dt>operation</dt><dd><span class="muted">—</span></dd><dt>resource</dt><dd><code class="name">ApplicationCategory</code></dd></dl>
     <div class="clause"><div class="clause-label ok">allow when</div><div class="expr-op">
     <div class="expr-op-label">AND</div>
     <ul class="expr-list"><li><code class="expr">admin in actor.roles</code></li><li><code class="expr">actor.disabled_at == null</code></li><li><code class="expr">context.authenticated == true</code></li><li><code class="expr">actor.tenant_id == resource.tenant_id</code></li></ul>
@@ -17128,6 +18578,37 @@ authorize / WS-Fed sign-in / 将来 SAML SSO は割当を fail-closed で確認�
 
 
   </dl>
+    <div class="diagram-card" id="context-application-diagram-ux-transitions">
+    <div class="diagram-head">
+      <div>
+        <div class="label">Diagram</div>
+        <h3>Screen transitions</h3>
+        <p class="desc">Screen node と transition edge は user_experience.screens / transitions から派生する。</p>
+      </div>
+      <div class="diagram-tools" aria-label="Screen transitions controls">
+        <button type="button" data-diagram-zoom="in" title="Zoom in">+</button>
+        <button type="button" data-diagram-zoom="out" title="Zoom out">-</button>
+        <button type="button" data-diagram-fit title="Fit to view">Fit</button>
+      </div>
+    </div>
+    <div class="diagram-viewport" data-diagram>
+      <svg viewBox="0 0 512 130" data-diagram-svg data-diagram-viewbox="0 0 512 130" role="img" aria-label="Screen transitions">
+        <defs>
+          <marker id="arrow-ux-transitions" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z"></path>
+          </marker>
+        </defs>
+
+        <a href="#context-application-screen-adminapplications"><g class="diagram-node diagram-node-screen" id="context-application-diagram-ux-transitions-node-adminapplications">
+        <rect x="36" y="36" width="184" height="58" rx="8"></rect>
+        <text x="128" y="70">AdminApplications</text>
+      </g></a><a href="#context-application-screen-accountapps"><g class="diagram-node diagram-node-screen" id="context-application-diagram-ux-transitions-node-accountapps">
+        <rect x="292" y="36" width="184" height="58" rx="8"></rect>
+        <text x="384" y="70">AccountApps</text>
+      </g></a>
+      </svg>
+    </div>
+  </div>
     <div class="group"><h3 class="grp-title">Screens <span class="count">2</span></h3><div class="cards"><article class="card" id="context-application-screen-adminapplications">
         <header><h3>AdminApplications</h3><span class="chip chip-hint">/admin/applications</span></header>
         <p class="desc">管理者が OAuth2 / WS-Federation / service の各種クライアントを単一の「アプリケーション」として
@@ -17136,12 +18617,14 @@ authorize / WS-Fed sign-in / 将来 SAML SSO は割当を fail-closed で確認�
 DPoP、作成時に確定する認証方式) もここで編集し、専用の低レベル client 画面は持たない。
 生成された client_secret は作成成功直後に一度だけ表示する。
 </p>
-        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-iface-ref" href="#context-application-iface-listadminapplications">ListAdminApplications</a> <a class="chip chip-iface-ref" href="#context-application-iface-getadminapplication">GetAdminApplication</a> <a class="chip chip-iface-ref" href="#context-application-iface-createadminapplication">CreateAdminApplication</a> <a class="chip chip-iface-ref" href="#context-application-iface-updateadminapplication">UpdateAdminApplication</a> <a class="chip chip-iface-ref" href="#context-application-iface-deleteadminapplication">DeleteAdminApplication</a> <a class="chip chip-iface-ref" href="#context-application-iface-attachprotocolbinding">AttachProtocolBinding</a> <a class="chip chip-iface-ref" href="#context-application-iface-detachprotocolbinding">DetachProtocolBinding</a> <a class="chip chip-iface-ref" href="#context-application-iface-updateapplicationoidcconfig">UpdateApplicationOidcConfig</a> <a class="chip chip-iface-ref" href="#context-application-iface-updateapplicationwsfedconfig">UpdateApplicationWsFedConfig</a> <a class="chip chip-iface-ref" href="#context-application-iface-listapplicationassignments">ListApplicationAssignments</a> <a class="chip chip-iface-ref" href="#context-application-iface-assignapplication">AssignApplication</a> <a class="chip chip-iface-ref" href="#context-application-iface-unassignapplication">UnassignApplication</a> <a class="chip chip-iface-ref" href="#context-application-iface-listadminusers">ListAdminUsers</a> <a class="chip chip-iface-ref" href="#context-application-iface-listgroups">ListGroups</a></div>
+        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-iface-ref" href="#context-application-iface-listadminapplications">ListAdminApplications</a> <a class="chip chip-iface-ref" href="#context-application-iface-getadminapplication">GetAdminApplication</a> <a class="chip chip-iface-ref" href="#context-application-iface-createadminapplication">CreateAdminApplication</a> <a class="chip chip-iface-ref" href="#context-application-iface-updateadminapplication">UpdateAdminApplication</a> <a class="chip chip-iface-ref" href="#context-application-iface-deleteadminapplication">DeleteAdminApplication</a> <a class="chip chip-iface-ref" href="#context-application-iface-attachprotocolbinding">AttachProtocolBinding</a> <a class="chip chip-iface-ref" href="#context-application-iface-detachprotocolbinding">DetachProtocolBinding</a> <a class="chip chip-iface-ref" href="#context-application-iface-updateapplicationoidcconfig">UpdateApplicationOidcConfig</a> <a class="chip chip-iface-ref" href="#context-application-iface-updateapplicationwsfedconfig">UpdateApplicationWsFedConfig</a> <a class="chip chip-iface-ref" href="#context-application-iface-listapplicationassignments">ListApplicationAssignments</a> <a class="chip chip-iface-ref" href="#context-application-iface-assignapplication">AssignApplication</a> <a class="chip chip-iface-ref" href="#context-application-iface-unassignapplication">UnassignApplication</a> <a class="chip chip-iface-ref" href="#context-application-iface-listapplicationcategories">ListApplicationCategories</a> <a class="chip chip-iface-ref" href="#context-application-iface-createapplicationcategory">CreateApplicationCategory</a> <a class="chip chip-iface-ref" href="#context-application-iface-updateapplicationcategory">UpdateApplicationCategory</a> <a class="chip chip-iface-ref" href="#context-application-iface-deleteapplicationcategory">DeleteApplicationCategory</a> <a class="chip chip-iface-ref" href="#context-application-iface-setapplicationcategories">SetApplicationCategories</a> <a class="chip chip-iface-ref" href="#context-application-iface-listadminusers">ListAdminUsers</a> <a class="chip chip-iface-ref" href="#context-application-iface-listgroups">ListGroups</a></div>
         <div class="chip-row"><span class="chip">ready</span> <span class="chip">loading</span> <span class="chip">submitting</span> <span class="chip">empty</span> <span class="chip">secret_issued</span> <span class="chip">delete_confirmation</span> <span class="chip">access_denied</span> <span class="chip">service_error</span></div>
       </article><article class="card" id="context-application-screen-accountapps">
         <header><h3>AccountApps</h3><span class="chip chip-hint">/account/apps</span></header>
-        <p class="desc">end-userが利用できるアプリケーションをタイルで一覧し、起動する。</p>
-        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-iface-ref" href="#context-application-iface-listmyapplications">ListMyApplications</a></div>
+        <p class="desc">end-user が利用できるアプリケーションをタイルで一覧し、起動する。管理者が定義したカテゴリ
+ごとにセクション表示し、利用者は手動で並び替えられる (ADR-069)。
+</p>
+        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-iface-ref" href="#context-application-iface-listmyapplications">ListMyApplications</a> <a class="chip chip-iface-ref" href="#context-application-iface-getmyapplicationorder">GetMyApplicationOrder</a> <a class="chip chip-iface-ref" href="#context-application-iface-reordermyapplications">ReorderMyApplications</a></div>
         <div class="chip-row"><span class="chip">ready</span> <span class="chip">loading</span> <span class="chip">empty</span> <span class="chip">access_denied</span> <span class="chip">service_error</span></div>
       </article></div></div>
     <div class="group"><h3 class="grp-title">Transitions <span class="count">1</span></h3><table class="fields"><thead><tr><th>From</th><th>Trigger</th><th>To</th><th>Interface</th></tr></thead><tbody><tr>
@@ -17734,7 +19217,52 @@ verifying として残存し、SigningKeyMinJwksOverlap 期間後に Retire さ�
 <section id="context-signingkeys-states">
     <h2>States <span class="count">1</span></h2>
 
-    <div class="cards"><article class="card" id="context-signingkeys-state-signingkeylifecycle">
+    <div class="diagram-card" id="context-signingkeys-diagram-state-signingkeylifecycle">
+    <div class="diagram-head">
+      <div>
+        <div class="label">Diagram</div>
+        <h3>SigningKeyLifecycle transitions</h3>
+        <p class="desc">State node と transition edge は states.transitions から派生する。</p>
+      </div>
+      <div class="diagram-tools" aria-label="SigningKeyLifecycle transitions controls">
+        <button type="button" data-diagram-zoom="in" title="Zoom in">+</button>
+        <button type="button" data-diagram-zoom="out" title="Zoom out">-</button>
+        <button type="button" data-diagram-fit title="Fit to view">Fit</button>
+      </div>
+    </div>
+    <div class="diagram-viewport" data-diagram>
+      <svg viewBox="0 0 512 256" data-diagram-svg data-diagram-viewbox="0 0 512 256" role="img" aria-label="SigningKeyLifecycle transitions">
+        <defs>
+          <marker id="arrow-state-signingkeylifecycle" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z"></path>
+          </marker>
+        </defs>
+        <a href="#context-signingkeys-state-signingkeylifecycle"><g class="diagram-edge" id="context-signingkeys-diagram-state-signingkeylifecycle-edge-0">
+        <line x1="220.0" y1="65.0" x2="292.0" y2="65.0" marker-end="url(#arrow-state-signingkeylifecycle)"></line>
+        <text x="256.0" y="59.0">Rotate</text>
+      </g></a><a href="#context-signingkeys-state-signingkeylifecycle"><g class="diagram-edge" id="context-signingkeys-diagram-state-signingkeylifecycle-edge-1">
+        <line x1="301.5" y1="77.8" x2="210.5" y2="178.2" marker-end="url(#arrow-state-signingkeylifecycle)"></line>
+        <text x="256.0" y="122.0">Retire</text>
+      </g></a><a href="#context-signingkeys-state-signingkeylifecycle"><g class="diagram-edge" id="context-signingkeys-diagram-state-signingkeylifecycle-edge-2">
+        <line x1="220.0" y1="191.0" x2="292.0" y2="191.0" marker-end="url(#arrow-state-signingkeylifecycle)"></line>
+        <text x="256.0" y="185.0">Archive</text>
+      </g></a>
+        <a href="#context-signingkeys-state-signingkeylifecycle"><g class="diagram-node diagram-node-initial" id="context-signingkeys-diagram-state-signingkeylifecycle-node-active">
+        <rect x="36" y="36" width="184" height="58" rx="8"></rect>
+        <text x="128" y="70">Active</text>
+      </g></a><a href="#context-signingkeys-state-signingkeylifecycle"><g class="diagram-node diagram-node-state" id="context-signingkeys-diagram-state-signingkeylifecycle-node-verifying">
+        <rect x="292" y="36" width="184" height="58" rx="8"></rect>
+        <text x="384" y="70">Verifying</text>
+      </g></a><a href="#context-signingkeys-state-signingkeylifecycle"><g class="diagram-node diagram-node-state" id="context-signingkeys-diagram-state-signingkeylifecycle-node-retired">
+        <rect x="36" y="162" width="184" height="58" rx="8"></rect>
+        <text x="128" y="196">Retired</text>
+      </g></a><a href="#context-signingkeys-state-signingkeylifecycle"><g class="diagram-node diagram-node-terminal" id="context-signingkeys-diagram-state-signingkeylifecycle-node-archived">
+        <rect x="292" y="162" width="184" height="58" rx="8"></rect>
+        <text x="384" y="196">Archived</text>
+      </g></a>
+      </svg>
+    </div>
+  </div><div class="cards"><article class="card" id="context-signingkeys-state-signingkeylifecycle">
     <header><h3>SigningKeyLifecycle</h3></header>
     <p class="desc">署名鍵のライフサイクル（SigningKeyMinJwksOverlap）。Active から Rotate で Verifying に降り、Retire で JWKS から外し、Archive で監査保管に入る。</p>
     <dl class="kv"><dt>target</dt><dd><code>SigningKey</code></dd><dt>initial</dt><dd><span class="chip chip-initial">Active</span></dd><dt>terminal</dt><dd><span class="chip chip-terminal">Archived</span></dd></dl>
@@ -17867,6 +19395,34 @@ tenant 経路から実行する場合のみ許可する。
 
 
   </dl>
+    <div class="diagram-card" id="context-signingkeys-diagram-ux-transitions">
+    <div class="diagram-head">
+      <div>
+        <div class="label">Diagram</div>
+        <h3>Screen transitions</h3>
+        <p class="desc">Screen node と transition edge は user_experience.screens / transitions から派生する。</p>
+      </div>
+      <div class="diagram-tools" aria-label="Screen transitions controls">
+        <button type="button" data-diagram-zoom="in" title="Zoom in">+</button>
+        <button type="button" data-diagram-zoom="out" title="Zoom out">-</button>
+        <button type="button" data-diagram-fit title="Fit to view">Fit</button>
+      </div>
+    </div>
+    <div class="diagram-viewport" data-diagram>
+      <svg viewBox="0 0 256 130" data-diagram-svg data-diagram-viewbox="0 0 256 130" role="img" aria-label="Screen transitions">
+        <defs>
+          <marker id="arrow-ux-transitions" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z"></path>
+          </marker>
+        </defs>
+
+        <a href="#context-signingkeys-screen-adminkeys"><g class="diagram-node diagram-node-screen" id="context-signingkeys-diagram-ux-transitions-node-adminkeys">
+        <rect x="36" y="36" width="184" height="58" rx="8"></rect>
+        <text x="128" y="70">AdminKeys</text>
+      </g></a>
+      </svg>
+    </div>
+  </div>
     <div class="group"><h3 class="grp-title">Screens <span class="count">1</span></h3><div class="cards"><article class="card" id="context-signingkeys-screen-adminkeys">
         <header><h3>AdminKeys</h3><span class="chip chip-hint">/admin/keys</span></header>
         <p class="desc">管理者が署名鍵を一覧・参照し、回転する。回転後も旧 kid は JWKS で保持される。</p>
@@ -18871,6 +20427,34 @@ tenant 経路から実行する場合のみ許可する。
 
 
   </dl>
+    <div class="diagram-card" id="context-wsfederation-diagram-ux-transitions">
+    <div class="diagram-head">
+      <div>
+        <div class="label">Diagram</div>
+        <h3>Screen transitions</h3>
+        <p class="desc">Screen node と transition edge は user_experience.screens / transitions から派生する。</p>
+      </div>
+      <div class="diagram-tools" aria-label="Screen transitions controls">
+        <button type="button" data-diagram-zoom="in" title="Zoom in">+</button>
+        <button type="button" data-diagram-zoom="out" title="Zoom out">-</button>
+        <button type="button" data-diagram-fit title="Fit to view">Fit</button>
+      </div>
+    </div>
+    <div class="diagram-viewport" data-diagram>
+      <svg viewBox="0 0 256 130" data-diagram-svg data-diagram-viewbox="0 0 256 130" role="img" aria-label="Screen transitions">
+        <defs>
+          <marker id="arrow-ux-transitions" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z"></path>
+          </marker>
+        </defs>
+
+        <a href="#context-wsfederation-screen-adminentrafederation"><g class="diagram-node diagram-node-screen" id="context-wsfederation-diagram-ux-transitions-node-adminentrafederation">
+        <rect x="36" y="36" width="184" height="58" rx="8"></rect>
+        <text x="128" y="70">AdminEntraFederation</text>
+      </g></a>
+      </svg>
+    </div>
+  </div>
     <div class="group"><h3 class="grp-title">Screens <span class="count">1</span></h3><div class="cards"><article class="card" id="context-wsfederation-screen-adminentrafederation">
         <header><h3>AdminEntraFederation</h3><span class="chip chip-hint">/admin/federation/entra</span></header>
         <p class="desc">管理者がテナント単位で Microsoft Entra domain federation を設定する。検証済みドメイン・
@@ -19742,7 +21326,55 @@ ActiveLogOnUri / MetadataExchangeUri を提示する。個別アプリの設定�
     window._scrollSpy = () => requestAnimationFrame(update);
     window.addEventListener('scroll', window._scrollSpy, { passive: true });
   };
+  const initDiagrams = () => {
+    for (const box of document.querySelectorAll('[data-diagram]')) {
+      const svg = box.querySelector('[data-diagram-svg]');
+      if (!svg) continue;
+      const initial = (svg.getAttribute('data-diagram-viewbox') || svg.getAttribute('viewBox') || '0 0 100 100')
+        .split(/\s+/)
+        .map(Number);
+      let viewBox = initial.slice();
+      const apply = () => svg.setAttribute('viewBox', viewBox.map((n) => Number(n.toFixed(2))).join(' '));
+      const zoom = (factor) => {
+        const [x, y, w, h] = viewBox;
+        const nw = w * factor;
+        const nh = h * factor;
+        viewBox = [x + (w - nw) / 2, y + (h - nh) / 2, nw, nh];
+        apply();
+      };
+      const card = box.closest('.diagram-card');
+      card?.querySelector('[data-diagram-zoom="in"]')?.addEventListener('click', () => zoom(0.82));
+      card?.querySelector('[data-diagram-zoom="out"]')?.addEventListener('click', () => zoom(1.22));
+      card?.querySelector('[data-diagram-fit]')?.addEventListener('click', () => {
+        viewBox = initial.slice();
+        apply();
+      });
+      let drag = null;
+      box.addEventListener('pointerdown', (event) => {
+        drag = { x: event.clientX, y: event.clientY, viewBox: viewBox.slice() };
+        box.classList.add('dragging');
+        box.setPointerCapture?.(event.pointerId);
+      });
+      box.addEventListener('pointermove', (event) => {
+        if (!drag) return;
+        const rect = box.getBoundingClientRect();
+        const dx = ((event.clientX - drag.x) / Math.max(1, rect.width)) * drag.viewBox[2];
+        const dy = ((event.clientY - drag.y) / Math.max(1, rect.height)) * drag.viewBox[3];
+        viewBox = [drag.viewBox[0] - dx, drag.viewBox[1] - dy, drag.viewBox[2], drag.viewBox[3]];
+        apply();
+      });
+      const endDrag = (event) => {
+        drag = null;
+        box.classList.remove('dragging');
+        if (event?.pointerId !== undefined) box.releasePointerCapture?.(event.pointerId);
+      };
+      box.addEventListener('pointerup', endDrag);
+      box.addEventListener('pointercancel', endDrag);
+      box.addEventListener('pointerleave', endDrag);
+    }
+  };
   window.addEventListener('hashchange', route);
+  initDiagrams();
   route();
 })();</script>
 </body>

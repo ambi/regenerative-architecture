@@ -380,6 +380,54 @@ table.fields tbody tr:last-child td { border-bottom: none; }
 .sub { margin-top: 10px; }
 .io { margin-top: 10px; }
 
+/* diagrams */
+.diagram-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  padding: 14px 16px; margin: 14px 0 18px; box-shadow: var(--shadow);
+}
+.diagram-head {
+  display: flex; justify-content: space-between; gap: 16px; align-items: start;
+  margin-bottom: 10px;
+}
+.diagram-head h3 { margin: 0; font-size: 17px; letter-spacing: -0.01em; }
+.diagram-head .desc { margin-bottom: 0; }
+.diagram-tools { display: flex; gap: 4px; flex: 0 0 auto; }
+.diagram-tools button {
+  min-width: 32px; height: 30px; padding: 0 9px; border-radius: 7px;
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--fg-soft);
+  font: inherit; font-size: 13px; cursor: pointer;
+}
+.diagram-tools button:hover { color: var(--accent); border-color: var(--accent); }
+.diagram-viewport {
+  overflow: hidden; border: 1px solid var(--border); border-radius: 9px;
+  background: var(--surface-2); min-height: 260px; cursor: grab;
+}
+.diagram-viewport.dragging { cursor: grabbing; }
+.diagram-viewport svg { display: block; width: 100%; height: 320px; touch-action: none; }
+.diagram-edge line { stroke: var(--muted); stroke-width: 1.6; }
+.diagram-edge text {
+  fill: var(--fg-soft); font-size: 11px; text-anchor: middle;
+  paint-order: stroke; stroke: var(--surface-2); stroke-width: 5px; stroke-linejoin: round;
+}
+.diagram-node rect {
+  fill: var(--surface); stroke: var(--border); stroke-width: 1.4;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,.08));
+}
+.diagram-node text {
+  fill: var(--fg); font-size: 13px; font-weight: 600; text-anchor: middle;
+  dominant-baseline: middle;
+}
+.diagram-node-initial rect { stroke: var(--accent); fill: var(--accent-soft); }
+.diagram-node-terminal rect { stroke: var(--warn); fill: var(--warn-soft); }
+.diagram-node-external rect { stroke-dasharray: 5 4; fill: var(--surface-2); }
+.diagram-card a:hover .diagram-node rect { stroke: var(--accent); }
+.diagram-card a:hover .diagram-node text { fill: var(--accent); }
+.diagram-card marker path { fill: var(--muted); }
+@media (max-width: 720px) {
+  .diagram-head { flex-direction: column; }
+  .diagram-viewport svg { height: 260px; }
+}
+
 /* scenarios */
 .iface-step { margin: 6px 0 2px; }
 .step-tpl { color: var(--fg-soft); }
@@ -688,7 +736,56 @@ const SCRIPT = `
     window.addEventListener('scroll', window._scrollSpy, { passive: true });
   };
 
+  const initDiagrams = () => {
+    for (const box of document.querySelectorAll('[data-diagram]')) {
+      const svg = box.querySelector('[data-diagram-svg]');
+      if (!svg) continue;
+      const initial = (svg.getAttribute('data-diagram-viewbox') || svg.getAttribute('viewBox') || '0 0 100 100')
+        .split(/\\s+/)
+        .map(Number);
+      let viewBox = initial.slice();
+      const apply = () => svg.setAttribute('viewBox', viewBox.map((n) => Number(n.toFixed(2))).join(' '));
+      const zoom = (factor) => {
+        const [x, y, w, h] = viewBox;
+        const nw = w * factor;
+        const nh = h * factor;
+        viewBox = [x + (w - nw) / 2, y + (h - nh) / 2, nw, nh];
+        apply();
+      };
+      const card = box.closest('.diagram-card');
+      card?.querySelector('[data-diagram-zoom="in"]')?.addEventListener('click', () => zoom(0.82));
+      card?.querySelector('[data-diagram-zoom="out"]')?.addEventListener('click', () => zoom(1.22));
+      card?.querySelector('[data-diagram-fit]')?.addEventListener('click', () => {
+        viewBox = initial.slice();
+        apply();
+      });
+      let drag = null;
+      box.addEventListener('pointerdown', (event) => {
+        drag = { x: event.clientX, y: event.clientY, viewBox: viewBox.slice() };
+        box.classList.add('dragging');
+        box.setPointerCapture?.(event.pointerId);
+      });
+      box.addEventListener('pointermove', (event) => {
+        if (!drag) return;
+        const rect = box.getBoundingClientRect();
+        const dx = ((event.clientX - drag.x) / Math.max(1, rect.width)) * drag.viewBox[2];
+        const dy = ((event.clientY - drag.y) / Math.max(1, rect.height)) * drag.viewBox[3];
+        viewBox = [drag.viewBox[0] - dx, drag.viewBox[1] - dy, drag.viewBox[2], drag.viewBox[3]];
+        apply();
+      });
+      const endDrag = (event) => {
+        drag = null;
+        box.classList.remove('dragging');
+        if (event?.pointerId !== undefined) box.releasePointerCapture?.(event.pointerId);
+      };
+      box.addEventListener('pointerup', endDrag);
+      box.addEventListener('pointercancel', endDrag);
+      box.addEventListener('pointerleave', endDrag);
+    }
+  };
+
   window.addEventListener('hashchange', route);
+  initDiagrams();
   route();
 })();
 `

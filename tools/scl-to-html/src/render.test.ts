@@ -13,6 +13,10 @@ import type { ChangeEntry, DecisionDoc, SclBundle, SclDocument, SiteInput } from
 const sampleScl = (): SclDocument => ({
   system: 'demo',
   spec_version: '2.0',
+  context_map: {
+    Auth: { description: 'auth context', depends_on: { Directory: { via: 'published_language' } } },
+    Directory: { description: 'directory context' },
+  },
   glossary: {
     Foo: { definition: 'a thing' },
   },
@@ -31,6 +35,16 @@ const sampleScl = (): SclDocument => ({
       bindings: [
         { kind: 'http', method: 'POST', path: '/do' },
         { kind: 'schedule', every: '1m' },
+      ],
+    },
+  },
+  states: {
+    FooLifecycle: {
+      initial: 'Draft',
+      terminal: ['Done'],
+      transitions: [
+        { from: 'Draft', event: 'Submit', to: 'Ready' },
+        { from: 'Ready', event: 'Finish', to: 'Done' },
       ],
     },
   },
@@ -54,6 +68,13 @@ const sampleScl = (): SclDocument => ({
   objectives: {
     O: { kind: 'slo', metric: 'latency_p95', target: '<200ms' } as never,
   },
+  user_experience: {
+    screens: {
+      Login: { route: '/login', interfaces: ['DoIt'] },
+      Done: { route: '/done' },
+    },
+    transitions: [{ from: 'Login', trigger: 'success', to: 'Done', interface: 'DoIt' }],
+  },
 })
 
 describe('renderSclTab', () => {
@@ -63,10 +84,12 @@ describe('renderSclTab', () => {
     expect(html).toContain('id="glossary"')
     expect(html).toContain('id="models"')
     expect(html).toContain('id="interfaces"')
+    expect(html).toContain('id="states"')
     expect(html).toContain('id="permissions"')
     expect(html).toContain('id="invariants"')
     expect(html).toContain('id="scenarios"')
     expect(html).toContain('id="objectives"')
+    expect(html).toContain('id="user_experience"')
   })
 
   it('renders the spec version in the SCL tab header', () => {
@@ -89,6 +112,16 @@ describe('renderSclTab', () => {
 
   it('renders the schedule binding kind', () => {
     expect(html).toContain('every: 1m')
+  })
+
+  it('renders derived diagrams for context map, states, and UX transitions', () => {
+    expect(html).toContain('id="diagram-context-map"')
+    expect(html).toContain('id="diagram-state-foolifecycle"')
+    expect(html).toContain('id="diagram-ux-transitions"')
+    expect(html).toContain('data-diagram-svg')
+    expect(html).toContain('published_language')
+    expect(html).toContain('Submit')
+    expect(html).toContain('success')
   })
 
   it('lists section titles in TOC items', () => {
@@ -325,6 +358,7 @@ describe('renderPage (integration)', () => {
     expect(html.startsWith('<!doctype html>')).toBe(true)
     expect(html).toContain('<style>')
     expect(html).toContain('<script>')
+    expect(html).toContain('data-diagram-zoom')
   })
 
   it('embeds available tabs with data-tab markers', () => {

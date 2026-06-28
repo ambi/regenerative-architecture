@@ -76,6 +76,7 @@ const prefixAnchors = (html: string, prefix: string): string => {
       'obj',
       'screen',
       'ux',
+      'diagram',
     ].join('|')})-`,
   )
   const shouldPrefix = (id: string): boolean => knownIds.has(id) || idRe.test(id)
@@ -101,6 +102,107 @@ const renderNamedReferences = (refs?: Record<string, string[]>): string => {
       return `<div class="reference-row"><span class="reference-label">${esc(section)}</span>${values}</div>`
     })
     .join('')
+}
+
+// ─── derived diagrams ──────────────────────────────────────────────
+
+interface DiagramNode {
+  id: string
+  label: string
+  href?: string
+  kind?: string
+}
+
+interface DiagramEdge {
+  from: string
+  to: string
+  label?: string
+  href?: string
+}
+
+const renderDiagram = (
+  id: string,
+  title: string,
+  description: string,
+  nodes: DiagramNode[],
+  edges: DiagramEdge[],
+): string => {
+  if (!nodes.length) return ''
+  const nodeW = 184
+  const nodeH = 58
+  const gapX = 72
+  const gapY = 68
+  const pad = 36
+  const cols = Math.max(1, Math.ceil(Math.sqrt(nodes.length)))
+  const positions = new Map<string, { x: number; y: number; cx: number; cy: number }>()
+  nodes.forEach((node, index) => {
+    const col = index % cols
+    const row = Math.floor(index / cols)
+    const x = pad + col * (nodeW + gapX)
+    const y = pad + row * (nodeH + gapY)
+    positions.set(node.id, { x, y, cx: x + nodeW / 2, cy: y + nodeH / 2 })
+  })
+  const rows = Math.ceil(nodes.length / cols)
+  const width = pad * 2 + cols * nodeW + Math.max(0, cols - 1) * gapX
+  const height = pad * 2 + rows * nodeH + Math.max(0, rows - 1) * gapY
+  const viewBox = `0 0 ${width} ${height}`
+  const edgeSvg = edges
+    .map((edge, index) => {
+      const from = positions.get(edge.from)
+      const to = positions.get(edge.to)
+      if (!from || !to) return ''
+      const dx = to.cx - from.cx
+      const dy = to.cy - from.cy
+      const len = Math.max(1, Math.hypot(dx, dy))
+      const sx = from.cx + (dx / len) * (nodeW / 2)
+      const sy = from.cy + (dy / len) * (nodeH / 2)
+      const tx = to.cx - (dx / len) * (nodeW / 2)
+      const ty = to.cy - (dy / len) * (nodeH / 2)
+      const labelX = (sx + tx) / 2
+      const labelY = (sy + ty) / 2 - 6
+      const line = `<g class="diagram-edge" id="diagram-${esc(id)}-edge-${index}">
+        <line x1="${sx.toFixed(1)}" y1="${sy.toFixed(1)}" x2="${tx.toFixed(1)}" y2="${ty.toFixed(1)}" marker-end="url(#arrow-${esc(id)})"></line>
+        ${edge.label ? `<text x="${labelX.toFixed(1)}" y="${labelY.toFixed(1)}">${esc(edge.label)}</text>` : ''}
+      </g>`
+      return edge.href ? `<a href="${esc(edge.href)}">${line}</a>` : line
+    })
+    .join('')
+  const nodeSvg = nodes
+    .map((node) => {
+      const pos = positions.get(node.id)
+      if (!pos) return ''
+      const body = `<g class="diagram-node diagram-node-${esc(node.kind ?? 'default')}" id="diagram-${esc(id)}-node-${esc(slug(node.id))}">
+        <rect x="${pos.x}" y="${pos.y}" width="${nodeW}" height="${nodeH}" rx="8"></rect>
+        <text x="${pos.cx}" y="${pos.cy + 5}">${esc(node.label)}</text>
+      </g>`
+      return node.href ? `<a href="${esc(node.href)}">${body}</a>` : body
+    })
+    .join('')
+  return `<div class="diagram-card" id="diagram-${esc(id)}">
+    <div class="diagram-head">
+      <div>
+        <div class="label">Diagram</div>
+        <h3>${esc(title)}</h3>
+        ${description ? `<p class="desc">${esc(description)}</p>` : ''}
+      </div>
+      <div class="diagram-tools" aria-label="${esc(title)} controls">
+        <button type="button" data-diagram-zoom="in" title="Zoom in">+</button>
+        <button type="button" data-diagram-zoom="out" title="Zoom out">-</button>
+        <button type="button" data-diagram-fit title="Fit to view">Fit</button>
+      </div>
+    </div>
+    <div class="diagram-viewport" data-diagram>
+      <svg viewBox="${viewBox}" data-diagram-svg data-diagram-viewbox="${viewBox}" role="img" aria-label="${esc(title)}">
+        <defs>
+          <marker id="arrow-${esc(id)}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z"></path>
+          </marker>
+        </defs>
+        ${edgeSvg}
+        ${nodeSvg}
+      </svg>
+    </div>
+  </div>`
 }
 
 // ─── fields / IO tables ────────────────────────────────────────────
@@ -287,11 +389,32 @@ const renderContextMap = (contextMap: Record<string, ContextMapEntry>): string =
   const cards = Object.entries(contextMap)
     .map(([n, c]) => renderContextMapEntry(n, c))
     .join('\n')
+  const nodes = Object.keys(contextMap).map((name) => ({
+    id: name,
+    label: name,
+    href: `#ctx-${slug(name)}`,
+    kind: 'context',
+  }))
+  const edges = Object.entries(contextMap).flatMap(([name, entry]) =>
+    Object.entries(entry.depends_on ?? {}).map(([depName, dep]) => ({
+      from: name,
+      to: depName,
+      label: dep.via ?? 'depends on',
+      href: `#ctx-${slug(depName)}`,
+    })),
+  )
+  const diagram = renderDiagram(
+    'context-map',
+    'Context dependencies',
+    'Context node と dependency edge は context_map から派生する。',
+    nodes,
+    edges,
+  )
   return wrapSection(
     'context_map',
     'Context Map',
     'Bounded Context 間の公開言語と依存方向。',
-    `<div class="cards">${cards}</div>`,
+    `${diagram}<div class="cards">${cards}</div>`,
     Object.keys(contextMap).length,
   )
 }
@@ -659,11 +782,44 @@ const renderStates = (sms: Record<string, StateMachine>): string => {
   const cards = Object.entries(sms)
     .map(([n, sm]) => renderStateMachine(n, sm))
     .join('\n')
+  const diagrams = Object.entries(sms)
+    .map(([name, sm]) => {
+      const states = new Set<string>()
+      for (const transition of sm.transitions ?? []) {
+        if (transition.from) states.add(transition.from)
+        if (transition.to) states.add(transition.to)
+      }
+      if (sm.initial) states.add(sm.initial)
+      for (const state of sm.terminal ?? []) states.add(state)
+      const terminal = new Set(sm.terminal ?? [])
+      const nodes = [...states].map((state) => ({
+        id: state,
+        label: state,
+        href: `#state-${slug(name)}`,
+        kind: state === sm.initial ? 'initial' : terminal.has(state) ? 'terminal' : 'state',
+      }))
+      const edges = (sm.transitions ?? [])
+        .filter((transition) => transition.from && transition.to)
+        .map((transition) => ({
+          from: String(transition.from),
+          to: String(transition.to),
+          label: String(transition.event ?? transition.on ?? ''),
+          href: `#state-${slug(name)}`,
+        }))
+      return renderDiagram(
+        `state-${slug(name)}`,
+        `${name} transitions`,
+        'State node と transition edge は states.transitions から派生する。',
+        nodes,
+        edges,
+      )
+    })
+    .join('\n')
   return wrapSection(
     'states',
     'States',
     '',
-    `<div class="cards">${cards}</div>`,
+    `${diagrams}<div class="cards">${cards}</div>`,
     Object.keys(sms).length,
   )
 }
@@ -921,6 +1077,31 @@ const renderObjectives = (objs: Record<string, Objective>): string => {
 // ─── section: user_experience ──────────────────────────────────────
 
 const renderUserExperience = (ux: UserExperience): string => {
+  const screenNodes = Object.keys(ux.screens ?? {}).map((name) => ({
+    id: name,
+    label: name,
+    href: `#screen-${slug(name)}`,
+    kind: 'screen',
+  }))
+  const externalNodes = (ux.transitions ?? []).some(
+    (transition) => transition.external && !transition.to,
+  )
+    ? [{ id: '__external__', label: 'External', kind: 'external' }]
+    : []
+  const uxDiagram = renderDiagram(
+    'ux-transitions',
+    'Screen transitions',
+    'Screen node と transition edge は user_experience.screens / transitions から派生する。',
+    [...screenNodes, ...externalNodes],
+    (ux.transitions ?? [])
+      .filter((transition) => transition.from && (transition.to || transition.external))
+      .map((transition) => ({
+        from: String(transition.from),
+        to: transition.to ? String(transition.to) : '__external__',
+        label: String(transition.trigger ?? transition.interface ?? ''),
+        href: transition.to ? `#screen-${slug(transition.to)}` : undefined,
+      })),
+  )
   const screens = Object.entries(ux.screens ?? {})
     .map(
       ([name, screen]) => `<article class="card" id="screen-${esc(slug(name))}">
@@ -998,6 +1179,7 @@ const renderUserExperience = (ux: UserExperience): string => {
     'User Experience',
     'ブラウザ画面、画面遷移、セキュリティ・プライバシー・アクセシビリティ要件。',
     `${metadata}
+    ${uxDiagram}
     <div class="group"><h3 class="grp-title">Screens <span class="count">${Object.keys(ux.screens ?? {}).length}</span></h3><div class="cards">${screens}</div></div>
     <div class="group"><h3 class="grp-title">Transitions <span class="count">${ux.transitions?.length ?? 0}</span></h3><table class="fields"><thead><tr><th>From</th><th>Trigger</th><th>To</th><th>Interface</th></tr></thead><tbody>${transitions}</tbody></table></div>
     <div class="group"><h3 class="grp-title">Requirements <span class="count">${ux.requirements?.length ?? 0}</span></h3><div class="requirements">${requirements}</div></div>`,

@@ -1083,6 +1083,7 @@ objectives:
       forbid_user_identifier_similarity: true
       common_password_dictionary: bundled
       history_depth: 5
+      breached_password_check_enabled: false
   LoginThrottlePolicy:
     kind: security
     policy: login_throttle

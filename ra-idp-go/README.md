@@ -161,6 +161,7 @@ go run ./cmd/ra-idp-relay
 | `SMTP_HELO`          | EHLO/HELO で使うローカル名 (`localhost`)                                          |
 | `SMTP_TLS`           | `starttls` / `implicit` / `none` (`starttls`)。`none` は開発専用                  |
 | `SMTP_TIMEOUT_SECONDS` | 接続とコマンドのタイムアウト (`10`)                                             |
+| `BREACHED_PASSWORD_CHECKER` | `noop` / `hibp` (`noop`)。`hibp` は `api.pwnedpasswords.com` への egress が要り、障害時は fail-open (検査を素通り) する (ADR-028) |
 
 `jwks_uri` は HTTPS のみ許可し、プライベート / ループバック / リンクローカルアドレス、
 userinfo、フラグメントを拒否する。取得は 3 秒タイムアウト、1 MiB 上限、5 分キャッシュとする。

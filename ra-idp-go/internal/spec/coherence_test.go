@@ -45,6 +45,20 @@ func TestPasswordPolicyHistoryDepthMatchesSCL(t *testing.T) {
 	}
 }
 
+func TestPasswordPolicyBreachedCheckEnabledMatchesSCL(t *testing.T) {
+	s, err := spec.LoadSCL()
+	if err != nil {
+		t.Fatalf("load scl: %v", err)
+	}
+	got, ok := s.ObjectiveBool("PasswordPolicy", "breached_password_check_enabled")
+	if !ok {
+		t.Fatal("objectives.PasswordPolicy.value.breached_password_check_enabled missing or not a bool")
+	}
+	if got != usecases.PasswordPolicyBreachedCheckEnabled {
+		t.Fatalf("objectives.PasswordPolicy.value.breached_password_check_enabled=%v, Go PasswordPolicyBreachedCheckEnabled=%v", got, usecases.PasswordPolicyBreachedCheckEnabled)
+	}
+}
+
 func TestPasswordResetTokenTTLMatchesSCL(t *testing.T) {
 	s, err := spec.LoadSCL()
 	if err != nil {

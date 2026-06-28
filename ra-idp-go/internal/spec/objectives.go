@@ -5,6 +5,19 @@ import (
 	"time"
 )
 
+func (s *SCL) ObjectiveBool(name, key string) (bool, bool) {
+	objective, ok := s.Objectives[name]
+	if !ok {
+		return false, false
+	}
+	values, ok := objective.Value.(map[string]any)
+	if !ok {
+		return false, false
+	}
+	value, ok := values[key].(bool)
+	return value, ok
+}
+
 func (s *SCL) ObjectiveInt(name, key string) (int, bool) {
 	objective, ok := s.Objectives[name]
 	if !ok {

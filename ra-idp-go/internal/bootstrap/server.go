@@ -17,7 +17,6 @@ import (
 	httpcore "ra-idp-go/internal/infrastructure/http/core"
 	"ra-idp-go/internal/infrastructure/observability"
 	"ra-idp-go/internal/infrastructure/persistence/memory"
-	"ra-idp-go/internal/infrastructure/policy"
 	"ra-idp-go/internal/spec"
 	tenantusecases "ra-idp-go/internal/tenancy/usecases"
 
@@ -72,6 +71,10 @@ func Run() error {
 	emailSender, err := resolveEmailSender(os.Getenv)
 	if err != nil {
 		return fmt.Errorf("resolve email sender: %w", err)
+	}
+	breachedChecker, err := resolveBreachedPasswordChecker(os.Getenv)
+	if err != nil {
+		return fmt.Errorf("resolve breached password checker: %w", err)
 	}
 	objectiveInt := func(group, key string) int {
 		value, ok := sclDoc.ObjectiveNestedInt("LoginThrottlePolicy", group, key)
@@ -140,7 +143,7 @@ func Run() error {
 		PasswordResetTokenStore: deps.PasswordResetTokenStore,
 		EmailChangeTokenStore:   deps.EmailChangeTokenStore,
 		EmailSender:             emailSender,
-		BreachedPasswordChecker: policy.NoopBreachedPasswordChecker{},
+		BreachedPasswordChecker: breachedChecker,
 		LoginAttemptThrottle:    loginThrottle,
 		TrustedForwardedHops:    envInt("TRUSTED_FORWARDED_HOPS", 0),
 		SentinelPasswordHash:    sentinelPasswordHash,

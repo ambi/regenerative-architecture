@@ -85,7 +85,7 @@ context_map:
           - ApplicationAssignmentRef
         reason: authorize は client が属する Application への割当を fail-closed で確認する。
   Application:
-    description: "運用者が「接続する業務アプリケーション」として扱う上位概念を所有する。OIDC client /\nSAML SP / WS-Fed RP は Application の protocol binding であり、表示名、アイコン、\nライフサイクル、割当はここに集約する (ADR-064, wi-69)。割当はポータル可視性と\nフェデレーション利用可否を fail-closed で制御する。protocol binding の wire 挙動は\n各 protocol context が所有し、Application は binding を opaque key で参照する。\n"
+    description: "運用者が「接続する業務アプリケーション」として扱う上位概念を所有する。OIDC client /\nSAML SP / WS-Fed RP は Application の protocol binding であり、表示名、アイコン、\nライフサイクル、割当はここに集約する。割当はポータル可視性と\nフェデレーション利用可否を fail-closed で制御する。protocol binding の wire 挙動は\n各 protocol context が所有し、Application は binding を opaque key で参照する。\n"
     path: contexts/application.yaml
     publishes:
       - ApplicationRef
@@ -103,7 +103,7 @@ context_map:
           - GroupRef
         reason: 割当の subject は User / Group の identity principal である。
   ClaimMapping:
-    description: "identity principal の属性を外部 relying party / service provider / client へ出すための\nrelease policy と protocol-neutral な claim projection を所有する。属性解決と出力許可を\n共通化し、OIDC JSON claims、SAML AttributeStatement、WS-Fed claim URI への wire 変換は\n各 protocol context が所有する (ADR-064)。\n"
+    description: "identity principal の属性を外部 relying party / service provider / client へ出すための\nrelease policy と protocol-neutral な claim projection を所有する。属性解決と出力許可を\n共通化し、OIDC JSON claims、SAML AttributeStatement、WS-Fed claim URI への wire 変換は\n各 protocol context が所有する。\n"
     path: contexts/claim-mapping.yaml
     publishes:
       - ClaimMappingPolicyRef
@@ -120,7 +120,7 @@ context_map:
           - UserRef
         reason: claim の source は User 等 identity principal の属性である。
   SigningKeys:
-    description: "tenant-scoped signing key material のライフサイクル、ローテーション、公開重複期間、監査を\nprotocol 横断で所有する。OAuth2/OIDC は JWK/JWKS と JWT signer、SAML / WS-* は X.509\n証明書と XML signer adapter を使うが、鍵用途・ローテーション・tenant isolation の規範は\nここに集約する (ADR-064)。\n"
+    description: "tenant-scoped signing key material のライフサイクル、ローテーション、公開重複期間、監査を\nprotocol 横断で所有する。OAuth2/OIDC は JWK/JWKS と JWT signer、SAML / WS-* は X.509\n証明書と XML signer adapter を使うが、鍵用途・ローテーション・tenant isolation の規範は\nここに集約する。\n"
     path: contexts/signing-keys.yaml
     publishes:
       - SigningKeyRef

@@ -103,7 +103,7 @@ glossary:
 models:
   UserStatus:
     kind: enum
-    description: User の運用状態の唯一の真実 (ADR-039)。状態機械 UserLifecycle (Active / Disabled / Deleted) と一致し、Okta lifecycle_state / Keycloak 相当の Locked / Staged / Suspended を追加する。Active 以外は認証不可、Deleted は終端 (tombstone)。「いつ遷移したか」は監査イベントと status_changed_at が持つ。
+    description: User の運用状態の唯一の真実。状態機械 UserLifecycle (Active / Disabled / Deleted) と一致し、Okta lifecycle_state / Keycloak 相当の Locked / Staged / Suspended を追加する。Active 以外は認証不可、Deleted は終端 (tombstone)。「いつ遷移したか」は監査イベントと status_changed_at が持つ。
     values:
       - Active
       - Disabled
@@ -122,31 +122,31 @@ models:
       - TermsAndConditions
   AgentStatus:
     kind: enum
-    description: Agent の運用状態 (ADR-048)。Active は通常稼働、Disabled は可逆な運用停止、Killed は緊急停止 (一方向終端)。Active 以外は新規トークンを発行しない (fail-closed)。
+    description: Agent の運用状態。Active は通常稼働、Disabled は可逆な運用停止、Killed は緊急停止 (一方向終端)。Active 以外は新規トークンを発行しない (fail-closed)。
     values:
       - Active
       - Disabled
       - Killed
   AgentKind:
     kind: enum
-    description: Agent の自律性区分 (ADR-048)。Autonomous は自律実行、Supervised は人間の監督下で実行する。
+    description: Agent の自律性区分。Autonomous は自律実行、Supervised は人間の監督下で実行する。
     values:
       - Autonomous
       - Supervised
   User:
     kind: entity
-    description: "IdP の最小コア (ADR-039)。識別・認証・表示名・RBAC・ライフサイクルだけを\n型付きで持つ。それ以外のプロフィール属性 (OIDC §5.1 optional claim / 組織属性 /\ntenant 定義 custom) は attributes に sparse に格納し、テナントが実際に使う属性\nだけが領域を消費する。\n"
+    description: "IdP の最小コア。識別・認証・表示名・RBAC・ライフサイクルだけを\n型付きで持つ。それ以外のプロフィール属性 (OIDC §5.1 optional claim / 組織属性 /\ntenant 定義 custom) は attributes に sparse に格納し、テナントが実際に使う属性\nだけが領域を消費する。\n"
     identity: sub
     fields:
       sub:
         type: String
         constraints:
           - non_empty
-        description: global 一意の subject (ADR-034)。tenant 跨ぎでも衝突しない。
+        description: global 一意の subject。tenant 跨ぎでも衝突しない。
       tenant_id:
         type: String
         default: default
-        description: 所属テナント ID (ADR-032)。preferred_username の一意性スコープを決める。
+        description: 所属テナント ID。preferred_username の一意性スコープを決める。
       preferred_username:
         type: String
         constraints:
@@ -190,7 +190,7 @@ models:
         type: "String[]"
         default:
           []
-        description: RBAC ロール名の集合 (重複なし)。ADR-031。値 admin を持つ user だけが /admin/* を呼べる。空配列は通常ユーザ。
+        description: RBAC ロール名の集合 (重複なし)。値 admin を持つ user だけが /admin/* を呼べる。空配列は通常ユーザ。
       lifecycle:
         type: UserLifecycle
         description: 運用ライフサイクル (status / 各時刻 / required_actions)。status が無効化・削除の唯一の真実。
@@ -205,7 +205,7 @@ models:
         optional: true
   UserLifecycle:
     kind: value_object
-    description: "User の運用ライフサイクル属性 (ADR-039)。status は状態機械 UserLifecycle\n(states セクション) と一致する唯一の真実で、旧 disabled_at / deleted_at は\nstatus + status_changed_at に統合した。tombstone は status == Deleted。\n"
+    description: "User の運用ライフサイクル属性。status は状態機械 UserLifecycle\n(states セクション) と一致する唯一の真実で、旧 disabled_at / deleted_at は\nstatus + status_changed_at に統合した。tombstone は status == Deleted。\n"
     fields:
       status:
         type: UserStatus
@@ -225,7 +225,7 @@ models:
         optional: true
   AttributeValue:
     kind: value_object
-    description: 属性 1 件の値 (sum type)。type が示すフィールドだけが設定される。OIDC 組み込み属性と tenant 定義 custom で共通 (ADR-040)。
+    description: 属性 1 件の値 (sum type)。type が示すフィールドだけが設定される。OIDC 組み込み属性と tenant 定義 custom で共通。
     fields:
       type:
         type: AttributeType
@@ -326,7 +326,7 @@ models:
         type: String
       tenant_id:
         type: String
-        description: 所属テナント ID (ADR-032)。
+        description: 所属テナント ID。
       preferred_username:
         type: String
         annotations:
@@ -352,15 +352,15 @@ models:
       required_actions:
         type: "RequiredAction[]"
         optional: true
-        description: 次回ログイン時の強制アクション (wi-19)。
+        description: 次回ログイン時の強制アクション。
       last_login_at:
         type: Timestamp
         optional: true
-        description: 直近の認証完了時刻 (wi-19)。
+        description: 直近の認証完了時刻。
       password_changed_at:
         type: Timestamp
         optional: true
-        description: 直近のパスワード変更時刻 (wi-19)。
+        description: 直近のパスワード変更時刻。
       disabled_at:
         type: Timestamp
         optional: true
@@ -371,13 +371,13 @@ models:
         optional: true
   AdminRequiredActionRequest:
     kind: value_object
-    description: SetUserRequiredAction の JSON リクエスト (wi-19)。action は RequiredAction enum の wire 値。
+    description: SetUserRequiredAction の JSON リクエスト。action は RequiredAction enum の wire 値。
     fields:
       action:
         type: RequiredAction
   AccountProfileResponse:
     kind: value_object
-    description: "`/api/account/profile` の返り値 (self-service)。呼び出しユーザ自身の表示用\nprojection。attributes は self が読める分 (self_readable / claim_exposed) のみ、\neditable_attributes は editable_by_user=true の定義一覧で、UI のフォーム描画に使う\n(ADR-040 / wi-19)。\n"
+    description: "`/api/account/profile` の返り値 (self-service)。呼び出しユーザ自身の表示用\nprojection。attributes は self が読める分 (self_readable / claim_exposed) のみ、\neditable_attributes は editable_by_user=true の定義一覧で、UI のフォーム描画に使う。\n"
     fields:
       sub:
         type: String
@@ -419,7 +419,7 @@ models:
         type: "UserAttributeDef[]"
   AccountProfileUpdateRequest:
     kind: value_object
-    description: "self-service プロフィール更新リクエスト。表示名と editable_by_user=true の属性\nのみを受け付ける。attributes は key 単位の merge (指定 key のみ upsert、未指定は\n現状維持) で、admin 管理属性 (status / roles / organization) は対象外 (ADR-040)。\n"
+    description: "self-service プロフィール更新リクエスト。表示名と editable_by_user=true の属性\nのみを受け付ける。attributes は key 単位の merge (指定 key のみ upsert、未指定は\n現状維持) で、admin 管理属性 (status / roles / organization) は対象外。\n"
     fields:
       name:
         type: String
@@ -441,7 +441,7 @@ models:
         optional: true
   AccountSummary:
     kind: value_object
-    description: "`/api/account/summary` の返り値 (end-user account portal のホーム)。呼び出し\nユーザ自身のアカウント概要で、admin shell 用の AccountContext (/api/auth/account)\nとは別契約。roles は含めず、最終ログイン・パスワード変更日時・MFA 状態・未対応の\nrequired actions を portal home の summary card 用に返す (wi-21 / ADR-042)。\n"
+    description: "`/api/account/summary` の返り値 (end-user account portal のホーム)。呼び出し\nユーザ自身のアカウント概要で、admin shell 用の AccountContext (/api/auth/account)\nとは別契約。roles は含めず、最終ログイン・パスワード変更日時・MFA 状態・未対応の\nrequired actions を portal home の summary card 用に返す。\n"
     fields:
       sub:
         type: String
@@ -477,7 +477,7 @@ models:
         type: "RequiredAction[]"
   AccountEmailChangeRequest:
     kind: value_object
-    description: "primary email 変更の起票リクエスト (self-service, wi-21)。新アドレスへ確認リンクを\n送るだけで、User.email の反映は確認完了 (ConfirmEmailChange) まで起きない。\n"
+    description: "primary email 変更の起票リクエスト (self-service)。新アドレスへ確認リンクを\n送るだけで、User.email の反映は確認完了 (ConfirmEmailChange) まで起きない。\n"
     fields:
       new_email:
         type: String
@@ -487,7 +487,7 @@ models:
           pii: true
   AccountEmailChangeConfirm:
     kind: value_object
-    description: "新アドレスへ送ったワンタイムリンクの確認リクエスト (self-service, wi-21)。token が\n新アドレス所有の証左なので認証済みセッションは要求しない (reset password と同方針)。\n"
+    description: "新アドレスへ送ったワンタイムリンクの確認リクエスト (self-service)。token が\n新アドレス所有の証左なので認証済みセッションは要求しない (reset password と同方針)。\n"
     fields:
       token:
         type: String
@@ -495,7 +495,7 @@ models:
           - non_empty
   AccountDataExport:
     kind: value_object
-    description: "end-user 自身の個人データエクスポート (GDPR 第15条 right of access, wi-21)。本ステージは\n同期生成で、現状 API から得られる profile と接続済みアプリ (consents) をまとめる。\nsign-in activity / sessions の同梱は wi-20 / wi-28 後に追加する。\n"
+    description: "end-user 自身の個人データエクスポート (GDPR 第15条 right of access)。本ステージは\n同期生成で、現状 API から得られる profile と接続済みアプリ (consents) をまとめる。\n"
     fields:
       exported_at:
         type: Timestamp
@@ -505,7 +505,7 @@ models:
         type: "AccountConsentResponse[]"
   Group:
     kind: entity
-    description: ADR-038 で導入した tenant-scoped ロール束集約。所属 User に roles を一斉付与する。id は不変の生成識別子、name はテナント内で一意な編集可能ラベル。
+    description: tenant-scoped ロール束集約。所属 User に roles を一斉付与する。id は不変の生成識別子、name はテナント内で一意な編集可能ラベル。
     identity: id
     fields:
       id:
@@ -517,7 +517,7 @@ models:
       tenant_id:
         type: String
         default: default
-        description: 所属テナント ID (ADR-032 / ADR-034)。cross-tenant 参照は禁止。
+        description: 所属テナント ID。cross-tenant 参照は禁止。
       name:
         type: String
         constraints:
@@ -541,7 +541,7 @@ models:
         optional: true
   GroupMember:
     kind: entity
-    description: User と Group の所属関係 (ADR-038)。group_id × user_sub で一意。
+    description: User と Group の所属関係。group_id × user_sub で一意。
     identity:
       - group_id
       - user_sub
@@ -554,7 +554,7 @@ models:
         type: Timestamp
   GroupCreateRequest:
     kind: value_object
-    description: 管理者がグループを作成する JSON リクエスト (ADR-038)。
+    description: 管理者がグループを作成する JSON リクエスト。
     fields:
       name:
         type: String
@@ -573,7 +573,7 @@ models:
         optional: true
   GroupUpdateRequest:
     kind: value_object
-    description: 管理者がグループの name / description / roles を更新する JSON リクエスト (ADR-038)。省略フィールドは現状維持。
+    description: 管理者がグループの name / description / roles を更新する JSON リクエスト。省略フィールドは現状維持。
     fields:
       name:
         type: String
@@ -593,7 +593,7 @@ models:
         optional: true
   GroupSummaryResponse:
     kind: value_object
-    description: グループ表現。管理 UI の一覧と詳細で同じ表現を返す (ADR-038)。
+    description: グループ表現。管理 UI の一覧と詳細で同じ表現を返す。
     fields:
       id:
         type: String
@@ -617,13 +617,13 @@ models:
         optional: true
   GroupListResponse:
     kind: value_object
-    description: 管理 API のグループ一覧 (ADR-038)。
+    description: 管理 API のグループ一覧。
     fields:
       groups:
         type: "GroupSummaryResponse[]"
   GroupMemberResponse:
     kind: value_object
-    description: グループ所属メンバー表現 (ADR-038)。
+    description: グループ所属メンバー表現。
     fields:
       user_sub:
         type: String
@@ -635,13 +635,13 @@ models:
         type: Timestamp
   GroupAddMemberRequest:
     kind: value_object
-    description: User 詳細画面など group_id を body で指定して所属させる際の任意リクエスト (ADR-038)。
+    description: User 詳細画面など group_id を body で指定して所属させる際の任意リクエスト。
     fields:
       group_id:
         type: String
   UserGroupsResponse:
     kind: value_object
-    description: "指定 User の所属グループと有効ロール内訳 (ADR-038)。明示ロール (user.roles) と\nグループ由来ロール、その union を分けて返し、管理 UI が effective roles を\n理解しやすくする。\n"
+    description: "指定 User の所属グループと有効ロール内訳。明示ロール (user.roles) と\nグループ由来ロール、その union を分けて返し、管理 UI が effective roles を\n理解しやすくする。\n"
     fields:
       groups:
         type: "GroupSummaryResponse[]"
@@ -656,7 +656,7 @@ models:
         description: direct_roles ∪ group_roles。
   Agent:
     kind: entity
-    description: ADR-048 で導入した tenant-scoped な非人間 (non-human) identity principal。自身の資格情報は持たず、AgentCredentialBinding で既存 OAuth2Client に束縛してトークンを得る。owner は必須。
+    description: tenant-scoped な非人間 (non-human) identity principal。自身の資格情報は持たず、AgentCredentialBinding で既存 OAuth2Client に束縛してトークンを得る。owner は必須。
     identity: id
     fields:
       id:
@@ -668,7 +668,7 @@ models:
       tenant_id:
         type: String
         default: default
-        description: 所属テナント ID (ADR-032 / ADR-034)。cross-tenant 参照は禁止。
+        description: 所属テナント ID。cross-tenant 参照は禁止。
       name:
         type: String
         constraints:
@@ -690,7 +690,7 @@ models:
         type: String
         constraints:
           - non_empty
-        description: 所有者 User の sub。必須 (ADR-048)。
+        description: 所有者 User の sub。必須。
       status:
         type: AgentStatus
         default: Active
@@ -711,7 +711,7 @@ models:
         description: 一方向終端 (kill) 時刻。
   AgentCredentialBinding:
     kind: entity
-    description: Agent と OAuth2Client の束縛関係 (ADR-048)。agent_id × client_id で一意。Agent は束縛した Client の資格情報を用いてトークンを得る。
+    description: Agent と OAuth2Client の束縛関係。agent_id × client_id で一意。Agent は束縛した Client の資格情報を用いてトークンを得る。
     identity:
       - agent_id
       - client_id
@@ -727,7 +727,7 @@ models:
         type: Timestamp
   AgentRegisterRequest:
     kind: value_object
-    description: 管理者が Agent を登録する JSON リクエスト (ADR-048)。owner_sub 省略時は actor を所有者とする。
+    description: 管理者が Agent を登録する JSON リクエスト。owner_sub 省略時は actor を所有者とする。
     fields:
       name:
         type: String
@@ -753,7 +753,7 @@ models:
         optional: true
   AgentUpdateRequest:
     kind: value_object
-    description: 管理者が Agent の name / description / kind / owner_sub / roles を更新する JSON リクエスト (ADR-048)。省略フィールドは現状維持。owner_sub の変更は所有権移転。
+    description: 管理者が Agent の name / description / kind / owner_sub / roles を更新する JSON リクエスト。省略フィールドは現状維持。owner_sub の変更は所有権移転。
     fields:
       name:
         type: String
@@ -780,7 +780,7 @@ models:
         optional: true
   AgentCredentialBindRequest:
     kind: value_object
-    description: Agent に OAuth2Client を束縛する JSON リクエスト (ADR-048)。
+    description: Agent に OAuth2Client を束縛する JSON リクエスト。
     fields:
       client_id:
         type: String
@@ -788,7 +788,7 @@ models:
           - non_empty
   AgentSummaryResponse:
     kind: value_object
-    description: Agent 表現。管理 UI の一覧と詳細で同じ表現を返す (ADR-048)。
+    description: Agent 表現。管理 UI の一覧と詳細で同じ表現を返す。
     fields:
       id:
         type: String
@@ -825,13 +825,13 @@ models:
         optional: true
   AgentListResponse:
     kind: value_object
-    description: 管理 API の Agent 一覧 (ADR-048)。
+    description: 管理 API の Agent 一覧。
     fields:
       agents:
         type: "AgentSummaryResponse[]"
   FederationLinked:
     kind: event
-    description: ローカル user に外部 IdP の identity を紐付けた (account linking、wi-30)。
+    description: ローカル user に外部 IdP の identity を紐付けた (account linking)。
     payload:
       occurredAt:
         type: Timestamp
@@ -843,7 +843,7 @@ models:
         type: String
   FederationUnlinked:
     kind: event
-    description: ローカル user から外部 IdP の identity を解除した (wi-30)。
+    description: ローカル user から外部 IdP の identity を解除した。
     payload:
       occurredAt:
         type: Timestamp
@@ -855,7 +855,7 @@ models:
         type: String
   EmailChangeRequested:
     kind: event
-    description: "end-user が primary email の変更を起票し、新アドレスへ確認リンクを送った\n(self-service, wi-21)。実際の email 反映は ConfirmEmailChange まで起きない。\nnewEmailHash は SHA-256 で、平文を audit log に流さない。\n"
+    description: "end-user が primary email の変更を起票し、新アドレスへ確認リンクを送った\n(self-service)。実際の email 反映は ConfirmEmailChange まで起きない。\nnewEmailHash は SHA-256 で、平文を audit log に流さない。\n"
     payload:
       occurredAt:
         type: Timestamp
@@ -869,7 +869,7 @@ models:
         description: 新 email の SHA-256 hex
   EmailChanged:
     kind: event
-    description: "新アドレスへ送ったワンタイムリンクの確認が完了し、primary email を確定した\n(self-service, wi-21)。email_verified=true に更新し、verify_email の\nrequired action があれば自動解除する。\n"
+    description: "新アドレスへ送ったワンタイムリンクの確認が完了し、primary email を確定した\n(self-service)。email_verified=true に更新し、verify_email の\nrequired action があれば自動解除する。\n"
     payload:
       occurredAt:
         type: Timestamp
@@ -934,7 +934,7 @@ models:
         type: String
   UserDeleted:
     kind: event
-    description: 管理者がユーザーを Delete (ADR-036) した。PII は anonymize 済みで、関連 aggregate は cascade 削除されている。reason は admin が任意に残せる自由記述。
+    description: 管理者がユーザーを Delete した。PII は anonymize 済みで、関連 aggregate は cascade 削除されている。reason は admin が任意に残せる自由記述。
     payload:
       occurredAt:
         type: Timestamp
@@ -950,7 +950,7 @@ models:
         optional: true
   UserRequiredActionSet:
     kind: event
-    description: 管理者が次回ログイン時の強制アクション (RequiredAction) を付与した (wi-19)。action は enum 値で、監査に平文で残しても安全。
+    description: 管理者が次回ログイン時の強制アクション (RequiredAction) を付与した。action は enum 値で、監査に平文で残しても安全。
     payload:
       occurredAt:
         type: Timestamp
@@ -963,7 +963,7 @@ models:
         type: String
   UserRequiredActionCleared:
     kind: event
-    description: 強制アクションが解除された (wi-19)。admin の明示解除のほか、本人がパスワードを変更した結果 update_password が自動解除される場合も発火し、その際 actorSub は対象本人の sub になる。
+    description: 強制アクションが解除された。admin の明示解除のほか、本人がパスワードを変更した結果 update_password が自動解除される場合も発火し、その際 actorSub は対象本人の sub になる。
     payload:
       occurredAt:
         type: Timestamp
@@ -977,7 +977,7 @@ models:
         type: String
   GroupCreated:
     kind: event
-    description: 管理者がグループを作成した (ADR-038)。
+    description: 管理者がグループを作成した。
     payload:
       occurredAt:
         type: Timestamp
@@ -990,7 +990,7 @@ models:
         type: String
   GroupUpdated:
     kind: event
-    description: 管理者がグループの name / description / roles を更新した (ADR-038)。
+    description: 管理者がグループの name / description / roles を更新した。
     payload:
       occurredAt:
         type: Timestamp
@@ -1005,7 +1005,7 @@ models:
         type: "String[]"
   GroupDeleted:
     kind: event
-    description: 管理者がグループを削除した (ADR-038)。所属 membership は cascade で解除され、各々 GroupMemberRemoved を伴う。
+    description: 管理者がグループを削除した。所属 membership は cascade で解除され、各々 GroupMemberRemoved を伴う。
     payload:
       occurredAt:
         type: Timestamp
@@ -1018,7 +1018,7 @@ models:
         type: String
   GroupMemberAdded:
     kind: event
-    description: 管理者が User をグループに所属させた (ADR-038)。既に所属済みの場合は emit されない (冪等)。
+    description: 管理者が User をグループに所属させた。既に所属済みの場合は emit されない (冪等)。
     payload:
       occurredAt:
         type: Timestamp
@@ -1033,7 +1033,7 @@ models:
         type: String
   GroupMemberRemoved:
     kind: event
-    description: 管理者が User をグループから外した、またはグループ削除に伴い解除された (ADR-038)。所属していない場合は emit されない (冪等)。
+    description: 管理者が User をグループから外した、またはグループ削除に伴い解除された。所属していない場合は emit されない (冪等)。
     payload:
       occurredAt:
         type: Timestamp
@@ -1048,7 +1048,7 @@ models:
         type: String
   AgentRegistered:
     kind: event
-    description: 管理者が Agent を登録した (ADR-048)。
+    description: 管理者が Agent を登録した。
     payload:
       occurredAt:
         type: Timestamp
@@ -1061,7 +1061,7 @@ models:
         type: String
   AgentUpdated:
     kind: event
-    description: 管理者が Agent の name / description / kind / roles を更新した (ADR-048)。
+    description: 管理者が Agent の name / description / kind / roles を更新した。
     payload:
       occurredAt:
         type: Timestamp
@@ -1076,7 +1076,7 @@ models:
         type: "String[]"
   AgentDisabled:
     kind: event
-    description: 管理者が Agent を可逆に運用停止した (ADR-048)。
+    description: 管理者が Agent を可逆に運用停止した。
     payload:
       occurredAt:
         type: Timestamp
@@ -1089,7 +1089,7 @@ models:
         type: String
   AgentEnabled:
     kind: event
-    description: 管理者が運用停止中の Agent を再稼働した (ADR-048)。
+    description: 管理者が運用停止中の Agent を再稼働した。
     payload:
       occurredAt:
         type: Timestamp
@@ -1102,7 +1102,7 @@ models:
         type: String
   AgentKilled:
     kind: event
-    description: 管理者が Agent を緊急停止した (一方向終端) (ADR-048)。以後復帰不能。
+    description: 管理者が Agent を緊急停止した (一方向終端)。以後復帰不能。
     payload:
       occurredAt:
         type: Timestamp
@@ -1115,7 +1115,7 @@ models:
         type: String
   AgentDeleted:
     kind: event
-    description: 管理者が Agent を削除した (ADR-048)。束縛は cascade で解除される。
+    description: 管理者が Agent を削除した。束縛は cascade で解除される。
     payload:
       occurredAt:
         type: Timestamp
@@ -1128,7 +1128,7 @@ models:
         type: String
   AgentOwnerChanged:
     kind: event
-    description: 管理者が Agent の所有者 (owner_sub) を移転した (ADR-048)。
+    description: 管理者が Agent の所有者 (owner_sub) を移転した。
     payload:
       occurredAt:
         type: Timestamp
@@ -1145,7 +1145,7 @@ models:
         type: String
   AgentCredentialBound:
     kind: event
-    description: 管理者が Agent に OAuth2Client を束縛した (ADR-048)。
+    description: 管理者が Agent に OAuth2Client を束縛した。
     payload:
       occurredAt:
         type: Timestamp
@@ -1160,7 +1160,7 @@ models:
         type: String
   AgentCredentialUnbound:
     kind: event
-    description: 管理者が Agent から OAuth2Client の束縛を解除した (ADR-048)。
+    description: 管理者が Agent から OAuth2Client の束縛を解除した。
     payload:
       occurredAt:
         type: Timestamp
@@ -1175,7 +1175,7 @@ models:
         type: String
 states:
   UserLifecycle:
-    description: "User aggregate のライフサイクル (ADR-031 / ADR-036)。Active が通常稼働、\nDisable で復活可能な無効化、Delete で tombstone 化 (anonymize cascade) と\nなる。Deleted は終端で復元できない。\n"
+    description: "User aggregate のライフサイクル。Active が通常稼働、\nDisable で復活可能な無効化、Delete で tombstone 化 (anonymize cascade) と\nなる。Deleted は終端で復元できない。\n"
     target: User
     initial: Active
     terminal:
@@ -1194,7 +1194,7 @@ states:
         event: Delete
         to: Deleted
   GroupLifecycle:
-    description: "Group aggregate のライフサイクル (ADR-038)。単一状態 Active のみを持つ。\n無効化状態は持たず、削除は aggregate 自体の物理削除 (DeleteGroup) で表す。\n"
+    description: "Group aggregate のライフサイクル。単一状態 Active のみを持つ。\n無効化状態は持たず、削除は aggregate 自体の物理削除 (DeleteGroup) で表す。\n"
     target: Group
     initial: Active
     terminal:
@@ -1202,7 +1202,7 @@ states:
     transitions:
       []
   AgentLifecycle:
-    description: "Agent aggregate のライフサイクル (ADR-048)。Active が通常稼働、Disable で\n復活可能な運用停止、Kill で一方向終端 (緊急停止) となる。Killed は終端で\n復元できず、Active 以外は新規トークンを発行しない (fail-closed)。\n"
+    description: "Agent aggregate のライフサイクル。Active が通常稼働、Disable で\n復活可能な運用停止、Kill で一方向終端 (緊急停止) となる。Killed は終端で\n復元できず、Active 以外は新規トークンを発行しない (fail-closed)。\n"
     target: Agent
     initial: Active
     terminal:
@@ -1222,7 +1222,7 @@ states:
         to: Killed
 interfaces:
   GetAccountSummary:
-    description: "認証済みユーザーが自身のアカウント概要を取得する (self-service portal home)。\n対象は actor.sub に固定。roles を含まず、最終ログイン・パスワード変更日時・\nMFA 状態・未対応 required actions を返す。admin shell の AccountContext とは\n別契約 (wi-21 / ADR-042)。\n"
+    description: "認証済みユーザーが自身のアカウント概要を取得する (self-service portal home)。\n対象は actor.sub に固定。roles を含まず、最終ログイン・パスワード変更日時・\nMFA 状態・未対応 required actions を返す。admin shell の AccountContext とは\n別契約。\n"
     output:
       summary:
         type: AccountSummary
@@ -1234,7 +1234,7 @@ interfaces:
         method: GET
         path: /api/account/summary
   GetUserProfile:
-    description: "認証済みユーザーが自身のプロフィールを取得する (self-service)。対象は\nactor.sub に固定するため cross-user 参照は構造的に発生しない。attributes は\nself が読める分のみ、editable_attributes に編集可能定義を併せて返す (ADR-040)。\n"
+    description: "認証済みユーザーが自身のプロフィールを取得する (self-service)。対象は\nactor.sub に固定するため cross-user 参照は構造的に発生しない。attributes は\nself が読める分のみ、editable_attributes に編集可能定義を併せて返す。\n"
     output:
       profile:
         type: AccountProfileResponse
@@ -1246,7 +1246,7 @@ interfaces:
         method: GET
         path: /api/account/profile
   UpdateUserProfile:
-    description: "認証済みユーザーが自身の表示名と editable_by_user=true の属性を更新する\n(self-service)。actor.sub == target.sub に固定。属性は key 単位の merge とし、\neditable_by_user=false の key は拒否する。status / roles / organization の変更は\nadmin 専用で本経路では扱わない (ADR-040)。\n"
+    description: "認証済みユーザーが自身の表示名と editable_by_user=true の属性を更新する\n(self-service)。actor.sub == target.sub に固定。属性は key 単位の merge とし、\neditable_by_user=false の key は拒否する。status / roles / organization の変更は\nadmin 専用で本経路では扱わない。\n"
     input:
       request:
         type: AccountProfileUpdateRequest
@@ -1264,7 +1264,7 @@ interfaces:
         path: /api/account/profile
         request_form: body
   RequestEmailChange:
-    description: "認証済みユーザーが自身の primary email 変更を起票する (self-service)。新アドレスへ\nワンタイムリンクを送るだけで User.email は変えない。actor.sub に固定し、tenant 内で\n既に使われているアドレスは拒否する (wi-21 / ADR-042)。\n"
+    description: "認証済みユーザーが自身の primary email 変更を起票する (self-service)。新アドレスへ\nワンタイムリンクを送るだけで User.email は変えない。actor.sub に固定し、tenant 内で\n既に使われているアドレスは拒否する。\n"
     input:
       request:
         type: AccountEmailChangeRequest
@@ -1408,7 +1408,7 @@ interfaces:
         successful_status_codes:
           - "204"
   DeleteAdminUser:
-    description: "管理者がユーザーを Delete する (ADR-036)。tombstone 化と cascade 削除を\natomic に実施し、`sub` のみを audit 用に保持する。冪等で、既に削除済の\nuser に対する再呼び出しは no-op として 204 を返す。自分自身を削除する\nことはできない (admin / system_admin の自爆防止)。\n"
+    description: "管理者がユーザーを Delete する。tombstone 化と cascade 削除を\natomic に実施し、`sub` のみを audit 用に保持する。冪等で、既に削除済の\nuser に対する再呼び出しは no-op として 204 を返す。自分自身を削除する\nことはできない (admin / system_admin の自爆防止)。\n"
     input:
       sub:
         type: String
@@ -1429,7 +1429,7 @@ interfaces:
         successful_status_codes:
           - "204"
   SetUserRequiredAction:
-    description: "管理者が対象ユーザーに次回ログイン時の強制アクション (RequiredAction) を\n付与する (wi-19)。update_password を付与されたユーザーは次回ログイン時に\nchange-password 画面へ強制誘導される (本人の変更で自動解除)。冪等で、既に\n付与済みなら現状を返す。admin 専用。\n"
+    description: "管理者が対象ユーザーに次回ログイン時の強制アクション (RequiredAction) を\n付与する。update_password を付与されたユーザーは次回ログイン時に\nchange-password 画面へ強制誘導される (本人の変更で自動解除)。冪等で、既に\n付与済みなら現状を返す。admin 専用。\n"
     input:
       sub:
         type: String
@@ -1449,7 +1449,7 @@ interfaces:
         path: "/api/admin/users/{sub}/required_actions"
         request_form: body
   ClearUserRequiredAction:
-    description: "管理者が対象ユーザーの強制アクションを解除する (wi-19)。冪等で、未付与なら\n現状を返す。admin 専用。本人のパスワード変更に伴う update_password の自動\n解除は ChangePassword / ResetPasswordWithToken 側で発火する。\n"
+    description: "管理者が対象ユーザーの強制アクションを解除する。冪等で、未付与なら\n現状を返す。admin 専用。本人のパスワード変更に伴う update_password の自動\n解除は ChangePassword / ResetPasswordWithToken 側で発火する。\n"
     input:
       sub:
         type: String
@@ -1466,7 +1466,7 @@ interfaces:
         method: DELETE
         path: "/api/admin/users/{sub}/required_actions/{action}"
   ListGroups:
-    description: 管理者が所属テナントのグループを一覧する (ADR-038)。各グループは member_count を含む。
+    description: 管理者が所属テナントのグループを一覧する。各グループは member_count を含む。
     output:
       response:
         type: GroupListResponse
@@ -1478,7 +1478,7 @@ interfaces:
         method: GET
         path: /api/admin/groups
   GetGroup:
-    description: 管理者が単一グループとそのメンバー一覧を取得する。別テナントのグループは未存在として扱う (ADR-038)。
+    description: 管理者が単一グループとそのメンバー一覧を取得する。別テナントのグループは未存在として扱う。
     input:
       group_id:
         type: String
@@ -1496,7 +1496,7 @@ interfaces:
         method: GET
         path: "/api/admin/groups/{group_id}"
   CreateGroup:
-    description: 管理者が所属テナントにグループを作成する。name はテナント内で一意 (ADR-038)。
+    description: 管理者が所属テナントにグループを作成する。name はテナント内で一意。
     input:
       request:
         type: GroupCreateRequest
@@ -1516,7 +1516,7 @@ interfaces:
         successful_status_codes:
           - "201"
   UpdateGroup:
-    description: 管理者がグループの name / description / roles を更新する (ADR-038)。
+    description: 管理者がグループの name / description / roles を更新する。
     input:
       group_id:
         type: String
@@ -1536,7 +1536,7 @@ interfaces:
         path: "/api/admin/groups/{group_id}"
         request_form: body
   DeleteGroup:
-    description: 管理者がグループを削除する。所属 membership は cascade で解除する (ADR-038)。
+    description: 管理者がグループを削除する。所属 membership は cascade で解除する。
     input:
       group_id:
         type: String
@@ -1553,7 +1553,7 @@ interfaces:
         successful_status_codes:
           - "204"
   AddGroupMember:
-    description: 管理者が User をグループに所属させる。同一テナントの User のみ許可し、既所属なら no-op (冪等) (ADR-038)。
+    description: 管理者が User をグループに所属させる。同一テナントの User のみ許可し、既所属なら no-op (冪等)。
     input:
       group_id:
         type: String
@@ -1572,7 +1572,7 @@ interfaces:
         successful_status_codes:
           - "204"
   RemoveGroupMember:
-    description: 管理者が User をグループから外す。非所属なら no-op (冪等) (ADR-038)。
+    description: 管理者が User をグループから外す。非所属なら no-op (冪等)。
     input:
       group_id:
         type: String
@@ -1591,7 +1591,7 @@ interfaces:
         successful_status_codes:
           - "204"
   ListUserGroups:
-    description: 管理者が指定 User の所属グループと有効ロール内訳 (明示 / グループ由来 / union) を取得する (ADR-038)。
+    description: 管理者が指定 User の所属グループと有効ロール内訳 (明示 / グループ由来 / union) を取得する。
     input:
       sub:
         type: String
@@ -1607,7 +1607,7 @@ interfaces:
         method: GET
         path: "/api/admin/users/{sub}/groups"
   ListAgents:
-    description: 管理者が所属テナントの Agent を一覧する (ADR-048)。
+    description: 管理者が所属テナントの Agent を一覧する。
     output:
       response:
         type: AgentListResponse
@@ -1619,7 +1619,7 @@ interfaces:
         method: GET
         path: /api/admin/agents
   GetAgent:
-    description: 管理者が単一 Agent を取得する。別テナントの Agent は未存在として扱う (ADR-048)。
+    description: 管理者が単一 Agent を取得する。別テナントの Agent は未存在として扱う。
     input:
       agent_id:
         type: String
@@ -1635,7 +1635,7 @@ interfaces:
         method: GET
         path: "/api/admin/agents/{agent_id}"
   RegisterAgent:
-    description: 管理者が所属テナントに Agent を登録する。name はテナント内で一意、owner_sub 省略時は actor を所有者とする (ADR-048)。
+    description: 管理者が所属テナントに Agent を登録する。name はテナント内で一意、owner_sub 省略時は actor を所有者とする。
     input:
       request:
         type: AgentRegisterRequest
@@ -1655,7 +1655,7 @@ interfaces:
         successful_status_codes:
           - "201"
   UpdateAgent:
-    description: 管理者が Agent の name / description / kind / owner_sub / roles を更新する (ADR-048)。owner_sub の変更は所有権移転。
+    description: 管理者が Agent の name / description / kind / owner_sub / roles を更新する。owner_sub の変更は所有権移転。
     input:
       agent_id:
         type: String
@@ -1676,7 +1676,7 @@ interfaces:
         path: "/api/admin/agents/{agent_id}"
         request_form: body
   DisableAgent:
-    description: 管理者が Agent を可逆に運用停止する (ADR-048)。
+    description: 管理者が Agent を可逆に運用停止する。
     input:
       agent_id:
         type: String
@@ -1692,7 +1692,7 @@ interfaces:
         successful_status_codes:
           - "204"
   EnableAgent:
-    description: 管理者が運用停止中の Agent を再稼働する (ADR-048)。
+    description: 管理者が運用停止中の Agent を再稼働する。
     input:
       agent_id:
         type: String
@@ -1708,7 +1708,7 @@ interfaces:
         successful_status_codes:
           - "204"
   KillAgent:
-    description: 管理者が Agent を緊急停止する (一方向終端、復帰不能) (ADR-048)。
+    description: 管理者が Agent を緊急停止する (一方向終端、復帰不能)。
     input:
       agent_id:
         type: String
@@ -1724,7 +1724,7 @@ interfaces:
         successful_status_codes:
           - "204"
   DeleteAgent:
-    description: 管理者が Agent を削除する。束縛は cascade で解除する (ADR-048)。
+    description: 管理者が Agent を削除する。束縛は cascade で解除する。
     input:
       agent_id:
         type: String
@@ -1740,7 +1740,7 @@ interfaces:
         successful_status_codes:
           - "204"
   BindAgentCredential:
-    description: 管理者が Agent に OAuth2Client を束縛する (ADR-048)。
+    description: 管理者が Agent に OAuth2Client を束縛する。
     input:
       agent_id:
         type: String
@@ -1759,7 +1759,7 @@ interfaces:
         successful_status_codes:
           - "204"
   UnbindAgentCredential:
-    description: 管理者が Agent から OAuth2Client の束縛を解除する (ADR-048)。
+    description: 管理者が Agent から OAuth2Client の束縛を解除する。
     input:
       agent_id:
         type: String
@@ -1814,7 +1814,7 @@ permissions:
         - actor.disabled_at == null
         - context.authenticated == true
   AdminUserDelete:
-    description: "管理者によるユーザー削除 (ADR-036)。tombstone 化と cascade を伴う。\nactor.sub == resource.sub かつ admin / system_admin role を持つ場合は\nuse case 側で reject する (自爆防止)。\n"
+    description: "管理者によるユーザー削除。tombstone 化と cascade を伴う。\nactor.sub == resource.sub かつ admin / system_admin role を持つ場合は\nuse case 側で reject する (自爆防止)。\n"
     actor: User
     resource: User
     allow_when:
@@ -1824,7 +1824,7 @@ permissions:
         - context.authenticated == true
         - actor.tenant_id == resource.tenant_id
   AdminGroupsRead:
-    description: グループ情報の一覧・取得 (ADR-038)。
+    description: グループ情報の一覧・取得。
     actor: User
     resource: Group
     allow_when:
@@ -1834,7 +1834,7 @@ permissions:
         - context.authenticated == true
         - actor.tenant_id == resource.tenant_id
   AdminGroupsWrite:
-    description: グループの作成・更新・削除とメンバーシップ操作 (ADR-038)。
+    description: グループの作成・更新・削除とメンバーシップ操作。
     actor: User
     resource: Group
     allow_when:
@@ -1844,7 +1844,7 @@ permissions:
         - context.authenticated == true
         - actor.tenant_id == resource.tenant_id
   AdminAgentsManage:
-    description: Agent の一覧・登録・更新・無効化・再稼働・緊急停止・削除と資格情報束縛操作 (ADR-048)。
+    description: Agent の一覧・登録・更新・無効化・再稼働・緊急停止・削除と資格情報束縛操作。
     actor: User
     resource: Agent
     allow_when:

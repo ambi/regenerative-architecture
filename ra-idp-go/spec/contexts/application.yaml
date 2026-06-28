@@ -830,7 +830,7 @@ scenarios:
     primary_actor: Administrator
     scope: Application
     level: user_goal
-    description: OAuth2 / WS-Federation / service を統合した Application 画面 (commit a5e2ec8)。
+    description: OAuth2 / WS-Federation / service を統合した Application 画面。
     preconditions:
       - "roles=[\"admin\"] のユーザー \"operator\" が管理画面のアプリケーション一覧を開いている"
     main_success:

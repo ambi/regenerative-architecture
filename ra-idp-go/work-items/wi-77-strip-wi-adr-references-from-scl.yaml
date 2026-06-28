@@ -1,7 +1,7 @@
 id: wi-77-strip-wi-adr-references-from-scl
 title: scl.yaml から wi / ADR / commit 参照を除去し純粋な仕様文にする
 created_at: 2026-06-27
-status: pending
+status: completed
 authors: [tn]
 
 motivation: |
@@ -62,3 +62,73 @@ risk: low
 risk_notes: |
   機械的な除去だが、文に織り込まれた参照を雑に消すと文意が壊れる。括弧の閉じ忘れや
   二重スペースなど整形の崩れにも注意する。型・フィールド・制約の定義そのものには触れない。
+
+completion:
+  completed_at: 2026-06-28
+
+  summary: |
+    SCL 正本から wi / ADR / commit 参照を全除去し、純粋な仕様文に整えた。本 WI
+    起票後に context が物理分割 (wi-31) されたため、scope の「scl.yaml」を SCL spec
+    全体 (spec/scl.yaml + spec/contexts/*.yaml) と解釈して適用した。除去前は 6 ファイル
+    計 138 箇所の参照があり、除去後は 0 件。型・フィールド・制約・列挙・scenario の
+    意味は不変。
+
+  decision_changes:
+    - 新規 ADR なし。参照除去のみで仕様の意味は変えていない。
+
+  scl_changes:
+    - >-
+      識別子のみの括弧 (`(ADR-048)` / `(ADR-064, wi-69)` / `(commit a5e2ec8)` 等) は
+      perl で機械的に丸ごと除去した。
+    - >-
+      意味ある語と混在する括弧末尾の参照 (`(self-service, wi-21)` →
+      `(self-service)`、`(open redirect 防止, fail-closed, ADR-059)` →
+      `(open redirect 防止, fail-closed)` 等) は区切りごと参照だけを除去した。
+    - >-
+      文章に織り込まれた独立参照は個別に手当てした: 独立文 `ADR-031。` の削除、
+      `ADR-038 で導入した ...` / `ADR-032 のテナント状態` 等の provenance 語句の除去、
+      ロードマップ文 `sign-in activity / sessions の同梱は wi-20 / wi-28 後に追加する。`
+      の削除、ブロックスカラーで参照除去後に残った行頭 `。` の結合。
+    - >-
+      影響ファイル: spec/scl.yaml / contexts/application.yaml / claim-mapping.yaml /
+      identity-management.yaml / tenancy.yaml / ws-federation.yaml。
+      authentication / oauth2 / saml / signing-keys / system は元から参照なし。
+
+  documentation_changes:
+    - >-
+      spec/ra-idp-go.html を `just scl-render` で再生成した (参照除去の反映のみ、
+      レイアウト変更なし)。scl-to-html/spec/scl-to-html.html は不変。
+
+  semantic_diff:
+    before:
+      scl_provenance_refs: 6 ファイル計 138 箇所に wi / ADR / commit 参照が混入
+      layering: scl が外側レイヤ (work-item / ADR / git) に依存していた
+    after:
+      scl_provenance_refs: 0 件
+      layering: scl は最内の純粋仕様正本に回復
+
+  affected_guarantees_state:
+    - >-
+      layering: scl.yaml / contexts/*.yaml に wi / ADR / commit 参照が一切残らない
+      ことを grep で確認 (0 件)。最内の純粋仕様正本である状態を回復した。
+    - >-
+      meaning preservation: yaml-check:scl が全 13 ファイル OK、ra-idp-go の
+      go test ./... が全 pass。型・フィールド・制約・列挙・scenario の意味は不変。
+
+  verification:
+    - cmd: 'bun run yaml-check:scl'
+      in: tools
+      result: ok (All 13 file(s) OK)
+    - cmd: 'GOCACHE=/tmp/ra-idp-go-cache go test ./...'
+      in: ra-idp-go
+      result: ok (全 pass)
+    - >-
+      手動: `grep -rnE 'wi-[0-9]|ADR-[0-9]|commit [0-9a-f]{7}' spec/scl.yaml
+      spec/contexts/*.yaml` が 0 件、整形崩れ (空括弧・行頭句点・区切り残り) も
+      0 件であることを確認した。
+
+  residual_risk:
+    - >-
+      除去判断は description の自然さを人手で確認したが、~138 箇所の文体を
+      網羅レビューしたわけではない。意味変更は加えていないため仕様正本としての
+      正しさは保たれるが、語尾の微妙な不自然さが残る可能性は残る。

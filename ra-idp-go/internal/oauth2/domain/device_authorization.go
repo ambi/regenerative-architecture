@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/spec"
 )
 
 // user_code 文字集合 (0/O, 1/I/L の混同を避けた子音 + 数字回避)。RFC 8628 §6.1 推奨。

@@ -2,24 +2,24 @@
 //
 // アカウント自己管理のうち認証・MFA・セッション・consent・signin activity、
 // パスワード変更・リセット、認証イベントバケットの閲覧を所有する。
-// 共有基盤 core.Deps を受け取り router から登録される。
+// 共有基盤 support.Deps を受け取り router から登録される。
 package http
 
 import (
-	"ra-idp-go/internal/infrastructure/http/core"
+	"ra-idp-go/internal/shared/adapters/http/support"
 
 	"github.com/labstack/echo/v5"
 )
 
-// Deps は core.Deps を埋め込む薄いラッパ。ハンドラを本コンテキストのメソッドとして
+// Deps は support.Deps を埋め込む薄いラッパ。ハンドラを本コンテキストのメソッドとして
 // 保持するためのキャリアで、固有のフィールドは持たない。
 type Deps struct {
-	*core.Deps
+	*support.Deps
 }
 
 // RegisterRoutes はテナント解決済みグループに authentication コンテキストの
 // エンドポイントを登録する。パス・メソッド・middleware は分割前と一致する。
-func RegisterRoutes(g *echo.Group, cd *core.Deps) {
+func RegisterRoutes(g *echo.Group, cd *support.Deps) {
 	d := Deps{cd}
 	g.GET("/api/auth/account", d.handleAccountContext)
 	g.GET("/api/account/consents", d.handleListAccountConsents)

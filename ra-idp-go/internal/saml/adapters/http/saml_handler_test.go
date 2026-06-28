@@ -16,11 +16,11 @@ import (
 	"time"
 
 	authdomain "ra-idp-go/internal/authentication/domain"
-	httpadapter "ra-idp-go/internal/infrastructure/http"
-	"ra-idp-go/internal/infrastructure/http/core"
-	"ra-idp-go/internal/infrastructure/persistence/memory"
 	samldomain "ra-idp-go/internal/saml/domain"
-	"ra-idp-go/internal/spec"
+	httpadapter "ra-idp-go/internal/shared/adapters/http/server"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/adapters/persistence/memory"
+	"ra-idp-go/internal/shared/spec"
 	"ra-idp-go/internal/wsfederation/adapters/samltoken"
 
 	"github.com/labstack/echo/v5"
@@ -104,7 +104,7 @@ func newServer(t *testing.T, authn *authdomain.AuthenticationContext) (*echo.Ech
 	userRepo.Seed(&spec.User{Sub: "user-1", PreferredUsername: "alice"})
 
 	e := echo.New()
-	httpadapter.Register(e, core.Deps{
+	httpadapter.Register(e, support.Deps{
 		Issuer:           "https://idp.example",
 		SCL:              spec.MustLoadSCL(),
 		SamlSPRepo:       spRepo,
@@ -275,7 +275,7 @@ func TestSamlSSO_UnsignedRequestRejectedWhenSignatureRequired(t *testing.T) {
 	userRepo := memory.NewUserRepository()
 	userRepo.Seed(&spec.User{Sub: "user-1", PreferredUsername: "alice"})
 	e := echo.New()
-	httpadapter.Register(e, core.Deps{
+	httpadapter.Register(e, support.Deps{
 		Issuer:           "https://idp.example",
 		SCL:              spec.MustLoadSCL(),
 		SamlSPRepo:       spRepo,
@@ -302,7 +302,7 @@ func TestSamlSLO_RedirectsToRegisteredSLOURL(t *testing.T) {
 		},
 	})
 	e := echo.New()
-	httpadapter.Register(e, core.Deps{
+	httpadapter.Register(e, support.Deps{
 		Issuer:           "https://idp.example",
 		SCL:              spec.MustLoadSCL(),
 		SamlSPRepo:       spRepo,
@@ -339,7 +339,7 @@ func TestSamlSLO_LogoutRequestReturnsLogoutResponse(t *testing.T) {
 		},
 	})
 	e := echo.New()
-	httpadapter.Register(e, core.Deps{
+	httpadapter.Register(e, support.Deps{
 		Issuer:           "https://idp.example",
 		SCL:              spec.MustLoadSCL(),
 		SamlSPRepo:       spRepo,
@@ -411,7 +411,7 @@ func newAdminServer(t *testing.T) *echo.Echo {
 		Roles:             []string{"admin"},
 	})
 	e := echo.New()
-	httpadapter.Register(e, core.Deps{
+	httpadapter.Register(e, support.Deps{
 		Issuer:        "https://idp.example",
 		SCL:           spec.MustLoadSCL(),
 		SamlSPRepo:    memory.NewSamlServiceProviderRepository(),

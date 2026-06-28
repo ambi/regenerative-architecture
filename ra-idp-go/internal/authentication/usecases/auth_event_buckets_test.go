@@ -7,7 +7,7 @@ import (
 
 	authnports "ra-idp-go/internal/authentication/ports"
 	"ra-idp-go/internal/authentication/usecases"
-	"ra-idp-go/internal/infrastructure/persistence/memory"
+	"ra-idp-go/internal/shared/adapters/persistence/memory"
 )
 
 func TestListAuthEventBucketsProjectsAndScopesByTenant(t *testing.T) {

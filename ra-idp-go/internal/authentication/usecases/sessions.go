@@ -12,7 +12,7 @@ import (
 	"time"
 
 	authnports "ra-idp-go/internal/authentication/ports"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/spec"
 )
 
 // ErrSessionNotFound は対象セッションが存在しないか、本人のものでない場合。

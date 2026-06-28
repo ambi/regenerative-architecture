@@ -8,10 +8,10 @@ import (
 	"time"
 
 	authdomain "ra-idp-go/internal/authentication/domain"
-	"ra-idp-go/internal/infrastructure/http/core"
 	"ra-idp-go/internal/saml/adapters/samlresponse"
 	samldomain "ra-idp-go/internal/saml/domain"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/spec"
 	"ra-idp-go/internal/wsfederation/adapters/samltoken"
 	feddomain "ra-idp-go/internal/wsfederation/domain"
 
@@ -62,7 +62,7 @@ func (d Deps) processAuthnRequest(c *echo.Context, xml []byte, relayState string
 	if err != nil {
 		return d.rejectSSO(c, req.Issuer, "encode resume request", err)
 	}
-	resumeURL := core.TenantRoute(c, "/saml/sso") + "?SAMLRequest=" + url.QueryEscape(encoded)
+	resumeURL := support.TenantRoute(c, "/saml/sso") + "?SAMLRequest=" + url.QueryEscape(encoded)
 	if relayState != "" {
 		resumeURL += "&RelayState=" + url.QueryEscape(relayState)
 	}
@@ -86,7 +86,7 @@ func (d Deps) handleIdPInitiated(c *echo.Context, relayState string) error {
 // issueForRequest は要求を SP に解決・検証し、認証ゲートを適用して SAMLResponse を発行する。
 func (d Deps) issueForRequest(c *echo.Context, req samldomain.AuthnRequest, relayState, resumeURL string, xml []byte, binding samldomain.Binding) error {
 	ctx := c.Request().Context()
-	tenantID := core.RequestTenantID(c)
+	tenantID := support.RequestTenantID(c)
 
 	if d.SamlSPRepo == nil {
 		return c.String(http.StatusBadRequest, "SAML is not available")
@@ -103,7 +103,7 @@ func (d Deps) issueForRequest(c *echo.Context, req samldomain.AuthnRequest, rela
 			return d.rejectSSO(c, req.Issuer, err.Error(), nil)
 		}
 	}
-	expectedDestination := strings.TrimRight(core.RequestIssuer(c, d.Issuer), "/") + core.TenantRoute(c, "/saml/sso")
+	expectedDestination := strings.TrimRight(support.RequestIssuer(c, d.Issuer), "/") + support.TenantRoute(c, "/saml/sso")
 	validated, err := samldomain.ValidateSignIn(req, *sp, expectedDestination)
 	if err != nil {
 		return d.rejectSSO(c, req.Issuer, err.Error(), nil)
@@ -149,7 +149,7 @@ func (d Deps) issueForRequest(c *echo.Context, req samldomain.AuthnRequest, rela
 	}
 
 	responseXML, err := samlresponse.BuildResponse(samlresponse.ResponseInput{
-		Issuer:       core.RequestIssuer(c, d.Issuer),
+		Issuer:       support.RequestIssuer(c, d.Issuer),
 		Destination:  validated.ACSURL,
 		InResponseTo: validated.InResponseTo,
 		IssueInstant: now,
@@ -177,7 +177,7 @@ func (d Deps) buildAssertion(c *echo.Context, sp spec.SamlServiceProvider, valid
 	}
 	in := samltoken.AssertionInput{
 		Version:      samltoken.SAML20,
-		Issuer:       core.RequestIssuer(c, d.Issuer),
+		Issuer:       support.RequestIssuer(c, d.Issuer),
 		Audience:     sp.EffectiveAudience(),
 		Recipient:    validated.ACSURL,
 		InResponseTo: validated.InResponseTo,
@@ -201,7 +201,7 @@ func (d Deps) rejectSSO(c *echo.Context, entityID, reason string, cause error) e
 	if cause != nil {
 		msg = reason + ": " + cause.Error()
 	}
-	d.emit(&spec.SamlSignInRejected{At: time.Now().UTC(), TenantID: core.RequestTenantID(c), EntityID: entityID, Reason: msg})
+	d.emit(&spec.SamlSignInRejected{At: time.Now().UTC(), TenantID: support.RequestTenantID(c), EntityID: entityID, Reason: msg})
 	return c.String(http.StatusBadRequest, reason)
 }
 
@@ -214,5 +214,5 @@ func (d Deps) emit(event spec.DomainEvent) {
 // loginRedirect はログイン UI への誘導 URL を、認証後に SAML 要求へ戻す return_to つきで組み立てる
 // (同一オリジンの相対パスのみ)。
 func loginRedirect(c *echo.Context, returnTo string) string {
-	return core.TenantRoute(c, "/login") + "?return_to=" + url.QueryEscape(returnTo)
+	return support.TenantRoute(c, "/login") + "?return_to=" + url.QueryEscape(returnTo)
 }

@@ -4,7 +4,7 @@ package ports
 import (
 	"context"
 
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/spec"
 )
 
 // WsFedRelyingPartyRepository は WS-Federation relying party 登録の永続境界 (wi-61)。

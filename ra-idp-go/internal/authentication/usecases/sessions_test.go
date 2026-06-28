@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"ra-idp-go/internal/authentication/usecases"
-	"ra-idp-go/internal/infrastructure/persistence/memory"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/persistence/memory"
+	"ra-idp-go/internal/shared/spec"
 )
 
 func seedSession(t *testing.T, store *memory.SessionStore, id, sub string, authTime time.Time) {

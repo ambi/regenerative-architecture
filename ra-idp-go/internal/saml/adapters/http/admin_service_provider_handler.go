@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"ra-idp-go/internal/infrastructure/http/core"
 	samldomain "ra-idp-go/internal/saml/domain"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/spec"
 
 	"github.com/labstack/echo/v5"
 )
@@ -56,13 +56,13 @@ func (d Deps) handleListServiceProviders(c *echo.Context) error {
 		return d.WriteAdminAccessError(c, err)
 	}
 	if d.SamlSPRepo == nil {
-		return core.NoStoreJSON(c, http.StatusOK, map[string]any{"service_providers": []any{}})
+		return support.NoStoreJSON(c, http.StatusOK, map[string]any{"service_providers": []any{}})
 	}
-	sps, err := d.SamlSPRepo.ListByTenant(c.Request().Context(), core.RequestTenantID(c))
+	sps, err := d.SamlSPRepo.ListByTenant(c.Request().Context(), support.RequestTenantID(c))
 	if err != nil {
 		return err
 	}
-	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"service_providers": sps})
+	return support.NoStoreJSON(c, http.StatusOK, map[string]any{"service_providers": sps})
 }
 
 func (d Deps) handleUpsertServiceProvider(c *echo.Context) error {
@@ -70,18 +70,18 @@ func (d Deps) handleUpsertServiceProvider(c *echo.Context) error {
 		return d.WriteAdminAccessError(c, err)
 	}
 	if d.SamlSPRepo == nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "SAML は利用できません")
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "SAML は利用できません")
 	}
 	var req serviceProviderRequest
 	if err := c.Bind(&req); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSON が不正です")
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSON が不正です")
 	}
 	if err := req.validate(); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", err.Error())
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", err.Error())
 	}
 
 	ctx := c.Request().Context()
-	tenantID := core.RequestTenantID(c)
+	tenantID := support.RequestTenantID(c)
 	now := time.Now().UTC()
 
 	existing, err := d.SamlSPRepo.FindByEntityID(ctx, tenantID, req.EntityID)
@@ -115,7 +115,7 @@ func (d Deps) handleUpsertServiceProvider(c *echo.Context) error {
 	if err := d.SamlSPRepo.Save(ctx, sp); err != nil {
 		return err
 	}
-	return core.NoStoreJSON(c, status, sp)
+	return support.NoStoreJSON(c, status, sp)
 }
 
 func (d Deps) handleDeleteServiceProvider(c *echo.Context) error {
@@ -127,9 +127,9 @@ func (d Deps) handleDeleteServiceProvider(c *echo.Context) error {
 	}
 	entityID := strings.TrimSpace(c.QueryParam("entity_id"))
 	if entityID == "" {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "entity_id query parameter is required")
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "entity_id query parameter is required")
 	}
-	if err := d.SamlSPRepo.Delete(c.Request().Context(), core.RequestTenantID(c), entityID); err != nil {
+	if err := d.SamlSPRepo.Delete(c.Request().Context(), support.RequestTenantID(c), entityID); err != nil {
 		return err
 	}
 	return c.NoContent(http.StatusNoContent)

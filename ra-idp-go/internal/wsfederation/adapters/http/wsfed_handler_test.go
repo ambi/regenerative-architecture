@@ -15,11 +15,11 @@ import (
 	"time"
 
 	authdomain "ra-idp-go/internal/authentication/domain"
-	"ra-idp-go/internal/infrastructure/crypto"
-	httpadapter "ra-idp-go/internal/infrastructure/http"
-	"ra-idp-go/internal/infrastructure/http/core"
-	"ra-idp-go/internal/infrastructure/persistence/memory"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/crypto"
+	httpadapter "ra-idp-go/internal/shared/adapters/http/server"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/adapters/persistence/memory"
+	"ra-idp-go/internal/shared/spec"
 	"ra-idp-go/internal/wsfederation/adapters/samltoken"
 
 	"github.com/labstack/echo/v5"
@@ -95,7 +95,7 @@ func newServer(t *testing.T, authn *authdomain.AuthenticationContext) (*echo.Ech
 	userRepo.Seed(&spec.User{Sub: "user-1", PreferredUsername: "alice", PasswordHash: passwordHash})
 
 	e := echo.New()
-	httpadapter.Register(e, core.Deps{
+	httpadapter.Register(e, support.Deps{
 		Issuer:                     "https://idp.example",
 		SCL:                        spec.MustLoadSCL(),
 		WsFedRPRepo:                rpRepo,
@@ -439,7 +439,7 @@ func newAdminServer(t *testing.T) *echo.Echo {
 		},
 	})
 	e := echo.New()
-	httpadapter.Register(e, core.Deps{
+	httpadapter.Register(e, support.Deps{
 		Issuer:        "https://idp.example",
 		SCL:           spec.MustLoadSCL(),
 		WsFedRPRepo:   memory.NewWsFedRelyingPartyRepository(),

@@ -3,7 +3,7 @@ package domain
 import (
 	"testing"
 
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/spec"
 )
 
 // paymentType は RFC 9396 の payment_initiation を模した登録 type。

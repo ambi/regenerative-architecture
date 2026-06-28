@@ -12,7 +12,7 @@ import (
 	"time"
 
 	oauthports "ra-idp-go/internal/oauth2/ports"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/spec"
 	"ra-idp-go/internal/tenancy"
 	tenantports "ra-idp-go/internal/tenancy/ports"
 )

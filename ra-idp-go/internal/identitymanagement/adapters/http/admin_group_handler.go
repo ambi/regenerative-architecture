@@ -8,8 +8,8 @@ import (
 	"time"
 
 	idmusecases "ra-idp-go/internal/identitymanagement/usecases"
-	"ra-idp-go/internal/infrastructure/http/core"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/spec"
 
 	"github.com/labstack/echo/v5"
 )
@@ -62,7 +62,7 @@ func (d Deps) handleListGroups(c *echo.Context) error {
 	for i, view := range views {
 		groups[i] = toGroupSummaryResponse(view.Group, view.MemberCount)
 	}
-	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"groups": groups})
+	return support.NoStoreJSON(c, http.StatusOK, map[string]any{"groups": groups})
 }
 
 func (d Deps) handleGetGroup(c *echo.Context) error {
@@ -73,7 +73,7 @@ func (d Deps) handleGetGroup(c *echo.Context) error {
 	if err != nil {
 		return d.writeAdminGroupError(c, err)
 	}
-	return core.NoStoreJSON(c, http.StatusOK, map[string]any{
+	return support.NoStoreJSON(c, http.StatusOK, map[string]any{
 		"group":   toGroupSummaryResponse(group, len(members)),
 		"members": d.toGroupMemberResponses(c.Request().Context(), members),
 	})
@@ -88,8 +88,8 @@ func (d Deps) handleCreateGroup(c *echo.Context) error {
 		return d.WriteAdminAccessError(c, err)
 	}
 	var input groupCreateRequest
-	if err := core.DecodeJSON(c.Request(), &input); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := support.DecodeJSON(c.Request(), &input); err != nil {
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	group, err := idmusecases.CreateGroup(c.Request().Context(), d.adminGroupDeps(), idmusecases.CreateGroupInput{
 		ActorSub: actor.Sub, Name: input.Name, Description: input.Description, Roles: input.Roles, Now: time.Now().UTC(),
@@ -97,7 +97,7 @@ func (d Deps) handleCreateGroup(c *echo.Context) error {
 	if err != nil {
 		return d.writeAdminGroupError(c, err)
 	}
-	return core.NoStoreJSON(c, http.StatusCreated, toGroupSummaryResponse(group, 0))
+	return support.NoStoreJSON(c, http.StatusCreated, toGroupSummaryResponse(group, 0))
 }
 
 func (d Deps) handleUpdateGroup(c *echo.Context) error {
@@ -109,8 +109,8 @@ func (d Deps) handleUpdateGroup(c *echo.Context) error {
 		return d.WriteAdminAccessError(c, err)
 	}
 	var input groupUpdateRequest
-	if err := core.DecodeJSON(c.Request(), &input); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := support.DecodeJSON(c.Request(), &input); err != nil {
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	group, err := idmusecases.UpdateGroup(c.Request().Context(), d.adminGroupDeps(), idmusecases.UpdateGroupInput{
 		ActorSub: actor.Sub, ID: c.Param("group_id"),
@@ -123,7 +123,7 @@ func (d Deps) handleUpdateGroup(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return core.NoStoreJSON(c, http.StatusOK, toGroupSummaryResponse(group, count))
+	return support.NoStoreJSON(c, http.StatusOK, toGroupSummaryResponse(group, count))
 }
 
 func (d Deps) handleDeleteGroup(c *echo.Context) error {
@@ -187,7 +187,7 @@ func (d Deps) handleListUserGroups(c *echo.Context) error {
 		}
 		groups[i] = toGroupSummaryResponse(group, count)
 	}
-	return core.NoStoreJSON(c, http.StatusOK, userGroupsResponse{
+	return support.NoStoreJSON(c, http.StatusOK, userGroupsResponse{
 		Groups:         groups,
 		DirectRoles:    view.DirectRoles,
 		GroupRoles:     view.GroupRoles,
@@ -222,15 +222,15 @@ func toGroupSummaryResponse(group *spec.Group, memberCount int) groupSummaryResp
 func (d Deps) writeAdminGroupError(c *echo.Context, err error) error {
 	switch {
 	case errors.Is(err, idmusecases.ErrGroupNotFound):
-		return core.WriteBrowserError(c, http.StatusNotFound, "group_not_found", "グループが存在しません")
+		return support.WriteBrowserError(c, http.StatusNotFound, "group_not_found", "グループが存在しません")
 	case errors.Is(err, idmusecases.ErrUserNotFound):
-		return core.WriteBrowserError(c, http.StatusNotFound, "user_not_found", "ユーザーが存在しません")
+		return support.WriteBrowserError(c, http.StatusNotFound, "user_not_found", "ユーザーが存在しません")
 	case errors.Is(err, idmusecases.ErrGroupNameConflict):
-		return core.WriteBrowserError(c, http.StatusConflict, "group_name_conflict", "グループ名は既に使用されています")
+		return support.WriteBrowserError(c, http.StatusConflict, "group_name_conflict", "グループ名は既に使用されています")
 	case errors.Is(err, idmusecases.ErrGroupNameEmpty):
-		return core.WriteBrowserError(c, http.StatusBadRequest, "group_name_required", "グループ名は必須です")
+		return support.WriteBrowserError(c, http.StatusBadRequest, "group_name_required", "グループ名は必須です")
 	case errors.Is(err, idmusecases.ErrInvalidRole):
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_role", "roleが不正です")
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_role", "roleが不正です")
 	default:
 		return err
 	}

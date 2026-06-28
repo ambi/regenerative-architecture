@@ -18,11 +18,11 @@ import (
 
 	authhttp "ra-idp-go/internal/authentication/adapters/http"
 	authusecases "ra-idp-go/internal/authentication/usecases"
-	"ra-idp-go/internal/infrastructure/crypto"
-	httpadapter "ra-idp-go/internal/infrastructure/http"
-	"ra-idp-go/internal/infrastructure/http/core"
-	"ra-idp-go/internal/infrastructure/persistence/memory"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/crypto"
+	httpadapter "ra-idp-go/internal/shared/adapters/http/server"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/adapters/persistence/memory"
+	"ra-idp-go/internal/shared/spec"
 
 	"github.com/labstack/echo/v5"
 )
@@ -75,7 +75,7 @@ func newStepUpServer(t *testing.T) (*echo.Echo, *memory.SessionStore, *[]spec.Do
 	var events []spec.DomainEvent
 
 	e := echo.New()
-	httpadapter.Register(e, core.Deps{
+	httpadapter.Register(e, support.Deps{
 		Issuer: "http://idp.test", SCL: spec.MustLoadSCL(),
 		UserRepo: userRepo, TenantRepo: tenantRepo,
 		AttrSchemaRepo:        memory.NewTenantUserAttributeSchemaRepository(),
@@ -111,7 +111,7 @@ func postAccount(e *echo.Echo, path, sessionID string, body any) *httptest.Respo
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Origin", "http://idp.test")
 	req.Header.Set("X-CSRF-Token", "csrf-token-value")
-	req.AddCookie(&http.Cookie{Name: core.CSRFCookie, Value: "csrf-token-value"})
+	req.AddCookie(&http.Cookie{Name: support.CSRFCookie, Value: "csrf-token-value"})
 	if sessionID != "" {
 		req.AddCookie(&http.Cookie{Name: authusecases.SessionCookie, Value: sessionID})
 	}

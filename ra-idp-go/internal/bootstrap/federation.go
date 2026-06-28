@@ -11,7 +11,7 @@ import (
 	"time"
 
 	samlports "ra-idp-go/internal/saml/ports"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/spec"
 	"ra-idp-go/internal/wsfederation/adapters/samltoken"
 	wsfederationports "ra-idp-go/internal/wsfederation/ports"
 )

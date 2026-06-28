@@ -3,7 +3,7 @@ package ports
 import (
 	"context"
 
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/spec"
 )
 
 // AuthorizationDetailTypeRepository はテナント登録済みの authorization_details

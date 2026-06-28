@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/spec"
 )
 
 // 標準 User フィールドを指す属性キー。ClaimMappingRule.source_key から参照する。

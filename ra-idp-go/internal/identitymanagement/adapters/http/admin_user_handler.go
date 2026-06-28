@@ -8,8 +8,8 @@ import (
 
 	authusecases "ra-idp-go/internal/authentication/usecases"
 	idmusecases "ra-idp-go/internal/identitymanagement/usecases"
-	"ra-idp-go/internal/infrastructure/http/core"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/spec"
 
 	"github.com/labstack/echo/v5"
 )
@@ -67,7 +67,7 @@ func (d Deps) handleListAdminUsers(c *echo.Context) error {
 	if _, err := d.RequireAdmin(c); err != nil {
 		return d.WriteAdminAccessError(c, err)
 	}
-	users, err := d.UserRepo.FindAll(c.Request().Context(), core.RequestTenantID(c))
+	users, err := d.UserRepo.FindAll(c.Request().Context(), support.RequestTenantID(c))
 	if err != nil {
 		return err
 	}
@@ -75,7 +75,7 @@ func (d Deps) handleListAdminUsers(c *echo.Context) error {
 	for i, user := range users {
 		response[i] = toAdminUserResponse(user)
 	}
-	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"users": response})
+	return support.NoStoreJSON(c, http.StatusOK, map[string]any{"users": response})
 }
 
 func (d Deps) handleGetAdminUser(c *echo.Context) error {
@@ -87,12 +87,12 @@ func (d Deps) handleGetAdminUser(c *echo.Context) error {
 		return err
 	}
 	if user == nil {
-		return core.WriteBrowserError(c, http.StatusNotFound, "user_not_found", "ユーザーが存在しません")
+		return support.WriteBrowserError(c, http.StatusNotFound, "user_not_found", "ユーザーが存在しません")
 	}
-	if user.TenantID != core.RequestTenantID(c) {
-		return core.WriteBrowserError(c, http.StatusNotFound, "user_not_found", "ユーザーが存在しません")
+	if user.TenantID != support.RequestTenantID(c) {
+		return support.WriteBrowserError(c, http.StatusNotFound, "user_not_found", "ユーザーが存在しません")
 	}
-	return core.NoStoreJSON(c, http.StatusOK, toAdminUserResponse(user))
+	return support.NoStoreJSON(c, http.StatusOK, toAdminUserResponse(user))
 }
 
 func (d Deps) handleCreateAdminUser(c *echo.Context) error {
@@ -104,8 +104,8 @@ func (d Deps) handleCreateAdminUser(c *echo.Context) error {
 		return d.WriteAdminAccessError(c, err)
 	}
 	var input adminUserCreateRequest
-	if err := core.DecodeJSON(c.Request(), &input); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := support.DecodeJSON(c.Request(), &input); err != nil {
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	user, err := idmusecases.CreateUser(
 		c.Request().Context(),
@@ -119,7 +119,7 @@ func (d Deps) handleCreateAdminUser(c *echo.Context) error {
 	if err != nil {
 		return d.writeAdminUserError(c, err)
 	}
-	return core.NoStoreJSON(c, http.StatusCreated, toAdminUserResponse(user))
+	return support.NoStoreJSON(c, http.StatusCreated, toAdminUserResponse(user))
 }
 
 func (d Deps) handleUpdateAdminUser(c *echo.Context) error {
@@ -131,8 +131,8 @@ func (d Deps) handleUpdateAdminUser(c *echo.Context) error {
 		return d.WriteAdminAccessError(c, err)
 	}
 	var input adminUserUpdateRequest
-	if err := core.DecodeJSON(c.Request(), &input); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := support.DecodeJSON(c.Request(), &input); err != nil {
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	user, err := idmusecases.UpdateUser(
 		c.Request().Context(),
@@ -148,7 +148,7 @@ func (d Deps) handleUpdateAdminUser(c *echo.Context) error {
 	if err != nil {
 		return d.writeAdminUserError(c, err)
 	}
-	return core.NoStoreJSON(c, http.StatusOK, toAdminUserResponse(user))
+	return support.NoStoreJSON(c, http.StatusOK, toAdminUserResponse(user))
 }
 
 func (d Deps) handleDisableAdminUser(c *echo.Context) error {
@@ -169,8 +169,8 @@ func (d Deps) handleDeleteAdminUser(c *echo.Context) error {
 	}
 	var input adminUserDeleteRequest
 	if c.Request().ContentLength > 0 {
-		if err := core.DecodeJSON(c.Request(), &input); err != nil {
-			return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+		if err := support.DecodeJSON(c.Request(), &input); err != nil {
+			return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 		}
 	}
 	err = idmusecases.DeleteUser(c.Request().Context(), d.adminUserDeps(), idmusecases.DeleteUserInput{
@@ -218,19 +218,19 @@ func (d Deps) adminUserDeps() idmusecases.AdminUserDeps {
 func (d Deps) writeAdminUserError(c *echo.Context, err error) error {
 	switch {
 	case errors.Is(err, idmusecases.ErrUserNotFound):
-		return core.WriteBrowserError(c, http.StatusNotFound, "user_not_found", "ユーザーが存在しません")
+		return support.WriteBrowserError(c, http.StatusNotFound, "user_not_found", "ユーザーが存在しません")
 	case errors.Is(err, idmusecases.ErrUsernameConflict):
-		return core.WriteBrowserError(c, http.StatusConflict, "username_conflict", "ユーザー名は既に使用されています")
+		return support.WriteBrowserError(c, http.StatusConflict, "username_conflict", "ユーザー名は既に使用されています")
 	case errors.Is(err, idmusecases.ErrInvalidRole):
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_role", "roleが不正です")
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_role", "roleが不正です")
 	case errors.Is(err, idmusecases.ErrSelfDeleteForbidden):
-		return core.WriteBrowserError(c, http.StatusBadRequest, "self_delete_forbidden", "管理者は自身を削除できません")
+		return support.WriteBrowserError(c, http.StatusBadRequest, "self_delete_forbidden", "管理者は自身を削除できません")
 	case errors.Is(err, idmusecases.ErrSelfDisableForbidden):
-		return core.WriteBrowserError(c, http.StatusBadRequest, "self_disable_forbidden", "管理者は自身を無効化できません")
+		return support.WriteBrowserError(c, http.StatusBadRequest, "self_disable_forbidden", "管理者は自身を無効化できません")
 	case errors.Is(err, idmusecases.ErrInvalidAttribute):
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_attribute", "属性がスキーマに適合していません")
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_attribute", "属性がスキーマに適合していません")
 	case errors.Is(err, idmusecases.ErrInvalidRequiredAction):
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_required_action", "required action が不正です")
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_required_action", "required action が不正です")
 	default:
 		var policyErr *authusecases.PasswordPolicyError
 		if errors.As(err, &policyErr) {
@@ -238,7 +238,7 @@ func (d Deps) writeAdminUserError(c *echo.Context, err error) error {
 			for i, violation := range policyErr.Violations {
 				violations[i] = string(violation)
 			}
-			return core.NoStoreJSON(c, http.StatusBadRequest, map[string]any{
+			return support.NoStoreJSON(c, http.StatusBadRequest, map[string]any{
 				"error": "password_policy", "message": "パスワードがセキュリティ要件を満たしていません。",
 				"violations": violations,
 			})
@@ -275,8 +275,8 @@ func (d Deps) handleSetUserRequiredAction(c *echo.Context) error {
 		return d.WriteAdminAccessError(c, err)
 	}
 	var input adminRequiredActionRequest
-	if err := core.DecodeJSON(c.Request(), &input); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := support.DecodeJSON(c.Request(), &input); err != nil {
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	user, err := idmusecases.SetUserRequiredAction(
 		c.Request().Context(), d.adminUserDeps(), actor.Sub, c.Param("sub"),
@@ -285,7 +285,7 @@ func (d Deps) handleSetUserRequiredAction(c *echo.Context) error {
 	if err != nil {
 		return d.writeAdminUserError(c, err)
 	}
-	return core.NoStoreJSON(c, http.StatusOK, toAdminUserResponse(user))
+	return support.NoStoreJSON(c, http.StatusOK, toAdminUserResponse(user))
 }
 
 func (d Deps) handleClearUserRequiredAction(c *echo.Context) error {
@@ -303,5 +303,5 @@ func (d Deps) handleClearUserRequiredAction(c *echo.Context) error {
 	if err != nil {
 		return d.writeAdminUserError(c, err)
 	}
-	return core.NoStoreJSON(c, http.StatusOK, toAdminUserResponse(user))
+	return support.NoStoreJSON(c, http.StatusOK, toAdminUserResponse(user))
 }

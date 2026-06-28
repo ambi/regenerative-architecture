@@ -11,13 +11,13 @@ import (
 	"testing"
 	"time"
 
-	"ra-idp-go/internal/infrastructure/crypto"
-	httpadapter "ra-idp-go/internal/infrastructure/http"
-	"ra-idp-go/internal/infrastructure/http/core"
-	"ra-idp-go/internal/infrastructure/notification"
-	"ra-idp-go/internal/infrastructure/persistence/memory"
-	"ra-idp-go/internal/infrastructure/policy"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/crypto"
+	httpadapter "ra-idp-go/internal/shared/adapters/http/server"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/adapters/notification"
+	"ra-idp-go/internal/shared/adapters/persistence/memory"
+	"ra-idp-go/internal/shared/adapters/policy"
+	"ra-idp-go/internal/shared/spec"
 
 	"github.com/labstack/echo/v5"
 )
@@ -97,7 +97,7 @@ func newPasswordResetHandler(
 		t.Fatal(err)
 	}
 	e := echo.New()
-	httpadapter.Register(e, core.Deps{
+	httpadapter.Register(e, support.Deps{
 		Issuer: "http://idp.test", UserRepo: userRepo, PasswordHasher: hasher,
 		PasswordHistoryRepo: historyRepo, PasswordResetTokenStore: tokenStore,
 		EmailSender: sender, BreachedPasswordChecker: policy.NoopBreachedPasswordChecker{},

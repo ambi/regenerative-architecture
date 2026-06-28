@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	authnports "ra-idp-go/internal/authentication/ports"
-	"ra-idp-go/internal/infrastructure/policy"
+	"ra-idp-go/internal/shared/adapters/policy"
 )
 
 // breachedPasswordCheckerVersion は HIBP の User-Agent に乗せる版番号 (HIBP の etiquette)。

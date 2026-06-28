@@ -9,10 +9,10 @@ import (
 	"time"
 
 	authusecases "ra-idp-go/internal/authentication/usecases"
-	httpadapter "ra-idp-go/internal/infrastructure/http"
-	"ra-idp-go/internal/infrastructure/http/core"
-	"ra-idp-go/internal/infrastructure/persistence/memory"
-	"ra-idp-go/internal/spec"
+	httpadapter "ra-idp-go/internal/shared/adapters/http/server"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/adapters/persistence/memory"
+	"ra-idp-go/internal/shared/spec"
 
 	"github.com/labstack/echo/v5"
 )
@@ -132,7 +132,7 @@ func newAdminConsentHandler() (*echo.Echo, *memory.ConsentRepository, *[]spec.Do
 	})
 	events := []spec.DomainEvent{}
 	e := echo.New()
-	httpadapter.Register(e, core.Deps{
+	httpadapter.Register(e, support.Deps{
 		Issuer: "http://idp.test", UserRepo: users, ConsentRepo: consents,
 		AuthnResolver: authusecases.DemoHeaderResolver{},
 		Emit: func(event spec.DomainEvent) {

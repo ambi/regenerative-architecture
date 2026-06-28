@@ -15,11 +15,11 @@ import (
 	"testing"
 	"time"
 
-	httpadapter "ra-idp-go/internal/infrastructure/http"
-	"ra-idp-go/internal/infrastructure/http/core"
-	"ra-idp-go/internal/infrastructure/persistence/memory"
 	"ra-idp-go/internal/oauth2/domain"
-	"ra-idp-go/internal/spec"
+	httpadapter "ra-idp-go/internal/shared/adapters/http/server"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/adapters/persistence/memory"
+	"ra-idp-go/internal/shared/spec"
 
 	"github.com/labstack/echo/v5"
 )
@@ -47,7 +47,7 @@ func newPARTestServer(t *testing.T) *echo.Echo {
 		CreatedAt:               time.Now().UTC(),
 	})
 	e := echo.New()
-	httpadapter.Register(e, core.Deps{
+	httpadapter.Register(e, support.Deps{
 		Issuer:       "http://test",
 		ClientRepo:   clientRepo,
 		PARStore:     memory.NewPARStore(),
@@ -119,7 +119,7 @@ func TestPushAuthorizationRequestRoundTripsToAuthorize(t *testing.T) {
 
 func TestPushAuthorizationRequestRejectsCrossTenantConsumption(t *testing.T) {
 	// PAR record を tenant=acme で保存して、/authorize は default tenant (bare 経路) に
-	// 投げる。handleAuthorize は consumed.TenantID != core.RequestTenantID(c) を理由に拒否する。
+	// 投げる。handleAuthorize は consumed.TenantID != support.RequestTenantID(c) を理由に拒否する。
 	store := memory.NewPARStore()
 	// 別テナントの PAR レコードを直接 store に保存。
 	rec := &spec.PARRecord{
@@ -153,7 +153,7 @@ func TestPushAuthorizationRequestRejectsCrossTenantConsumption(t *testing.T) {
 		TokenEndpointAuthMethod: spec.AuthMethodClientSecretBasic, Scope: "openid",
 		CreatedAt: time.Now().UTC(),
 	})
-	httpadapter.Register(e, core.Deps{
+	httpadapter.Register(e, support.Deps{
 		Issuer:       "http://test",
 		ClientRepo:   clientRepo,
 		PARStore:     store,

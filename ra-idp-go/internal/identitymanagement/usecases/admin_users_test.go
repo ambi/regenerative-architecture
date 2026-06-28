@@ -7,9 +7,9 @@ import (
 	"time"
 
 	idmusecases "ra-idp-go/internal/identitymanagement/usecases"
-	"ra-idp-go/internal/infrastructure/crypto"
-	"ra-idp-go/internal/infrastructure/persistence/memory"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/crypto"
+	"ra-idp-go/internal/shared/adapters/persistence/memory"
+	"ra-idp-go/internal/shared/spec"
 )
 
 func TestCreateUpdateAndDisableUser(t *testing.T) {

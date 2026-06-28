@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"ra-idp-go/internal/infrastructure/crypto"
-	"ra-idp-go/internal/infrastructure/http/core"
 	"ra-idp-go/internal/oauth2/usecases"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/crypto"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/spec"
 
 	"github.com/labstack/echo/v5"
 )
@@ -79,7 +79,7 @@ func (d Deps) handleUserInfo(c *echo.Context) error {
 			}
 			r, err := crypto.VerifyDPoP(
 				c.Request().Context(), dpopHeader,
-				c.Request().Method, core.RequestHTU(c, d.Issuer),
+				c.Request().Method, support.RequestHTU(c, d.Issuer),
 				d.DpopReplayStore, time.Now().UTC(),
 			)
 			if err != nil || r == nil || subtle.ConstantTimeCompare(

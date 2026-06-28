@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"strings"
 
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/spec"
 )
 
 // Attributes は解決済みの identity 属性。属性名から値群への対応で、多値属性を表せる。

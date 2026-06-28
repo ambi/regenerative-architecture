@@ -6,9 +6,9 @@ import (
 	"slices"
 	"strings"
 
-	"ra-idp-go/internal/infrastructure/http/core"
 	"ra-idp-go/internal/oauth2/usecases"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/spec"
 
 	"github.com/labstack/echo/v5"
 )
@@ -90,12 +90,12 @@ func (d Deps) handleListAdminRolePolicies(c *echo.Context) error {
 		return d.WriteAdminAccessError(c, err)
 	}
 	if !slices.Contains(actor.Roles, "admin") && !slices.Contains(actor.Roles, "system_admin") {
-		return d.WriteAdminAccessError(c, core.ErrAdminAccessDenied)
+		return d.WriteAdminAccessError(c, support.ErrAdminAccessDenied)
 	}
 	roles, err := usecases.ListRolePolicies(
 		d.SCL,
 		actor.Roles,
-		core.RequestTenantID(c) == spec.DefaultTenantID && actor.TenantID == spec.DefaultTenantID,
+		support.RequestTenantID(c) == spec.DefaultTenantID && actor.TenantID == spec.DefaultTenantID,
 	)
 	if err != nil {
 		return err
@@ -104,7 +104,7 @@ func (d Deps) handleListAdminRolePolicies(c *echo.Context) error {
 	for i, role := range roles {
 		response[i] = toAdminRolePolicyResponse(role)
 	}
-	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"roles": response})
+	return support.NoStoreJSON(c, http.StatusOK, map[string]any{"roles": response})
 }
 
 func toAdminRolePolicyResponse(role usecases.RolePolicy) AdminRolePolicyResponse {

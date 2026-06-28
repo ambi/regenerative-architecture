@@ -8,7 +8,7 @@ import (
 	"time"
 
 	idmusecases "ra-idp-go/internal/identitymanagement/usecases"
-	"ra-idp-go/internal/infrastructure/http/core"
+	"ra-idp-go/internal/shared/adapters/http/support"
 
 	"github.com/labstack/echo/v5"
 )
@@ -28,7 +28,7 @@ func (d Deps) handleEmailVerifyContext(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return core.NoStoreJSON(c, http.StatusOK, map[string]string{"csrf_token": csrf})
+	return support.NoStoreJSON(c, http.StatusOK, map[string]string{"csrf_token": csrf})
 }
 
 func (d Deps) handleRequestEmailChange(c *echo.Context) error {
@@ -41,12 +41,12 @@ func (d Deps) handleRequestEmailChange(c *echo.Context) error {
 		return d.writeAccountError(c, err)
 	}
 	var input emailChangeRequest
-	if err := core.DecodeJSON(c.Request(), &input); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := support.DecodeJSON(c.Request(), &input); err != nil {
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	err = idmusecases.RequestEmailChange(c.Request().Context(), idmusecases.RequestEmailChangeDeps{
 		UserRepo: d.UserRepo, TokenStore: d.EmailChangeTokenStore,
-		EmailSender: d.EmailSender, Emit: d.Emit, Issuer: core.RequestIssuer(c, d.Issuer),
+		EmailSender: d.EmailSender, Emit: d.Emit, Issuer: support.RequestIssuer(c, d.Issuer),
 	}, idmusecases.RequestEmailChangeInput{Sub: sub, NewEmail: input.NewEmail, Now: time.Now().UTC()})
 	if err != nil {
 		return d.writeEmailChangeError(c, err)
@@ -60,30 +60,30 @@ func (d Deps) handleConfirmEmailChange(c *echo.Context) error {
 		return err
 	}
 	var input emailChangeVerifyRequest
-	if err := core.DecodeJSON(c.Request(), &input); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := support.DecodeJSON(c.Request(), &input); err != nil {
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	if strings.TrimSpace(input.Token) == "" {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "tokenが必要です")
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "tokenが必要です")
 	}
 	if _, err := idmusecases.ConfirmEmailChange(c.Request().Context(), idmusecases.ConfirmEmailChangeDeps{
 		UserRepo: d.UserRepo, TokenStore: d.EmailChangeTokenStore, Emit: d.Emit,
 	}, idmusecases.ConfirmEmailChangeInput{Token: input.Token, Now: time.Now().UTC()}); err != nil {
 		return d.writeEmailChangeError(c, err)
 	}
-	return core.NoStoreJSON(c, http.StatusOK, map[string]string{"status": "ok"})
+	return support.NoStoreJSON(c, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 func (d Deps) writeEmailChangeError(c *echo.Context, err error) error {
 	switch {
 	case errors.Is(err, idmusecases.ErrInvalidEmail):
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_email", "メールアドレスの形式が正しくありません")
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_email", "メールアドレスの形式が正しくありません")
 	case errors.Is(err, idmusecases.ErrEmailUnchanged):
-		return core.WriteBrowserError(c, http.StatusBadRequest, "email_unchanged", "現在のメールアドレスと同じです")
+		return support.WriteBrowserError(c, http.StatusBadRequest, "email_unchanged", "現在のメールアドレスと同じです")
 	case errors.Is(err, idmusecases.ErrEmailTaken):
-		return core.WriteBrowserError(c, http.StatusConflict, "email_taken", "このメールアドレスは既に使われています")
+		return support.WriteBrowserError(c, http.StatusConflict, "email_taken", "このメールアドレスは既に使われています")
 	case errors.Is(err, idmusecases.ErrInvalidEmailChangeToken):
-		return core.WriteBrowserError(c, http.StatusGone, "invalid_email_change_token", "確認リンクが無効か期限切れです")
+		return support.WriteBrowserError(c, http.StatusGone, "invalid_email_change_token", "確認リンクが無効か期限切れです")
 	default:
 		return d.writeAccountError(c, err)
 	}

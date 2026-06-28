@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/spec"
 )
 
 type AuthorizationRequestStore interface {

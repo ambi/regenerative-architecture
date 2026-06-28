@@ -15,7 +15,7 @@ import (
 
 	authnports "ra-idp-go/internal/authentication/ports"
 	oauthports "ra-idp-go/internal/oauth2/ports"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/spec"
 	"ra-idp-go/internal/tenancy"
 )
 

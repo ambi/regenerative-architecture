@@ -8,9 +8,9 @@ import (
 	"time"
 
 	authusecases "ra-idp-go/internal/authentication/usecases"
-	"ra-idp-go/internal/infrastructure/http/core"
 	samldomain "ra-idp-go/internal/saml/domain"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/spec"
 
 	"github.com/beevik/etree"
 	"github.com/labstack/echo/v5"
@@ -21,7 +21,7 @@ import (
 // 返送先へはリダイレクトしない (open redirect 防止)。
 func (d Deps) handleSamlSLO(c *echo.Context) error {
 	ctx := c.Request().Context()
-	tenantID := core.RequestTenantID(c)
+	tenantID := support.RequestTenantID(c)
 	if samlRequest := samlParam(c, "SAMLRequest", ""); samlRequest != "" {
 		return d.handleSamlLogoutRequest(c, samlRequest, samlParam(c, "RelayState", ""))
 	}
@@ -43,7 +43,7 @@ func (d Deps) handleSamlSLO(c *echo.Context) error {
 
 func (d Deps) handleSamlLogoutRequest(c *echo.Context, encodedRequest, relayState string) error {
 	now := time.Now().UTC()
-	tenantID := core.RequestTenantID(c)
+	tenantID := support.RequestTenantID(c)
 	binding := samldomain.BindingRedirect
 	var (
 		xml []byte
@@ -76,7 +76,7 @@ func (d Deps) handleSamlLogoutRequest(c *echo.Context, encodedRequest, relayStat
 	if err := samldomain.ValidateRequestSignature(binding, xml, c.Request().URL.RawQuery, *sp); err != nil {
 		return c.String(http.StatusBadRequest, err.Error())
 	}
-	expectedDestination := strings.TrimRight(core.RequestIssuer(c, d.Issuer), "/") + core.TenantRoute(c, "/saml/slo")
+	expectedDestination := strings.TrimRight(support.RequestIssuer(c, d.Issuer), "/") + support.TenantRoute(c, "/saml/slo")
 	if req.Destination != "" && req.Destination != expectedDestination {
 		return c.String(http.StatusBadRequest, "Destination does not match SLO endpoint")
 	}
@@ -113,7 +113,7 @@ func (d Deps) buildLogoutResponse(c *echo.Context, sp spec.SamlServiceProvider, 
 	resp.CreateAttr("IssueInstant", now.Format(time.RFC3339))
 	resp.CreateAttr("Destination", sp.SLOURL)
 	resp.CreateAttr("InResponseTo", inResponseTo)
-	resp.CreateElement("saml:Issuer").SetText(core.RequestIssuer(c, d.Issuer))
+	resp.CreateElement("saml:Issuer").SetText(support.RequestIssuer(c, d.Issuer))
 	status := resp.CreateElement("samlp:Status")
 	status.CreateElement("samlp:StatusCode").CreateAttr("Value", "urn:oasis:names:tc:SAML:2.0:status:Success")
 	signed, err := d.FederationSigner.Sign(resp, "ID")
@@ -148,7 +148,7 @@ func (d Deps) resolveLogoutRedirect(c *echo.Context, tenantID, entityID, relaySt
 
 func (d Deps) clearSessionCookie(c *echo.Context) {
 	c.SetCookie(&http.Cookie{ //nolint:gosec // Secure は HTTPS issuer で有効化、ローカル HTTP 開発では意図的に無効。
-		Name: authusecases.SessionCookie, Path: core.TenantCookiePath(c),
+		Name: authusecases.SessionCookie, Path: support.TenantCookiePath(c),
 		Secure: d.SecureCookies(), HttpOnly: true, SameSite: http.SameSiteLaxMode,
 		MaxAge: -1,
 	})

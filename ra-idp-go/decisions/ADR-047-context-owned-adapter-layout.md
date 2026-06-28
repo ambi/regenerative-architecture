@@ -3,8 +3,8 @@
 ## ステータス
 
 採用。ただし、コンテキスト横断 Layer 4 アダプタ実装のディレクトリ名は
-ADR-068 により `internal/platform/` から `internal/infrastructure/` へ置き換えられた
-（2026-06-28）。
+ADR-068 を経て、ADR-070 により technical shared context
+`internal/shared/` へ置き換えられた（2026-06-28）。
 
 RA §3.6（境界づけられたコンテキスト）を Layer 4 まで適用し、ディレクトリ構造を
 「(層 × コンテキスト) の格子」へ揃える。UI 側で先行した `ui/src/features/` 分割

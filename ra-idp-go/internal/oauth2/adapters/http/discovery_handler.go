@@ -4,9 +4,9 @@ package http
 import (
 	"net/http"
 
-	"ra-idp-go/internal/infrastructure/http/core"
 	"ra-idp-go/internal/oauth2/usecases"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/spec"
 
 	"github.com/labstack/echo/v5"
 )
@@ -15,13 +15,13 @@ func (d Deps) handleDiscovery(c *echo.Context) error {
 	if d.SCL == nil {
 		return writeOAuthError(c, usecases.NewOAuthError("server_error", "SCL not loaded"))
 	}
-	doc, err := d.SCL.BuildDiscoveryDocument(core.RequestIssuer(c, d.Issuer))
+	doc, err := d.SCL.BuildDiscoveryDocument(support.RequestIssuer(c, d.Issuer))
 	if err != nil {
 		return writeOAuthError(c, err)
 	}
 	// RFC 9396 — テナントで Enabled な authorization_details type を広告する (ADR-050)。
 	if d.AuthzDetailTypeRepo != nil {
-		types, err := d.AuthzDetailTypeRepo.ListByTenant(c.Request().Context(), core.RequestTenantID(c))
+		types, err := d.AuthzDetailTypeRepo.ListByTenant(c.Request().Context(), support.RequestTenantID(c))
 		if err != nil {
 			return writeOAuthError(c, err)
 		}

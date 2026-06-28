@@ -15,7 +15,7 @@ import (
 	dsig "github.com/russellhaering/goxmldsig"
 
 	"ra-idp-go/internal/saml/adapters/samlresponse"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/spec"
 	"ra-idp-go/internal/wsfederation/adapters/samltoken"
 	"ra-idp-go/internal/wsfederation/domain"
 )

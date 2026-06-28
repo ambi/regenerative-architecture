@@ -9,7 +9,7 @@ import (
 
 	authnports "ra-idp-go/internal/authentication/ports"
 	authusecases "ra-idp-go/internal/authentication/usecases"
-	"ra-idp-go/internal/infrastructure/http/core"
+	"ra-idp-go/internal/shared/adapters/http/support"
 
 	"github.com/labstack/echo/v5"
 )
@@ -53,7 +53,7 @@ func (d Deps) requireAuthenticatedSession(c *echo.Context) (sub, sessionID strin
 		return "", "", err
 	}
 	if authn == nil || authn.AuthenticationPending {
-		return "", "", core.ErrAdminAuthenticationRequired
+		return "", "", support.ErrAdminAuthenticationRequired
 	}
 	return authn.Sub, authn.SessionID, nil
 }
@@ -71,7 +71,7 @@ func (d Deps) handleListAccountSessions(c *echo.Context) error {
 	for i, view := range views {
 		sessions[i] = toAccountSessionResponse(view)
 	}
-	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"sessions": sessions})
+	return support.NoStoreJSON(c, http.StatusOK, map[string]any{"sessions": sessions})
 }
 
 func (d Deps) handleRevokeAccountSession(c *echo.Context) error {

@@ -10,7 +10,7 @@ import (
 	"github.com/labstack/echo/v5"
 
 	authusecases "ra-idp-go/internal/authentication/usecases"
-	"ra-idp-go/internal/infrastructure/http/core"
+	"ra-idp-go/internal/shared/adapters/http/support"
 )
 
 type accountContextResponse struct {
@@ -32,7 +32,7 @@ func (d Deps) handleAccountContext(c *echo.Context) error {
 		return err
 	}
 	if authn == nil || authn.AuthenticationPending {
-		return core.WriteBrowserError(c, http.StatusUnauthorized, "authentication_required", "認証済みセッションが必要です")
+		return support.WriteBrowserError(c, http.StatusUnauthorized, "authentication_required", "認証済みセッションが必要です")
 	}
 	csrf, err := d.EnsureCSRFCookie(c)
 	if err != nil {
@@ -47,7 +47,7 @@ func (d Deps) handleAccountContext(c *echo.Context) error {
 			resp.Roles = d.EffectiveRoles(c.Request().Context(), user)
 		}
 	}
-	return core.NoStoreJSON(c, http.StatusOK, resp)
+	return support.NoStoreJSON(c, http.StatusOK, resp)
 }
 
 func (d Deps) handleChangePasswordAPI(c *echo.Context) error {
@@ -59,18 +59,18 @@ func (d Deps) handleChangePasswordAPI(c *echo.Context) error {
 		return err
 	}
 	if authn == nil || authn.AuthenticationPending {
-		return core.WriteBrowserError(c, http.StatusUnauthorized, "authentication_required", "認証済みセッションが必要です")
+		return support.WriteBrowserError(c, http.StatusUnauthorized, "authentication_required", "認証済みセッションが必要です")
 	}
 	// パスワード変更は高 sensitivity 操作。step-up 再認証を要求する (ADR-043)。
 	if !authusecases.StepUpSatisfied(authn, time.Now().UTC()) {
-		return core.WriteBrowserError(c, http.StatusForbidden, "step_up_required", "この操作には再認証が必要です")
+		return support.WriteBrowserError(c, http.StatusForbidden, "step_up_required", "この操作には再認証が必要です")
 	}
 	var input changePasswordAPIRequest
-	if err := core.DecodeJSON(c.Request(), &input); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := support.DecodeJSON(c.Request(), &input); err != nil {
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	if input.CurrentPassword == "" || input.NewPassword == "" {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "現在と新しいパスワードが必要です")
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "現在と新しいパスワードが必要です")
 	}
 
 	snap := d.resolvePasswordPolicy(c.Request().Context())
@@ -91,11 +91,11 @@ func (d Deps) handleChangePasswordAPI(c *echo.Context) error {
 		c.Response().Header().Set("Cache-Control", "no-store")
 		return c.NoContent(http.StatusNoContent)
 	case errors.Is(err, authusecases.ErrUserNotFound):
-		return core.WriteBrowserError(c, http.StatusUnauthorized, "authentication_required", "認証済みセッションが無効です")
+		return support.WriteBrowserError(c, http.StatusUnauthorized, "authentication_required", "認証済みセッションが無効です")
 	case errors.Is(err, authusecases.ErrCurrentPasswordMismatch):
-		return core.WriteBrowserError(c, http.StatusForbidden, "access_denied", "現在のパスワードが一致しません")
+		return support.WriteBrowserError(c, http.StatusForbidden, "access_denied", "現在のパスワードが一致しません")
 	case errors.Is(err, authusecases.ErrPasswordReused):
-		return core.WriteBrowserError(c, http.StatusBadRequest, "password_reuse", "新しいパスワードは最近使用したものを再利用できません")
+		return support.WriteBrowserError(c, http.StatusBadRequest, "password_reuse", "新しいパスワードは最近使用したものを再利用できません")
 	default:
 		var policyErr *authusecases.PasswordPolicyError
 		if errors.As(err, &policyErr) {
@@ -103,7 +103,7 @@ func (d Deps) handleChangePasswordAPI(c *echo.Context) error {
 			for i, v := range policyErr.Violations {
 				violations[i] = string(v)
 			}
-			return core.NoStoreJSON(c, http.StatusBadRequest, map[string]any{
+			return support.NoStoreJSON(c, http.StatusBadRequest, map[string]any{
 				"error":      "password_policy",
 				"message":    "パスワードがセキュリティ要件を満たしていません。",
 				"violations": violations,

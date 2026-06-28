@@ -4,7 +4,7 @@ package ports
 import (
 	"context"
 
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/spec"
 )
 
 // ApplicationRepository は Application aggregate の永続境界 (wi-69)。

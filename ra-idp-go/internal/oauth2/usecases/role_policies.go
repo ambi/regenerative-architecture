@@ -5,7 +5,7 @@ import (
 	"slices"
 	"sort"
 
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/spec"
 )
 
 type RolePolicy struct {

@@ -15,11 +15,11 @@ import (
 	"time"
 
 	authdomain "ra-idp-go/internal/authentication/domain"
-	httpadapter "ra-idp-go/internal/infrastructure/http"
-	"ra-idp-go/internal/infrastructure/http/core"
-	"ra-idp-go/internal/infrastructure/persistence/memory"
 	"ra-idp-go/internal/oauth2/domain"
-	"ra-idp-go/internal/spec"
+	httpadapter "ra-idp-go/internal/shared/adapters/http/server"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/adapters/persistence/memory"
+	"ra-idp-go/internal/shared/spec"
 
 	"github.com/labstack/echo/v5"
 )
@@ -82,7 +82,7 @@ func newAuthorizeTestServer(t *testing.T, authn *authdomain.AuthenticationContex
 		_ = consentRepo.Save(context.Background(), consent)
 	}
 	e := echo.New()
-	deps := core.Deps{
+	deps := support.Deps{
 		Issuer:       "http://test",
 		ClientRepo:   clientRepo,
 		UserRepo:     userRepo,

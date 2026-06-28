@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"ra-idp-go/internal/identitymanagement/usecases"
-	"ra-idp-go/internal/infrastructure/notification"
-	"ra-idp-go/internal/infrastructure/persistence/memory"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/notification"
+	"ra-idp-go/internal/shared/adapters/persistence/memory"
+	"ra-idp-go/internal/shared/spec"
 )
 
 func TestRequestEmailChangeSendsLinkToNewAddress(t *testing.T) {

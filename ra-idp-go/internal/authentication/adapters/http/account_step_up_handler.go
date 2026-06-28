@@ -11,7 +11,7 @@ import (
 
 	authdomain "ra-idp-go/internal/authentication/domain"
 	authusecases "ra-idp-go/internal/authentication/usecases"
-	"ra-idp-go/internal/infrastructure/http/core"
+	"ra-idp-go/internal/shared/adapters/http/support"
 
 	"github.com/labstack/echo/v5"
 )
@@ -51,7 +51,7 @@ func (d Deps) requireStepUpSession(c *echo.Context) (sub, sessionID string, err 
 		return "", "", err
 	}
 	if authn == nil || authn.AuthenticationPending {
-		return "", "", core.ErrAdminAuthenticationRequired
+		return "", "", support.ErrAdminAuthenticationRequired
 	}
 	if !authusecases.StepUpSatisfied(authn, time.Now().UTC()) {
 		return "", "", authusecases.ErrStepUpRequired
@@ -75,7 +75,7 @@ func (d Deps) handleStartStepUp(c *echo.Context) error {
 	for i, m := range methods {
 		out[i] = string(m)
 	}
-	return core.NoStoreJSON(c, http.StatusOK, StepUpStartResponse{Methods: out})
+	return support.NoStoreJSON(c, http.StatusOK, StepUpStartResponse{Methods: out})
 }
 
 func (d Deps) handleCompleteStepUp(c *echo.Context) error {
@@ -87,8 +87,8 @@ func (d Deps) handleCompleteStepUp(c *echo.Context) error {
 		return d.writeAccountError(c, err)
 	}
 	var input stepUpCompleteRequest
-	if err := core.DecodeJSON(c.Request(), &input); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := support.DecodeJSON(c.Request(), &input); err != nil {
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	if err := authusecases.CompleteStepUp(c.Request().Context(), d.stepUpDeps(), authusecases.CompleteStepUpInput{
 		Sub:       authn.Sub,
@@ -112,7 +112,7 @@ func (d Deps) requireAuthenticatedAuthn(c *echo.Context) (*authdomain.Authentica
 		return nil, err
 	}
 	if authn == nil || authn.AuthenticationPending {
-		return nil, core.ErrAdminAuthenticationRequired
+		return nil, support.ErrAdminAuthenticationRequired
 	}
 	return authn, nil
 }
@@ -120,9 +120,9 @@ func (d Deps) requireAuthenticatedAuthn(c *echo.Context) (*authdomain.Authentica
 func (d Deps) writeStepUpError(c *echo.Context, err error) error {
 	switch {
 	case errors.Is(err, authusecases.ErrStepUpFailed):
-		return core.WriteBrowserError(c, http.StatusForbidden, "step_up_failed", "再認証に失敗しました。入力を確認してください。")
+		return support.WriteBrowserError(c, http.StatusForbidden, "step_up_failed", "再認証に失敗しました。入力を確認してください。")
 	case errors.Is(err, authusecases.ErrStepUpUnsupportedMethod):
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "この再認証方法は利用できません。")
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "この再認証方法は利用できません。")
 	default:
 		return d.writeAccountError(c, err)
 	}

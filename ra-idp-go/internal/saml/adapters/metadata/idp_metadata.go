@@ -14,7 +14,7 @@ import (
 
 	"github.com/beevik/etree"
 
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/spec"
 )
 
 const (

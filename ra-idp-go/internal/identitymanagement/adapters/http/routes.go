@@ -5,18 +5,18 @@
 package http
 
 import (
-	"ra-idp-go/internal/infrastructure/http/core"
+	"ra-idp-go/internal/shared/adapters/http/support"
 
 	"github.com/labstack/echo/v5"
 )
 
-// Deps は core.Deps を埋め込む薄いラッパ。ハンドラを本 bounded context の
+// Deps は support.Deps を埋め込む薄いラッパ。ハンドラを本 bounded context の
 // メソッドとして保持するためのキャリアで、固有のフィールドは持たない。
 type Deps struct {
-	*core.Deps
+	*support.Deps
 }
 
-func RegisterRoutes(g *echo.Group, cd *core.Deps) {
+func RegisterRoutes(g *echo.Group, cd *support.Deps) {
 	d := Deps{cd}
 	g.GET("/api/account/summary", d.handleGetAccountSummary)
 	g.GET("/api/account/profile", d.handleGetAccountProfile)

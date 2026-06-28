@@ -4,8 +4,8 @@ import (
 	"errors"
 	"net/http"
 
-	"ra-idp-go/internal/infrastructure/http/core"
 	"ra-idp-go/internal/oauth2/usecases"
+	"ra-idp-go/internal/shared/adapters/http/support"
 
 	"github.com/labstack/echo/v5"
 )
@@ -13,7 +13,7 @@ import (
 func writeOAuthError(c *echo.Context, err error) error {
 	var oe *usecases.OAuthError
 	if !errors.As(err, &oe) {
-		return c.JSON(http.StatusInternalServerError, core.OAuthErrorBody("server_error", err.Error()))
+		return c.JSON(http.StatusInternalServerError, support.OAuthErrorBody("server_error", err.Error()))
 	}
 	status := http.StatusBadRequest
 	switch oe.Code {
@@ -22,7 +22,7 @@ func writeOAuthError(c *echo.Context, err error) error {
 	case "server_error":
 		status = http.StatusInternalServerError
 	}
-	return c.JSON(status, core.OAuthErrorBody(oe.Code, oe.Description))
+	return c.JSON(status, support.OAuthErrorBody(oe.Code, oe.Description))
 }
 
 func containsString(ss []string, s string) bool {

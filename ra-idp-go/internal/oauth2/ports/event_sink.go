@@ -3,7 +3,7 @@ package ports
 import (
 	"context"
 
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/spec"
 )
 
 // EventSink はドメインイベントの出力先。observable side-effect の境界。

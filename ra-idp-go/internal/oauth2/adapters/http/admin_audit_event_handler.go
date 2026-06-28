@@ -11,9 +11,9 @@ import (
 	"strconv"
 	"time"
 
-	"ra-idp-go/internal/infrastructure/http/core"
 	oauthports "ra-idp-go/internal/oauth2/ports"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/spec"
 
 	"github.com/labstack/echo/v5"
 )
@@ -129,11 +129,11 @@ func (d Deps) handleListAdminAuditEvents(c *echo.Context) error {
 		return d.WriteAdminAccessError(c, err)
 	}
 	if d.AuditEventRepo == nil {
-		return core.NoStoreJSON(c, http.StatusOK, map[string]any{"events": []AdminAuditEventResponse{}})
+		return support.NoStoreJSON(c, http.StatusOK, map[string]any{"events": []AdminAuditEventResponse{}})
 	}
 	query, err := parseAuditEventQuery(c, actor)
 	if err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", err.Error())
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", err.Error())
 	}
 	records, err := d.AuditEventRepo.List(c.Request().Context(), query)
 	if err != nil {
@@ -143,7 +143,7 @@ func (d Deps) handleListAdminAuditEvents(c *echo.Context) error {
 	for i, rec := range records {
 		response[i] = toAdminAuditEventResponse(rec)
 	}
-	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"events": response})
+	return support.NoStoreJSON(c, http.StatusOK, map[string]any{"events": response})
 }
 
 func (d Deps) handleGetAdminAuditEvent(c *echo.Context) error {
@@ -152,20 +152,20 @@ func (d Deps) handleGetAdminAuditEvent(c *echo.Context) error {
 		return d.WriteAdminAccessError(c, err)
 	}
 	if d.AuditEventRepo == nil {
-		return core.WriteBrowserError(c, http.StatusNotFound, "event_not_found", "監査イベントが存在しません")
+		return support.WriteBrowserError(c, http.StatusNotFound, "event_not_found", "監査イベントが存在しません")
 	}
 	rec, err := d.AuditEventRepo.FindByID(c.Request().Context(), c.Param("id"))
 	if err != nil {
 		return err
 	}
 	if rec == nil {
-		return core.WriteBrowserError(c, http.StatusNotFound, "event_not_found", "監査イベントが存在しません")
+		return support.WriteBrowserError(c, http.StatusNotFound, "event_not_found", "監査イベントが存在しません")
 	}
 	if !auditEventVisibleTo(rec, actor) {
 		// 別テナントのイベントは存在を隠す。
-		return core.WriteBrowserError(c, http.StatusNotFound, "event_not_found", "監査イベントが存在しません")
+		return support.WriteBrowserError(c, http.StatusNotFound, "event_not_found", "監査イベントが存在しません")
 	}
-	return core.NoStoreJSON(c, http.StatusOK, toAdminAuditEventResponse(rec))
+	return support.NoStoreJSON(c, http.StatusOK, toAdminAuditEventResponse(rec))
 }
 
 func (d Deps) handleExportAdminAuditEvents(c *echo.Context) error {
@@ -175,7 +175,7 @@ func (d Deps) handleExportAdminAuditEvents(c *echo.Context) error {
 	}
 	query, err := parseAuditEventQuery(c, actor)
 	if err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", err.Error())
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", err.Error())
 	}
 	query.Limit = adminAuditEventExportMaxLimit
 	var records []*oauthports.AuditEventRecord
@@ -190,7 +190,7 @@ func (d Deps) handleExportAdminAuditEvents(c *echo.Context) error {
 		response[i] = toAdminAuditEventResponse(rec)
 	}
 	c.Response().Header().Set("Content-Disposition", "attachment; filename=\"audit_events.json\"")
-	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"events": response})
+	return support.NoStoreJSON(c, http.StatusOK, map[string]any{"events": response})
 }
 
 // requireAuditReader は AdminAuditEventsRead パーミッションを満たすユーザーを返す。

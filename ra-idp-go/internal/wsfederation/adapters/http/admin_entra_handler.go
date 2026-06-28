@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"ra-idp-go/internal/infrastructure/http/core"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/spec"
 	feddomain "ra-idp-go/internal/wsfederation/domain"
 
 	"github.com/labstack/echo/v5"
@@ -47,24 +47,24 @@ func (d Deps) handleConfigureEntraFederation(c *echo.Context) error {
 	}
 	var req configureEntraRequest
 	if err := c.Bind(&req); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSON が不正です")
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSON が不正です")
 	}
 	if err := req.validate(); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", err.Error())
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", err.Error())
 	}
 
 	ctx := c.Request().Context()
-	tenantID := core.RequestTenantID(c)
+	tenantID := support.RequestTenantID(c)
 	sourceAttr := strings.TrimSpace(req.SourceAnchorAttribute)
 	if err := d.validateEntraSourceAnchors(c, sourceAttr); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", err.Error())
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", err.Error())
 	}
 
-	base := strings.TrimRight(core.RequestIssuer(c, d.Issuer), "/")
-	passive := base + core.TenantRoute(c, "/wsfed")
-	active := base + core.TenantRoute(c, "/trust/usernamemixed")
-	mex := base + core.TenantRoute(c, "/trust/mex")
-	metadata := base + core.TenantRoute(c, "/federationmetadata/2007-06/federationmetadata.xml")
+	base := strings.TrimRight(support.RequestIssuer(c, d.Issuer), "/")
+	passive := base + support.TenantRoute(c, "/wsfed")
+	active := base + support.TenantRoute(c, "/trust/usernamemixed")
+	mex := base + support.TenantRoute(c, "/trust/mex")
+	metadata := base + support.TenantRoute(c, "/federationmetadata/2007-06/federationmetadata.xml")
 	domain := strings.ToLower(strings.TrimSpace(req.Domain))
 	issuerURI := strings.TrimSpace(req.IssuerURI)
 	if issuerURI == "" {
@@ -111,7 +111,7 @@ func (d Deps) handleConfigureEntraFederation(c *echo.Context) error {
 	}
 	d.emit(&spec.EntraFederationConfigured{At: now, TenantID: tenantID, Domain: domain, IssuerURI: issuerURI})
 
-	return core.NoStoreJSON(c, status, map[string]any{
+	return support.NoStoreJSON(c, status, map[string]any{
 		"profile":       rp.EntraProfile,
 		"relying_party": rp,
 		"powershell": map[string]string{
@@ -128,7 +128,7 @@ func (d Deps) handleConfigureEntraFederation(c *echo.Context) error {
 }
 
 func (d Deps) validateEntraSourceAnchors(c *echo.Context, sourceAttr string) error {
-	users, err := d.UserRepo.FindAll(c.Request().Context(), core.RequestTenantID(c))
+	users, err := d.UserRepo.FindAll(c.Request().Context(), support.RequestTenantID(c))
 	if err != nil {
 		return err
 	}

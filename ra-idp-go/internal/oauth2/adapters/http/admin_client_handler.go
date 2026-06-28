@@ -6,10 +6,10 @@ import (
 	"slices"
 	"time"
 
-	"ra-idp-go/internal/infrastructure/crypto"
-	"ra-idp-go/internal/infrastructure/http/core"
 	oauthusecases "ra-idp-go/internal/oauth2/usecases"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/crypto"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/spec"
 
 	"github.com/labstack/echo/v5"
 )
@@ -48,7 +48,7 @@ func (d Deps) handleListAdminOAuth2Clients(c *echo.Context) error {
 	if _, err := d.RequireAdmin(c); err != nil {
 		return d.WriteAdminAccessError(c, err)
 	}
-	clients, err := d.ClientRepo.FindAll(c.Request().Context(), core.RequestTenantID(c))
+	clients, err := d.ClientRepo.FindAll(c.Request().Context(), support.RequestTenantID(c))
 	if err != nil {
 		return err
 	}
@@ -65,7 +65,7 @@ func (d Deps) handleListAdminOAuth2Clients(c *echo.Context) error {
 	for i, client := range clients {
 		response[i] = toAdminOAuth2ClientResponse(client)
 	}
-	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"clients": response})
+	return support.NoStoreJSON(c, http.StatusOK, map[string]any{"clients": response})
 }
 
 func (d Deps) handleGetAdminOAuth2Client(c *echo.Context) error {
@@ -73,7 +73,7 @@ func (d Deps) handleGetAdminOAuth2Client(c *echo.Context) error {
 		return d.WriteAdminAccessError(c, err)
 	}
 	client, err := d.ClientRepo.FindByID(
-		c.Request().Context(), core.RequestTenantID(c), c.Param("client_id"),
+		c.Request().Context(), support.RequestTenantID(c), c.Param("client_id"),
 	)
 	if err != nil {
 		return err
@@ -81,7 +81,7 @@ func (d Deps) handleGetAdminOAuth2Client(c *echo.Context) error {
 	if client == nil {
 		return d.writeAdminOAuth2ClientError(c, oauthusecases.ErrClientNotFound)
 	}
-	return core.NoStoreJSON(c, http.StatusOK, toAdminOAuth2ClientResponse(client))
+	return support.NoStoreJSON(c, http.StatusOK, toAdminOAuth2ClientResponse(client))
 }
 
 func (d Deps) handleCreateAdminOAuth2Client(c *echo.Context) error {
@@ -93,15 +93,15 @@ func (d Deps) handleCreateAdminOAuth2Client(c *echo.Context) error {
 		return d.WriteAdminAccessError(c, err)
 	}
 	var req registerClientRequest
-	if err := core.DecodeJSON(c.Request(), &req); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := support.DecodeJSON(c.Request(), &req); err != nil {
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	if err := validateRegisterClientRequest(&req); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_client_metadata", err.Error())
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_client_metadata", err.Error())
 	}
 	if req.JwksURI != nil {
 		if err := crypto.ValidateJWKSURI(*req.JwksURI); err != nil {
-			return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_client_metadata", err.Error())
+			return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_client_metadata", err.Error())
 		}
 	}
 	registration := oauthusecases.RegisterClientInput{
@@ -127,7 +127,7 @@ func (d Deps) handleCreateAdminOAuth2Client(c *echo.Context) error {
 	if result.ClientSecret != "" {
 		response["client_secret"] = result.ClientSecret
 	}
-	return core.NoStoreJSON(c, http.StatusCreated, response)
+	return support.NoStoreJSON(c, http.StatusCreated, response)
 }
 
 func (d Deps) handleUpdateAdminOAuth2Client(c *echo.Context) error {
@@ -139,8 +139,8 @@ func (d Deps) handleUpdateAdminOAuth2Client(c *echo.Context) error {
 		return d.WriteAdminAccessError(c, err)
 	}
 	var req adminClientUpdateRequest
-	if err := core.DecodeJSON(c.Request(), &req); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := support.DecodeJSON(c.Request(), &req); err != nil {
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	client, err := oauthusecases.UpdateAdminOAuth2Client(c.Request().Context(), d.adminClientDeps(), oauthusecases.UpdateAdminOAuth2ClientInput{
 		ActorSub: actor.Sub, ClientID: c.Param("client_id"), ClientName: req.ClientName,
@@ -151,7 +151,7 @@ func (d Deps) handleUpdateAdminOAuth2Client(c *echo.Context) error {
 	if err != nil {
 		return d.writeAdminOAuth2ClientError(c, err)
 	}
-	return core.NoStoreJSON(c, http.StatusOK, toAdminOAuth2ClientResponse(client))
+	return support.NoStoreJSON(c, http.StatusOK, toAdminOAuth2ClientResponse(client))
 }
 
 func (d Deps) handleDeleteAdminOAuth2Client(c *echo.Context) error {
@@ -177,13 +177,13 @@ func (d Deps) adminClientDeps() oauthusecases.AdminOAuth2ClientDeps {
 
 func (d Deps) writeAdminOAuth2ClientError(c *echo.Context, err error) error {
 	if errors.Is(err, oauthusecases.ErrClientNotFound) {
-		return core.WriteBrowserError(c, http.StatusNotFound, "client_not_found", "クライアントが存在しません")
+		return support.WriteBrowserError(c, http.StatusNotFound, "client_not_found", "クライアントが存在しません")
 	}
 	var oauthErr *oauthusecases.OAuthError
 	if errors.As(err, &oauthErr) {
-		return core.WriteBrowserError(c, http.StatusBadRequest, oauthErr.Code, oauthErr.Description)
+		return support.WriteBrowserError(c, http.StatusBadRequest, oauthErr.Code, oauthErr.Description)
 	}
-	return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_client_metadata", err.Error())
+	return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_client_metadata", err.Error())
 }
 
 func toAdminOAuth2ClientResponse(client *spec.OAuth2Client) adminClientResponse {

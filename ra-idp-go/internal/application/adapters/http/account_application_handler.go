@@ -10,8 +10,8 @@ import (
 
 	appports "ra-idp-go/internal/application/ports"
 	appusecases "ra-idp-go/internal/application/usecases"
-	"ra-idp-go/internal/infrastructure/http/core"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/spec"
 
 	"github.com/labstack/echo/v5"
 )
@@ -68,7 +68,7 @@ func (d Deps) handleListMyApplications(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"applications": out, "categories": categories})
+	return support.NoStoreJSON(c, http.StatusOK, map[string]any{"applications": out, "categories": categories})
 }
 
 // portalCategories は tenant のカテゴリ定義を position 昇順でポータル用に整形する (wi-70)。
@@ -113,7 +113,7 @@ func (d Deps) handleGetMyApplicationOrder(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"application_ids": order})
+	return support.NoStoreJSON(c, http.StatusOK, map[string]any{"application_ids": order})
 }
 
 // handleReorderMyApplications は利用者の手動並び順を検証して保存する (wi-70)。
@@ -126,19 +126,19 @@ func (d Deps) handleReorderMyApplications(c *echo.Context) error {
 		return d.writePortalAuthError(c, err)
 	}
 	var req reorderMyApplicationsRequest
-	if err := core.DecodeJSON(c.Request(), &req); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := support.DecodeJSON(c.Request(), &req); err != nil {
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	ctx := c.Request().Context()
 	subjects := d.subjectsForUser(ctx, user)
 	saved, err := appusecases.SaveMyApplicationOrder(ctx, d.assignmentDeps(), user.Sub, subjects, req.ApplicationIDs, time.Now().UTC())
 	if err != nil {
 		if errors.Is(err, appusecases.ErrUnassignedInOrder) {
-			return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "割当されていないアプリは並び順に含められません")
+			return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "割当されていないアプリは並び順に含められません")
 		}
 		return err
 	}
-	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"application_ids": saved})
+	return support.NoStoreJSON(c, http.StatusOK, map[string]any{"application_ids": saved})
 }
 
 // resolvePortalUser は認証済み (pending でない) active な利用者本人を解決する。
@@ -155,7 +155,7 @@ func (d Deps) resolvePortalUser(c *echo.Context) (*spec.User, error) {
 	if err != nil {
 		return nil, err
 	}
-	if user == nil || user.TenantID != core.RequestTenantID(c) || !user.IsActive() {
+	if user == nil || user.TenantID != support.RequestTenantID(c) || !user.IsActive() {
 		return nil, errPortalUnauthorized
 	}
 	return user, nil
@@ -163,7 +163,7 @@ func (d Deps) resolvePortalUser(c *echo.Context) (*spec.User, error) {
 
 func (d Deps) writePortalAuthError(c *echo.Context, err error) error {
 	if errors.Is(err, errPortalUnauthorized) {
-		return core.WriteBrowserError(c, http.StatusUnauthorized, "authentication_required", "認証済みセッションが必要です")
+		return support.WriteBrowserError(c, http.StatusUnauthorized, "authentication_required", "認証済みセッションが必要です")
 	}
 	return err
 }

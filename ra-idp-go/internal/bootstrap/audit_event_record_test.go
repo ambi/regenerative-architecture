@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/spec"
 )
 
 // wi-35: emit 時点で event に載せた tenantId が、監査レコードの TenantID に

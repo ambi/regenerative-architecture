@@ -7,9 +7,9 @@ import (
 	"slices"
 	"time"
 
-	"ra-idp-go/internal/infrastructure/http/core"
 	oauthusecases "ra-idp-go/internal/oauth2/usecases"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/spec"
 
 	"github.com/labstack/echo/v5"
 )
@@ -42,7 +42,7 @@ func (d Deps) handleListAccountConsents(c *echo.Context) error {
 	for i, consent := range consents {
 		response[i] = toAccountConsentResponse(consent)
 	}
-	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"consents": response})
+	return support.NoStoreJSON(c, http.StatusOK, map[string]any{"consents": response})
 }
 
 func (d Deps) handleRevokeAccountConsent(c *echo.Context) error {

@@ -10,8 +10,8 @@ import (
 
 	authusecases "ra-idp-go/internal/authentication/usecases"
 	idmusecases "ra-idp-go/internal/identitymanagement/usecases"
-	"ra-idp-go/internal/infrastructure/http/core"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/spec"
 
 	"github.com/labstack/echo/v5"
 )
@@ -75,7 +75,7 @@ func (d Deps) handleGetAccountSecurity(c *echo.Context) error {
 			CreatedAt: factor.CreatedAt, LastUsedAt: factor.LastUsedAt,
 		})
 	}
-	return core.NoStoreJSON(c, http.StatusOK, accountSecurityResponse{
+	return support.NoStoreJSON(c, http.StatusOK, accountSecurityResponse{
 		PasswordChangedAt: user.Lifecycle.PasswordChangedAt,
 		TotpEnrolled:      totpEnrolled,
 		Factors:           responses,
@@ -94,7 +94,7 @@ func (d Deps) handleStartTotpEnrollment(c *echo.Context) error {
 	if err != nil {
 		return d.writeAccountError(c, err)
 	}
-	return core.NoStoreJSON(c, http.StatusOK, totpEnrollmentStartResponse{
+	return support.NoStoreJSON(c, http.StatusOK, totpEnrollmentStartResponse{
 		Secret: start.Secret, OTPAuthURI: start.OTPAuthURI,
 		AccountName: start.AccountName, Issuer: start.Issuer,
 	})
@@ -109,8 +109,8 @@ func (d Deps) handleConfirmTotpEnrollment(c *echo.Context) error {
 		return d.writeAccountError(c, err)
 	}
 	var input totpEnrollmentConfirmRequest
-	if err := core.DecodeJSON(c.Request(), &input); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := support.DecodeJSON(c.Request(), &input); err != nil {
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	if err := authusecases.ConfirmTOTPEnrollment(c.Request().Context(), d.accountMfaDeps(),
 		authusecases.ConfirmTOTPEnrollmentInput{
@@ -132,8 +132,8 @@ func (d Deps) handleRemoveTotpFactor(c *echo.Context) error {
 		return d.writeAccountError(c, err)
 	}
 	var input mfaFactorRemoveRequest
-	if err := core.DecodeJSON(c.Request(), &input); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := support.DecodeJSON(c.Request(), &input); err != nil {
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	if err := authusecases.RemoveTOTPFactor(c.Request().Context(), d.accountMfaDeps(),
 		authusecases.RemoveTOTPFactorInput{Sub: sub, Code: input.Code, Now: time.Now().UTC()}); err != nil {
@@ -148,13 +148,13 @@ func (d Deps) handleRemoveTotpFactor(c *echo.Context) error {
 func writeAccountMfaError(c *echo.Context, err error) (handled bool, result error) {
 	switch {
 	case errors.Is(err, authusecases.ErrMfaAlreadyEnrolled):
-		return true, core.WriteBrowserError(c, http.StatusConflict, "mfa_already_enrolled", "認証アプリは既に登録されています")
+		return true, support.WriteBrowserError(c, http.StatusConflict, "mfa_already_enrolled", "認証アプリは既に登録されています")
 	case errors.Is(err, authusecases.ErrMfaNotEnrolled):
-		return true, core.WriteBrowserError(c, http.StatusNotFound, "mfa_not_enrolled", "登録済みの認証アプリがありません")
+		return true, support.WriteBrowserError(c, http.StatusNotFound, "mfa_not_enrolled", "登録済みの認証アプリがありません")
 	case errors.Is(err, authusecases.ErrInvalidTOTPCode):
-		return true, core.WriteBrowserError(c, http.StatusBadRequest, "invalid_totp", "認証コードを確認してください。")
+		return true, support.WriteBrowserError(c, http.StatusBadRequest, "invalid_totp", "認証コードを確認してください。")
 	case errors.Is(err, authusecases.ErrInvalidTOTPSecret):
-		return true, core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "登録手続きをやり直してください。")
+		return true, support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "登録手続きをやり直してください。")
 	default:
 		return false, nil
 	}

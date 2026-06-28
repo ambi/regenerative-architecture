@@ -227,32 +227,34 @@ ra-idp-go/
 ├── decisions/                               Layer 2: コンセプション / ADR
 ├── ui/                                      React SPA + Caddy reference configuration
 │   └── src/features/                       UI feature 境界
-├── cmd/ra-idp-go/main.go               起動
-├── internal/spec/                      Layer 1 バインディング: SCL 構造体 + 状態機械
-├── internal/tenancy/                   Layer 3+4: テナント (domain / ports / usecases / adapters/http)
-├── internal/oauth2/                    Layer 3+4: OAuth2 (domain / ports / usecases / adapters/http)
-├── internal/authentication/            Layer 3+4: 認証 (domain / ports / usecases / adapters/http)
-├── internal/infrastructure/            Layer 4: コンテキスト横断アダプタ実装
-│   ├── crypto/                         Argon2id, PS256, DPoP, private_key_jwt
-│   ├── persistence/                    memory / PostgreSQL / Valkey（リソース別ファイル）
-│   ├── http/                           Echo v5 router + core（各 context の adapters/http を集約）
-│   ├── observability/                  OpenTelemetry
-│   ├── policy/                         local / remote AuthZEN
-│   ├── notification/                   メール送信
-│   └── eventsink/                      console / Kafka relay
-├── internal/bootstrap/                 Layer 5: 配線 (DI / seed / server)
-└── deploy/                             Layer 5: migrations / Docker Compose / OTel Collector
+├── cmd/ra-idp-go/main.go                   起動
+├── internal/shared/                        technical shared context
+│   ├── spec/                               Layer 1 バインディング: SCL 構造体 + 状態機械
+│   └── adapters/                           Layer 4: コンテキスト横断アダプタ実装
+│       ├── crypto/                         Argon2id, PS256, DPoP, private_key_jwt
+│       ├── persistence/                    memory / PostgreSQL / Valkey（リソース別ファイル）
+│       ├── http/
+│       │   ├── support/                    HTTP 共有基盤（Deps / middleware / response helper）
+│       │   └── server/                     Echo v5 router（各 context の adapters/http を集約）
+│       ├── observability/                  OpenTelemetry
+│       ├── policy/                         local / remote AuthZEN
+│       ├── notification/                   メール送信
+│       └── eventsink/                      console / Kafka relay
+├── internal/tenancy/                       Layer 3+4: テナント (domain / ports / usecases / adapters/http)
+├── internal/oauth2/                        Layer 3+4: OAuth2 (domain / ports / usecases / adapters/http)
+├── internal/authentication/                Layer 3+4: 認証 (domain / ports / usecases / adapters/http)
+├── internal/bootstrap/                     Layer 5: 配線 (DI / seed / server)
+└── deploy/                                 Layer 5: migrations / Docker Compose / OTel Collector
 ```
 
-> 構造軸 (ADR-047): 水平の5層に加え、垂直の境界づけられたコンテキスト
-> (`tenancy` / `authentication` / `oauth2`) で分割する (RA §3.6)。Layer 3 と HTTP
-> アダプタ (`adapters/http`) は各コンテキストが所有し、HTTP の共有基盤
-> (依存集約 `core.Deps`・テナント解決 middleware・横断ヘルパ) は
-> `internal/infrastructure/http/core` に、コンテキスト横断のその他 Layer 4 アダプタ実装は
-> `internal/infrastructure/` に集約する。`internal/infrastructure/http` は各コンテキストの
-> `RegisterRoutes` を束ねる router (wi-48)。`internal/` は Go の import 境界であり、
-> 外部 module からの利用を禁止する。`deploy/` は実行環境・配布資材を置く Layer 5 で、
-> `internal/infrastructure/` の Go 実装とは分ける。
+> 構造軸 (ADR-047, ADR-070): 水平の5層に加え、垂直の境界づけられたコンテキストで
+> 分割する (RA §3.6)。SCL Go binding と、複数コンテキストで共有する Layer 4 実装は
+> technical shared context である `internal/shared/` に置く。Layer 3 と
+> context-owned HTTP アダプタ (`adapters/http`) は各コンテキストが所有する。HTTP は循環依存を
+> 避けるため、各 context の HTTP adapter が使う `adapters/http/support` と、各 context の
+> `RegisterRoutes` を束ねる `adapters/http/server` に分ける。`internal/` は Go の import
+> 境界であり、外部 module からの利用を禁止する。`deploy/` は実行環境・配布資材を置く
+> Layer 5 で、Go 実装とは分ける。
 
 ## 実装ロードマップ
 

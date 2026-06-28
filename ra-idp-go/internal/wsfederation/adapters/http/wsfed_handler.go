@@ -9,8 +9,8 @@ import (
 
 	authdomain "ra-idp-go/internal/authentication/domain"
 	authusecases "ra-idp-go/internal/authentication/usecases"
-	"ra-idp-go/internal/infrastructure/http/core"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/spec"
 	"ra-idp-go/internal/wsfederation/adapters/samltoken"
 	"ra-idp-go/internal/wsfederation/adapters/wsfed"
 	feddomain "ra-idp-go/internal/wsfederation/domain"
@@ -47,7 +47,7 @@ func (d Deps) handleWsFed(c *echo.Context) error {
 // RSTR に包んで自動 POST する。
 func (d Deps) handleWsFedSignIn(c *echo.Context, req feddomain.WsFedSignInRequest) error {
 	ctx := c.Request().Context()
-	tenantID := core.RequestTenantID(c)
+	tenantID := support.RequestTenantID(c)
 
 	if req.Wtrealm == "" {
 		d.emit(&spec.WsFedSignInRejected{At: time.Now().UTC(), TenantID: tenantID, Reason: "wtrealm is required"})
@@ -121,7 +121,7 @@ func (d Deps) handleWsFedSignIn(c *echo.Context, req feddomain.WsFedSignInReques
 	tokenType := rp.EffectiveTokenType()
 	signed, _, err := samltoken.BuildSignedAssertion(samltoken.AssertionInput{
 		Version:      samlVersion(tokenType),
-		Issuer:       core.RequestIssuer(c, d.Issuer),
+		Issuer:       support.RequestIssuer(c, d.Issuer),
 		Audience:     rp.EffectiveAudience(),
 		Recipient:    validated.ReplyURL,
 		IssueInstant: now,
@@ -157,7 +157,7 @@ func (d Deps) handleWsFedSignIn(c *echo.Context, req feddomain.WsFedSignInReques
 // リダイレクトまで行い、wsignoutcleanup1.0 は破棄のみで 200 を返す。
 func (d Deps) handleWsFedSignOut(c *echo.Context, req feddomain.WsFedSignInRequest) error {
 	ctx := c.Request().Context()
-	tenantID := core.RequestTenantID(c)
+	tenantID := support.RequestTenantID(c)
 
 	if d.SessionManager != nil {
 		_ = d.SessionManager.Revoke(ctx, c.Request().Header.Get("Cookie"))
@@ -198,7 +198,7 @@ func (d Deps) emit(event spec.DomainEvent) {
 
 func (d Deps) clearSessionCookie(c *echo.Context) {
 	c.SetCookie(&http.Cookie{ //nolint:gosec // Secure は HTTPS issuer で有効化、ローカル HTTP 開発では意図的に無効。
-		Name: authusecases.SessionCookie, Path: core.TenantCookiePath(c),
+		Name: authusecases.SessionCookie, Path: support.TenantCookiePath(c),
 		Secure: d.SecureCookies(), HttpOnly: true, SameSite: http.SameSiteLaxMode,
 		MaxAge: -1,
 	})
@@ -208,5 +208,5 @@ func (d Deps) clearSessionCookie(c *echo.Context) {
 // return_to つきで組み立てる (同一オリジンの相対パスのみ)。
 func loginRedirect(c *echo.Context) string {
 	returnTo := c.Request().URL.RequestURI()
-	return core.TenantRoute(c, "/login") + "?return_to=" + url.QueryEscape(returnTo)
+	return support.TenantRoute(c, "/login") + "?return_to=" + url.QueryEscape(returnTo)
 }

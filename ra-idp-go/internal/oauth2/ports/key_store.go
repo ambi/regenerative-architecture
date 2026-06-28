@@ -5,7 +5,7 @@ import (
 	"crypto"
 	"time"
 
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/spec"
 )
 
 // SigningKey は本実装では RSA を想定。alg=PS256 のみ。

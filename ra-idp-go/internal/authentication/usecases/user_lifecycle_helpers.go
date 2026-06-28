@@ -3,7 +3,7 @@ package usecases
 import (
 	"time"
 
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/spec"
 )
 
 // removeRequiredAction は action を除いた新しいスライスを返す (元を破壊しない)。

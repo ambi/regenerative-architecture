@@ -5,15 +5,15 @@ import (
 	"net/http"
 	"time"
 
-	"ra-idp-go/internal/infrastructure/http/core"
 	"ra-idp-go/internal/oauth2/usecases"
+	"ra-idp-go/internal/shared/adapters/http/support"
 
 	"github.com/labstack/echo/v5"
 )
 
 func (d Deps) handlePAR(c *echo.Context) error {
 	if err := c.Request().ParseForm(); err != nil {
-		return c.JSON(http.StatusBadRequest, core.OAuthErrorBody("invalid_request", "form parse"))
+		return c.JSON(http.StatusBadRequest, support.OAuthErrorBody("invalid_request", "form parse"))
 	}
 	clientStub, err := d.authenticateTokenClient(c)
 	if err != nil {

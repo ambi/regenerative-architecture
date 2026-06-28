@@ -18,10 +18,10 @@ import (
 	"testing"
 	"time"
 
-	"ra-idp-go/internal/infrastructure/http/core"
-	"ra-idp-go/internal/infrastructure/persistence/memory"
 	"ra-idp-go/internal/oauth2/domain"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/adapters/persistence/memory"
+	"ra-idp-go/internal/shared/spec"
 
 	"github.com/labstack/echo/v5"
 )
@@ -56,7 +56,7 @@ func clientAuthServer(method spec.TokenEndpointAuthMethod) *echo.Echo {
 		FapiProfile:              spec.FapiNone,
 		CreatedAt:                time.Now(),
 	})
-	deps := core.Deps{Issuer: "https://idp.example", ClientRepo: repo}
+	deps := support.Deps{Issuer: "https://idp.example", ClientRepo: repo}
 	e := echo.New()
 	e.POST("/test", func(c *echo.Context) error {
 		if err := c.Request().ParseForm(); err != nil {
@@ -216,7 +216,7 @@ func TestPrivateKeyJWTAuthentication(t *testing.T) {
 		FapiProfile:              spec.FapiNone,
 		CreatedAt:                time.Now(),
 	})
-	deps := core.Deps{
+	deps := support.Deps{
 		Issuer: "https://idp.example", ClientRepo: repo,
 		ClientAssertionReplayStore: memory.NewClientAssertionReplayStore(),
 	}

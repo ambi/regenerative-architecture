@@ -7,8 +7,8 @@ import (
 	"time"
 
 	authnports "ra-idp-go/internal/authentication/ports"
-	"ra-idp-go/internal/infrastructure/http/core"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/spec"
 	"ra-idp-go/internal/wsfederation/adapters/samltoken"
 	"ra-idp-go/internal/wsfederation/adapters/wstrust"
 	feddomain "ra-idp-go/internal/wsfederation/domain"
@@ -18,7 +18,7 @@ import (
 
 func (d Deps) handleWsTrustUsernameMixed(c *echo.Context) error {
 	now := time.Now().UTC()
-	tenantID := core.RequestTenantID(c)
+	tenantID := support.RequestTenantID(c)
 	body, err := io.ReadAll(io.LimitReader(c.Request().Body, 1<<20))
 	if err != nil {
 		return err
@@ -74,7 +74,7 @@ func (d Deps) handleWsTrustUsernameMixed(c *echo.Context) error {
 	}
 	signed, _, err := samltoken.BuildSignedAssertion(samltoken.AssertionInput{
 		Version:      samlVersion(tokenType),
-		Issuer:       core.RequestIssuer(c, d.Issuer),
+		Issuer:       support.RequestIssuer(c, d.Issuer),
 		Audience:     rp.EffectiveAudience(),
 		Recipient:    rst.AppliesTo,
 		IssueInstant: now,
@@ -114,7 +114,7 @@ func (d Deps) authenticateWsTrustUser(c *echo.Context, username, password string
 			return nil, errBadRequest("login throttled")
 		}
 	}
-	user, err := d.UserRepo.FindByUsername(c.Request().Context(), core.RequestTenantID(c), username)
+	user, err := d.UserRepo.FindByUsername(c.Request().Context(), support.RequestTenantID(c), username)
 	if err != nil {
 		return nil, err
 	}

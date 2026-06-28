@@ -13,7 +13,7 @@ import (
 	"time"
 
 	oauthports "ra-idp-go/internal/oauth2/ports"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/spec"
 )
 
 // RetentionPolicy は種類別の保持日数と global cap。0 以下の日数は「無期限保持」を意味する。

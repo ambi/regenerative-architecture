@@ -5,10 +5,10 @@ import (
 	"errors"
 	"os"
 
-	"ra-idp-go/internal/infrastructure/eventsink"
-	"ra-idp-go/internal/infrastructure/persistence/postgres"
-	valkeystore "ra-idp-go/internal/infrastructure/persistence/valkey"
 	oauthports "ra-idp-go/internal/oauth2/ports"
+	"ra-idp-go/internal/shared/adapters/eventsink"
+	"ra-idp-go/internal/shared/adapters/persistence/postgres"
+	valkeystore "ra-idp-go/internal/shared/adapters/persistence/valkey"
 )
 
 func assemblePostgres(ctx context.Context) (*Dependencies, error) {

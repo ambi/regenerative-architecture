@@ -1,7 +1,8 @@
 # ADR-068: 横断アダプタ実装を internal/infrastructure に置く
 
 ## ステータス
-採用。Go import path、README、ADR-047 に反映。SCL の規範振る舞いは変更しない。
+廃止（ADR-070 "technical shared context for cross-context adapters" に置き換えられた、2026-06-28）。
+SCL の規範振る舞いは変更しない。
 
 ## コンテキスト
 ra-idp-go の `internal/platform/` は、OS や CPU などのプラットフォーム差分ではなく、

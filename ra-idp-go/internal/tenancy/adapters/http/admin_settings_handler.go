@@ -5,8 +5,8 @@ import (
 	"slices"
 	"time"
 
-	"ra-idp-go/internal/infrastructure/http/core"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/spec"
 	tenantusecases "ra-idp-go/internal/tenancy/usecases"
 
 	"github.com/labstack/echo/v5"
@@ -20,11 +20,11 @@ func (d Deps) requireTenantAdmin(c *echo.Context) (*spec.User, error) {
 	if err != nil {
 		return nil, err
 	}
-	if actor.TenantID != core.RequestTenantID(c) {
-		return nil, core.ErrAdminAccessDenied
+	if actor.TenantID != support.RequestTenantID(c) {
+		return nil, support.ErrAdminAccessDenied
 	}
 	if !slices.Contains(actor.Roles, "admin") && !slices.Contains(actor.Roles, "system_admin") {
-		return nil, core.ErrAdminAccessDenied
+		return nil, support.ErrAdminAccessDenied
 	}
 	return actor, nil
 }
@@ -57,9 +57,9 @@ func (d Deps) handleGetAdminSettings(c *echo.Context) error {
 		return err
 	}
 	if tenant == nil {
-		return core.WriteBrowserError(c, http.StatusNotFound, "tenant_not_found", "テナントが存在しません")
+		return support.WriteBrowserError(c, http.StatusNotFound, "tenant_not_found", "テナントが存在しません")
 	}
-	return core.NoStoreJSON(c, http.StatusOK, d.toAdminSettingsResponse(tenant))
+	return support.NoStoreJSON(c, http.StatusOK, d.toAdminSettingsResponse(tenant))
 }
 
 func (d Deps) handleUpdateAdminSettings(c *echo.Context) error {
@@ -71,8 +71,8 @@ func (d Deps) handleUpdateAdminSettings(c *echo.Context) error {
 		return d.WriteAdminAccessError(c, err)
 	}
 	var input adminSettingsUpdateRequest
-	if err := core.DecodeJSON(c.Request(), &input); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := support.DecodeJSON(c.Request(), &input); err != nil {
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	now := time.Now().UTC()
 	tenant, err := tenantusecases.Update(
@@ -93,7 +93,7 @@ func (d Deps) handleUpdateAdminSettings(c *echo.Context) error {
 			ChangedFields: adminSettingsChangedFields(input),
 		})
 	}
-	return core.NoStoreJSON(c, http.StatusOK, d.toAdminSettingsResponse(tenant))
+	return support.NoStoreJSON(c, http.StatusOK, d.toAdminSettingsResponse(tenant))
 }
 
 func (d Deps) toAdminSettingsResponse(t *spec.Tenant) AdminSettingsResponse {

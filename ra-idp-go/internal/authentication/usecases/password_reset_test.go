@@ -12,10 +12,10 @@ import (
 
 	authnports "ra-idp-go/internal/authentication/ports"
 	"ra-idp-go/internal/authentication/usecases"
-	"ra-idp-go/internal/infrastructure/crypto"
-	"ra-idp-go/internal/infrastructure/notification"
-	"ra-idp-go/internal/infrastructure/persistence/memory"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/crypto"
+	"ra-idp-go/internal/shared/adapters/notification"
+	"ra-idp-go/internal/shared/adapters/persistence/memory"
+	"ra-idp-go/internal/shared/spec"
 )
 
 func TestRequestPasswordResetSendsOnlyForVerifiedEmail(t *testing.T) {

@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"ra-idp-go/internal/infrastructure/crypto"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/crypto"
+	"ra-idp-go/internal/shared/spec"
 )
 
 func TestRotateSigningKeyKeepsPreviousKidInJWKS(t *testing.T) {

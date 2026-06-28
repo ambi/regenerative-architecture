@@ -9,7 +9,7 @@ import (
 	"time"
 
 	authusecases "ra-idp-go/internal/authentication/usecases"
-	"ra-idp-go/internal/infrastructure/http/core"
+	"ra-idp-go/internal/shared/adapters/http/support"
 
 	"github.com/labstack/echo/v5"
 )
@@ -49,12 +49,12 @@ func (d Deps) handleListSignInActivity(c *echo.Context) error {
 	}
 	limit := parseLimitParam(c, authusecases.SignInActivityDefaultLimit)
 	items, err := authusecases.ListSignInActivity(
-		c.Request().Context(), d.AuditEventRepo, core.RequestTenantID(c), sub, limit,
+		c.Request().Context(), d.AuditEventRepo, support.RequestTenantID(c), sub, limit,
 	)
 	if err != nil {
 		return err
 	}
-	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"activities": toSignInActivityResponses(items)})
+	return support.NoStoreJSON(c, http.StatusOK, map[string]any{"activities": toSignInActivityResponses(items)})
 }
 
 func (d Deps) handleGetUserSignInActivity(c *echo.Context) error {
@@ -69,5 +69,5 @@ func (d Deps) handleGetUserSignInActivity(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"activities": toSignInActivityResponses(items)})
+	return support.NoStoreJSON(c, http.StatusOK, map[string]any{"activities": toSignInActivityResponses(items)})
 }

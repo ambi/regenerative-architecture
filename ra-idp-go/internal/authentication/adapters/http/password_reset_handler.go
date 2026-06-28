@@ -8,8 +8,8 @@ import (
 	"time"
 
 	authusecases "ra-idp-go/internal/authentication/usecases"
-	"ra-idp-go/internal/infrastructure/http/core"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/spec"
 	"ra-idp-go/internal/tenancy"
 
 	"github.com/labstack/echo/v5"
@@ -61,7 +61,7 @@ func (d Deps) handlePasswordResetContext(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return core.NoStoreJSON(c, http.StatusOK, map[string]string{"csrf_token": csrf})
+	return support.NoStoreJSON(c, http.StatusOK, map[string]string{"csrf_token": csrf})
 }
 
 func (d Deps) handleForgotPasswordAPI(c *echo.Context) error {
@@ -69,8 +69,8 @@ func (d Deps) handleForgotPasswordAPI(c *echo.Context) error {
 		return err
 	}
 	var input forgotPasswordAPIRequest
-	if err := core.DecodeJSON(c.Request(), &input); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := support.DecodeJSON(c.Request(), &input); err != nil {
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	ttl := time.Duration(authusecases.PasswordResetTokenTTLSeconds) * time.Second
 	if d.SCL != nil {
@@ -83,7 +83,7 @@ func (d Deps) handleForgotPasswordAPI(c *echo.Context) error {
 		authusecases.RequestPasswordResetDeps{
 			UserRepo: d.UserRepo, TokenStore: d.PasswordResetTokenStore,
 			EmailSender: d.EmailSender, Emit: d.Emit,
-			Issuer: core.RequestIssuer(c, d.Issuer), TokenTTL: ttl,
+			Issuer: support.RequestIssuer(c, d.Issuer), TokenTTL: ttl,
 		},
 		authusecases.RequestPasswordResetInput{Email: input.Email, Now: time.Now().UTC()},
 	); err != nil {
@@ -98,11 +98,11 @@ func (d Deps) handleResetPasswordAPI(c *echo.Context) error {
 		return err
 	}
 	var input resetPasswordAPIRequest
-	if err := core.DecodeJSON(c.Request(), &input); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := support.DecodeJSON(c.Request(), &input); err != nil {
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	if strings.TrimSpace(input.Token) == "" || input.NewPassword == "" {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "tokenと新しいパスワードが必要です")
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "tokenと新しいパスワードが必要です")
 	}
 	snap := d.resolvePasswordPolicy(c.Request().Context())
 	_, err := authusecases.ResetPasswordWithToken(
@@ -119,11 +119,11 @@ func (d Deps) handleResetPasswordAPI(c *echo.Context) error {
 	)
 	switch {
 	case err == nil:
-		return core.NoStoreJSON(c, http.StatusOK, map[string]string{"status": "ok"})
+		return support.NoStoreJSON(c, http.StatusOK, map[string]string{"status": "ok"})
 	case errors.Is(err, authusecases.ErrInvalidResetToken):
-		return core.WriteBrowserError(c, http.StatusGone, "invalid_reset_token", "リセットリンクが無効か期限切れです")
+		return support.WriteBrowserError(c, http.StatusGone, "invalid_reset_token", "リセットリンクが無効か期限切れです")
 	case errors.Is(err, authusecases.ErrPasswordReused):
-		return core.WriteBrowserError(c, http.StatusBadRequest, "password_reuse", "直近に使ったパスワードは再利用できません")
+		return support.WriteBrowserError(c, http.StatusBadRequest, "password_reuse", "直近に使ったパスワードは再利用できません")
 	default:
 		var policyErr *authusecases.PasswordPolicyError
 		if errors.As(err, &policyErr) {
@@ -131,7 +131,7 @@ func (d Deps) handleResetPasswordAPI(c *echo.Context) error {
 			for i, violation := range policyErr.Violations {
 				violations[i] = string(violation)
 			}
-			return core.NoStoreJSON(c, http.StatusBadRequest, map[string]any{
+			return support.NoStoreJSON(c, http.StatusBadRequest, map[string]any{
 				"error": "password_policy", "message": "パスワードがセキュリティ要件を満たしていません。",
 				"violations": violations,
 			})

@@ -11,10 +11,10 @@ import (
 	"time"
 
 	appusecases "ra-idp-go/internal/application/usecases"
-	"ra-idp-go/internal/infrastructure/http/core"
 	oauthusecases "ra-idp-go/internal/oauth2/usecases"
 	samldomain "ra-idp-go/internal/saml/domain"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/spec"
 
 	"github.com/labstack/echo/v5"
 )
@@ -111,8 +111,8 @@ func (d Deps) handleCreateApplication(c *echo.Context) error {
 		return d.WriteAdminAccessError(c, err)
 	}
 	var req createApplicationRequest
-	if err := core.DecodeJSON(c.Request(), &req); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := support.DecodeJSON(c.Request(), &req); err != nil {
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	ctx := c.Request().Context()
 	now := time.Now().UTC()
@@ -126,11 +126,11 @@ func (d Deps) handleCreateApplication(c *echo.Context) error {
 		if err != nil {
 			return d.writeApplicationError(c, err)
 		}
-		return core.NoStoreJSON(c, http.StatusCreated, map[string]any{"application": toApplicationResponse(app)})
+		return support.NoStoreJSON(c, http.StatusCreated, map[string]any{"application": toApplicationResponse(app)})
 
 	case "oidc":
 		if len(req.RedirectURIs) == 0 {
-			return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "リダイレクト URI を 1 つ以上指定してください")
+			return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "リダイレクト URI を 1 つ以上指定してください")
 		}
 		registration := oauthusecases.RegisterClientInput{
 			ClientName: req.Name, ClientType: req.ClientType, RedirectURIs: req.RedirectURIs,
@@ -157,7 +157,7 @@ func (d Deps) handleCreateApplication(c *echo.Context) error {
 		if err != nil {
 			return d.writeApplicationError(c, err)
 		}
-		return core.NoStoreJSON(c, http.StatusCreated, map[string]any{
+		return support.NoStoreJSON(c, http.StatusCreated, map[string]any{
 			"application": toApplicationResponse(app), "client_id": result.Client.ClientID, "client_secret": result.ClientSecret,
 		})
 
@@ -181,23 +181,23 @@ func (d Deps) handleCreateApplication(c *echo.Context) error {
 		if err != nil {
 			return d.writeApplicationError(c, err)
 		}
-		return core.NoStoreJSON(c, http.StatusCreated, map[string]any{
+		return support.NoStoreJSON(c, http.StatusCreated, map[string]any{
 			"application": toApplicationResponse(app), "client_id": result.Client.ClientID, "client_secret": result.ClientSecret,
 		})
 
 	case "wsfed":
 		if strings.TrimSpace(req.Wtrealm) == "" || len(req.ReplyURLs) == 0 {
-			return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "wtrealm と reply URL を指定してください")
+			return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "wtrealm と reply URL を指定してください")
 		}
 		rp := &spec.WsFedRelyingParty{
-			TenantID: core.RequestTenantID(c), Wtrealm: req.Wtrealm, DisplayName: req.Name, ReplyURLs: req.ReplyURLs,
+			TenantID: support.RequestTenantID(c), Wtrealm: req.Wtrealm, DisplayName: req.Name, ReplyURLs: req.ReplyURLs,
 			ClaimPolicy: spec.ClaimMappingPolicy{NameID: spec.NameIdConfiguration{
 				Format: nonEmpty(req.NameIDFormat, defaultNameIDFormat), SourceAttribute: nonEmpty(req.NameIDSource, defaultNameIDSource),
 			}},
 			CreatedAt: now,
 		}
 		if d.WsFedRPRepo == nil {
-			return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "WS-Federation は利用できません")
+			return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "WS-Federation は利用できません")
 		}
 		if err := d.WsFedRPRepo.Save(ctx, rp); err != nil {
 			return err
@@ -207,22 +207,22 @@ func (d Deps) handleCreateApplication(c *echo.Context) error {
 		if err != nil {
 			return d.writeApplicationError(c, err)
 		}
-		return core.NoStoreJSON(c, http.StatusCreated, map[string]any{"application": toApplicationResponse(app)})
+		return support.NoStoreJSON(c, http.StatusCreated, map[string]any{"application": toApplicationResponse(app)})
 
 	case "saml":
 		if strings.TrimSpace(req.EntityID) == "" || len(req.ACSURLs) == 0 {
-			return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "entity ID と ACS URL を指定してください")
+			return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "entity ID と ACS URL を指定してください")
 		}
 		if d.SamlSPRepo == nil {
-			return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "SAML は利用できません")
+			return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "SAML は利用できません")
 		}
 		if req.WantAuthnRequestsSigned {
 			if _, err := samldomain.ParseCertificatePEM(req.AuthnRequestSigningCertificatePEM); err != nil {
-				return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "AuthnRequest 署名検証用証明書を指定してください")
+				return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "AuthnRequest 署名検証用証明書を指定してください")
 			}
 		}
 		sp := &spec.SamlServiceProvider{
-			TenantID: core.RequestTenantID(c), EntityID: req.EntityID, DisplayName: req.Name,
+			TenantID: support.RequestTenantID(c), EntityID: req.EntityID, DisplayName: req.Name,
 			ACSURLs: req.ACSURLs, SLOURL: strings.TrimSpace(req.SLOURL),
 			ClaimPolicy: spec.ClaimMappingPolicy{NameID: spec.NameIdConfiguration{
 				Format: nonEmpty(req.NameIDFormat, spec.SamlNameIDFormatPersistent), SourceAttribute: nonEmpty(req.NameIDSource, defaultNameIDSource),
@@ -240,10 +240,10 @@ func (d Deps) handleCreateApplication(c *echo.Context) error {
 		if err != nil {
 			return d.writeApplicationError(c, err)
 		}
-		return core.NoStoreJSON(c, http.StatusCreated, map[string]any{"application": toApplicationResponse(app)})
+		return support.NoStoreJSON(c, http.StatusCreated, map[string]any{"application": toApplicationResponse(app)})
 
 	default:
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "種別は oidc / wsfed / saml / weblink のいずれかです")
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "種別は oidc / wsfed / saml / weblink のいずれかです")
 	}
 }
 
@@ -264,7 +264,7 @@ func (d Deps) createCatalogApp(ctx context.Context, actorSub string, req createA
 // 実設定を解決して返す (アプリ詳細表示用)。
 func (d Deps) resolveProtocolConfig(c *echo.Context, app *spec.Application) (*oidcConfig, *wsfedConfig, *samlConfig) {
 	ctx := c.Request().Context()
-	tenantID := core.RequestTenantID(c)
+	tenantID := support.RequestTenantID(c)
 	var oidc *oidcConfig
 	var wsfed *wsfedConfig
 	var saml *samlConfig
@@ -338,11 +338,11 @@ func (d Deps) handleUpdateOIDCConfig(c *echo.Context) error {
 	}
 	clientID := bindingKeyOf(app, spec.ProtocolBindingOIDC)
 	if clientID == "" {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "OIDC バインディングがありません")
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "OIDC バインディングがありません")
 	}
 	var req updateOIDCRequest
-	if err := core.DecodeJSON(c.Request(), &req); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := support.DecodeJSON(c.Request(), &req); err != nil {
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	if _, err := oauthusecases.UpdateAdminOAuth2Client(c.Request().Context(), oauthusecases.AdminOAuth2ClientDeps{ClientRepo: d.ClientRepo, Emit: d.Emit}, oauthusecases.UpdateAdminOAuth2ClientInput{
 		ActorSub: actor.Sub, ClientID: clientID,
@@ -377,16 +377,16 @@ func (d Deps) handleUpdateWsFedConfig(c *echo.Context) error {
 	}
 	wtrealm := bindingKeyOf(app, spec.ProtocolBindingWsFed)
 	if wtrealm == "" || d.WsFedRPRepo == nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "WS-Federation バインディングがありません")
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "WS-Federation バインディングがありません")
 	}
 	ctx := c.Request().Context()
-	rp, err := d.WsFedRPRepo.FindByWtrealm(ctx, core.RequestTenantID(c), wtrealm)
+	rp, err := d.WsFedRPRepo.FindByWtrealm(ctx, support.RequestTenantID(c), wtrealm)
 	if err != nil || rp == nil {
-		return core.WriteBrowserError(c, http.StatusNotFound, "not_found", "relying party が存在しません")
+		return support.WriteBrowserError(c, http.StatusNotFound, "not_found", "relying party が存在しません")
 	}
 	var req updateWsFedRequest
-	if err := core.DecodeJSON(c.Request(), &req); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := support.DecodeJSON(c.Request(), &req); err != nil {
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	if req.ReplyURLs != nil {
 		rp.ReplyURLs = *req.ReplyURLs
@@ -396,7 +396,7 @@ func (d Deps) handleUpdateWsFedConfig(c *echo.Context) error {
 	}
 	if req.TokenType != nil {
 		if *req.TokenType != "" && !req.TokenType.Valid() {
-			return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "token_type が不正です")
+			return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "token_type が不正です")
 		}
 		rp.TokenType = *req.TokenType
 	}
@@ -443,16 +443,16 @@ func (d Deps) handleUpdateSamlConfig(c *echo.Context) error {
 	}
 	entityID := bindingKeyOf(app, spec.ProtocolBindingSAML)
 	if entityID == "" || d.SamlSPRepo == nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "SAML バインディングがありません")
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "SAML バインディングがありません")
 	}
 	ctx := c.Request().Context()
-	sp, err := d.SamlSPRepo.FindByEntityID(ctx, core.RequestTenantID(c), entityID)
+	sp, err := d.SamlSPRepo.FindByEntityID(ctx, support.RequestTenantID(c), entityID)
 	if err != nil || sp == nil {
-		return core.WriteBrowserError(c, http.StatusNotFound, "not_found", "service provider が存在しません")
+		return support.WriteBrowserError(c, http.StatusNotFound, "not_found", "service provider が存在しません")
 	}
 	var req updateSamlRequest
-	if err := core.DecodeJSON(c.Request(), &req); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := support.DecodeJSON(c.Request(), &req); err != nil {
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	if req.ACSURLs != nil {
 		sp.ACSURLs = *req.ACSURLs
@@ -483,7 +483,7 @@ func (d Deps) handleUpdateSamlConfig(c *echo.Context) error {
 	}
 	if sp.WantAuthnRequestsSigned {
 		if _, err := samldomain.ParseCertificatePEM(sp.AuthnRequestSigningCertificatePEM); err != nil {
-			return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "AuthnRequest 署名検証用証明書を指定してください")
+			return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "AuthnRequest 署名検証用証明書を指定してください")
 		}
 	}
 	if req.Rules != nil {
@@ -498,7 +498,7 @@ func (d Deps) handleUpdateSamlConfig(c *echo.Context) error {
 }
 
 func (d Deps) requireApp(c *echo.Context) (*spec.Application, error) {
-	app, err := d.ApplicationRepo.FindByID(c.Request().Context(), core.RequestTenantID(c), c.Param("application_id"))
+	app, err := d.ApplicationRepo.FindByID(c.Request().Context(), support.RequestTenantID(c), c.Param("application_id"))
 	if err != nil {
 		return nil, err
 	}

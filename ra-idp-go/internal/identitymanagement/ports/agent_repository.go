@@ -3,7 +3,7 @@ package ports
 import (
 	"context"
 
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/spec"
 )
 
 // AgentRepository は tenant-scoped な Agent 集約とその OAuth2Client 束縛を永続化する

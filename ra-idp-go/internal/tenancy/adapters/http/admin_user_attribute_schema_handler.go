@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	"ra-idp-go/internal/infrastructure/http/core"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/spec"
 	tenantusecases "ra-idp-go/internal/tenancy/usecases"
 
 	"github.com/labstack/echo/v5"
@@ -45,7 +45,7 @@ func (d Deps) handleGetUserAttributeSchema(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return core.NoStoreJSON(c, http.StatusOK, toUserAttributeSchemaResponse(schema))
+	return support.NoStoreJSON(c, http.StatusOK, toUserAttributeSchemaResponse(schema))
 }
 
 func (d Deps) handleUpdateUserAttributeSchema(c *echo.Context) error {
@@ -57,15 +57,15 @@ func (d Deps) handleUpdateUserAttributeSchema(c *echo.Context) error {
 		return d.WriteAdminAccessError(c, err)
 	}
 	var input userAttributeSchemaUpdateRequest
-	if err := core.DecodeJSON(c.Request(), &input); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := support.DecodeJSON(c.Request(), &input); err != nil {
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	schema, err := tenantusecases.UpdateUserAttributeSchema(
 		c.Request().Context(), d.AttrSchemaRepo, actor.TenantID, input.Attributes, time.Now().UTC(),
 	)
 	if err != nil {
 		if errors.Is(err, tenantusecases.ErrInvalidUserAttributeSchema) {
-			return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_attribute_schema", "属性定義が不正です")
+			return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_attribute_schema", "属性定義が不正です")
 		}
 		return err
 	}
@@ -78,5 +78,5 @@ func (d Deps) handleUpdateUserAttributeSchema(c *echo.Context) error {
 			At: time.Now().UTC(), ActorSub: actor.Sub, TenantID: actor.TenantID, AttributeKeys: keys,
 		})
 	}
-	return core.NoStoreJSON(c, http.StatusOK, toUserAttributeSchemaResponse(schema))
+	return support.NoStoreJSON(c, http.StatusOK, toUserAttributeSchemaResponse(schema))
 }

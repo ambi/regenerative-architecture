@@ -6,16 +6,16 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	httpadapter "ra-idp-go/internal/infrastructure/http"
-	"ra-idp-go/internal/infrastructure/http/core"
-	"ra-idp-go/internal/spec"
+	httpadapter "ra-idp-go/internal/shared/adapters/http/server"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/spec"
 
 	"github.com/labstack/echo/v5"
 )
 
 func TestDiscoveryRoutesIncludeRFC8414Alias(t *testing.T) {
 	e := echo.New()
-	httpadapter.Register(e, core.Deps{Issuer: "https://idp.example", SCL: spec.MustLoadSCL()})
+	httpadapter.Register(e, support.Deps{Issuer: "https://idp.example", SCL: spec.MustLoadSCL()})
 
 	for _, path := range []string{
 		"/.well-known/openid-configuration",

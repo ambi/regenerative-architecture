@@ -17,10 +17,10 @@ import (
 	authdomain "ra-idp-go/internal/authentication/domain"
 	authnports "ra-idp-go/internal/authentication/ports"
 	authusecases "ra-idp-go/internal/authentication/usecases"
-	"ra-idp-go/internal/infrastructure/http/core"
 	oauthdomain "ra-idp-go/internal/oauth2/domain"
 	"ra-idp-go/internal/oauth2/usecases"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/spec"
 
 	"github.com/labstack/echo/v5"
 )
@@ -76,7 +76,7 @@ func (d Deps) handleAuthorize(c *echo.Context) error {
 		if consumed == nil {
 			return writeOAuthError(c, usecases.NewOAuthError("invalid_request_uri", "request_uri 無効または使用済み"))
 		}
-		if consumed.TenantID != core.RequestTenantID(c) {
+		if consumed.TenantID != support.RequestTenantID(c) {
 			return writeOAuthError(c, usecases.NewOAuthError("invalid_request_uri", "request_uri 無効または使用済み"))
 		}
 		if cid := q.Get("client_id"); cid != "" && cid != consumed.ClientID {
@@ -119,7 +119,7 @@ func (d Deps) handleAuthorize(c *echo.Context) error {
 	}
 	if len(details) > 0 && d.Emit != nil {
 		d.Emit(&spec.AuthorizationDetailsRequested{
-			At: time.Now().UTC(), TenantID: core.RequestTenantID(c), ClientID: out.Request.ClientID,
+			At: time.Now().UTC(), TenantID: support.RequestTenantID(c), ClientID: out.Request.ClientID,
 			DetailTypes: oauthdomain.DetailTypes(details),
 		})
 	}
@@ -132,7 +132,7 @@ func (d Deps) handleAuthorize(c *echo.Context) error {
 				if in.Prompt == "none" {
 					return writeOAuthError(c, usecases.NewOAuthError("login_required", "追加factor検証が必要です"))
 				}
-				return c.Redirect(http.StatusSeeOther, core.TenantRoute(c, "/totp"))
+				return c.Redirect(http.StatusSeeOther, support.TenantRoute(c, "/totp"))
 			}
 			policy := oauthdomain.ParsePrompt(out.Request)
 			needsStepUp := out.Request.ACRValues != nil &&
@@ -154,9 +154,9 @@ func (d Deps) handleAuthorize(c *echo.Context) error {
 						return err
 					}
 					d.setSessionCookie(c, pending.SessionID)
-					return c.Redirect(http.StatusSeeOther, core.TenantRoute(c, "/totp"))
+					return c.Redirect(http.StatusSeeOther, support.TenantRoute(c, "/totp"))
 				}
-				return c.Redirect(http.StatusSeeOther, core.TenantRoute(c, "/login"))
+				return c.Redirect(http.StatusSeeOther, support.TenantRoute(c, "/login"))
 			}
 			next, err := d.completeAfterAuthn(c, out.Request, out.Client, authn)
 			if err != nil {
@@ -171,7 +171,7 @@ func (d Deps) handleAuthorize(c *echo.Context) error {
 	if out.Request.Prompt != nil && *out.Request.Prompt == "none" {
 		return writeOAuthError(c, usecases.NewOAuthError("login_required", "prompt=none では再認証不可"))
 	}
-	return c.Redirect(http.StatusSeeOther, core.TenantRoute(c, "/login"))
+	return c.Redirect(http.StatusSeeOther, support.TenantRoute(c, "/login"))
 }
 
 func (d Deps) handleTransaction(c *echo.Context) error {
@@ -179,7 +179,7 @@ func (d Deps) handleTransaction(c *echo.Context) error {
 	if err != nil {
 		if returnTo := c.QueryParam("return_to"); returnTo != "" {
 			if !validReturnTo(c, returnTo) {
-				return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "return_to が不正です")
+				return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "return_to が不正です")
 			}
 			csrf, csrfErr := d.EnsureCSRFCookie(c)
 			if csrfErr != nil {
@@ -187,11 +187,11 @@ func (d Deps) handleTransaction(c *echo.Context) error {
 			}
 			authn, _ := d.ResolveAuthentication(c)
 			if authn != nil && authn.AuthenticationPending {
-				return core.NoStoreJSON(c, http.StatusOK, transactionResponse{Kind: "totp", CSRFToken: csrf})
+				return support.NoStoreJSON(c, http.StatusOK, transactionResponse{Kind: "totp", CSRFToken: csrf})
 			}
-			return core.NoStoreJSON(c, http.StatusOK, transactionResponse{Kind: "login", CSRFToken: csrf})
+			return support.NoStoreJSON(c, http.StatusOK, transactionResponse{Kind: "login", CSRFToken: csrf})
 		}
-		return core.WriteBrowserError(c, http.StatusUnauthorized, "transaction_unavailable", err.Error())
+		return support.WriteBrowserError(c, http.StatusUnauthorized, "transaction_unavailable", err.Error())
 	}
 	csrf, err := d.EnsureCSRFCookie(c)
 	if err != nil {
@@ -200,29 +200,29 @@ func (d Deps) handleTransaction(c *echo.Context) error {
 	if req.Sub == nil {
 		authn, _ := d.ResolveAuthentication(c)
 		if authn != nil && authn.AuthenticationPending {
-			return core.NoStoreJSON(c, http.StatusOK, transactionResponse{Kind: "totp", CSRFToken: csrf})
+			return support.NoStoreJSON(c, http.StatusOK, transactionResponse{Kind: "totp", CSRFToken: csrf})
 		}
-		return core.NoStoreJSON(c, http.StatusOK, transactionResponse{Kind: "login", CSRFToken: csrf})
+		return support.NoStoreJSON(c, http.StatusOK, transactionResponse{Kind: "login", CSRFToken: csrf})
 	}
 	authn, _ := d.ResolveAuthentication(c)
 	if authn != nil && authn.AuthenticationPending {
-		return core.NoStoreJSON(c, http.StatusOK, transactionResponse{Kind: "totp", CSRFToken: csrf})
+		return support.NoStoreJSON(c, http.StatusOK, transactionResponse{Kind: "totp", CSRFToken: csrf})
 	}
 	if authn == nil || authn.Sub != *req.Sub {
-		return core.WriteBrowserError(c, http.StatusUnauthorized, "authentication_required", "認証セッションが一致しません")
+		return support.WriteBrowserError(c, http.StatusUnauthorized, "authentication_required", "認証セッションが一致しません")
 	}
-	client, err := d.ClientRepo.FindByID(c.Request().Context(), core.RequestTenantID(c), req.ClientID)
+	client, err := d.ClientRepo.FindByID(c.Request().Context(), support.RequestTenantID(c), req.ClientID)
 	if err != nil {
 		return err
 	}
 	if client == nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_transaction", "クライアントが存在しません")
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_transaction", "クライアントが存在しません")
 	}
 	name := client.ClientID
 	if client.ClientName != nil {
 		name = *client.ClientName
 	}
-	return core.NoStoreJSON(c, http.StatusOK, transactionResponse{
+	return support.NoStoreJSON(c, http.StatusOK, transactionResponse{
 		Kind: "consent", CSRFToken: csrf, ClientName: name, Scopes: strings.Fields(req.Scope),
 		AuthorizationDetails: d.renderConsentDetails(c, req.AuthorizationDetails),
 	})
@@ -235,7 +235,7 @@ func (d Deps) renderConsentDetails(c *echo.Context, details []spec.Authorization
 	if len(details) == 0 {
 		return nil
 	}
-	tenantID := core.RequestTenantID(c)
+	tenantID := support.RequestTenantID(c)
 	views := make([]consentDetailView, 0, len(details))
 	for _, detail := range details {
 		view := consentDetailView{Type: detail.Type, Lines: detailValueLines(detail)}
@@ -319,20 +319,20 @@ func (d Deps) handleLoginAPI(c *echo.Context) error {
 		return err
 	}
 	var input loginAPIRequest
-	if err := core.DecodeJSON(c.Request(), &input); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := support.DecodeJSON(c.Request(), &input); err != nil {
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	if strings.TrimSpace(input.Username) == "" || input.Password == "" {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "ユーザー名とパスワードが必要です")
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "ユーザー名とパスワードが必要です")
 	}
 	req, transactionErr := d.transactionRequest(c)
 	directAdminLogin := transactionErr != nil && input.ReturnTo != ""
 	if directAdminLogin {
 		if !validReturnTo(c, input.ReturnTo) {
-			return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "return_to が不正です")
+			return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "return_to が不正です")
 		}
 	} else if transactionErr != nil {
-		return core.WriteBrowserError(c, http.StatusUnauthorized, "transaction_unavailable", transactionErr.Error())
+		return support.WriteBrowserError(c, http.StatusUnauthorized, "transaction_unavailable", transactionErr.Error())
 	}
 
 	normalizedUsername := strings.ToLower(input.Username)
@@ -350,7 +350,7 @@ func (d Deps) handleLoginAPI(c *echo.Context) error {
 		}
 	}
 
-	user, err := d.UserRepo.FindByUsername(c.Request().Context(), core.RequestTenantID(c), input.Username)
+	user, err := d.UserRepo.FindByUsername(c.Request().Context(), support.RequestTenantID(c), input.Username)
 	if err != nil {
 		return err
 	}
@@ -371,14 +371,14 @@ func (d Deps) handleLoginAPI(c *echo.Context) error {
 		if !aggregated {
 			d.emitAuthenticationFailure(c, input.Username, "invalid_credentials")
 		}
-		return core.WriteBrowserError(c, http.StatusUnauthorized, "invalid_credentials", "ユーザー名またはパスワードを確認してください。")
+		return support.WriteBrowserError(c, http.StatusUnauthorized, "invalid_credentials", "ユーザー名またはパスワードを確認してください。")
 	}
 	if !user.IsActive() {
 		d.emitAuthenticationFailure(c, input.Username, "account_disabled")
-		return core.WriteBrowserError(c, http.StatusUnauthorized, "invalid_credentials", "ユーザー名またはパスワードを確認してください。")
+		return support.WriteBrowserError(c, http.StatusUnauthorized, "invalid_credentials", "ユーザー名またはパスワードを確認してください。")
 	}
 	if result := authusecases.ValidatePassword(input.Password); !result.OK {
-		return core.WriteBrowserError(c, http.StatusUnauthorized, "password_policy", "パスワードがセキュリティ要件を満たしていません。")
+		return support.WriteBrowserError(c, http.StatusUnauthorized, "password_policy", "パスワードがセキュリティ要件を満たしていません。")
 	}
 	if d.LoginAttemptThrottle != nil {
 		if err := d.LoginAttemptThrottle.RecordSuccess(
@@ -404,11 +404,11 @@ func (d Deps) handleLoginAPI(c *echo.Context) error {
 		d.Emit(&spec.UserAuthenticated{At: authTime, TenantID: user.TenantID, Sub: user.Sub, AMR: []string{"pwd"}})
 	}
 	if user.MfaEnrolled {
-		next := core.TenantRoute(c, "/totp")
+		next := support.TenantRoute(c, "/totp")
 		if directAdminLogin {
 			next += "?return_to=" + url.QueryEscape(input.ReturnTo)
 		}
-		return core.NoStoreJSON(c, http.StatusOK, browserFlowResponse{Next: next})
+		return support.NoStoreJSON(c, http.StatusOK, browserFlowResponse{Next: next})
 	}
 	// full authentication 完了 (pwd-only)。last_login_at 記録 + required action gate。
 	gateNext, err := d.recordLoginAndRequiredAction(c, user, authTime)
@@ -416,10 +416,10 @@ func (d Deps) handleLoginAPI(c *echo.Context) error {
 		return err
 	}
 	if gateNext != "" {
-		return core.NoStoreJSON(c, http.StatusOK, browserFlowResponse{Next: gateNext})
+		return support.NoStoreJSON(c, http.StatusOK, browserFlowResponse{Next: gateNext})
 	}
 	if directAdminLogin {
-		return core.NoStoreJSON(c, http.StatusOK, browserFlowResponse{RedirectTo: input.ReturnTo})
+		return support.NoStoreJSON(c, http.StatusOK, browserFlowResponse{RedirectTo: input.ReturnTo})
 	}
 	if err := d.RequestStore.AttachAuthentication(
 		c.Request().Context(), req.ID, user.Sub, authn.AuthTime, authn.AMR, authn.ACR,
@@ -427,9 +427,9 @@ func (d Deps) handleLoginAPI(c *echo.Context) error {
 		return writeOAuthError(c, err)
 	}
 	req.Sub, req.AuthTime = &user.Sub, &authn.AuthTime
-	client, err := d.ClientRepo.FindByID(c.Request().Context(), core.RequestTenantID(c), req.ClientID)
+	client, err := d.ClientRepo.FindByID(c.Request().Context(), support.RequestTenantID(c), req.ClientID)
 	if err != nil || client == nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_transaction", "クライアントが存在しません")
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_transaction", "クライアントが存在しません")
 	}
 	next, err := d.completeAfterAuthn(c, req, client, authn)
 	if err != nil {
@@ -453,37 +453,37 @@ func (d Deps) recordLoginAndRequiredAction(c *echo.Context, user *spec.User, now
 	}
 	*user = updated
 	if slices.Contains(updated.Lifecycle.RequiredActions, spec.RequiredActionUpdatePassword) {
-		return core.TenantRoute(c, "/change_password"), nil
+		return support.TenantRoute(c, "/change_password"), nil
 	}
 	return "", nil
 }
 
 func (d Deps) handleTOTPAPI(c *echo.Context) error {
 	if d.MfaFactorRepo == nil {
-		return core.WriteBrowserError(c, http.StatusServiceUnavailable, "mfa_unavailable", "MFA factor store is unavailable")
+		return support.WriteBrowserError(c, http.StatusServiceUnavailable, "mfa_unavailable", "MFA factor store is unavailable")
 	}
 	if err := d.VerifyBrowserRequest(c); err != nil {
 		return err
 	}
 	authn, _ := d.ResolveAuthentication(c)
 	if authn == nil || authn.SessionID == "" {
-		return core.WriteBrowserError(c, http.StatusUnauthorized, "authentication_required", "TOTP検証セッションがありません")
+		return support.WriteBrowserError(c, http.StatusUnauthorized, "authentication_required", "TOTP検証セッションがありません")
 	}
 	if containsString(authn.AMR, "otp") && !authn.AuthenticationPending {
-		return core.WriteBrowserError(c, http.StatusForbidden, "access_denied", "TOTPは既に検証済みです")
+		return support.WriteBrowserError(c, http.StatusForbidden, "access_denied", "TOTPは既に検証済みです")
 	}
 	var input totpAPIRequest
-	if err := core.DecodeJSON(c.Request(), &input); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := support.DecodeJSON(c.Request(), &input); err != nil {
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	req, transactionErr := d.transactionRequest(c)
 	directAdminLogin := transactionErr != nil && input.ReturnTo != ""
 	if directAdminLogin {
 		if !validReturnTo(c, input.ReturnTo) {
-			return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "return_to が不正です")
+			return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "return_to が不正です")
 		}
 	} else if transactionErr != nil {
-		return core.WriteBrowserError(c, http.StatusUnauthorized, "transaction_unavailable", transactionErr.Error())
+		return support.WriteBrowserError(c, http.StatusUnauthorized, "transaction_unavailable", transactionErr.Error())
 	}
 	result, err := authusecases.VerifyTOTPFactor(
 		c.Request().Context(),
@@ -497,14 +497,14 @@ func (d Deps) handleTOTPAPI(c *echo.Context) error {
 	}
 	if !result.OK {
 		d.emitAuthenticationFailure(c, authn.Sub, result.Reason)
-		return core.WriteBrowserError(c, http.StatusUnauthorized, "invalid_totp", "TOTPコードを確認してください。")
+		return support.WriteBrowserError(c, http.StatusUnauthorized, "invalid_totp", "TOTPコードを確認してください。")
 	}
 	completed, err := d.SessionManager.CompleteFactor(c.Request().Context(), authn.SessionID, []string{"otp"})
 	if err != nil {
 		return err
 	}
 	if completed == nil {
-		return core.WriteBrowserError(c, http.StatusUnauthorized, "authentication_required", "セッションが失効しました")
+		return support.WriteBrowserError(c, http.StatusUnauthorized, "authentication_required", "セッションが失効しました")
 	}
 	d.setSessionCookie(c, completed.SessionID)
 	if d.Emit != nil {
@@ -519,11 +519,11 @@ func (d Deps) handleTOTPAPI(c *echo.Context) error {
 			return err
 		}
 		if gateNext != "" {
-			return core.NoStoreJSON(c, http.StatusOK, browserFlowResponse{Next: gateNext})
+			return support.NoStoreJSON(c, http.StatusOK, browserFlowResponse{Next: gateNext})
 		}
 	}
 	if directAdminLogin {
-		return core.NoStoreJSON(c, http.StatusOK, browserFlowResponse{RedirectTo: input.ReturnTo})
+		return support.NoStoreJSON(c, http.StatusOK, browserFlowResponse{RedirectTo: input.ReturnTo})
 	}
 	if err := d.RequestStore.AttachAuthentication(
 		c.Request().Context(), req.ID, completed.Sub, completed.AuthTime, completed.AMR, completed.ACR,
@@ -531,9 +531,9 @@ func (d Deps) handleTOTPAPI(c *echo.Context) error {
 		return writeOAuthError(c, err)
 	}
 	req.Sub, req.AuthTime, req.AMR, req.ACR = &completed.Sub, &completed.AuthTime, completed.AMR, &completed.ACR
-	client, err := d.ClientRepo.FindByID(c.Request().Context(), core.RequestTenantID(c), req.ClientID)
+	client, err := d.ClientRepo.FindByID(c.Request().Context(), support.RequestTenantID(c), req.ClientID)
 	if err != nil || client == nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_transaction", "クライアントが存在しません")
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_transaction", "クライアントが存在しません")
 	}
 	next, err := d.completeAfterAuthn(c, req, client, completed)
 	if err != nil {
@@ -551,27 +551,27 @@ func (d Deps) handleConsentAPI(c *echo.Context) error {
 	}
 	req, err := d.transactionRequest(c)
 	if err != nil {
-		return core.WriteBrowserError(c, http.StatusUnauthorized, "transaction_unavailable", err.Error())
+		return support.WriteBrowserError(c, http.StatusUnauthorized, "transaction_unavailable", err.Error())
 	}
 	authn, _ := d.ResolveAuthentication(c)
 	if authn == nil || req.Sub == nil || authn.Sub != *req.Sub {
-		return core.WriteBrowserError(c, http.StatusUnauthorized, "authentication_required", "認証セッションが一致しません")
+		return support.WriteBrowserError(c, http.StatusUnauthorized, "authentication_required", "認証セッションが一致しません")
 	}
 	var input consentAPIRequest
-	if err := core.DecodeJSON(c.Request(), &input); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := support.DecodeJSON(c.Request(), &input); err != nil {
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	if input.Action != "allow" {
 		_ = d.RequestStore.UpdateState(c.Request().Context(), req.ID, spec.AuthFlowRejected)
 		d.clearTransactionCookie(c)
-		return core.NoStoreJSON(c, http.StatusOK, browserFlowResponse{RedirectTo: authorizationErrorURL(req, core.RequestIssuer(c, d.Issuer), "access_denied", "")})
+		return support.NoStoreJSON(c, http.StatusOK, browserFlowResponse{RedirectTo: authorizationErrorURL(req, support.RequestIssuer(c, d.Issuer), "access_denied", "")})
 	}
 
 	scopes := strings.Fields(req.Scope)
 	if d.ConsentRepo != nil {
 		now := time.Now().UTC()
 		if err := d.ConsentRepo.Save(c.Request().Context(), &spec.Consent{
-			TenantID: core.RequestTenantID(c), Sub: authn.Sub, ClientID: req.ClientID,
+			TenantID: support.RequestTenantID(c), Sub: authn.Sub, ClientID: req.ClientID,
 			Scopes: scopes, State: spec.ConsentGranted,
 			GrantedAt: now, ExpiresAt: now.Add(365 * 24 * time.Hour),
 			AuthorizationDetails: req.AuthorizationDetails,
@@ -579,10 +579,10 @@ func (d Deps) handleConsentAPI(c *echo.Context) error {
 			return err
 		}
 		if d.Emit != nil {
-			d.Emit(&spec.ConsentGrantedEvent{At: now, TenantID: core.RequestTenantID(c), Sub: authn.Sub, ClientID: req.ClientID, Scopes: scopes})
+			d.Emit(&spec.ConsentGrantedEvent{At: now, TenantID: support.RequestTenantID(c), Sub: authn.Sub, ClientID: req.ClientID, Scopes: scopes})
 			if len(req.AuthorizationDetails) > 0 {
 				d.Emit(&spec.AuthorizationDetailsConsented{
-					At: now, TenantID: core.RequestTenantID(c), Sub: authn.Sub, ClientID: req.ClientID,
+					At: now, TenantID: support.RequestTenantID(c), Sub: authn.Sub, ClientID: req.ClientID,
 					DetailTypes: oauthdomain.DetailTypes(req.AuthorizationDetails),
 				})
 			}
@@ -593,7 +593,7 @@ func (d Deps) handleConsentAPI(c *echo.Context) error {
 		return err
 	}
 	d.clearTransactionCookie(c)
-	return core.NoStoreJSON(c, http.StatusOK, browserFlowResponse{RedirectTo: redirectTo})
+	return support.NoStoreJSON(c, http.StatusOK, browserFlowResponse{RedirectTo: redirectTo})
 }
 
 type authorizationNext struct {
@@ -608,13 +608,13 @@ func (d Deps) completeAfterAuthn(
 	authn *authdomain.AuthenticationContext,
 ) (authorizationNext, error) {
 	if authn.AuthenticationPending {
-		return authorizationNext{Path: core.TenantRoute(c, "/totp")}, nil
+		return authorizationNext{Path: support.TenantRoute(c, "/totp")}, nil
 	}
 	// first-party クライアント (IdP 自身の管理コンソール / アカウントポータル) は
 	// resource owner が IdP 利用者自身であるため consent をスキップする (ADR-061)。
 	if d.ConsentRepo != nil && !client.FirstParty {
 		consent, _ := d.ConsentRepo.Find(
-			c.Request().Context(), core.RequestTenantID(c), authn.Sub, client.ClientID,
+			c.Request().Context(), support.RequestTenantID(c), authn.Sub, client.ClientID,
 		)
 		covered := consent != nil &&
 			consent.State == spec.ConsentGranted &&
@@ -643,7 +643,7 @@ func (d Deps) completeAfterAuthn(
 				return authorizationNext{}, err
 			}
 			req.Sub, req.AuthTime = &authn.Sub, &authn.AuthTime
-			return authorizationNext{Path: core.TenantRoute(c, "/consent")}, nil
+			return authorizationNext{Path: support.TenantRoute(c, "/consent")}, nil
 		}
 	}
 	redirectTo, err := d.issueCodeURL(c, req, authn.Sub, time.Unix(authn.AuthTime, 0))
@@ -664,7 +664,7 @@ func (d Deps) clientIsFirstParty(c *echo.Context, clientID string) bool {
 	if d.ClientRepo == nil {
 		return false
 	}
-	client, err := d.ClientRepo.FindByID(c.Request().Context(), core.RequestTenantID(c), clientID)
+	client, err := d.ClientRepo.FindByID(c.Request().Context(), support.RequestTenantID(c), clientID)
 	return err == nil && client != nil && client.FirstParty
 }
 
@@ -674,14 +674,14 @@ func (d Deps) issueCodeURL(
 	sub string,
 	authTime time.Time,
 ) (string, error) {
-	iss := core.RequestIssuer(c, d.Issuer)
+	iss := support.RequestIssuer(c, d.Issuer)
 	// 割当ゲート (wi-69): client が Application binding に属する場合、未割当 subject には
 	// 認可コードを発行せず access_denied で RP へ返す (fail-closed, AssignmentGatesProtocol)。
 	// ただし first-party クライアント (IdP 自身の管理コンソール / アカウントポータル) は
 	// resource owner が IdP 利用者自身であり、アプリ割当でログインをゲートしない (ADR-061)。
 	if !d.clientIsFirstParty(c, req.ClientID) {
 		allowed, err := d.ApplicationAccessAllowed(
-			c.Request().Context(), core.RequestTenantID(c), spec.ProtocolBindingOIDC, req.ClientID, sub,
+			c.Request().Context(), support.RequestTenantID(c), spec.ProtocolBindingOIDC, req.ClientID, sub,
 		)
 		if err != nil {
 			return "", err
@@ -709,7 +709,7 @@ func (d Deps) issueCodeURL(
 	}
 	if d.Emit != nil {
 		d.Emit(&spec.AuthorizationCodeIssued{
-			At: time.Now().UTC(), TenantID: core.RequestTenantID(c), ClientID: req.ClientID, Sub: sub,
+			At: time.Now().UTC(), TenantID: support.RequestTenantID(c), ClientID: req.ClientID, Sub: sub,
 			Scopes: out.Code.Scopes, CodeChallengeMethod: req.CodeChallengeMethod,
 		})
 	}
@@ -759,9 +759,9 @@ func redirectAuthorizationNext(c *echo.Context, next authorizationNext) error {
 
 func writeAuthorizationNext(c *echo.Context, next authorizationNext) error {
 	if next.RedirectTo != "" {
-		return core.NoStoreJSON(c, http.StatusOK, browserFlowResponse{RedirectTo: next.RedirectTo})
+		return support.NoStoreJSON(c, http.StatusOK, browserFlowResponse{RedirectTo: next.RedirectTo})
 	}
-	return core.NoStoreJSON(c, http.StatusOK, browserFlowResponse{Next: next.Path})
+	return support.NoStoreJSON(c, http.StatusOK, browserFlowResponse{Next: next.Path})
 }
 
 func (d Deps) handleEndSession(c *echo.Context) error {
@@ -783,7 +783,7 @@ func (d Deps) handleEndSession(c *echo.Context) error {
 	if clientID == "" {
 		return writeOAuthError(c, usecases.NewOAuthError("invalid_request", "client_id が必要"))
 	}
-	client, err := d.ClientRepo.FindByID(c.Request().Context(), core.RequestTenantID(c), clientID)
+	client, err := d.ClientRepo.FindByID(c.Request().Context(), support.RequestTenantID(c), clientID)
 	if err != nil {
 		return writeOAuthError(c, err)
 	}
@@ -824,7 +824,7 @@ func (d Deps) transactionRequest(c *echo.Context) (*spec.AuthorizationRequest, e
 	if err != nil {
 		return nil, err
 	}
-	if req == nil || req.TenantID != core.RequestTenantID(c) ||
+	if req == nil || req.TenantID != support.RequestTenantID(c) ||
 		time.Now().After(req.ExpiresAt) || req.State != spec.AuthFlowReceived {
 		return nil, errors.New("認可トランザクションが無効または期限切れです")
 	}
@@ -844,8 +844,8 @@ func validReturnTo(c *echo.Context, returnTo string) bool {
 	if path.Clean(parsed.Path) != parsed.Path {
 		return false
 	}
-	adminRoot := core.TenantRoute(c, "/admin")
-	wsfedRoot := core.TenantRoute(c, "/wsfed")
+	adminRoot := support.TenantRoute(c, "/admin")
+	wsfedRoot := support.TenantRoute(c, "/wsfed")
 	return parsed.Path == adminRoot ||
 		strings.HasPrefix(parsed.Path, adminRoot+"/") ||
 		parsed.Path == wsfedRoot
@@ -853,7 +853,7 @@ func validReturnTo(c *echo.Context, returnTo string) bool {
 
 func (d Deps) setTransactionCookie(c *echo.Context, requestID string) {
 	c.SetCookie(&http.Cookie{ //nolint:gosec // Secure is enabled for HTTPS issuers; local HTTP development intentionally disables it.
-		Name: authorizationTransactionCookie, Value: requestID, Path: core.TenantCookiePath(c),
+		Name: authorizationTransactionCookie, Value: requestID, Path: support.TenantCookiePath(c),
 		Secure: d.SecureCookies(), HttpOnly: true, SameSite: http.SameSiteLaxMode,
 		MaxAge: 600,
 	})
@@ -861,7 +861,7 @@ func (d Deps) setTransactionCookie(c *echo.Context, requestID string) {
 
 func (d Deps) clearTransactionCookie(c *echo.Context) {
 	c.SetCookie(&http.Cookie{ //nolint:gosec // Secure is enabled for HTTPS issuers; local HTTP development intentionally disables it.
-		Name: authorizationTransactionCookie, Path: core.TenantCookiePath(c),
+		Name: authorizationTransactionCookie, Path: support.TenantCookiePath(c),
 		Secure: d.SecureCookies(), HttpOnly: true, SameSite: http.SameSiteLaxMode,
 		MaxAge: -1,
 	})
@@ -869,7 +869,7 @@ func (d Deps) clearTransactionCookie(c *echo.Context) {
 
 func (d Deps) setSessionCookie(c *echo.Context, sessionID string) {
 	c.SetCookie(&http.Cookie{ //nolint:gosec // Secure is enabled for HTTPS issuers; local HTTP development intentionally disables it.
-		Name: authusecases.SessionCookie, Value: sessionID, Path: core.TenantCookiePath(c),
+		Name: authusecases.SessionCookie, Value: sessionID, Path: support.TenantCookiePath(c),
 		Secure: d.SecureCookies(), HttpOnly: true, SameSite: http.SameSiteLaxMode,
 		MaxAge: authusecases.SessionTTLSeconds,
 	})
@@ -877,7 +877,7 @@ func (d Deps) setSessionCookie(c *echo.Context, sessionID string) {
 
 func (d Deps) clearSessionCookie(c *echo.Context) {
 	c.SetCookie(&http.Cookie{ //nolint:gosec // Secure is enabled for HTTPS issuers; local HTTP development intentionally disables it.
-		Name: authusecases.SessionCookie, Path: core.TenantCookiePath(c),
+		Name: authusecases.SessionCookie, Path: support.TenantCookiePath(c),
 		Secure: d.SecureCookies(), HttpOnly: true, SameSite: http.SameSiteLaxMode,
 		MaxAge: -1,
 	})
@@ -886,7 +886,7 @@ func (d Deps) clearSessionCookie(c *echo.Context) {
 func (d Deps) emitAuthenticationFailure(c *echo.Context, username, reason string) {
 	if d.Emit != nil {
 		d.Emit(&spec.AuthenticationFailed{
-			At: time.Now().UTC(), TenantID: core.RequestTenantID(c), Username: username, Reason: reason,
+			At: time.Now().UTC(), TenantID: support.RequestTenantID(c), Username: username, Reason: reason,
 		})
 	}
 }
@@ -934,7 +934,7 @@ func (d Deps) recordLoginFailure(c *echo.Context, username, clientIP string) (bo
 		keyHash := hashThrottleKey(attempt.key)
 		if d.Emit != nil {
 			d.Emit(&spec.LoginThrottled{
-				At: now, TenantID: core.RequestTenantID(c), Kind: string(attempt.kind),
+				At: now, TenantID: support.RequestTenantID(c), Kind: string(attempt.kind),
 				KeyHash:           keyHash,
 				RetryAfterSeconds: result.RetryAfterSeconds,
 			})
@@ -959,7 +959,7 @@ func (d Deps) recordFailedLoginBucket(c *echo.Context, keyHash string, now time.
 		return false
 	}
 	result, err := d.AuthEventBucketStore.Record(
-		c.Request().Context(), authnports.AuthEventBucketFailedLogin, core.RequestTenantID(c), keyHash, now,
+		c.Request().Context(), authnports.AuthEventBucketFailedLogin, support.RequestTenantID(c), keyHash, now,
 	)
 	if err != nil {
 		return false
@@ -1002,7 +1002,7 @@ func extractClientIP(request *http.Request, trustedHops int) string {
 
 func writeLoginThrottled(c *echo.Context, retryAfterSeconds int) error {
 	c.Response().Header().Set("Retry-After", strconv.Itoa(retryAfterSeconds))
-	return core.NoStoreJSON(c, http.StatusTooManyRequests, map[string]any{
+	return support.NoStoreJSON(c, http.StatusTooManyRequests, map[string]any{
 		"error": "too_many_requests", "retry_after_seconds": retryAfterSeconds,
 	})
 }

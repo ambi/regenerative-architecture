@@ -12,11 +12,11 @@ import (
 	"testing"
 	"time"
 
-	httpadapter "ra-idp-go/internal/infrastructure/http"
-	"ra-idp-go/internal/infrastructure/http/core"
-	"ra-idp-go/internal/infrastructure/persistence/memory"
 	oauthports "ra-idp-go/internal/oauth2/ports"
-	"ra-idp-go/internal/spec"
+	httpadapter "ra-idp-go/internal/shared/adapters/http/server"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/adapters/persistence/memory"
+	"ra-idp-go/internal/shared/spec"
 
 	"github.com/labstack/echo/v5"
 )
@@ -42,7 +42,7 @@ func newBearerAdminServer(t *testing.T, actor *spec.User, introspector oauthport
 		userRepo.Seed(actor)
 	}
 	e := echo.New()
-	httpadapter.Register(e, core.Deps{
+	httpadapter.Register(e, support.Deps{
 		Issuer: "http://idp.test", SCL: spec.MustLoadSCL(), UserRepo: userRepo,
 		TokenIntrospector: introspector, TenantRepo: newSingleTenantRepo(),
 		Emit: func(spec.DomainEvent) {},

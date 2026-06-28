@@ -12,12 +12,12 @@ import (
 	"testing"
 	"time"
 
-	httpadapter "ra-idp-go/internal/infrastructure/http"
-	"ra-idp-go/internal/infrastructure/http/core"
-	"ra-idp-go/internal/infrastructure/persistence/memory"
 	"ra-idp-go/internal/oauth2/domain"
 	oauthports "ra-idp-go/internal/oauth2/ports"
-	"ra-idp-go/internal/spec"
+	httpadapter "ra-idp-go/internal/shared/adapters/http/server"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/adapters/persistence/memory"
+	"ra-idp-go/internal/shared/spec"
 
 	"github.com/labstack/echo/v5"
 )
@@ -40,7 +40,7 @@ func newIntrospectServer(intro *fakeIntrospector, denylist *fakeDenylist) *echo.
 		FapiProfile: spec.FapiNone, CreatedAt: time.Now().UTC(),
 	})
 	e := echo.New()
-	deps := core.Deps{
+	deps := support.Deps{
 		Issuer:            "http://test",
 		ClientRepo:        clientRepo,
 		TokenIntrospector: intro,

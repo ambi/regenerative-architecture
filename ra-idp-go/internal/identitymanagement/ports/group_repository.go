@@ -3,7 +3,7 @@ package ports
 import (
 	"context"
 
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/spec"
 )
 
 // GroupRepository は tenant-scoped な Group 集約とそのメンバーシップを永続化する

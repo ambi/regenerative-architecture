@@ -5,9 +5,9 @@ import (
 	"slices"
 	"time"
 
-	"ra-idp-go/internal/infrastructure/http/core"
 	oauthusecases "ra-idp-go/internal/oauth2/usecases"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/spec"
 
 	"github.com/labstack/echo/v5"
 )
@@ -35,7 +35,7 @@ func (d Deps) handleListAdminConsents(c *echo.Context) error {
 	for i, consent := range consents {
 		response[i] = toAdminConsentResponse(consent)
 	}
-	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"consents": response})
+	return support.NoStoreJSON(c, http.StatusOK, map[string]any{"consents": response})
 }
 
 func (d Deps) handleGetAdminConsent(c *echo.Context) error {
@@ -48,7 +48,7 @@ func (d Deps) handleGetAdminConsent(c *echo.Context) error {
 	if err != nil {
 		return d.WriteConsentError(c, err)
 	}
-	return core.NoStoreJSON(c, http.StatusOK, toAdminConsentResponse(consent))
+	return support.NoStoreJSON(c, http.StatusOK, toAdminConsentResponse(consent))
 }
 
 func (d Deps) handleRevokeAdminConsent(c *echo.Context) error {

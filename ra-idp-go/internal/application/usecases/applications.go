@@ -12,7 +12,7 @@ import (
 
 	"ra-idp-go/internal/application/domain"
 	"ra-idp-go/internal/application/ports"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/spec"
 	"ra-idp-go/internal/tenancy"
 )
 

@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"ra-idp-go/internal/infrastructure/http/core"
 	"ra-idp-go/internal/saml/adapters/metadata"
+	"ra-idp-go/internal/shared/adapters/http/support"
 
 	"github.com/labstack/echo/v5"
 )
@@ -16,12 +16,12 @@ func (d Deps) handleSamlMetadata(c *echo.Context) error {
 	if d.FederationSigner == nil {
 		return c.String(http.StatusInternalServerError, "saml metadata unavailable")
 	}
-	base := strings.TrimRight(core.RequestIssuer(c, d.Issuer), "/")
+	base := strings.TrimRight(support.RequestIssuer(c, d.Issuer), "/")
 	endpoints := metadata.Endpoints{
-		SSOURL: base + core.TenantRoute(c, "/saml/sso"),
-		SLOURL: base + core.TenantRoute(c, "/saml/slo"),
+		SSOURL: base + support.TenantRoute(c, "/saml/sso"),
+		SLOURL: base + support.TenantRoute(c, "/saml/slo"),
 	}
-	out, err := metadata.BuildIDPMetadata(core.RequestIssuer(c, d.Issuer), d.FederationSigner.Certificate(), endpoints, time.Now().UTC())
+	out, err := metadata.BuildIDPMetadata(support.RequestIssuer(c, d.Issuer), d.FederationSigner.Certificate(), endpoints, time.Now().UTC())
 	if err != nil {
 		return c.String(http.StatusInternalServerError, "saml metadata unavailable")
 	}

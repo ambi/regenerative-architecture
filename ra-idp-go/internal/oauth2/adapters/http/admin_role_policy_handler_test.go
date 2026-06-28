@@ -9,7 +9,7 @@ import (
 
 	oauth2http "ra-idp-go/internal/oauth2/adapters/http"
 
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/spec"
 )
 
 func TestAdminRolePoliciesOmitInternalDocReferences(t *testing.T) {

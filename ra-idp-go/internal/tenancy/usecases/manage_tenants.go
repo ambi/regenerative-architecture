@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/spec"
 	tenantports "ra-idp-go/internal/tenancy/ports"
 )
 

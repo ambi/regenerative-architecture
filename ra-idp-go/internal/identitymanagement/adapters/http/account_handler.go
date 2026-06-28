@@ -8,8 +8,8 @@ import (
 
 	authusecases "ra-idp-go/internal/authentication/usecases"
 	idmusecases "ra-idp-go/internal/identitymanagement/usecases"
-	"ra-idp-go/internal/infrastructure/http/core"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/spec"
 
 	"github.com/labstack/echo/v5"
 )
@@ -96,7 +96,7 @@ func (d Deps) handleGetAccountSummary(c *echo.Context) error {
 	if err != nil {
 		return d.writeAccountError(c, err)
 	}
-	return core.NoStoreJSON(c, http.StatusOK, toAccountSummaryResponse(user))
+	return support.NoStoreJSON(c, http.StatusOK, toAccountSummaryResponse(user))
 }
 
 func (d Deps) handleGetAccountProfile(c *echo.Context) error {
@@ -108,7 +108,7 @@ func (d Deps) handleGetAccountProfile(c *echo.Context) error {
 	if err != nil {
 		return d.writeAccountError(c, err)
 	}
-	return core.NoStoreJSON(c, http.StatusOK, toAccountProfileResponse(user, defs))
+	return support.NoStoreJSON(c, http.StatusOK, toAccountProfileResponse(user, defs))
 }
 
 func (d Deps) handleUpdateAccountProfile(c *echo.Context) error {
@@ -120,8 +120,8 @@ func (d Deps) handleUpdateAccountProfile(c *echo.Context) error {
 		return d.writeAccountError(c, err)
 	}
 	var input accountProfileUpdateRequest
-	if err := core.DecodeJSON(c.Request(), &input); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := support.DecodeJSON(c.Request(), &input); err != nil {
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	user, defs, err := idmusecases.UpdateUserProfile(c.Request().Context(), d.accountProfileDeps(),
 		idmusecases.UpdateUserProfileInput{
@@ -131,7 +131,7 @@ func (d Deps) handleUpdateAccountProfile(c *echo.Context) error {
 	if err != nil {
 		return d.writeAccountError(c, err)
 	}
-	return core.NoStoreJSON(c, http.StatusOK, toAccountProfileResponse(user, defs))
+	return support.NoStoreJSON(c, http.StatusOK, toAccountProfileResponse(user, defs))
 }
 
 // requireAuthenticatedSub は認証済み (pending でない) セッションの sub を返す。
@@ -142,25 +142,25 @@ func (d Deps) requireAuthenticatedSub(c *echo.Context) (string, error) {
 		return "", err
 	}
 	if authn == nil || authn.AuthenticationPending {
-		return "", core.ErrAdminAuthenticationRequired
+		return "", support.ErrAdminAuthenticationRequired
 	}
 	return authn.Sub, nil
 }
 
 func (d Deps) writeAccountError(c *echo.Context, err error) error {
 	switch {
-	case errors.Is(err, core.ErrAdminAuthenticationRequired):
-		return core.WriteBrowserError(c, http.StatusUnauthorized, "authentication_required", "認証済みセッションが必要です")
+	case errors.Is(err, support.ErrAdminAuthenticationRequired):
+		return support.WriteBrowserError(c, http.StatusUnauthorized, "authentication_required", "認証済みセッションが必要です")
 	case errors.Is(err, authusecases.ErrStepUpRequired):
-		return core.WriteBrowserError(c, http.StatusForbidden, "step_up_required", "この操作には再認証が必要です")
+		return support.WriteBrowserError(c, http.StatusForbidden, "step_up_required", "この操作には再認証が必要です")
 	case errors.Is(err, idmusecases.ErrUserNotFound):
-		return core.WriteBrowserError(c, http.StatusNotFound, "user_not_found", "ユーザーが存在しません")
+		return support.WriteBrowserError(c, http.StatusNotFound, "user_not_found", "ユーザーが存在しません")
 	case errors.Is(err, authusecases.ErrSessionNotFound):
-		return core.WriteBrowserError(c, http.StatusNotFound, "session_not_found", "セッションが存在しません")
+		return support.WriteBrowserError(c, http.StatusNotFound, "session_not_found", "セッションが存在しません")
 	case errors.Is(err, idmusecases.ErrAttributeNotEditable):
-		return core.WriteBrowserError(c, http.StatusForbidden, "attribute_not_editable", "この属性は編集できません")
+		return support.WriteBrowserError(c, http.StatusForbidden, "attribute_not_editable", "この属性は編集できません")
 	case errors.Is(err, idmusecases.ErrInvalidAttribute):
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_attribute", "属性がスキーマに適合していません")
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_attribute", "属性がスキーマに適合していません")
 	default:
 		return err
 	}
@@ -174,7 +174,7 @@ func (d Deps) requireStepUpSub(c *echo.Context) (string, error) {
 		return "", err
 	}
 	if authn == nil || authn.AuthenticationPending {
-		return "", core.ErrAdminAuthenticationRequired
+		return "", support.ErrAdminAuthenticationRequired
 	}
 	if !authusecases.StepUpSatisfied(authn, time.Now().UTC()) {
 		return "", authusecases.ErrStepUpRequired

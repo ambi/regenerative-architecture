@@ -6,7 +6,7 @@ import (
 	"encoding/base64"
 	"time"
 
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/spec"
 )
 
 const authCodeBytes = 32

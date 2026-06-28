@@ -15,10 +15,10 @@ import (
 	"time"
 
 	authdomain "ra-idp-go/internal/authentication/domain"
-	httpadapter "ra-idp-go/internal/infrastructure/http"
-	"ra-idp-go/internal/infrastructure/http/core"
-	"ra-idp-go/internal/infrastructure/persistence/memory"
-	"ra-idp-go/internal/spec"
+	httpadapter "ra-idp-go/internal/shared/adapters/http/server"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/adapters/persistence/memory"
+	"ra-idp-go/internal/shared/spec"
 	tenancyhttp "ra-idp-go/internal/tenancy/adapters/http"
 
 	"github.com/labstack/echo/v5"
@@ -45,7 +45,7 @@ func newSettingsServer(t *testing.T, actor *spec.User, tenants ...*spec.Tenant) 
 	events := make([]spec.DomainEvent, 0)
 	emit := func(e spec.DomainEvent) { events = append(events, e) }
 	e := echo.New()
-	httpadapter.Register(e, core.Deps{
+	httpadapter.Register(e, support.Deps{
 		Issuer: "http://idp.test", SCL: spec.MustLoadSCL(), UserRepo: userRepo,
 		TenantRepo:    tenantRepo,
 		AuthnResolver: resolver, Emit: emit,

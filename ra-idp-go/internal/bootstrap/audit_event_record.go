@@ -14,7 +14,7 @@ import (
 	"fmt"
 
 	oauthports "ra-idp-go/internal/oauth2/ports"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/spec"
 )
 
 func newAuditEventRecord(e spec.DomainEvent) (*oauthports.AuditEventRecord, error) {

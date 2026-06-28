@@ -4,7 +4,7 @@ package ports
 import (
 	"context"
 
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/spec"
 )
 
 // SamlServiceProviderRepository は SAML 2.0 service provider 登録の永続境界 (wi-29)。

@@ -7,8 +7,8 @@ import (
 	"slices"
 	"time"
 
-	"ra-idp-go/internal/infrastructure/http/core"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/spec"
 	tenantusecases "ra-idp-go/internal/tenancy/usecases"
 
 	"github.com/labstack/echo/v5"
@@ -32,7 +32,7 @@ func (d Deps) handleListTenants(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"tenants": tenants})
+	return support.NoStoreJSON(c, http.StatusOK, map[string]any{"tenants": tenants})
 }
 
 func (d Deps) handleGetTenant(c *echo.Context) error {
@@ -44,9 +44,9 @@ func (d Deps) handleGetTenant(c *echo.Context) error {
 		return err
 	}
 	if tenant == nil {
-		return core.WriteBrowserError(c, http.StatusNotFound, "tenant_not_found", "テナントが存在しません")
+		return support.WriteBrowserError(c, http.StatusNotFound, "tenant_not_found", "テナントが存在しません")
 	}
-	return core.NoStoreJSON(c, http.StatusOK, tenant)
+	return support.NoStoreJSON(c, http.StatusOK, tenant)
 }
 
 func (d Deps) handleCreateTenant(c *echo.Context) error {
@@ -58,8 +58,8 @@ func (d Deps) handleCreateTenant(c *echo.Context) error {
 		return d.WriteAdminAccessError(c, err)
 	}
 	var input tenantCreateRequest
-	if err := core.DecodeJSON(c.Request(), &input); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := support.DecodeJSON(c.Request(), &input); err != nil {
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	now := time.Now().UTC()
 	tenant, err := tenantusecases.Create(
@@ -71,7 +71,7 @@ func (d Deps) handleCreateTenant(c *echo.Context) error {
 	if d.Emit != nil {
 		d.Emit(&spec.TenantCreated{At: now, ActorSub: actor.Sub, TenantID: tenant.ID})
 	}
-	return core.NoStoreJSON(c, http.StatusCreated, tenant)
+	return support.NoStoreJSON(c, http.StatusCreated, tenant)
 }
 
 func (d Deps) handleUpdateTenant(c *echo.Context) error {
@@ -83,8 +83,8 @@ func (d Deps) handleUpdateTenant(c *echo.Context) error {
 		return d.WriteAdminAccessError(c, err)
 	}
 	var input tenantUpdateRequest
-	if err := core.DecodeJSON(c.Request(), &input); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := support.DecodeJSON(c.Request(), &input); err != nil {
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	now := time.Now().UTC()
 	tenant, err := tenantusecases.Update(
@@ -105,7 +105,7 @@ func (d Deps) handleUpdateTenant(c *echo.Context) error {
 			ChangedFields: tenantChangedFields(input),
 		})
 	}
-	return core.NoStoreJSON(c, http.StatusOK, tenant)
+	return support.NoStoreJSON(c, http.StatusOK, tenant)
 }
 
 func tenantChangedFields(input tenantUpdateRequest) []string {
@@ -175,7 +175,7 @@ func (d Deps) requireSystemAdmin(c *echo.Context) (*spec.User, error) {
 		return nil, err
 	}
 	if authn == nil || authn.AuthenticationPending {
-		return nil, core.ErrAdminAuthenticationRequired
+		return nil, support.ErrAdminAuthenticationRequired
 	}
 	user, err := d.UserRepo.FindBySub(c.Request().Context(), authn.Sub)
 	if err != nil {
@@ -183,7 +183,7 @@ func (d Deps) requireSystemAdmin(c *echo.Context) (*spec.User, error) {
 	}
 	if user == nil || user.TenantID != spec.DefaultTenantID || !user.IsActive() ||
 		!slices.Contains(d.EffectiveRoles(c.Request().Context(), user), "system_admin") {
-		return nil, core.ErrAdminAccessDenied
+		return nil, support.ErrAdminAccessDenied
 	}
 	return user, nil
 }
@@ -191,20 +191,20 @@ func (d Deps) requireSystemAdmin(c *echo.Context) (*spec.User, error) {
 func (d Deps) writeTenantError(c *echo.Context, err error) error {
 	switch {
 	case errors.Is(err, tenantusecases.ErrTenantNotFound):
-		return core.WriteBrowserError(c, http.StatusNotFound, "tenant_not_found", "テナントが存在しません")
+		return support.WriteBrowserError(c, http.StatusNotFound, "tenant_not_found", "テナントが存在しません")
 	case errors.Is(err, tenantusecases.ErrTenantConflict):
-		return core.WriteBrowserError(c, http.StatusConflict, "tenant_conflict", "テナントIDは既に使用されています")
+		return support.WriteBrowserError(c, http.StatusConflict, "tenant_conflict", "テナントIDは既に使用されています")
 	case errors.Is(err, tenantusecases.ErrInvalidTenantID),
 		errors.Is(err, tenantusecases.ErrDisplayNameEmpty),
 		errors.Is(err, tenantusecases.ErrDefaultTenant):
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", err.Error())
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", err.Error())
 	case errors.Is(err, tenantusecases.ErrPolicyOverrideWeaker):
 		floor := d.tenantPolicyFloor()
 		message := fmt.Sprintf(
 			"パスワードポリシーは標準値より弱くできません (min_length≥%d / max_length≤%d / history_depth≥%d)",
 			floor.MinLength, floor.MaxLength, floor.HistoryDepth,
 		)
-		return core.WriteBrowserError(c, http.StatusBadRequest, "policy_override_weaker", message)
+		return support.WriteBrowserError(c, http.StatusBadRequest, "policy_override_weaker", message)
 	default:
 		return err
 	}

@@ -9,10 +9,10 @@ import (
 	"slices"
 	"time"
 
-	"ra-idp-go/internal/infrastructure/http/core"
 	"ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/oauth2/usecases"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/spec"
 
 	"github.com/labstack/echo/v5"
 )
@@ -35,7 +35,7 @@ func (d Deps) handleListAdminKeys(c *echo.Context) error {
 		return d.WriteAdminAccessError(c, err)
 	}
 	if d.KeyStore == nil {
-		return core.NoStoreJSON(c, http.StatusOK, map[string]any{"keys": []AdminKeyResponse{}})
+		return support.NoStoreJSON(c, http.StatusOK, map[string]any{"keys": []AdminKeyResponse{}})
 	}
 	keys, err := d.KeyStore.GetAllKeys(c.Request().Context())
 	if err != nil {
@@ -45,7 +45,7 @@ func (d Deps) handleListAdminKeys(c *echo.Context) error {
 	for i, k := range keys {
 		out[i] = toAdminKeyResponse(k)
 	}
-	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"keys": out})
+	return support.NoStoreJSON(c, http.StatusOK, map[string]any{"keys": out})
 }
 
 func (d Deps) handleGetAdminKey(c *echo.Context) error {
@@ -53,16 +53,16 @@ func (d Deps) handleGetAdminKey(c *echo.Context) error {
 		return d.WriteAdminAccessError(c, err)
 	}
 	if d.KeyStore == nil {
-		return core.WriteBrowserError(c, http.StatusNotFound, "key_not_found", "署名鍵が存在しません")
+		return support.WriteBrowserError(c, http.StatusNotFound, "key_not_found", "署名鍵が存在しません")
 	}
 	key, err := d.KeyStore.FindByKID(c.Request().Context(), c.Param("kid"))
 	if err != nil {
 		return err
 	}
 	if key == nil {
-		return core.WriteBrowserError(c, http.StatusNotFound, "key_not_found", "署名鍵が存在しません")
+		return support.WriteBrowserError(c, http.StatusNotFound, "key_not_found", "署名鍵が存在しません")
 	}
-	return core.NoStoreJSON(c, http.StatusOK, toAdminKeyResponse(key))
+	return support.NoStoreJSON(c, http.StatusOK, toAdminKeyResponse(key))
 }
 
 func (d Deps) handleRotateAdminKey(c *echo.Context) error {
@@ -73,7 +73,7 @@ func (d Deps) handleRotateAdminKey(c *echo.Context) error {
 		return d.WriteAdminAccessError(c, err)
 	}
 	if d.KeyStore == nil {
-		return core.WriteBrowserError(c, http.StatusServiceUnavailable, "key_store_unavailable", "署名鍵ストアが構成されていません")
+		return support.WriteBrowserError(c, http.StatusServiceUnavailable, "key_store_unavailable", "署名鍵ストアが構成されていません")
 	}
 	prev, _ := d.KeyStore.GetActiveKey(c.Request().Context())
 	next, err := usecases.RotateSigningKey(c.Request().Context(), usecases.RotateSigningKeyDeps{
@@ -89,7 +89,7 @@ func (d Deps) handleRotateAdminKey(c *echo.Context) error {
 		previous.Active = false
 		resp.Previous = &previous
 	}
-	return core.NoStoreJSON(c, http.StatusOK, resp)
+	return support.NoStoreJSON(c, http.StatusOK, resp)
 }
 
 // requireKeyReader は AdminKeysRead を満たす actor か検証する。
@@ -100,7 +100,7 @@ func (d Deps) requireKeyReader(c *echo.Context) error {
 		return err
 	}
 	if !slices.Contains(actor.Roles, "admin") && !slices.Contains(actor.Roles, "system_admin") {
-		return core.ErrAdminAccessDenied
+		return support.ErrAdminAccessDenied
 	}
 	return nil
 }
@@ -114,13 +114,13 @@ func (d Deps) requireKeyRotator(c *echo.Context) (*spec.User, error) {
 		return nil, err
 	}
 	if !slices.Contains(actor.Roles, "system_admin") {
-		return nil, core.ErrAdminAccessDenied
+		return nil, support.ErrAdminAccessDenied
 	}
-	if core.RequestTenantID(c) != spec.DefaultTenantID {
-		return nil, core.ErrAdminAccessDenied
+	if support.RequestTenantID(c) != spec.DefaultTenantID {
+		return nil, support.ErrAdminAccessDenied
 	}
 	if actor.TenantID != spec.DefaultTenantID {
-		return nil, core.ErrAdminAccessDenied
+		return nil, support.ErrAdminAccessDenied
 	}
 	return actor, nil
 }

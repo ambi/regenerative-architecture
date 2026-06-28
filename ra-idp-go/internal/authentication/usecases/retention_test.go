@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"ra-idp-go/internal/authentication/usecases"
-	"ra-idp-go/internal/infrastructure/persistence/memory"
 	oauthports "ra-idp-go/internal/oauth2/ports"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/persistence/memory"
+	"ra-idp-go/internal/shared/spec"
 )
 
 func daysAgo(now time.Time, d int) time.Time {

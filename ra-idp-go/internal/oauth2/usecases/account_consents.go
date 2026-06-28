@@ -8,7 +8,7 @@ package usecases
 import (
 	"context"
 
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/spec"
 	"ra-idp-go/internal/tenancy"
 )
 

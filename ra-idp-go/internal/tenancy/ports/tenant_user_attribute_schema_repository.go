@@ -3,7 +3,7 @@ package ports
 import (
 	"context"
 
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/spec"
 )
 
 // TenantUserAttributeSchemaRepository は tenant ごとの custom attribute 定義集合

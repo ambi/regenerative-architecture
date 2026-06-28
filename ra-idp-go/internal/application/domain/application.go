@@ -4,7 +4,7 @@ package domain
 import (
 	"errors"
 
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/spec"
 )
 
 var (

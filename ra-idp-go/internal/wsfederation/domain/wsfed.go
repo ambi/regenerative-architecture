@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/spec"
 )
 
 // WS-Federation の wa アクション値。

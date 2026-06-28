@@ -3,24 +3,24 @@
 // OAuth 2.0 / OIDC のプロトコルエンドポイント (authorize/token/introspect/revoke/
 // userinfo/par/device/discovery/register) と、認可トランザクションのフロントエンドである
 // 対話ログイン (login/totp/consent/end_session)、および client/consent/key/audit_event/
-// role_policy の管理 API を所有する。共有基盤 core.Deps を受け取り router から登録される。
+// role_policy の管理 API を所有する。共有基盤 support.Deps を受け取り router から登録される。
 package http
 
 import (
-	"ra-idp-go/internal/infrastructure/http/core"
+	"ra-idp-go/internal/shared/adapters/http/support"
 
 	"github.com/labstack/echo/v5"
 )
 
-// Deps は core.Deps を埋め込む薄いラッパ。ハンドラを本コンテキストのメソッドとして
+// Deps は support.Deps を埋め込む薄いラッパ。ハンドラを本コンテキストのメソッドとして
 // 保持するためのキャリアで、固有のフィールドは持たない。
 type Deps struct {
-	*core.Deps
+	*support.Deps
 }
 
 // RegisterRoutes はテナント解決済みグループに oauth2 コンテキストのエンドポイントを
 // 登録する。パス・メソッド・middleware は分割前と一致する。
-func RegisterRoutes(g *echo.Group, cd *core.Deps) {
+func RegisterRoutes(g *echo.Group, cd *support.Deps) {
 	d := Deps{cd}
 	g.GET("/authorize", d.handleAuthorize)
 	g.GET("/end_session", d.handleEndSession)

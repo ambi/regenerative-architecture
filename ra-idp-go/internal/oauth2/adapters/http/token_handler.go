@@ -7,18 +7,18 @@ import (
 	"strings"
 	"time"
 
-	"ra-idp-go/internal/infrastructure/crypto"
-	"ra-idp-go/internal/infrastructure/http/core"
 	oauthports "ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/oauth2/usecases"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/crypto"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/spec"
 
 	"github.com/labstack/echo/v5"
 )
 
 func (d Deps) handleToken(c *echo.Context) error {
 	if err := c.Request().ParseForm(); err != nil {
-		return c.JSON(http.StatusBadRequest, core.OAuthErrorBody("invalid_request", "form parse"))
+		return c.JSON(http.StatusBadRequest, support.OAuthErrorBody("invalid_request", "form parse"))
 	}
 	clientStub, err := d.authenticateTokenClient(c)
 	if err != nil {
@@ -31,7 +31,7 @@ func (d Deps) handleToken(c *echo.Context) error {
 	if !spec.GrantType(grantType).Valid() {
 		return writeOAuthError(c, usecases.NewOAuthError("unsupported_grant_type", "未対応 grant_type: "+grantType))
 	}
-	client, err := d.ClientRepo.FindByID(c.Request().Context(), core.RequestTenantID(c), clientStub.ID)
+	client, err := d.ClientRepo.FindByID(c.Request().Context(), support.RequestTenantID(c), clientStub.ID)
 	if err != nil {
 		return writeOAuthError(c, err)
 	}
@@ -45,7 +45,7 @@ func (d Deps) handleToken(c *echo.Context) error {
 	// DPoP 検証 (任意)
 	var dpopJKT string
 	if proof := c.Request().Header.Get("DPoP"); proof != "" && d.DpopReplayStore != nil {
-		htu := core.RequestHTU(c, d.Issuer)
+		htu := support.RequestHTU(c, d.Issuer)
 		r, err := crypto.VerifyDPoP(c.Request().Context(), proof, "POST", htu, d.DpopReplayStore, time.Now().UTC())
 		if err != nil {
 			return writeOAuthError(c, usecases.NewOAuthError("invalid_dpop_proof", err.Error()))
@@ -136,7 +136,7 @@ func (d Deps) handleToken(c *echo.Context) error {
 		// なら新規トークンを発行しない (fail-closed)。束縛があれば agent_id を token に載せる。
 		var agentID string
 		if d.AgentRepo != nil {
-			agent, err := d.AgentRepo.FindByClientID(ctx, core.RequestTenantID(c), client.ClientID)
+			agent, err := d.AgentRepo.FindByClientID(ctx, support.RequestTenantID(c), client.ClientID)
 			if err != nil {
 				return writeOAuthError(c, err)
 			}
@@ -159,7 +159,7 @@ func (d Deps) handleToken(c *echo.Context) error {
 			if sc != nil {
 				tag = string(sc.Type)
 			}
-			d.Emit(&spec.AccessTokenIssued{At: now, TenantID: core.RequestTenantID(c), JTI: jti, ClientID: client.ClientID, Sub: client.ClientID, Scopes: scopes, SenderConstraint: tag})
+			d.Emit(&spec.AccessTokenIssued{At: now, TenantID: support.RequestTenantID(c), JTI: jti, ClientID: client.ClientID, Sub: client.ClientID, Scopes: scopes, SenderConstraint: tag})
 		}
 		tokenType := "Bearer"
 		if sc != nil && sc.Type == spec.SenderConstraintDPoP {
@@ -241,7 +241,7 @@ func (d Deps) handleToken(c *echo.Context) error {
 
 func (d Deps) handleRevoke(c *echo.Context) error {
 	if err := c.Request().ParseForm(); err != nil {
-		return c.JSON(http.StatusBadRequest, core.OAuthErrorBody("invalid_request", "form parse"))
+		return c.JSON(http.StatusBadRequest, support.OAuthErrorBody("invalid_request", "form parse"))
 	}
 	client, err := d.authenticateTokenClient(c)
 	if err != nil {
@@ -258,7 +258,7 @@ func (d Deps) handleRevoke(c *echo.Context) error {
 
 func (d Deps) handleIntrospect(c *echo.Context) error {
 	if err := c.Request().ParseForm(); err != nil {
-		return c.JSON(http.StatusBadRequest, core.OAuthErrorBody("invalid_request", "form parse"))
+		return c.JSON(http.StatusBadRequest, support.OAuthErrorBody("invalid_request", "form parse"))
 	}
 	clientStub, err := d.authenticateTokenClient(c)
 	if err != nil {
@@ -275,7 +275,7 @@ func (d Deps) handleIntrospect(c *echo.Context) error {
 		return writeOAuthError(c, err)
 	}
 	if d.Emit != nil {
-		d.Emit(&spec.TokenIntrospected{At: time.Now().UTC(), TenantID: core.RequestTenantID(c), RSClientID: clientStub.ID, TokenID: resp.JTI, Active: resp.Active})
+		d.Emit(&spec.TokenIntrospected{At: time.Now().UTC(), TenantID: support.RequestTenantID(c), RSClientID: clientStub.ID, TokenID: resp.JTI, Active: resp.Active})
 	}
 	return c.JSON(http.StatusOK, resp)
 }

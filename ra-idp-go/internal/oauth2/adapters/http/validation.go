@@ -1,9 +1,11 @@
 package http
 
 import (
+	"errors"
+	"fmt"
 	"net/url"
-
-	"ra-idp-go/internal/validation"
+	"sort"
+	"strings"
 
 	z "github.com/Oudwins/zog"
 )
@@ -42,7 +44,7 @@ func parseAuthorizeRequest(values url.Values) (authorizeRequest, error) {
 		data[key] = values.Get(key)
 	}
 	var request authorizeRequest
-	err := validation.Error(authorizeRequestSchema.Parse(data, &request))
+	err := zogError(authorizeRequestSchema.Parse(data, &request))
 	return request, err
 }
 
@@ -90,7 +92,7 @@ var registerClientRequestSchema = z.Struct(z.Shape{
 }, z.Message("tls_client_auth requires tls_client_auth_subject_dn"))
 
 func validateRegisterClientRequest(request *registerClientRequest) error {
-	return validation.Error(registerClientRequestSchema.Validate(request))
+	return zogError(registerClientRequestSchema.Validate(request))
 }
 
 func jwksURI() *z.StringSchema[string] {
@@ -104,4 +106,33 @@ func jwksURI() *z.StringSchema[string] {
 		},
 		z.Message("jwks_uri must be https and must not contain userinfo or fragment"),
 	)
+}
+
+func zogError(issues z.ZogIssueList) error {
+	if len(issues) == 0 {
+		return nil
+	}
+
+	messages := make([]string, 0, len(issues))
+	for _, issue := range issues {
+		if issue == nil {
+			continue
+		}
+		message := issue.Message
+		if message == "" && issue.Err != nil {
+			message = issue.Err.Error()
+		}
+		if message == "" {
+			message = issue.Code
+		}
+		if path := issue.PathString(); path != "" {
+			message = fmt.Sprintf("%s: %s", path, message)
+		}
+		messages = append(messages, message)
+	}
+	if len(messages) == 0 {
+		return errors.New("validation failed")
+	}
+	sort.Strings(messages)
+	return errors.New(strings.Join(messages, "; "))
 }

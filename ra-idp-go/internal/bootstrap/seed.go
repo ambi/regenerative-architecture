@@ -11,7 +11,7 @@ import (
 	idmports "ra-idp-go/internal/identitymanagement/ports"
 	oauthdomain "ra-idp-go/internal/oauth2/domain"
 	oauthports "ra-idp-go/internal/oauth2/ports"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/spec"
 )
 
 // seedDemoData は SKIP_DEMO_SEED が空のとき、デモ用クライアントとユーザーを 1 件投入する。

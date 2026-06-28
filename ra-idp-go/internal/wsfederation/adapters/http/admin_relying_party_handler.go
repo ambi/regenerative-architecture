@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"ra-idp-go/internal/infrastructure/http/core"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/spec"
 
 	"github.com/labstack/echo/v5"
 )
@@ -44,11 +44,11 @@ func (d Deps) handleListRelyingParties(c *echo.Context) error {
 	if _, err := d.RequireAdmin(c); err != nil {
 		return d.WriteAdminAccessError(c, err)
 	}
-	parts, err := d.WsFedRPRepo.ListByTenant(c.Request().Context(), core.RequestTenantID(c))
+	parts, err := d.WsFedRPRepo.ListByTenant(c.Request().Context(), support.RequestTenantID(c))
 	if err != nil {
 		return err
 	}
-	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"relying_parties": parts})
+	return support.NoStoreJSON(c, http.StatusOK, map[string]any{"relying_parties": parts})
 }
 
 func (d Deps) handleUpsertRelyingParty(c *echo.Context) error {
@@ -57,14 +57,14 @@ func (d Deps) handleUpsertRelyingParty(c *echo.Context) error {
 	}
 	var req relyingPartyRequest
 	if err := c.Bind(&req); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSON が不正です")
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSON が不正です")
 	}
 	if err := req.validate(); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", err.Error())
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", err.Error())
 	}
 
 	ctx := c.Request().Context()
-	tenantID := core.RequestTenantID(c)
+	tenantID := support.RequestTenantID(c)
 	now := time.Now().UTC()
 
 	existing, err := d.WsFedRPRepo.FindByWtrealm(ctx, tenantID, req.Wtrealm)
@@ -89,7 +89,7 @@ func (d Deps) handleUpsertRelyingParty(c *echo.Context) error {
 	if err := d.WsFedRPRepo.Save(ctx, rp); err != nil {
 		return err
 	}
-	return core.NoStoreJSON(c, status, rp)
+	return support.NoStoreJSON(c, status, rp)
 }
 
 func (d Deps) handleDeleteRelyingParty(c *echo.Context) error {
@@ -98,9 +98,9 @@ func (d Deps) handleDeleteRelyingParty(c *echo.Context) error {
 	}
 	wtrealm := strings.TrimSpace(c.QueryParam("wtrealm"))
 	if wtrealm == "" {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "wtrealm query parameter is required")
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "wtrealm query parameter is required")
 	}
-	if err := d.WsFedRPRepo.Delete(c.Request().Context(), core.RequestTenantID(c), wtrealm); err != nil {
+	if err := d.WsFedRPRepo.Delete(c.Request().Context(), support.RequestTenantID(c), wtrealm); err != nil {
 		return err
 	}
 	return c.NoContent(http.StatusNoContent)

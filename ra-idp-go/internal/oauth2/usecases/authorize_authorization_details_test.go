@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"ra-idp-go/internal/infrastructure/persistence/memory"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/persistence/memory"
+	"ra-idp-go/internal/shared/spec"
 )
 
 func seedPaymentType(repo *memory.AuthorizationDetailTypeRepository) {

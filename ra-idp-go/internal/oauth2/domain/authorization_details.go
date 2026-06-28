@@ -15,7 +15,7 @@ import (
 	"slices"
 	"strings"
 
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/spec"
 )
 
 // standardArrayFields は AuthorizationDetail の標準配列フィールド (RFC 9396) を

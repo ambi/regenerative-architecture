@@ -13,7 +13,7 @@ import (
 	"github.com/beevik/etree"
 
 	"ra-idp-go/internal/saml/adapters/metadata"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/spec"
 )
 
 func selfSignedCert(t *testing.T) *x509.Certificate {

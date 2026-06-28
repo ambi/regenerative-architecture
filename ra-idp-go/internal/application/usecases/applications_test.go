@@ -6,8 +6,8 @@ import (
 
 	"ra-idp-go/internal/application/ports"
 	appusecases "ra-idp-go/internal/application/usecases"
-	"ra-idp-go/internal/infrastructure/persistence/memory"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/persistence/memory"
+	"ra-idp-go/internal/shared/spec"
 	"ra-idp-go/internal/tenancy"
 )
 

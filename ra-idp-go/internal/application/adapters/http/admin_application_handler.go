@@ -7,8 +7,8 @@ import (
 	"time"
 
 	appusecases "ra-idp-go/internal/application/usecases"
-	"ra-idp-go/internal/infrastructure/http/core"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/spec"
 
 	"github.com/labstack/echo/v5"
 )
@@ -62,7 +62,7 @@ func (d Deps) handleListApplications(c *echo.Context) error {
 	if _, err := d.RequireAdmin(c); err != nil {
 		return d.WriteAdminAccessError(c, err)
 	}
-	apps, err := d.ApplicationRepo.ListByTenant(c.Request().Context(), core.RequestTenantID(c))
+	apps, err := d.ApplicationRepo.ListByTenant(c.Request().Context(), support.RequestTenantID(c))
 	if err != nil {
 		return err
 	}
@@ -70,14 +70,14 @@ func (d Deps) handleListApplications(c *echo.Context) error {
 	for i, app := range apps {
 		out[i] = toApplicationResponse(app)
 	}
-	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"applications": out})
+	return support.NoStoreJSON(c, http.StatusOK, map[string]any{"applications": out})
 }
 
 func (d Deps) handleGetApplication(c *echo.Context) error {
 	if _, err := d.RequireAdmin(c); err != nil {
 		return d.WriteAdminAccessError(c, err)
 	}
-	app, err := d.ApplicationRepo.FindByID(c.Request().Context(), core.RequestTenantID(c), c.Param("application_id"))
+	app, err := d.ApplicationRepo.FindByID(c.Request().Context(), support.RequestTenantID(c), c.Param("application_id"))
 	if err != nil {
 		return err
 	}
@@ -85,7 +85,7 @@ func (d Deps) handleGetApplication(c *echo.Context) error {
 		return d.writeApplicationError(c, appusecases.ErrApplicationNotFound)
 	}
 	oidc, wsfed, saml := d.resolveProtocolConfig(c, app)
-	return core.NoStoreJSON(c, http.StatusOK, map[string]any{
+	return support.NoStoreJSON(c, http.StatusOK, map[string]any{
 		"application": toApplicationResponse(app), "oidc": oidc, "wsfed": wsfed, "saml": saml,
 	})
 }
@@ -99,8 +99,8 @@ func (d Deps) handleUpdateApplication(c *echo.Context) error {
 		return d.WriteAdminAccessError(c, err)
 	}
 	var req applicationUpdateRequest
-	if err := core.DecodeJSON(c.Request(), &req); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := support.DecodeJSON(c.Request(), &req); err != nil {
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	app, err := appusecases.UpdateApplication(c.Request().Context(), d.applicationDeps(), appusecases.UpdateApplicationInput{
 		ActorSub: actor.Sub, ApplicationID: c.Param("application_id"),
@@ -109,7 +109,7 @@ func (d Deps) handleUpdateApplication(c *echo.Context) error {
 	if err != nil {
 		return d.writeApplicationError(c, err)
 	}
-	return core.NoStoreJSON(c, http.StatusOK, toApplicationResponse(app))
+	return support.NoStoreJSON(c, http.StatusOK, toApplicationResponse(app))
 }
 
 func (d Deps) handleDeleteApplication(c *echo.Context) error {
@@ -138,8 +138,8 @@ func (d Deps) handleAttachBinding(c *echo.Context) error {
 		return d.WriteAdminAccessError(c, err)
 	}
 	var req protocolBindingRequest
-	if err := core.DecodeJSON(c.Request(), &req); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := support.DecodeJSON(c.Request(), &req); err != nil {
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	app, err := appusecases.AttachBinding(c.Request().Context(), d.applicationDeps(), appusecases.AttachBindingInput{
 		ActorSub: actor.Sub, ApplicationID: c.Param("application_id"),
@@ -148,7 +148,7 @@ func (d Deps) handleAttachBinding(c *echo.Context) error {
 	if err != nil {
 		return d.writeApplicationError(c, err)
 	}
-	return core.NoStoreJSON(c, http.StatusCreated, toApplicationResponse(app))
+	return support.NoStoreJSON(c, http.StatusCreated, toApplicationResponse(app))
 }
 
 func (d Deps) handleDetachBinding(c *echo.Context) error {
@@ -181,7 +181,7 @@ func (d Deps) handleListAssignments(c *echo.Context) error {
 	for i, a := range assignments {
 		out[i] = toAssignmentResponse(a)
 	}
-	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"assignments": out})
+	return support.NoStoreJSON(c, http.StatusOK, map[string]any{"assignments": out})
 }
 
 func (d Deps) handleAssignApplication(c *echo.Context) error {
@@ -193,8 +193,8 @@ func (d Deps) handleAssignApplication(c *echo.Context) error {
 		return d.WriteAdminAccessError(c, err)
 	}
 	var req assignmentRequest
-	if err := core.DecodeJSON(c.Request(), &req); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := support.DecodeJSON(c.Request(), &req); err != nil {
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	assignment, err := appusecases.AssignApplication(c.Request().Context(), d.assignmentDeps(), appusecases.AssignApplicationInput{
 		ActorSub: actor.Sub, ApplicationID: c.Param("application_id"),
@@ -203,7 +203,7 @@ func (d Deps) handleAssignApplication(c *echo.Context) error {
 	if err != nil {
 		return d.writeApplicationError(c, err)
 	}
-	return core.NoStoreJSON(c, http.StatusCreated, toAssignmentResponse(assignment))
+	return support.NoStoreJSON(c, http.StatusCreated, toAssignmentResponse(assignment))
 }
 
 func (d Deps) handleUnassignApplication(c *echo.Context) error {
@@ -237,9 +237,9 @@ func (d Deps) assignmentDeps() appusecases.AssignmentDeps {
 
 func (d Deps) writeApplicationError(c *echo.Context, err error) error {
 	if errors.Is(err, appusecases.ErrApplicationNotFound) {
-		return core.WriteBrowserError(c, http.StatusNotFound, "application_not_found", "アプリケーションが存在しません")
+		return support.WriteBrowserError(c, http.StatusNotFound, "application_not_found", "アプリケーションが存在しません")
 	}
-	return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", err.Error())
+	return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", err.Error())
 }
 
 func toApplicationResponse(app *spec.Application) applicationResponse {

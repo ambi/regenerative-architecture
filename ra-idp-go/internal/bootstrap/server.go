@@ -12,12 +12,12 @@ import (
 	"time"
 
 	authusecases "ra-idp-go/internal/authentication/usecases"
-	"ra-idp-go/internal/infrastructure/crypto"
-	httpadapter "ra-idp-go/internal/infrastructure/http"
-	httpcore "ra-idp-go/internal/infrastructure/http/core"
-	"ra-idp-go/internal/infrastructure/observability"
-	"ra-idp-go/internal/infrastructure/persistence/memory"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/crypto"
+	httpadapter "ra-idp-go/internal/shared/adapters/http/server"
+	httpsupport "ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/adapters/observability"
+	"ra-idp-go/internal/shared/adapters/persistence/memory"
+	"ra-idp-go/internal/shared/spec"
 	tenantusecases "ra-idp-go/internal/tenancy/usecases"
 
 	"github.com/labstack/echo/v5"
@@ -124,7 +124,7 @@ func Run() error {
 			}
 		}
 	}
-	httpadapter.Register(e, httpcore.Deps{
+	httpadapter.Register(e, httpsupport.Deps{
 		Issuer: issuer, SCL: sclDoc,
 		TenantRepo:       deps.TenantRepo,
 		AttrSchemaRepo:   deps.AttrSchemaRepo,
@@ -153,7 +153,7 @@ func Run() error {
 		ApplicationOrderingRepo: deps.ApplicationOrderingRepo,
 		ApplicationCategoryRepo: deps.ApplicationCategoryRepo,
 		Emit:                    emit,
-		HealthInfo: httpcore.HealthInfo{
+		HealthInfo: httpsupport.HealthInfo{
 			Persistence:   runtime.Persistence,
 			EventSink:     runtime.EventSink,
 			Observability: runtime.Observability,

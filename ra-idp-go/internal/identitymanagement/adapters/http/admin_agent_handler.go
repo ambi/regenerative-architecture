@@ -7,8 +7,8 @@ import (
 	"time"
 
 	idmusecases "ra-idp-go/internal/identitymanagement/usecases"
-	"ra-idp-go/internal/infrastructure/http/core"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/spec"
 
 	"github.com/labstack/echo/v5"
 )
@@ -61,7 +61,7 @@ func (d Deps) handleListAgents(c *echo.Context) error {
 	for i, view := range views {
 		agents[i] = toAgentSummaryResponse(view.Agent, view.ClientIDs)
 	}
-	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"agents": agents})
+	return support.NoStoreJSON(c, http.StatusOK, map[string]any{"agents": agents})
 }
 
 func (d Deps) handleGetAgent(c *echo.Context) error {
@@ -72,7 +72,7 @@ func (d Deps) handleGetAgent(c *echo.Context) error {
 	if err != nil {
 		return d.writeAdminAgentError(c, err)
 	}
-	return core.NoStoreJSON(c, http.StatusOK, toAgentSummaryResponse(view.Agent, view.ClientIDs))
+	return support.NoStoreJSON(c, http.StatusOK, toAgentSummaryResponse(view.Agent, view.ClientIDs))
 }
 
 func (d Deps) handleRegisterAgent(c *echo.Context) error {
@@ -84,8 +84,8 @@ func (d Deps) handleRegisterAgent(c *echo.Context) error {
 		return d.WriteAdminAccessError(c, err)
 	}
 	var input agentRegisterRequest
-	if err := core.DecodeJSON(c.Request(), &input); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := support.DecodeJSON(c.Request(), &input); err != nil {
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	ownerSub := ""
 	if input.OwnerSub != nil {
@@ -98,7 +98,7 @@ func (d Deps) handleRegisterAgent(c *echo.Context) error {
 	if err != nil {
 		return d.writeAdminAgentError(c, err)
 	}
-	return core.NoStoreJSON(c, http.StatusCreated, toAgentSummaryResponse(agent, []string{}))
+	return support.NoStoreJSON(c, http.StatusCreated, toAgentSummaryResponse(agent, []string{}))
 }
 
 func (d Deps) handleUpdateAgent(c *echo.Context) error {
@@ -110,8 +110,8 @@ func (d Deps) handleUpdateAgent(c *echo.Context) error {
 		return d.WriteAdminAccessError(c, err)
 	}
 	var input agentUpdateRequest
-	if err := core.DecodeJSON(c.Request(), &input); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := support.DecodeJSON(c.Request(), &input); err != nil {
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	agentID := c.Param("agent_id")
 	if _, err := idmusecases.UpdateAgent(c.Request().Context(), d.adminAgentDeps(), idmusecases.UpdateAgentInput{
@@ -125,7 +125,7 @@ func (d Deps) handleUpdateAgent(c *echo.Context) error {
 	if err != nil {
 		return d.writeAdminAgentError(c, err)
 	}
-	return core.NoStoreJSON(c, http.StatusOK, toAgentSummaryResponse(view.Agent, view.ClientIDs))
+	return support.NoStoreJSON(c, http.StatusOK, toAgentSummaryResponse(view.Agent, view.ClientIDs))
 }
 
 func (d Deps) handleDisableAgent(c *echo.Context) error {
@@ -164,8 +164,8 @@ func (d Deps) handleBindAgentCredential(c *echo.Context) error {
 		return d.WriteAdminAccessError(c, err)
 	}
 	var input agentCredentialBindRequest
-	if err := core.DecodeJSON(c.Request(), &input); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := support.DecodeJSON(c.Request(), &input); err != nil {
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	if err := idmusecases.BindCredential(c.Request().Context(), d.adminAgentDeps(), actor.Sub, c.Param("agent_id"), input.ClientID, time.Now().UTC()); err != nil {
 		return d.writeAdminAgentError(c, err)
@@ -226,23 +226,23 @@ func toAgentSummaryResponse(agent *spec.Agent, clientIDs []string) agentSummaryR
 func (d Deps) writeAdminAgentError(c *echo.Context, err error) error {
 	switch {
 	case errors.Is(err, idmusecases.ErrAgentNotFound):
-		return core.WriteBrowserError(c, http.StatusNotFound, "agent_not_found", "エージェントが存在しません")
+		return support.WriteBrowserError(c, http.StatusNotFound, "agent_not_found", "エージェントが存在しません")
 	case errors.Is(err, idmusecases.ErrAgentClientNotFound):
-		return core.WriteBrowserError(c, http.StatusNotFound, "client_not_found", "クライアントが存在しません")
+		return support.WriteBrowserError(c, http.StatusNotFound, "client_not_found", "クライアントが存在しません")
 	case errors.Is(err, idmusecases.ErrAgentNameConflict):
-		return core.WriteBrowserError(c, http.StatusConflict, "agent_name_conflict", "エージェント名は既に使用されています")
+		return support.WriteBrowserError(c, http.StatusConflict, "agent_name_conflict", "エージェント名は既に使用されています")
 	case errors.Is(err, idmusecases.ErrAgentNameEmpty):
-		return core.WriteBrowserError(c, http.StatusBadRequest, "agent_name_required", "エージェント名は必須です")
+		return support.WriteBrowserError(c, http.StatusBadRequest, "agent_name_required", "エージェント名は必須です")
 	case errors.Is(err, idmusecases.ErrAgentOwnerRequired):
-		return core.WriteBrowserError(c, http.StatusBadRequest, "agent_owner_required", "所有者は必須です")
+		return support.WriteBrowserError(c, http.StatusBadRequest, "agent_owner_required", "所有者は必須です")
 	case errors.Is(err, idmusecases.ErrAgentOwnerNotFound):
-		return core.WriteBrowserError(c, http.StatusBadRequest, "agent_owner_not_found", "所有者ユーザーが存在しません")
+		return support.WriteBrowserError(c, http.StatusBadRequest, "agent_owner_not_found", "所有者ユーザーが存在しません")
 	case errors.Is(err, idmusecases.ErrAgentKilled):
-		return core.WriteBrowserError(c, http.StatusConflict, "agent_killed", "緊急停止済みのエージェントは変更できません")
+		return support.WriteBrowserError(c, http.StatusConflict, "agent_killed", "緊急停止済みのエージェントは変更できません")
 	case errors.Is(err, idmusecases.ErrAgentClientBound):
-		return core.WriteBrowserError(c, http.StatusConflict, "agent_client_already_bound", "クライアントは別のエージェントに束縛済みです")
+		return support.WriteBrowserError(c, http.StatusConflict, "agent_client_already_bound", "クライアントは別のエージェントに束縛済みです")
 	case errors.Is(err, idmusecases.ErrInvalidRole):
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_role", "roleが不正です")
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_role", "roleが不正です")
 	default:
 		return err
 	}

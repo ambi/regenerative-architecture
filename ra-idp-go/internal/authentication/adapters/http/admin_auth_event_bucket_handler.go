@@ -10,7 +10,7 @@ import (
 	"time"
 
 	authusecases "ra-idp-go/internal/authentication/usecases"
-	"ra-idp-go/internal/infrastructure/http/core"
+	"ra-idp-go/internal/shared/adapters/http/support"
 
 	"github.com/labstack/echo/v5"
 )
@@ -47,5 +47,5 @@ func (d Deps) handleListAuthEventBuckets(c *echo.Context) error {
 			LastSeen:    bucket.LastSeen,
 		}
 	}
-	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"buckets": response})
+	return support.NoStoreJSON(c, http.StatusOK, map[string]any{"buckets": response})
 }

@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/spec"
 )
 
 func TestListRolePoliciesFiltersControlPlanePermissions(t *testing.T) {

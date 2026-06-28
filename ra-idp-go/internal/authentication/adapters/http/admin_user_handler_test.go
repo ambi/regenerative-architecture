@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"ra-idp-go/internal/infrastructure/crypto"
-	httpadapter "ra-idp-go/internal/infrastructure/http"
-	"ra-idp-go/internal/infrastructure/http/core"
-	"ra-idp-go/internal/infrastructure/persistence/memory"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/crypto"
+	httpadapter "ra-idp-go/internal/shared/adapters/http/server"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/adapters/persistence/memory"
+	"ra-idp-go/internal/shared/spec"
 
 	"github.com/labstack/echo/v5"
 )
@@ -39,7 +39,7 @@ func TestDisabledUserCannotLogIn(t *testing.T) {
 		t.Fatal(err)
 	}
 	e := echo.New()
-	httpadapter.Register(e, core.Deps{
+	httpadapter.Register(e, support.Deps{
 		Issuer: "http://idp.test", UserRepo: repo, RequestStore: requestStore,
 		PasswordHasher: hasher,
 	})

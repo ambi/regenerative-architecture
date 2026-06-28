@@ -7,8 +7,8 @@ import (
 	"time"
 
 	appusecases "ra-idp-go/internal/application/usecases"
-	"ra-idp-go/internal/infrastructure/http/core"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/http/support"
+	"ra-idp-go/internal/shared/spec"
 
 	"github.com/labstack/echo/v5"
 )
@@ -42,7 +42,7 @@ func (d Deps) handleListCategories(c *echo.Context) error {
 	for i, category := range categories {
 		out[i] = toCategoryResponse(category)
 	}
-	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"categories": out})
+	return support.NoStoreJSON(c, http.StatusOK, map[string]any{"categories": out})
 }
 
 func (d Deps) handleCreateCategory(c *echo.Context) error {
@@ -54,8 +54,8 @@ func (d Deps) handleCreateCategory(c *echo.Context) error {
 		return d.WriteAdminAccessError(c, err)
 	}
 	var req categoryRequest
-	if err := core.DecodeJSON(c.Request(), &req); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := support.DecodeJSON(c.Request(), &req); err != nil {
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	category, err := appusecases.CreateCategory(c.Request().Context(), d.categoryDeps(), appusecases.CreateCategoryInput{
 		ActorSub: actor.Sub, Name: req.Name, Position: req.Position, Now: time.Now().UTC(),
@@ -63,7 +63,7 @@ func (d Deps) handleCreateCategory(c *echo.Context) error {
 	if err != nil {
 		return d.writeCategoryError(c, err)
 	}
-	return core.NoStoreJSON(c, http.StatusCreated, map[string]any{"category": toCategoryResponse(category)})
+	return support.NoStoreJSON(c, http.StatusCreated, map[string]any{"category": toCategoryResponse(category)})
 }
 
 func (d Deps) handleUpdateCategory(c *echo.Context) error {
@@ -75,8 +75,8 @@ func (d Deps) handleUpdateCategory(c *echo.Context) error {
 		return d.WriteAdminAccessError(c, err)
 	}
 	var req categoryRequest
-	if err := core.DecodeJSON(c.Request(), &req); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := support.DecodeJSON(c.Request(), &req); err != nil {
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	name := &req.Name
 	if req.Name == "" {
@@ -88,7 +88,7 @@ func (d Deps) handleUpdateCategory(c *echo.Context) error {
 	if err != nil {
 		return d.writeCategoryError(c, err)
 	}
-	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"category": toCategoryResponse(category)})
+	return support.NoStoreJSON(c, http.StatusOK, map[string]any{"category": toCategoryResponse(category)})
 }
 
 func (d Deps) handleDeleteCategory(c *echo.Context) error {
@@ -117,8 +117,8 @@ func (d Deps) handleSetApplicationCategories(c *echo.Context) error {
 		return d.WriteAdminAccessError(c, err)
 	}
 	var req applicationCategoriesRequest
-	if err := core.DecodeJSON(c.Request(), &req); err != nil {
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
+	if err := support.DecodeJSON(c.Request(), &req); err != nil {
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
 	app, err := appusecases.SetApplicationCategories(c.Request().Context(), d.categoryDeps(), appusecases.SetApplicationCategoriesInput{
 		ActorSub: actor.Sub, ApplicationID: c.Param("application_id"), CategoryIDs: req.CategoryIDs, Now: time.Now().UTC(),
@@ -126,7 +126,7 @@ func (d Deps) handleSetApplicationCategories(c *echo.Context) error {
 	if err != nil {
 		return d.writeCategoryError(c, err)
 	}
-	return core.NoStoreJSON(c, http.StatusOK, toApplicationResponse(app))
+	return support.NoStoreJSON(c, http.StatusOK, toApplicationResponse(app))
 }
 
 func (d Deps) categoryDeps() appusecases.CategoryDeps {
@@ -136,15 +136,15 @@ func (d Deps) categoryDeps() appusecases.CategoryDeps {
 func (d Deps) writeCategoryError(c *echo.Context, err error) error {
 	switch {
 	case errors.Is(err, appusecases.ErrCategoryNotFound):
-		return core.WriteBrowserError(c, http.StatusNotFound, "category_not_found", "カテゴリが存在しません")
+		return support.WriteBrowserError(c, http.StatusNotFound, "category_not_found", "カテゴリが存在しません")
 	case errors.Is(err, appusecases.ErrApplicationNotFound):
-		return core.WriteBrowserError(c, http.StatusNotFound, "application_not_found", "アプリケーションが存在しません")
+		return support.WriteBrowserError(c, http.StatusNotFound, "application_not_found", "アプリケーションが存在しません")
 	case errors.Is(err, appusecases.ErrCategoryNameRequired):
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "カテゴリ名を入力してください")
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "カテゴリ名を入力してください")
 	case errors.Is(err, appusecases.ErrUnknownCategory):
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "存在しないカテゴリは付与できません")
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "存在しないカテゴリは付与できません")
 	default:
-		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", err.Error())
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", err.Error())
 	}
 }
 

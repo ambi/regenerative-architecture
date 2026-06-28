@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"ra-idp-go/internal/infrastructure/persistence/memory"
 	"ra-idp-go/internal/oauth2/domain"
 	"ra-idp-go/internal/oauth2/ports"
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/adapters/persistence/memory"
+	"ra-idp-go/internal/shared/spec"
 )
 
 type fakeTokenIssuer struct {

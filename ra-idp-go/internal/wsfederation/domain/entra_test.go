@@ -3,7 +3,7 @@ package domain
 import (
 	"testing"
 
-	"ra-idp-go/internal/spec"
+	"ra-idp-go/internal/shared/spec"
 )
 
 func TestNormalizeImmutableID_GUIDUsesMicrosoftByteOrder(t *testing.T) {

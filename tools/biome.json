@@ -1,6 +1,10 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.4.16/schema.json",
-  "vcs": { "enabled": false, "clientKind": "git", "useIgnoreFile": false },
+  "vcs": {
+    "enabled": false,
+    "clientKind": "git",
+    "useIgnoreFile": false
+  },
   "files": {
     "ignoreUnknown": true,
     "includes": [
@@ -39,14 +43,23 @@
   },
   "assist": {
     "enabled": true,
-    "actions": { "source": { "organizeImports": "off" } }
+    "actions": {
+      "source": {
+        "organizeImports": "off"
+      }
+    }
   },
   "overrides": [
     {
-      "includes": ["adapters/**", "infra/**"],
+      "includes": [
+        "adapters/**",
+        "deploy/**"
+      ],
       "linter": {
         "rules": {
-          "suspicious": { "noExplicitAny": "off" }
+          "suspicious": {
+            "noExplicitAny": "off"
+          }
         }
       }
     }

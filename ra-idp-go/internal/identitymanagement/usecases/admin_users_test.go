@@ -202,3 +202,44 @@ func TestDeleteUserRejectsSelfDelete(t *testing.T) {
 		t.Fatalf("error=%v, want ErrSelfDeleteForbidden", err)
 	}
 }
+
+func TestSetUserDisabledRejectsSelfDisable(t *testing.T) {
+	ctx := context.Background()
+	userRepo := memory.NewUserRepository()
+	now := time.Now().UTC()
+	userRepo.Seed(&spec.User{
+		Sub: "admin-1", PreferredUsername: "admin", PasswordHash: "hash",
+		Roles: []string{"admin"}, CreatedAt: now, UpdatedAt: now,
+	})
+	deps := idmusecases.AdminUserDeps{UserRepo: userRepo}
+
+	// admin が自身を無効化しようとすると自爆防止に弾かれる。
+	_, err := idmusecases.SetUserDisabled(ctx, deps, "admin-1", "admin-1", true, now)
+	if !errors.Is(err, idmusecases.ErrSelfDisableForbidden) {
+		t.Fatalf("disable self error=%v, want ErrSelfDisableForbidden", err)
+	}
+
+	// enable 方向は自身に対しても許可する (アクセス回復のみで誤操作リスクが低い)。
+	if _, err := idmusecases.SetUserDisabled(ctx, deps, "admin-1", "admin-1", false, now); err != nil {
+		t.Fatalf("enable self error=%v, want nil", err)
+	}
+}
+
+func TestSetUserDisabledAllowsDisablingOtherAdmin(t *testing.T) {
+	ctx := context.Background()
+	userRepo := memory.NewUserRepository()
+	now := time.Now().UTC()
+	userRepo.Seed(&spec.User{
+		Sub: "admin-2", PreferredUsername: "other-admin", PasswordHash: "hash",
+		Roles: []string{"admin"}, CreatedAt: now, UpdatedAt: now,
+	})
+	deps := idmusecases.AdminUserDeps{UserRepo: userRepo}
+
+	user, err := idmusecases.SetUserDisabled(ctx, deps, "admin-1", "admin-2", true, now)
+	if err != nil {
+		t.Fatalf("disable other admin error=%v, want nil", err)
+	}
+	if user.Lifecycle.Status != spec.UserStatusDisabled {
+		t.Fatalf("status=%v, want disabled", user.Lifecycle.Status)
+	}
+}

@@ -225,6 +225,8 @@ func (d Deps) writeAdminUserError(c *echo.Context, err error) error {
 		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_role", "roleが不正です")
 	case errors.Is(err, idmusecases.ErrSelfDeleteForbidden):
 		return core.WriteBrowserError(c, http.StatusBadRequest, "self_delete_forbidden", "管理者は自身を削除できません")
+	case errors.Is(err, idmusecases.ErrSelfDisableForbidden):
+		return core.WriteBrowserError(c, http.StatusBadRequest, "self_disable_forbidden", "管理者は自身を無効化できません")
 	case errors.Is(err, idmusecases.ErrInvalidAttribute):
 		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_attribute", "属性がスキーマに適合していません")
 	case errors.Is(err, idmusecases.ErrInvalidRequiredAction):

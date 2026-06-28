@@ -25,6 +25,10 @@ var (
 	// ErrSelfDeleteForbidden は admin / system_admin が自身を削除しようとした場合に
 	// 返る (ADR-036 の自爆防止)。
 	ErrSelfDeleteForbidden = errors.New("admins cannot delete themselves")
+	// ErrSelfDisableForbidden は admin / system_admin が自身を無効化しようとした
+	// 場合に返る。delete 側 (ErrSelfDeleteForbidden) と対称な自爆防止で、誤操作で
+	// 自身の管理画面アクセスを即時遮断する事故を防ぐ。enable 方向には適用しない。
+	ErrSelfDisableForbidden = errors.New("admins cannot disable themselves")
 	// ErrInvalidAttribute は attributes が実効スキーマ (組み込み ∪ tenant) に
 	// 適合しない場合に返る (ADR-040)。
 	ErrInvalidAttribute = errors.New("attribute does not conform to schema")
@@ -227,6 +231,9 @@ func SetUserDisabled(
 	}
 	if user.TenantID != tenancy.TenantID(ctx) {
 		return nil, ErrUserNotFound
+	}
+	if disabled && actorSub == user.Sub && hasPrivilegedRole(user.Roles) {
+		return nil, ErrSelfDisableForbidden
 	}
 	updated := *user
 	now = normalizedNow(now)

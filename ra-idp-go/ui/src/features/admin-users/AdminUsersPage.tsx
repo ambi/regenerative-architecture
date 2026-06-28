@@ -97,6 +97,7 @@ export function AdminUsersPage({
   const [showCreate, setShowCreate] = useState(false)
   const [showUserEditor, setShowUserEditor] = useState(false)
   const [showDelete, setShowDelete] = useState(false)
+  const [showDisable, setShowDisable] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -179,10 +180,21 @@ export function AdminUsersPage({
     await run(
       async () => {
         await setAdminUserDisabled(csrfToken, user.sub, disabled)
+        setShowDisable(false)
         await refresh(user.sub)
       },
       disabled ? 'ユーザーを無効化しました。' : 'ユーザーを再有効化しました。',
     )
+  }
+
+  // 無効化は破壊的なので確認ダイアログを挟む。再有効化はアクセス回復のみで
+  // 誤操作リスクが低いため即時実行する (片側非対称)。
+  function requestDisable(user: AdminUser) {
+    if (user.disabled_at) {
+      void handleDisabled(user)
+    } else {
+      setShowDisable(true)
+    }
   }
 
   async function handleRequiredAction(user: AdminUser, action: string, present: boolean) {
@@ -374,7 +386,7 @@ export function AdminUsersPage({
                   csrfToken={csrfToken}
                   busy={busy}
                   onEdit={() => setShowUserEditor(true)}
-                  onDisabled={() => void handleDisabled(selected)}
+                  onDisabled={() => requestDisable(selected)}
                   onDelete={() => setShowDelete(true)}
                   onRequiredAction={(action, present) =>
                     void handleRequiredAction(selected, action, present)
@@ -418,6 +430,14 @@ export function AdminUsersPage({
           onConfirm={(reason) => void handleDelete(selected, reason)}
         />
       )}
+      {showDisable && selected && (
+        <DisableUserDialog
+          user={selected}
+          busy={busy}
+          onClose={() => setShowDisable(false)}
+          onConfirm={() => void handleDisabled(selected)}
+        />
+      )}
     </>
   )
 }
@@ -439,6 +459,7 @@ export function AdminUserDetailPage({
   const [user, setUser] = useState(initialUser)
   const [showEditor, setShowEditor] = useState(false)
   const [showDelete, setShowDelete] = useState(false)
+  const [showDisable, setShowDisable] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -480,10 +501,20 @@ export function AdminUserDetailPage({
     await run(
       async () => {
         await setAdminUserDisabled(csrfToken, user.sub, disabled)
+        setShowDisable(false)
         await reload()
       },
       disabled ? 'ユーザーを無効化しました。' : 'ユーザーを再有効化しました。',
     )
+  }
+
+  // 無効化は確認ダイアログを挟み、再有効化は即時実行する (片側非対称)。
+  function requestDisable() {
+    if (user.disabled_at) {
+      void handleDisabled()
+    } else {
+      setShowDisable(true)
+    }
   }
 
   async function handleDelete(reason: string) {
@@ -542,7 +573,7 @@ export function AdminUserDetailPage({
               <DropdownMenuContent align="end">
                 <DropdownMenuItem
                   className={user.disabled_at ? undefined : 'text-red-700'}
-                  onSelect={() => void handleDisabled()}
+                  onSelect={() => requestDisable()}
                 >
                   {user.disabled_at ? (
                     <IconCheck size={17} aria-hidden="true" />
@@ -699,6 +730,14 @@ export function AdminUserDetailPage({
           busy={busy}
           onClose={() => setShowDelete(false)}
           onConfirm={(reason) => void handleDelete(reason)}
+        />
+      )}
+      {showDisable && (
+        <DisableUserDialog
+          user={user}
+          busy={busy}
+          onClose={() => setShowDisable(false)}
+          onConfirm={() => void handleDisabled()}
         />
       )}
     </>
@@ -1598,6 +1637,85 @@ function DeleteUserDialog({
             </Button>
           </div>
         </form>
+      </Card>
+    </div>
+  )
+}
+
+// DisableUserDialog は無効化 (disable) 前に挟む軽い確認ダイアログ。削除と違い
+// 復元可能なため username typing は求めず、影響と復元動線の説明だけで確定させる
+// (enable 方向はダイアログ無しで即時実行する)。
+function DisableUserDialog({
+  user,
+  busy,
+  onClose,
+  onConfirm,
+}: {
+  user: AdminUser
+  busy: boolean
+  onClose: () => void
+  onConfirm: () => void
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 p-5 backdrop-blur-[2px]"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="disable-user-title"
+    >
+      <button
+        type="button"
+        className="absolute inset-0 cursor-default"
+        aria-label="閉じる"
+        onClick={onClose}
+      />
+      <Card className="relative w-full max-w-lg overflow-hidden shadow-2xl">
+        <div className="flex items-start justify-between border-b border-slate-200 px-6 py-5">
+          <div className="flex gap-3">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-700">
+              <IconBan size={18} aria-hidden="true" />
+            </span>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.12em] text-red-700">
+                Account access
+              </p>
+              <h2 id="disable-user-title" className="mt-1 text-xl font-semibold">
+                アカウントを無効化
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                {user.name || user.preferred_username} (@{user.preferred_username})
+              </p>
+            </div>
+          </div>
+          <Button variant="ghost" className="px-2.5" onClick={onClose} aria-label="閉じる">
+            <IconX size={18} aria-hidden="true" />
+          </Button>
+        </div>
+
+        <div className="grid gap-5 p-6">
+          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-xs leading-5 text-red-900">
+            <p className="font-semibold">無効化すると</p>
+            <ul className="mt-1.5 list-disc pl-5">
+              <li>新規ログインが拒否されます。</li>
+              <li>既存のセッションが無効になります。</li>
+              <li>リフレッシュトークンによる更新が拒否されます。</li>
+            </ul>
+            <p className="mt-2">
+              この操作は <span className="font-semibold">アカウント状態 → 再有効化</span>{' '}
+              から元に戻せます。
+            </p>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-6 py-4">
+          <Button type="button" variant="outline" onClick={onClose} disabled={busy}>
+            キャンセル
+          </Button>
+          <Button type="button" variant="destructive" disabled={busy} onClick={onConfirm}>
+            <IconBan size={16} aria-hidden="true" />
+            無効化を確定
+          </Button>
+        </div>
       </Card>
     </div>
   )

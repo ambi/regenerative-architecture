@@ -1,7 +1,7 @@
 id: wi-13-disable-confirmation-and-self-disable-guard
 title: ユーザ無効化に確認ダイアログと自爆防止を入れる (削除と対称にする)
 created_at: 2026-06-16
-status: pending
+status: completed
 authors: [tn]
 
 motivation: |
@@ -110,3 +110,101 @@ risk_notes: |
   Disable は既に頻繁に走る経路ではないため変更影響は小さい。確認 1 段
   を増やすだけで behavior は不変。自爆防止の pre-check は DeleteUser の
   同じ `hasPrivilegedRole` ヘルパを流用できる。
+
+completion:
+  completed_at: 2026-06-28
+
+  summary: |
+    削除側 (wi-8) と対称になるよう、無効化 (disable) に軽い確認ダイアログと
+    admin の自爆防止を入れた。enable (再有効化) は誤操作リスクが低いため
+    確認なしの即時実行を維持した (片側非対称)。新規 model / state / event /
+    permission / HTTP endpoint は追加せず、既存 `SetUserDisabled` use case と
+    `hasPrivilegedRole` ヘルパを流用した。
+
+  decision_changes:
+    - 新規 ADR なし。既存 ADR-036 の自爆防止ルールを disable 方向に流用しただけ。
+
+  go_changes:
+    - >-
+      authusecases ではなく idmusecases (admin_users.go) に sentinel
+      `ErrSelfDisableForbidden` を追加。`SetUserDisabled` の冒頭で
+      「disabled=true かつ actorSub == user.Sub かつ hasPrivilegedRole(user.Roles)」
+      の pre-check を入れ、enable 方向 (disabled=false) は対象外にした。
+      DeleteUser の自爆防止と同じ `hasPrivilegedRole` を流用。
+    - >-
+      admin_user_handler.go の writeAdminUserError に
+      `ErrSelfDisableForbidden` → 400 `self_disable_forbidden` の分岐を追加。
+      HTTP 契約 (POST /api/admin/users/:sub/disable) は不変。
+
+  ui_changes:
+    - >-
+      AdminUsersPage.tsx に `DisableUserDialog` を追加。DeleteUserDialog の
+      構造を流用するが username typing 入力と reason フィールドは持たず、
+      影響説明 (ログイン拒否・既存 session 無効・refresh token 拒否) と
+      復元動線 (アカウント状態 → 再有効化) のみ見せる。確定ボタンは
+      destructive、キャンセルは outline。
+    - >-
+      無効化動線を持つ 2 つの画面 (右ペイン詳細の `AdminUsersPage` /
+      専用詳細画面 `AdminUserDetailPage`) の両方に `requestDisable` を挟み、
+      対象が active のときだけダイアログを開く。disabled のとき (= enable
+      方向) は従来どおり即時実行する。`handleDisabled` は成功時に
+      `showDisable` を閉じる。
+
+  documentation_changes:
+    - 変更なし (WI scope のとおり README の admin 機能行に変更なし)。
+
+  scl_changes:
+    - 変更なし。新規 model / state / event / permission を追加していないため
+      SCL coherence test は無影響。
+
+  semantic_diff:
+    before:
+      admin_ui_disable: ワンクリックで即時に無効化が実行される
+      self_disable_guard: なし (admin が自身を無効化して締め出せる)
+    after:
+      admin_ui_disable: DisableUserDialog の確認を経て無効化される (enable は即時)
+      self_disable_guard: privileged admin の自己無効化は 400 self_disable_forbidden
+
+  affected_guarantees_state:
+    - >-
+      自爆防止: SetUserDisabled (disable 方向のみ) に
+      「actor.Sub == target.Sub かつ privileged role」の pre-check を追加。
+      enable 方向は対象外。go テストで self-disable 拒否 / self-enable 許可 /
+      他 admin の無効化許可を確認した。
+    - >-
+      tenant isolation: 既存 requireAdmin 経路をそのまま使い、新規境界は無し。
+    - >-
+      auth fail-close: 既存の disabled_at 検知ルート (refresh / login /
+      session) は無変更。pre-check が 1 段増えるだけ。
+    - SCL coherence は不変。
+
+  verification:
+    - cmd: 'go test ./...'
+      in: ra-idp-go
+      result: ok (新規 TestSetUserDisabledRejectsSelfDisable /
+        TestSetUserDisabledAllowsDisablingOtherAdmin を含め全 pass)
+    - cmd: 'golangci-lint run ./...'
+      in: ra-idp-go
+      result: ok (0 issues)
+    - cmd: 'go build ./...'
+      in: ra-idp-go
+      result: ok
+    - cmd: 'bun --cwd ra-idp-go/ui typecheck'
+      result: ok (tsc --noEmit pass)
+    - cmd: 'bun --cwd ra-idp-go/ui lint'
+      result: ok (biome、no fixes)
+    - cmd: 'bun --cwd ra-idp-go/ui build'
+      result: ok
+    - >-
+      手動確認 (residual): dev サーバを起動した実ブラウザ操作は本セッションでは
+      未実施。既存ダイアログ (DeleteUser) と同パターンで実装し typecheck /
+      lint / build 緑のため動作する見込み。実環境での操作確認は次回 dev 起動時。
+
+  residual_risk:
+    - >-
+      手動 e2e (alice 無効化ダイアログ表示 / admin 自己無効化の 400 /
+      再有効化の即時実行) を本セッションで未実施。dev サーバ起動時に確認する。
+    - >-
+      disable 確認は UI 側だけのソフト ceremony。admin が curl で直接
+      /disable を叩けばダイアログを経ずに無効化できる (自爆防止のみ
+      use case 側で強制)。これは想定どおりで、削除側と同じ設計方針。

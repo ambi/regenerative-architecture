@@ -604,7 +604,7 @@ type authorizationNext struct {
 func (d Deps) completeAfterAuthn(
 	c *echo.Context,
 	req *spec.AuthorizationRequest,
-	client *spec.Client,
+	client *spec.OAuth2Client,
 	authn *authdomain.AuthenticationContext,
 ) (authorizationNext, error) {
 	if authn.AuthenticationPending {

@@ -42,7 +42,7 @@ func clientAuthServer(method spec.TokenEndpointAuthMethod) *echo.Echo {
 		value := "CN=client"
 		subjectDN = &value
 	}
-	repo.Seed(&spec.Client{
+	repo.Seed(&spec.OAuth2Client{
 		ClientID: "client", ClientSecretHash: secretHash, ClientType: clientType,
 		RedirectURIs: []string{"https://client.example/cb"},
 		GrantTypes:   []spec.GrantType{spec.GrantClientCredentials},
@@ -202,7 +202,7 @@ func TestPrivateKeyJWTAuthentication(t *testing.T) {
 		"e":   base64.RawURLEncoding.EncodeToString(big.NewInt(int64(key.PublicKey.E)).Bytes()),
 	}
 	repo := memory.NewClientRepository()
-	repo.Seed(&spec.Client{
+	repo.Seed(&spec.OAuth2Client{
 		ClientID: "private-client", ClientType: spec.ClientConfidential,
 		RedirectURIs: []string{"https://client.example/cb"},
 		GrantTypes:   []spec.GrantType{spec.GrantClientCredentials},

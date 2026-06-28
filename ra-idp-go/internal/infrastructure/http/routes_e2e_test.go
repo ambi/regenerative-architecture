@@ -53,7 +53,7 @@ func newServerWithUserAccess(t *testing.T) (*httptest.Server, *memory.UserReposi
 	hasher := crypto.NewArgon2idPasswordHasher()
 
 	secretHash := domain.HashClientSecret(demoClientSecret)
-	clientRepo.Seed(&spec.Client{
+	clientRepo.Seed(&spec.OAuth2Client{
 		ClientID: demoClientID, ClientSecretHash: &secretHash, ClientType: spec.ClientConfidential,
 		RedirectURIs: []string{demoRedirectURI},
 		GrantTypes: []spec.GrantType{
@@ -109,7 +109,7 @@ func newServerWithTOTP(t *testing.T, totpSecret string) *httptest.Server {
 	hasher := crypto.NewArgon2idPasswordHasher()
 
 	secretHash := domain.HashClientSecret(demoClientSecret)
-	clientRepo.Seed(&spec.Client{
+	clientRepo.Seed(&spec.OAuth2Client{
 		ClientID: demoClientID, ClientSecretHash: &secretHash, ClientType: spec.ClientConfidential,
 		RedirectURIs: []string{demoRedirectURI},
 		GrantTypes: []spec.GrantType{

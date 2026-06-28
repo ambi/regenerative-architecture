@@ -2,12 +2,12 @@ import { createFileRoute } from '@tanstack/react-router'
 import { listAdminAuditEvents } from '../../api/admin'
 import { request } from '../../api/core'
 import { AdminDashboardPage } from '../../features/admin-dashboard/AdminDashboardPage'
-import type { AdminClient, AdminConsent, AdminUser } from '../../types'
+import type { AdminOAuth2Client, AdminConsent, AdminUser } from '../../types'
 import { requirePortalAccount } from '../-guards'
 import { PageMarker } from '../-page'
 
 type AdminUserListResponse = { users: AdminUser[] }
-type AdminClientListResponse = { clients: AdminClient[] }
+type AdminOAuth2ClientListResponse = { clients: AdminOAuth2Client[] }
 type AdminConsentListResponse = { consents: AdminConsent[] }
 
 export const Route = createFileRoute('/admin/')({
@@ -16,7 +16,7 @@ export const Route = createFileRoute('/admin/')({
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
     const [users, clients, consents, recentEvents] = await Promise.all([
       request<AdminUserListResponse>('/api/admin/users'),
-      request<AdminClientListResponse>('/api/admin/clients'),
+      request<AdminOAuth2ClientListResponse>('/api/admin/clients'),
       request<AdminConsentListResponse>('/api/admin/consents'),
       listAdminAuditEvents({ after: since, limit: 100 }),
     ])

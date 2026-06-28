@@ -33,21 +33,21 @@ var roleDescriptionCopy = map[string]string{
 }
 
 var permissionDescriptionCopy = map[string]string{
-	"AdminUserRead":        "ユーザーの一覧と詳細を閲覧します。",
-	"AdminUserCreate":      "ユーザーを新規作成します。",
-	"AdminUserUpdate":      "ユーザーのプロフィール・ロール・有効状態を更新します。",
-	"AdminUserDelete":      "ユーザーを削除します。",
-	"AdminClientsManage":   "OAuth2/OIDC クライアントを登録・更新・削除します。",
-	"AdminConsentsManage":  "ユーザーが OAuth2/OIDC クライアントに与えた同意を閲覧・取り消します。",
-	"AdminTenantsManage":   "テナントの作成・更新・無効化・有効化を行います。",
-	"AdminSettingsRead":    "テナントの設定を閲覧します。",
-	"AdminSettingsUpdate":  "テナントの設定を更新します。",
-	"AdminAuditEventsRead": "監査ログを閲覧します。",
-	"AdminKeysRead":        "署名鍵を閲覧します。",
-	"AdminKeysRotate":      "署名鍵を更新（ローテーション）します。",
-	"AdminGroupsRead":      "グループの一覧と詳細を閲覧します。",
-	"AdminGroupsWrite":     "グループの作成・更新・削除とメンバー管理を行います。",
-	"AdminAgentsManage":    "AI エージェント (非人間 identity) の登録・更新・無効化・kill・削除と資格情報束縛を行います。",
+	"AdminUserRead":            "ユーザーの一覧と詳細を閲覧します。",
+	"AdminUserCreate":          "ユーザーを新規作成します。",
+	"AdminUserUpdate":          "ユーザーのプロフィール・ロール・有効状態を更新します。",
+	"AdminUserDelete":          "ユーザーを削除します。",
+	"AdminOAuth2ClientsManage": "OAuth2/OIDC クライアントを登録・更新・削除します。",
+	"AdminConsentsManage":      "ユーザーが OAuth2/OIDC クライアントに与えた同意を閲覧・取り消します。",
+	"AdminTenantsManage":       "テナントの作成・更新・無効化・有効化を行います。",
+	"AdminSettingsRead":        "テナントの設定を閲覧します。",
+	"AdminSettingsUpdate":      "テナントの設定を更新します。",
+	"AdminAuditEventsRead":     "監査ログを閲覧します。",
+	"AdminKeysRead":            "署名鍵を閲覧します。",
+	"AdminKeysRotate":          "署名鍵を更新（ローテーション）します。",
+	"AdminGroupsRead":          "グループの一覧と詳細を閲覧します。",
+	"AdminGroupsWrite":         "グループの作成・更新・削除とメンバー管理を行います。",
+	"AdminAgentsManage":        "AI エージェント (非人間 identity) の登録・更新・無効化・kill・削除と資格情報束縛を行います。",
 }
 
 func roleDescription(name, raw string) string {

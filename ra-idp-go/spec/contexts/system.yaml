@@ -80,7 +80,7 @@ user_experience:
       purpose: 管理者にテナントのユーザー数・登録アプリケーション数・付与済み同意数・直近24時間の監査イベント数と最近のイベントを集約表示する。
       interfaces:
         - ListAdminUsers
-        - ListAdminClients
+        - ListAdminOAuth2Clients
         - ListAdminConsents
         - ListAdminAuditEvents
       states:
@@ -169,9 +169,9 @@ user_experience:
         - EnableTenant
         - UpdateTenantUserAttributeSchema
         - UpdateAdminSettings
-        - CreateAdminClient
-        - UpdateAdminClient
-        - DeleteAdminClient
+        - CreateAdminOAuth2Client
+        - UpdateAdminOAuth2Client
+        - DeleteAdminOAuth2Client
       standards:
         - RFC9700
         - FAPI2SecurityProfile
@@ -216,10 +216,10 @@ user_experience:
         - ListAdminAuditEvents
         - ListAdminKeys
         - ListTenants
-        - ListAdminClients
-        - GetAdminClient
-        - CreateAdminClient
-        - UpdateAdminClient
+        - ListAdminOAuth2Clients
+        - GetAdminOAuth2Client
+        - CreateAdminOAuth2Client
+        - UpdateAdminOAuth2Client
     - id: UX-NO-CREDENTIAL-ECHO
       category: privacy
       adoption: required
@@ -260,11 +260,11 @@ user_experience:
         - ListAdminKeys
         - GetTenantUserAttributeSchema
         - GetAdminSettings
-        - ListAdminClients
-        - GetAdminClient
-        - CreateAdminClient
-        - UpdateAdminClient
-        - DeleteAdminClient
+        - ListAdminOAuth2Clients
+        - GetAdminOAuth2Client
+        - CreateAdminOAuth2Client
+        - UpdateAdminOAuth2Client
+        - DeleteAdminOAuth2Client
     - id: UX-ACCOUNT-SELF-SCOPE
       category: security
       adoption: required

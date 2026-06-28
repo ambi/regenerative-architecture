@@ -1,7 +1,7 @@
 id: wi-78-rename-client-to-oauth2-client-vocabulary
 title: ドメイン語彙の Client を OAuth2Client にリネームし指示対象を明確にする
 created_at: 2026-06-27
-status: pending
+status: completed
 authors: [tn]
 
 motivation: |
@@ -94,3 +94,51 @@ risk_notes: |
   広域リネームは wire 標準語 (client_id 等) を巻き込むと標準乖離・後方互換破壊を招く。対象を
   ドメイン集約とその admin 派生名に限定し、wire/storage 名は別判断で温存する。永続化スキーマや
   HTTP path を変える場合はマイグレーション/互換層を伴う。挙動は変えない。
+
+completion:
+  completed_at: 2026-06-28
+  summary: |
+    SCL は SCL 2.0 移行 (e65a6c0) で集約が既に OAuth2Client 化されていたが、admin 系
+    (DTO / interface / permission / event) が旧集約名のまま AdminClient* として残っていた。
+    AdminUser / AdminConsent と同じ Admin<集約> 規約に合わせ、admin 系一式を AdminOAuth2Client*
+    にリネームした (ListAdminOAuth2Clients、AdminOAuth2ClientsManage、AdminOAuth2ClientCreated 等)。
+    Go では集約型 spec.Client → spec.OAuth2Client、port OAuth2ClientRepository、admin usecase
+    (CreateAdminOAuth2Client / UpdateAdminOAuth2Client / DeleteAdminOAuth2Client、Deps / Input)、
+    event 型、handler、role 束ね、outbox / kafka_relay の event 名マッピングを整合させた。
+    UI の AdminClient TS 型も AdminOAuth2Client にリネーム。生成 HTML を再生成した。
+    wire/storage は WI 指示通り温存: JSON tag (client_id 等)、HTTP path (/api/admin/clients)、
+    RBAC action 文字列 (admin:clients_manage)、RFC 7591 自己登録 (RegisterClient / ClientRegistered)、
+    glossary のロール語 Client、wire 列挙 (ClientType / ClientCredentials 等) は不変。差分は
+    純粋なリネーム (57 file、+265/-265)。挙動は変えていない。
+  verification:
+    - cmd: GOCACHE=/tmp/ra-idp-go-cache go test ./...
+      status: passed
+      environment: /Users/tn/src/regenerative-architecture/ra-idp-go
+      result: 全 29 package が成功 (spec↔impl coherence_test を含む)。
+    - cmd: golangci-lint run ./...
+      status: passed
+      environment: /Users/tn/src/regenerative-architecture/ra-idp-go
+      result: golangci-lint fmt 整形後 0 issues。
+    - cmd: bun --cwd ra-idp-go/ui typecheck
+      status: passed
+      environment: /Users/tn/src/regenerative-architecture
+      result: TypeScript typecheck が成功。
+    - cmd: bun --cwd ra-idp-go/ui lint
+      status: passed
+      environment: /Users/tn/src/regenerative-architecture
+      result: biome lint が成功。
+    - cmd: bun --cwd ra-idp-go/ui build
+      status: passed
+      environment: /Users/tn/src/regenerative-architecture
+      result: vite build が成功。
+    - cmd: bun run yaml-check:scl
+      status: passed
+      environment: /Users/tn/src/regenerative-architecture/tools
+      result: SCL 13 file が成功。
+  affected_guarantees_state:
+    - guarantee: ubiquitous language — 接頭辞なし Client の曖昧さ解消
+      state: passed
+    - guarantee: behavior preservation — リネームのみで挙動不変
+      state: passed
+    - guarantee: spec-impl parity — SCL と Go / UI が同一語彙で対応し生成 HTML もロックステップ更新
+      state: passed

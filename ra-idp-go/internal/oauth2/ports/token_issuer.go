@@ -7,7 +7,7 @@ import (
 )
 
 type AccessTokenInput struct {
-	Client           *spec.Client
+	Client           *spec.OAuth2Client
 	Sub              string
 	Scopes           []string
 	SenderConstraint *spec.SenderConstraint
@@ -31,7 +31,7 @@ type AccessTokenInput struct {
 }
 
 type IDTokenInput struct {
-	Client    *spec.Client
+	Client    *spec.OAuth2Client
 	User      *spec.User
 	Scopes    []string
 	Nonce     *string

@@ -238,7 +238,7 @@ XML signing capability だけを共有する。
     <div class="group"><h3 class="grp-title">Screens <span class="count">1</span></h3><div class="cards"><article class="card" id="context-system-screen-admindashboard">
         <header><h3>AdminDashboard</h3><span class="chip chip-hint">/admin</span></header>
         <p class="desc">管理者にテナントのユーザー数・登録アプリケーション数・付与済み同意数・直近24時間の監査イベント数と最近のイベントを集約表示する。</p>
-        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-iface-ref" href="#context-system-iface-listadminusers">ListAdminUsers</a> <a class="chip chip-iface-ref" href="#context-system-iface-listadminclients">ListAdminClients</a> <a class="chip chip-iface-ref" href="#context-system-iface-listadminconsents">ListAdminConsents</a> <a class="chip chip-iface-ref" href="#context-system-iface-listadminauditevents">ListAdminAuditEvents</a></div>
+        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-iface-ref" href="#context-system-iface-listadminusers">ListAdminUsers</a> <a class="chip chip-iface-ref" href="#context-system-iface-listadminoauth2clients">ListAdminOAuth2Clients</a> <a class="chip chip-iface-ref" href="#context-system-iface-listadminconsents">ListAdminConsents</a> <a class="chip chip-iface-ref" href="#context-system-iface-listadminauditevents">ListAdminAuditEvents</a></div>
         <div class="chip-row"><span class="chip">ready</span> <span class="chip">loading</span> <span class="chip">empty</span> <span class="chip">access_denied</span> <span class="chip">service_error</span></div>
       </article></div></div>
     <div class="group"><h3 class="grp-title">Transitions <span class="count">2</span></h3><table class="fields"><thead><tr><th>From</th><th>Trigger</th><th>To</th><th>Interface</th></tr></thead><tbody><tr>
@@ -260,7 +260,7 @@ XML signing capability だけを共有する。
         </header>
         <p>状態変更を伴うブラウザAPIはSameSite cookieとリクエストトークンを照合してCSRFを拒否する。</p>
         <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#context-system-screen-login">Login</a> <a class="chip" href="#context-system-screen-totp">Totp</a> <a class="chip" href="#context-system-screen-consent">Consent</a> <a class="chip" href="#context-system-screen-device">Device</a> <a class="chip" href="#context-system-screen-forgotpassword">ForgotPassword</a> <a class="chip" href="#context-system-screen-resetpassword">ResetPassword</a> <a class="chip" href="#context-system-screen-changepassword">ChangePassword</a> <a class="chip" href="#context-system-screen-accountprofile">AccountProfile</a> <a class="chip" href="#context-system-screen-accountemails">AccountEmails</a> <a class="chip" href="#context-system-screen-accountemailverify">AccountEmailVerify</a> <a class="chip" href="#context-system-screen-accountsecurity">AccountSecurity</a> <a class="chip" href="#context-system-screen-accountactivity">AccountActivity</a> <a class="chip" href="#context-system-screen-accountapplications">AccountApplications</a> <a class="chip" href="#context-system-screen-adminusers">AdminUsers</a> <a class="chip" href="#context-system-screen-admingroups">AdminGroups</a> <a class="chip" href="#context-system-screen-adminagents">AdminAgents</a> <a class="chip" href="#context-system-screen-adminapplications">AdminApplications</a> <a class="chip" href="#context-system-screen-adminauthorizationdetailtypes">AdminAuthorizationDetailTypes</a> <a class="chip" href="#context-system-screen-adminconsents">AdminConsents</a> <a class="chip" href="#context-system-screen-adminkeys">AdminKeys</a> <a class="chip" href="#context-system-screen-admintenants">AdminTenants</a> <a class="chip" href="#context-system-screen-admintenantattributes">AdminTenantAttributes</a> <a class="chip" href="#context-system-screen-adminsettings">AdminSettings</a> <a class="chip" href="#context-system-screen-adminentrafederation">AdminEntraFederation</a></div>
-        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#context-system-iface-submitbrowserlogin">SubmitBrowserLogin</a> <a class="chip chip-ref" href="#context-system-iface-submitbrowsertotp">SubmitBrowserTotp</a> <a class="chip chip-ref" href="#context-system-iface-submitbrowserconsent">SubmitBrowserConsent</a> <a class="chip chip-ref" href="#context-system-iface-submitbrowserdevice">SubmitBrowserDevice</a> <a class="chip chip-ref" href="#context-system-iface-requestpasswordreset">RequestPasswordReset</a> <a class="chip chip-ref" href="#context-system-iface-resetpasswordwithtoken">ResetPasswordWithToken</a> <a class="chip chip-ref" href="#context-system-iface-changepassword">ChangePassword</a> <a class="chip chip-ref" href="#context-system-iface-updateuserprofile">UpdateUserProfile</a> <a class="chip chip-ref" href="#context-system-iface-requestemailchange">RequestEmailChange</a> <a class="chip chip-ref" href="#context-system-iface-confirmemailchange">ConfirmEmailChange</a> <a class="chip chip-ref" href="#context-system-iface-confirmtotpenrollment">ConfirmTotpEnrollment</a> <a class="chip chip-ref" href="#context-system-iface-removetotpfactor">RemoveTotpFactor</a> <a class="chip chip-ref" href="#context-system-iface-revokemysession">RevokeMySession</a> <a class="chip chip-ref" href="#context-system-iface-revokemyothersessions">RevokeMyOtherSessions</a> <a class="chip chip-ref" href="#context-system-iface-revokemyconsent">RevokeMyConsent</a> <a class="chip chip-ref" href="#context-system-iface-createadminuser">CreateAdminUser</a> <a class="chip chip-ref" href="#context-system-iface-updateadminuser">UpdateAdminUser</a> <a class="chip chip-ref" href="#context-system-iface-disableadminuser">DisableAdminUser</a> <a class="chip chip-ref" href="#context-system-iface-enableadminuser">EnableAdminUser</a> <a class="chip chip-ref" href="#context-system-iface-deleteadminuser">DeleteAdminUser</a> <a class="chip chip-ref" href="#context-system-iface-creategroup">CreateGroup</a> <a class="chip chip-ref" href="#context-system-iface-updategroup">UpdateGroup</a> <a class="chip chip-ref" href="#context-system-iface-deletegroup">DeleteGroup</a> <a class="chip chip-ref" href="#context-system-iface-addgroupmember">AddGroupMember</a> <a class="chip chip-ref" href="#context-system-iface-removegroupmember">RemoveGroupMember</a> <a class="chip chip-ref" href="#context-system-iface-registeragent">RegisterAgent</a> <a class="chip chip-ref" href="#context-system-iface-updateagent">UpdateAgent</a> <a class="chip chip-ref" href="#context-system-iface-disableagent">DisableAgent</a> <a class="chip chip-ref" href="#context-system-iface-enableagent">EnableAgent</a> <a class="chip chip-ref" href="#context-system-iface-killagent">KillAgent</a> <a class="chip chip-ref" href="#context-system-iface-deleteagent">DeleteAgent</a> <a class="chip chip-ref" href="#context-system-iface-createadminapplication">CreateAdminApplication</a> <a class="chip chip-ref" href="#context-system-iface-updateadminapplication">UpdateAdminApplication</a> <a class="chip chip-ref" href="#context-system-iface-deleteadminapplication">DeleteAdminApplication</a> <a class="chip chip-ref" href="#context-system-iface-revokeadminconsent">RevokeAdminConsent</a> <a class="chip chip-ref" href="#context-system-iface-rotateadminkey">RotateAdminKey</a> <a class="chip chip-ref" href="#context-system-iface-createtenant">CreateTenant</a> <a class="chip chip-ref" href="#context-system-iface-updatetenant">UpdateTenant</a> <a class="chip chip-ref" href="#context-system-iface-disabletenant">DisableTenant</a> <a class="chip chip-ref" href="#context-system-iface-enabletenant">EnableTenant</a> <a class="chip chip-ref" href="#context-system-iface-updatetenantuserattributeschema">UpdateTenantUserAttributeSchema</a> <a class="chip chip-ref" href="#context-system-iface-updateadminsettings">UpdateAdminSettings</a> <a class="chip chip-ref" href="#context-system-iface-createadminclient">CreateAdminClient</a> <a class="chip chip-ref" href="#context-system-iface-updateadminclient">UpdateAdminClient</a> <a class="chip chip-ref" href="#context-system-iface-deleteadminclient">DeleteAdminClient</a></div><div class="reference-row"><span class="reference-label">standards</span><a class="chip chip-ref" href="#context-system-std-rfc9700">RFC9700</a> <a class="chip chip-ref" href="#context-system-std-fapi2securityprofile">FAPI2SecurityProfile</a></div>
+        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#context-system-iface-submitbrowserlogin">SubmitBrowserLogin</a> <a class="chip chip-ref" href="#context-system-iface-submitbrowsertotp">SubmitBrowserTotp</a> <a class="chip chip-ref" href="#context-system-iface-submitbrowserconsent">SubmitBrowserConsent</a> <a class="chip chip-ref" href="#context-system-iface-submitbrowserdevice">SubmitBrowserDevice</a> <a class="chip chip-ref" href="#context-system-iface-requestpasswordreset">RequestPasswordReset</a> <a class="chip chip-ref" href="#context-system-iface-resetpasswordwithtoken">ResetPasswordWithToken</a> <a class="chip chip-ref" href="#context-system-iface-changepassword">ChangePassword</a> <a class="chip chip-ref" href="#context-system-iface-updateuserprofile">UpdateUserProfile</a> <a class="chip chip-ref" href="#context-system-iface-requestemailchange">RequestEmailChange</a> <a class="chip chip-ref" href="#context-system-iface-confirmemailchange">ConfirmEmailChange</a> <a class="chip chip-ref" href="#context-system-iface-confirmtotpenrollment">ConfirmTotpEnrollment</a> <a class="chip chip-ref" href="#context-system-iface-removetotpfactor">RemoveTotpFactor</a> <a class="chip chip-ref" href="#context-system-iface-revokemysession">RevokeMySession</a> <a class="chip chip-ref" href="#context-system-iface-revokemyothersessions">RevokeMyOtherSessions</a> <a class="chip chip-ref" href="#context-system-iface-revokemyconsent">RevokeMyConsent</a> <a class="chip chip-ref" href="#context-system-iface-createadminuser">CreateAdminUser</a> <a class="chip chip-ref" href="#context-system-iface-updateadminuser">UpdateAdminUser</a> <a class="chip chip-ref" href="#context-system-iface-disableadminuser">DisableAdminUser</a> <a class="chip chip-ref" href="#context-system-iface-enableadminuser">EnableAdminUser</a> <a class="chip chip-ref" href="#context-system-iface-deleteadminuser">DeleteAdminUser</a> <a class="chip chip-ref" href="#context-system-iface-creategroup">CreateGroup</a> <a class="chip chip-ref" href="#context-system-iface-updategroup">UpdateGroup</a> <a class="chip chip-ref" href="#context-system-iface-deletegroup">DeleteGroup</a> <a class="chip chip-ref" href="#context-system-iface-addgroupmember">AddGroupMember</a> <a class="chip chip-ref" href="#context-system-iface-removegroupmember">RemoveGroupMember</a> <a class="chip chip-ref" href="#context-system-iface-registeragent">RegisterAgent</a> <a class="chip chip-ref" href="#context-system-iface-updateagent">UpdateAgent</a> <a class="chip chip-ref" href="#context-system-iface-disableagent">DisableAgent</a> <a class="chip chip-ref" href="#context-system-iface-enableagent">EnableAgent</a> <a class="chip chip-ref" href="#context-system-iface-killagent">KillAgent</a> <a class="chip chip-ref" href="#context-system-iface-deleteagent">DeleteAgent</a> <a class="chip chip-ref" href="#context-system-iface-createadminapplication">CreateAdminApplication</a> <a class="chip chip-ref" href="#context-system-iface-updateadminapplication">UpdateAdminApplication</a> <a class="chip chip-ref" href="#context-system-iface-deleteadminapplication">DeleteAdminApplication</a> <a class="chip chip-ref" href="#context-system-iface-revokeadminconsent">RevokeAdminConsent</a> <a class="chip chip-ref" href="#context-system-iface-rotateadminkey">RotateAdminKey</a> <a class="chip chip-ref" href="#context-system-iface-createtenant">CreateTenant</a> <a class="chip chip-ref" href="#context-system-iface-updatetenant">UpdateTenant</a> <a class="chip chip-ref" href="#context-system-iface-disabletenant">DisableTenant</a> <a class="chip chip-ref" href="#context-system-iface-enabletenant">EnableTenant</a> <a class="chip chip-ref" href="#context-system-iface-updatetenantuserattributeschema">UpdateTenantUserAttributeSchema</a> <a class="chip chip-ref" href="#context-system-iface-updateadminsettings">UpdateAdminSettings</a> <a class="chip chip-ref" href="#context-system-iface-createadminoauth2client">CreateAdminOAuth2Client</a> <a class="chip chip-ref" href="#context-system-iface-updateadminoauth2client">UpdateAdminOAuth2Client</a> <a class="chip chip-ref" href="#context-system-iface-deleteadminoauth2client">DeleteAdminOAuth2Client</a></div><div class="reference-row"><span class="reference-label">standards</span><a class="chip chip-ref" href="#context-system-std-rfc9700">RFC9700</a> <a class="chip chip-ref" href="#context-system-std-fapi2securityprofile">FAPI2SecurityProfile</a></div>
       </article><article class="requirement" id="context-system-ux-ux-no-store">
         <header>
           <code class="name">UX-NO-STORE</code>
@@ -269,7 +269,7 @@ XML signing capability だけを共有する。
         </header>
         <p>認証トランザクション、CSRF token、user_code、管理対象データ、自己アカウントデータを含むブラウザAPI応答は保存キャッシュを禁止する。</p>
         <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#context-system-screen-login">Login</a> <a class="chip" href="#context-system-screen-totp">Totp</a> <a class="chip" href="#context-system-screen-consent">Consent</a> <a class="chip" href="#context-system-screen-device">Device</a> <a class="chip" href="#context-system-screen-accounthome">AccountHome</a> <a class="chip" href="#context-system-screen-accountprofile">AccountProfile</a> <a class="chip" href="#context-system-screen-accountsecurity">AccountSecurity</a> <a class="chip" href="#context-system-screen-accountactivity">AccountActivity</a> <a class="chip" href="#context-system-screen-accountapplications">AccountApplications</a> <a class="chip" href="#context-system-screen-accountdata">AccountData</a> <a class="chip" href="#context-system-screen-adminusers">AdminUsers</a> <a class="chip" href="#context-system-screen-admingroups">AdminGroups</a> <a class="chip" href="#context-system-screen-adminagents">AdminAgents</a> <a class="chip" href="#context-system-screen-adminapplications">AdminApplications</a> <a class="chip" href="#context-system-screen-adminconsents">AdminConsents</a> <a class="chip" href="#context-system-screen-adminauditevents">AdminAuditEvents</a> <a class="chip" href="#context-system-screen-adminkeys">AdminKeys</a> <a class="chip" href="#context-system-screen-admintenants">AdminTenants</a> <a class="chip" href="#context-system-screen-adminsettings">AdminSettings</a></div>
-        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#context-system-iface-getbrowsertransaction">GetBrowserTransaction</a> <a class="chip chip-ref" href="#context-system-iface-getbrowserdevicecontext">GetBrowserDeviceContext</a> <a class="chip chip-ref" href="#context-system-iface-getaccountsummary">GetAccountSummary</a> <a class="chip chip-ref" href="#context-system-iface-getuserprofile">GetUserProfile</a> <a class="chip chip-ref" href="#context-system-iface-getaccountsecurity">GetAccountSecurity</a> <a class="chip chip-ref" href="#context-system-iface-listmysessions">ListMySessions</a> <a class="chip chip-ref" href="#context-system-iface-listmyconsents">ListMyConsents</a> <a class="chip chip-ref" href="#context-system-iface-exportaccountdata">ExportAccountData</a> <a class="chip chip-ref" href="#context-system-iface-listadminusers">ListAdminUsers</a> <a class="chip chip-ref" href="#context-system-iface-listgroups">ListGroups</a> <a class="chip chip-ref" href="#context-system-iface-listagents">ListAgents</a> <a class="chip chip-ref" href="#context-system-iface-listadminapplications">ListAdminApplications</a> <a class="chip chip-ref" href="#context-system-iface-listadminconsents">ListAdminConsents</a> <a class="chip chip-ref" href="#context-system-iface-listadminauditevents">ListAdminAuditEvents</a> <a class="chip chip-ref" href="#context-system-iface-listadminkeys">ListAdminKeys</a> <a class="chip chip-ref" href="#context-system-iface-listtenants">ListTenants</a> <a class="chip chip-ref" href="#context-system-iface-listadminclients">ListAdminClients</a> <a class="chip chip-ref" href="#context-system-iface-getadminclient">GetAdminClient</a> <a class="chip chip-ref" href="#context-system-iface-createadminclient">CreateAdminClient</a> <a class="chip chip-ref" href="#context-system-iface-updateadminclient">UpdateAdminClient</a></div>
+        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#context-system-iface-getbrowsertransaction">GetBrowserTransaction</a> <a class="chip chip-ref" href="#context-system-iface-getbrowserdevicecontext">GetBrowserDeviceContext</a> <a class="chip chip-ref" href="#context-system-iface-getaccountsummary">GetAccountSummary</a> <a class="chip chip-ref" href="#context-system-iface-getuserprofile">GetUserProfile</a> <a class="chip chip-ref" href="#context-system-iface-getaccountsecurity">GetAccountSecurity</a> <a class="chip chip-ref" href="#context-system-iface-listmysessions">ListMySessions</a> <a class="chip chip-ref" href="#context-system-iface-listmyconsents">ListMyConsents</a> <a class="chip chip-ref" href="#context-system-iface-exportaccountdata">ExportAccountData</a> <a class="chip chip-ref" href="#context-system-iface-listadminusers">ListAdminUsers</a> <a class="chip chip-ref" href="#context-system-iface-listgroups">ListGroups</a> <a class="chip chip-ref" href="#context-system-iface-listagents">ListAgents</a> <a class="chip chip-ref" href="#context-system-iface-listadminapplications">ListAdminApplications</a> <a class="chip chip-ref" href="#context-system-iface-listadminconsents">ListAdminConsents</a> <a class="chip chip-ref" href="#context-system-iface-listadminauditevents">ListAdminAuditEvents</a> <a class="chip chip-ref" href="#context-system-iface-listadminkeys">ListAdminKeys</a> <a class="chip chip-ref" href="#context-system-iface-listtenants">ListTenants</a> <a class="chip chip-ref" href="#context-system-iface-listadminoauth2clients">ListAdminOAuth2Clients</a> <a class="chip chip-ref" href="#context-system-iface-getadminoauth2client">GetAdminOAuth2Client</a> <a class="chip chip-ref" href="#context-system-iface-createadminoauth2client">CreateAdminOAuth2Client</a> <a class="chip chip-ref" href="#context-system-iface-updateadminoauth2client">UpdateAdminOAuth2Client</a></div>
       </article><article class="requirement" id="context-system-ux-ux-no-credential-echo">
         <header>
           <code class="name">UX-NO-CREDENTIAL-ECHO</code>
@@ -287,7 +287,7 @@ XML signing capability だけを共有する。
         </header>
         <p>管理画面は現在のrealm prefixを維持し、所属テナント内のリソース(User、Group、Agent、Application/Client、Consent、AuditEvent、Key、設定、属性スキーマ)だけを表示・変更する。</p>
         <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#context-system-screen-admindashboard">AdminDashboard</a> <a class="chip" href="#context-system-screen-adminusers">AdminUsers</a> <a class="chip" href="#context-system-screen-admingroups">AdminGroups</a> <a class="chip" href="#context-system-screen-adminagents">AdminAgents</a> <a class="chip" href="#context-system-screen-adminroles">AdminRoles</a> <a class="chip" href="#context-system-screen-adminapplications">AdminApplications</a> <a class="chip" href="#context-system-screen-adminauthorizationdetailtypes">AdminAuthorizationDetailTypes</a> <a class="chip" href="#context-system-screen-adminconsents">AdminConsents</a> <a class="chip" href="#context-system-screen-adminauditevents">AdminAuditEvents</a> <a class="chip" href="#context-system-screen-adminkeys">AdminKeys</a> <a class="chip" href="#context-system-screen-admintenantattributes">AdminTenantAttributes</a> <a class="chip" href="#context-system-screen-adminsettings">AdminSettings</a> <a class="chip" href="#context-system-screen-adminentrafederation">AdminEntraFederation</a></div>
-        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#context-system-iface-listadminusers">ListAdminUsers</a> <a class="chip chip-ref" href="#context-system-iface-listgroups">ListGroups</a> <a class="chip chip-ref" href="#context-system-iface-listagents">ListAgents</a> <a class="chip chip-ref" href="#context-system-iface-listadminapplications">ListAdminApplications</a> <a class="chip chip-ref" href="#context-system-iface-listauthorizationdetailtypes">ListAuthorizationDetailTypes</a> <a class="chip chip-ref" href="#context-system-iface-listadminconsents">ListAdminConsents</a> <a class="chip chip-ref" href="#context-system-iface-listadminauditevents">ListAdminAuditEvents</a> <a class="chip chip-ref" href="#context-system-iface-listadminkeys">ListAdminKeys</a> <a class="chip chip-ref" href="#context-system-iface-gettenantuserattributeschema">GetTenantUserAttributeSchema</a> <a class="chip chip-ref" href="#context-system-iface-getadminsettings">GetAdminSettings</a> <a class="chip chip-ref" href="#context-system-iface-listadminclients">ListAdminClients</a> <a class="chip chip-ref" href="#context-system-iface-getadminclient">GetAdminClient</a> <a class="chip chip-ref" href="#context-system-iface-createadminclient">CreateAdminClient</a> <a class="chip chip-ref" href="#context-system-iface-updateadminclient">UpdateAdminClient</a> <a class="chip chip-ref" href="#context-system-iface-deleteadminclient">DeleteAdminClient</a></div>
+        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#context-system-iface-listadminusers">ListAdminUsers</a> <a class="chip chip-ref" href="#context-system-iface-listgroups">ListGroups</a> <a class="chip chip-ref" href="#context-system-iface-listagents">ListAgents</a> <a class="chip chip-ref" href="#context-system-iface-listadminapplications">ListAdminApplications</a> <a class="chip chip-ref" href="#context-system-iface-listauthorizationdetailtypes">ListAuthorizationDetailTypes</a> <a class="chip chip-ref" href="#context-system-iface-listadminconsents">ListAdminConsents</a> <a class="chip chip-ref" href="#context-system-iface-listadminauditevents">ListAdminAuditEvents</a> <a class="chip chip-ref" href="#context-system-iface-listadminkeys">ListAdminKeys</a> <a class="chip chip-ref" href="#context-system-iface-gettenantuserattributeschema">GetTenantUserAttributeSchema</a> <a class="chip chip-ref" href="#context-system-iface-getadminsettings">GetAdminSettings</a> <a class="chip chip-ref" href="#context-system-iface-listadminoauth2clients">ListAdminOAuth2Clients</a> <a class="chip chip-ref" href="#context-system-iface-getadminoauth2client">GetAdminOAuth2Client</a> <a class="chip chip-ref" href="#context-system-iface-createadminoauth2client">CreateAdminOAuth2Client</a> <a class="chip chip-ref" href="#context-system-iface-updateadminoauth2client">UpdateAdminOAuth2Client</a> <a class="chip chip-ref" href="#context-system-iface-deleteadminoauth2client">DeleteAdminOAuth2Client</a></div>
       </article><article class="requirement" id="context-system-ux-ux-account-self-scope">
         <header>
           <code class="name">UX-ACCOUNT-SELF-SCOPE</code>
@@ -10890,8 +10890,8 @@ BreachedPasswordChecker を通過した new_password で User.password_hash を
   </tr></tbody>
   </table>
   </article>
-<article class="card" id="context-oauth2-model-adminclientcreaterequest">
-    <header><h3>AdminClientCreateRequest</h3><span class="badge badge-kind-value_object">value object</span></header>
+<article class="card" id="context-oauth2-model-adminoauth2clientcreaterequest">
+    <header><h3>AdminOAuth2ClientCreateRequest</h3><span class="badge badge-kind-value_object">value object</span></header>
     <p class="desc">管理者が所属テナントに OAuth client を作成する。生成された client_secret は作成応答で一度だけ返す。</p>
 
     <table class="fields">
@@ -10977,8 +10977,8 @@ BreachedPasswordChecker を通過した new_password で User.password_hash を
   </tr></tbody>
   </table>
   </article>
-<article class="card" id="context-oauth2-model-adminclientupdaterequest">
-    <header><h3>AdminClientUpdateRequest</h3><span class="badge badge-kind-value_object">value object</span></header>
+<article class="card" id="context-oauth2-model-adminoauth2clientupdaterequest">
+    <header><h3>AdminOAuth2ClientUpdateRequest</h3><span class="badge badge-kind-value_object">value object</span></header>
     <p class="desc">管理者が client metadata を更新する。client_id、認証方式、秘密情報は変更せず、secret rotation は独立 endpoint で扱う。</p>
 
     <table class="fields">
@@ -11028,8 +11028,8 @@ BreachedPasswordChecker を通過した new_password で User.password_hash を
   </tr></tbody>
   </table>
   </article>
-<article class="card" id="context-oauth2-model-adminclientresponse">
-    <header><h3>AdminClientResponse</h3><span class="badge badge-kind-value_object">value object</span></header>
+<article class="card" id="context-oauth2-model-adminoauth2clientresponse">
+    <header><h3>AdminOAuth2ClientResponse</h3><span class="badge badge-kind-value_object">value object</span></header>
     <p class="desc">管理 API の client 表現。client_secret と client_secret_hash は契約上含めない。</p>
 
     <table class="fields">
@@ -11139,15 +11139,15 @@ BreachedPasswordChecker を通過した new_password で User.password_hash を
   </tr></tbody>
   </table>
   </article>
-<article class="card" id="context-oauth2-model-adminclientcreateresponse">
-    <header><h3>AdminClientCreateResponse</h3><span class="badge badge-kind-value_object">value object</span></header>
+<article class="card" id="context-oauth2-model-adminoauth2clientcreateresponse">
+    <header><h3>AdminOAuth2ClientCreateResponse</h3><span class="badge badge-kind-value_object">value object</span></header>
     <p class="desc">client 作成応答。client_secret は生成された場合に限り一度だけ返す。</p>
 
     <table class="fields">
     <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
     <tbody><tr>
     <td><code class="name">client</code></td>
-    <td><code class="type">AdminClientResponse</code></td>
+    <td><code class="type">AdminOAuth2ClientResponse</code></td>
     <td><span class="badge badge-required">required</span></td>
     <td><span class="muted">—</span></td>
     <td></td>
@@ -11160,15 +11160,15 @@ BreachedPasswordChecker を通過した new_password で User.password_hash を
   </tr></tbody>
   </table>
   </article>
-<article class="card" id="context-oauth2-model-adminclientlistresponse">
-    <header><h3>AdminClientListResponse</h3><span class="badge badge-kind-value_object">value object</span></header>
+<article class="card" id="context-oauth2-model-adminoauth2clientlistresponse">
+    <header><h3>AdminOAuth2ClientListResponse</h3><span class="badge badge-kind-value_object">value object</span></header>
     <p class="desc">所属テナント内の client 一覧。</p>
 
     <table class="fields">
     <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
     <tbody><tr>
     <td><code class="name">clients</code></td>
-    <td><code class="type">AdminClientResponse[]</code></td>
+    <td><code class="type">AdminOAuth2ClientResponse[]</code></td>
     <td><span class="badge badge-required">required</span></td>
     <td><span class="muted">—</span></td>
     <td></td>
@@ -12169,8 +12169,8 @@ BreachedPasswordChecker を通過した new_password で User.password_hash を
   </tr></tbody>
   </table>
   </article>
-<article class="card" id="context-oauth2-model-adminclientcreated">
-    <header><h3>AdminClientCreated</h3><span class="badge badge-kind-event">event</span></header>
+<article class="card" id="context-oauth2-model-adminoauth2clientcreated">
+    <header><h3>AdminOAuth2ClientCreated</h3><span class="badge badge-kind-event">event</span></header>
     <p class="desc">管理者が所属テナントに OAuth client を作成した。秘密情報は含めない。</p>
 
     <div class="label">Payload</div><table class="fields">
@@ -12202,8 +12202,8 @@ BreachedPasswordChecker を通過した new_password で User.password_hash を
   </tr></tbody>
   </table>
   </article>
-<article class="card" id="context-oauth2-model-adminclientupdated">
-    <header><h3>AdminClientUpdated</h3><span class="badge badge-kind-event">event</span></header>
+<article class="card" id="context-oauth2-model-adminoauth2clientupdated">
+    <header><h3>AdminOAuth2ClientUpdated</h3><span class="badge badge-kind-event">event</span></header>
     <p class="desc">管理者が OAuth client metadata を更新した。</p>
 
     <div class="label">Payload</div><table class="fields">
@@ -12241,8 +12241,8 @@ BreachedPasswordChecker を通過した new_password で User.password_hash を
   </tr></tbody>
   </table>
   </article>
-<article class="card" id="context-oauth2-model-adminclientdeleted">
-    <header><h3>AdminClientDeleted</h3><span class="badge badge-kind-event">event</span></header>
+<article class="card" id="context-oauth2-model-adminoauth2clientdeleted">
+    <header><h3>AdminOAuth2ClientDeleted</h3><span class="badge badge-kind-event">event</span></header>
     <p class="desc">管理者が所属テナントから OAuth client を削除した。</p>
 
     <div class="label">Payload</div><table class="fields">
@@ -13792,8 +13792,8 @@ BreachedPasswordChecker を通過した new_password で User.password_hash を
     <div class="binding-body"><div class="binding-head"><span class="badge badge-method-delete">DELETE</span> <code class="path">/api/admin/authorization-detail-types/{type}</code> <span class="chip chip-hint">response: 204</span></div></div>
   </div></div></div>
   </article>
-<article class="card" id="context-oauth2-iface-listadminclients">
-    <header><h3>ListAdminClients</h3><span class="badge badge-readonly">read-only</span></header>
+<article class="card" id="context-oauth2-iface-listadminoauth2clients">
+    <header><h3>ListAdminOAuth2Clients</h3><span class="badge badge-readonly">read-only</span></header>
     <p class="desc">管理者が所属テナントの client を一覧する。</p>
 
     <div class="io">
@@ -13802,7 +13802,7 @@ BreachedPasswordChecker を通過した new_password で User.password_hash を
       <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
       <tbody><tr>
     <td><code class="name">response</code></td>
-    <td><code class="type">AdminClientListResponse</code></td>
+    <td><code class="type">AdminOAuth2ClientListResponse</code></td>
     <td><span class="badge badge-required">required</span></td>
     <td></td>
   </tr></tbody>
@@ -13814,8 +13814,8 @@ BreachedPasswordChecker を通過した new_password で User.password_hash を
     <div class="binding-body"><div class="binding-head"><span class="badge badge-method-get">GET</span> <code class="path">/api/admin/clients</code></div></div>
   </div></div></div>
   </article>
-<article class="card" id="context-oauth2-iface-getadminclient">
-    <header><h3>GetAdminClient</h3><span class="badge badge-readonly">read-only</span></header>
+<article class="card" id="context-oauth2-iface-getadminoauth2client">
+    <header><h3>GetAdminOAuth2Client</h3><span class="badge badge-readonly">read-only</span></header>
     <p class="desc">管理者が所属テナントの client を取得する。別テナントの client は未存在として扱う。</p>
 
     <div class="io">
@@ -13836,7 +13836,7 @@ BreachedPasswordChecker を通過した new_password で User.password_hash を
       <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
       <tbody><tr>
     <td><code class="name">client</code></td>
-    <td><code class="type">AdminClientResponse</code></td>
+    <td><code class="type">AdminOAuth2ClientResponse</code></td>
     <td><span class="badge badge-required">required</span></td>
     <td></td>
   </tr></tbody>
@@ -13848,8 +13848,8 @@ BreachedPasswordChecker を通過した new_password で User.password_hash を
     <div class="binding-body"><div class="binding-head"><span class="badge badge-method-get">GET</span> <code class="path">/api/admin/clients/{client_id}</code></div></div>
   </div></div></div>
   </article>
-<article class="card" id="context-oauth2-iface-createadminclient">
-    <header><h3>CreateAdminClient</h3></header>
+<article class="card" id="context-oauth2-iface-createadminoauth2client">
+    <header><h3>CreateAdminOAuth2Client</h3></header>
     <p class="desc">管理者が所属テナントに client を作成する。</p>
 
     <div class="io">
@@ -13858,7 +13858,7 @@ BreachedPasswordChecker を通過した new_password で User.password_hash を
       <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
       <tbody><tr>
     <td><code class="name">request</code></td>
-    <td><code class="type">AdminClientCreateRequest</code></td>
+    <td><code class="type">AdminOAuth2ClientCreateRequest</code></td>
     <td><span class="badge badge-required">required</span></td>
     <td></td>
   </tr></tbody>
@@ -13870,21 +13870,21 @@ BreachedPasswordChecker を通過した new_password で User.password_hash を
       <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
       <tbody><tr>
     <td><code class="name">response</code></td>
-    <td><code class="type">AdminClientCreateResponse</code></td>
+    <td><code class="type">AdminOAuth2ClientCreateResponse</code></td>
     <td><span class="badge badge-required">required</span></td>
     <td></td>
   </tr></tbody>
     </table>
   </div>
 <div class="io"><div class="label">Errors</div><div class="chip-row"><a class="chip chip-error-ref" href="#context-oauth2-model-invalidrequesterror">InvalidRequestError</a> <a class="chip chip-error-ref" href="#context-oauth2-model-accessdeniederror">AccessDeniedError</a></div></div>
-<div class="io"><div class="label">Emits</div><div class="chip-row"><a class="chip chip-event-ref" href="#context-oauth2-model-adminclientcreated">AdminClientCreated</a></div></div>
+<div class="io"><div class="label">Emits</div><div class="chip-row"><a class="chip chip-event-ref" href="#context-oauth2-model-adminoauth2clientcreated">AdminOAuth2ClientCreated</a></div></div>
 <div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
     <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
     <div class="binding-body"><div class="binding-head"><span class="badge badge-method-post">POST</span> <code class="path">/api/admin/clients</code> <span class="chip chip-hint">response: 201</span> <span class="chip chip-hint">form: body</span></div></div>
   </div></div></div>
   </article>
-<article class="card" id="context-oauth2-iface-updateadminclient">
-    <header><h3>UpdateAdminClient</h3></header>
+<article class="card" id="context-oauth2-iface-updateadminoauth2client">
+    <header><h3>UpdateAdminOAuth2Client</h3></header>
     <p class="desc">管理者が所属テナントの client metadata を更新する。</p>
 
     <div class="io">
@@ -13898,7 +13898,7 @@ BreachedPasswordChecker を通過した new_password で User.password_hash を
     <td></td>
   </tr><tr>
     <td><code class="name">request</code></td>
-    <td><code class="type">AdminClientUpdateRequest</code></td>
+    <td><code class="type">AdminOAuth2ClientUpdateRequest</code></td>
     <td><span class="badge badge-required">required</span></td>
     <td></td>
   </tr></tbody>
@@ -13910,21 +13910,21 @@ BreachedPasswordChecker を通過した new_password で User.password_hash を
       <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
       <tbody><tr>
     <td><code class="name">client</code></td>
-    <td><code class="type">AdminClientResponse</code></td>
+    <td><code class="type">AdminOAuth2ClientResponse</code></td>
     <td><span class="badge badge-required">required</span></td>
     <td></td>
   </tr></tbody>
     </table>
   </div>
 <div class="io"><div class="label">Errors</div><div class="chip-row"><a class="chip chip-error-ref" href="#context-oauth2-model-invalidrequesterror">InvalidRequestError</a> <a class="chip chip-error-ref" href="#context-oauth2-model-accessdeniederror">AccessDeniedError</a></div></div>
-<div class="io"><div class="label">Emits</div><div class="chip-row"><a class="chip chip-event-ref" href="#context-oauth2-model-adminclientupdated">AdminClientUpdated</a></div></div>
+<div class="io"><div class="label">Emits</div><div class="chip-row"><a class="chip chip-event-ref" href="#context-oauth2-model-adminoauth2clientupdated">AdminOAuth2ClientUpdated</a></div></div>
 <div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
     <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
     <div class="binding-body"><div class="binding-head"><span class="badge badge-method-patch">PATCH</span> <code class="path">/api/admin/clients/{client_id}</code> <span class="chip chip-hint">form: body</span></div></div>
   </div></div></div>
   </article>
-<article class="card" id="context-oauth2-iface-deleteadminclient">
-    <header><h3>DeleteAdminClient</h3></header>
+<article class="card" id="context-oauth2-iface-deleteadminoauth2client">
+    <header><h3>DeleteAdminOAuth2Client</h3></header>
     <p class="desc">管理者が所属テナントの client を削除する。</p>
 
     <div class="io">
@@ -13940,7 +13940,7 @@ BreachedPasswordChecker を通過した new_password で User.password_hash を
     </table>
   </div>
 <div class="io"><div class="label">Errors</div><div class="chip-row"><a class="chip chip-error-ref" href="#context-oauth2-model-invalidrequesterror">InvalidRequestError</a> <a class="chip chip-error-ref" href="#context-oauth2-model-accessdeniederror">AccessDeniedError</a></div></div>
-<div class="io"><div class="label">Emits</div><div class="chip-row"><a class="chip chip-event-ref" href="#context-oauth2-model-adminclientdeleted">AdminClientDeleted</a></div></div>
+<div class="io"><div class="label">Emits</div><div class="chip-row"><a class="chip chip-event-ref" href="#context-oauth2-model-adminoauth2clientdeleted">AdminOAuth2ClientDeleted</a></div></div>
 <div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
     <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
     <div class="binding-body"><div class="binding-head"><span class="badge badge-method-delete">DELETE</span> <code class="path">/api/admin/clients/{client_id}</code> <span class="chip chip-hint">response: 204</span></div></div>
@@ -15108,8 +15108,8 @@ and forall: { in: event.scope, satisfies: &quot;x in x.scopes&quot; }
     <ul class="expr-list"><li><code class="expr">admin in actor.roles</code></li><li><code class="expr">actor.disabled_at == null</code></li><li><code class="expr">context.authenticated == true</code></li><li><code class="expr">actor.tenant_id == resource.tenant_id</code></li></ul>
   </div></div>
   </article>
-<article class="card" id="context-oauth2-perm-adminclientsmanage">
-    <header><h3>AdminClientsManage</h3></header>
+<article class="card" id="context-oauth2-perm-adminoauth2clientsmanage">
+    <header><h3>AdminOAuth2ClientsManage</h3></header>
     <p class="desc">所属テナント内の client 一覧・作成・更新・削除。</p>
     <dl class="kv"><dt>actor</dt><dd><code class="name">User</code></dd><dt>operation</dt><dd><span class="muted">—</span></dd><dt>resource</dt><dd><code class="name">OAuth2Client</code></dd></dl>
     <div class="clause"><div class="clause-label ok">allow when</div><div class="expr-op">
@@ -17042,7 +17042,7 @@ authorize / WS-Fed sign-in / 将来 SAML SSO は割当を fail-closed で確認�
 
     <div class="sub"><div class="label">Preconditions</div><ul class="vlist"><li>tenant_id <code class="step-arg">acme</code> の roles=[<code class="step-arg">admin</code>] のユーザー <code class="step-arg">operator</code> が認証済みである</li></ul></div>
 
-    <div class="sub"><div class="label">Main success</div><ol class="scn-steps"><li class="scn-step">管理者 <code class="step-arg">operator</code> が client <code class="step-arg">portal</code> を作成する</li><li class="scn-step">作成応答だけが生成された client_secret を含む</li><li class="scn-step">管理者 <code class="step-arg">operator</code> が client <code class="step-arg">portal</code> の redirect_uris を更新する</li><li class="scn-step">管理者 <code class="step-arg">operator</code> が client <code class="step-arg">portal</code> を削除する</li><li class="scn-step"><code class="step-arg">AdminClientCreated</code>、<code class="step-arg">AdminClientUpdated</code>、<code class="step-arg">AdminClientDeleted</code> が発行される</li></ol></div>
+    <div class="sub"><div class="label">Main success</div><ol class="scn-steps"><li class="scn-step">管理者 <code class="step-arg">operator</code> が client <code class="step-arg">portal</code> を作成する</li><li class="scn-step">作成応答だけが生成された client_secret を含む</li><li class="scn-step">管理者 <code class="step-arg">operator</code> が client <code class="step-arg">portal</code> の redirect_uris を更新する</li><li class="scn-step">管理者 <code class="step-arg">operator</code> が client <code class="step-arg">portal</code> を削除する</li><li class="scn-step"><code class="step-arg">AdminOAuth2ClientCreated</code>、<code class="step-arg">AdminOAuth2ClientUpdated</code>、<code class="step-arg">AdminOAuth2ClientDeleted</code> が発行される</li></ol></div>
 
     <div class="sub"><div class="label">Extensions</div><div class="requirements"><article class="requirement">
         <header><span class="chip chip-hint">at 1</span><code class="name">管理画面から操作する</code></header>

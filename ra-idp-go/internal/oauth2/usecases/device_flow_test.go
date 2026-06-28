@@ -22,7 +22,7 @@ func newDeviceFixture() deviceFixture {
 	deviceStore := memory.NewDeviceCodeStore()
 	refreshStore := memory.NewRefreshTokenStore()
 	now := time.Now().UTC()
-	clientRepo.Seed(&spec.Client{
+	clientRepo.Seed(&spec.OAuth2Client{
 		ClientID: "device-client", ClientType: spec.ClientPublic,
 		RedirectURIs: []string{"https://device.example/cb"},
 		GrantTypes:   []spec.GrantType{spec.GrantDeviceCode, spec.GrantRefreshToken},

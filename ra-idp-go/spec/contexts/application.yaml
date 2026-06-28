@@ -799,7 +799,7 @@ scenarios:
       - 作成応答だけが生成された client_secret を含む
       - "管理者 \"operator\" が client \"portal\" の redirect_uris を更新する"
       - "管理者 \"operator\" が client \"portal\" を削除する"
-      - "\"AdminClientCreated\"、\"AdminClientUpdated\"、\"AdminClientDeleted\" が発行される"
+      - "\"AdminOAuth2ClientCreated\"、\"AdminOAuth2ClientUpdated\"、\"AdminOAuth2ClientDeleted\" が発行される"
     extensions:
       - at: 1
         condition: 管理画面から操作する

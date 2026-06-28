@@ -54,7 +54,7 @@ func TestUserValidateRejectsMalformedEmail(t *testing.T) {
 }
 
 func TestClientValidateRequiresGrantTypes(t *testing.T) {
-	c := Client{
+	c := OAuth2Client{
 		ClientID:                 "demo",
 		ClientType:               ClientConfidential,
 		RedirectURIs:             []string{"https://app.example.com/cb"},

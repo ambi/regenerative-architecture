@@ -51,7 +51,7 @@ func assemblePostgres(ctx context.Context) (*Dependencies, error) {
 	return &Dependencies{
 		TenantRepo:                &postgres.TenantRepository{Pool: pool},
 		AttrSchemaRepo:            &postgres.TenantUserAttributeSchemaRepository{Pool: pool},
-		ClientRepo:                &postgres.ClientRepository{Pool: pool},
+		ClientRepo:                &postgres.OAuth2ClientRepository{Pool: pool},
 		UserRepo:                  &postgres.UserRepository{Pool: pool},
 		GroupRepo:                 &postgres.GroupRepository{Pool: pool},
 		AgentRepo:                 &postgres.AgentRepository{Pool: pool},

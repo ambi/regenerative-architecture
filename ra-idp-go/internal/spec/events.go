@@ -525,17 +525,17 @@ type AgentCredentialUnbound struct {
 func (e *AgentCredentialUnbound) EventType() string     { return "AgentCredentialUnbound" }
 func (e *AgentCredentialUnbound) OccurredAt() time.Time { return e.At }
 
-type AdminClientCreated struct {
+type AdminOAuth2ClientCreated struct {
 	At       time.Time `json:"-"`
 	TenantID string    `json:"tenantId"`
 	ActorSub string    `json:"actorSub"`
 	ClientID string    `json:"clientId"`
 }
 
-func (e *AdminClientCreated) EventType() string     { return "AdminClientCreated" }
-func (e *AdminClientCreated) OccurredAt() time.Time { return e.At }
+func (e *AdminOAuth2ClientCreated) EventType() string     { return "AdminOAuth2ClientCreated" }
+func (e *AdminOAuth2ClientCreated) OccurredAt() time.Time { return e.At }
 
-type AdminClientUpdated struct {
+type AdminOAuth2ClientUpdated struct {
 	At            time.Time `json:"-"`
 	TenantID      string    `json:"tenantId"`
 	ActorSub      string    `json:"actorSub"`
@@ -543,18 +543,18 @@ type AdminClientUpdated struct {
 	ChangedFields []string  `json:"changedFields"`
 }
 
-func (e *AdminClientUpdated) EventType() string     { return "AdminClientUpdated" }
-func (e *AdminClientUpdated) OccurredAt() time.Time { return e.At }
+func (e *AdminOAuth2ClientUpdated) EventType() string     { return "AdminOAuth2ClientUpdated" }
+func (e *AdminOAuth2ClientUpdated) OccurredAt() time.Time { return e.At }
 
-type AdminClientDeleted struct {
+type AdminOAuth2ClientDeleted struct {
 	At       time.Time `json:"-"`
 	TenantID string    `json:"tenantId"`
 	ActorSub string    `json:"actorSub"`
 	ClientID string    `json:"clientId"`
 }
 
-func (e *AdminClientDeleted) EventType() string     { return "AdminClientDeleted" }
-func (e *AdminClientDeleted) OccurredAt() time.Time { return e.At }
+func (e *AdminOAuth2ClientDeleted) EventType() string     { return "AdminOAuth2ClientDeleted" }
+func (e *AdminOAuth2ClientDeleted) OccurredAt() time.Time { return e.At }
 
 type ConsentGrantedEvent struct {
 	At       time.Time `json:"-"`

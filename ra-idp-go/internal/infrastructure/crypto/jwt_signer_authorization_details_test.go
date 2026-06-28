@@ -16,7 +16,7 @@ func TestSignAccessTokenIncludesAuthorizationDetails(t *testing.T) {
 	signer := NewJWTSigner("https://idp.test", ks)
 
 	token, _, err := signer.SignAccessToken(context.Background(), ports.AccessTokenInput{
-		Client: &spec.Client{ClientID: "c1"}, Sub: "user-1", Scopes: []string{"openid"},
+		Client: &spec.OAuth2Client{ClientID: "c1"}, Sub: "user-1", Scopes: []string{"openid"},
 		AuthorizationDetails: []spec.AuthorizationDetail{
 			{Type: "payment_initiation", Actions: []string{"initiate"}, Fields: map[string]any{"instructedAmount": float64(100)}},
 		},
@@ -42,7 +42,7 @@ func TestSignAccessTokenOmitsAuthorizationDetailsWhenAbsent(t *testing.T) {
 	}
 	signer := NewJWTSigner("https://idp.test", ks)
 	token, _, err := signer.SignAccessToken(context.Background(), ports.AccessTokenInput{
-		Client: &spec.Client{ClientID: "c1"}, Sub: "user-1", Scopes: []string{"openid"},
+		Client: &spec.OAuth2Client{ClientID: "c1"}, Sub: "user-1", Scopes: []string{"openid"},
 	})
 	if err != nil {
 		t.Fatal(err)

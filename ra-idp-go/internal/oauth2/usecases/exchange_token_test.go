@@ -52,7 +52,7 @@ func (s tokenIntrospector) IntrospectAccessToken(_ context.Context, token string
 func newExchangeTokenDeps(t *testing.T, issuer *recordingIssuer, results map[string]*ports.IntrospectionResult) ExchangeTokenDeps {
 	t.Helper()
 	clientRepo := memory.NewClientRepository()
-	clientRepo.Seed(&spec.Client{
+	clientRepo.Seed(&spec.OAuth2Client{
 		ClientID:   "client",
 		ClientType: spec.ClientConfidential,
 		GrantTypes: []spec.GrantType{spec.GrantTokenExchange},

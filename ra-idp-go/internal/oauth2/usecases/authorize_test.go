@@ -11,7 +11,7 @@ import (
 
 func newAuthorizeDeps(requirePAR bool) AuthorizeDeps {
 	repo := memory.NewClientRepository()
-	repo.Seed(&spec.Client{
+	repo.Seed(&spec.OAuth2Client{
 		ClientID: "client", ClientType: spec.ClientPublic,
 		RedirectURIs: []string{"https://client.example/cb"},
 		GrantTypes:   []spec.GrantType{spec.GrantAuthorizationCode},

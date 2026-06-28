@@ -32,7 +32,7 @@ var AssuranceManifest = map[string][]AssuranceVerification{
 		{File: "ra-idp-go/internal/tenancy/usecases/manage_tenants_test.go", Check: "TestTenantLifecycle"},
 	},
 	"TenantHttpBoundaryTests": {
-		{File: "ra-idp-go/internal/oauth2/adapters/http/admin_client_handler_test.go", Check: "TestAdminClientCannotCrossTenantBoundary"},
+		{File: "ra-idp-go/internal/oauth2/adapters/http/admin_client_handler_test.go", Check: "TestAdminOAuth2ClientCannotCrossTenantBoundary"},
 	},
 	"TenantOAuthBoundaryTests": {
 		{File: "ra-idp-go/internal/oauth2/usecases/tenant_isolation_test.go", Check: "TestAuthorizationCodeCannotCrossTenantBoundary"},

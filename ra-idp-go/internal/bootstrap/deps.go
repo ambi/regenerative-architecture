@@ -16,7 +16,7 @@ import (
 // Dependencies は HTTP 層に渡す全境界をまとめた DI コンテナ。
 // 永続層 (memory/postgres) や event sink の差分を本構造体で吸収する。
 type Dependencies struct {
-	ClientRepo                oauthports.ClientRepository
+	ClientRepo                oauthports.OAuth2ClientRepository
 	TenantRepo                tenantports.TenantRepository
 	AttrSchemaRepo            tenantports.TenantUserAttributeSchemaRepository
 	UserRepo                  oauthports.UserRepository

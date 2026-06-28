@@ -29,7 +29,7 @@ var tenantSchema = z.Struct(z.Shape{
 	"CreatedAt": z.Time().Required(),
 })
 
-var clientSchema = z.Struct(z.Shape{
+var oauth2ClientSchema = z.Struct(z.Shape{
 	"ClientID": z.String().Min(1).Max(128).Required(),
 	"ClientName": z.Ptr(
 		z.String().Min(1).Max(200),
@@ -67,7 +67,7 @@ var clientSchema = z.Struct(z.Shape{
 	).Required(),
 	"CreatedAt": z.Time().Required(),
 }).TestFunc(func(value any, _ z.Ctx) bool {
-	client, ok := value.(*Client)
+	client, ok := value.(*OAuth2Client)
 	if !ok {
 		return false
 	}
@@ -81,7 +81,7 @@ var clientSchema = z.Struct(z.Shape{
 	}
 }, z.Message("client authentication method requires matching credentials")).
 	TestFunc(func(value any, _ z.Ctx) bool {
-		client, ok := value.(*Client)
+		client, ok := value.(*OAuth2Client)
 		if !ok {
 			return false
 		}
@@ -95,7 +95,7 @@ var clientSchema = z.Struct(z.Shape{
 
 // clientUsesRedirect は client が redirect 系グラント (authorization_code) または
 // code response_type を使うかを返す。これらは redirect_uri を必要とする。
-func clientUsesRedirect(client *Client) bool {
+func clientUsesRedirect(client *OAuth2Client) bool {
 	return slices.Contains(client.GrantTypes, GrantAuthorizationCode) ||
 		slices.Contains(client.ResponseTypes, ResponseTypeCode)
 }

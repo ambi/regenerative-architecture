@@ -18,8 +18,8 @@ import (
 	"github.com/labstack/echo/v5"
 )
 
-func TestAdminClientCRUD(t *testing.T) {
-	e, clients, events := newAdminClientHandler(t)
+func TestAdminOAuth2ClientCRUD(t *testing.T) {
+	e, clients, events := newAdminOAuth2ClientHandler(t)
 	csrf, cookie := adminCSRF(t, e)
 
 	create := adminJSONRequest(t, e, http.MethodPost, "/api/admin/clients", csrf, cookie, map[string]any{
@@ -100,16 +100,16 @@ func TestAdminClientCRUD(t *testing.T) {
 	for i, event := range *events {
 		gotEvents[i] = event.EventType()
 	}
-	wantEvents := []string{"AdminClientCreated", "AdminClientUpdated", "AdminClientDeleted"}
+	wantEvents := []string{"AdminOAuth2ClientCreated", "AdminOAuth2ClientUpdated", "AdminOAuth2ClientDeleted"}
 	if strings.Join(gotEvents, ",") != strings.Join(wantEvents, ",") {
 		t.Fatalf("events=%v want=%v", gotEvents, wantEvents)
 	}
 }
 
-func TestAdminClientCannotCrossTenantBoundary(t *testing.T) {
-	e, clients, _ := newAdminClientHandler(t)
+func TestAdminOAuth2ClientCannotCrossTenantBoundary(t *testing.T) {
+	e, clients, _ := newAdminOAuth2ClientHandler(t)
 	now := time.Now().UTC()
-	clients.Seed(&spec.Client{
+	clients.Seed(&spec.OAuth2Client{
 		TenantID: "acme", ClientID: "portal", ClientType: spec.ClientPublic,
 		RedirectURIs:            []string{"https://portal.example/callback"},
 		GrantTypes:              []spec.GrantType{spec.GrantAuthorizationCode},
@@ -134,9 +134,9 @@ func TestAdminClientCannotCrossTenantBoundary(t *testing.T) {
 	}
 }
 
-func newAdminClientHandler(
+func newAdminOAuth2ClientHandler(
 	t *testing.T,
-) (*echo.Echo, *memory.ClientRepository, *[]spec.DomainEvent) {
+) (*echo.Echo, *memory.OAuth2ClientRepository, *[]spec.DomainEvent) {
 	t.Helper()
 	users := memory.NewUserRepository()
 	clients := memory.NewClientRepository()

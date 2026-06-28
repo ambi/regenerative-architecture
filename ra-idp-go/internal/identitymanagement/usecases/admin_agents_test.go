@@ -18,7 +18,7 @@ func newAgentDeps(t *testing.T) (idmusecases.AdminAgentDeps, *[]spec.DomainEvent
 	clientRepo := memory.NewClientRepository()
 	userRepo := memory.NewUserRepository()
 	now := time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC)
-	_ = clientRepo.Save(context.Background(), &spec.Client{
+	_ = clientRepo.Save(context.Background(), &spec.OAuth2Client{
 		TenantID: "default", ClientID: "svc_client", ClientType: spec.ClientConfidential,
 		RedirectURIs:             []string{"https://app.example/cb"},
 		GrantTypes:               []spec.GrantType{spec.GrantClientCredentials},

@@ -7,11 +7,11 @@ import (
 	"ra-idp-go/internal/spec"
 )
 
-type ClientRepository interface {
-	FindByID(ctx context.Context, tenantID, clientID string) (*spec.Client, error)
-	Save(ctx context.Context, c *spec.Client) error
+type OAuth2ClientRepository interface {
+	FindByID(ctx context.Context, tenantID, clientID string) (*spec.OAuth2Client, error)
+	Save(ctx context.Context, c *spec.OAuth2Client) error
 	Delete(ctx context.Context, tenantID, clientID string) error
-	FindAll(ctx context.Context, tenantID string) ([]*spec.Client, error)
+	FindAll(ctx context.Context, tenantID string) ([]*spec.OAuth2Client, error)
 }
 
 type UserRepository interface {

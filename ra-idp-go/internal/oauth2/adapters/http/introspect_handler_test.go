@@ -30,7 +30,7 @@ const (
 func newIntrospectServer(intro *fakeIntrospector, denylist *fakeDenylist) *echo.Echo {
 	clientRepo := memory.NewClientRepository()
 	secretHash := domain.HashClientSecret(introSecret)
-	clientRepo.Seed(&spec.Client{
+	clientRepo.Seed(&spec.OAuth2Client{
 		TenantID: spec.DefaultTenantID,
 		ClientID: introClientID, ClientSecretHash: &secretHash,
 		ClientType:   spec.ClientConfidential,

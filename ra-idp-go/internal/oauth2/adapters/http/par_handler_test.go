@@ -34,7 +34,7 @@ func newPARTestServer(t *testing.T) *echo.Echo {
 	t.Helper()
 	clientRepo := memory.NewClientRepository()
 	secretHash := domain.HashClientSecret(parClientSecret)
-	clientRepo.Seed(&spec.Client{
+	clientRepo.Seed(&spec.OAuth2Client{
 		TenantID: spec.DefaultTenantID,
 		ClientID: parClientID, ClientSecretHash: &secretHash,
 		ClientType:              spec.ClientConfidential,
@@ -144,7 +144,7 @@ func TestPushAuthorizationRequestRejectsCrossTenantConsumption(t *testing.T) {
 	e := echo.New()
 	clientRepo := memory.NewClientRepository()
 	secretHash := domain.HashClientSecret(parClientSecret)
-	clientRepo.Seed(&spec.Client{
+	clientRepo.Seed(&spec.OAuth2Client{
 		TenantID: spec.DefaultTenantID,
 		ClientID: parClientID, ClientSecretHash: &secretHash,
 		ClientType: spec.ClientConfidential, RedirectURIs: []string{parRedirectURI},

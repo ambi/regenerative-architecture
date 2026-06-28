@@ -18,7 +18,7 @@ import (
 // 既存データを更新する想定で Save を直接呼ぶ。
 func seedDemoData(
 	ctx context.Context,
-	clients oauthports.ClientRepository,
+	clients oauthports.OAuth2ClientRepository,
 	users oauthports.UserRepository,
 	mfaFactors authnports.MfaFactorRepository,
 	passwordHistory authnports.PasswordHistoryRepository,
@@ -28,7 +28,7 @@ func seedDemoData(
 ) error {
 	secretHash := oauthdomain.HashClientSecret(envDefault("DEMO_CLIENT_SECRET", "demo-client-secret"))
 	now := time.Now().UTC()
-	if err := clients.Save(ctx, &spec.Client{
+	if err := clients.Save(ctx, &spec.OAuth2Client{
 		TenantID: spec.DefaultTenantID, ClientID: "demo-client",
 		ClientSecretHash: &secretHash, ClientType: spec.ClientConfidential,
 		RedirectURIs: []string{
@@ -91,7 +91,7 @@ func seedDemoData(
 // OIDC RP として登録する (ADR-061 / [[wi-66-portals-as-oidc-rp]])。両者は public +
 // authorization_code + PKCE のファーストパーティ SPA クライアントで、client secret を
 // 持たない (token_endpoint_auth_method = none)。redirect_uri は SPA の `/callback`。
-func seedFirstPartyPortalClients(ctx context.Context, clients oauthports.ClientRepository, now time.Time) error {
+func seedFirstPartyPortalClients(ctx context.Context, clients oauthports.OAuth2ClientRepository, now time.Time) error {
 	portals := []struct {
 		clientID string
 		name     string
@@ -102,7 +102,7 @@ func seedFirstPartyPortalClients(ctx context.Context, clients oauthports.ClientR
 	}
 	for _, p := range portals {
 		name := p.name
-		if err := clients.Save(ctx, &spec.Client{
+		if err := clients.Save(ctx, &spec.OAuth2Client{
 			TenantID: spec.DefaultTenantID, ClientID: p.clientID,
 			ClientName: &name, ClientType: spec.ClientPublic,
 			RedirectURIs: []string{

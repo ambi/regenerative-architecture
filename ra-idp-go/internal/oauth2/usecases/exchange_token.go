@@ -58,7 +58,7 @@ type ExchangeTokenResult struct {
 }
 
 type ExchangeTokenDeps struct {
-	ClientRepo          ports.ClientRepository
+	ClientRepo          ports.OAuth2ClientRepository
 	Introspector        ports.TokenIntrospector
 	TokenIssuer         ports.TokenIssuer
 	Authorizer          ports.Authorizer
@@ -239,7 +239,7 @@ func ExchangeToken(ctx context.Context, deps ExchangeTokenDeps, in ExchangeToken
 func evaluateTokenExchangePolicy(
 	ctx context.Context,
 	authorizer ports.Authorizer,
-	client *spec.Client,
+	client *spec.OAuth2Client,
 	actorSub, subjectSub, resource string,
 	scopes []string,
 	delegationDepth int,

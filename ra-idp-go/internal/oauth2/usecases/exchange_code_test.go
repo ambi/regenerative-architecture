@@ -49,7 +49,7 @@ func newExchangeFixture(t *testing.T, scopes []string) exchangeFixture {
 	issuer := &fakeTokenIssuer{}
 
 	now := time.Now().UTC()
-	clientRepo.Seed(&spec.Client{
+	clientRepo.Seed(&spec.OAuth2Client{
 		ClientID: "client", ClientType: spec.ClientConfidential,
 		RedirectURIs: []string{"https://client.example/cb"},
 		GrantTypes:   []spec.GrantType{spec.GrantAuthorizationCode, spec.GrantRefreshToken},

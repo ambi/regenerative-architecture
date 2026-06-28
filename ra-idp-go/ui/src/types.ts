@@ -49,7 +49,7 @@ export function requiredActionLabel(action: string): string {
   return REQUIRED_ACTION_LABELS[action] ?? 'その他の必須対応'
 }
 
-export type AdminClient = {
+export type AdminOAuth2Client = {
   tenant_id: string
   client_id: string
   client_name?: string

@@ -100,7 +100,7 @@ const (
 	ActionAdminUserCreate                     = "admin:user_create"
 	ActionAdminUserUpdate                     = "admin:user_update"
 	ActionAdminUserDelete                     = "admin:user_delete"
-	ActionAdminClientsManage                  = "admin:clients_manage"
+	ActionAdminOAuth2ClientsManage            = "admin:clients_manage"
 	ActionAdminConsentsManage                 = "admin:consents_manage"
 	ActionAdminTenantsManage                  = "admin:tenants_manage"
 	ActionAdminSettingsRead                   = "admin:settings_read"
@@ -133,7 +133,7 @@ var actionNameMapping = map[string]string{
 	"AdminUserCreate":                     ActionAdminUserCreate,
 	"AdminUserUpdate":                     ActionAdminUserUpdate,
 	"AdminUserDelete":                     ActionAdminUserDelete,
-	"AdminClientsManage":                  ActionAdminClientsManage,
+	"AdminOAuth2ClientsManage":            ActionAdminOAuth2ClientsManage,
 	"AdminConsentsManage":                 ActionAdminConsentsManage,
 	"AdminTenantsManage":                  ActionAdminTenantsManage,
 	"AdminSettingsRead":                   ActionAdminSettingsRead,
@@ -189,7 +189,7 @@ var actionRules = map[string][]string{
 	ActionAdminUserDelete: {
 		"actor_is_admin", "actor_is_active", "actor_is_authenticated", "actor_and_resource_share_tenant",
 	},
-	ActionAdminClientsManage: {
+	ActionAdminOAuth2ClientsManage: {
 		"actor_is_admin", "actor_is_active", "actor_is_authenticated", "actor_and_resource_share_tenant",
 	},
 	ActionAdminConsentsManage: {

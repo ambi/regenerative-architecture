@@ -28,7 +28,7 @@ func newRefreshFixture(t *testing.T, sc *spec.SenderConstraint, now time.Time, t
 	refreshStore := memory.NewRefreshTokenStore()
 	issuer := &fakeTokenIssuer{}
 
-	clientRepo.Seed(&spec.Client{
+	clientRepo.Seed(&spec.OAuth2Client{
 		ClientID: "client", ClientType: spec.ClientConfidential,
 		RedirectURIs:             []string{"https://client.example/cb"},
 		GrantTypes:               []spec.GrantType{spec.GrantAuthorizationCode, spec.GrantRefreshToken},
@@ -121,7 +121,7 @@ func TestRefreshTokensAcceptsMatchingDPoPProof(t *testing.T) {
 	sc := &spec.SenderConstraint{Type: spec.SenderConstraintDPoP, JKT: "matching-jkt"}
 	f := newRefreshFixture(t, sc, now, time.Hour)
 	// tenant context が無いと FindByID は default を期待するが、Seed では明示せず
-	// memory.ClientRepository が空 tenant_id でマッチするため通る。
+	// memory.OAuth2ClientRepository が空 tenant_id でマッチするため通る。
 	res, err := RefreshTokens(
 		tenancy.WithTenant(context.Background(), &spec.Tenant{ID: f.record.TenantID, Status: spec.TenantStatusActive}, "", ""),
 		f.deps,

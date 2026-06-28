@@ -28,7 +28,7 @@ type RefreshResult struct {
 }
 
 type RefreshDeps struct {
-	ClientRepo   ports.ClientRepository
+	ClientRepo   ports.OAuth2ClientRepository
 	UserRepo     ports.UserRepository
 	RefreshStore ports.RefreshTokenStore
 	TokenIssuer  ports.TokenIssuer
@@ -138,7 +138,7 @@ func RefreshTokens(ctx context.Context, deps RefreshDeps, in RefreshInput, now t
 func evaluateRefreshPolicy(
 	ctx context.Context,
 	authorizer ports.Authorizer,
-	client *spec.Client,
+	client *spec.OAuth2Client,
 	record *spec.RefreshTokenRecord,
 	in RefreshInput,
 	now time.Time,

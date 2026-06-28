@@ -5,7 +5,7 @@ package spec
 
 import "time"
 
-type Client struct {
+type OAuth2Client struct {
 	TenantID                           string                  `json:"tenant_id"`
 	ClientID                           string                  `json:"client_id"`
 	ClientSecretHash                   *string                 `json:"client_secret_hash,omitempty"`
@@ -30,8 +30,8 @@ type Client struct {
 	CreatedAt  time.Time `json:"created_at"`
 }
 
-func (c Client) Validate() error {
-	return validate(clientSchema, &c)
+func (c OAuth2Client) Validate() error {
+	return validate(oauth2ClientSchema, &c)
 }
 
 func hasJWKs(jwks map[string]any) bool {

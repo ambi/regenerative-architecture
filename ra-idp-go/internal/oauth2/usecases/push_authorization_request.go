@@ -21,7 +21,7 @@ type PARResult struct {
 }
 
 type PARDeps struct {
-	ClientRepo          ports.ClientRepository
+	ClientRepo          ports.OAuth2ClientRepository
 	Store               ports.PARStore
 	AuthzDetailTypeRepo ports.AuthorizationDetailTypeRepository
 	Emit                func(spec.DomainEvent)

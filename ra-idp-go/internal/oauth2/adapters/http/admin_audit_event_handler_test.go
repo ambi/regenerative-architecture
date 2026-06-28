@@ -195,8 +195,8 @@ func TestAdminAuditEventsFilterByCategory(t *testing.T) {
 	events := []*oauthports.AuditEventRecord{
 		auditEvent("acme", "UserAuthenticated", "alice", now),
 		auditEvent("acme", "AuthenticationFailed", "", now.Add(-time.Second)),
-		auditEvent("acme", "PasswordChanged", "alice", now.Add(-2*time.Second)),  // user カテゴリ
-		auditEvent("acme", "AdminClientCreated", "ops", now.Add(-3*time.Second)), // client カテゴリ
+		auditEvent("acme", "PasswordChanged", "alice", now.Add(-2*time.Second)),        // user カテゴリ
+		auditEvent("acme", "AdminOAuth2ClientCreated", "ops", now.Add(-3*time.Second)), // client カテゴリ
 	}
 	e := newAuditAdminServer(t, user, events)
 
@@ -209,7 +209,7 @@ func TestAdminAuditEventsFilterByCategory(t *testing.T) {
 		t.Fatalf("category=fail mismatch: %+v", body.Events)
 	}
 
-	// authentication は成功 + 失敗 (PasswordChanged / AdminClientCreated は対象外)。
+	// authentication は成功 + 失敗 (PasswordChanged / AdminOAuth2ClientCreated は対象外)。
 	rec = getAdminAuditEvents(e, "/realms/acme/api/admin/audit_events?category=authentication")
 	_ = json.Unmarshal(rec.Body.Bytes(), &body)
 	if len(body.Events) != 2 {
@@ -219,7 +219,7 @@ func TestAdminAuditEventsFilterByCategory(t *testing.T) {
 	// 管理操作カテゴリ (認証以外) も絞り込めること。
 	rec = getAdminAuditEvents(e, "/realms/acme/api/admin/audit_events?category=client")
 	_ = json.Unmarshal(rec.Body.Bytes(), &body)
-	if len(body.Events) != 1 || body.Events[0].Type != "AdminClientCreated" {
+	if len(body.Events) != 1 || body.Events[0].Type != "AdminOAuth2ClientCreated" {
 		t.Fatalf("category=client mismatch: %+v", body.Events)
 	}
 

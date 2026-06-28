@@ -17,7 +17,7 @@ import (
 // =====================================================================
 
 type ExchangeCodeDeps struct {
-	ClientRepo   ports.ClientRepository
+	ClientRepo   ports.OAuth2ClientRepository
 	UserRepo     ports.UserRepository
 	RequestStore ports.AuthorizationRequestStore
 	CodeStore    ports.AuthorizationCodeStore

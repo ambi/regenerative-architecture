@@ -34,7 +34,7 @@ var rolePermissionInterfaces = map[string][]string{
 	"AdminUserCreate":                     {"CreateAdminUser"},
 	"AdminUserUpdate":                     {"UpdateAdminUser", "DisableAdminUser", "EnableAdminUser"},
 	"AdminUserDelete":                     {"DeleteAdminUser"},
-	"AdminClientsManage":                  {"ListAdminClients", "GetAdminClient", "CreateAdminClient", "UpdateAdminClient", "DeleteAdminClient"},
+	"AdminOAuth2ClientsManage":            {"ListAdminOAuth2Clients", "GetAdminOAuth2Client", "CreateAdminOAuth2Client", "UpdateAdminOAuth2Client", "DeleteAdminOAuth2Client"},
 	"AdminConsentsManage":                 {"ListAdminConsents", "GetAdminConsent", "RevokeAdminConsent"},
 	"AdminTenantsManage":                  {"ListTenants", "GetTenant", "CreateTenant", "UpdateTenant", "DisableTenant", "EnableTenant"},
 	"AdminSettingsRead":                   {"GetAdminSettings"},

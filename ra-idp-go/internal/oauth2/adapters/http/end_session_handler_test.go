@@ -27,7 +27,7 @@ const (
 func newEndSessionServer(t *testing.T) *echo.Echo {
 	t.Helper()
 	clientRepo := memory.NewClientRepository()
-	clientRepo.Seed(&spec.Client{
+	clientRepo.Seed(&spec.OAuth2Client{
 		TenantID: spec.DefaultTenantID,
 		ClientID: logoutClientID, ClientType: spec.ClientPublic,
 		RedirectURIs:             []string{logoutRedirectURI},

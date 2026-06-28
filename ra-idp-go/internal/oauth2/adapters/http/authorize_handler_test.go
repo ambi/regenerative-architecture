@@ -46,7 +46,7 @@ func newAuthorizeTestServer(t *testing.T, authn *authdomain.AuthenticationContex
 	consentRepo := memory.NewConsentRepository()
 	secretHash := domain.HashClientSecret(authClientSec)
 	now := time.Now().UTC()
-	clientRepo.Seed(&spec.Client{
+	clientRepo.Seed(&spec.OAuth2Client{
 		TenantID: spec.DefaultTenantID,
 		ClientID: authClientID, ClientSecretHash: &secretHash,
 		ClientType: spec.ClientConfidential, RedirectURIs: []string{authRedirectURI},
@@ -59,7 +59,7 @@ func newAuthorizeTestServer(t *testing.T, authn *authdomain.AuthenticationContex
 		CreatedAt:                now,
 	})
 	// first-party クライアント (ADR-061): consent をスキップする検証用。
-	clientRepo.Seed(&spec.Client{
+	clientRepo.Seed(&spec.OAuth2Client{
 		TenantID: spec.DefaultTenantID,
 		ClientID: authFirstPartyClientID, ClientType: spec.ClientPublic,
 		RedirectURIs:             []string{authRedirectURI},

@@ -33,7 +33,7 @@ type DeviceAuthorizationResponse struct {
 }
 
 type DeviceAuthorizationDeps struct {
-	ClientRepo       ports.ClientRepository
+	ClientRepo       ports.OAuth2ClientRepository
 	DeviceCodeStore  ports.DeviceCodeStore
 	BaseVerification string // e.g., "https://idp/device"
 	Emit             func(spec.DomainEvent)
@@ -204,7 +204,7 @@ type ExchangeDeviceCodeResult struct {
 }
 
 type ExchangeDeviceCodeDeps struct {
-	ClientRepo      ports.ClientRepository
+	ClientRepo      ports.OAuth2ClientRepository
 	UserRepo        ports.UserRepository
 	DeviceCodeStore ports.DeviceCodeStore
 	RefreshStore    ports.RefreshTokenStore

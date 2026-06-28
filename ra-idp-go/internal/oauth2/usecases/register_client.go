@@ -29,12 +29,12 @@ type RegisterClientInput struct {
 }
 
 type RegisterClientResult struct {
-	Client       *spec.Client
+	Client       *spec.OAuth2Client
 	ClientSecret string // 平文。出力後は再表示されない (RFC 7591 §3.2.1)
 }
 
 type RegisterClientDeps struct {
-	ClientRepo ports.ClientRepository
+	ClientRepo ports.OAuth2ClientRepository
 	Emit       func(spec.DomainEvent)
 }
 
@@ -65,7 +65,7 @@ func RegisterClient(ctx context.Context, deps RegisterClientDeps, in RegisterCli
 		}
 	}
 	if in.TokenEndpointAuthMethod == spec.AuthMethodPrivateKeyJwt {
-		candidate := spec.Client{
+		candidate := spec.OAuth2Client{
 			TenantID: spec.DefaultTenantID, ClientID: "validation", ClientType: in.ClientType,
 			RedirectURIs:             []string{"https://validation.invalid/callback"},
 			GrantTypes:               []spec.GrantType{spec.GrantClientCredentials},
@@ -106,7 +106,7 @@ func RegisterClient(ctx context.Context, deps RegisterClientDeps, in RegisterCli
 	if scope == "" {
 		scope = "openid profile email"
 	}
-	c := &spec.Client{
+	c := &spec.OAuth2Client{
 		TenantID:                           tenancy.TenantID(ctx),
 		ClientID:                           clientID,
 		ClientSecretHash:                   secretHash,

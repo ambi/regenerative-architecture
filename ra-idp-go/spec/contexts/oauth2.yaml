@@ -2016,7 +2016,7 @@ models:
     fields:
       types:
         type: "AuthorizationDetailTypeResponse[]"
-  AdminClientCreateRequest:
+  AdminOAuth2ClientCreateRequest:
     kind: value_object
     description: 管理者が所属テナントに OAuth client を作成する。生成された client_secret は作成応答で一度だけ返す。
     fields:
@@ -2063,7 +2063,7 @@ models:
       dpop_bound_access_tokens:
         type: Boolean
         optional: true
-  AdminClientUpdateRequest:
+  AdminOAuth2ClientUpdateRequest:
     kind: value_object
     description: 管理者が client metadata を更新する。client_id、認証方式、秘密情報は変更せず、secret rotation は独立 endpoint で扱う。
     fields:
@@ -2094,7 +2094,7 @@ models:
       dpop_bound_access_tokens:
         type: Boolean
         optional: true
-  AdminClientResponse:
+  AdminOAuth2ClientResponse:
     kind: value_object
     description: 管理 API の client 表現。client_secret と client_secret_hash は契約上含めない。
     fields:
@@ -2136,23 +2136,23 @@ models:
         type: FapiProfile
       created_at:
         type: Timestamp
-  AdminClientCreateResponse:
+  AdminOAuth2ClientCreateResponse:
     kind: value_object
     description: client 作成応答。client_secret は生成された場合に限り一度だけ返す。
     fields:
       client:
-        type: AdminClientResponse
+        type: AdminOAuth2ClientResponse
       client_secret:
         type: String
         optional: true
         annotations:
           sensitive: true
-  AdminClientListResponse:
+  AdminOAuth2ClientListResponse:
     kind: value_object
     description: 所属テナント内の client 一覧。
     fields:
       clients:
-        type: "AdminClientResponse[]"
+        type: "AdminOAuth2ClientResponse[]"
   AdminConsentResponse:
     kind: value_object
     description: 管理 API が返す所属テナント内の Consent 表現。
@@ -2608,7 +2608,7 @@ models:
       clientType:
         type: ClientType
         optional: true
-  AdminClientCreated:
+  AdminOAuth2ClientCreated:
     kind: event
     description: 管理者が所属テナントに OAuth client を作成した。秘密情報は含めない。
     payload:
@@ -2621,7 +2621,7 @@ models:
         type: String
       clientId:
         type: String
-  AdminClientUpdated:
+  AdminOAuth2ClientUpdated:
     kind: event
     description: 管理者が OAuth client metadata を更新した。
     payload:
@@ -2636,7 +2636,7 @@ models:
         type: String
       changedFields:
         type: "String[]"
-  AdminClientDeleted:
+  AdminOAuth2ClientDeleted:
     kind: event
     description: 管理者が所属テナントから OAuth client を削除した。
     payload:
@@ -3490,11 +3490,11 @@ interfaces:
         path: "/api/admin/authorization-detail-types/{type}"
         successful_status_codes:
           - "204"
-  ListAdminClients:
+  ListAdminOAuth2Clients:
     description: 管理者が所属テナントの client を一覧する。
     output:
       response:
-        type: AdminClientListResponse
+        type: AdminOAuth2ClientListResponse
     errors:
       - AccessDeniedError
     read_only: true
@@ -3502,14 +3502,14 @@ interfaces:
       - kind: http
         method: GET
         path: /api/admin/clients
-  GetAdminClient:
+  GetAdminOAuth2Client:
     description: 管理者が所属テナントの client を取得する。別テナントの client は未存在として扱う。
     input:
       client_id:
         type: String
     output:
       client:
-        type: AdminClientResponse
+        type: AdminOAuth2ClientResponse
     errors:
       - InvalidRequestError
       - AccessDeniedError
@@ -3518,19 +3518,19 @@ interfaces:
       - kind: http
         method: GET
         path: "/api/admin/clients/{client_id}"
-  CreateAdminClient:
+  CreateAdminOAuth2Client:
     description: 管理者が所属テナントに client を作成する。
     input:
       request:
-        type: AdminClientCreateRequest
+        type: AdminOAuth2ClientCreateRequest
     output:
       response:
-        type: AdminClientCreateResponse
+        type: AdminOAuth2ClientCreateResponse
     errors:
       - InvalidRequestError
       - AccessDeniedError
     emits:
-      - AdminClientCreated
+      - AdminOAuth2ClientCreated
     bindings:
       - kind: http
         method: POST
@@ -3538,27 +3538,27 @@ interfaces:
         request_form: body
         successful_status_codes:
           - "201"
-  UpdateAdminClient:
+  UpdateAdminOAuth2Client:
     description: 管理者が所属テナントの client metadata を更新する。
     input:
       client_id:
         type: String
       request:
-        type: AdminClientUpdateRequest
+        type: AdminOAuth2ClientUpdateRequest
     output:
       client:
-        type: AdminClientResponse
+        type: AdminOAuth2ClientResponse
     errors:
       - InvalidRequestError
       - AccessDeniedError
     emits:
-      - AdminClientUpdated
+      - AdminOAuth2ClientUpdated
     bindings:
       - kind: http
         method: PATCH
         path: "/api/admin/clients/{client_id}"
         request_form: body
-  DeleteAdminClient:
+  DeleteAdminOAuth2Client:
     description: 管理者が所属テナントの client を削除する。
     input:
       client_id:
@@ -3567,7 +3567,7 @@ interfaces:
       - InvalidRequestError
       - AccessDeniedError
     emits:
-      - AdminClientDeleted
+      - AdminOAuth2ClientDeleted
     bindings:
       - kind: http
         method: DELETE
@@ -3899,7 +3899,7 @@ permissions:
         - actor.disabled_at == null
         - context.authenticated == true
         - actor.tenant_id == resource.tenant_id
-  AdminClientsManage:
+  AdminOAuth2ClientsManage:
     description: 所属テナント内の client 一覧・作成・更新・削除。
     actor: User
     resource: OAuth2Client

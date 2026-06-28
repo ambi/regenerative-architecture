@@ -79,9 +79,9 @@ var auditEventCategoryTypes = map[string][]string{
 	},
 	"client": {
 		(&spec.ClientRegistered{}).EventType(),
-		(&spec.AdminClientCreated{}).EventType(),
-		(&spec.AdminClientUpdated{}).EventType(),
-		(&spec.AdminClientDeleted{}).EventType(),
+		(&spec.AdminOAuth2ClientCreated{}).EventType(),
+		(&spec.AdminOAuth2ClientUpdated{}).EventType(),
+		(&spec.AdminOAuth2ClientDeleted{}).EventType(),
 	},
 	"consent": {
 		(&spec.ConsentGrantedEvent{}).EventType(),

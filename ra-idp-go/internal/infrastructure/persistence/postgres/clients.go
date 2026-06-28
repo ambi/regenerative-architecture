@@ -11,15 +11,15 @@ import (
 	"ra-idp-go/internal/spec"
 )
 
-// ClientRepository (OAuth2)
-type ClientRepository struct{ Pool *pgxpool.Pool }
+// OAuth2ClientRepository (OAuth2)
+type OAuth2ClientRepository struct{ Pool *pgxpool.Pool }
 
-func (r *ClientRepository) FindByID(ctx context.Context, tenantID, id string) (*spec.Client, error) {
+func (r *OAuth2ClientRepository) FindByID(ctx context.Context, tenantID, id string) (*spec.OAuth2Client, error) {
 	row := r.Pool.QueryRow(ctx, clientSelect+" WHERE tenant_id=$1 AND client_id=$2", tenantID, id)
-	return scanClient(row)
+	return scanOAuth2Client(row)
 }
 
-func (r *ClientRepository) Save(ctx context.Context, c *spec.Client) error {
+func (r *OAuth2ClientRepository) Save(ctx context.Context, c *spec.OAuth2Client) error {
 	redirectURIs, _ := json.Marshal(c.RedirectURIs)
 	grantTypes, _ := json.Marshal(c.GrantTypes)
 	responseTypes, _ := json.Marshal(c.ResponseTypes)
@@ -49,20 +49,20 @@ ON CONFLICT (tenant_id,client_id) DO UPDATE SET
 	return err
 }
 
-func (r *ClientRepository) Delete(ctx context.Context, tenantID, id string) error {
+func (r *OAuth2ClientRepository) Delete(ctx context.Context, tenantID, id string) error {
 	_, err := r.Pool.Exec(ctx, "DELETE FROM clients WHERE tenant_id=$1 AND client_id=$2", tenantID, id)
 	return err
 }
 
-func (r *ClientRepository) FindAll(ctx context.Context, tenantID string) ([]*spec.Client, error) {
+func (r *OAuth2ClientRepository) FindAll(ctx context.Context, tenantID string) ([]*spec.OAuth2Client, error) {
 	rows, err := r.Pool.Query(ctx, clientSelect+" WHERE tenant_id=$1 ORDER BY created_at", tenantID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var out []*spec.Client
+	var out []*spec.OAuth2Client
 	for rows.Next() {
-		client, err := scanClient(rows)
+		client, err := scanOAuth2Client(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -76,8 +76,8 @@ grant_types,response_types,token_endpoint_auth_method,scope,jwks_uri,jwks,
 tls_client_auth_subject_dn,id_token_signed_response_alg,
 require_pushed_authorization_requests,dpop_bound_access_tokens,fapi_profile,first_party,created_at FROM clients`
 
-func scanClient(row rowScanner) (*spec.Client, error) {
-	var c spec.Client
+func scanOAuth2Client(row rowScanner) (*spec.OAuth2Client, error) {
+	var c spec.OAuth2Client
 	var redirectURIs, grantTypes, responseTypes, jwks []byte
 	err := row.Scan(&c.TenantID, &c.ClientID, &c.ClientSecretHash, &c.ClientName, &c.ClientType,
 		&redirectURIs, &grantTypes, &responseTypes, &c.TokenEndpointAuthMethod, &c.Scope,

@@ -53,7 +53,7 @@ func TestSignIDTokenIncludesAttributeClaimsByScope(t *testing.T) {
 	}
 
 	token, err := signer.SignIDToken(context.Background(), ports.IDTokenInput{
-		Client: &spec.Client{ClientID: "c1"}, User: idTokenTestUser(),
+		Client: &spec.OAuth2Client{ClientID: "c1"}, User: idTokenTestUser(),
 		Scopes: []string{"openid", "profile", "phone"}, ResolveAttributeDefs: resolve,
 	})
 	if err != nil {
@@ -82,7 +82,7 @@ func TestSignIDTokenOmitsAttributeClaimsWithoutScope(t *testing.T) {
 	}
 
 	token, err := signer.SignIDToken(context.Background(), ports.IDTokenInput{
-		Client: &spec.Client{ClientID: "c1"}, User: idTokenTestUser(),
+		Client: &spec.OAuth2Client{ClientID: "c1"}, User: idTokenTestUser(),
 		Scopes: []string{"openid"}, ResolveAttributeDefs: resolve,
 	})
 	if err != nil {

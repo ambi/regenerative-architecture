@@ -31,7 +31,7 @@ func newTokenExchangeServer(t *testing.T) string {
 	t.Helper()
 	clientRepo := memory.NewClientRepository()
 	secretHash := domain.HashClientSecret(exchClientSecret)
-	clientRepo.Seed(&spec.Client{
+	clientRepo.Seed(&spec.OAuth2Client{
 		ClientID: exchClientID, ClientSecretHash: &secretHash, ClientType: spec.ClientConfidential,
 		GrantTypes: []spec.GrantType{
 			spec.GrantClientCredentials, spec.GrantTokenExchange,

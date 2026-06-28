@@ -20,7 +20,7 @@ func tenantContext(id string) context.Context {
 
 func TestAuthorizeCannotResolveAnotherTenantClient(t *testing.T) {
 	clients := memory.NewClientRepository()
-	clients.Seed(&spec.Client{
+	clients.Seed(&spec.OAuth2Client{
 		TenantID: spec.DefaultTenantID, ClientID: "web-app", ClientType: spec.ClientPublic,
 		RedirectURIs:            []string{"https://app.example/callback"},
 		GrantTypes:              []spec.GrantType{spec.GrantAuthorizationCode},
@@ -61,7 +61,7 @@ func TestAuthorizationCodeCannotCrossTenantBoundary(t *testing.T) {
 
 func TestRefreshTokenCannotCrossTenantBoundary(t *testing.T) {
 	clients := memory.NewClientRepository()
-	clients.Seed(&spec.Client{
+	clients.Seed(&spec.OAuth2Client{
 		TenantID: spec.DefaultTenantID, ClientID: "web-app", ClientType: spec.ClientPublic,
 		RedirectURIs:            []string{"https://app.example/cb"},
 		GrantTypes:              []spec.GrantType{spec.GrantAuthorizationCode, spec.GrantRefreshToken},
@@ -94,7 +94,7 @@ func TestRefreshTokenCannotCrossTenantBoundary(t *testing.T) {
 
 func TestDeviceCodeCannotCrossTenantBoundary(t *testing.T) {
 	clients := memory.NewClientRepository()
-	clients.Seed(&spec.Client{
+	clients.Seed(&spec.OAuth2Client{
 		TenantID: spec.DefaultTenantID, ClientID: "tv-app", ClientType: spec.ClientPublic,
 		RedirectURIs:            []string{"https://tv.example/cb"},
 		GrantTypes:              []spec.GrantType{spec.GrantDeviceCode, spec.GrantRefreshToken},

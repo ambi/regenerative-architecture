@@ -38,11 +38,11 @@ type AuthorizeRequestInput struct {
 
 type AuthorizeRequestOutput struct {
 	Request *spec.AuthorizationRequest
-	Client  *spec.Client
+	Client  *spec.OAuth2Client
 }
 
 type AuthorizeDeps struct {
-	ClientRepo          ports.ClientRepository
+	ClientRepo          ports.OAuth2ClientRepository
 	RequestStore        ports.AuthorizationRequestStore
 	AuthzDetailTypeRepo ports.AuthorizationDetailTypeRepository
 }

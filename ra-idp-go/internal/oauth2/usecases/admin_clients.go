@@ -2,7 +2,7 @@ package usecases
 
 // 管理者向け Client メタデータ操作 (Create / Update / Delete)。
 // SCL OAuth2 bounded context の admin インターフェース群:
-// CreateAdminClient / UpdateAdminClient / DeleteAdminClient。
+// CreateAdminOAuth2Client / UpdateAdminOAuth2Client / DeleteAdminOAuth2Client。
 
 import (
 	"context"
@@ -17,21 +17,21 @@ import (
 
 var ErrClientNotFound = errors.New("client not found")
 
-type ClientDeps struct {
-	ClientRepo oauthports.ClientRepository
+type AdminOAuth2ClientDeps struct {
+	ClientRepo oauthports.OAuth2ClientRepository
 	Emit       func(spec.DomainEvent)
 }
 
-type CreateClientInput struct {
+type CreateAdminOAuth2ClientInput struct {
 	ActorSub     string
 	Registration RegisterClientInput
 	Now          time.Time
 }
 
-func CreateClient(
+func CreateAdminOAuth2Client(
 	ctx context.Context,
-	deps ClientDeps,
-	in CreateClientInput,
+	deps AdminOAuth2ClientDeps,
+	in CreateAdminOAuth2ClientInput,
 ) (*RegisterClientResult, error) {
 	result, err := RegisterClient(ctx, RegisterClientDeps{
 		ClientRepo: deps.ClientRepo,
@@ -39,13 +39,13 @@ func CreateClient(
 	if err != nil {
 		return nil, err
 	}
-	emit(deps.Emit, &spec.AdminClientCreated{
+	emit(deps.Emit, &spec.AdminOAuth2ClientCreated{
 		At: adminNow(in.Now), TenantID: result.Client.TenantID, ActorSub: in.ActorSub, ClientID: result.Client.ClientID,
 	})
 	return result, nil
 }
 
-type UpdateClientInput struct {
+type UpdateAdminOAuth2ClientInput struct {
 	ActorSub        string
 	ClientID        string
 	ClientName      *string
@@ -58,7 +58,7 @@ type UpdateClientInput struct {
 	Now             time.Time
 }
 
-func UpdateClient(ctx context.Context, deps ClientDeps, in UpdateClientInput) (*spec.Client, error) {
+func UpdateAdminOAuth2Client(ctx context.Context, deps AdminOAuth2ClientDeps, in UpdateAdminOAuth2ClientInput) (*spec.OAuth2Client, error) {
 	tenantID := tenancy.TenantID(ctx)
 	client, err := deps.ClientRepo.FindByID(ctx, tenantID, in.ClientID)
 	if err != nil {
@@ -106,16 +106,16 @@ func UpdateClient(ctx context.Context, deps ClientDeps, in UpdateClientInput) (*
 	if err := deps.ClientRepo.Save(ctx, &updated); err != nil {
 		return nil, err
 	}
-	emit(deps.Emit, &spec.AdminClientUpdated{
+	emit(deps.Emit, &spec.AdminOAuth2ClientUpdated{
 		At: adminNow(in.Now), TenantID: tenantID, ActorSub: in.ActorSub, ClientID: client.ClientID,
 		ChangedFields: changed,
 	})
 	return &updated, nil
 }
 
-func DeleteClient(
+func DeleteAdminOAuth2Client(
 	ctx context.Context,
-	deps ClientDeps,
+	deps AdminOAuth2ClientDeps,
 	actorSub, clientID string,
 	now time.Time,
 ) error {
@@ -130,7 +130,7 @@ func DeleteClient(
 	if err := deps.ClientRepo.Delete(ctx, tenantID, clientID); err != nil {
 		return err
 	}
-	emit(deps.Emit, &spec.AdminClientDeleted{
+	emit(deps.Emit, &spec.AdminOAuth2ClientDeleted{
 		At: adminNow(now), TenantID: tenantID, ActorSub: actorSub, ClientID: clientID,
 	})
 	return nil

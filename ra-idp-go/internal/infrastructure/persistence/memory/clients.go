@@ -8,29 +8,29 @@ import (
 )
 
 // =====================================================================
-// ClientRepository (OAuth2)
+// OAuth2ClientRepository (OAuth2)
 // =====================================================================
 
-type ClientRepository struct {
+type OAuth2ClientRepository struct {
 	mu      sync.RWMutex
-	clients map[string]*spec.Client
+	clients map[string]*spec.OAuth2Client
 }
 
-func NewClientRepository() *ClientRepository {
-	return &ClientRepository{clients: map[string]*spec.Client{}}
+func NewClientRepository() *OAuth2ClientRepository {
+	return &OAuth2ClientRepository{clients: map[string]*spec.OAuth2Client{}}
 }
 
-func (r *ClientRepository) Seed(c *spec.Client) {
+func (r *OAuth2ClientRepository) Seed(c *spec.OAuth2Client) {
 	_ = r.Save(context.Background(), c)
 }
 
-func (r *ClientRepository) FindByID(_ context.Context, tenantID, clientID string) (*spec.Client, error) {
+func (r *OAuth2ClientRepository) FindByID(_ context.Context, tenantID, clientID string) (*spec.OAuth2Client, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return r.clients[tenantKey(tenantID, clientID)], nil
 }
 
-func (r *ClientRepository) Save(_ context.Context, c *spec.Client) error {
+func (r *OAuth2ClientRepository) Save(_ context.Context, c *spec.OAuth2Client) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	defaultTenant(&c.TenantID)
@@ -38,17 +38,17 @@ func (r *ClientRepository) Save(_ context.Context, c *spec.Client) error {
 	return nil
 }
 
-func (r *ClientRepository) Delete(_ context.Context, tenantID, clientID string) error {
+func (r *OAuth2ClientRepository) Delete(_ context.Context, tenantID, clientID string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	delete(r.clients, tenantKey(tenantID, clientID))
 	return nil
 }
 
-func (r *ClientRepository) FindAll(_ context.Context, tenantID string) ([]*spec.Client, error) {
+func (r *OAuth2ClientRepository) FindAll(_ context.Context, tenantID string) ([]*spec.OAuth2Client, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	out := make([]*spec.Client, 0, len(r.clients))
+	out := make([]*spec.OAuth2Client, 0, len(r.clients))
 	for _, c := range r.clients {
 		if c.TenantID == tenantID {
 			out = append(out, c)

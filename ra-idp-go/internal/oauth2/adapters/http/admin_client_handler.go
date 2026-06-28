@@ -44,7 +44,7 @@ type adminClientResponse struct {
 	CreatedAt                          time.Time                    `json:"created_at"`
 }
 
-func (d Deps) handleListAdminClients(c *echo.Context) error {
+func (d Deps) handleListAdminOAuth2Clients(c *echo.Context) error {
 	if _, err := d.RequireAdmin(c); err != nil {
 		return d.WriteAdminAccessError(c, err)
 	}
@@ -52,7 +52,7 @@ func (d Deps) handleListAdminClients(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	slices.SortFunc(clients, func(a, b *spec.Client) int {
+	slices.SortFunc(clients, func(a, b *spec.OAuth2Client) int {
 		if a.ClientID < b.ClientID {
 			return -1
 		}
@@ -63,12 +63,12 @@ func (d Deps) handleListAdminClients(c *echo.Context) error {
 	})
 	response := make([]adminClientResponse, len(clients))
 	for i, client := range clients {
-		response[i] = toAdminClientResponse(client)
+		response[i] = toAdminOAuth2ClientResponse(client)
 	}
 	return core.NoStoreJSON(c, http.StatusOK, map[string]any{"clients": response})
 }
 
-func (d Deps) handleGetAdminClient(c *echo.Context) error {
+func (d Deps) handleGetAdminOAuth2Client(c *echo.Context) error {
 	if _, err := d.RequireAdmin(c); err != nil {
 		return d.WriteAdminAccessError(c, err)
 	}
@@ -79,12 +79,12 @@ func (d Deps) handleGetAdminClient(c *echo.Context) error {
 		return err
 	}
 	if client == nil {
-		return d.writeAdminClientError(c, oauthusecases.ErrClientNotFound)
+		return d.writeAdminOAuth2ClientError(c, oauthusecases.ErrClientNotFound)
 	}
-	return core.NoStoreJSON(c, http.StatusOK, toAdminClientResponse(client))
+	return core.NoStoreJSON(c, http.StatusOK, toAdminOAuth2ClientResponse(client))
 }
 
-func (d Deps) handleCreateAdminClient(c *echo.Context) error {
+func (d Deps) handleCreateAdminOAuth2Client(c *echo.Context) error {
 	if err := d.VerifyBrowserRequest(c); err != nil {
 		return err
 	}
@@ -117,20 +117,20 @@ func (d Deps) handleCreateAdminClient(c *echo.Context) error {
 	for _, responseType := range req.ResponseTypes {
 		registration.ResponseTypes = append(registration.ResponseTypes, spec.ResponseType(responseType))
 	}
-	result, err := oauthusecases.CreateClient(c.Request().Context(), d.adminClientDeps(), oauthusecases.CreateClientInput{
+	result, err := oauthusecases.CreateAdminOAuth2Client(c.Request().Context(), d.adminClientDeps(), oauthusecases.CreateAdminOAuth2ClientInput{
 		ActorSub: actor.Sub, Registration: registration, Now: time.Now().UTC(),
 	})
 	if err != nil {
-		return d.writeAdminClientError(c, err)
+		return d.writeAdminOAuth2ClientError(c, err)
 	}
-	response := map[string]any{"client": toAdminClientResponse(result.Client)}
+	response := map[string]any{"client": toAdminOAuth2ClientResponse(result.Client)}
 	if result.ClientSecret != "" {
 		response["client_secret"] = result.ClientSecret
 	}
 	return core.NoStoreJSON(c, http.StatusCreated, response)
 }
 
-func (d Deps) handleUpdateAdminClient(c *echo.Context) error {
+func (d Deps) handleUpdateAdminOAuth2Client(c *echo.Context) error {
 	if err := d.VerifyBrowserRequest(c); err != nil {
 		return err
 	}
@@ -142,19 +142,19 @@ func (d Deps) handleUpdateAdminClient(c *echo.Context) error {
 	if err := core.DecodeJSON(c.Request(), &req); err != nil {
 		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
-	client, err := oauthusecases.UpdateClient(c.Request().Context(), d.adminClientDeps(), oauthusecases.UpdateClientInput{
+	client, err := oauthusecases.UpdateAdminOAuth2Client(c.Request().Context(), d.adminClientDeps(), oauthusecases.UpdateAdminOAuth2ClientInput{
 		ActorSub: actor.Sub, ClientID: c.Param("client_id"), ClientName: req.ClientName,
 		RedirectURIs: req.RedirectURIs, GrantTypes: req.GrantTypes, ResponseTypes: req.ResponseTypes,
 		Scope: req.Scope, RequirePAR: req.RequirePAR, DpopBoundTokens: req.DpopBoundTokens,
 		Now: time.Now().UTC(),
 	})
 	if err != nil {
-		return d.writeAdminClientError(c, err)
+		return d.writeAdminOAuth2ClientError(c, err)
 	}
-	return core.NoStoreJSON(c, http.StatusOK, toAdminClientResponse(client))
+	return core.NoStoreJSON(c, http.StatusOK, toAdminOAuth2ClientResponse(client))
 }
 
-func (d Deps) handleDeleteAdminClient(c *echo.Context) error {
+func (d Deps) handleDeleteAdminOAuth2Client(c *echo.Context) error {
 	if err := d.VerifyBrowserRequest(c); err != nil {
 		return err
 	}
@@ -162,20 +162,20 @@ func (d Deps) handleDeleteAdminClient(c *echo.Context) error {
 	if err != nil {
 		return d.WriteAdminAccessError(c, err)
 	}
-	if err := oauthusecases.DeleteClient(
+	if err := oauthusecases.DeleteAdminOAuth2Client(
 		c.Request().Context(), d.adminClientDeps(), actor.Sub, c.Param("client_id"), time.Now().UTC(),
 	); err != nil {
-		return d.writeAdminClientError(c, err)
+		return d.writeAdminOAuth2ClientError(c, err)
 	}
 	c.Response().Header().Set("Cache-Control", "no-store")
 	return c.NoContent(http.StatusNoContent)
 }
 
-func (d Deps) adminClientDeps() oauthusecases.ClientDeps {
-	return oauthusecases.ClientDeps{ClientRepo: d.ClientRepo, Emit: d.Emit}
+func (d Deps) adminClientDeps() oauthusecases.AdminOAuth2ClientDeps {
+	return oauthusecases.AdminOAuth2ClientDeps{ClientRepo: d.ClientRepo, Emit: d.Emit}
 }
 
-func (d Deps) writeAdminClientError(c *echo.Context, err error) error {
+func (d Deps) writeAdminOAuth2ClientError(c *echo.Context, err error) error {
 	if errors.Is(err, oauthusecases.ErrClientNotFound) {
 		return core.WriteBrowserError(c, http.StatusNotFound, "client_not_found", "クライアントが存在しません")
 	}
@@ -186,7 +186,7 @@ func (d Deps) writeAdminClientError(c *echo.Context, err error) error {
 	return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_client_metadata", err.Error())
 }
 
-func toAdminClientResponse(client *spec.Client) adminClientResponse {
+func toAdminOAuth2ClientResponse(client *spec.OAuth2Client) adminClientResponse {
 	return adminClientResponse{
 		TenantID: client.TenantID, ClientID: client.ClientID, ClientName: client.ClientName,
 		ClientType: client.ClientType, RedirectURIs: slices.Clone(client.RedirectURIs),

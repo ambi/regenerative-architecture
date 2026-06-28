@@ -144,7 +144,7 @@ func (d Deps) handleCreateApplication(c *echo.Context) error {
 		if uri := strings.TrimSpace(req.JwksURI); uri != "" {
 			registration.JwksURI = &uri
 		}
-		result, err := oauthusecases.CreateClient(ctx, oauthusecases.ClientDeps{ClientRepo: d.ClientRepo, Emit: d.Emit}, oauthusecases.CreateClientInput{
+		result, err := oauthusecases.CreateAdminOAuth2Client(ctx, oauthusecases.AdminOAuth2ClientDeps{ClientRepo: d.ClientRepo, Emit: d.Emit}, oauthusecases.CreateAdminOAuth2ClientInput{
 			ActorSub:     actor.Sub,
 			Registration: registration,
 			Now:          now,
@@ -164,7 +164,7 @@ func (d Deps) handleCreateApplication(c *echo.Context) error {
 	case "service":
 		// M2M / サービスクライアント (client_credentials)。redirect を持たず、ポータルにも
 		// 出さない service kind の Application として登録する (Okta の API Services 相当)。
-		result, err := oauthusecases.CreateClient(ctx, oauthusecases.ClientDeps{ClientRepo: d.ClientRepo, Emit: d.Emit}, oauthusecases.CreateClientInput{
+		result, err := oauthusecases.CreateAdminOAuth2Client(ctx, oauthusecases.AdminOAuth2ClientDeps{ClientRepo: d.ClientRepo, Emit: d.Emit}, oauthusecases.CreateAdminOAuth2ClientInput{
 			ActorSub: actor.Sub,
 			Registration: oauthusecases.RegisterClientInput{
 				ClientName: req.Name, ClientType: spec.ClientConfidential,
@@ -344,7 +344,7 @@ func (d Deps) handleUpdateOIDCConfig(c *echo.Context) error {
 	if err := core.DecodeJSON(c.Request(), &req); err != nil {
 		return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
-	if _, err := oauthusecases.UpdateClient(c.Request().Context(), oauthusecases.ClientDeps{ClientRepo: d.ClientRepo, Emit: d.Emit}, oauthusecases.UpdateClientInput{
+	if _, err := oauthusecases.UpdateAdminOAuth2Client(c.Request().Context(), oauthusecases.AdminOAuth2ClientDeps{ClientRepo: d.ClientRepo, Emit: d.Emit}, oauthusecases.UpdateAdminOAuth2ClientInput{
 		ActorSub: actor.Sub, ClientID: clientID,
 		RedirectURIs: req.RedirectURIs, GrantTypes: req.GrantTypes, ResponseTypes: req.ResponseTypes,
 		Scope: req.Scope, RequirePAR: req.RequirePAR, DpopBoundTokens: req.DpopBoundTokens,

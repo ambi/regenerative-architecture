@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"ra-idp-go/internal/oauth2/usecases"
 	"ra-idp-go/internal/infrastructure/persistence/memory"
+	"ra-idp-go/internal/oauth2/usecases"
 	"ra-idp-go/internal/spec"
 )
 

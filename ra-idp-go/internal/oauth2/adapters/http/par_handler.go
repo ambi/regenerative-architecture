@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	"ra-idp-go/internal/oauth2/usecases"
 	"ra-idp-go/internal/infrastructure/http/core"
+	"ra-idp-go/internal/oauth2/usecases"
 
 	"github.com/labstack/echo/v5"
 )

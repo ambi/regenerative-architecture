@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"ra-idp-go/internal/oauth2/domain"
 	"ra-idp-go/internal/infrastructure/persistence/memory"
+	"ra-idp-go/internal/oauth2/domain"
 	"ra-idp-go/internal/spec"
 	"ra-idp-go/internal/tenancy"
 )

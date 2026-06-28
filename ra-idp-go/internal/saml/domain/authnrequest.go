@@ -299,7 +299,7 @@ func validateRedirectSignature(rawQuery string, cert *x509.Certificate) error {
 			return fmt.Errorf("saml: invalid redirect signature: %w", err)
 		}
 	case "http://www.w3.org/2000/09/xmldsig#rsa-sha1":
-		sum := sha1.Sum([]byte(signed))
+		sum := sha1.Sum([]byte(signed)) //nolint:gosec // SAML legacy interop: verify-only for configured SP signatures.
 		if err := rsa.VerifyPKCS1v15(pub, crypto.SHA1, sum[:], sig); err != nil {
 			return fmt.Errorf("saml: invalid redirect signature: %w", err)
 		}

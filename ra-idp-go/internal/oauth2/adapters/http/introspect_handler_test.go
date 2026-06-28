@@ -12,11 +12,11 @@ import (
 	"testing"
 	"time"
 
-	"ra-idp-go/internal/oauth2/domain"
-	oauthports "ra-idp-go/internal/oauth2/ports"
 	httpadapter "ra-idp-go/internal/infrastructure/http"
 	"ra-idp-go/internal/infrastructure/http/core"
 	"ra-idp-go/internal/infrastructure/persistence/memory"
+	"ra-idp-go/internal/oauth2/domain"
+	oauthports "ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/spec"
 
 	"github.com/labstack/echo/v5"

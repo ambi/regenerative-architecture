@@ -9,9 +9,9 @@ import (
 	"slices"
 	"time"
 
+	"ra-idp-go/internal/infrastructure/http/core"
 	"ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/oauth2/usecases"
-	"ra-idp-go/internal/infrastructure/http/core"
 	"ra-idp-go/internal/spec"
 
 	"github.com/labstack/echo/v5"

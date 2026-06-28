@@ -6,9 +6,9 @@ import (
 	"slices"
 	"time"
 
-	oauthusecases "ra-idp-go/internal/oauth2/usecases"
 	"ra-idp-go/internal/infrastructure/crypto"
 	"ra-idp-go/internal/infrastructure/http/core"
+	oauthusecases "ra-idp-go/internal/oauth2/usecases"
 	"ra-idp-go/internal/spec"
 
 	"github.com/labstack/echo/v5"

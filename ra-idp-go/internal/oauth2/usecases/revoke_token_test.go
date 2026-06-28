@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/infrastructure/persistence/memory"
+	"ra-idp-go/internal/oauth2/ports"
 )
 
 type staticIntrospector struct {

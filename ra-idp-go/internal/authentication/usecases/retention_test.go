@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"ra-idp-go/internal/authentication/usecases"
-	oauthports "ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/infrastructure/persistence/memory"
+	oauthports "ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/spec"
 )
 

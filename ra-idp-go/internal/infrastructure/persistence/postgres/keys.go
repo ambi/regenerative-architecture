@@ -9,8 +9,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/infrastructure/crypto"
+	"ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/spec"
 )
 

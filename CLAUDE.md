@@ -19,6 +19,17 @@
 - Read `REGENERATIVE_ARCHITECTURE.md` and `SPECIFICATION_CORE_LANGUAGE.md`.
 - Follow them.
 
+### 1.1 Authoring format (don't reverse-engineer it from existing files)
+
+When creating a new artifact, follow the canonical format doc instead of
+opening existing samples to infer it.
+
+- New work item → `CHANGE_RECORD_FORMAT.md` §1 (master). The JSON Schema at
+  `tools/yaml-check/schemas/work-item.schema.json` is derived from it.
+- New ADR → `CHANGE_RECORD_FORMAT.md` §2.
+- Feature work → update SCL first; section-coverage checklist is in
+  `SPECIFICATION_CORE_LANGUAGE.md` §3 intro.
+
 ## 2. Commit Hygiene
 
 **Conventional Commits, English.**

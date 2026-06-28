@@ -34,6 +34,7 @@ func newApplicationHandler(t *testing.T) *echo.Echo {
 		Issuer: "http://idp.test", UserRepo: users, GroupRepo: memory.NewGroupRepository(),
 		ApplicationRepo:           memory.NewApplicationRepository(),
 		ApplicationAssignmentRepo: memory.NewApplicationAssignmentRepository(),
+		ApplicationOrderingRepo:   memory.NewApplicationOrderingRepository(),
 		SamlSPRepo:                memory.NewSamlServiceProviderRepository(),
 		AuthnResolver:             authusecases.DemoHeaderResolver{},
 		Emit:                      func(spec.DomainEvent) {},

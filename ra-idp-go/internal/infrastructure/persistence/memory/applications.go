@@ -177,3 +177,39 @@ func (r *ApplicationAssignmentRepository) DeleteByApplication(_ context.Context,
 	}
 	return nil
 }
+
+// =====================================================================
+// ApplicationOrderingRepository (wi-70, ADR-069)
+// =====================================================================
+
+type ApplicationOrderingRepository struct {
+	mu        sync.RWMutex
+	orderings map[string]*spec.ApplicationOrdering // key: tenantKey(tenant_id, user_sub)
+}
+
+func NewApplicationOrderingRepository() *ApplicationOrderingRepository {
+	return &ApplicationOrderingRepository{orderings: map[string]*spec.ApplicationOrdering{}}
+}
+
+func cloneOrdering(o *spec.ApplicationOrdering) *spec.ApplicationOrdering {
+	cloned := *o
+	cloned.ApplicationIDs = slices.Clone(o.ApplicationIDs)
+	return &cloned
+}
+
+func (r *ApplicationOrderingRepository) Get(_ context.Context, tenantID, userSub string) (*spec.ApplicationOrdering, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	o := r.orderings[tenantKey(tenantID, userSub)]
+	if o == nil {
+		return nil, nil
+	}
+	return cloneOrdering(o), nil
+}
+
+func (r *ApplicationOrderingRepository) Save(_ context.Context, ordering *spec.ApplicationOrdering) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.orderings[tenantKey(ordering.TenantID, ordering.UserSub)] = cloneOrdering(ordering)
+	return nil
+}

@@ -417,10 +417,35 @@ models:
         optional: true
   MyApplicationListResponse:
     kind: value_object
-    description: 利用者ポータルの割当済みアプリ一覧。
+    description: 利用者ポータルの割当済みアプリ一覧。手動並び順があればそれを優先し、無ければ name 昇順。
     fields:
       applications:
         type: "MyApplication[]"
+  ApplicationOrdering:
+    kind: entity
+    description: "利用者ポータルでの手動並び順 (ADR-069)。tenant_id + user_sub をキーに、Application の\n表示順を application_id の順序列として持つ。順序列に在って現在は未割当の application は\n一覧から除外し、順序列に無い割当アプリは name 昇順で末尾に付ける。\n"
+    identity:
+      - tenant_id
+      - user_sub
+    fields:
+      tenant_id:
+        type: String
+      user_sub:
+        type: String
+      application_ids:
+        type: "UUID[]"
+  ReorderMyApplicationsRequest:
+    kind: value_object
+    description: 利用者が自分のポータル手動並び順を保存する。application_ids は自分に割当済み visible なアプリのみを含む。
+    fields:
+      application_ids:
+        type: "UUID[]"
+  MyApplicationOrderResponse:
+    kind: value_object
+    description: 利用者が保存済みのポータル手動並び順。未保存なら application_ids は空。
+    fields:
+      application_ids:
+        type: "UUID[]"
   ApplicationCreated:
     kind: event
     description: Application を作成した。
@@ -737,7 +762,7 @@ interfaces:
         successful_status_codes:
           - "204"
   ListMyApplications:
-    description: 利用者が自分に割当済み (visible) の Application を一覧する。hidden 割当は除外する。
+    description: "利用者が自分に割当済み (visible) の Application を一覧する。hidden 割当は除外する。\n手動並び順 (ApplicationOrdering) があればそれを優先し、無ければ name 昇順 (ADR-069)。\n"
     output:
       response:
         type: MyApplicationListResponse
@@ -748,6 +773,34 @@ interfaces:
       - kind: http
         method: GET
         path: /api/account/applications
+  GetMyApplicationOrder:
+    description: 利用者が保存済みのポータル手動並び順を取得する。未保存なら空配列を返す (ADR-069)。
+    output:
+      response:
+        type: MyApplicationOrderResponse
+    errors:
+      - AccessDeniedError
+    read_only: true
+    bindings:
+      - kind: http
+        method: GET
+        path: /api/account/applications/order
+  ReorderMyApplications:
+    description: "利用者が自分のポータル手動並び順を保存する。application_ids は自分に割当済み visible な\nアプリのみを含み、それ以外を含むと拒否する (ADR-069)。\n"
+    input:
+      request:
+        type: ReorderMyApplicationsRequest
+    output:
+      response:
+        type: MyApplicationOrderResponse
+    errors:
+      - InvalidRequestError
+      - AccessDeniedError
+    bindings:
+      - kind: http
+        method: PUT
+        path: /api/account/applications/order
+        request_form: body
 invariants:
   AssignmentGatesProtocol:
     description: "未割当の subject はどの protocol binding でもフェデレーションを開始 / 完了できない。\nauthorize / WS-Fed sign-in / 将来 SAML SSO は割当を fail-closed で確認する。\n反例: 未割当ユーザーがプロトコル経由でアプリにログインできる (アクセス制御の迂回)。\n"

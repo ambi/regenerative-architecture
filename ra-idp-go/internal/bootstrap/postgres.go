@@ -78,6 +78,7 @@ func assemblePostgres(ctx context.Context) (*Dependencies, error) {
 		SamlSPRepo:                &postgres.SamlServiceProviderRepository{Pool: pool},
 		ApplicationRepo:           &postgres.ApplicationRepository{Pool: pool},
 		ApplicationAssignmentRepo: &postgres.ApplicationAssignmentRepository{Pool: pool},
+		ApplicationOrderingRepo:   &postgres.ApplicationOrderingRepository{Pool: pool},
 		Close: func() {
 			_ = valkeyClient.Close()
 			pool.Close()

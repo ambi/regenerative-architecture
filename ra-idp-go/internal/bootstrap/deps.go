@@ -45,6 +45,7 @@ type Dependencies struct {
 	SamlSPRepo                samlports.SamlServiceProviderRepository
 	ApplicationRepo           appports.ApplicationRepository
 	ApplicationAssignmentRepo appports.AssignmentRepository
+	ApplicationOrderingRepo   appports.ApplicationOrderingRepository
 	Close                     func()
 }
 

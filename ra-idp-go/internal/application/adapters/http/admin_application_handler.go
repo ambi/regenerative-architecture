@@ -228,7 +228,10 @@ func (d Deps) applicationDeps() appusecases.ApplicationDeps {
 }
 
 func (d Deps) assignmentDeps() appusecases.AssignmentDeps {
-	return appusecases.AssignmentDeps{Repo: d.ApplicationRepo, AssignmentRepo: d.ApplicationAssignmentRepo, Emit: d.Emit}
+	return appusecases.AssignmentDeps{
+		Repo: d.ApplicationRepo, AssignmentRepo: d.ApplicationAssignmentRepo,
+		OrderingRepo: d.ApplicationOrderingRepo, Emit: d.Emit,
+	}
 }
 
 func (d Deps) writeApplicationError(c *echo.Context, err error) error {

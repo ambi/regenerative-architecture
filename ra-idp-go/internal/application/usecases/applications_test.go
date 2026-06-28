@@ -11,8 +11,8 @@ import (
 	"ra-idp-go/internal/tenancy"
 )
 
-func tenantContext(id string) context.Context {
-	return tenancy.WithTenant(context.Background(), &spec.Tenant{ID: id}, "https://idp.example", "")
+func tenantContext() context.Context {
+	return tenancy.WithTenant(context.Background(), &spec.Tenant{ID: "acme"}, "https://idp.example", "")
 }
 
 func newDeps() (appusecases.ApplicationDeps, appusecases.AssignmentDeps) {
@@ -24,7 +24,7 @@ func newDeps() (appusecases.ApplicationDeps, appusecases.AssignmentDeps) {
 }
 
 func TestCreateAndListMyApplicationsRespectsAssignmentAndVisibility(t *testing.T) {
-	ctx := tenantContext("acme")
+	ctx := tenantContext()
 	appDeps, assignDeps := newDeps()
 
 	app, err := appusecases.CreateApplication(ctx, appDeps, appusecases.CreateApplicationInput{
@@ -82,7 +82,7 @@ func TestCreateAndListMyApplicationsRespectsAssignmentAndVisibility(t *testing.T
 }
 
 func TestWeblinkRequiresLaunchURLAndRejectsBindings(t *testing.T) {
-	ctx := tenantContext("acme")
+	ctx := tenantContext()
 	appDeps, _ := newDeps()
 
 	if _, err := appusecases.CreateApplication(ctx, appDeps, appusecases.CreateApplicationInput{
@@ -106,7 +106,7 @@ func TestWeblinkRequiresLaunchURLAndRejectsBindings(t *testing.T) {
 }
 
 func TestAttachBindingReplacesSameType(t *testing.T) {
-	ctx := tenantContext("acme")
+	ctx := tenantContext()
 	appDeps, _ := newDeps()
 	app, err := appusecases.CreateApplication(ctx, appDeps, appusecases.CreateApplicationInput{
 		ActorSub: "admin", Name: "CRM", Kind: spec.ApplicationFederated,

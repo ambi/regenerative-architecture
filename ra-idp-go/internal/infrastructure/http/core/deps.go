@@ -66,6 +66,7 @@ type Deps struct {
 	FederationSigner           *samltoken.Signer
 	ApplicationRepo            appports.ApplicationRepository
 	ApplicationAssignmentRepo  appports.AssignmentRepository
+	ApplicationOrderingRepo    appports.ApplicationOrderingRepository
 	Emit                       func(spec.DomainEvent)
 	HealthInfo                 HealthInfo
 }

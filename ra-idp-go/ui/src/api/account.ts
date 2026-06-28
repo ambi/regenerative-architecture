@@ -218,3 +218,21 @@ export async function listMyApplications(): Promise<MyApplication[]> {
   return (await request<{ applications: MyApplication[] }>('/api/account/applications'))
     .applications
 }
+
+// 利用者ごとの手動並び順 (wi-70)。未保存なら空配列が返る。
+export async function getMyApplicationOrder(): Promise<string[]> {
+  return (await request<{ application_ids: string[] }>('/api/account/applications/order'))
+    .application_ids
+}
+
+export async function reorderMyApplications(
+  csrfToken: string,
+  applicationIds: string[],
+): Promise<string[]> {
+  return (
+    await request<{ application_ids: string[] }>(
+      '/api/account/applications/order',
+      adminRequest(csrfToken, 'PUT', { application_ids: applicationIds }),
+    )
+  ).application_ids
+}

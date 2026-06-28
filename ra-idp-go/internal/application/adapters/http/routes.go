@@ -33,4 +33,6 @@ func RegisterRoutes(g *echo.Group, cd *core.Deps) {
 	g.POST("/api/admin/applications/:application_id/assignments", d.handleAssignApplication)
 	g.DELETE("/api/admin/applications/:application_id/assignments/:subject_type/:subject_id", d.handleUnassignApplication)
 	g.GET("/api/account/applications", d.handleListMyApplications)
+	g.GET("/api/account/applications/order", d.handleGetMyApplicationOrder)
+	g.PUT("/api/account/applications/order", d.handleReorderMyApplications)
 }

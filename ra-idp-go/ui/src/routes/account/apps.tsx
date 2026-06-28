@@ -11,6 +11,7 @@ export const Route = createFileRoute('/account/apps')({
     return {
       username: account.preferred_username ?? 'account',
       applications,
+      csrfToken: account.csrf_token,
       isAdmin: hasAdminRole(account.roles),
     }
   },

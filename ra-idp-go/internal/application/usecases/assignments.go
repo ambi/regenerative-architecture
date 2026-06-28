@@ -17,6 +17,7 @@ import (
 type AssignmentDeps struct {
 	Repo           ports.ApplicationRepository
 	AssignmentRepo ports.AssignmentRepository
+	OrderingRepo   ports.ApplicationOrderingRepository
 	Emit           func(spec.DomainEvent)
 }
 

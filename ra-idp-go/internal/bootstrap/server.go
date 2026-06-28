@@ -150,7 +150,8 @@ func Run() error {
 		SessionManager:          sessionManager, AuthnResolver: sessionManager,
 		WsFedRPRepo: deps.WsFedRPRepo, SamlSPRepo: deps.SamlSPRepo, FederationSigner: federationSigner,
 		ApplicationRepo: deps.ApplicationRepo, ApplicationAssignmentRepo: deps.ApplicationAssignmentRepo,
-		Emit: emit,
+		ApplicationOrderingRepo: deps.ApplicationOrderingRepo,
+		Emit:                    emit,
 		HealthInfo: httpcore.HealthInfo{
 			Persistence:   runtime.Persistence,
 			EventSink:     runtime.EventSink,

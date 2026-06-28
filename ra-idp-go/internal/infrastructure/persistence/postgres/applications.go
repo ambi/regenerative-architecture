@@ -204,3 +204,36 @@ func (r *ApplicationAssignmentRepository) DeleteByApplication(ctx context.Contex
 		"DELETE FROM application_assignments WHERE tenant_id=$1 AND application_id=$2", tenantID, applicationID)
 	return err
 }
+
+// ApplicationOrderingRepository は利用者ごとのポータル手動並び順を PostgreSQL に永続化する
+// (wi-70, ADR-069)。application_ids は順序を保つ text[] で格納し、tenant 境界に閉じる。
+type ApplicationOrderingRepository struct{ Pool *pgxpool.Pool }
+
+func (r *ApplicationOrderingRepository) Get(ctx context.Context, tenantID, userSub string) (*spec.ApplicationOrdering, error) {
+	var o spec.ApplicationOrdering
+	err := r.Pool.QueryRow(ctx,
+		`SELECT tenant_id,user_sub,application_ids,updated_at FROM application_orderings
+ WHERE tenant_id=$1 AND user_sub=$2`, tenantID, userSub).
+		Scan(&o.TenantID, &o.UserSub, &o.ApplicationIDs, &o.UpdatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &o, nil
+}
+
+func (r *ApplicationOrderingRepository) Save(ctx context.Context, o *spec.ApplicationOrdering) error {
+	ids := o.ApplicationIDs
+	if ids == nil {
+		ids = []string{}
+	}
+	_, err := r.Pool.Exec(ctx, `
+INSERT INTO application_orderings (tenant_id,user_sub,application_ids,updated_at)
+VALUES ($1,$2,$3,$4)
+ON CONFLICT (tenant_id,user_sub) DO UPDATE SET
+ application_ids=EXCLUDED.application_ids,updated_at=EXCLUDED.updated_at`,
+		o.TenantID, o.UserSub, ids, o.UpdatedAt)
+	return err
+}

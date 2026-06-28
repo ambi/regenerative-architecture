@@ -42,6 +42,7 @@ func assembleMemory() (*Dependencies, error) {
 		SamlSPRepo:                memory.NewSamlServiceProviderRepository(),
 		ApplicationRepo:           memory.NewApplicationRepository(),
 		ApplicationAssignmentRepo: memory.NewApplicationAssignmentRepository(),
+		ApplicationOrderingRepo:   memory.NewApplicationOrderingRepository(),
 		Close:                     func() {},
 	}, nil
 }

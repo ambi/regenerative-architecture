@@ -97,7 +97,10 @@ export function AdminShell({
               </DropdownMenuLabel>
               <DropdownMenuSeparator className="my-1 h-px bg-slate-200" />
               <DropdownMenuItem asChild>
-                <Link to="/account">
+                {/* 認証オーディエンス境界をまたぐため preload を無効化する。
+                    intent preload で /account loader が走ると account セッション未確立時に
+                    OIDC ログインへ画面遷移してしまう (hover だけで遷移する不具合)。 */}
+                <Link to="/account" preload={false}>
                   <IconUserCircle size={17} aria-hidden="true" />
                   マイページ
                 </Link>

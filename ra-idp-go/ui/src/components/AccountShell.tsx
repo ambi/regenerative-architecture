@@ -114,7 +114,10 @@ export function AccountShell({
               <DropdownMenuSeparator className="my-1 h-px bg-slate-200" />
               {isAdmin ? (
                 <DropdownMenuItem asChild>
-                  <Link to="/admin">
+                  {/* 認証オーディエンス境界をまたぐため preload を無効化する。
+                      intent preload で /admin loader が走ると admin セッション未確立時に
+                      OIDC ログインへ画面遷移してしまう (hover だけで遷移する不具合)。 */}
+                  <Link to="/admin" preload={false}>
                     <IconShieldLock size={17} aria-hidden="true" />
                     管理コンソール
                   </Link>

@@ -355,6 +355,32 @@ func TestWsTrustUsernameMixed_RejectsExpiredTimestampAndReplay(t *testing.T) {
 	}
 }
 
+func TestWsTrustUsernameMixed_RejectsMismatchedTo(t *testing.T) {
+	e, _ := newServer(t, nil)
+	body := strings.Replace(
+		wsTrustRST(time.Now().UTC(), "urn:uuid:mismatched-to", "urn:ra-idp:demo-rp"),
+		"https://idp.example/realms/default/trust/usernamemixed",
+		"https://evil.example/trust/usernamemixed",
+		1,
+	)
+	if rec := postWsTrustSOAP(e, body); rec.Code != http.StatusBadRequest {
+		t.Fatalf("status=%d, want 400", rec.Code)
+	}
+}
+
+func TestWsTrustUsernameMixed_RejectsNonBearerKeyType(t *testing.T) {
+	e, _ := newServer(t, nil)
+	body := strings.Replace(
+		wsTrustRST(time.Now().UTC(), "urn:uuid:public-key", "urn:ra-idp:demo-rp"),
+		"<wsp:AppliesTo>",
+		"<t:KeyType>http://docs.oasis-open.org/ws-sx/ws-trust/200512/PublicKey</t:KeyType><wsp:AppliesTo>",
+		1,
+	)
+	if rec := postWsTrustSOAP(e, body); rec.Code != http.StatusBadRequest {
+		t.Fatalf("status=%d, want 400", rec.Code)
+	}
+}
+
 func postWsTrustSOAP(e *echo.Echo, body string) *httptest.ResponseRecorder {
 	req := httptest.NewRequest(http.MethodPost, "/trust/usernamemixed", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/soap+xml")

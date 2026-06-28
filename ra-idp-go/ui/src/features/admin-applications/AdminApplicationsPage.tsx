@@ -753,6 +753,13 @@ export function AdminApplicationDetailPage({
                       .join(' / ') || '署名なし'}
                   </span>
                 </ReadOnlyField>
+                <ReadOnlyField label="要求署名検証">
+                  <span className="text-xs">
+                    {detail.saml.want_authn_requests_signed
+                      ? 'AuthnRequest / LogoutRequest 署名必須'
+                      : '任意'}
+                  </span>
+                </ReadOnlyField>
                 <ReadOnlyField label="claim mapping 規則">
                   {detail.saml.rules.length === 0 ? (
                     <span className="text-xs text-slate-400">NameID のみ</span>
@@ -807,9 +814,7 @@ export function AdminApplicationEditPage({
   const [redirects, setRedirects] = useState((detail.oidc?.redirect_uris ?? []).join('\n'))
   const [scope, setScope] = useState(detail.oidc?.scope ?? '')
   const [grantTypes, setGrantTypes] = useState((detail.oidc?.grant_types ?? []).join(', '))
-  const [responseTypes, setResponseTypes] = useState(
-    (detail.oidc?.response_types ?? []).join(', '),
-  )
+  const [responseTypes, setResponseTypes] = useState((detail.oidc?.response_types ?? []).join(', '))
   const [requirePAR, setRequirePAR] = useState(
     detail.oidc?.require_pushed_authorization_requests ?? false,
   )
@@ -825,9 +830,7 @@ export function AdminApplicationEditPage({
   const [nameIDSource, setNameIDSource] = useState(
     detail.wsfed?.name_id_source || DEFAULT_NAMEID_SOURCE,
   )
-  const [rulesJSON, setRulesJSON] = useState(
-    JSON.stringify(detail.wsfed?.rules ?? [], null, 2),
-  )
+  const [rulesJSON, setRulesJSON] = useState(JSON.stringify(detail.wsfed?.rules ?? [], null, 2))
   const [samlACS, setSamlACS] = useState((detail.saml?.acs_urls ?? []).join('\n'))
   const [samlSLO, setSamlSLO] = useState(detail.saml?.slo_url ?? '')
   const [samlAudience, setSamlAudience] = useState(detail.saml?.audience ?? '')
@@ -839,6 +842,12 @@ export function AdminApplicationEditPage({
   )
   const [samlSignAssertion, setSamlSignAssertion] = useState(detail.saml?.sign_assertion ?? true)
   const [samlSignResponse, setSamlSignResponse] = useState(detail.saml?.sign_response ?? false)
+  const [samlWantSignedRequests, setSamlWantSignedRequests] = useState(
+    detail.saml?.want_authn_requests_signed ?? false,
+  )
+  const [samlSigningCert, setSamlSigningCert] = useState(
+    detail.saml?.authn_request_signing_certificate_pem ?? '',
+  )
   const [samlRulesJSON, setSamlRulesJSON] = useState(
     JSON.stringify(detail.saml?.rules ?? [], null, 2),
   )
@@ -934,6 +943,13 @@ export function AdminApplicationEditPage({
           return
         }
         const nextACS = parseList(samlACS)
+        if (samlWantSignedRequests && samlSigningCert.trim() === '') {
+          setError(
+            'AuthnRequest / LogoutRequest 署名検証用の X.509 証明書 PEM を指定してください。',
+          )
+          setSaving(false)
+          return
+        }
         const changed =
           nextACS.join(',') !== detail.saml.acs_urls.join(',') ||
           samlSLO.trim() !== detail.saml.slo_url ||
@@ -942,6 +958,8 @@ export function AdminApplicationEditPage({
           samlNameIDSource.trim() !== detail.saml.name_id_source ||
           samlSignAssertion !== detail.saml.sign_assertion ||
           samlSignResponse !== detail.saml.sign_response ||
+          samlWantSignedRequests !== (detail.saml.want_authn_requests_signed ?? false) ||
+          samlSigningCert.trim() !== (detail.saml.authn_request_signing_certificate_pem ?? '') ||
           JSON.stringify(nextRules) !== JSON.stringify(detail.saml.rules ?? [])
         if (changed) {
           if (nextACS.length === 0) {
@@ -957,6 +975,8 @@ export function AdminApplicationEditPage({
             name_id_source: samlNameIDSource.trim(),
             sign_assertion: samlSignAssertion,
             sign_response: samlSignResponse,
+            want_authn_requests_signed: samlWantSignedRequests,
+            authn_request_signing_certificate_pem: samlSigningCert.trim(),
             rules: nextRules,
           })
         }
@@ -1113,10 +1133,7 @@ export function AdminApplicationEditPage({
                 </div>
                 <div className="grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs sm:grid-cols-3">
                   <ReadonlyMeta label="クライアント種別" value={detail.oidc.client_type} />
-                  <ReadonlyMeta
-                    label="認証方式"
-                    value={detail.oidc.token_endpoint_auth_method}
-                  />
+                  <ReadonlyMeta label="認証方式" value={detail.oidc.token_endpoint_auth_method} />
                   <ReadonlyMeta label="FAPI プロファイル" value={detail.oidc.fapi_profile} />
                 </div>
               </section>
@@ -1279,6 +1296,32 @@ export function AdminApplicationEditPage({
                     />
                     レスポンス全体に署名する (Okta / Entra の "Sign Response")
                   </label>
+                  <label className="flex items-center gap-3 text-sm font-medium text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={samlWantSignedRequests}
+                      onChange={(e) => setSamlWantSignedRequests(e.target.checked)}
+                      className="size-4"
+                    />
+                    AuthnRequest / LogoutRequest 署名を必須にする
+                  </label>
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="edit-saml-request-signing-cert">
+                    要求署名検証用 X.509 証明書 PEM
+                  </Label>
+                  <textarea
+                    id="edit-saml-request-signing-cert"
+                    value={samlSigningCert}
+                    onChange={(e) => setSamlSigningCert(e.target.value)}
+                    rows={7}
+                    spellCheck={false}
+                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-xs focus:border-blue-600 focus:outline-none focus:ring-3 focus:ring-blue-600/10"
+                    placeholder="-----BEGIN CERTIFICATE-----"
+                  />
+                  <p className="text-xs text-slate-500">
+                    署名必須のとき、SP の AuthnRequest / LogoutRequest をこの証明書で検証します。
+                  </p>
                 </div>
                 <div className="grid gap-1.5">
                   <Label htmlFor="edit-saml-rules">claim mapping 規則 (JSON)</Label>
@@ -1564,6 +1607,8 @@ function CreateApplicationDialog({
   const [samlNameIDFormat, setSamlNameIDFormat] = useState(SAML_DEFAULT_NAMEID_FORMAT)
   const [samlNameIDSource, setSamlNameIDSource] = useState(DEFAULT_NAMEID_SOURCE)
   const [samlSignResponse, setSamlSignResponse] = useState(false)
+  const [samlWantSignedRequests, setSamlWantSignedRequests] = useState(false)
+  const [samlSigningCert, setSamlSigningCert] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [secret, setSecret] = useState<{ clientID: string; clientSecret: string } | null>(null)
@@ -1576,6 +1621,11 @@ function CreateApplicationDialog({
     if (nameInvalid) return
     setSaving(true)
     setError('')
+    if (type === 'saml' && samlWantSignedRequests && samlSigningCert.trim() === '') {
+      setError('AuthnRequest / LogoutRequest 署名検証用の X.509 証明書 PEM を指定してください。')
+      setSaving(false)
+      return
+    }
     try {
       const result = await createAdminApplication(csrfToken, {
         name: name.trim(),
@@ -1583,8 +1633,7 @@ function CreateApplicationDialog({
         icon_url: iconURL.trim() || undefined,
         launch_url: launchURL.trim() || undefined,
         redirect_uris: type === 'oidc' ? parseList(redirectURIs) : undefined,
-        scope:
-          type === 'service' || type === 'oidc' ? scope.trim() || undefined : undefined,
+        scope: type === 'service' || type === 'oidc' ? scope.trim() || undefined : undefined,
         client_type: type === 'oidc' ? clientType : undefined,
         token_endpoint_auth_method: type === 'oidc' ? authMethod : undefined,
         jwks_uri: type === 'oidc' && authMethod === 'private_key_jwt' ? jwksURI.trim() : undefined,
@@ -1604,6 +1653,9 @@ function CreateApplicationDialog({
         acs_urls: type === 'saml' ? parseList(samlACSURLs) : undefined,
         slo_url: type === 'saml' ? samlSLOURL.trim() || undefined : undefined,
         sign_response: type === 'saml' ? samlSignResponse : undefined,
+        want_authn_requests_signed: type === 'saml' ? samlWantSignedRequests : undefined,
+        authn_request_signing_certificate_pem:
+          type === 'saml' ? samlSigningCert.trim() || undefined : undefined,
       })
       const id = result.application.application_id
       if (result.client_secret && result.client_id) {
@@ -1963,6 +2015,29 @@ function CreateApplicationDialog({
                       />
                       レスポンス全体に署名する (既定はアサーション署名のみ)
                     </label>
+                    <label className="flex items-center gap-3 text-sm font-medium text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={samlWantSignedRequests}
+                        onChange={(e) => setSamlWantSignedRequests(e.target.checked)}
+                        className="size-4"
+                      />
+                      AuthnRequest / LogoutRequest 署名を必須にする
+                    </label>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="app-saml-request-signing-cert">
+                        要求署名検証用 X.509 証明書 PEM
+                      </Label>
+                      <textarea
+                        id="app-saml-request-signing-cert"
+                        value={samlSigningCert}
+                        onChange={(e) => setSamlSigningCert(e.target.value)}
+                        rows={6}
+                        spellCheck={false}
+                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-xs focus:border-blue-600 focus:outline-none focus:ring-3 focus:ring-blue-600/10"
+                        placeholder="-----BEGIN CERTIFICATE-----"
+                      />
+                    </div>
                   </section>
                 ) : null}
 

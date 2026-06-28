@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strings"
 	"time"
 
 	authdomain "ra-idp-go/internal/authentication/domain"
@@ -33,7 +34,7 @@ func (d Deps) handleSamlSSORedirect(c *echo.Context) error {
 	if err != nil {
 		return d.rejectSSO(c, "", "decode redirect AuthnRequest", err)
 	}
-	return d.processAuthnRequest(c, xml, relayState)
+	return d.processAuthnRequest(c, xml, relayState, samldomain.BindingRedirect)
 }
 
 // handleSamlSSOPost は HTTP-POST binding の SP-initiated SSO を処理する。
@@ -47,12 +48,12 @@ func (d Deps) handleSamlSSOPost(c *echo.Context) error {
 	if err != nil {
 		return d.rejectSSO(c, "", "decode POST AuthnRequest", err)
 	}
-	return d.processAuthnRequest(c, xml, relayState)
+	return d.processAuthnRequest(c, xml, relayState, samldomain.BindingPOST)
 }
 
 // processAuthnRequest は復号済み AuthnRequest を解析・検証し、SAMLResponse を発行する。
 // 未認証時のログイン往復をまたいで要求を保つため、redirect binding に符号化した resume URL を渡す。
-func (d Deps) processAuthnRequest(c *echo.Context, xml []byte, relayState string) error {
+func (d Deps) processAuthnRequest(c *echo.Context, xml []byte, relayState string, binding samldomain.Binding) error {
 	req, err := samldomain.ParseAuthnRequest(xml)
 	if err != nil {
 		return d.rejectSSO(c, "", "parse AuthnRequest", err)
@@ -65,7 +66,7 @@ func (d Deps) processAuthnRequest(c *echo.Context, xml []byte, relayState string
 	if relayState != "" {
 		resumeURL += "&RelayState=" + url.QueryEscape(relayState)
 	}
-	return d.issueForRequest(c, req, relayState, resumeURL)
+	return d.issueForRequest(c, req, relayState, resumeURL, xml, binding)
 }
 
 // handleIdPInitiated は entityID 指定の IdP-initiated SSO を処理する。AuthnRequest を伴わないため、
@@ -79,11 +80,11 @@ func (d Deps) handleIdPInitiated(c *echo.Context, relayState string) error {
 		return d.rejectSSO(c, "", "missing SAMLRequest or entityID", nil)
 	}
 	req := samldomain.AuthnRequest{Issuer: entityID}
-	return d.issueForRequest(c, req, relayState, c.Request().URL.RequestURI())
+	return d.issueForRequest(c, req, relayState, c.Request().URL.RequestURI(), nil, "")
 }
 
 // issueForRequest は要求を SP に解決・検証し、認証ゲートを適用して SAMLResponse を発行する。
-func (d Deps) issueForRequest(c *echo.Context, req samldomain.AuthnRequest, relayState, resumeURL string) error {
+func (d Deps) issueForRequest(c *echo.Context, req samldomain.AuthnRequest, relayState, resumeURL string, xml []byte, binding samldomain.Binding) error {
 	ctx := c.Request().Context()
 	tenantID := core.RequestTenantID(c)
 
@@ -97,13 +98,23 @@ func (d Deps) issueForRequest(c *echo.Context, req samldomain.AuthnRequest, rela
 	if sp == nil {
 		return d.rejectSSO(c, req.Issuer, "unknown service provider", nil)
 	}
-	validated, err := samldomain.ValidateSignIn(req, *sp)
+	if binding != "" {
+		if err := samldomain.ValidateRequestSignature(binding, xml, c.Request().URL.RawQuery, *sp); err != nil {
+			return d.rejectSSO(c, req.Issuer, err.Error(), nil)
+		}
+	}
+	expectedDestination := strings.TrimRight(core.RequestIssuer(c, d.Issuer), "/") + core.TenantRoute(c, "/saml/sso")
+	validated, err := samldomain.ValidateSignIn(req, *sp, expectedDestination)
 	if err != nil {
 		return d.rejectSSO(c, req.Issuer, err.Error(), nil)
 	}
 
 	authn, _ := d.AuthnResolver.Resolve(ctx, authdomain.HTTPHeadersAdapter{H: c.Request().Header})
 	if authn == nil || authn.Sub == "" || authn.AuthenticationPending {
+		return c.Redirect(http.StatusSeeOther, loginRedirect(c, resumeURL))
+	}
+	now := time.Now().UTC()
+	if samldomain.RequiresFreshAuth(req.ForceAuthn, time.Unix(authn.AuthTime, 0).UTC(), now) {
 		return c.Redirect(http.StatusSeeOther, loginRedirect(c, resumeURL))
 	}
 	user, err := d.UserRepo.FindBySub(ctx, authn.Sub)
@@ -113,8 +124,6 @@ func (d Deps) issueForRequest(c *echo.Context, req samldomain.AuthnRequest, rela
 	if user == nil || !user.IsActive() {
 		return c.Redirect(http.StatusSeeOther, loginRedirect(c, resumeURL))
 	}
-
-	now := time.Now().UTC()
 
 	// 割当ゲート: SP が Application binding に属する場合、未割当 subject には発行しない (fail-closed)。
 	allowed, err := d.ApplicationAccessAllowed(ctx, tenantID, spec.ProtocolBindingSAML, sp.EntityID, authn.Sub)

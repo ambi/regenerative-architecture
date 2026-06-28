@@ -529,6 +529,8 @@ export type CreateAdminApplicationInput = {
   acs_urls?: string[]
   slo_url?: string
   sign_response?: boolean
+  want_authn_requests_signed?: boolean
+  authn_request_signing_certificate_pem?: string
 }
 
 // OIDC を一括作成すると client_secret が一度だけ返る (再表示不可)。
@@ -571,6 +573,8 @@ export type UpdateApplicationSamlInput = {
   name_id_source?: string
   sign_assertion?: boolean
   sign_response?: boolean
+  want_authn_requests_signed?: boolean
+  authn_request_signing_certificate_pem?: string
   rules?: WsFedClaimMappingRule[]
 }
 

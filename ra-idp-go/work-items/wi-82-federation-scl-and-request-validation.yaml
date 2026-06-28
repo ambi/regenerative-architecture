@@ -1,0 +1,99 @@
+id: wi-82-federation-scl-and-request-validation
+title: フェデレーション仕様範囲と受信要求検証を整合させる
+created_at: 2026-06-28
+authors: [Codex]
+status: completed
+motivation: |
+  WS-Federation / WS-Trust / SAML の SCL が外部標準の採用範囲、除外範囲、
+  request validation の不変条件、管理 API の契約を十分に表現していなかった。
+  実装側でも SAML ForceAuthn / Destination、AuthnRequest / LogoutRequest 署名検証、
+  標準 SLO、WS-Trust To / KeyType が fail-closed に閉じておらず、SCL と実装の対応が弱かった。
+scope:
+  scl_sections:
+    - standards
+    - models
+    - interfaces
+    - invariants
+    - permissions
+    - scenarios
+  contexts:
+    - Saml
+    - WsFederation
+  code:
+    - ra-idp-go/internal/saml/
+    - ra-idp-go/internal/wsfederation/
+    - ra-idp-go/internal/spec/policy.go
+    - ra-idp-go/ui/src/features/admin-applications/AdminApplicationsPage.tsx
+    - ra-idp-go/ui/src/api/admin.ts
+    - ra-idp-go/ui/src/types.ts
+  docs:
+    - ra-idp-go/README.md
+out_of_scope:
+  - encrypted assertion / SAML ECP / inbound federation
+  - WS-Trust WindowsTransport / Kerberos / silent sign-in
+initial_context:
+  docs:
+    - REGENERATIVE_ARCHITECTURE.md
+    - SPECIFICATION_CORE_LANGUAGE.md
+  scl:
+    contexts:
+      - ra-idp-go/spec/contexts/saml.yaml
+      - ra-idp-go/spec/contexts/ws-federation.yaml
+  tests:
+    - ra-idp-go/internal/saml/...
+    - ra-idp-go/internal/wsfederation/...
+affected_guarantees:
+  - 外部 federation request は登録済み trust と現在 realm endpoint の閉集合に限定される。
+  - SAML AuthnRequest / LogoutRequest 署名必須 trust は設定済み証明書で検証される。
+  - 未対応の標準機能は silently accepted せず、SCL と実装の両方で除外または拒否として表現される。
+  - 管理 API の federation trust 操作は SCL permission と Go policy mapping に対応する。
+verification:
+  - GOCACHE=/tmp/ra-idp-go-cache go test ./internal/saml/... ./internal/wsfederation/... ./internal/spec/...
+  - GOCACHE=/tmp/ra-idp-go-cache go test ./...
+  - bun run yaml-check:scl
+  - bun run yaml-check:work-items
+  - bun run typecheck
+risk: medium
+risk_notes: |
+  SAML 署名必須 trust は X.509 証明書 PEM が必要になる。証明書が欠けた既存データは
+  fail-closed で拒否される。SLO は LogoutResponse の返送先を登録済み SLO URL に限定するため、
+  未登録・不一致の SP 設定は明示的に修正が必要になる。
+completion:
+  completed_at: 2026-06-28
+  summary: |
+    SAML / WS-Federation SCL に standards、invariants、scenarios、permissions、
+    WS-Fed RP CRUD interface、WS-Trust RST の検証対象フィールドを追加した。
+    実装では SAML ForceAuthn / Destination / AuthnRequest 署名 / LogoutRequest 署名 /
+    LogoutResponse、WS-Trust To / KeyType を fail-closed に検証し、README の対応範囲表現を更新した。
+    Application 管理 UI でも SAML AuthnRequest / LogoutRequest 署名必須設定と検証用証明書 PEM を
+    作成・詳細・編集画面に反映した。
+  verification:
+    - cmd: GOCACHE=/tmp/ra-idp-go-cache go test ./internal/saml/... ./internal/wsfederation/... ./internal/spec/...
+      status: passed
+      environment: /Users/tn/src/regenerative-architecture/ra-idp-go
+      result: SAML / WS-Federation / spec の対象 package が成功。
+    - cmd: GOCACHE=/tmp/ra-idp-go-cache go test ./...
+      status: passed
+      environment: /Users/tn/src/regenerative-architecture/ra-idp-go
+      result: 全 Go package が成功。
+    - cmd: bun run yaml-check:scl
+      status: passed
+      environment: /Users/tn/src/regenerative-architecture/tools
+      result: SCL 13 file が成功。
+    - cmd: bun run yaml-check:work-items
+      status: passed
+      environment: /Users/tn/src/regenerative-architecture/tools
+      result: work item 89 file が成功。
+    - cmd: bun run typecheck
+      status: passed
+      environment: /Users/tn/src/regenerative-architecture/ra-idp-go/ui
+      result: TypeScript typecheck が成功。
+  affected_guarantees_state:
+    - guarantee: federation request validation closed set
+      state: passed
+    - guarantee: unsupported standard features fail closed
+      state: passed
+    - guarantee: federation trust permission mapping
+      state: passed
+    - guarantee: saml request signature verification
+      state: passed

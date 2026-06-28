@@ -51,10 +51,12 @@ type SamlServiceProvider struct {
 	SignAssertion bool `json:"sign_assertion"`
 	// SignResponse は <Response> 全体を enveloped 署名する (Okta / Entra の "Sign Response")。
 	SignResponse bool `json:"sign_response"`
-	// WantAuthnRequestsSigned は SP が AuthnRequest を署名することを SP metadata で広告するための記録。
-	WantAuthnRequestsSigned bool       `json:"want_authn_requests_signed,omitempty"`
-	CreatedAt               time.Time  `json:"created_at"`
-	UpdatedAt               *time.Time `json:"updated_at,omitempty"`
+	// WantAuthnRequestsSigned は将来の SP ごとの AuthnRequest 署名検証 policy 用予約フィールド。
+	// true の場合は AuthnRequestSigningCertificatePEM で AuthnRequest / LogoutRequest を検証する。
+	WantAuthnRequestsSigned           bool       `json:"want_authn_requests_signed,omitempty"`
+	AuthnRequestSigningCertificatePEM string     `json:"authn_request_signing_certificate_pem,omitempty"`
+	CreatedAt                         time.Time  `json:"created_at"`
+	UpdatedAt                         *time.Time `json:"updated_at,omitempty"`
 }
 
 // EffectiveAudience は assertion の AudienceRestriction に用いる値を返す。未設定なら entityID。

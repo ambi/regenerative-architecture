@@ -4,9 +4,81 @@
 system: ra-idp
 spec_version: "2.0"
 context: WsFederation
+standards:
+  WsFederationPassiveRequestorProfile:
+    title: Web Services Federation Language (WS-Federation) Version 1.2
+    version: "1.2"
+    url: https://docs.oasis-open.org/wsfed/federation/v1.2/ws-federation.html
+    roles: [IdentityProvider, SecurityTokenService]
+    scope: Passive Requestor Profile の sign-in / sign-out と federation metadata
+    requirements:
+      - id: WSFed-PassiveSignIn
+        section: "§13"
+        strength: MUST
+        adoption: required
+        statement: wsignin1.0 で登録済み wtrealm と許可済み wreply にだけ token を返す
+        relates_to:
+          interfaces: [WsFederationSignIn]
+          invariants: [WsFedReplyAndRealmClosed]
+      - id: WSFed-SilentSignIn
+        section: "§13"
+        strength: MAY
+        adoption: excluded
+        statement: silent sign-in / prompt=none 相当の無音認証
+        reason: 初期範囲では利用者の明示的な認証状態だけを使い、無音サインインは提供しない
+  WsTrust13:
+    title: WS-Trust 1.3
+    version: "1.3"
+    url: https://docs.oasis-open.org/ws-sx/ws-trust/v1.3/ws-trust.html
+    roles: [SecurityTokenService]
+    scope: Issue binding / RequestSecurityToken / RequestSecurityTokenResponse
+    requirements:
+      - id: WSTrust13-IssueBearer
+        section: "§4, §8"
+        strength: MUST
+        adoption: required
+        statement: Issue 要求に対して Bearer SAML assertion を RSTR で返す
+        relates_to:
+          interfaces: [WsTrustIssue]
+          invariants: [WsTrustRSTClosed]
+      - id: WSTrust13-WindowsTransport
+        section: "§8"
+        strength: MAY
+        adoption: excluded
+        statement: WindowsTransport / Kerberos based active profile
+        reason: 初期範囲では UsernameToken のみを受理する
+  WsSecurityUsernameToken:
+    title: Web Services Security UsernameToken Profile 1.1.1
+    version: "1.1.1"
+    url: https://docs.oasis-open.org/wss-m/wss/v1.1.1/os/wss-UsernameTokenProfile-v1.1.1-os.html
+    roles: [SecurityTokenService]
+    scope: UsernameToken username / password credential
+    requirements:
+      - id: WSS-UsernameTokenPassword
+        section: "§3"
+        strength: MUST
+        adoption: required
+        statement: WS-Trust active STS は UsernameToken username/password を認証する
+        relates_to:
+          interfaces: [WsTrustIssue]
+  WsAddressing:
+    title: Web Services Addressing 1.0 - Core
+    version: "1.0"
+    url: https://www.w3.org/TR/ws-addr-core/
+    roles: [SecurityTokenService]
+    scope: MessageID / To / Action
+    requirements:
+      - id: WSAddressing-MessageIDToAction
+        section: "§3"
+        strength: MUST
+        adoption: required
+        statement: MessageID は replay 防止、To は active STS endpoint、Action は Issue として検証する
+        relates_to:
+          interfaces: [WsTrustIssue]
+          invariants: [WsTrustRSTClosed, WsTrustMessageIDReplay]
 glossary:
   WsFederation:
-    definition: WS-Federation passive と WS-Trust active STS を組み合わせた WS-* protocol family。
+    definition: WS-Federation Passive Requestor Profile と WS-Trust active STS を組み合わせた WS-* protocol family。UsernameToken による Issue、WS-Addressing の MessageID / To / Action、Bearer SAML assertion 発行を扱う。WindowsTransport / Kerberos、silent sign-in は初期範囲外。
     aliases:
       - WS-Federation
       - WS-Trust
@@ -124,11 +196,19 @@ models:
       to:
         type: Uri
         description: WS-Addressing To。要求先 STS endpoint。
+      action:
+        type: String
+        description: WS-Addressing Action。Issue のみ受理する。
       username:
         type: String
         constraints:
           - non_empty
         description: WS-Security UsernameToken username。
+      password:
+        type: String
+        constraints:
+          - non_empty
+        description: WS-Security UsernameToken password credential。
       created_at:
         type: Timestamp
         description: WS-Security Timestamp Created。
@@ -144,6 +224,14 @@ models:
         type: WsFedTokenType
         optional: true
         description: 要求 token type。空なら RP 既定。
+      request_type:
+        type: String
+        optional: true
+        description: WS-Trust RequestType。空または Issue のみ受理する。
+      key_type:
+        type: String
+        optional: true
+        description: WS-Trust KeyType。空または Bearer のみ受理する。
   WsTrustResponse:
     kind: value_object
     description: WS-Trust Issue に対する RSTR。署名済み SAML assertion と lifetime / appliesTo を含む (wi-62)。
@@ -319,7 +407,7 @@ interfaces:
           - "200"
           - "303"
   WsTrustIssue:
-    description: WS-Trust 1.3 active STS Issue endpoint (wi-62)。UsernameToken を検証し、 AppliesTo を登録済み WsFedRelyingParty に解決する。RP の claim policy で組み立てた claim を署名済み SAML assertion に載せ、RSTR として返す。未登録 AppliesTo、期限切れ Timestamp、不正な Action / RequestType / TokenType は fail-closed で拒否する。
+    description: WS-Trust 1.3 active STS Issue endpoint (wi-62)。UsernameToken を検証し、 To を現在 realm の active STS endpoint、Action / RequestType を Issue、KeyType を Bearer に限定し、AppliesTo を登録済み WsFedRelyingParty に解決する。RP の claim policy で組み立てた claim を署名済み SAML assertion に載せ、RSTR として返す。未登録 AppliesTo、期限切れ Timestamp、不正な To / Action / RequestType / KeyType / TokenType は fail-closed で拒否する。
     steps:
       - "username {username} と applies_to {applies_to} で security token を要求する"
     input:
@@ -395,6 +483,102 @@ interfaces:
         method: POST
         path: /api/admin/wsfed/entra-federation
         request_body: json
+  RegisterWsFedRelyingParty:
+    description: 管理者が WS-Federation relying party trust を登録または更新する。wtrealm、reply_urls、audience、token_type、claim_policy を契約として保存し、reply_urls は空でない閉集合にする。管理操作は AdminFederationTrustsManage で保護する。
+    input:
+      relying_party:
+        type: WsFedRelyingParty
+    output:
+      relying_party:
+        type: WsFedRelyingParty
+    errors:
+      - InvalidRequestError
+      - AccessDeniedError
+    bindings:
+      - kind: http
+        method: POST
+        path: /api/admin/wsfed/relying-parties
+        request_body: json
+        successful_status_codes:
+          - "201"
+          - "200"
+  ListWsFedRelyingParties:
+    description: 管理者が所属テナントの WS-Federation relying party trust を一覧する。管理操作は AdminFederationTrustsManage で保護する。
+    output:
+      relying_parties:
+        type: "WsFedRelyingParty[]"
+    read_only: true
+    errors:
+      - AccessDeniedError
+    bindings:
+      - kind: http
+        method: GET
+        path: /api/admin/wsfed/relying-parties
+        successful_status_codes:
+          - "200"
+  DeleteWsFedRelyingParty:
+    description: 管理者が所属テナントの WS-Federation relying party trust を wtrealm で削除する。管理操作は AdminFederationTrustsManage で保護する。
+    input:
+      wtrealm:
+        type: String
+    errors:
+      - InvalidRequestError
+      - AccessDeniedError
+    bindings:
+      - kind: http
+        method: DELETE
+        path: /api/admin/wsfed/relying-parties
+        request_form: query
+        successful_status_codes:
+          - "204"
+invariants:
+  WsFedReplyAndRealmClosed:
+    description: WS-Fed passive sign-in / sign-out の wtrealm は登録済み RP、wreply は RP の reply_urls と完全一致しなければならない。wreply 省略時は登録済み既定 reply URL のみを使う。
+    target: WsFedRelyingParty
+    always: wtrealm_registered and resolved_wreply in relying_party.reply_urls
+  WsFedFreshRequiresRecentAuthentication:
+    description: wfresh が要求する最大経過時間より認証が古い場合は token を発行せずログインへ戻す。wfresh=0 は再認証を要求する。
+    target: WsFederationSignIn
+    always: wfresh_present implies auth_time_within_wfresh
+  WsFedContextRoundTrip:
+    description: wctx は不透明値として改変せず、RSTR form に同値で返す。
+    target: WsFederationSignIn
+    always: returned_wctx == received_wctx
+  WsTrustMessageIDReplay:
+    description: WS-Trust MessageID は assertion lifetime 内で一度だけ受理する。再送は token を発行せず拒否する。
+    target: WsTrustRequestSecurityToken
+    always: message_id_not_seen_within_replay_window
+  WsTrustRSTClosed:
+    description: RST の To は現在 realm の active STS endpoint、Action / RequestType は Issue、KeyType は空または Bearer、AppliesTo は登録済み RP と一致しなければならない。
+    target: WsTrustRequestSecurityToken
+    always: to == active_sts_endpoint and action == Issue and request_type in [empty, Issue] and key_type in [empty, Bearer] and applies_to_registered
+  FederationApplicationAssignmentGate:
+    description: SAML / WS-Federation trust が Application binding に属する場合、未割当 subject には token / assertion を発行しない。
+    target: WsFedSignInIssued
+    always: application_binding_absent or subject_assigned_to_application
+scenarios:
+  WS-Federation passive sign-in succeeds:
+    description: WsFederationSignIn で、登録済み wtrealm、許可 wreply、必要なら wfresh を満たす認証、割当済み subject なら RSTR form を発行し wctx を同値で返す。
+    steps:
+      - 登録済み RP の wsignin1.0 を受信する
+      - wtrealm / wreply / wfresh / subject assignment を検証する
+      - 署名済み assertion を RSTR form で返す
+  WS-Federation passive sign-in rejects untrusted target:
+    description: WsFederationSignIn で、未登録 wtrealm、許可外 wreply、未割当 subject は token を発行せず拒否する。
+    steps:
+      - 不正な wsignin1.0 を受信する
+      - fail-closed で拒否する
+  WS-Trust Issue succeeds:
+    description: WsTrustIssue で、UsernameToken、MessageID、To、Action、RequestType、KeyType、AppliesTo が有効なら Bearer SAML assertion を RSTR で返す。
+    steps:
+      - WS-Trust Issue RST を受信する
+      - UsernameToken と RST の閉集合条件を検証する
+      - RSTR を返す
+  WS-Trust Issue rejects invalid envelope:
+    description: WsTrustIssue で、To 不一致、MessageID replay、未登録 AppliesTo、Issue 以外の Action / RequestType、Bearer 以外の KeyType は拒否する。
+    steps:
+      - 不正な RST を受信する
+      - WsTrustTokenRejected を emit して 400 または 401 を返す
 user_experience:
   screens:
     AdminEntraFederation:

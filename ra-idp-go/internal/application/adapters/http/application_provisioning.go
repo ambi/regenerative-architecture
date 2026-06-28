@@ -11,8 +11,9 @@ import (
 	"time"
 
 	appusecases "ra-idp-go/internal/application/usecases"
-	oauthusecases "ra-idp-go/internal/oauth2/usecases"
 	"ra-idp-go/internal/infrastructure/http/core"
+	oauthusecases "ra-idp-go/internal/oauth2/usecases"
+	samldomain "ra-idp-go/internal/saml/domain"
 	"ra-idp-go/internal/spec"
 
 	"github.com/labstack/echo/v5"
@@ -44,10 +45,12 @@ type createApplicationRequest struct {
 	NameIDFormat string   `json:"name_id_format"`
 	NameIDSource string   `json:"name_id_source"`
 	// SAML 2.0
-	EntityID     string   `json:"entity_id"`
-	ACSURLs      []string `json:"acs_urls"`
-	SLOURL       string   `json:"slo_url"`
-	SignResponse bool     `json:"sign_response"`
+	EntityID                          string   `json:"entity_id"`
+	ACSURLs                           []string `json:"acs_urls"`
+	SLOURL                            string   `json:"slo_url"`
+	SignResponse                      bool     `json:"sign_response"`
+	WantAuthnRequestsSigned           bool     `json:"want_authn_requests_signed"`
+	AuthnRequestSigningCertificatePEM string   `json:"authn_request_signing_certificate_pem"`
 }
 
 // oidcConfig / wsfedConfig はアプリ詳細に解決して返す protocol 設定。
@@ -77,15 +80,17 @@ type wsfedConfig struct {
 }
 
 type samlConfig struct {
-	EntityID      string                  `json:"entity_id"`
-	ACSURLs       []string                `json:"acs_urls"`
-	SLOURL        string                  `json:"slo_url"`
-	Audience      string                  `json:"audience"`
-	NameIDFormat  string                  `json:"name_id_format"`
-	NameIDSource  string                  `json:"name_id_source"`
-	SignAssertion bool                    `json:"sign_assertion"`
-	SignResponse  bool                    `json:"sign_response"`
-	Rules         []spec.ClaimMappingRule `json:"rules"`
+	EntityID                          string                  `json:"entity_id"`
+	ACSURLs                           []string                `json:"acs_urls"`
+	SLOURL                            string                  `json:"slo_url"`
+	Audience                          string                  `json:"audience"`
+	NameIDFormat                      string                  `json:"name_id_format"`
+	NameIDSource                      string                  `json:"name_id_source"`
+	SignAssertion                     bool                    `json:"sign_assertion"`
+	SignResponse                      bool                    `json:"sign_response"`
+	WantAuthnRequestsSigned           bool                    `json:"want_authn_requests_signed"`
+	AuthnRequestSigningCertificatePEM string                  `json:"authn_request_signing_certificate_pem"`
+	Rules                             []spec.ClaimMappingRule `json:"rules"`
 }
 
 // nonNilRules は nil スライスを空スライスに正規化する。claim 規則を持たない RP/SP の
@@ -211,6 +216,11 @@ func (d Deps) handleCreateApplication(c *echo.Context) error {
 		if d.SamlSPRepo == nil {
 			return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "SAML は利用できません")
 		}
+		if req.WantAuthnRequestsSigned {
+			if _, err := samldomain.ParseCertificatePEM(req.AuthnRequestSigningCertificatePEM); err != nil {
+				return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "AuthnRequest 署名検証用証明書を指定してください")
+			}
+		}
 		sp := &spec.SamlServiceProvider{
 			TenantID: core.RequestTenantID(c), EntityID: req.EntityID, DisplayName: req.Name,
 			ACSURLs: req.ACSURLs, SLOURL: strings.TrimSpace(req.SLOURL),
@@ -218,7 +228,9 @@ func (d Deps) handleCreateApplication(c *echo.Context) error {
 				Format: nonEmpty(req.NameIDFormat, spec.SamlNameIDFormatPersistent), SourceAttribute: nonEmpty(req.NameIDSource, defaultNameIDSource),
 			}},
 			SignAssertion: true, SignResponse: req.SignResponse,
-			CreatedAt: now,
+			WantAuthnRequestsSigned:           req.WantAuthnRequestsSigned,
+			AuthnRequestSigningCertificatePEM: strings.TrimSpace(req.AuthnRequestSigningCertificatePEM),
+			CreatedAt:                         now,
 		}
 		if err := d.SamlSPRepo.Save(ctx, sp); err != nil {
 			return err
@@ -293,7 +305,9 @@ func (d Deps) resolveProtocolConfig(c *echo.Context, app *spec.Application) (*oi
 					Audience: sp.Audience, NameIDFormat: sp.ClaimPolicy.NameID.Format,
 					NameIDSource:  sp.ClaimPolicy.NameID.SourceAttribute,
 					SignAssertion: sp.SignAssertion, SignResponse: sp.SignResponse,
-					Rules: nonNilRules(sp.ClaimPolicy.Rules),
+					WantAuthnRequestsSigned:           sp.WantAuthnRequestsSigned,
+					AuthnRequestSigningCertificatePEM: sp.AuthnRequestSigningCertificatePEM,
+					Rules:                             nonNilRules(sp.ClaimPolicy.Rules),
 				}
 			}
 		}
@@ -404,14 +418,16 @@ func (d Deps) handleUpdateWsFedConfig(c *echo.Context) error {
 }
 
 type updateSamlRequest struct {
-	ACSURLs       *[]string                `json:"acs_urls"`
-	SLOURL        *string                  `json:"slo_url"`
-	Audience      *string                  `json:"audience"`
-	NameIDFormat  *string                  `json:"name_id_format"`
-	NameIDSource  *string                  `json:"name_id_source"`
-	SignAssertion *bool                    `json:"sign_assertion"`
-	SignResponse  *bool                    `json:"sign_response"`
-	Rules         *[]spec.ClaimMappingRule `json:"rules"`
+	ACSURLs                           *[]string                `json:"acs_urls"`
+	SLOURL                            *string                  `json:"slo_url"`
+	Audience                          *string                  `json:"audience"`
+	NameIDFormat                      *string                  `json:"name_id_format"`
+	NameIDSource                      *string                  `json:"name_id_source"`
+	SignAssertion                     *bool                    `json:"sign_assertion"`
+	SignResponse                      *bool                    `json:"sign_response"`
+	WantAuthnRequestsSigned           *bool                    `json:"want_authn_requests_signed"`
+	AuthnRequestSigningCertificatePEM *string                  `json:"authn_request_signing_certificate_pem"`
+	Rules                             *[]spec.ClaimMappingRule `json:"rules"`
 }
 
 func (d Deps) handleUpdateSamlConfig(c *echo.Context) error {
@@ -458,6 +474,17 @@ func (d Deps) handleUpdateSamlConfig(c *echo.Context) error {
 	}
 	if req.SignResponse != nil {
 		sp.SignResponse = *req.SignResponse
+	}
+	if req.WantAuthnRequestsSigned != nil {
+		sp.WantAuthnRequestsSigned = *req.WantAuthnRequestsSigned
+	}
+	if req.AuthnRequestSigningCertificatePEM != nil {
+		sp.AuthnRequestSigningCertificatePEM = strings.TrimSpace(*req.AuthnRequestSigningCertificatePEM)
+	}
+	if sp.WantAuthnRequestsSigned {
+		if _, err := samldomain.ParseCertificatePEM(sp.AuthnRequestSigningCertificatePEM); err != nil {
+			return core.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "AuthnRequest 署名検証用証明書を指定してください")
+		}
 	}
 	if req.Rules != nil {
 		sp.ClaimPolicy.Rules = *req.Rules

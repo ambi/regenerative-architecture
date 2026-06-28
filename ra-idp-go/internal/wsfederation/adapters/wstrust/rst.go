@@ -34,6 +34,7 @@ type RequestSecurityToken struct {
 	AppliesTo   string
 	TokenType   string
 	RequestType string
+	KeyType     string
 }
 
 // ParseRST は SOAP + WS-Addressing + WS-Security UsernameToken の RST を解析する。
@@ -69,6 +70,7 @@ func ParseRST(body []byte, now time.Time) (RequestSecurityToken, error) {
 	}
 	req.RequestType = strings.TrimSpace(textAt(rst, "RequestType"))
 	req.TokenType = strings.TrimSpace(textAt(rst, "TokenType"))
+	req.KeyType = strings.TrimSpace(textAt(rst, "KeyType"))
 	req.AppliesTo = strings.TrimSpace(textAt(rst, "AppliesTo", "EndpointReference", "Address"))
 	if req.AppliesTo == "" {
 		req.AppliesTo = strings.TrimSpace(textAt(rst, "AppliesTo", "Address"))
@@ -105,6 +107,9 @@ func (r RequestSecurityToken) Validate(now time.Time) error {
 	}
 	if r.RequestType != "" && r.RequestType != RequestIssue {
 		return fmt.Errorf("wstrust: unsupported RequestType %q", r.RequestType)
+	}
+	if r.KeyType != "" && r.KeyType != KeyTypeBearer {
+		return fmt.Errorf("wstrust: unsupported KeyType %q", r.KeyType)
 	}
 	return nil
 }

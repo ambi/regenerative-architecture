@@ -138,6 +138,8 @@ export type ApplicationSamlConfig = {
   name_id_source: string
   sign_assertion: boolean
   sign_response: boolean
+  want_authn_requests_signed: boolean
+  authn_request_signing_certificate_pem: string
   rules: WsFedClaimMappingRule[]
 }
 

@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"strings"
 	"testing"
+	"time"
 
 	samldomain "ra-idp-go/internal/saml/domain"
 	"ra-idp-go/internal/spec"
@@ -101,7 +102,7 @@ func TestValidateSignInResolvesRequestedACS(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	out, err := samldomain.ValidateSignIn(req, sampleServiceProvider())
+	out, err := samldomain.ValidateSignIn(req, sampleServiceProvider(), "https://idp.example.com/saml/sso")
 	if err != nil {
 		t.Fatalf("validate: %v", err)
 	}
@@ -119,7 +120,7 @@ func TestValidateSignInResolvesRequestedACS(t *testing.T) {
 
 func TestValidateSignInRejectsIssuerMismatch(t *testing.T) {
 	req := samldomain.AuthnRequest{ID: "_x", Issuer: "https://evil.example.com"}
-	if _, err := samldomain.ValidateSignIn(req, sampleServiceProvider()); err == nil {
+	if _, err := samldomain.ValidateSignIn(req, sampleServiceProvider(), "https://idp.example.com/saml/sso"); err == nil {
 		t.Fatal("expected issuer mismatch to be rejected")
 	}
 }
@@ -130,14 +131,33 @@ func TestValidateSignInRejectsUnregisteredACS(t *testing.T) {
 		Issuer: "https://sp.example.com",
 		ACSURL: "https://evil.example.com/acs",
 	}
-	if _, err := samldomain.ValidateSignIn(req, sampleServiceProvider()); err == nil {
+	if _, err := samldomain.ValidateSignIn(req, sampleServiceProvider(), "https://idp.example.com/saml/sso"); err == nil {
 		t.Fatal("expected unregistered ACS URL to be rejected (open redirect)")
+	}
+}
+
+func TestValidateSignInRejectsDestinationMismatch(t *testing.T) {
+	req := samldomain.AuthnRequest{
+		ID:          "_x",
+		Issuer:      "https://sp.example.com",
+		Destination: "https://other-idp.example.com/saml/sso",
+	}
+	if _, err := samldomain.ValidateSignIn(req, sampleServiceProvider(), "https://idp.example.com/saml/sso"); err == nil {
+		t.Fatal("expected mismatched Destination to be rejected")
+	}
+}
+
+func TestValidateRequestSignatureRequiresCertificate(t *testing.T) {
+	sp := sampleServiceProvider()
+	sp.WantAuthnRequestsSigned = true
+	if err := samldomain.ValidateRequestSignature(samldomain.BindingRedirect, []byte(sampleAuthnRequest), "SAMLRequest=x", sp); err == nil {
+		t.Fatal("expected missing signing certificate to be rejected")
 	}
 }
 
 func TestValidateSignInFallsBackToDefaultACS(t *testing.T) {
 	req := samldomain.AuthnRequest{ID: "_x", Issuer: "https://sp.example.com"}
-	out, err := samldomain.ValidateSignIn(req, sampleServiceProvider())
+	out, err := samldomain.ValidateSignIn(req, sampleServiceProvider(), "https://idp.example.com/saml/sso")
 	if err != nil {
 		t.Fatalf("validate: %v", err)
 	}
@@ -156,12 +176,25 @@ func TestValidateSignInUnspecifiedFormatUsesSPDefault(t *testing.T) {
 		Issuer:       "https://sp.example.com",
 		NameIDFormat: spec.SamlNameIDFormatUnspecified,
 	}
-	out, err := samldomain.ValidateSignIn(req, sampleServiceProvider())
+	out, err := samldomain.ValidateSignIn(req, sampleServiceProvider(), "https://idp.example.com/saml/sso")
 	if err != nil {
 		t.Fatalf("validate: %v", err)
 	}
 	if out.NameIDFormat != spec.SamlNameIDFormatPersistent {
 		t.Errorf("NameIDFormat=%q, want SP default", out.NameIDFormat)
+	}
+}
+
+func TestRequiresFreshAuth(t *testing.T) {
+	now := time.Date(2026, 6, 28, 12, 0, 0, 0, time.UTC)
+	if samldomain.RequiresFreshAuth(false, now.Add(-time.Hour), now) {
+		t.Fatal("ForceAuthn=false should not require fresh authentication")
+	}
+	if samldomain.RequiresFreshAuth(true, now.Add(-10*time.Second), now) {
+		t.Fatal("recent authentication should satisfy ForceAuthn")
+	}
+	if !samldomain.RequiresFreshAuth(true, now.Add(-time.Minute), now) {
+		t.Fatal("stale authentication should require fresh authentication")
 	}
 }
 

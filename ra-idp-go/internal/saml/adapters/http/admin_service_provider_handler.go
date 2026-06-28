@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"ra-idp-go/internal/infrastructure/http/core"
+	samldomain "ra-idp-go/internal/saml/domain"
 	"ra-idp-go/internal/spec"
 
 	"github.com/labstack/echo/v5"
@@ -23,6 +24,7 @@ type serviceProviderRequest struct {
 	SignAssertion           *bool                   `json:"sign_assertion"`
 	SignResponse            bool                    `json:"sign_response"`
 	WantAuthnRequestsSigned bool                    `json:"want_authn_requests_signed"`
+	SigningCertificatePEM   string                  `json:"authn_request_signing_certificate_pem"`
 }
 
 func (r serviceProviderRequest) validate() error {
@@ -35,6 +37,11 @@ func (r serviceProviderRequest) validate() error {
 		return errBadRequest("claim_policy.name_id.format is required")
 	case strings.TrimSpace(r.ClaimPolicy.NameID.SourceAttribute) == "":
 		return errBadRequest("claim_policy.name_id.source_attribute is required")
+	}
+	if r.WantAuthnRequestsSigned {
+		if _, err := samldomain.ParseCertificatePEM(r.SigningCertificatePEM); err != nil {
+			return errBadRequest("authn_request_signing_certificate_pem is required when want_authn_requests_signed is true")
+		}
 	}
 	return nil
 }
@@ -86,17 +93,18 @@ func (d Deps) handleUpsertServiceProvider(c *echo.Context) error {
 		signAssertion = *req.SignAssertion
 	}
 	sp := &spec.SamlServiceProvider{
-		TenantID:                tenantID,
-		EntityID:                req.EntityID,
-		DisplayName:             req.DisplayName,
-		ACSURLs:                 req.ACSURLs,
-		SLOURL:                  strings.TrimSpace(req.SLOURL),
-		Audience:                strings.TrimSpace(req.Audience),
-		ClaimPolicy:             req.ClaimPolicy,
-		SignAssertion:           signAssertion,
-		SignResponse:            req.SignResponse,
-		WantAuthnRequestsSigned: req.WantAuthnRequestsSigned,
-		CreatedAt:               now,
+		TenantID:                          tenantID,
+		EntityID:                          req.EntityID,
+		DisplayName:                       req.DisplayName,
+		ACSURLs:                           req.ACSURLs,
+		SLOURL:                            strings.TrimSpace(req.SLOURL),
+		Audience:                          strings.TrimSpace(req.Audience),
+		ClaimPolicy:                       req.ClaimPolicy,
+		SignAssertion:                     signAssertion,
+		SignResponse:                      req.SignResponse,
+		WantAuthnRequestsSigned:           req.WantAuthnRequestsSigned,
+		AuthnRequestSigningCertificatePEM: strings.TrimSpace(req.SigningCertificatePEM),
+		CreatedAt:                         now,
 	}
 	status := http.StatusCreated
 	if existing != nil {

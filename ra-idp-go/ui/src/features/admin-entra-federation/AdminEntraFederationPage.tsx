@@ -143,7 +143,11 @@ export function AdminEntraFederationPage({
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="entra_reply">wreply URL</Label>
-            <Input id="entra_reply" value={replyURL} onChange={(e) => setReplyURL(e.target.value)} />
+            <Input
+              id="entra_reply"
+              value={replyURL}
+              onChange={(e) => setReplyURL(e.target.value)}
+            />
           </div>
           <div className="flex items-end">
             <Button type="submit">保存</Button>
@@ -160,8 +164,8 @@ export function AdminEntraFederationPage({
               ))}
             </div>
             <Alert>
-              Hybrid Azure AD Join のデバイス登録は未提供です。必要な場合は managed/PHS への切替または
-              AD FS 併存を検討してください。
+              Hybrid Azure AD Join のデバイス登録は未提供です。必要な場合は managed/PHS
+              への切替または AD FS 併存を検討してください。
             </Alert>
           </div>
         ) : null}

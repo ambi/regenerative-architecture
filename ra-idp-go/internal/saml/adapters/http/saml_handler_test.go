@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/pem"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
@@ -61,6 +62,26 @@ func devSigner(t *testing.T) *samltoken.Signer {
 	return signer
 }
 
+func certPEM(t *testing.T) string {
+	t.Helper()
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("key: %v", err)
+	}
+	tmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(2),
+		Subject:      pkix.Name{CommonName: "test sp signing"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(time.Hour),
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	if err != nil {
+		t.Fatalf("cert: %v", err)
+	}
+	return string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}))
+}
+
 func newServer(t *testing.T, authn *authdomain.AuthenticationContext) (*echo.Echo, *[]spec.DomainEvent) {
 	t.Helper()
 
@@ -113,10 +134,17 @@ func get(e *echo.Echo, target string) *httptest.ResponseRecorder {
 
 // authnRequestRedirect は HTTP-Redirect binding 用の SAMLRequest を組み立てる。
 func authnRequestRedirect(t *testing.T, issuer, acsURL string) string {
+	return authnRequestRedirectWith(t, issuer, acsURL, "https://idp.example/realms/default/saml/sso", false)
+}
+
+func authnRequestRedirectWith(t *testing.T, issuer, acsURL, destination string, forceAuthn bool) string {
 	t.Helper()
 	xml := `<samlp:AuthnRequest xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" ` +
 		`xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" ID="_req-1" Version="2.0" ` +
-		`Destination="https://idp.example/saml/sso"`
+		`Destination="` + destination + `"`
+	if forceAuthn {
+		xml += ` ForceAuthn="true"`
+	}
 	if acsURL != "" {
 		xml += ` AssertionConsumerServiceURL="` + acsURL + `"`
 	}
@@ -190,6 +218,19 @@ func TestSamlSSO_UnauthenticatedRedirectsToLogin(t *testing.T) {
 	}
 }
 
+func TestSamlSSO_ForceAuthnWithStaleSessionRedirectsToLogin(t *testing.T) {
+	e, _ := newServer(t, &authdomain.AuthenticationContext{Sub: "user-1", AuthTime: time.Now().Add(-10 * time.Minute).Unix(), AMR: []string{"pwd"}})
+
+	samlReq := authnRequestRedirectWith(t, "https://sp.example.com", "", "https://idp.example/realms/default/saml/sso", true)
+	rec := get(e, "/saml/sso?SAMLRequest="+url.QueryEscape(samlReq))
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("status=%d, want 303", rec.Code)
+	}
+	if loc := rec.Header().Get("Location"); !strings.HasPrefix(loc, "/login") {
+		t.Fatalf("Location=%q, want /login", loc)
+	}
+}
+
 func TestSamlSSO_UnknownServiceProviderRejected(t *testing.T) {
 	e, events := newServer(t, &authdomain.AuthenticationContext{Sub: "user-1"})
 	samlReq := authnRequestRedirect(t, "https://evil.example.com", "")
@@ -207,6 +248,45 @@ func TestSamlSSO_DisallowedACSRejected(t *testing.T) {
 	rec := get(e, "/saml/sso?SAMLRequest="+url.QueryEscape(samlReq))
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("status=%d, want 400 (open redirect prevention)", rec.Code)
+	}
+}
+
+func TestSamlSSO_DestinationMismatchRejected(t *testing.T) {
+	e, _ := newServer(t, &authdomain.AuthenticationContext{Sub: "user-1"})
+	samlReq := authnRequestRedirectWith(t, "https://sp.example.com", "", "https://evil-idp.example/saml/sso", false)
+	rec := get(e, "/saml/sso?SAMLRequest="+url.QueryEscape(samlReq))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status=%d, want 400", rec.Code)
+	}
+}
+
+func TestSamlSSO_UnsignedRequestRejectedWhenSignatureRequired(t *testing.T) {
+	spRepo := memory.NewSamlServiceProviderRepository()
+	spRepo.Seed(&spec.SamlServiceProvider{
+		EntityID:                          "https://sp.example.com",
+		ACSURLs:                           []string{"https://sp.example.com/acs"},
+		SignAssertion:                     true,
+		WantAuthnRequestsSigned:           true,
+		AuthnRequestSigningCertificatePEM: certPEM(t),
+		ClaimPolicy: spec.ClaimMappingPolicy{NameID: spec.NameIdConfiguration{
+			Format: spec.SamlNameIDFormatPersistent, SourceAttribute: "sub",
+		}},
+	})
+	userRepo := memory.NewUserRepository()
+	userRepo.Seed(&spec.User{Sub: "user-1", PreferredUsername: "alice"})
+	e := echo.New()
+	httpadapter.Register(e, core.Deps{
+		Issuer:           "https://idp.example",
+		SCL:              spec.MustLoadSCL(),
+		SamlSPRepo:       spRepo,
+		UserRepo:         userRepo,
+		FederationSigner: devSigner(t),
+		AuthnResolver:    stubResolver{ctx: &authdomain.AuthenticationContext{Sub: "user-1", AuthTime: time.Now().Unix()}},
+	})
+	samlReq := authnRequestRedirect(t, "https://sp.example.com", "https://sp.example.com/acs")
+	rec := get(e, "/saml/sso?SAMLRequest="+url.QueryEscape(samlReq))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status=%d, want 400", rec.Code)
 	}
 }
 
@@ -241,6 +321,49 @@ func TestSamlSLO_RedirectsToRegisteredSLOURL(t *testing.T) {
 	}
 	if !strings.Contains(rec.Header().Get("Set-Cookie"), "Max-Age=0") {
 		t.Fatalf("session cookie not cleared: %q", rec.Header().Get("Set-Cookie"))
+	}
+	if !hasEvent(*captured, "SamlLogout") {
+		t.Fatal("SamlLogout not emitted")
+	}
+}
+
+func TestSamlSLO_LogoutRequestReturnsLogoutResponse(t *testing.T) {
+	captured := &[]spec.DomainEvent{}
+	spRepo := memory.NewSamlServiceProviderRepository()
+	spRepo.Seed(&spec.SamlServiceProvider{
+		EntityID: "https://sp.example.com",
+		ACSURLs:  []string{"https://sp.example.com/acs"},
+		SLOURL:   "https://sp.example.com/saml/slo",
+		ClaimPolicy: spec.ClaimMappingPolicy{
+			NameID: spec.NameIdConfiguration{Format: spec.SamlNameIDFormatPersistent, SourceAttribute: "sub"},
+		},
+	})
+	e := echo.New()
+	httpadapter.Register(e, core.Deps{
+		Issuer:           "https://idp.example",
+		SCL:              spec.MustLoadSCL(),
+		SamlSPRepo:       spRepo,
+		UserRepo:         memory.NewUserRepository(),
+		FederationSigner: devSigner(t),
+		AuthnResolver:    stubResolver{ctx: nil},
+		Emit:             func(ev spec.DomainEvent) { *captured = append(*captured, ev) },
+	})
+	xml := `<samlp:LogoutRequest xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" ` +
+		`xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" ID="_logout-1" Version="2.0" ` +
+		`Destination="https://idp.example/realms/default/saml/slo">` +
+		`<saml:Issuer>https://sp.example.com</saml:Issuer>` +
+		`<saml:NameID>user-1</saml:NameID></samlp:LogoutRequest>`
+	samlReq, err := samldomain.EncodeRedirect([]byte(xml))
+	if err != nil {
+		t.Fatalf("encode LogoutRequest: %v", err)
+	}
+	rec := get(e, "/saml/slo?SAMLRequest="+url.QueryEscape(samlReq)+"&RelayState=s1")
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("status=%d, want 303 body=%s", rec.Code, rec.Body.String())
+	}
+	loc := rec.Header().Get("Location")
+	if !strings.HasPrefix(loc, "https://sp.example.com/saml/slo?SAMLResponse=") || !strings.Contains(loc, "RelayState=s1") {
+		t.Fatalf("Location=%q, want LogoutResponse redirect", loc)
 	}
 	if !hasEvent(*captured, "SamlLogout") {
 		t.Fatal("SamlLogout not emitted")
@@ -333,6 +456,16 @@ func TestAdminServiceProvider_RejectsInvalid(t *testing.T) {
 	e := newAdminServer(t)
 	// acs_urls 欠落。
 	body := `{"entity_id":"https://sp.example.com","claim_policy":{"name_id":{"format":"f","source_attribute":"sub"}}}`
+	if rec := doJSON(e, http.MethodPost, "/api/admin/saml/service-providers", body); rec.Code != http.StatusBadRequest {
+		t.Fatalf("status=%d, want 400", rec.Code)
+	}
+}
+
+func TestAdminServiceProvider_RejectsUnsupportedSignedAuthnRequests(t *testing.T) {
+	e := newAdminServer(t)
+	body := `{"entity_id":"https://sp.example.com","acs_urls":["https://sp.example.com/acs"],` +
+		`"want_authn_requests_signed":true,` +
+		`"claim_policy":{"name_id":{"format":"urn:oasis:names:tc:SAML:2.0:nameid-format:persistent","source_attribute":"sub"}}}`
 	if rec := doJSON(e, http.MethodPost, "/api/admin/saml/service-providers", body); rec.Code != http.StatusBadRequest {
 		t.Fatalf("status=%d, want 400", rec.Code)
 	}

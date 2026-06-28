@@ -28,6 +28,11 @@ func (d Deps) handleWsTrustUsernameMixed(c *echo.Context) error {
 		d.emit(&spec.WsTrustTokenRejected{At: now, TenantID: tenantID, Reason: err.Error()})
 		return c.String(http.StatusBadRequest, err.Error())
 	}
+	expectedTo := d.federationEndpoints(c).ActiveURL
+	if rst.To != expectedTo {
+		d.emit(&spec.WsTrustTokenRejected{At: now, TenantID: tenantID, AppliesTo: rst.AppliesTo, Reason: "To does not match active STS endpoint"})
+		return c.String(http.StatusBadRequest, "To does not match active STS endpoint")
+	}
 	if ok, err := d.recordWsTrustMessageID(c, rst.MessageID, now); err != nil {
 		return err
 	} else if !ok {

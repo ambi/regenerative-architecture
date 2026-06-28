@@ -1,0 +1,69 @@
+id: wi-83-postgres-federation-trust-persistence
+title: SAML と WS-Federation の trust 登録を PostgreSQL に永続化する
+created_at: 2026-06-28
+authors: [Codex]
+status: completed
+motivation: |
+  PERSISTENCE=postgres は durable state を PostgreSQL に置く方針だが、SAML SP と
+  WS-Federation RP の trust 登録だけが memory fallback に残っていた。Application
+  管理画面から federation binding を作成できても、postgres 構成では再起動で protocol
+  trust が失われるため、永続化アダプタの再生成可能性と運用上の期待に反する。
+scope:
+  scl_sections: []
+  contexts: [Saml, WsFederation, Infrastructure]
+  code:
+    - ra-idp-go/internal/infrastructure/persistence/postgres/saml_service_providers.go
+    - ra-idp-go/internal/infrastructure/persistence/postgres/wsfed_relying_parties.go
+    - ra-idp-go/internal/bootstrap/postgres.go
+    - ra-idp-go/deploy/migrations/0018_federation_trusts.sql
+out_of_scope:
+  - SAML / WS-Federation の wire 契約や request validation の変更
+  - Entra 実テナント接続検証
+  - 既存 memory adapter の意味変更
+initial_context:
+  docs:
+    - REGENERATIVE_ARCHITECTURE.md
+    - SPECIFICATION_CORE_LANGUAGE.md
+    - CHANGE_RECORD_FORMAT.md
+  decisions:
+    - ra-idp-go/decisions/ADR-016-persistence-adapter-selection.md
+    - ra-idp-go/decisions/ADR-064-protocol-contexts-and-application-catalog.md
+  work_items:
+    - ra-idp-go/work-items/wi-29-saml2-idp.yaml
+    - ra-idp-go/work-items/wi-61-ws-federation-passive-requestor-idp.yaml
+affected_guarantees:
+  - PERSISTENCE=postgres では durable な federation trust が PostgreSQL に保存される。
+  - tenant_id を主キーに含め、SAML SP / WS-Fed RP の参照はテナント境界に閉じる。
+  - federation request validation は登録済み trust の閉集合を postgres 構成でも参照する。
+verification:
+  - cmd: GOCACHE=/tmp/ra-idp-go-cache go test ./...
+    in: ra-idp-go
+  - cmd: bun run yaml-check:work-items
+    in: tools
+risk: medium
+risk_notes: |
+  既存 postgres 環境では AUTO_MIGRATE により新規テーブルが追加される。SAML / WS-Fed
+  trust を既に memory fallback にだけ持っていた実行中プロセスのデータは永続化されていないため、
+  再起動後は管理 API または Application 編集面から再登録が必要になる。
+completion:
+  completed_at: 2026-06-28
+  summary: |
+    SAML SP / WS-Fed RP 用の PostgreSQL migration と repository adapter を追加し、
+    PERSISTENCE=postgres の bootstrap で memory fallback ではなく PostgreSQL adapter を
+    配線した。SCL の protocol 契約は変更せず、durable adapter の欠落だけを埋めた。
+  verification:
+    - cmd: GOCACHE=/tmp/ra-idp-go-cache go test ./...
+      status: passed
+      environment: ra-idp-go
+      result: 全 Go package が成功。
+    - cmd: bun run yaml-check:work-items
+      status: passed
+      environment: tools
+      result: work item 90 file が成功。
+  affected_guarantees_state:
+    - guarantee: postgres durable federation trust
+      state: passed
+    - guarantee: tenant-scoped federation trust persistence
+      state: passed
+    - guarantee: postgres request validation trust lookup
+      state: passed

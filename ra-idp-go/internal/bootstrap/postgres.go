@@ -5,11 +5,10 @@ import (
 	"errors"
 	"os"
 
-	oauthports "ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/infrastructure/eventsink"
-	"ra-idp-go/internal/infrastructure/persistence/memory"
 	"ra-idp-go/internal/infrastructure/persistence/postgres"
 	valkeystore "ra-idp-go/internal/infrastructure/persistence/valkey"
+	oauthports "ra-idp-go/internal/oauth2/ports"
 )
 
 func assemblePostgres(ctx context.Context) (*Dependencies, error) {
@@ -50,34 +49,33 @@ func assemblePostgres(ctx context.Context) (*Dependencies, error) {
 		return nil, errors.New("EVENT_SINK must be console or outbox")
 	}
 	return &Dependencies{
-		TenantRepo:              &postgres.TenantRepository{Pool: pool},
-		AttrSchemaRepo:          &postgres.TenantUserAttributeSchemaRepository{Pool: pool},
-		ClientRepo:              &postgres.ClientRepository{Pool: pool},
-		UserRepo:                &postgres.UserRepository{Pool: pool},
-		GroupRepo:               &postgres.GroupRepository{Pool: pool},
-		AgentRepo:               &postgres.AgentRepository{Pool: pool},
-		MfaFactorRepo:           &postgres.MfaFactorRepository{Pool: pool},
-		PasswordHistoryRepo:     &postgres.PasswordHistoryRepository{Pool: pool},
-		PasswordResetTokenStore: &postgres.PasswordResetTokenStore{Pool: pool},
-		EmailChangeTokenStore:   &postgres.EmailChangeTokenStore{Pool: pool},
-		ConsentRepo:             &postgres.ConsentRepository{Pool: pool},
-		AuthzDetailTypeRepo:     &postgres.AuthorizationDetailTypeRepository{Pool: pool},
-		RequestStore:            &valkeystore.AuthorizationRequestStore{Client: valkeyClient},
-		CodeStore:               &valkeystore.AuthorizationCodeStore{Client: valkeyClient},
-		PARStore:                &valkeystore.PARStore{Client: valkeyClient},
-		RefreshStore:            &postgres.RefreshTokenStore{Pool: pool},
-		DeviceCodeStore:         &valkeystore.DeviceCodeStore{Client: valkeyClient},
-		DpopReplay:              &valkeystore.ReplayStore{Client: valkeyClient, Prefix: "dpop_replay:"},
-		ClientAssertionReplay:   &valkeystore.ReplayStore{Client: valkeyClient, Prefix: "client_assertion:"},
-		AccessTokenDenylist:     &valkeystore.AccessTokenDenylist{Client: valkeyClient},
-		SessionStore:            &valkeystore.SessionStore{Client: valkeyClient},
-		KeyStore:                keyStore,
-		EventSink:               sink,
-		AuditEventRepo:          &postgres.AuditEventRepository{Pool: pool},
-		AuthEventBucketStore:    &postgres.AuthEventBucketStore{Pool: pool},
-		// federation RP / SAML SP の postgres 永続化は後続スライス。現状は in-memory で代替する。
-		WsFedRPRepo:               memory.NewWsFedRelyingPartyRepository(),
-		SamlSPRepo:                memory.NewSamlServiceProviderRepository(),
+		TenantRepo:                &postgres.TenantRepository{Pool: pool},
+		AttrSchemaRepo:            &postgres.TenantUserAttributeSchemaRepository{Pool: pool},
+		ClientRepo:                &postgres.ClientRepository{Pool: pool},
+		UserRepo:                  &postgres.UserRepository{Pool: pool},
+		GroupRepo:                 &postgres.GroupRepository{Pool: pool},
+		AgentRepo:                 &postgres.AgentRepository{Pool: pool},
+		MfaFactorRepo:             &postgres.MfaFactorRepository{Pool: pool},
+		PasswordHistoryRepo:       &postgres.PasswordHistoryRepository{Pool: pool},
+		PasswordResetTokenStore:   &postgres.PasswordResetTokenStore{Pool: pool},
+		EmailChangeTokenStore:     &postgres.EmailChangeTokenStore{Pool: pool},
+		ConsentRepo:               &postgres.ConsentRepository{Pool: pool},
+		AuthzDetailTypeRepo:       &postgres.AuthorizationDetailTypeRepository{Pool: pool},
+		RequestStore:              &valkeystore.AuthorizationRequestStore{Client: valkeyClient},
+		CodeStore:                 &valkeystore.AuthorizationCodeStore{Client: valkeyClient},
+		PARStore:                  &valkeystore.PARStore{Client: valkeyClient},
+		RefreshStore:              &postgres.RefreshTokenStore{Pool: pool},
+		DeviceCodeStore:           &valkeystore.DeviceCodeStore{Client: valkeyClient},
+		DpopReplay:                &valkeystore.ReplayStore{Client: valkeyClient, Prefix: "dpop_replay:"},
+		ClientAssertionReplay:     &valkeystore.ReplayStore{Client: valkeyClient, Prefix: "client_assertion:"},
+		AccessTokenDenylist:       &valkeystore.AccessTokenDenylist{Client: valkeyClient},
+		SessionStore:              &valkeystore.SessionStore{Client: valkeyClient},
+		KeyStore:                  keyStore,
+		EventSink:                 sink,
+		AuditEventRepo:            &postgres.AuditEventRepository{Pool: pool},
+		AuthEventBucketStore:      &postgres.AuthEventBucketStore{Pool: pool},
+		WsFedRPRepo:               &postgres.WsFedRelyingPartyRepository{Pool: pool},
+		SamlSPRepo:                &postgres.SamlServiceProviderRepository{Pool: pool},
 		ApplicationRepo:           &postgres.ApplicationRepository{Pool: pool},
 		ApplicationAssignmentRepo: &postgres.ApplicationAssignmentRepository{Pool: pool},
 		Close: func() {

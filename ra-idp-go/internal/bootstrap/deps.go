@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	appports "ra-idp-go/internal/application/ports"
-	authports "ra-idp-go/internal/authentication/ports"
+	authnports "ra-idp-go/internal/authentication/ports"
 	idmports "ra-idp-go/internal/identitymanagement/ports"
 	oauthports "ra-idp-go/internal/oauth2/ports"
 	samlports "ra-idp-go/internal/saml/ports"
@@ -22,10 +22,10 @@ type Dependencies struct {
 	UserRepo                  oauthports.UserRepository
 	GroupRepo                 idmports.GroupRepository
 	AgentRepo                 idmports.AgentRepository
-	MfaFactorRepo             authports.MfaFactorRepository
-	PasswordHistoryRepo       authports.PasswordHistoryRepository
-	PasswordResetTokenStore   authports.PasswordResetTokenStore
-	EmailChangeTokenStore     authports.EmailChangeTokenStore
+	MfaFactorRepo             authnports.MfaFactorRepository
+	PasswordHistoryRepo       authnports.PasswordHistoryRepository
+	PasswordResetTokenStore   authnports.PasswordResetTokenStore
+	EmailChangeTokenStore     authnports.EmailChangeTokenStore
 	ConsentRepo               oauthports.ConsentRepository
 	AuthzDetailTypeRepo       oauthports.AuthorizationDetailTypeRepository
 	RequestStore              oauthports.AuthorizationRequestStore
@@ -36,11 +36,11 @@ type Dependencies struct {
 	DpopReplay                oauthports.DpopReplayStore
 	ClientAssertionReplay     oauthports.ClientAssertionReplayStore
 	AccessTokenDenylist       oauthports.AccessTokenDenylist
-	SessionStore              authports.SessionStore
+	SessionStore              authnports.SessionStore
 	KeyStore                  oauthports.KeyStore
 	EventSink                 oauthports.EventSink
 	AuditEventRepo            oauthports.AuditEventRepository
-	AuthEventBucketStore      authports.AuthEventBucketStore
+	AuthEventBucketStore      authnports.AuthEventBucketStore
 	WsFedRPRepo               wsfederationports.WsFedRelyingPartyRepository
 	SamlSPRepo                samlports.SamlServiceProviderRepository
 	ApplicationRepo           appports.ApplicationRepository

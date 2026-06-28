@@ -6,10 +6,10 @@ import (
 	"os"
 
 	oauthports "ra-idp-go/internal/oauth2/ports"
-	"ra-idp-go/internal/platform/eventsink"
-	"ra-idp-go/internal/platform/persistence/memory"
-	"ra-idp-go/internal/platform/persistence/postgres"
-	valkeystore "ra-idp-go/internal/platform/persistence/valkey"
+	"ra-idp-go/internal/infrastructure/eventsink"
+	"ra-idp-go/internal/infrastructure/persistence/memory"
+	"ra-idp-go/internal/infrastructure/persistence/postgres"
+	valkeystore "ra-idp-go/internal/infrastructure/persistence/valkey"
 )
 
 func assemblePostgres(ctx context.Context) (*Dependencies, error) {
@@ -22,7 +22,7 @@ func assemblePostgres(ctx context.Context) (*Dependencies, error) {
 		return nil, err
 	}
 	if envDefault("AUTO_MIGRATE", "true") == "true" {
-		if err := postgres.Migrate(ctx, pool, envDefault("MIGRATIONS_DIR", "infra/migrations")); err != nil {
+		if err := postgres.Migrate(ctx, pool, envDefault("MIGRATIONS_DIR", "deploy/migrations")); err != nil {
 			pool.Close()
 			return nil, err
 		}

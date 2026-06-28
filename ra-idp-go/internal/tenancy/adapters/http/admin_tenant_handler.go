@@ -7,7 +7,7 @@ import (
 	"slices"
 	"time"
 
-	"ra-idp-go/internal/platform/http/core"
+	"ra-idp-go/internal/infrastructure/http/core"
 	"ra-idp-go/internal/spec"
 	tenantusecases "ra-idp-go/internal/tenancy/usecases"
 

@@ -10,7 +10,7 @@ import (
 
 	authusecases "ra-idp-go/internal/authentication/usecases"
 	idmusecases "ra-idp-go/internal/identitymanagement/usecases"
-	"ra-idp-go/internal/platform/http/core"
+	"ra-idp-go/internal/infrastructure/http/core"
 	"ra-idp-go/internal/spec"
 
 	"github.com/labstack/echo/v5"

@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	authports "ra-idp-go/internal/authentication/ports"
+	authnports "ra-idp-go/internal/authentication/ports"
 	"ra-idp-go/internal/authentication/usecases"
-	"ra-idp-go/internal/platform/crypto"
-	"ra-idp-go/internal/platform/notification"
-	"ra-idp-go/internal/platform/persistence/memory"
+	"ra-idp-go/internal/infrastructure/crypto"
+	"ra-idp-go/internal/infrastructure/notification"
+	"ra-idp-go/internal/infrastructure/persistence/memory"
 	"ra-idp-go/internal/spec"
 )
 
@@ -89,7 +89,7 @@ func TestResetPasswordWithTokenConsumesTokenAndUpdatesPassword(t *testing.T) {
 		CreatedAt: now.Add(-time.Hour), UpdatedAt: now.Add(-time.Hour),
 	})
 	rawToken := "reset-token-aaaa"
-	if err := tokenStore.Save(ctx, authports.PasswordResetTokenRecord{
+	if err := tokenStore.Save(ctx, authnports.PasswordResetTokenRecord{
 		Sub: "user-alice", TokenHash: hashToken(rawToken),
 		CreatedAt: now, ExpiresAt: now.Add(30 * time.Minute),
 	}); err != nil {
@@ -126,7 +126,7 @@ func TestResetPasswordWithTokenConsumesTokenAndUpdatesPassword(t *testing.T) {
 func TestResetPasswordWithTokenRejectsExpiredToken(t *testing.T) {
 	store := memory.NewPasswordResetTokenStore()
 	now := time.Date(2026, 6, 13, 12, 0, 0, 0, time.UTC)
-	if err := store.Save(context.Background(), authports.PasswordResetTokenRecord{
+	if err := store.Save(context.Background(), authnports.PasswordResetTokenRecord{
 		Sub: "user-alice", TokenHash: hashToken("expired"),
 		CreatedAt: now.Add(-time.Hour), ExpiresAt: now.Add(-time.Minute),
 	}); err != nil {

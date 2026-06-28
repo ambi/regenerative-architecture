@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	authports "ra-idp-go/internal/authentication/ports"
+	authnports "ra-idp-go/internal/authentication/ports"
 	authusecases "ra-idp-go/internal/authentication/usecases"
 	oauthports "ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/spec"
@@ -41,10 +41,10 @@ type AdminUserDeps struct {
 	ConsentRepo         oauthports.ConsentRepository
 	RefreshStore        oauthports.RefreshTokenStore
 	DeviceCodeStore     oauthports.DeviceCodeStore
-	SessionStore        authports.SessionStore
-	MfaFactorRepo       authports.MfaFactorRepository
-	PasswordHasher      authports.PasswordHasher
-	PasswordHistoryRepo authports.PasswordHistoryRepository
+	SessionStore        authnports.SessionStore
+	MfaFactorRepo       authnports.MfaFactorRepository
+	PasswordHasher      authnports.PasswordHasher
+	PasswordHistoryRepo authnports.PasswordHistoryRepository
 	Emit                func(spec.DomainEvent)
 }
 

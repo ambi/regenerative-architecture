@@ -14,8 +14,8 @@ var AssuranceManifest = map[string][]AssuranceVerification{
 		{File: "ra-idp-go/internal/oauth2/domain/pkce_test.go", Check: "TestPKCES256RejectsMismatch"},
 	},
 	"AuthorizationCodeStoreContract": {
-		{File: "ra-idp-go/internal/platform/persistence/memory/memory_test.go", Check: "TestAuthorizationCodeRedeemIsAtomic"},
-		{File: "ra-idp-go/internal/platform/persistence/valkey/valkey_test.go", Check: "TestAuthorizationCodeRedeemOnce"},
+		{File: "ra-idp-go/internal/infrastructure/persistence/memory/memory_test.go", Check: "TestAuthorizationCodeRedeemIsAtomic"},
+		{File: "ra-idp-go/internal/infrastructure/persistence/valkey/valkey_test.go", Check: "TestAuthorizationCodeRedeemOnce"},
 	},
 	"AuthorizationPolicyTests": {
 		{File: "ra-idp-go/internal/oauth2/usecases/exchange_code_test.go", Check: "TestExchangeCodePKCEFailureDoesNotConsumeCode"},
@@ -42,7 +42,7 @@ var AssuranceManifest = map[string][]AssuranceVerification{
 		{File: "ra-idp-go/internal/authentication/usecases/password_policy_test.go", Check: "TestValidatePasswordRejectsTooShort"},
 	},
 	"ResetTokenStorageTests": {
-		{File: "ra-idp-go/internal/platform/persistence/memory/password_reset_token_store_test.go", Check: "TestPasswordResetTokenStoreConsumeSucceedsOnceConcurrently"},
+		{File: "ra-idp-go/internal/infrastructure/persistence/memory/password_reset_token_store_test.go", Check: "TestPasswordResetTokenStoreConsumeSucceedsOnceConcurrently"},
 		{File: "ra-idp-go/internal/authentication/usecases/password_reset_test.go", Check: "TestResetPasswordWithTokenConsumesTokenAndUpdatesPassword"},
 	},
 	"PersistenceSecretContracts": {

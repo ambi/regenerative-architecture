@@ -7,7 +7,7 @@ import (
 	"time"
 
 	authdomain "ra-idp-go/internal/authentication/domain"
-	"ra-idp-go/internal/platform/http/core"
+	"ra-idp-go/internal/infrastructure/http/core"
 	"ra-idp-go/internal/saml/adapters/samlresponse"
 	samldomain "ra-idp-go/internal/saml/domain"
 	"ra-idp-go/internal/spec"

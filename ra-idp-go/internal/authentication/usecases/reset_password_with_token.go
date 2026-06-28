@@ -6,7 +6,7 @@ import (
 	"slices"
 	"time"
 
-	authports "ra-idp-go/internal/authentication/ports"
+	authnports "ra-idp-go/internal/authentication/ports"
 	oauthports "ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/spec"
 	"ra-idp-go/internal/tenancy"
@@ -16,10 +16,10 @@ var ErrInvalidResetToken = errors.New("reset token is invalid or expired")
 
 type ResetPasswordWithTokenDeps struct {
 	UserRepo                oauthports.UserRepository
-	TokenStore              authports.PasswordResetTokenStore
-	PasswordHasher          authports.PasswordHasher
-	PasswordHistoryRepo     authports.PasswordHistoryRepository
-	BreachedPasswordChecker authports.BreachedPasswordChecker
+	TokenStore              authnports.PasswordResetTokenStore
+	PasswordHasher          authnports.PasswordHasher
+	PasswordHistoryRepo     authnports.PasswordHistoryRepository
+	BreachedPasswordChecker authnports.BreachedPasswordChecker
 	Emit                    func(spec.DomainEvent)
 	HistoryDepth            int                    // Deprecated: use Policy 指定。後方互換のためのフォールバック。
 	Policy                  PasswordPolicySnapshot // テナント解決済みのしきい値。ゼロ値は global default。

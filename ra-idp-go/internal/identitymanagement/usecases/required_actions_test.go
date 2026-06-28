@@ -8,8 +8,8 @@ import (
 
 	authusecases "ra-idp-go/internal/authentication/usecases"
 	idmusecases "ra-idp-go/internal/identitymanagement/usecases"
-	"ra-idp-go/internal/platform/crypto"
-	"ra-idp-go/internal/platform/persistence/memory"
+	"ra-idp-go/internal/infrastructure/crypto"
+	"ra-idp-go/internal/infrastructure/persistence/memory"
 	"ra-idp-go/internal/spec"
 )
 

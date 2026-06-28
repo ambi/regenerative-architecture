@@ -6,8 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	httpadapter "ra-idp-go/internal/platform/http"
-	"ra-idp-go/internal/platform/http/core"
+	httpadapter "ra-idp-go/internal/infrastructure/http"
+	"ra-idp-go/internal/infrastructure/http/core"
 	"ra-idp-go/internal/spec"
 
 	"github.com/labstack/echo/v5"

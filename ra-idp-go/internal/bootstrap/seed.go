@@ -6,7 +6,7 @@ import (
 	"time"
 
 	appports "ra-idp-go/internal/application/ports"
-	authports "ra-idp-go/internal/authentication/ports"
+	authnports "ra-idp-go/internal/authentication/ports"
 	authusecases "ra-idp-go/internal/authentication/usecases"
 	idmports "ra-idp-go/internal/identitymanagement/ports"
 	oauthdomain "ra-idp-go/internal/oauth2/domain"
@@ -20,11 +20,11 @@ func seedDemoData(
 	ctx context.Context,
 	clients oauthports.ClientRepository,
 	users oauthports.UserRepository,
-	mfaFactors authports.MfaFactorRepository,
-	passwordHistory authports.PasswordHistoryRepository,
+	mfaFactors authnports.MfaFactorRepository,
+	passwordHistory authnports.PasswordHistoryRepository,
 	groups idmports.GroupRepository,
 	authzDetailTypes oauthports.AuthorizationDetailTypeRepository,
-	hasher authports.PasswordHasher,
+	hasher authnports.PasswordHasher,
 ) error {
 	secretHash := oauthdomain.HashClientSecret(envDefault("DEMO_CLIENT_SECRET", "demo-client-secret"))
 	now := time.Now().UTC()

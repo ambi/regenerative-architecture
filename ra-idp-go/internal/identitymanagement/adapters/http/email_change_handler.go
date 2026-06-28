@@ -8,7 +8,7 @@ import (
 	"time"
 
 	idmusecases "ra-idp-go/internal/identitymanagement/usecases"
-	"ra-idp-go/internal/platform/http/core"
+	"ra-idp-go/internal/infrastructure/http/core"
 
 	"github.com/labstack/echo/v5"
 )

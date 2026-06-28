@@ -6,13 +6,13 @@ import (
 	"strings"
 	"time"
 
-	authports "ra-idp-go/internal/authentication/ports"
-	"ra-idp-go/internal/platform/notification"
+	authnports "ra-idp-go/internal/authentication/ports"
+	"ra-idp-go/internal/infrastructure/notification"
 )
 
 // resolveEmailSender は EMAIL_SENDER / SMTP_* 環境変数から EmailSender adapter を組み立てる。
 // 既定は console。smtp 選択時に SMTP_HOST / SMTP_FROM が無い場合は起動失敗 (ADR-035 §影響)。
-func resolveEmailSender(getenv func(string) string) (authports.EmailSender, error) {
+func resolveEmailSender(getenv func(string) string) (authnports.EmailSender, error) {
 	kind := strings.ToLower(strings.TrimSpace(getenv("EMAIL_SENDER")))
 	if kind == "" {
 		kind = "console"

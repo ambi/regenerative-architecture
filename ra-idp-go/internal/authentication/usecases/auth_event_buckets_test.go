@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	authports "ra-idp-go/internal/authentication/ports"
+	authnports "ra-idp-go/internal/authentication/ports"
 	"ra-idp-go/internal/authentication/usecases"
-	"ra-idp-go/internal/platform/persistence/memory"
+	"ra-idp-go/internal/infrastructure/persistence/memory"
 )
 
 func TestListAuthEventBucketsProjectsAndScopesByTenant(t *testing.T) {
@@ -20,7 +20,7 @@ func TestListAuthEventBucketsProjectsAndScopesByTenant(t *testing.T) {
 	}{
 		{"acme", "k1"}, {"acme", "k1"}, {"other", "k1"},
 	} {
-		if _, err := store.Record(ctx, authports.AuthEventBucketFailedLogin, rec.tenant, rec.key, base); err != nil {
+		if _, err := store.Record(ctx, authnports.AuthEventBucketFailedLogin, rec.tenant, rec.key, base); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -33,7 +33,7 @@ func TestListAuthEventBucketsProjectsAndScopesByTenant(t *testing.T) {
 		t.Fatalf("expected 1 acme bucket, got %d", len(views))
 	}
 	v := views[0]
-	if v.Kind != string(authports.AuthEventBucketFailedLogin) {
+	if v.Kind != string(authnports.AuthEventBucketFailedLogin) {
 		t.Fatalf("unexpected kind %q", v.Kind)
 	}
 	if v.Count != 2 {

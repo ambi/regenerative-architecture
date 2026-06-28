@@ -12,12 +12,12 @@ import (
 	"time"
 
 	authusecases "ra-idp-go/internal/authentication/usecases"
-	"ra-idp-go/internal/platform/crypto"
-	httpadapter "ra-idp-go/internal/platform/http"
-	httpcore "ra-idp-go/internal/platform/http/core"
-	"ra-idp-go/internal/platform/observability"
-	"ra-idp-go/internal/platform/persistence/memory"
-	"ra-idp-go/internal/platform/policy"
+	"ra-idp-go/internal/infrastructure/crypto"
+	httpadapter "ra-idp-go/internal/infrastructure/http"
+	httpcore "ra-idp-go/internal/infrastructure/http/core"
+	"ra-idp-go/internal/infrastructure/observability"
+	"ra-idp-go/internal/infrastructure/persistence/memory"
+	"ra-idp-go/internal/infrastructure/policy"
 	"ra-idp-go/internal/spec"
 	tenantusecases "ra-idp-go/internal/tenancy/usecases"
 

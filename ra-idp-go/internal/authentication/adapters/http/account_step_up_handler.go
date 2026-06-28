@@ -11,7 +11,7 @@ import (
 
 	authdomain "ra-idp-go/internal/authentication/domain"
 	authusecases "ra-idp-go/internal/authentication/usecases"
-	"ra-idp-go/internal/platform/http/core"
+	"ra-idp-go/internal/infrastructure/http/core"
 
 	"github.com/labstack/echo/v5"
 )

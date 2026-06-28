@@ -6,7 +6,7 @@ import (
 	"slices"
 	"time"
 
-	authports "ra-idp-go/internal/authentication/ports"
+	authnports "ra-idp-go/internal/authentication/ports"
 	oauthports "ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/spec"
 	"ra-idp-go/internal/tenancy"
@@ -19,7 +19,7 @@ var ErrInvalidEmailChangeToken = errors.New("email change token is invalid or ex
 // 認証済みセッションは要求しない (reset password と同方針)。
 type ConfirmEmailChangeDeps struct {
 	UserRepo   oauthports.UserRepository
-	TokenStore authports.EmailChangeTokenStore
+	TokenStore authnports.EmailChangeTokenStore
 	Emit       func(spec.DomainEvent)
 }
 

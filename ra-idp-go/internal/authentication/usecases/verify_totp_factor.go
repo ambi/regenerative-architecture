@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	authports "ra-idp-go/internal/authentication/ports"
+	authnports "ra-idp-go/internal/authentication/ports"
 	"ra-idp-go/internal/spec"
 )
 
@@ -15,7 +15,7 @@ type VerifyTOTPFactorResult struct {
 
 func VerifyTOTPFactor(
 	ctx context.Context,
-	repo authports.MfaFactorRepository,
+	repo authnports.MfaFactorRepository,
 	sub string,
 	code string,
 	now time.Time,

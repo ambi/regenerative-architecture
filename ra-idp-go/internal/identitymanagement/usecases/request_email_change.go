@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	authports "ra-idp-go/internal/authentication/ports"
+	authnports "ra-idp-go/internal/authentication/ports"
 	oauthports "ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/spec"
 	"ra-idp-go/internal/tenancy"
@@ -37,8 +37,8 @@ func sha256Hex(value string) string {
 // User.Email 更新は確定時まで起きない (新アドレスの所有確認を経るまで反映しない)。
 type RequestEmailChangeDeps struct {
 	UserRepo    oauthports.UserRepository
-	TokenStore  authports.EmailChangeTokenStore
-	EmailSender authports.EmailSender
+	TokenStore  authnports.EmailChangeTokenStore
+	EmailSender authnports.EmailSender
 	Emit        func(spec.DomainEvent)
 	Issuer      string
 	TokenTTL    time.Duration
@@ -89,7 +89,7 @@ func RequestEmailChange(ctx context.Context, deps RequestEmailChangeDeps, in Req
 	if ttl == 0 {
 		ttl = EmailChangeTokenTTLSeconds * time.Second
 	}
-	if err := deps.TokenStore.Save(ctx, authports.EmailChangeTokenRecord{
+	if err := deps.TokenStore.Save(ctx, authnports.EmailChangeTokenRecord{
 		Sub: user.Sub, TokenHash: sha256Hex(rawToken), NewEmail: newEmail,
 		CreatedAt: now, ExpiresAt: now.Add(ttl),
 	}); err != nil {
@@ -98,7 +98,7 @@ func RequestEmailChange(ctx context.Context, deps RequestEmailChangeDeps, in Req
 
 	verifyURL := strings.TrimRight(deps.Issuer, "/") + "/account/email/verify?token=" + url.QueryEscape(rawToken)
 	minutes := int(ttl.Round(time.Minute) / time.Minute)
-	delivered := deps.EmailSender.SendEmail(ctx, authports.EmailMessage{
+	delivered := deps.EmailSender.SendEmail(ctx, authnports.EmailMessage{
 		To:      newEmail,
 		Subject: "Confirm your new email address",
 		Text: fmt.Sprintf(

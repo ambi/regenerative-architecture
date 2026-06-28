@@ -16,9 +16,9 @@ import (
 	"time"
 
 	"ra-idp-go/internal/oauth2/domain"
-	httpadapter "ra-idp-go/internal/platform/http"
-	"ra-idp-go/internal/platform/http/core"
-	"ra-idp-go/internal/platform/persistence/memory"
+	httpadapter "ra-idp-go/internal/infrastructure/http"
+	"ra-idp-go/internal/infrastructure/http/core"
+	"ra-idp-go/internal/infrastructure/persistence/memory"
 	"ra-idp-go/internal/spec"
 
 	"github.com/labstack/echo/v5"

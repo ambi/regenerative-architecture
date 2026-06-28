@@ -8,7 +8,7 @@ import (
 	"context"
 	"time"
 
-	authports "ra-idp-go/internal/authentication/ports"
+	authnports "ra-idp-go/internal/authentication/ports"
 )
 
 const (
@@ -32,7 +32,7 @@ type AuthEventBucketView struct {
 // limit は [1, AuthEventBucketMaxLimit] にクランプし、0 以下は既定値。
 func ListAuthEventBuckets(
 	ctx context.Context,
-	store authports.AuthEventBucketStore,
+	store authnports.AuthEventBucketStore,
 	tenantID string,
 	limit int,
 ) ([]AuthEventBucketView, error) {

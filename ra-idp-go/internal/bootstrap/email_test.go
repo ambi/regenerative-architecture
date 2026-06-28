@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"ra-idp-go/internal/platform/notification"
+	"ra-idp-go/internal/infrastructure/notification"
 )
 
 func TestResolveEmailSenderDefaultsToConsole(t *testing.T) {

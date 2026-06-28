@@ -14,9 +14,9 @@ import (
 	"testing"
 	"time"
 
-	authports "ra-idp-go/internal/authentication/ports"
-	"ra-idp-go/internal/platform/http/core"
-	"ra-idp-go/internal/platform/persistence/memory"
+	authnports "ra-idp-go/internal/authentication/ports"
+	"ra-idp-go/internal/infrastructure/http/core"
+	"ra-idp-go/internal/infrastructure/persistence/memory"
 	"ra-idp-go/internal/spec"
 
 	"github.com/labstack/echo/v5"
@@ -25,18 +25,18 @@ import (
 type fakeLockedThrottle struct{}
 
 func (fakeLockedThrottle) TryAcquire(
-	context.Context, authports.LoginThrottleKind, string, time.Time,
-) (authports.LoginThrottleResult, error) {
-	return authports.LoginThrottleResult{Allowed: true}, nil
+	context.Context, authnports.LoginThrottleKind, string, time.Time,
+) (authnports.LoginThrottleResult, error) {
+	return authnports.LoginThrottleResult{Allowed: true}, nil
 }
 
 func (fakeLockedThrottle) RecordFailure(
-	context.Context, authports.LoginThrottleKind, string, time.Time,
-) (authports.LoginThrottleResult, error) {
-	return authports.LoginThrottleResult{Allowed: false, Locked: true, RetryAfterSeconds: 900}, nil
+	context.Context, authnports.LoginThrottleKind, string, time.Time,
+) (authnports.LoginThrottleResult, error) {
+	return authnports.LoginThrottleResult{Allowed: false, Locked: true, RetryAfterSeconds: 900}, nil
 }
 
-func (fakeLockedThrottle) RecordSuccess(context.Context, authports.LoginThrottleKind, string) error {
+func (fakeLockedThrottle) RecordSuccess(context.Context, authnports.LoginThrottleKind, string) error {
 	return nil
 }
 

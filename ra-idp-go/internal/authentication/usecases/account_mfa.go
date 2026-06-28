@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	authports "ra-idp-go/internal/authentication/ports"
+	authnports "ra-idp-go/internal/authentication/ports"
 	oauthports "ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/spec"
 	"ra-idp-go/internal/tenancy"
@@ -40,7 +40,7 @@ const totpFactorLabel = "Authenticator app"
 // ラベル導出に使う (authenticator アプリの表示名)。
 type AccountMfaDeps struct {
 	UserRepo      oauthports.UserRepository
-	MfaFactorRepo authports.MfaFactorRepository
+	MfaFactorRepo authnports.MfaFactorRepository
 	Emit          func(spec.DomainEvent)
 	Issuer        string
 }

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	authports "ra-idp-go/internal/authentication/ports"
+	authnports "ra-idp-go/internal/authentication/ports"
 	oauthports "ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/spec"
 	"ra-idp-go/internal/tenancy"
@@ -21,8 +21,8 @@ const PasswordResetTokenTTLSeconds = 1800
 
 type RequestPasswordResetDeps struct {
 	UserRepo    oauthports.UserRepository
-	TokenStore  authports.PasswordResetTokenStore
-	EmailSender authports.EmailSender
+	TokenStore  authnports.PasswordResetTokenStore
+	EmailSender authnports.EmailSender
 	Emit        func(spec.DomainEvent)
 	Issuer      string
 	TokenTTL    time.Duration
@@ -63,7 +63,7 @@ func RequestPasswordReset(ctx context.Context, deps RequestPasswordResetDeps, in
 	if ttl == 0 {
 		ttl = PasswordResetTokenTTLSeconds * time.Second
 	}
-	if err := deps.TokenStore.Save(ctx, authports.PasswordResetTokenRecord{
+	if err := deps.TokenStore.Save(ctx, authnports.PasswordResetTokenRecord{
 		Sub:       user.Sub,
 		TokenHash: sha256Hex(rawToken),
 		CreatedAt: now,
@@ -76,7 +76,7 @@ func RequestPasswordReset(ctx context.Context, deps RequestPasswordResetDeps, in
 	minutes := int(ttl.Round(time.Minute) / time.Minute)
 	// Send to the verified address stored on the account, not the raw request
 	// input, so untrusted request data never reaches the email content (CWE-640).
-	delivered := deps.EmailSender.SendEmail(ctx, authports.EmailMessage{
+	delivered := deps.EmailSender.SendEmail(ctx, authnports.EmailMessage{
 		To:      *user.Email,
 		Subject: "Password reset",
 		Text: fmt.Sprintf(

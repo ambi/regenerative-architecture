@@ -15,11 +15,11 @@ import (
 	"time"
 
 	authdomain "ra-idp-go/internal/authentication/domain"
-	authports "ra-idp-go/internal/authentication/ports"
+	authnports "ra-idp-go/internal/authentication/ports"
 	authusecases "ra-idp-go/internal/authentication/usecases"
 	oauthdomain "ra-idp-go/internal/oauth2/domain"
 	"ra-idp-go/internal/oauth2/usecases"
-	"ra-idp-go/internal/platform/http/core"
+	"ra-idp-go/internal/infrastructure/http/core"
 	"ra-idp-go/internal/spec"
 
 	"github.com/labstack/echo/v5"
@@ -337,13 +337,13 @@ func (d Deps) handleLoginAPI(c *echo.Context) error {
 
 	normalizedUsername := strings.ToLower(input.Username)
 	clientIP := extractClientIP(c.Request(), d.TrustedForwardedHops)
-	if result, err := d.acquireLoginThrottle(c, authports.LoginThrottleAccount, normalizedUsername); err != nil {
+	if result, err := d.acquireLoginThrottle(c, authnports.LoginThrottleAccount, normalizedUsername); err != nil {
 		return err
 	} else if !result.Allowed {
 		return writeLoginThrottled(c, result.RetryAfterSeconds)
 	}
 	if clientIP != "" {
-		if result, err := d.acquireLoginThrottle(c, authports.LoginThrottleIP, clientIP); err != nil {
+		if result, err := d.acquireLoginThrottle(c, authnports.LoginThrottleIP, clientIP); err != nil {
 			return err
 		} else if !result.Allowed {
 			return writeLoginThrottled(c, result.RetryAfterSeconds)
@@ -382,7 +382,7 @@ func (d Deps) handleLoginAPI(c *echo.Context) error {
 	}
 	if d.LoginAttemptThrottle != nil {
 		if err := d.LoginAttemptThrottle.RecordSuccess(
-			c.Request().Context(), authports.LoginThrottleAccount, normalizedUsername,
+			c.Request().Context(), authnports.LoginThrottleAccount, normalizedUsername,
 		); err != nil {
 			return err
 		}
@@ -893,11 +893,11 @@ func (d Deps) emitAuthenticationFailure(c *echo.Context, username, reason string
 
 func (d Deps) acquireLoginThrottle(
 	c *echo.Context,
-	kind authports.LoginThrottleKind,
+	kind authnports.LoginThrottleKind,
 	key string,
-) (authports.LoginThrottleResult, error) {
+) (authnports.LoginThrottleResult, error) {
 	if d.LoginAttemptThrottle == nil {
-		return authports.LoginThrottleResult{Allowed: true}, nil
+		return authnports.LoginThrottleResult{Allowed: true}, nil
 	}
 	return d.LoginAttemptThrottle.TryAcquire(c.Request().Context(), kind, key, time.Now().UTC())
 }
@@ -913,11 +913,11 @@ func (d Deps) recordLoginFailure(c *echo.Context, username, clientIP string) (bo
 	now := time.Now().UTC()
 	aggregated := false
 	for _, attempt := range []struct {
-		kind authports.LoginThrottleKind
+		kind authnports.LoginThrottleKind
 		key  string
 	}{
-		{authports.LoginThrottleAccount, username},
-		{authports.LoginThrottleIP, clientIP},
+		{authnports.LoginThrottleAccount, username},
+		{authnports.LoginThrottleIP, clientIP},
 	} {
 		if attempt.key == "" {
 			continue
@@ -959,7 +959,7 @@ func (d Deps) recordFailedLoginBucket(c *echo.Context, keyHash string, now time.
 		return false
 	}
 	result, err := d.AuthEventBucketStore.Record(
-		c.Request().Context(), authports.AuthEventBucketFailedLogin, core.RequestTenantID(c), keyHash, now,
+		c.Request().Context(), authnports.AuthEventBucketFailedLogin, core.RequestTenantID(c), keyHash, now,
 	)
 	if err != nil {
 		return false
@@ -977,7 +977,7 @@ func (d Deps) recordFailedLoginBucket(c *echo.Context, keyHash string, now time.
 	return true
 }
 
-func failedLoginBucketKey(bucket authports.AuthEventBucket) string {
+func failedLoginBucketKey(bucket authnports.AuthEventBucket) string {
 	return string(bucket.Kind) + ":" + bucket.KeyHash + ":" +
 		strconv.FormatInt(bucket.WindowStart.Unix(), 10)
 }

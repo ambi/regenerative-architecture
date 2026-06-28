@@ -13,9 +13,9 @@ import (
 	"time"
 
 	authdomain "ra-idp-go/internal/authentication/domain"
-	httpadapter "ra-idp-go/internal/platform/http"
-	"ra-idp-go/internal/platform/http/core"
-	"ra-idp-go/internal/platform/persistence/memory"
+	httpadapter "ra-idp-go/internal/infrastructure/http"
+	"ra-idp-go/internal/infrastructure/http/core"
+	"ra-idp-go/internal/infrastructure/persistence/memory"
 	"ra-idp-go/internal/spec"
 	tenancyhttp "ra-idp-go/internal/tenancy/adapters/http"
 

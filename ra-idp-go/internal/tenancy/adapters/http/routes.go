@@ -1,11 +1,11 @@
 // Package http: tenancy コンテキストの HTTP アダプタ。
 //
 // テナント設定・ユーザ属性スキーマ・テナント CRUD (control-plane) のハンドラを所有し、
-// 共有基盤 core.Deps を受け取って router (platform/http) から登録される。
+// 共有基盤 core.Deps を受け取って router (infrastructure/http) から登録される。
 package http
 
 import (
-	"ra-idp-go/internal/platform/http/core"
+	"ra-idp-go/internal/infrastructure/http/core"
 
 	"github.com/labstack/echo/v5"
 )

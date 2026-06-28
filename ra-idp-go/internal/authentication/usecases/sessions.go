@@ -11,7 +11,7 @@ import (
 	"sort"
 	"time"
 
-	authports "ra-idp-go/internal/authentication/ports"
+	authnports "ra-idp-go/internal/authentication/ports"
 	"ra-idp-go/internal/spec"
 )
 
@@ -20,7 +20,7 @@ var ErrSessionNotFound = errors.New("session not found")
 
 // SessionDeps はセッション use case の依存。
 type SessionDeps struct {
-	Store authports.SessionStore
+	Store authnports.SessionStore
 	Emit  func(spec.DomainEvent)
 }
 
@@ -38,7 +38,7 @@ type SessionView struct {
 // 一致するものを Current=true でマークする。
 func ListSessions(
 	ctx context.Context,
-	store authports.SessionStore,
+	store authnports.SessionStore,
 	sub, currentSessionID string,
 ) ([]SessionView, error) {
 	if store == nil {

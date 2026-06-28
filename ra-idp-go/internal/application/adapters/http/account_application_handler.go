@@ -8,7 +8,7 @@ import (
 
 	appports "ra-idp-go/internal/application/ports"
 	appusecases "ra-idp-go/internal/application/usecases"
-	"ra-idp-go/internal/platform/http/core"
+	"ra-idp-go/internal/infrastructure/http/core"
 	"ra-idp-go/internal/spec"
 
 	"github.com/labstack/echo/v5"

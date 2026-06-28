@@ -77,7 +77,7 @@ bun run dev
 Docker ComposeではCaddyが `http://localhost:8080` でUIとAPIを公開する。
 
 ```bash
-docker compose -f infra/docker/docker-compose.dev.yaml up --build
+docker compose -f deploy/docker/docker-compose.dev.yaml up --build
 ```
 
 主要な OAuth 2.0 / OpenID Connect フローを実行する:
@@ -144,7 +144,7 @@ go run ./cmd/ra-idp-relay
 | `DATABASE_URL`       | PostgreSQL 接続先。`postgres` 時に必須                                            |
 | `VALKEY_URL`         | Valkey 接続先。`postgres` 時に必須                                                |
 | `AUTO_MIGRATE`       | 起動時のマイグレーション (`true`)                                                 |
-| `MIGRATIONS_DIR`     | `infra/migrations`                                                                |
+| `MIGRATIONS_DIR`     | `deploy/migrations`                                                                |
 | `EVENT_SINK`         | `console` / `outbox` (`console`)                                                  |
 | `OBSERVABILITY`      | `noop` / `otel` (`noop`)                                                          |
 | `AUTHZEN`            | `local` / `remote` (`local`)                                                      |
@@ -231,7 +231,7 @@ ra-idp-go/
 ├── internal/tenancy/                   Layer 3+4: テナント (domain / ports / usecases / adapters/http)
 ├── internal/oauth2/                    Layer 3+4: OAuth2 (domain / ports / usecases / adapters/http)
 ├── internal/authentication/            Layer 3+4: 認証 (domain / ports / usecases / adapters/http)
-├── internal/platform/                  Layer 4: コンテキスト横断アダプタ
+├── internal/infrastructure/            Layer 4: コンテキスト横断アダプタ実装
 │   ├── crypto/                         Argon2id, PS256, DPoP, private_key_jwt
 │   ├── persistence/                    memory / PostgreSQL / Valkey（リソース別ファイル）
 │   ├── http/                           Echo v5 router + core（各 context の adapters/http を集約）
@@ -240,16 +240,18 @@ ra-idp-go/
 │   ├── notification/                   メール送信
 │   └── eventsink/                      console / Kafka relay
 ├── internal/bootstrap/                 Layer 5: 配線 (DI / seed / server)
-└── infra/                              migrations / Docker Compose / OTel Collector
+└── deploy/                             Layer 5: migrations / Docker Compose / OTel Collector
 ```
 
 > 構造軸 (ADR-047): 水平の5層に加え、垂直の境界づけられたコンテキスト
 > (`tenancy` / `authentication` / `oauth2`) で分割する (RA §3.6)。Layer 3 と HTTP
 > アダプタ (`adapters/http`) は各コンテキストが所有し、HTTP の共有基盤
 > (依存集約 `core.Deps`・テナント解決 middleware・横断ヘルパ) は
-> `internal/platform/http/core` に、コンテキスト横断のその他 Layer 4 アダプタは
-> `internal/platform/` に集約する。`internal/platform/http` は各コンテキストの
-> `RegisterRoutes` を束ねる router (wi-48)。
+> `internal/infrastructure/http/core` に、コンテキスト横断のその他 Layer 4 アダプタ実装は
+> `internal/infrastructure/` に集約する。`internal/infrastructure/http` は各コンテキストの
+> `RegisterRoutes` を束ねる router (wi-48)。`internal/` は Go の import 境界であり、
+> 外部 module からの利用を禁止する。`deploy/` は実行環境・配布資材を置く Layer 5 で、
+> `internal/infrastructure/` の Go 実装とは分ける。
 
 ## 実装ロードマップ
 

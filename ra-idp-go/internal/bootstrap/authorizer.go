@@ -5,7 +5,7 @@ import (
 	"os"
 
 	oauthports "ra-idp-go/internal/oauth2/ports"
-	"ra-idp-go/internal/platform/policy"
+	"ra-idp-go/internal/infrastructure/policy"
 )
 
 func assembleAuthorizer() (oauthports.Authorizer, error) {

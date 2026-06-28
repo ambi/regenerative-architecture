@@ -1,0 +1,41 @@
+id: wi-81-rename-authentication-ports-alias
+title: authentication ports の import alias を authnports に改名する
+created_at: 2026-06-28
+authors: [Codex]
+status: completed
+motivation: |
+  `authports` は authentication の略として使われていたが、authorization の略にも見え、
+  `oauthports` と並んだときに責務が読み取りづらい。認証を表す `authnports` に揃え、
+  authn/authz の区別を import alias に反映する。
+scope:
+  scl_sections: []
+  code:
+    - ra-idp-go/internal/** imports of ra-idp-go/internal/authentication/ports
+out_of_scope:
+  - package 名やディレクトリ名の変更
+  - SCL の規範振る舞い変更
+  - OAuth2 ports の alias 変更
+initial_context:
+  docs:
+    - REGENERATIVE_ARCHITECTURE.md
+    - SPECIFICATION_CORE_LANGUAGE.md
+affected_guarantees:
+  - 挙動不変の import alias 変更であり、既存 Go test による回帰確認を保証義務とする。
+verification:
+  - GOCACHE=/tmp/ra-idp-go-cache go test ./...
+risk: low
+risk_notes: |
+  Go import alias と参照識別子だけの変更で、型・関数・package path は変えない。
+completion:
+  completed_at: 2026-06-28
+  summary: |
+    `ra-idp-go/internal/authentication/ports` の import alias を `authports` から
+    `authnports` に変更した。package 名、ディレクトリ名、SCL、公開 API は変更していない。
+  verification:
+    - cmd: GOCACHE=/tmp/ra-idp-go-cache go test ./...
+      status: passed
+      environment: /Users/tn/src/regenerative-architecture/ra-idp-go
+      result: 全 Go package が成功。
+  affected_guarantees_state:
+    - guarantee: 挙動不変の import alias 変更
+      state: passed

@@ -1,12 +1,12 @@
 // Package http は Saml bounded context の HTTP アダプタ (wi-29)。
 //
 // SAML 2.0 Web Browser SSO Profile のブラウザエンドポイント (metadata / SSO / SLO) と、
-// service provider 管理 API を所有する。共有基盤 core.Deps を受け取り、router (platform/http) から
+// service provider 管理 API を所有する。共有基盤 core.Deps を受け取り、router (infrastructure/http) から
 // tenant 解決済みグループに登録される。
 package http
 
 import (
-	"ra-idp-go/internal/platform/http/core"
+	"ra-idp-go/internal/infrastructure/http/core"
 
 	"github.com/labstack/echo/v5"
 )

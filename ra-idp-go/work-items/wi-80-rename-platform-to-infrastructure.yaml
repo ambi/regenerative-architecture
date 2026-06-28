@@ -1,0 +1,53 @@
+id: wi-80-rename-platform-to-infrastructure
+title: ra-idp-go の横断アダプタ実装ディレクトリを infrastructure に改名する
+created_at: 2026-06-28
+authors: [Codex]
+status: completed
+motivation: |
+  `internal/platform/` は OS platform を連想させるが、実際には Clean Architecture /
+  DDD / RA の Layer 4 に属するコンテキスト横断アダプタ実装を収容している。
+  Go 側のディレクトリ名を Layer 4 の責務に合わせる。top-level の `infra/` は
+  `deploy/` へ改名し、`internal/infrastructure/` との語義衝突を避ける。
+  あわせて Go の `internal/` 境界の意味も文書化する。
+scope:
+  scl_sections: []
+  code:
+    - ra-idp-go/internal/infrastructure/
+    - ra-idp-go/internal/*/**.go import path
+  decisions:
+    - ra-idp-go/decisions/ADR-047-context-owned-adapter-layout.md
+    - ra-idp-go/decisions/ADR-068-infrastructure-directory-for-cross-context-adapters.md
+  docs:
+    - ra-idp-go/README.md
+out_of_scope:
+  - SCL の規範振る舞い変更
+  - HTTP route、DB schema、公開 API の変更
+  - 過去 work item の監査記録に含まれる旧パス参照の書き換え
+initial_context:
+  decisions:
+    - ra-idp-go/decisions/ADR-047-context-owned-adapter-layout.md
+  docs:
+    - REGENERATIVE_ARCHITECTURE.md
+    - SPECIFICATION_CORE_LANGUAGE.md
+affected_guarantees:
+  - 挙動不変の構造変更であり、既存 Go test による回帰確認を保証義務とする。
+verification:
+  - GOCACHE=/tmp/ra-idp-go-cache go test ./...
+risk: low
+risk_notes: |
+  import path とディレクトリ名の一括変更であり、実行時の意味変更はない。
+  リスクは置換漏れによる build/test failure に限定される。
+completion:
+  completed_at: 2026-06-28
+  summary: |
+    `internal/platform/` を `internal/infrastructure/` に改名し、top-level の
+    `infra/` を `deploy/` に改名した。Go import path、README、ADR、実行パスを更新した。
+    SCL、HTTP route、DB schema、公開 API は変更していない。
+  verification:
+    - cmd: GOCACHE=/tmp/ra-idp-go-cache go test ./...
+      status: passed
+      environment: /Users/tn/src/regenerative-architecture/ra-idp-go
+      result: 全 Go package が成功。
+  affected_guarantees_state:
+    - guarantee: 挙動不変の構造変更
+      state: passed

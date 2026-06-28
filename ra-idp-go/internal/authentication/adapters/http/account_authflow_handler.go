@@ -10,7 +10,7 @@ import (
 	"github.com/labstack/echo/v5"
 
 	authusecases "ra-idp-go/internal/authentication/usecases"
-	"ra-idp-go/internal/platform/http/core"
+	"ra-idp-go/internal/infrastructure/http/core"
 )
 
 type accountContextResponse struct {

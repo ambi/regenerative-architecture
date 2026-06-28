@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"ra-idp-go/internal/oauth2/usecases"
-	"ra-idp-go/internal/platform/crypto"
-	"ra-idp-go/internal/platform/http/core"
+	"ra-idp-go/internal/infrastructure/crypto"
+	"ra-idp-go/internal/infrastructure/http/core"
 	"ra-idp-go/internal/spec"
 
 	"github.com/labstack/echo/v5"

@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	authports "ra-idp-go/internal/authentication/ports"
-	"ra-idp-go/internal/platform/http/core"
+	authnports "ra-idp-go/internal/authentication/ports"
+	"ra-idp-go/internal/infrastructure/http/core"
 	"ra-idp-go/internal/spec"
 	"ra-idp-go/internal/wsfederation/adapters/samltoken"
 	"ra-idp-go/internal/wsfederation/adapters/wstrust"
@@ -101,7 +101,7 @@ func (d Deps) recordWsTrustMessageID(c *echo.Context, messageID string, now time
 func (d Deps) authenticateWsTrustUser(c *echo.Context, username, password string, now time.Time) (*spec.User, error) {
 	normalizedUsername := strings.ToLower(username)
 	if d.LoginAttemptThrottle != nil {
-		result, err := d.LoginAttemptThrottle.TryAcquire(c.Request().Context(), authports.LoginThrottleAccount, normalizedUsername, now)
+		result, err := d.LoginAttemptThrottle.TryAcquire(c.Request().Context(), authnports.LoginThrottleAccount, normalizedUsername, now)
 		if err != nil {
 			return nil, err
 		}
@@ -123,12 +123,12 @@ func (d Deps) authenticateWsTrustUser(c *echo.Context, username, password string
 	}
 	if user == nil || err != nil || !ok || !user.IsActive() {
 		if d.LoginAttemptThrottle != nil {
-			_, _ = d.LoginAttemptThrottle.RecordFailure(c.Request().Context(), authports.LoginThrottleAccount, normalizedUsername, now)
+			_, _ = d.LoginAttemptThrottle.RecordFailure(c.Request().Context(), authnports.LoginThrottleAccount, normalizedUsername, now)
 		}
 		return nil, errBadRequest("invalid credentials")
 	}
 	if d.LoginAttemptThrottle != nil {
-		if err := d.LoginAttemptThrottle.RecordSuccess(c.Request().Context(), authports.LoginThrottleAccount, normalizedUsername); err != nil {
+		if err := d.LoginAttemptThrottle.RecordSuccess(c.Request().Context(), authnports.LoginThrottleAccount, normalizedUsername); err != nil {
 			return nil, err
 		}
 	}

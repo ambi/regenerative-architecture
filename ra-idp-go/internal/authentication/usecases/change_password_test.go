@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"ra-idp-go/internal/platform/crypto"
-	"ra-idp-go/internal/platform/persistence/memory"
+	"ra-idp-go/internal/infrastructure/crypto"
+	"ra-idp-go/internal/infrastructure/persistence/memory"
 	"ra-idp-go/internal/spec"
 )
 

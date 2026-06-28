@@ -11,10 +11,10 @@ import (
 	"time"
 
 	authusecases "ra-idp-go/internal/authentication/usecases"
-	"ra-idp-go/internal/platform/crypto"
-	httpadapter "ra-idp-go/internal/platform/http"
-	"ra-idp-go/internal/platform/http/core"
-	"ra-idp-go/internal/platform/persistence/memory"
+	"ra-idp-go/internal/infrastructure/crypto"
+	httpadapter "ra-idp-go/internal/infrastructure/http"
+	"ra-idp-go/internal/infrastructure/http/core"
+	"ra-idp-go/internal/infrastructure/persistence/memory"
 	"ra-idp-go/internal/spec"
 
 	"github.com/labstack/echo/v5"

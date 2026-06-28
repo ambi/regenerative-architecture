@@ -12,7 +12,7 @@ import (
 	"time"
 
 	oauthports "ra-idp-go/internal/oauth2/ports"
-	"ra-idp-go/internal/platform/http/core"
+	"ra-idp-go/internal/infrastructure/http/core"
 	"ra-idp-go/internal/spec"
 
 	"github.com/labstack/echo/v5"

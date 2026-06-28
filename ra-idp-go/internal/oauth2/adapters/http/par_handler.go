@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"ra-idp-go/internal/oauth2/usecases"
-	"ra-idp-go/internal/platform/http/core"
+	"ra-idp-go/internal/infrastructure/http/core"
 
 	"github.com/labstack/echo/v5"
 )

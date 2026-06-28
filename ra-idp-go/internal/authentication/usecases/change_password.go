@@ -6,7 +6,7 @@ import (
 	"slices"
 	"time"
 
-	authports "ra-idp-go/internal/authentication/ports"
+	authnports "ra-idp-go/internal/authentication/ports"
 	oauthports "ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/spec"
 )
@@ -26,8 +26,8 @@ type ChangePasswordInput struct {
 
 type ChangePasswordDeps struct {
 	UserRepo            oauthports.UserRepository
-	PasswordHasher      authports.PasswordHasher
-	PasswordHistoryRepo authports.PasswordHistoryRepository
+	PasswordHasher      authnports.PasswordHasher
+	PasswordHistoryRepo authnports.PasswordHistoryRepository
 	Emit                func(spec.DomainEvent)
 	HistoryDepth        int                    // Deprecated: use Policy 指定。後方互換のためのフォールバック。
 	Policy              PasswordPolicySnapshot // テナント解決済みのしきい値。ゼロ値は global default。

@@ -98,4 +98,4 @@ dev-ui:
 
 # Start the Docker Compose development stack.
 dev-compose:
-    cd ra-idp-go && docker compose -f infra/docker/docker-compose.dev.yaml up --build
+    cd ra-idp-go && docker compose -f deploy/docker/docker-compose.dev.yaml up --build

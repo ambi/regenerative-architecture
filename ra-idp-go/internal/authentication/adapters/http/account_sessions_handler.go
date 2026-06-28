@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"time"
 
-	authports "ra-idp-go/internal/authentication/ports"
+	authnports "ra-idp-go/internal/authentication/ports"
 	authusecases "ra-idp-go/internal/authentication/usecases"
-	"ra-idp-go/internal/platform/http/core"
+	"ra-idp-go/internal/infrastructure/http/core"
 
 	"github.com/labstack/echo/v5"
 )
@@ -34,7 +34,7 @@ func toAccountSessionResponse(view authusecases.SessionView) accountSessionRespo
 	}
 }
 
-func (d Deps) sessionStore() authports.SessionStore {
+func (d Deps) sessionStore() authnports.SessionStore {
 	if d.SessionManager == nil {
 		return nil
 	}

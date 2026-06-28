@@ -8,7 +8,7 @@ import (
 	"time"
 
 	authusecases "ra-idp-go/internal/authentication/usecases"
-	"ra-idp-go/internal/platform/http/core"
+	"ra-idp-go/internal/infrastructure/http/core"
 	"ra-idp-go/internal/spec"
 	"ra-idp-go/internal/tenancy"
 

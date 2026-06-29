@@ -2,6 +2,10 @@
 
 仕様核 `spec/scl.yaml` をもとに Regenerative Architecture に従って開発している IdP アプリケーション。
 
+AI エージェントや新しい開発者が最初に読む実装索引は
+[`ARCHITECTURE.md`](ARCHITECTURE.md) に置く。詳細な規範仕様は `spec/`、判断理由は
+`decisions/`、変更履歴と検証記録は `work-items/` を正とする。
+
 ## 範囲
 
 OAuth 2.0 / OpenID Connect の認可サーバー兼 IdP として次を備える。各機能の設計判断は

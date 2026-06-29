@@ -1,0 +1,137 @@
+id: wi-84-application-portal-drag-and-drop-reordering
+title: 利用者ポータルのアプリ並び替えをドラッグアンドドロップで操作できるようにする
+created_at: 2026-06-30
+authors: [tn]
+status: completed
+
+motivation: |
+  [[wi-70-application-portal-ordering-and-grouping]] で利用者ごとの手動並び順とカテゴリ表示は
+  実装済みだが、現在の UI は編集モードで上下ボタンを押す方式であり、アプリタイルを直接
+  並び替える体験にはなっていない。
+
+  Microsoft Entra My Apps collections は、アプリを collection / tab で整理し、選択済み
+  アプリ一覧では矢印で順序を変更できる。Okta の End-User Dashboard のような主要 IdP の
+  アプリポータルも、利用者がアプリを見つけやすいようにタイル型ランチャーと整理操作を
+  中心にしている。現代的な利用者ポータルでは、一覧と別のフォームへ移動せず、タイルを
+  直接つかんで並べ替え、保存前に結果を確認できることが期待される。
+
+  本 WI は既存の `ReorderMyApplications` 契約と ApplicationOrdering 永続化を変えず、
+  UI を「タイル左上のグリップをドラッグして並び替える」操作へ更新する。dnd-kit の sortable
+  実装に寄せ、ポインタ操作に加えてキーボード操作も残し、アクセシビリティとモバイル/
+  デスクトップ双方の操作性を損なわない。
+
+scope:
+  scl:
+    - >-
+      `AccountApps` の user_experience 要件に、通常表示でのドラッグハンドルによる並び替え、
+      キーボード代替操作、自動保存、割当済み visible アプリだけを保存対象にすることを明示する。
+      interface / model / persistence は既存の `ReorderMyApplications` / `ApplicationOrdering`
+      を使うため追加しない。
+  ui:
+    - >-
+      account アプリポータルの編集モードを、現在の上下ボタンだけのリストから、タイル左上の
+      グリップをドラッグして並べ替えられるグリッドへ変更する。
+    - >-
+      dnd-kit の DndContext / SortableContext / DragOverlay を使い、ドラッグ中の visual state、
+      drop target、保存中/失敗状態、ドラッグ完了後の自動保存を実装する。
+    - >-
+      キーボード利用者向けに、各タイルへ同等の順序変更操作を残し、screen reader 向けに
+      移動操作をラベルで伝える。
+
+initial_context:
+  features: [ApplicationCatalog, AccountPortal]
+  scl:
+    components: [ApplicationCatalog]
+    related_components: [Authentication]
+  decisions:
+    - decisions/ADR-069-portal-application-ordering-and-grouping.md
+  source:
+    - spec/contexts/application.yaml
+    - ui/src/features/account/AccountAppsPage.tsx
+    - ui/src/api/account.ts
+  tests:
+    - internal/application/usecases/orderings_test.go
+    - internal/application/adapters/http/account_application_order_test.go
+
+out_of_scope:
+  - "`ReorderMyApplications` API、ApplicationOrdering 永続化、カテゴリ CRUD の変更。"
+  - 管理者によるカテゴリ内アプリ順序の編集。利用者自身のポータル順序だけを扱う。
+  - 利用頻度・最近使った順などの自動ソート。
+
+affected_guarantees:
+  - >-
+    findability: 利用者は割当済みアプリが増えても、タイルを直接並び替えて目的のアプリを
+    見つけやすい位置に置ける。
+  - >-
+    accessibility: ドラッグ操作に依存せず、キーボード操作でも同じ順序変更ができる。
+  - >-
+    assignment scoping: 保存される application_ids は既存 API と同じく利用者に割当済み
+    visible なアプリだけであり、未割当アプリを露出しない。
+  - >-
+    compatibility: 既存の ApplicationOrdering データと `ReorderMyApplications` 契約を
+    破壊しない。
+
+verification:
+  - cmd: 'bun --cwd ra-idp-go/ui typecheck'
+  - cmd: 'bun --cwd ra-idp-go/ui lint'
+  - cmd: 'bun --cwd ra-idp-go/ui build'
+  - cmd: 'bun --cwd tools yaml-check --schema=scl ra-idp-go/spec/contexts/application.yaml'
+  - cmd: 'bun --cwd tools yaml-check --schema=work-item ra-idp-go/work-items/wi-84-application-portal-drag-and-drop-reordering.yaml'
+  - >-
+    手動: `/account/apps` で通常表示のアプリタイル左上のグリップをドラッグして順序を変更し、保存後に
+    リロードして順序が再現されることを確認する。
+  - >-
+    手動: キーボード操作だけで同じ順序変更と保存ができることを確認する。
+
+risk: low
+risk_notes: |
+  UI 操作の改善であり、認証・フェデレーション・永続化契約は変えない。リスクはドラッグ操作の
+  誤保存、モバイルでの操作性、キーボード代替操作の不足に集中する。保存は既存 API を使い、
+  ドラッグ完了後またはキーボード操作後に現在順序を永続化する。
+
+completion:
+  completed_at: 2026-06-30
+  summary: |
+    AccountApps の手動並び替え UI を、上下ボタンだけのリストから通常表示でグリップをドラッグできる
+    タイルグリッドへ更新した。カテゴリ別セクション表示と既存の `ReorderMyApplications` API /
+    ApplicationOrdering 永続化は維持し、dnd-kit の `DndContext` / `SortableContext` /
+    `DragOverlay` によってタイル左上グリップのドラッグでグローバル順序を操作する。ドラッグ中は
+    元タイルを薄く残し、ポインタに追従するプレビューを表示することで、何を動かしていて、
+    どこへ入るのかを分かるようにした。ドラッグ完了後の自動保存、保存中状態、可視の上下ボタン
+    削除、キーボード操作による代替並び替えを維持した。
+
+  semantic_diff:
+    before: "利用者は編集モードのリストで上下ボタンを押してアプリ順序を変更していた。"
+    after: "利用者は通常表示のタイルグリッドで左上グリップをドラッグして順序を変更でき、キーボードでも同じ操作ができる。"
+
+  traceability:
+    specification:
+      - ra-idp-go/spec/contexts/application.yaml user_experience.screens.AccountApps
+      - ra-idp-go/spec/contexts/application.yaml user_experience.requirements.UX-APPLICATION-PORTAL-DIRECT-REORDER
+      - ra-idp-go/spec/contexts/application.yaml user_experience.requirements.UX-APPLICATION-PORTAL-REORDER-FALLBACK
+    implementation:
+      - ra-idp-go/ui/package.json
+      - ra-idp-go/ui/bun.lock
+      - ra-idp-go/ui/src/features/account/AccountAppsPage.tsx
+    tests:
+      - ra-idp-go/ui typecheck
+      - ra-idp-go/ui lint
+      - ra-idp-go/ui build
+
+  affected_guarantees_state:
+    - "findability: タイル左上のグリップをドラッグして、目的のアプリを見つけやすい位置へ移動できる。"
+    - "accessibility: 矢印キー操作を残し、ドラッグ操作なしでも同じ順序変更ができる。"
+    - "assignment scoping: 保存は既存 ReorderMyApplications API を使うため、割当済み visible アプリだけに制限される。"
+    - "compatibility: API / 永続化形式は変更していない。"
+
+  verification:
+    - cmd: "bun --cwd tools yaml-check --schema=work-item ra-idp-go/work-items/done/wi-84-application-portal-drag-and-drop-reordering.yaml"
+      result: ok
+    - cmd: "bun --cwd tools yaml-check --schema=scl ra-idp-go/spec/contexts/application.yaml"
+      result: ok
+    - cmd: "bun --cwd ra-idp-go/ui typecheck"
+      result: ok
+    - cmd: "bun --cwd ra-idp-go/ui lint"
+      result: ok
+    - cmd: "bun --cwd ra-idp-go/ui build"
+      result: ok

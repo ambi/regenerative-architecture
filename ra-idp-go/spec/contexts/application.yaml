@@ -1163,6 +1163,8 @@ user_experience:
       states:
         - ready
         - loading
+        - reordering
+        - saving_order
         - empty
         - access_denied
         - service_error
@@ -1188,3 +1190,19 @@ user_experience:
         - AdminApplications
       interfaces:
         - DeleteAdminApplication
+    - id: UX-APPLICATION-PORTAL-DIRECT-REORDER
+      category: usability
+      adoption: required
+      statement: AccountApps は利用者が通常表示のアプリタイル上のドラッグハンドルで直接並び替え、ドラッグ完了後に順序を保存できるようにする。
+      screens:
+        - AccountApps
+      interfaces:
+        - ReorderMyApplications
+    - id: UX-APPLICATION-PORTAL-REORDER-FALLBACK
+      category: accessibility
+      adoption: required
+      statement: AccountApps の並び替えはドラッグ操作だけに依存せず、キーボード操作で同じ順序変更と保存ができる。
+      screens:
+        - AccountApps
+      interfaces:
+        - ReorderMyApplications

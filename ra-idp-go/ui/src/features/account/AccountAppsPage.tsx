@@ -1,9 +1,27 @@
-import { IconArrowDown, IconArrowUp, IconExternalLink, IconLayoutGrid } from '@tabler/icons-react'
-import { useState } from 'react'
+import {
+  closestCenter,
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  rectSortingStrategy,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { IconExternalLink, IconGripVertical, IconLayoutGrid } from '@tabler/icons-react'
+import { useMemo, useRef, useState } from 'react'
 import { reorderMyApplications } from '../../api/account'
 import { AuthenticationAPIError } from '../../api/core'
 import { AccountShell } from '../../components/AccountShell'
-import { Button } from '../../components/ui/button'
 import { Card } from '../../components/ui/card'
 import type { MyApplication, PortalCategory } from '../../types'
 
@@ -29,89 +47,108 @@ function AppIcon({ app }: { app: MyApplication }) {
   )
 }
 
-function AppTile({ app }: { app: MyApplication }) {
+function AppTileContent({
+  app,
+  dragHandle,
+}: {
+  app: MyApplication
+  dragHandle?: React.ReactNode
+}) {
   const launchable = Boolean(app.launch_url)
-  const body = (
-    <Card
-      className={`flex h-full flex-col items-center gap-3 p-5 text-center transition ${
-        launchable ? 'hover:border-blue-300 hover:shadow-md' : 'opacity-70'
-      }`}
-    >
+  return (
+    <>
+      {dragHandle ?? (
+        <span
+          className="absolute left-2 top-2 inline-flex size-8 items-center justify-center rounded-md border border-slate-200 bg-white/90 text-slate-500 shadow-xs"
+          aria-hidden="true"
+        >
+          <IconGripVertical size={16} aria-hidden="true" />
+        </span>
+      )}
       <AppIcon app={app} />
-      <span className="flex items-center gap-1 text-sm font-semibold text-slate-900">
+      <span className="flex min-h-10 items-center gap-1 overflow-hidden text-ellipsis text-sm font-semibold leading-5 text-slate-900">
         {app.name}
         {launchable ? (
-          <IconExternalLink size={14} className="text-slate-400" aria-hidden="true" />
+          <IconExternalLink size={14} className="shrink-0 text-slate-400" aria-hidden="true" />
         ) : null}
       </span>
       {launchable ? null : <span className="text-xs text-slate-400">起動 URL が未設定です</span>}
-    </Card>
+    </>
   )
-  if (app.launch_url) {
-    return (
-      <a
-        href={app.launch_url}
-        target="_blank"
-        rel="noreferrer"
-        className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-      >
-        {body}
-      </a>
-    )
+}
+
+function AppTile({ app, onLaunch }: { app: MyApplication; onLaunch: (app: MyApplication) => void }) {
+  const {
+    attributes,
+    isDragging,
+    listeners,
+    setActivatorNodeRef,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id: app.application_id })
+  const launchable = Boolean(app.launch_url)
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
   }
-  return body
-}
 
-function ReorderRow({
-  app,
-  index,
-  total,
-  onMove,
-}: {
-  app: MyApplication
-  index: number
-  total: number
-  onMove: (index: number, delta: number) => void
-}) {
   return (
-    <Card className="flex items-center gap-3 p-3">
-      <AppIcon app={app} />
-      <span className="flex-1 truncate text-sm font-semibold text-slate-900">{app.name}</span>
-      <span className="flex items-center gap-1">
-        <Button
-          type="button"
-          variant="outline"
-          size="default"
-          className="size-9 px-0"
-          disabled={index === 0}
-          onClick={() => onMove(index, -1)}
-          aria-label={`${app.name} を上へ移動`}
-        >
-          <IconArrowUp size={16} aria-hidden="true" />
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="default"
-          className="size-9 px-0"
-          disabled={index === total - 1}
-          onClick={() => onMove(index, 1)}
-          aria-label={`${app.name} を下へ移動`}
-        >
-          <IconArrowDown size={16} aria-hidden="true" />
-        </Button>
-      </span>
-    </Card>
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="rounded-lg"
+    >
+      <Card
+        onClick={() => onLaunch(app)}
+        className={[
+          'group relative flex h-full min-h-32 select-none flex-col items-center gap-3 p-5 text-center transition-[border-color,box-shadow,opacity]',
+          launchable ? 'cursor-pointer hover:border-blue-300 hover:shadow-md' : 'opacity-70',
+          isDragging ? 'border-blue-300 opacity-35 shadow-none' : '',
+        ].join(' ')}
+      >
+        <AppTileContent
+          app={app}
+          dragHandle={
+            <button
+              type="button"
+              ref={setActivatorNodeRef}
+              className="absolute left-2 top-2 inline-flex size-8 touch-none cursor-grab items-center justify-center rounded-md border border-slate-200 bg-white/90 text-slate-500 shadow-xs transition-colors hover:border-blue-300 hover:text-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 active:cursor-grabbing"
+              aria-label={`${app.name} をドラッグして並び替え`}
+              onClick={(event) => event.stopPropagation()}
+              {...attributes}
+              {...listeners}
+            >
+              <IconGripVertical size={16} aria-hidden="true" />
+            </button>
+          }
+        />
+      </Card>
+    </div>
   )
 }
 
-function AppGrid({ apps }: { apps: MyApplication[] }) {
+function AppGrid({
+  apps,
+  onLaunch,
+}: {
+  apps: MyApplication[]
+  onLaunch: (app: MyApplication) => void
+}) {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
       {apps.map((app) => (
-        <AppTile key={app.application_id} app={app} />
+        <AppTile key={app.application_id} app={app} onLaunch={onLaunch} />
       ))}
     </div>
+  )
+}
+
+function DragPreview({ app }: { app: MyApplication }) {
+  return (
+    <Card className="relative flex h-32 w-40 rotate-2 select-none flex-col items-center gap-3 border-blue-300 bg-white/95 p-5 text-center shadow-[0_26px_70px_-28px_rgb(37_99_235/70%)] backdrop-blur">
+      <AppTileContent app={app} />
+    </Card>
   )
 }
 
@@ -147,42 +184,35 @@ export function AccountAppsPage({
   isAdmin: boolean
 }) {
   const [order, setOrder] = useState<MyApplication[]>(applications)
-  const [draft, setDraft] = useState<MyApplication[] | null>(null)
+  const [activeID, setActiveID] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const suppressNextClickRef = useRef(false)
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  )
+  const itemIDs = useMemo(() => order.map((app) => app.application_id), [order])
+  const appByID = useMemo(
+    () => new Map(order.map((app) => [app.application_id, app])),
+    [order],
+  )
+  const sections = buildSections(order, categories)
+  const grouped = categories.length > 0
+  const activeApp = activeID ? appByID.get(activeID) : null
 
-  function startEditing() {
-    setError(null)
-    setDraft(order)
-  }
-
-  function cancelEditing() {
-    setError(null)
-    setDraft(null)
-  }
-
-  function moveItem(index: number, delta: number) {
-    setDraft((current) => {
-      if (!current) return current
-      const target = index + delta
-      if (target < 0 || target >= current.length) return current
-      const next = [...current]
-      ;[next[index], next[target]] = [next[target], next[index]]
-      return next
-    })
-  }
-
-  async function saveOrder() {
-    if (!draft) return
+  async function persistOrder(next: MyApplication[]) {
     setSaving(true)
     setError(null)
     try {
       await reorderMyApplications(
         csrfToken,
-        draft.map((app) => app.application_id),
+        next.map((app) => app.application_id),
       )
-      setOrder(draft)
-      setDraft(null)
     } catch (cause) {
       setError(
         cause instanceof AuthenticationAPIError ? cause.message : '並び順を保存できませんでした。',
@@ -192,10 +222,38 @@ export function AccountAppsPage({
     }
   }
 
-  const editing = draft !== null
-  const items = draft ?? order
-  const sections = buildSections(items, categories)
-  const grouped = categories.length > 0
+  function handleDragStart(event: DragStartEvent) {
+    suppressNextClickRef.current = true
+    setActiveID(String(event.active.id))
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    const active = String(event.active.id)
+    const over = event.over ? String(event.over.id) : null
+    setActiveID(null)
+    if (!over || active === over) return
+
+    const oldIndex = order.findIndex((app) => app.application_id === active)
+    const newIndex = order.findIndex((app) => app.application_id === over)
+    if (oldIndex < 0 || newIndex < 0) return
+
+    const next = arrayMove(order, oldIndex, newIndex)
+    setOrder(next)
+    void persistOrder(next)
+  }
+
+  function handleDragCancel() {
+    setActiveID(null)
+  }
+
+  function handleLaunch(app: MyApplication) {
+    if (suppressNextClickRef.current) {
+      suppressNextClickRef.current = false
+      return
+    }
+    if (activeID || !app.launch_url) return
+    window.open(app.launch_url, '_blank', 'noopener,noreferrer')
+  }
 
   return (
     <AccountShell
@@ -212,47 +270,37 @@ export function AccountAppsPage({
         </Card>
       ) : (
         <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-end gap-2">
-            {editing ? (
-              <>
-                <Button type="button" variant="ghost" onClick={cancelEditing} disabled={saving}>
-                  キャンセル
-                </Button>
-                <Button type="button" onClick={saveOrder} disabled={saving}>
-                  {saving ? '保存中…' : '並び順を保存'}
-                </Button>
-              </>
-            ) : (
-              <Button type="button" variant="secondary" onClick={startEditing}>
-                並び替え
-              </Button>
-            )}
-          </div>
+          {saving ? (
+            <div className="flex items-center justify-end text-xs text-slate-500">
+              並び順を保存中...
+            </div>
+          ) : null}
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
-          {editing ? (
-            <div className="flex flex-col gap-2">
-              {items.map((app, index) => (
-                <ReorderRow
-                  key={app.application_id}
-                  app={app}
-                  index={index}
-                  total={items.length}
-                  onMove={moveItem}
-                />
-              ))}
-            </div>
-          ) : grouped ? (
-            <div className="flex flex-col gap-6">
-              {sections.map((section) => (
-                <section key={section.key} className="flex flex-col gap-3">
-                  <h2 className="text-sm font-semibold text-slate-500">{section.name}</h2>
-                  <AppGrid apps={section.apps} />
-                </section>
-              ))}
-            </div>
-          ) : (
-            <AppGrid apps={items} />
-          )}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
+          >
+            <SortableContext items={itemIDs} strategy={rectSortingStrategy}>
+              {grouped ? (
+                <div className="flex flex-col gap-6">
+                  {sections.map((section) => (
+                    <section key={section.key} className="flex flex-col gap-3">
+                      <h2 className="text-sm font-semibold text-slate-500">{section.name}</h2>
+                      <AppGrid apps={section.apps} onLaunch={handleLaunch} />
+                    </section>
+                  ))}
+                </div>
+              ) : (
+                <AppGrid apps={order} onLaunch={handleLaunch} />
+              )}
+            </SortableContext>
+            <DragOverlay dropAnimation={null}>
+              {activeApp ? <DragPreview app={activeApp} /> : null}
+            </DragOverlay>
+          </DndContext>
         </div>
       )}
     </AccountShell>

@@ -1,7 +1,7 @@
 id: wi-75-ui-scenario-e2e-coverage
 title: 追加した UI シナリオ (管理 / マイアカウント / ログイン補助) の E2E テストを整備する
 created_at: 2026-06-27
-status: pending
+status: completed
 authors: [tn]
 
 motivation: |
@@ -113,3 +113,51 @@ risk_notes: |
   時刻同期、CSRF cookie とセッションの取り回し。これらを fixtures.ts に集約し、
   flaky を避けるため待機は明示的な状態 (DOM / network) に紐付ける。
   E2E はネットワーク I/O を伴うため CI 実行時間の増加に注意する。
+
+completion:
+  completed_at: 2026-06-30
+
+  summary: |
+    Bun.WebView ベースの UI E2E fixture を整備し、Go サーバ、Vite、
+    callback listener、ローカル SMTP sink をテスト内で起動する構成にした。
+    メール変更とパスワードリセットは外部送信せず、SMTP sink で確認リンクを
+    捕捉して検証する。ログイン補助、マイアカウント、管理画面の主要ブラウザ
+    シナリオを `ui-scenario-smoke.spec.ts` と `ui-scenario-actions.spec.ts`
+    に追加した。
+
+  semantic_diff:
+    before: "authorize golden path 以外の UI シナリオはブラウザ E2E で実行されていなかった"
+    after: "ログイン補助、マイアカウント、管理画面の主要操作が Bun.WebView E2E で実行される"
+
+  traceability:
+    implementation:
+      - ra-idp-go/ui/tests/e2e/fixtures.ts
+      - ra-idp-go/ui/tests/e2e/authorize-golden-path.spec.ts
+      - ra-idp-go/ui/tests/e2e/ui-scenario-smoke.spec.ts
+      - ra-idp-go/ui/tests/e2e/ui-scenario-actions.spec.ts
+      - ra-idp-go/ui/tests/e2e/README.md
+    specification: "既存 SCL scenario の実行証跡を追加。SCL 本文変更なし"
+
+  affected_guarantees_state:
+    - "UI scenario coverage: 17 件の Bun.WebView E2E が pass"
+    - "self-service scope: account profile / data export / consent revoke / email / TOTP / sessions を自己アカウントで検証"
+    - "step-up: TOTP 解除とメール変更の再認証経路を E2E で検証"
+    - "tenant isolation: 管理画面操作はログイン済みテナント内の application / agent / audit / settings / attributes で検証"
+
+  verification:
+    - cmd: "bun --cwd ra-idp-go/ui lint"
+      result: "ok (117 files)"
+    - cmd: "bun --cwd ra-idp-go/ui typecheck"
+      result: ok
+    - cmd: "bun --cwd ra-idp-go/ui test:e2e"
+      result: "ok (17 pass)"
+    - cmd: "bun run yaml-check:work-items"
+      result: ok
+
+  residual_risk:
+    - "TOTP ログイン成功・失敗そのものは未追加。TOTP 登録・解除と step-up は E2E で検証済み"
+    - "ダッシュボード集計は到達性スモークに留め、集計値の厳密なブラウザ検証は未追加"
+
+  human_decisions:
+    - "メール送信は実送信せず、E2E 専用のローカル SMTP sink でモック化した"
+    - "Playwright ではなく既存の Bun.WebView テストランナーに合わせた"

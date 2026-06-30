@@ -20,12 +20,6 @@ func assemblePostgres(ctx context.Context) (*Dependencies, error) {
 	if err != nil {
 		return nil, err
 	}
-	if envDefault("AUTO_MIGRATE", "true") == "true" {
-		if err := postgres.Migrate(ctx, pool, envDefault("MIGRATIONS_DIR", "deploy/migrations")); err != nil {
-			pool.Close()
-			return nil, err
-		}
-	}
 	valkeyClient, err := valkeystore.Open(ctx, valkeyURL)
 	if err != nil {
 		pool.Close()

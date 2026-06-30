@@ -34,6 +34,7 @@ func seedDemoData(
 		RedirectURIs: []string{
 			"http://localhost:3000/callback",
 			"http://localhost:5173/callback",
+			"http://localhost:8080/callback",
 		},
 		GrantTypes: []spec.GrantType{
 			spec.GrantAuthorizationCode, spec.GrantRefreshToken,
@@ -108,6 +109,7 @@ func seedFirstPartyPortalClients(ctx context.Context, clients oauthports.OAuth2C
 			RedirectURIs: []string{
 				"http://localhost:3000/callback",
 				"http://localhost:5173/callback",
+				"http://localhost:8080/callback",
 			},
 			GrantTypes:              []spec.GrantType{spec.GrantAuthorizationCode, spec.GrantRefreshToken},
 			ResponseTypes:           []spec.ResponseType{spec.ResponseTypeCode},
@@ -141,10 +143,10 @@ func seedDemoApplications(
 		launchURL string
 		binding   spec.ProtocolBinding
 	}{
-		{"app-ra-admin-console", "RA Admin Console", "/realms/default/admin", spec.ProtocolBinding{Type: spec.ProtocolBindingOIDC, ClientID: "ra-admin-console"}},
-		{"app-ra-account-portal", "RA Account Portal", "/realms/default/account", spec.ProtocolBinding{Type: spec.ProtocolBindingOIDC, ClientID: "ra-account-portal"}},
-		{"app-demo-client", "Demo Client", "", spec.ProtocolBinding{Type: spec.ProtocolBindingOIDC, ClientID: "demo-client"}},
-		{"app-demo-wsfed-rp", "Demo WS-Federation RP", "https://rp.example/wsfed", spec.ProtocolBinding{Type: spec.ProtocolBindingWsFed, Wtrealm: "urn:ra-idp:demo-rp"}},
+		{"00000000-0000-4000-8000-000000000101", "RA Admin Console", "/realms/default/admin", spec.ProtocolBinding{Type: spec.ProtocolBindingOIDC, ClientID: "ra-admin-console"}},
+		{"00000000-0000-4000-8000-000000000102", "RA Account Portal", "/realms/default/account", spec.ProtocolBinding{Type: spec.ProtocolBindingOIDC, ClientID: "ra-account-portal"}},
+		{"00000000-0000-4000-8000-000000000103", "Demo Client", "", spec.ProtocolBinding{Type: spec.ProtocolBindingOIDC, ClientID: "demo-client"}},
+		{"00000000-0000-4000-8000-000000000104", "Demo WS-Federation RP", "https://rp.example/wsfed", spec.ProtocolBinding{Type: spec.ProtocolBindingWsFed, Wtrealm: "urn:ra-idp:demo-rp"}},
 	}
 	for _, s := range seeds {
 		if err := apps.Save(ctx, &spec.Application{

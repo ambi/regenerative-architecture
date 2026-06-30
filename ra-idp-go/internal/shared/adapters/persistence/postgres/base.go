@@ -1,5 +1,5 @@
 // Package postgres: 永続化アダプタの PostgreSQL 実装。
-// 接続・スキーマ初期化を base.go / migrate.go に置き、リポジトリ実装は
+// 接続を base.go に置き、リポジトリ実装は
 // 境界づけられたコンテキスト単位でファイル分割している (tenants.go / clients.go ...)。
 package postgres
 

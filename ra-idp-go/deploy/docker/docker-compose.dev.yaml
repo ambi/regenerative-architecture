@@ -12,6 +12,16 @@ services:
       retries: 20
     ports: ["5432:5432"]
 
+  schema:
+    image: sqldef/psqldef:3.11
+    environment:
+      PGPASSWORD: ra_idp
+    volumes:
+      - ../schema:/schema:ro
+    command: ["-U", "ra_idp", "-h", "postgres", "-p", "5432", "ra_idp", "--apply", "--file", "/schema/postgres.sql"]
+    depends_on:
+      postgres: { condition: service_healthy }
+
   valkey:
     image: valkey/valkey:8-alpine
     command: ["valkey-server", "--appendonly", "yes"]
@@ -45,6 +55,7 @@ services:
     ports: ["4318:4318"]
 
   idp:
+    image: ra-idp-go:dev
     build:
       context: ../../..
       dockerfile: ra-idp-go/deploy/docker/Dockerfile
@@ -61,6 +72,7 @@ services:
       SCL_PATH: /app/spec/scl.yaml
     depends_on:
       postgres: { condition: service_healthy }
+      schema: { condition: service_completed_successfully }
       valkey: { condition: service_healthy }
       otel-collector: { condition: service_started }
 
@@ -75,13 +87,12 @@ services:
     ports: ["8080:8080"]
 
   event-relay:
-    build:
-      context: ../../..
-      dockerfile: ra-idp-go/deploy/docker/Dockerfile
+    image: ra-idp-go:dev
     entrypoint: ["/app/ra-idp-relay"]
     environment:
       DATABASE_URL: postgres://ra_idp:ra_idp@postgres:5432/ra_idp?sslmode=disable
       KAFKA_BROKERS: kafka:9092
     depends_on:
       postgres: { condition: service_healthy }
+      schema: { condition: service_completed_successfully }
       kafka: { condition: service_started }

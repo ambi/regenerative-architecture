@@ -71,10 +71,10 @@ scope:
         呼んで grace 経過鍵を dispose する。
     persistence:
       - >-
-        PostgreSQL migration を 1 本追加: `signing_keys` テーブルに
+        `deploy/schema/postgres.sql` を更新し、`signing_keys` テーブルに
         `retired_at TIMESTAMPTZ NULL` と `expires_at TIMESTAMPTZ NULL`
-        を追加。`AUTO_MIGRATE` で前方互換に流れる (既存行は両カラム NULL
-        で active 扱い)。memory adapter にも対応フィールドを反映する。
+        を追加。`psqldef --dry-run` で差分をレビューしてからデプロイ前に適用する。
+        既存行は両カラム NULL で active 扱い。memory adapter にも対応フィールドを反映する。
     audit:
       - >-
         `SigningKeyRotated` (既存) に加え、新規 `SigningKeyArchived`

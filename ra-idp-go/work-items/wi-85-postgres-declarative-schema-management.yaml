@@ -1,0 +1,93 @@
+id: wi-85-postgres-declarative-schema-management
+title: PostgreSQL schema を sqldef で宣言的に管理する
+created_at: 2026-07-01
+authors: [tn]
+status: in_progress
+
+motivation: |
+  ra-idp-go の PostgreSQL schema は番号付き SQL migration と自前の
+  schema_migrations テーブルで管理されている。この方式は既存環境の履歴としては
+  有効だが、機能追加に伴って ALTER TABLE が増え続けると、現在の望ましい schema
+  が読み取りにくくなる。また空 DB を構築する場合にも、過去の中間状態をすべて
+  通過するため、再生成可能な外側 adapter の現在形を示す成果物として弱い。
+
+  本 WI では Ridgepole に近い宣言的 schema 管理として sqldef/psqldef を採用し、
+  PostgreSQL adapter の現在形 schema を `deploy/schema/postgres.sql` に集約する。
+  旧 migration ディレクトリ、`schema_migrations`、起動時 migration runner は削除する。
+  データ移行や危険な破壊操作は構造差分ツールに暗黙化せず、WI に紐づく runbook /
+  目的別 SQL script として別管理する。
+
+scope:
+  decision:
+    - >-
+      新規 ADR で sqldef/psqldef 採用、既存 migration 履歴との関係、
+      データ移行の扱いを決める。
+  deploy:
+    - >-
+      `deploy/schema/postgres.sql` を PostgreSQL schema の現在形正本として追加する。
+    - >-
+      `deploy/schema/README.md` に psqldef の dry-run / apply / drift check
+      手順を追加する。
+    - >-
+      `deploy/migrations/` を削除し、`schema_migrations` テーブルも schema 正本に含めない。
+  documentation:
+    - >-
+      README の PostgreSQL 運用説明を、宣言的 schema 正本を優先する形へ更新する。
+    - >-
+      ARCHITECTURE の persistence 変更規約を、構造変更は schema 正本、
+      データ移行は migration に分ける形へ更新する。
+  go:
+    - >-
+      既存の起動時 migration runner を削除する。sqldef 適用そのものは
+      デプロイ前ジョブの責務とし、アプリ起動時に外部 CLI を呼ばない。
+
+out_of_scope:
+  - psqldef バイナリの vendoring または自動インストール。
+  - 本番デプロイパイプラインへの psqldef 実行ジョブ追加。
+  - PostgreSQL schema から SCL models を自動生成する仕組み。
+  - 既存データを伴う破壊的 schema 変更の自動化。
+
+initial_context:
+  decisions:
+    - ra-idp-go/decisions/ADR-016-persistence-adapter-selection.md
+  implementation:
+    - ra-idp-go/internal/bootstrap/postgres.go
+  documentation:
+    - ra-idp-go/ARCHITECTURE.md
+    - ra-idp-go/README.md
+
+affected_guarantees:
+  - >-
+    adapter replaceability: PostgreSQL adapter の現在形 schema が履歴 SQL から
+    独立して再生成できる。
+  - >-
+    traceability: schema 管理方式の決定が ADR、WI、deploy artifact に追跡できる。
+  - >-
+    operational safety: 構造差分、データ移行、危険操作の責務境界が明示される。
+  - >-
+    bootstrap efficiency: 空 DB は現在形 schema から直接構築できる。
+
+verification:
+  - cmd: 'go test ./...'
+    in: ra-idp-go
+    reason: PostgreSQL bootstrap から起動時 migration runner を削除しても既存テストが通ることを確認する。
+  - cmd: 'bun run yaml-check --schema=work-item ../ra-idp-go/work-items/wi-85-postgres-declarative-schema-management.yaml'
+    in: tools
+    reason: WI が canonical schema に従うことを確認する。
+  - >-
+    手動: 空 PostgreSQL DB に対して `psqldef -U ra_idp -h localhost -p 5432
+    ra_idp --dry-run < deploy/schema/postgres.sql` を実行し、CREATE TABLE /
+    CREATE INDEX のみが計画されることを確認する。
+  - >-
+    手動: migration replay 済み PostgreSQL DB に対して `psqldef -U ra_idp
+    -h localhost -p 5432 ra_idp --dry-run < deploy/schema/postgres.sql` を実行し、
+    意図しない差分がないことを確認する。
+
+risk: medium
+risk_notes: |
+  schema 管理方式の変更は運用手順に影響する。特に sqldef は現在形 schema と実 DB
+  の差分を適用するため、削除・型変更・制約追加はデータ損失やロックを起こしうる。
+  本 WI ではアプリ起動時に psqldef を実行せず、デプロイ前ジョブで dry-run を
+  レビューしてから apply する方針に限定する。既存 migration runner は削除するため、
+  既存環境は本変更のリリース前に `deploy/schema/postgres.sql` と一致していることを
+  dry-run で確認する必要がある。

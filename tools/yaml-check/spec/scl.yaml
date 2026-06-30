@@ -39,6 +39,18 @@ glossary:
       Parse 成功後のデータが、明示指定された Schema に適合しなかったことを
       示す Finding。原因の JSON pointer と Ajv のメッセージを内包する。
 
+  ContextMapFinding:
+    definition: |
+      context_map セクションの意味的整合性 (参照解決・非循環・shared_kernel の
+      肥大) に対する Finding。Schema が検査できない context 間の関係を見る。
+      severity が error のものは exit code に反映し、warning のものは反映しない。
+
+  Severity:
+    definition: |
+      Finding の重大度。error は CheckRun の失敗を意味し exit code 1 に反映する。
+      warning は助言であり exit code には反映しない。Parse / Lint / Schema 由来の
+      Finding は常に error。ContextMapFinding のみ warning を取りうる。
+
   Schema:
     definition: |
       JSON Schema 2020-12 形式の検査定義。本ツールに同梱され、`SchemaName` の
@@ -63,17 +75,22 @@ models:
 
   FindingKind:
     kind: enum
-    values: [parse, lint, schema]
+    values: [parse, lint, schema, context_map]
+
+  Severity:
+    kind: enum
+    values: [error, warning]
 
   Finding:
     kind: value_object
     description: 1 つの検査違反。
     fields:
-      kind:    { type: FindingKind }
-      file:    { type: String, constraints: [non_empty] }
-      line:    { type: Integer }
-      column:  { type: Integer }
-      message: { type: String, constraints: [non_empty] }
+      kind:     { type: FindingKind }
+      severity: { type: Severity, default: error, description: context_map 以外は常に error。 }
+      file:     { type: String, constraints: [non_empty] }
+      line:     { type: Integer }
+      column:   { type: Integer }
+      message:  { type: String, constraints: [non_empty] }
 
   CheckResult:
     kind: value_object
@@ -98,7 +115,10 @@ models:
 interfaces:
 
   CheckYaml:
-    description: 入力ファイル群に対し parse + lint + (任意) schema 検査を行い、結果を返す。
+    description: |
+      入力ファイル群に対し parse + lint + (任意) schema + context_map 検査を行い、
+      結果を返す。context_map 検査は context_map セクションを持つ入力でのみ動き、
+      --schema の有無に依存しない。
     steps:
       - "{files} を yaml-check で検査する"
     input:
@@ -188,10 +208,26 @@ invariants:
 
   exit_code_reflects_findings:
     description: |
-      CheckRun が 1 つでも Finding を出した場合 exit code は 1。Finding が 0 件
-      なら 0。引数自体の誤りは 2。3 つの状態が混じってはならない。
+      CheckRun が 1 つでも error 重大度の Finding を出した場合 exit code は 1。
+      error が 0 件なら 0 (warning のみは 0)。引数自体の誤りは 2。3 つの状態が
+      混じってはならない。
     target: CheckYaml
-    always: "exit_code(CheckRun) = 0 iff no Finding, 1 iff any Finding, 2 iff usage_error"
+    always: "exit_code(CheckRun) = 0 iff no error-severity Finding, 1 iff any error-severity Finding, 2 iff usage_error"
+    severity: must
+
+  context_map_checked_when_present:
+    description: |
+      入力が context_map セクションを持つとき、--schema の有無に関わらず
+      参照解決・非循環の検査が走る。未解決参照と循環は error、shared_kernel の
+      肥大は warning とする。
+    target: CheckYaml
+    always: "for every input with a context_map: unresolved depends_on/uses and dependency cycles are reported as error-severity ContextMapFinding"
+    severity: must
+
+  warnings_do_not_fail_the_run:
+    description: warning 重大度の Finding は表示するが CheckRun の成否を変えない。
+    target: CheckYaml
+    never: "a CheckRun with only warning-severity Findings exits non-zero"
     severity: must
 
   schema_finding_points_into_source:
@@ -240,6 +276,20 @@ scenarios:
       - '"--list-schemas" を指定して yaml-check を呼ぶ'
       - 標準出力に work-item / scl が 1 行ずつ書かれる
       - exit code は 0
+
+  context_map の未解決参照や循環は error として検出される:
+    steps:
+      - depends_on が存在しない context を指す、または publish されていない名前を uses する context_map を用意する
+      - yaml-check で検査する
+      - ContextMapFinding (error) が報告される
+      - exit code は 1
+
+  shared_kernel の肥大は warning であり exit code を変えない:
+    steps:
+      - via が shared_kernel で多数の名前を共有する context_map を用意する
+      - yaml-check で検査する
+      - shared_kernel の warning が表示される
+      - 他に error が無ければ exit code は 0
 
 # =================================================================
 # 6. objectives

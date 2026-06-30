@@ -25,6 +25,7 @@ import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { isAbsolute, relative, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { verifyContextMap } from './context-map.ts'
 import { type Finding, SCHEMAS, lintRawText, parseArgs, validateAgainstSchema } from './lib.ts'
 
 const REPO_ROOT = resolve(import.meta.dir, '../../..')
@@ -148,6 +149,7 @@ for (const path of targets) {
   const parseResult = await parseYaml(path)
   const lintFindings = lintRawText(text)
   const findings: Finding[] = []
+  const warnings: Finding[] = []
   if (!parseResult.ok) findings.push(parseResult.finding)
   findings.push(...lintFindings)
 
@@ -155,13 +157,23 @@ for (const path of targets) {
     findings.push(...validateAgainstSchema(opts.schema, parseResult.data, text))
   }
 
+  // Context-map semantics are checked whenever a context_map is present,
+  // independent of --schema. Errors fail the run; warnings do not.
+  if (parseResult.ok) {
+    const report = verifyContextMap(parseResult.data, text)
+    findings.push(...report.errors)
+    warnings.push(...report.warnings)
+  }
+
+  const rel = relative(process.cwd(), path) || path
   if (findings.length === 0) {
-    console.log(`ok  ${relative(process.cwd(), path) || path}`)
+    console.log(`ok  ${rel}`)
+    if (warnings.length > 0) process.stdout.write(`${formatFindings(path, warnings)}\n`)
     continue
   }
   failed++
-  console.log(`FAIL ${relative(process.cwd(), path) || path}`)
-  process.stdout.write(`${formatFindings(path, findings)}\n`)
+  console.log(`FAIL ${rel}`)
+  process.stdout.write(`${formatFindings(path, [...findings, ...warnings])}\n`)
 }
 
 if (failed > 0) {

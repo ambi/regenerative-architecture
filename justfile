@@ -84,9 +84,11 @@ test-tools:
 yaml-check:
     cd tools && bun run yaml-check:all
 
-# Regenerate SCL HTML artifacts.
+# Regenerate SCL-derived artifacts (HTML views + JSON Schema).
 scl-render:
     cd tools && bun run scl-to-html:ra-idp-go && bun run scl-to-html:self
+    cd tools && bun run scl-to-jsonschema:ra-idp-go
+    cd tools && bun run scl-to-openapi:ra-idp-go
 
 # Start the ra-idp-go API for local UI development.
 dev-api:

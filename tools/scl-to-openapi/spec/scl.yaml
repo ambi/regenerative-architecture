@@ -1,0 +1,159 @@
+# scl-to-openapi — Specification Core Language (SCL) Document
+#
+# 「SCL の interfaces (http binding) と models から OpenAPI 3.1 文書を機械生成する
+# ツール」自身を一つの RA として記述したもの。Layer 1 (仕様核)。実装 (Layer 3) は
+# この仕様から派生する。scl-to-jsonschema と並ぶ、単一上流 SCL からの下流成果物の
+# 2 本目の実例。
+#
+# 語彙規約: 型/モデル = PascalCase、フィールド/フラグ = snake_case
+#           (CLI フラグは kebab-case)。
+
+system: scl-to-openapi
+spec_version: "2.0"
+
+# =================================================================
+# 1. glossary
+# =================================================================
+
+glossary:
+
+  HttpBinding:
+    definition: interface の bindings のうち kind が http のもの。method / path / request_form 等を持つ。
+
+  Operation:
+    definition: OpenAPI の 1 つの path × method。1 つの HttpBinding から導かれる。
+
+  ComponentSchema:
+    definition: OpenAPI の components/schemas エントリ。SCL の 1 Model から導かれ、$ref は #/components/schemas/<ModelName>。
+
+  OpenApiDocument:
+    definition: 生成された OpenAPI 3.1 文書。paths に Operation を、components/schemas に ComponentSchema を持つ。手書きせず常に再生成する。
+
+# =================================================================
+# 2. models
+# =================================================================
+
+models:
+
+  RequestStyle:
+    kind: enum
+    description: リクエストペイロードの運び方。SCL の request_form / request_body から決まる。
+    values: [query, form, xml, json]
+
+  GenerateRequest:
+    kind: value_object
+    fields:
+      scl: { type: Path, constraints: [non_empty], description: SCL 文書 (context map か単一 context)。 }
+      out: { type: Path, optional: true, description: 出力先。省略時は標準出力。 }
+
+  OpenApiDocument:
+    kind: value_object
+    fields:
+      openapi:    { type: String, description: 常に "3.1.0"。 }
+      title:      { type: String }
+      paths_count: { type: Integer }
+
+# =================================================================
+# 3. interfaces
+# =================================================================
+
+interfaces:
+
+  GenerateOpenApi:
+    description: |
+      SCL bundle を読み込み、http binding を持つ interface を Operation に、全 Model を
+      components/schemas に変換した OpenAPI 3.1 文書を出力する。request_form / request_body
+      に応じて query / form / json / xml を選び、successful_status_codes を response に、
+      errors を default response の oneOf に対応づける。
+    steps:
+      - "{scl} の interfaces と models から OpenAPI を生成する"
+    input:
+      request: { type: GenerateRequest }
+    output:
+      document: { type: OpenApiDocument }
+    idempotent: true
+    read_only: true
+    bindings:
+      - kind: cli
+        command: scl-to-openapi
+        flags:
+          - { name: scl, required: true }
+          - { name: out, required: false }
+        exit_codes:
+          success: 0
+          usage_error: 2
+
+# =================================================================
+# 4. invariants
+# =================================================================
+
+invariants:
+
+  output_is_openapi_31:
+    description: 生成結果は openapi 3.1.0 を宣言し、paths と components/schemas を持つ。
+    target: GenerateOpenApi
+    always: "the generated document declares openapi 3.1.0 and contains paths and components/schemas"
+    severity: must
+
+  refs_resolve_to_components:
+    description: 生成結果中の $ref はすべて #/components/schemas/<name> を指し、対応するスキーマが存在する。残留する #/$defs/ 参照は無い。
+    target: GenerateOpenApi
+    never: "the generated document contains a $ref that does not resolve to an existing components/schemas entry"
+    severity: must
+
+  http_binding_becomes_operation:
+    description: http binding を持つ各 interface は、その path × method の Operation になる。
+    target: GenerateOpenApi
+    always: "for every interface with an http binding there is a matching path/method operation"
+    severity: must
+
+  generation_is_pure:
+    description: 生成は入力 SCL のみに依存し、時刻・乱数・環境に依存しない。
+    target: GenerateOpenApi
+    always: "GenerateOpenApi(scl) ≡ GenerateOpenApi(scl)"
+    severity: must
+
+  read_only:
+    description: --out への書き込み以外、入力や他の状態を変更しない。
+    target: GenerateOpenApi
+    never: "GenerateOpenApi mutates any file other than the requested --out target"
+    severity: must
+
+# =================================================================
+# 5. scenarios
+# =================================================================
+
+scenarios:
+
+  http interface が Operation になる:
+    steps:
+      - method POST / path /things / request_form body を持つ interface を用意する
+      - scl-to-openapi で生成する
+      - paths./things.post に operationId 付き Operation ができる
+      - request body は application/json で input スキーマを参照する
+
+  query binding は query パラメータと path パラメータになる:
+    steps:
+      - method GET / path /t/{id} / request_form query の interface を用意する
+      - scl-to-openapi で生成する
+      - "{id} が path パラメータ、input フィールドが query パラメータになる"
+
+  ra-idp-go 全 context から refs の解決する OpenAPI が生成される:
+    steps:
+      - ra-idp-go の context map を入力にする
+      - scl-to-openapi で生成する
+      - openapi は 3.1.0、paths は 1 つ以上
+      - すべての $ref は components/schemas に解決し、$defs 参照は残らない
+
+# =================================================================
+# 6. objectives
+# =================================================================
+
+objectives:
+
+  read_only_generation:
+    kind: security
+    policy: read_only_operation
+    target: GenerateOpenApi
+    value: true
+    description: --out への書き込み以外の副作用を持たない。

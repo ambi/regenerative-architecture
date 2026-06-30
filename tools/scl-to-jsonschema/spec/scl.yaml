@@ -1,0 +1,166 @@
+# scl-to-jsonschema — Specification Core Language (SCL) Document
+#
+# 「SCL の models セクションから JSON Schema 2020-12 を機械生成するツール」自身を
+# 一つの RA として記述したもの。Layer 1 (仕様核)。実装 (Layer 3) はこの仕様から
+# 派生する。このツールの存在自体が RA の主張 (単一上流 SCL から下流成果物を再生成
+# できる) を 1 本の動く実例で示す。
+#
+# 語彙規約: 型/モデル = PascalCase、フィールド/フラグ = snake_case
+#           (CLI フラグは kebab-case)。
+
+system: scl-to-jsonschema
+spec_version: "2.0"
+
+# =================================================================
+# 1. glossary
+# =================================================================
+
+glossary:
+
+  SclBundle:
+    definition: |
+      context map である SCL 文書 (root) と、そこから参照される各 context 文書を
+      読み込んでまとめたもの。単一 context 文書だけでも成立する。
+
+  Model:
+    definition: SCL の models セクションの 1 エントリ。kind は entity / value_object / event / enum / error。
+
+  ModelDef:
+    definition: 1 つの Model から導かれた JSON Schema 断片。出力文書の $defs に Model 名で格納される。
+
+  GeneratedSchema:
+    definition: |
+      bundle 内の全 Model を $defs に集約した単一の JSON Schema 2020-12 文書。
+      Model 間参照は #/$defs/<ModelName> で解決する。手書きせず常に再生成する。
+
+  DanglingRef:
+    definition: GeneratedSchema 内の $ref のうち、対応する $defs エントリが存在しない参照。健全な生成では 0 件。
+
+# =================================================================
+# 2. models
+# =================================================================
+
+models:
+
+  ModelKind:
+    kind: enum
+    values: [entity, value_object, event, enum, error]
+
+  GenerateRequest:
+    kind: value_object
+    description: 1 回の生成要求。
+    fields:
+      scl: { type: Path, constraints: [non_empty], description: SCL 文書 (context map か単一 context)。 }
+      out: { type: Path, optional: true, description: 出力先。省略時は標準出力。 }
+
+  GeneratedSchema:
+    kind: value_object
+    description: 生成された JSON Schema 文書。
+    fields:
+      schema_dialect: { type: String, description: 常に JSON Schema 2020-12 の $schema URI。 }
+      id:             { type: String }
+      defs_count:     { type: Integer, description: $defs に含まれる ModelDef の数。 }
+
+# =================================================================
+# 3. interfaces
+# =================================================================
+
+interfaces:
+
+  GenerateModelSchemas:
+    description: |
+      SCL bundle を読み込み、全 context の models を 1 つの JSON Schema 2020-12 に
+      変換して出力する。enum は string enum に、entity / value_object はオブジェクト
+      スキーマに、Model 参照は #/$defs/<ModelName> に対応づける。
+    steps:
+      - "{scl} の models から JSON Schema を生成する"
+    input:
+      request: { type: GenerateRequest }
+    output:
+      schema: { type: GeneratedSchema }
+    idempotent: true
+    read_only: true
+    bindings:
+      - kind: cli
+        command: scl-to-jsonschema
+        flags:
+          - { name: scl, required: true }
+          - { name: out, required: false }
+        exit_codes:
+          success: 0
+          usage_error: 2
+
+# =================================================================
+# 4. invariants
+# =================================================================
+
+invariants:
+
+  output_is_valid_json_schema:
+    description: 生成結果は JSON Schema 2020-12 として valid であり、コンパイルできる。
+    target: GenerateModelSchemas
+    always: "the generated document compiles as a JSON Schema 2020-12 document"
+    severity: must
+
+  no_dangling_refs:
+    description: 生成結果に含まれる #/$defs/<name> 参照は、すべて $defs 内に対応エントリを持つ。
+    target: GenerateModelSchemas
+    never: "the generated document contains a #/$defs reference without a matching $def"
+    severity: must
+
+  every_model_becomes_a_def:
+    description: bundle 内の各 Model はちょうど 1 つの $defs エントリになる (名前衝突時は後勝ち)。
+    target: GenerateModelSchemas
+    always: "for every model in the bundle there is a $defs entry under its name"
+    severity: must
+
+  generation_is_pure:
+    description: 生成は入力 SCL のみに依存し、時刻・乱数・環境に依存しない。同じ入力から同じ出力。
+    target: GenerateModelSchemas
+    always: "GenerateModelSchemas(scl) ≡ GenerateModelSchemas(scl)"
+    severity: must
+
+  read_only:
+    description: --out 指定時の出力ファイル書き込み以外、入力や他の状態を変更しない。
+    target: GenerateModelSchemas
+    never: "GenerateModelSchemas mutates any file other than the requested --out target"
+    severity: must
+
+# =================================================================
+# 5. scenarios
+# =================================================================
+
+scenarios:
+
+  enum モデルは string enum になる:
+    steps:
+      - kind が enum で values を持つ Model を含む SCL を用意する
+      - scl-to-jsonschema で生成する
+      - 対応する $defs エントリが type string と enum 値配列を持つ
+
+  entity モデルは required 付きオブジェクトスキーマになる:
+    steps:
+      - optional でないフィールドと optional フィールドを持つ entity を用意する
+      - scl-to-jsonschema で生成する
+      - optional でないフィールドだけが required に入る
+      - 別 Model を指す型は #/$defs/<ModelName> に解決される
+
+  ra-idp-go の全 context から dangling ref の無いスキーマが生成される:
+    steps:
+      - ra-idp-go の context map を入力にする
+      - scl-to-jsonschema で生成する
+      - 生成文書は JSON Schema 2020-12 としてコンパイルできる
+      - DanglingRef は 0 件
+
+# =================================================================
+# 6. objectives
+# =================================================================
+
+objectives:
+
+  read_only_generation:
+    kind: security
+    policy: read_only_operation
+    target: GenerateModelSchemas
+    value: true
+    description: --out への書き込み以外の副作用を持たない。

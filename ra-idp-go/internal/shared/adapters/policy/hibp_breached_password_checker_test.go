@@ -2,8 +2,6 @@ package policy
 
 import (
 	"context"
-	"crypto/sha1" //nolint:gosec // テストでも HIBP プロトコルの SHA-1 を再現する。
-	"encoding/hex"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -17,15 +15,13 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 )
 
-func sha1PrefixSuffix(password string) (prefix, suffix string) {
-	sum := sha1.Sum([]byte(password)) //nolint:gosec // プロトコル要件。
-	digest := strings.ToUpper(hex.EncodeToString(sum[:]))
-	return digest[:5], digest[5:]
+func sha1PrefixSuffix(candidate string) (prefix, suffix string) {
+	return hibpRangePrefixSuffix(candidate)
 }
 
 func TestHibpIsBreachedReportsMatch(t *testing.T) {
-	const password = "password"
-	prefix, suffix := sha1PrefixSuffix(password)
+	const candidate = "password"
+	prefix, suffix := sha1PrefixSuffix(candidate)
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if got := r.URL.Path; got != "/"+prefix {
@@ -44,14 +40,14 @@ func TestHibpIsBreachedReportsMatch(t *testing.T) {
 
 	checker := NewHibpBreachedPasswordChecker("test",
 		WithHibpEndpoint(srv.URL+"/"), WithHibpHTTPClient(srv.Client()))
-	if !checker.IsBreached(context.Background(), password) {
+	if !checker.IsBreached(context.Background(), candidate) {
 		t.Fatal("expected breached=true for matched suffix")
 	}
 }
 
 func TestHibpIsBreachedIgnoresPaddingAndMisses(t *testing.T) {
-	const password = "a-very-unique-passphrase-2026"
-	_, suffix := sha1PrefixSuffix(password)
+	const candidate = "a-very-unique-passphrase-2026"
+	_, suffix := sha1PrefixSuffix(candidate)
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		// 対象 suffix は count=0 (Add-Padding のダミー)、別 suffix のみ count>0。
@@ -61,7 +57,7 @@ func TestHibpIsBreachedIgnoresPaddingAndMisses(t *testing.T) {
 
 	checker := NewHibpBreachedPasswordChecker("test",
 		WithHibpEndpoint(srv.URL+"/"), WithHibpHTTPClient(srv.Client()))
-	if checker.IsBreached(context.Background(), password) {
+	if checker.IsBreached(context.Background(), candidate) {
 		t.Fatal("expected breached=false: suffix only present with count=0")
 	}
 }
@@ -126,8 +122,8 @@ func TestHibpFailOpenOnConnectionError(t *testing.T) {
 }
 
 func TestHibpCachesPrefixLookups(t *testing.T) {
-	const password = "password"
-	_, suffix := sha1PrefixSuffix(password)
+	const candidate = "password"
+	_, suffix := sha1PrefixSuffix(candidate)
 	var requests atomic.Int64
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -139,7 +135,7 @@ func TestHibpCachesPrefixLookups(t *testing.T) {
 	checker := NewHibpBreachedPasswordChecker("test",
 		WithHibpEndpoint(srv.URL+"/"), WithHibpHTTPClient(srv.Client()))
 	for range 3 {
-		if !checker.IsBreached(context.Background(), password) {
+		if !checker.IsBreached(context.Background(), candidate) {
 			t.Fatal("expected breached=true")
 		}
 	}

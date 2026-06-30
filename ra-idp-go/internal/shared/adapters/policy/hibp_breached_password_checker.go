@@ -3,7 +3,7 @@ package policy
 import (
 	"container/list"
 	"context"
-	"crypto/sha1" //nolint:gosec // SHA-1 は HIBP Range API のプロトコル要件であり、暗号強度には依存しない。
+	"crypto/sha1"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -97,10 +97,8 @@ func NewHibpBreachedPasswordChecker(version string, opts ...HibpOption) *HibpBre
 
 // IsBreached は password が HIBP に登録された漏洩 password か判定する。失敗時は
 // false を返す (fail-open)。
-func (c *HibpBreachedPasswordChecker) IsBreached(ctx context.Context, password string) bool {
-	sum := sha1.Sum([]byte(password)) //nolint:gosec // プロトコル要件 (ADR-028 §3)。
-	digest := strings.ToUpper(hex.EncodeToString(sum[:]))
-	prefix, suffix := digest[:5], digest[5:]
+func (c *HibpBreachedPasswordChecker) IsBreached(ctx context.Context, candidate string) bool {
+	prefix, suffix := hibpRangePrefixSuffix(candidate)
 
 	suffixes, ok := c.cache.get(prefix)
 	if !ok {
@@ -114,6 +112,14 @@ func (c *HibpBreachedPasswordChecker) IsBreached(ctx context.Context, password s
 	}
 	_, breached := suffixes[suffix]
 	return breached
+}
+
+func hibpRangePrefixSuffix(candidate string) (prefix, suffix string) {
+	// HIBP Range API の k-anonymity fingerprint。password の保存・照合用 hash
+	// ではなく、暗号強度にも依存しない。通常の password hashing は Argon2id を使う。
+	sum := sha1.Sum([]byte(candidate))
+	digest := strings.ToUpper(hex.EncodeToString(sum[:]))
+	return digest[:5], digest[5:]
 }
 
 // hibpStatusError は 200 以外のレスポンスを表す。failure reason 分類に使う。

@@ -92,6 +92,16 @@ linters:
       - path: cmd/
         linters:
           - errcheck
+      # HIBP Range API requires a SHA-1 fingerprint for k-anonymity lookup.
+      # This is not password storage/verification; stored password hashes use Argon2id.
+      - path: internal/shared/adapters/policy/hibp_breached_password_checker\.go
+        text: "G505: Blocklisted import crypto/sha1"
+        linters:
+          - gosec
+      - path: internal/shared/adapters/policy/hibp_breached_password_checker\.go
+        text: "G401: Use of weak cryptographic primitive"
+        linters:
+          - gosec
 
 formatters:
   enable:

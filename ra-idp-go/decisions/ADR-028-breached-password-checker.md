@@ -38,6 +38,10 @@ expected, or compromised」と要求する。bundled 辞書は最小限の basel
    - k-anonymity: 生パスワードの SHA-1 を取り、先頭 5 文字だけサーバに送る。
      サーバは同一 prefix のすべての suffix を返す。adapter はその中に
      残り 35 文字 suffix と count > 0 で一致するエントリがあるかを比較する。
+   - この SHA-1 は HIBP Range API の lookup fingerprint であり、password の
+     保存・照合用 hash ではない。保存・照合用 password hash は Argon2id のまま
+     とする。静的解析では `go/weak-sensitive-data-hashing` / gosec G401,G505 の
+     例外として、HIBP adapter 内の専用関数 1 箇所だけを許容する。
    - レスポンスフォーマットは `SUFFIX:COUNT\r\n` の繰り返し。count > 0 で
      `isBreached = true`。
    - リクエストヘッダ `Add-Padding: true` を常に付け、レスポンスサイズ

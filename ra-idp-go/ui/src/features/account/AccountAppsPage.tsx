@@ -47,13 +47,7 @@ function AppIcon({ app }: { app: MyApplication }) {
   )
 }
 
-function AppTileContent({
-  app,
-  dragHandle,
-}: {
-  app: MyApplication
-  dragHandle?: React.ReactNode
-}) {
+function AppTileContent({ app, dragHandle }: { app: MyApplication; dragHandle?: React.ReactNode }) {
   const launchable = Boolean(app.launch_url)
   return (
     <>
@@ -77,7 +71,13 @@ function AppTileContent({
   )
 }
 
-function AppTile({ app, onLaunch }: { app: MyApplication; onLaunch: (app: MyApplication) => void }) {
+function AppTile({
+  app,
+  onLaunch,
+}: {
+  app: MyApplication
+  onLaunch: (app: MyApplication) => void
+}) {
   const {
     attributes,
     isDragging,
@@ -94,11 +94,7 @@ function AppTile({ app, onLaunch }: { app: MyApplication; onLaunch: (app: MyAppl
   }
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className="rounded-lg"
-    >
+    <div ref={setNodeRef} style={style} className="rounded-lg">
       <Card
         onClick={() => onLaunch(app)}
         className={[
@@ -197,10 +193,7 @@ export function AccountAppsPage({
     }),
   )
   const itemIDs = useMemo(() => order.map((app) => app.application_id), [order])
-  const appByID = useMemo(
-    () => new Map(order.map((app) => [app.application_id, app])),
-    [order],
-  )
+  const appByID = useMemo(() => new Map(order.map((app) => [app.application_id, app])), [order])
   const sections = buildSections(order, categories)
   const grouped = categories.length > 0
   const activeApp = activeID ? appByID.get(activeID) : null

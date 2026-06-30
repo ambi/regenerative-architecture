@@ -227,7 +227,9 @@ export async function waitForEmailURL(
 ): Promise<string> {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
-    const found = [...sentEmails].reverse().find((email) => email.to === to && email.text.includes(path))
+    const found = [...sentEmails]
+      .reverse()
+      .find((email) => email.to === to && email.text.includes(path))
     if (found) {
       const match = found.text.match(/https?:\/\/\S+/)
       if (match) return match[0]

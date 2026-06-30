@@ -167,7 +167,9 @@ test('account TOTP enrollment and removal step-up work from the browser', async 
 
     await clickButtonByText(view, '認証アプリを設定')
     await waitForText(view, 'セットアップキー')
-    const secret = String(await view.evaluate('document.querySelector("#totp-secret")?.value ?? ""'))
+    const secret = String(
+      await view.evaluate('document.querySelector("#totp-secret")?.value ?? ""'),
+    )
     expect(secret).not.toBe('')
     await setInputValue(view, '#totp-code', totpCode(secret))
     await clickButtonByText(view, '登録を完了')
@@ -178,11 +180,17 @@ test('account TOTP enrollment and removal step-up work from the browser', async 
 
     const deadline = Date.now() + 10_000
     while (Date.now() < deadline) {
-      if (await view.evaluate(`document.body.textContent?.includes('本人確認のため再認証') ?? false`)) {
+      if (
+        await view.evaluate(`document.body.textContent?.includes('本人確認のため再認証') ?? false`)
+      ) {
         await setInputValue(view, '#step-up-credential', demo.password)
         await clickButtonByText(view, '再認証して続行')
       }
-      if (await view.evaluate(`document.body.textContent?.includes('認証アプリを解除しました。') ?? false`)) {
+      if (
+        await view.evaluate(
+          `document.body.textContent?.includes('認証アプリを解除しました。') ?? false`,
+        )
+      ) {
         return
       }
       await Bun.sleep(150)
@@ -296,12 +304,18 @@ test('account email change confirms through the local SMTP sink', async () => {
 
     const deadline = Date.now() + 10_000
     while (Date.now() < deadline) {
-      if (await view.evaluate(`document.body.textContent?.includes('本人確認のため再認証') ?? false`)) {
+      if (
+        await view.evaluate(`document.body.textContent?.includes('本人確認のため再認証') ?? false`)
+      ) {
         await setInputValue(view, '#step-up-credential', demo.password)
         await clickButtonByText(view, '再認証して続行')
         break
       }
-      if (await view.evaluate(`document.body.textContent?.includes(${JSON.stringify(nextEmail)}) ?? false`)) {
+      if (
+        await view.evaluate(
+          `document.body.textContent?.includes(${JSON.stringify(nextEmail)}) ?? false`,
+        )
+      ) {
         break
       }
       await Bun.sleep(150)

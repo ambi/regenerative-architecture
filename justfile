@@ -46,8 +46,16 @@ test-go-race:
 build-go:
     cd ra-idp-go && GOCACHE={{go_cache}} go build ./...
 
-# Verify the ra-idp-go UI with lint, typecheck, and build.
-verify-ui: lint-ui typecheck-ui build-ui
+# Verify the ra-idp-go UI with format check, lint, typecheck, and build.
+verify-ui: format-check-ui lint-ui typecheck-ui build-ui
+
+# Run UI format check.
+format-check-ui:
+    cd ra-idp-go/ui && bun run format:check
+
+# Format the UI.
+format-ui:
+    cd ra-idp-go/ui && bun run format
 
 # Run UI lint.
 lint-ui:

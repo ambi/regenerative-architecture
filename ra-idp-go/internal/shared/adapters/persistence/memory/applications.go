@@ -73,7 +73,7 @@ func (s *ApplicationIconStore) Find(_ context.Context, tenantID, applicationID, 
 func (s *ApplicationIconStore) DeleteByApplication(_ context.Context, tenantID, applicationID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	prefix := strings.Join([]string{tenantID, applicationID}, "\x00") + "\x00"
+	prefix := tenantID + "\x00" + applicationID + "\x00"
 	for key := range s.icons {
 		if strings.HasPrefix(key, prefix) {
 			delete(s.icons, key)

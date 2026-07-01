@@ -129,8 +129,10 @@ func (d Deps) handleUploadApplicationIcon(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	defer src.Close()
 	data, err := io.ReadAll(io.LimitReader(src, appusecases.MaxApplicationIconBytes+1))
+	if closeErr := src.Close(); closeErr != nil && err == nil {
+		err = closeErr
+	}
 	if err != nil {
 		return err
 	}

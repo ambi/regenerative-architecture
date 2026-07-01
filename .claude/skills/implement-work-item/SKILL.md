@@ -47,6 +47,12 @@ RA の 5 層（`REGENERATIVE_ARCHITECTURE.md §3`）を内側から。**先に S
 - UI: `just verify-ui`（format / lint / typecheck / build）
 - 一括: `just verify`
 
+Codex 環境では `golangci-lint` が managed filesystem sandbox 内で
+`context loading failed: no go files to analyze` になり、`GOLANGCI_LINT_CACHE`
+や対象 package 指定だけでは回避できない。`just lint-go`、`just verify-go`、
+`just verify` のように `golangci-lint` を直接・間接に起動する検証は、必ず
+承認付きで sandbox 外実行にする。
+
 ## 3. 完了処理（手順 5〜6）
 
 1. ワークアイテムに `completion` を追記し `status: completed` にする。証跡の粒度は

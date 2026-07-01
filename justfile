@@ -28,9 +28,13 @@ install-ui:
 verify: verify-tools verify-go verify-ui
 
 # Verify the ra-idp-go backend with lint and race-enabled tests.
+# Codex note: golangci-lint fails inside the managed filesystem sandbox on this
+# repo with "context loading failed: no go files to analyze". Run recipes that
+# invoke lint-go (including verify-go and verify) outside the sandbox / with
+# escalation.
 verify-go: lint-go test-go-race
 
-# Run Go lint for ra-idp-go.
+# Run Go lint for ra-idp-go. Codex must execute this outside the sandbox.
 lint-go:
     cd ra-idp-go && GOLANGCI_LINT_CACHE={{golangci_cache}} golangci-lint run ./...
 

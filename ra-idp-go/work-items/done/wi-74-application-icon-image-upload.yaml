@@ -114,9 +114,9 @@ completion:
       environment: local
       result: UI format check / lint / typecheck / build 成功。
     - cmd: just lint-go
-      status: blocked
-      environment: local
-      result: golangci-lint が context loading failed / no go files to analyze で終了。個別 package 指定でも同じ loader エラーで、lint 指摘は得られていない。
+      status: passed
+      environment: local, outside Codex filesystem sandbox
+      result: golangci-lint run ./... 成功。0 issues。
   affected_guarantees_state:
     - guarantee: safe serving
       state: passed

@@ -24,6 +24,8 @@ func RegisterRoutes(g *echo.Group, cd *support.Deps) {
 	g.GET("/api/admin/applications/:application_id", d.handleGetApplication)
 	g.PATCH("/api/admin/applications/:application_id", d.handleUpdateApplication)
 	g.DELETE("/api/admin/applications/:application_id", d.handleDeleteApplication)
+	g.POST("/api/admin/applications/:application_id/icon", d.handleUploadApplicationIcon)
+	g.DELETE("/api/admin/applications/:application_id/icon", d.handleDeleteApplicationIcon)
 	g.POST("/api/admin/applications/:application_id/bindings", d.handleAttachBinding)
 	g.DELETE("/api/admin/applications/:application_id/bindings/:binding_type", d.handleDetachBinding)
 	g.PATCH("/api/admin/applications/:application_id/oidc", d.handleUpdateOIDCConfig)
@@ -40,4 +42,5 @@ func RegisterRoutes(g *echo.Group, cd *support.Deps) {
 	g.GET("/api/account/applications", d.handleListMyApplications)
 	g.GET("/api/account/applications/order", d.handleGetMyApplicationOrder)
 	g.PUT("/api/account/applications/order", d.handleReorderMyApplications)
+	g.GET("/application-icons/:application_id/:object_key", d.handleGetApplicationIcon)
 }

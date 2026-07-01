@@ -113,11 +113,23 @@ type Application struct {
 	Kind          ApplicationKind   `json:"kind"`
 	Status        ApplicationStatus `json:"status"`
 	IconURL       string            `json:"icon_url,omitempty"`
+	IconObjectKey string            `json:"icon_object_key,omitempty"`
 	LaunchURL     string            `json:"launch_url,omitempty"`
 	Bindings      []ProtocolBinding `json:"bindings"`
 	CategoryIDs   []string          `json:"category_ids"`
 	CreatedAt     time.Time         `json:"created_at"`
 	UpdatedAt     time.Time         `json:"updated_at"`
+}
+
+// ApplicationIcon は tenant-scoped に保存された Application アイコン画像。
+type ApplicationIcon struct {
+	TenantID      string    `json:"tenant_id"`
+	ApplicationID string    `json:"application_id"`
+	ObjectKey     string    `json:"object_key"`
+	ContentType   string    `json:"content_type"`
+	SizeBytes     int       `json:"size_bytes"`
+	Data          []byte    `json:"-"`
+	CreatedAt     time.Time `json:"created_at"`
 }
 
 // ApplicationCategory は管理者が tenant 単位で定義するポータルの分類セクション (wi-70, ADR-069)。
@@ -172,6 +184,18 @@ type ApplicationUpdated struct {
 
 func (e *ApplicationUpdated) EventType() string     { return "ApplicationUpdated" }
 func (e *ApplicationUpdated) OccurredAt() time.Time { return e.At }
+
+// ApplicationIconUpdated は Application の保存済みアイコンを更新した event。
+type ApplicationIconUpdated struct {
+	At            time.Time `json:"-"`
+	TenantID      string    `json:"tenantId"`
+	ActorSub      string    `json:"actorSub"`
+	ApplicationID string    `json:"applicationId"`
+	Action        string    `json:"action"`
+}
+
+func (e *ApplicationIconUpdated) EventType() string     { return "ApplicationIconUpdated" }
+func (e *ApplicationIconUpdated) OccurredAt() time.Time { return e.At }
 
 // ApplicationDeleted は Application を削除した event (wi-69)。
 type ApplicationDeleted struct {

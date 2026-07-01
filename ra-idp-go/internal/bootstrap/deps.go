@@ -44,6 +44,7 @@ type Dependencies struct {
 	WsFedRPRepo               wsfederationports.WsFedRelyingPartyRepository
 	SamlSPRepo                samlports.SamlServiceProviderRepository
 	ApplicationRepo           appports.ApplicationRepository
+	ApplicationIconStore      appports.ApplicationIconStore
 	ApplicationAssignmentRepo appports.AssignmentRepository
 	ApplicationOrderingRepo   appports.ApplicationOrderingRepository
 	ApplicationCategoryRepo   appports.ApplicationCategoryRepository

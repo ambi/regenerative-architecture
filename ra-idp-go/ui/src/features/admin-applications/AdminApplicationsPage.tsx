@@ -22,6 +22,7 @@ import {
   createAdminApplication,
   createApplicationCategory,
   deleteAdminApplication,
+  deleteApplicationIcon,
   deleteApplicationCategory,
   listAdminApplications,
   listAdminGroups,
@@ -35,6 +36,7 @@ import {
   updateApplicationOidcConfig,
   updateApplicationSamlConfig,
   updateApplicationWsFedConfig,
+  uploadApplicationIcon,
 } from '../../api'
 import { AdminPaneActions } from '../../components/AdminPaneActions'
 import { AdminShell } from '../../components/AdminShell'
@@ -813,7 +815,9 @@ export function AdminApplicationEditPage({
 }) {
   const app = detail.application
   const [name, setName] = useState(app.name)
-  const [iconURL, setIconURL] = useState(app.icon_url ?? '')
+  const [iconFile, setIconFile] = useState<File | null>(null)
+  const [iconPreview, setIconPreview] = useState(app.icon_url ?? '')
+  const [removeIcon, setRemoveIcon] = useState(false)
   const [launchURL, setLaunchURL] = useState(app.launch_url ?? '')
   const [status, setStatus] = useState<ApplicationStatus>(app.status)
   const [redirects, setRedirects] = useState((detail.oidc?.redirect_uris ?? []).join('\n'))
@@ -861,6 +865,21 @@ export function AdminApplicationEditPage({
 
   const nameInvalid = name.trim() === ''
 
+  function selectIconFile(file: File | null) {
+    setIconFile(file)
+    setRemoveIcon(false)
+  }
+
+  useEffect(() => {
+    if (!iconFile) {
+      setIconPreview(removeIcon ? '' : (app.icon_url ?? ''))
+      return
+    }
+    const url = URL.createObjectURL(iconFile)
+    setIconPreview(url)
+    return () => URL.revokeObjectURL(url)
+  }, [app.icon_url, iconFile, removeIcon])
+
   async function submit(event: FormEvent) {
     event.preventDefault()
     if (nameInvalid) return
@@ -869,13 +888,23 @@ export function AdminApplicationEditPage({
     try {
       const metaPatch: Record<string, unknown> = {}
       if (name.trim() !== app.name) metaPatch.name = name.trim()
-      if (iconURL.trim() !== (app.icon_url ?? '')) metaPatch.icon_url = iconURL.trim()
       if (app.kind !== 'service' && launchURL.trim() !== (app.launch_url ?? '')) {
         metaPatch.launch_url = launchURL.trim()
       }
       if (status !== app.status) metaPatch.status = status
       if (Object.keys(metaPatch).length > 0) {
         await updateAdminApplication(csrfToken, app.application_id, metaPatch)
+      }
+      if (removeIcon && app.icon_object_key) {
+        await deleteApplicationIcon(csrfToken, app.application_id)
+      }
+      if (iconFile) {
+        if (iconFile.size > 256 * 1024) {
+          setError('アイコン画像は 256 KiB 以下にしてください。')
+          setSaving(false)
+          return
+        }
+        await uploadApplicationIcon(csrfToken, app.application_id, iconFile)
       }
       if (detail.oidc) {
         const nextRedirects = parseList(redirects)
@@ -1026,14 +1055,52 @@ export function AdminApplicationEditPage({
                   aria-invalid={nameInvalid}
                 />
               </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="edit-icon">アイコン URL</Label>
-                <Input
-                  id="edit-icon"
-                  value={iconURL}
-                  onChange={(e) => setIconURL(e.target.value)}
-                  placeholder="https://…/icon.png"
-                />
+              <div className="grid gap-2">
+                <Label htmlFor="edit-icon-file">アイコン画像</Label>
+                <fieldset
+                  className="flex items-center gap-3 rounded-lg border border-dashed border-slate-300 p-3"
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={(event) => {
+                    event.preventDefault()
+                    selectIconFile(event.dataTransfer.files?.[0] ?? null)
+                  }}
+                >
+                  {iconPreview ? (
+                    <img
+                      src={iconPreview}
+                      alt=""
+                      className="size-14 rounded-lg border border-slate-200 object-cover"
+                    />
+                  ) : (
+                    <span className="flex size-14 items-center justify-center rounded-lg border border-blue-100 bg-blue-50 text-sm font-bold text-blue-700">
+                      {initials(name)}
+                    </span>
+                  )}
+                  <div className="grid flex-1 gap-2 sm:flex sm:items-center">
+                    <Input
+                      id="edit-icon-file"
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/gif"
+                      onChange={(e) => {
+                        selectIconFile(e.target.files?.[0] ?? null)
+                      }}
+                    />
+                    {app.icon_object_key || iconFile ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setIconFile(null)
+                          setRemoveIcon(true)
+                        }}
+                      >
+                        <IconTrash size={16} aria-hidden="true" />
+                        削除
+                      </Button>
+                    ) : null}
+                  </div>
+                </fieldset>
+                <p className="text-xs text-slate-500">PNG / JPEG / WebP / GIF、256 KiB まで。</p>
               </div>
               {app.kind !== 'service' ? (
                 <div className="grid gap-1.5">
@@ -1736,7 +1803,6 @@ function CreateApplicationDialog({
 }) {
   const [type, setType] = useState<AppType>('oidc')
   const [name, setName] = useState('')
-  const [iconURL, setIconURL] = useState('')
   const [launchURL, setLaunchURL] = useState('')
   const [redirectURIs, setRedirectURIs] = useState('')
   const [scope, setScope] = useState('')
@@ -1777,7 +1843,6 @@ function CreateApplicationDialog({
       const result = await createAdminApplication(csrfToken, {
         name: name.trim(),
         type,
-        icon_url: iconURL.trim() || undefined,
         launch_url: launchURL.trim() || undefined,
         redirect_uris: type === 'oidc' ? parseList(redirectURIs) : undefined,
         scope: type === 'service' || type === 'oidc' ? scope.trim() || undefined : undefined,
@@ -1910,15 +1975,6 @@ function CreateApplicationDialog({
                       onChange={(e) => setName(e.target.value)}
                       required
                       placeholder="Payroll"
-                    />
-                  </div>
-                  <div className="grid gap-1.5">
-                    <Label htmlFor="app-icon">アイコン URL (任意)</Label>
-                    <Input
-                      id="app-icon"
-                      value={iconURL}
-                      onChange={(e) => setIconURL(e.target.value)}
-                      placeholder="https://…/icon.png"
                     />
                   </div>
                   {type !== 'service' ? (

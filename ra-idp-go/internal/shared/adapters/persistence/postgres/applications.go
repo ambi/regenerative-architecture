@@ -16,7 +16,7 @@ import (
 // 永続化する (wi-69)。protocol binding は JSONB に格納し、参照はテナント境界に閉じる。
 type ApplicationRepository struct{ Pool *pgxpool.Pool }
 
-const applicationSelect = `SELECT tenant_id,application_id,name,kind,status,icon_url,launch_url,bindings,category_ids,created_at,updated_at FROM applications`
+const applicationSelect = `SELECT tenant_id,application_id,name,kind,status,icon_url,icon_object_key,launch_url,bindings,category_ids,created_at,updated_at FROM applications`
 
 func scanApplication(row rowScanner) (*spec.Application, error) {
 	var (
@@ -24,7 +24,7 @@ func scanApplication(row rowScanner) (*spec.Application, error) {
 		bindings []byte
 	)
 	err := row.Scan(&app.TenantID, &app.ApplicationID, &app.Name, &app.Kind, &app.Status,
-		&app.IconURL, &app.LaunchURL, &bindings, &app.CategoryIDs, &app.CreatedAt, &app.UpdatedAt)
+		&app.IconURL, &app.IconObjectKey, &app.LaunchURL, &bindings, &app.CategoryIDs, &app.CreatedAt, &app.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
@@ -111,12 +111,12 @@ func (r *ApplicationRepository) Save(ctx context.Context, app *spec.Application)
 		categoryIDs = []string{}
 	}
 	_, err = r.Pool.Exec(ctx, `
-INSERT INTO applications (tenant_id,application_id,name,kind,status,icon_url,launch_url,bindings,category_ids,created_at,updated_at)
-VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+INSERT INTO applications (tenant_id,application_id,name,kind,status,icon_url,icon_object_key,launch_url,bindings,category_ids,created_at,updated_at)
+VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
 ON CONFLICT (tenant_id,application_id) DO UPDATE SET name=EXCLUDED.name,kind=EXCLUDED.kind,
- status=EXCLUDED.status,icon_url=EXCLUDED.icon_url,launch_url=EXCLUDED.launch_url,
+ status=EXCLUDED.status,icon_url=EXCLUDED.icon_url,icon_object_key=EXCLUDED.icon_object_key,launch_url=EXCLUDED.launch_url,
  bindings=EXCLUDED.bindings,category_ids=EXCLUDED.category_ids,updated_at=EXCLUDED.updated_at`,
-		app.TenantID, app.ApplicationID, app.Name, app.Kind, app.Status, app.IconURL, app.LaunchURL,
+		app.TenantID, app.ApplicationID, app.Name, app.Kind, app.Status, app.IconURL, app.IconObjectKey, app.LaunchURL,
 		encoded, categoryIDs, app.CreatedAt, app.UpdatedAt)
 	return err
 }
@@ -131,6 +131,42 @@ func (r *ApplicationRepository) RemoveCategory(ctx context.Context, tenantID, ca
 	_, err := r.Pool.Exec(ctx,
 		"UPDATE applications SET category_ids=array_remove(category_ids,$2) WHERE tenant_id=$1 AND $2=ANY(category_ids)",
 		tenantID, categoryID)
+	return err
+}
+
+// ApplicationIconStore は Application icon blob を PostgreSQL に保存する (wi-74, ADR-073)。
+type ApplicationIconStore struct{ Pool *pgxpool.Pool }
+
+func (s *ApplicationIconStore) Save(ctx context.Context, icon *spec.ApplicationIcon) error {
+	_, err := s.Pool.Exec(ctx, `
+INSERT INTO application_icons (tenant_id,application_id,object_key,content_type,size_bytes,data,created_at)
+VALUES ($1,$2,$3,$4,$5,$6,$7)
+ON CONFLICT (tenant_id,application_id,object_key) DO UPDATE SET
+ content_type=EXCLUDED.content_type,size_bytes=EXCLUDED.size_bytes,data=EXCLUDED.data,created_at=EXCLUDED.created_at`,
+		icon.TenantID, icon.ApplicationID, icon.ObjectKey, icon.ContentType, icon.SizeBytes, icon.Data, icon.CreatedAt)
+	return err
+}
+
+func (s *ApplicationIconStore) Find(ctx context.Context, tenantID, applicationID, objectKey string) (*spec.ApplicationIcon, error) {
+	var icon spec.ApplicationIcon
+	err := s.Pool.QueryRow(ctx, `
+SELECT tenant_id,application_id,object_key,content_type,size_bytes,data,created_at
+  FROM application_icons
+ WHERE tenant_id=$1 AND application_id=$2 AND object_key=$3`,
+		tenantID, applicationID, objectKey).
+		Scan(&icon.TenantID, &icon.ApplicationID, &icon.ObjectKey, &icon.ContentType, &icon.SizeBytes, &icon.Data, &icon.CreatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &icon, nil
+}
+
+func (s *ApplicationIconStore) DeleteByApplication(ctx context.Context, tenantID, applicationID string) error {
+	_, err := s.Pool.Exec(ctx,
+		"DELETE FROM application_icons WHERE tenant_id=$1 AND application_id=$2", tenantID, applicationID)
 	return err
 }
 

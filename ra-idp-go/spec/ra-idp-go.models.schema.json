@@ -535,9 +535,6 @@
           "$ref": "#/$defs/ApplicationProvisionType",
           "description": "oidc / wsfed / weblink。"
         },
-        "icon_url": {
-          "type": "string"
-        },
         "launch_url": {
           "type": "string",
           "description": "ポータルのタイルから開く起動 URL。weblink では必須。"
@@ -671,6 +668,9 @@
         "icon_url": {
           "type": "string"
         },
+        "icon_object_key": {
+          "type": "string"
+        },
         "launch_url": {
           "type": "string"
         },
@@ -717,9 +717,6 @@
         },
         "status": {
           "$ref": "#/$defs/ApplicationStatus"
-        },
-        "icon_url": {
-          "type": "string"
         },
         "launch_url": {
           "type": "string"
@@ -1977,7 +1974,11 @@
         },
         "icon_url": {
           "type": "string",
-          "description": "ポータル一覧に表示するアイコン URL。"
+          "description": "IdP が保存済みアイコンから生成する内部配信 URL。管理者は直接入力しない。"
+        },
+        "icon_object_key": {
+          "type": "string",
+          "description": "テナント境界内に保存されたアイコン画像 object の opaque key。"
         },
         "launch_url": {
           "type": "string",
@@ -2348,6 +2349,49 @@
         "applicationId"
       ],
       "description": "Application を削除した。"
+    },
+    "ApplicationIconUpdated": {
+      "type": "object",
+      "properties": {
+        "occurredAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "tenantId": {
+          "type": "string"
+        },
+        "actorSub": {
+          "type": "string"
+        },
+        "applicationId": {
+          "type": "string"
+        },
+        "action": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "occurredAt",
+        "tenantId",
+        "actorSub",
+        "applicationId",
+        "action"
+      ],
+      "description": "Application の保存済みアイコンをアップロードまたは削除した。"
+    },
+    "ApplicationIconUploadResponse": {
+      "type": "object",
+      "properties": {
+        "application": {
+          "$ref": "#/$defs/AdminApplicationResponse"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "application"
+      ],
+      "description": "Application icon アップロードまたは削除後の Application 表現。"
     },
     "ApplicationKind": {
       "type": "string",

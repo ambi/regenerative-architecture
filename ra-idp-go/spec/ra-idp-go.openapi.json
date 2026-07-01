@@ -5445,6 +5445,218 @@
         }
       }
     },
+    "/api/admin/applications/{application_id}/icon": {
+      "post": {
+        "operationId": "UploadApplicationIcon",
+        "summary": "管理者が Application のアイコン画像を multipart でアップロードする。受理形式は PNG / JPEG / WebP / GIF、最大 256KiB とし、magic byte で検証する。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "application_id": {
+                    "type": "string"
+                  },
+                  "file": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "application_id",
+                  "file"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "response": {
+                      "$ref": "#/components/schemas/ApplicationIconUploadResponse"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "response"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Errors: InvalidRequestError, AccessDeniedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/InvalidRequestError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/AccessDeniedError"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "DeleteApplicationIcon",
+        "summary": "管理者が Application の保存済みアイコンを削除する。削除後は icon_url を返さない。",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "application_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "response": {
+                      "$ref": "#/components/schemas/ApplicationIconUploadResponse"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "response"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Errors: InvalidRequestError, AccessDeniedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/InvalidRequestError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/AccessDeniedError"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/application-icons/{application_id}/{object_key}": {
+      "get": {
+        "operationId": "GetApplicationIcon",
+        "summary": "保存済み Application アイコンを配信する。Content-Type は検証済み形式に固定し、X-Content-Type-Options: nosniff を付ける。別テナントまたは削除済み object は未存在として扱う。",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "object_key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "application_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "object_key",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "file": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "file"
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Errors: InvalidRequestError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/InvalidRequestError"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/admin/applications/{application_id}/bindings": {
       "post": {
         "operationId": "AttachProtocolBinding",
@@ -7786,9 +7998,6 @@
             "$ref": "#/components/schemas/ApplicationProvisionType",
             "description": "oidc / wsfed / weblink。"
           },
-          "icon_url": {
-            "type": "string"
-          },
           "launch_url": {
             "type": "string",
             "description": "ポータルのタイルから開く起動 URL。weblink では必須。"
@@ -7922,6 +8131,9 @@
           "icon_url": {
             "type": "string"
           },
+          "icon_object_key": {
+            "type": "string"
+          },
           "launch_url": {
             "type": "string"
           },
@@ -7968,9 +8180,6 @@
           },
           "status": {
             "$ref": "#/components/schemas/ApplicationStatus"
-          },
-          "icon_url": {
-            "type": "string"
           },
           "launch_url": {
             "type": "string"
@@ -9228,7 +9437,11 @@
           },
           "icon_url": {
             "type": "string",
-            "description": "ポータル一覧に表示するアイコン URL。"
+            "description": "IdP が保存済みアイコンから生成する内部配信 URL。管理者は直接入力しない。"
+          },
+          "icon_object_key": {
+            "type": "string",
+            "description": "テナント境界内に保存されたアイコン画像 object の opaque key。"
           },
           "launch_url": {
             "type": "string",
@@ -9599,6 +9812,49 @@
           "applicationId"
         ],
         "description": "Application を削除した。"
+      },
+      "ApplicationIconUpdated": {
+        "type": "object",
+        "properties": {
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "actorSub": {
+            "type": "string"
+          },
+          "applicationId": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "occurredAt",
+          "tenantId",
+          "actorSub",
+          "applicationId",
+          "action"
+        ],
+        "description": "Application の保存済みアイコンをアップロードまたは削除した。"
+      },
+      "ApplicationIconUploadResponse": {
+        "type": "object",
+        "properties": {
+          "application": {
+            "$ref": "#/components/schemas/AdminApplicationResponse"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "application"
+        ],
+        "description": "Application icon アップロードまたは削除後の Application 表現。"
       },
       "ApplicationKind": {
         "type": "string",

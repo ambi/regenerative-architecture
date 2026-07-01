@@ -3,6 +3,7 @@ package http_test
 import (
 	"bytes"
 	"encoding/json"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -33,6 +34,7 @@ func newApplicationHandler(t *testing.T) *echo.Echo {
 	httpadapter.Register(e, support.Deps{
 		Issuer: "http://idp.test", UserRepo: users, GroupRepo: memory.NewGroupRepository(),
 		ApplicationRepo:           memory.NewApplicationRepository(),
+		ApplicationIconStore:      memory.NewApplicationIconStore(),
 		ApplicationAssignmentRepo: memory.NewApplicationAssignmentRepository(),
 		ApplicationOrderingRepo:   memory.NewApplicationOrderingRepository(),
 		ApplicationCategoryRepo:   memory.NewApplicationCategoryRepository(),
@@ -76,6 +78,31 @@ func adminJSON(t *testing.T, e *echo.Echo, method, path, csrf string, cookie *ht
 	}
 	request := httptest.NewRequest(method, path, bytes.NewReader(payload))
 	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Origin", "http://idp.test")
+	request.Header.Set("X-CSRF-Token", csrf)
+	request.Header.Set("X-Demo-Sub", "admin")
+	request.AddCookie(cookie)
+	response := httptest.NewRecorder()
+	e.ServeHTTP(response, request)
+	return response
+}
+
+func adminMultipart(t *testing.T, e *echo.Echo, path, csrf string, cookie *http.Cookie, filename string, data []byte) *httptest.ResponseRecorder {
+	t.Helper()
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile("file", filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := part.Write(data); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodPost, path, &body)
+	request.Header.Set("Content-Type", writer.FormDataContentType())
 	request.Header.Set("Origin", "http://idp.test")
 	request.Header.Set("X-CSRF-Token", csrf)
 	request.Header.Set("X-Demo-Sub", "admin")
@@ -202,6 +229,76 @@ func TestSamlApplicationDetailReturnsEmptyRulesNotNull(t *testing.T) {
 	}
 	if body.Saml.Rules == nil {
 		t.Fatal("saml.rules decoded as nil; expected empty array")
+	}
+}
+
+func TestApplicationIconUploadServeRejectAndDelete(t *testing.T) {
+	e := newApplicationHandler(t)
+	csrf, cookie := appCSRF(t, e)
+
+	create := adminJSON(t, e, http.MethodPost, "/api/admin/applications", csrf, cookie, map[string]any{
+		"name": "Payroll", "type": "weblink", "launch_url": "https://payroll.example",
+	})
+	if create.Code != http.StatusCreated {
+		t.Fatalf("create status=%d body=%s", create.Code, create.Body.String())
+	}
+	var created struct {
+		Application struct {
+			ApplicationID string `json:"application_id"`
+		} `json:"application"`
+	}
+	if err := json.Unmarshal(create.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+	appID := created.Application.ApplicationID
+
+	png := []byte{0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n', 0, 0, 0, 0}
+	upload := adminMultipart(t, e, "/api/admin/applications/"+appID+"/icon", csrf, cookie, "icon.png", png)
+	if upload.Code != http.StatusOK {
+		t.Fatalf("upload status=%d body=%s", upload.Code, upload.Body.String())
+	}
+	var uploaded struct {
+		Application struct {
+			IconURL       string `json:"icon_url"`
+			IconObjectKey string `json:"icon_object_key"`
+		} `json:"application"`
+	}
+	if err := json.Unmarshal(upload.Body.Bytes(), &uploaded); err != nil {
+		t.Fatal(err)
+	}
+	if uploaded.Application.IconURL == "" || uploaded.Application.IconObjectKey == "" {
+		t.Fatalf("missing icon fields: %s", upload.Body.String())
+	}
+
+	get := httptest.NewRequest(http.MethodGet, uploaded.Application.IconURL, http.NoBody)
+	response := httptest.NewRecorder()
+	e.ServeHTTP(response, get)
+	if response.Code != http.StatusOK {
+		t.Fatalf("icon get status=%d body=%s", response.Code, response.Body.String())
+	}
+	if got := response.Header().Get("Content-Type"); got != "image/png" {
+		t.Fatalf("content-type=%q", got)
+	}
+	if got := response.Header().Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Fatalf("nosniff=%q", got)
+	}
+	if !bytes.Equal(response.Body.Bytes(), png) {
+		t.Fatalf("icon body mismatch: %v", response.Body.Bytes())
+	}
+
+	reject := adminMultipart(t, e, "/api/admin/applications/"+appID+"/icon", csrf, cookie, "icon.txt", []byte("not an image"))
+	if reject.Code != http.StatusBadRequest {
+		t.Fatalf("reject status=%d body=%s", reject.Code, reject.Body.String())
+	}
+
+	deleted := adminJSON(t, e, http.MethodDelete, "/api/admin/applications/"+appID+"/icon", csrf, cookie, nil)
+	if deleted.Code != http.StatusOK {
+		t.Fatalf("delete icon status=%d body=%s", deleted.Code, deleted.Body.String())
+	}
+	response = httptest.NewRecorder()
+	e.ServeHTTP(response, get)
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("deleted icon status=%d body=%s", response.Code, response.Body.String())
 	}
 }
 

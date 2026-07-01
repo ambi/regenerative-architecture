@@ -24,7 +24,7 @@ import type {
   WsFedRelyingParty,
   WsFedTokenType,
 } from '../types'
-import { adminRequest, request, tenantURL } from './core'
+import { AuthenticationAPIError, adminRequest, request, tenantURL } from './core'
 
 type AdminUserListResponse = { users: AdminUser[] }
 type AdminConsentListResponse = { consents: AdminConsent[] }
@@ -520,7 +520,6 @@ export async function unbindAdminAgentCredential(
 export type CreateAdminApplicationInput = {
   name: string
   type: 'oidc' | 'wsfed' | 'saml' | 'weblink' | 'service'
-  icon_url?: string
   launch_url?: string
   // OIDC
   redirect_uris?: string[]
@@ -554,7 +553,6 @@ export type CreateAdminApplicationResult = {
 export type UpdateAdminApplicationInput = {
   name?: string
   status?: ApplicationStatus
-  icon_url?: string
   launch_url?: string
 }
 
@@ -647,6 +645,53 @@ export async function updateAdminApplication(
     `/api/admin/applications/${encodeURIComponent(id)}`,
     adminRequest(csrfToken, 'PATCH', input),
   )
+}
+
+export async function uploadApplicationIcon(
+  csrfToken: string,
+  id: string,
+  file: File,
+): Promise<AdminApplication> {
+  const form = new FormData()
+  form.set('file', file)
+  const response = await fetch(
+    tenantURL(`/api/admin/applications/${encodeURIComponent(id)}/icon`),
+    {
+      method: 'POST',
+      credentials: 'same-origin',
+      cache: 'no-store',
+      headers: { 'X-CSRF-Token': csrfToken },
+      body: form,
+    },
+  )
+  const body = (await response.json().catch(() => ({}))) as {
+    application?: AdminApplication
+    error?: string
+    message?: string
+    error_description?: string
+  }
+  if (!response.ok) {
+    throw new AuthenticationAPIError(
+      body.message ?? body.error_description ?? 'アイコンをアップロードできませんでした。',
+      body.error,
+    )
+  }
+  if (!body.application) {
+    throw new AuthenticationAPIError('アイコンをアップロードできませんでした。')
+  }
+  return body.application
+}
+
+export async function deleteApplicationIcon(
+  csrfToken: string,
+  id: string,
+): Promise<AdminApplication> {
+  return (
+    await request<{ application: AdminApplication }>(
+      `/api/admin/applications/${encodeURIComponent(id)}/icon`,
+      adminRequest(csrfToken, 'DELETE'),
+    )
+  ).application
 }
 
 export async function deleteAdminApplication(csrfToken: string, id: string): Promise<void> {

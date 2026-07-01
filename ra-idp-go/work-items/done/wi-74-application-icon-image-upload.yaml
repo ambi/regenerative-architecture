@@ -1,7 +1,7 @@
 id: wi-74-application-icon-image-upload
 title: アプリケーションアイコンに画像アップロード機能を追加する
 created_at: 2026-06-27
-status: pending
+status: completed
 authors: [tn]
 
 motivation: |
@@ -76,3 +76,53 @@ risk_notes: |
   ファイルアップロードは検証不備があると保存型 XSS / コンテンツ偽装の温床になる。
   magic byte 検証・content-type 固定・X-Content-Type-Options: nosniff・実行権限の無い保存先を
   徹底する。svg を受理する場合はスクリプト除去 (sanitize) するか svg を受理対象から外す。
+completion:
+  completed_at: 2026-07-02
+  summary: |
+    Application アイコンを URL 自由入力から tenant-scoped な画像アップロードへ置き換えた。
+    ADR-073 で PostgreSQL blob 保存、PNG/JPEG/WebP/GIF の magic byte 検証、256 KiB 上限、
+    SVG 非対応、nosniff 配信を決定し、SCL に icon_object_key、upload/delete/serve interface、
+    安全配信と tenant isolation の invariant を追加した。
+
+    Go 実装では ApplicationIconStore port、memory/PostgreSQL adapter、schema、upload/delete/serve
+    handler、ApplicationIconUpdated event を追加した。管理 UI は Application 編集画面の
+    アイコン URL 入力をファイル選択 + プレビュー + 削除に置き換え、作成 API から icon_url 入力を
+    外した。
+  verification:
+    - cmd: just yaml-check
+      status: passed
+      environment: local
+      result: work item / SCL YAML すべて成功。
+    - cmd: just scl-render
+      status: passed
+      environment: local
+      result: ra-idp-go HTML / JSON Schema / OpenAPI 派生物を再生成。
+    - cmd: GOCACHE=/tmp/ra-idp-go-cache go test ./...
+      status: passed
+      environment: ra-idp-go
+      result: 全 Go package 成功。
+    - cmd: GOCACHE=/tmp/ra-idp-go-cache go test -race ./...
+      status: passed
+      environment: ra-idp-go
+      result: 全 Go package race test 成功。
+    - cmd: just build-go
+      status: passed
+      environment: local
+      result: go build ./... 成功。
+    - cmd: just verify-ui
+      status: passed
+      environment: local
+      result: UI format check / lint / typecheck / build 成功。
+    - cmd: just lint-go
+      status: blocked
+      environment: local
+      result: golangci-lint が context loading failed / no go files to analyze で終了。個別 package 指定でも同じ loader エラーで、lint 指摘は得られていない。
+  affected_guarantees_state:
+    - guarantee: safe serving
+      state: passed
+    - guarantee: input validation
+      state: passed
+    - guarantee: tenant isolation
+      state: passed
+    - guarantee: no external fetch
+      state: passed

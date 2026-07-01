@@ -30,6 +30,58 @@ func cloneApplication(app *spec.Application) *spec.Application {
 	return &cloned
 }
 
+// =====================================================================
+// ApplicationIconStore (wi-74, ADR-073)
+// =====================================================================
+
+type ApplicationIconStore struct {
+	mu    sync.RWMutex
+	icons map[string]*spec.ApplicationIcon // key: tenant_id + application_id + object_key
+}
+
+func NewApplicationIconStore() *ApplicationIconStore {
+	return &ApplicationIconStore{icons: map[string]*spec.ApplicationIcon{}}
+}
+
+func iconKey(tenantID, applicationID, objectKey string) string {
+	return strings.Join([]string{tenantID, applicationID, objectKey}, "\x00")
+}
+
+func cloneIcon(icon *spec.ApplicationIcon) *spec.ApplicationIcon {
+	cloned := *icon
+	cloned.Data = slices.Clone(icon.Data)
+	return &cloned
+}
+
+func (s *ApplicationIconStore) Save(_ context.Context, icon *spec.ApplicationIcon) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.icons[iconKey(icon.TenantID, icon.ApplicationID, icon.ObjectKey)] = cloneIcon(icon)
+	return nil
+}
+
+func (s *ApplicationIconStore) Find(_ context.Context, tenantID, applicationID, objectKey string) (*spec.ApplicationIcon, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	icon := s.icons[iconKey(tenantID, applicationID, objectKey)]
+	if icon == nil {
+		return nil, nil
+	}
+	return cloneIcon(icon), nil
+}
+
+func (s *ApplicationIconStore) DeleteByApplication(_ context.Context, tenantID, applicationID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	prefix := strings.Join([]string{tenantID, applicationID}, "\x00") + "\x00"
+	for key := range s.icons {
+		if strings.HasPrefix(key, prefix) {
+			delete(s.icons, key)
+		}
+	}
+	return nil
+}
+
 func (r *ApplicationRepository) ListByTenant(_ context.Context, tenantID string) ([]*spec.Application, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

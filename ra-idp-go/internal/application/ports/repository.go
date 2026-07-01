@@ -25,6 +25,14 @@ type ApplicationRepository interface {
 	RemoveCategory(ctx context.Context, tenantID, categoryID string) error
 }
 
+// ApplicationIconStore は Application icon blob の保存境界。
+// Application aggregate は icon_object_key だけを持ち、binary 本体はこの store が所有する。
+type ApplicationIconStore interface {
+	Save(ctx context.Context, icon *spec.ApplicationIcon) error
+	Find(ctx context.Context, tenantID, applicationID, objectKey string) (*spec.ApplicationIcon, error)
+	DeleteByApplication(ctx context.Context, tenantID, applicationID string) error
+}
+
 // ApplicationCategoryRepository は ApplicationCategory の永続境界 (wi-70, ADR-069)。
 type ApplicationCategoryRepository interface {
 	// ListByTenant はテナント内のカテゴリを position 昇順 (同値は name 昇順) で返す。

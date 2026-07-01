@@ -3,6 +3,7 @@ package http
 
 import (
 	"errors"
+	"io"
 	"net/http"
 	"time"
 
@@ -25,6 +26,7 @@ type applicationResponse struct {
 	Kind          spec.ApplicationKind      `json:"kind"`
 	Status        spec.ApplicationStatus    `json:"status"`
 	IconURL       string                    `json:"icon_url,omitempty"`
+	IconObjectKey string                    `json:"icon_object_key,omitempty"`
 	LaunchURL     string                    `json:"launch_url,omitempty"`
 	Bindings      []protocolBindingResponse `json:"bindings"`
 	CategoryIDs   []string                  `json:"category_ids"`
@@ -35,7 +37,6 @@ type applicationResponse struct {
 type applicationUpdateRequest struct {
 	Name      *string                 `json:"name"`
 	Status    *spec.ApplicationStatus `json:"status"`
-	IconURL   *string                 `json:"icon_url"`
 	LaunchURL *string                 `json:"launch_url"`
 }
 
@@ -104,12 +105,84 @@ func (d Deps) handleUpdateApplication(c *echo.Context) error {
 	}
 	app, err := appusecases.UpdateApplication(c.Request().Context(), d.applicationDeps(), appusecases.UpdateApplicationInput{
 		ActorSub: actor.Sub, ApplicationID: c.Param("application_id"),
-		Name: req.Name, Status: req.Status, IconURL: req.IconURL, LaunchURL: req.LaunchURL, Now: time.Now().UTC(),
+		Name: req.Name, Status: req.Status, LaunchURL: req.LaunchURL, Now: time.Now().UTC(),
 	})
 	if err != nil {
 		return d.writeApplicationError(c, err)
 	}
 	return support.NoStoreJSON(c, http.StatusOK, toApplicationResponse(app))
+}
+
+func (d Deps) handleUploadApplicationIcon(c *echo.Context) error {
+	if err := d.VerifyBrowserRequest(c); err != nil {
+		return err
+	}
+	actor, err := d.RequireAdmin(c)
+	if err != nil {
+		return d.WriteAdminAccessError(c, err)
+	}
+	file, err := c.FormFile("file")
+	if err != nil {
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "アイコン画像ファイルを指定してください")
+	}
+	src, err := file.Open()
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+	data, err := io.ReadAll(io.LimitReader(src, appusecases.MaxApplicationIconBytes+1))
+	if err != nil {
+		return err
+	}
+	objectKey, err := spec.NewUUIDv4()
+	if err != nil {
+		return err
+	}
+	iconURL := support.TenantRoute(c, "/application-icons/"+c.Param("application_id")+"/"+objectKey)
+	app, err := appusecases.UploadApplicationIcon(c.Request().Context(), d.applicationDeps(), appusecases.UploadApplicationIconInput{
+		ActorSub: actor.Sub, ApplicationID: c.Param("application_id"), ObjectKey: objectKey,
+		Data: data, IconURL: iconURL, Now: time.Now().UTC(),
+	})
+	if err != nil {
+		return d.writeApplicationError(c, err)
+	}
+	return support.NoStoreJSON(c, http.StatusOK, map[string]any{"application": toApplicationResponse(app)})
+}
+
+func (d Deps) handleDeleteApplicationIcon(c *echo.Context) error {
+	if err := d.VerifyBrowserRequest(c); err != nil {
+		return err
+	}
+	actor, err := d.RequireAdmin(c)
+	if err != nil {
+		return d.WriteAdminAccessError(c, err)
+	}
+	app, err := appusecases.DeleteApplicationIcon(
+		c.Request().Context(), d.applicationDeps(), actor.Sub, c.Param("application_id"), time.Now().UTC(),
+	)
+	if err != nil {
+		return d.writeApplicationError(c, err)
+	}
+	return support.NoStoreJSON(c, http.StatusOK, map[string]any{"application": toApplicationResponse(app)})
+}
+
+func (d Deps) handleGetApplicationIcon(c *echo.Context) error {
+	if d.ApplicationIconStore == nil {
+		return support.WriteBrowserError(c, http.StatusNotFound, "not_found", "アイコン画像が存在しません")
+	}
+	icon, err := d.ApplicationIconStore.Find(
+		c.Request().Context(), support.RequestTenantID(c), c.Param("application_id"), c.Param("object_key"),
+	)
+	if err != nil {
+		return err
+	}
+	if icon == nil {
+		return support.WriteBrowserError(c, http.StatusNotFound, "not_found", "アイコン画像が存在しません")
+	}
+	c.Response().Header().Set("Content-Type", icon.ContentType)
+	c.Response().Header().Set("X-Content-Type-Options", "nosniff")
+	c.Response().Header().Set("Cache-Control", "private, max-age=3600")
+	return c.Blob(http.StatusOK, icon.ContentType, icon.Data)
 }
 
 func (d Deps) handleDeleteApplication(c *echo.Context) error {
@@ -225,7 +298,10 @@ func (d Deps) handleUnassignApplication(c *echo.Context) error {
 }
 
 func (d Deps) applicationDeps() appusecases.ApplicationDeps {
-	return appusecases.ApplicationDeps{Repo: d.ApplicationRepo, AssignmentRepo: d.ApplicationAssignmentRepo, Emit: d.Emit}
+	return appusecases.ApplicationDeps{
+		Repo: d.ApplicationRepo, IconStore: d.ApplicationIconStore,
+		AssignmentRepo: d.ApplicationAssignmentRepo, Emit: d.Emit,
+	}
 }
 
 func (d Deps) assignmentDeps() appusecases.AssignmentDeps {
@@ -238,6 +314,11 @@ func (d Deps) assignmentDeps() appusecases.AssignmentDeps {
 func (d Deps) writeApplicationError(c *echo.Context, err error) error {
 	if errors.Is(err, appusecases.ErrApplicationNotFound) {
 		return support.WriteBrowserError(c, http.StatusNotFound, "application_not_found", "アプリケーションが存在しません")
+	}
+	if errors.Is(err, appusecases.ErrApplicationIconRequired) ||
+		errors.Is(err, appusecases.ErrApplicationIconTooLarge) ||
+		errors.Is(err, appusecases.ErrApplicationIconFormat) {
+		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_icon", err.Error())
 	}
 	return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", err.Error())
 }
@@ -253,7 +334,7 @@ func toApplicationResponse(app *spec.Application) applicationResponse {
 	}
 	return applicationResponse{
 		ApplicationID: app.ApplicationID, Name: app.Name, Kind: app.Kind, Status: app.Status,
-		IconURL: app.IconURL, LaunchURL: app.LaunchURL, Bindings: bindings, CategoryIDs: categoryIDs,
+		IconURL: app.IconURL, IconObjectKey: app.IconObjectKey, LaunchURL: app.LaunchURL, Bindings: bindings, CategoryIDs: categoryIDs,
 		CreatedAt: app.CreatedAt, UpdatedAt: app.UpdatedAt,
 	}
 }

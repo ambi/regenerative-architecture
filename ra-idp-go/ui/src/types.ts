@@ -93,6 +93,7 @@ export type AdminApplication = {
   kind: ApplicationKind
   status: ApplicationStatus
   icon_url?: string
+  icon_object_key?: string
   launch_url?: string
   bindings: ProtocolBinding[]
   category_ids: string[]

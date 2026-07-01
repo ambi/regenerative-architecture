@@ -16647,7 +16647,7 @@ system_admin は default tenant 経路から全テナント横断的に参照で
       <div class="eyebrow">Bounded Context · contexts/application.yaml</div>
       <h1>Application</h1>
     </header>
-    <div class="stats"><a class="stat" href="#context-application-glossary"><span class="stat-num">2</span><span class="stat-label">glossary</span></a><a class="stat" href="#context-application-models"><span class="stat-num">44</span><span class="stat-label">models</span></a><a class="stat" href="#context-application-interfaces"><span class="stat-num">20</span><span class="stat-label">interfaces</span></a><a class="stat" href="#context-application-invariants"><span class="stat-num">2</span><span class="stat-label">invariants</span></a><a class="stat" href="#context-application-scenarios"><span class="stat-num">4</span><span class="stat-label">scenarios</span></a><a class="stat" href="#context-application-permissions"><span class="stat-num">4</span><span class="stat-label">permissions</span></a><a class="stat" href="#context-application-user_experience"><span class="stat-num">2</span><span class="stat-label">user experience</span></a></div>
+    <div class="stats"><a class="stat" href="#context-application-glossary"><span class="stat-num">2</span><span class="stat-label">glossary</span></a><a class="stat" href="#context-application-models"><span class="stat-num">46</span><span class="stat-label">models</span></a><a class="stat" href="#context-application-interfaces"><span class="stat-num">23</span><span class="stat-label">interfaces</span></a><a class="stat" href="#context-application-invariants"><span class="stat-num">4</span><span class="stat-label">invariants</span></a><a class="stat" href="#context-application-scenarios"><span class="stat-num">5</span><span class="stat-label">scenarios</span></a><a class="stat" href="#context-application-permissions"><span class="stat-num">4</span><span class="stat-label">permissions</span></a><a class="stat" href="#context-application-user_experience"><span class="stat-num">2</span><span class="stat-label">user experience</span></a></div>
   </section>
   <section id="context-application-glossary">
     <h2>Glossary <span class="count">2</span></h2>
@@ -16672,7 +16672,7 @@ system_admin は default tenant 経路から全テナント横断的に参照で
     </article></div>
   </section>
 <section id="context-application-models">
-    <h2>Models <span class="count">44</span></h2>
+    <h2>Models <span class="count">46</span></h2>
 
     <div class="group">
       <h3 class="grp-title">entity <span class="count">4</span></h3>
@@ -16717,7 +16717,13 @@ system_admin は default tenant 経路から全テナント横断的に参照で
     <td><code class="type">String</code></td>
     <td><span class="badge badge-optional">optional</span></td>
     <td><span class="muted">—</span></td>
-    <td>ポータル一覧に表示するアイコン URL。</td>
+    <td>IdP が保存済みアイコンから生成する内部配信 URL。管理者は直接入力しない。</td>
+  </tr><tr>
+    <td><code class="name">icon_object_key</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td>テナント境界内に保存されたアイコン画像 object の opaque key。</td>
   </tr><tr>
     <td><code class="name">launch_url</code></td>
     <td><code class="type">String</code></td>
@@ -16876,7 +16882,7 @@ system_admin は default tenant 経路から全テナント横断的に参照で
   </article></div>
     </div>
 <div class="group">
-      <h3 class="grp-title">value object <span class="count">24</span></h3>
+      <h3 class="grp-title">value object <span class="count">25</span></h3>
       <div class="cards"><article class="card" id="context-application-model-protocolbinding">
     <header><h3>ProtocolBinding</h3><span class="badge badge-kind-value_object">value object</span></header>
     <p class="desc">Application に紐づく protocol binding。OIDC client / WS-Fed RP / 将来 SAML SP への 参照を opaque key で保持する。binding の wire 挙動は各 protocol context が所有する。</p>
@@ -16936,6 +16942,12 @@ system_admin は default tenant 経路から全テナント横断的に参照で
     <td></td>
   </tr><tr>
     <td><code class="name">icon_url</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-optional">optional</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">icon_object_key</code></td>
     <td><code class="type">String</code></td>
     <td><span class="badge badge-optional">optional</span></td>
     <td><span class="muted">—</span></td>
@@ -17096,12 +17108,6 @@ system_admin は default tenant 経路から全テナント横断的に参照で
     <td><span class="badge badge-required">required</span></td>
     <td><span class="muted">—</span></td>
     <td>oidc / wsfed / weblink。</td>
-  </tr><tr>
-    <td><code class="name">icon_url</code></td>
-    <td><code class="type">String</code></td>
-    <td><span class="badge badge-optional">optional</span></td>
-    <td><span class="muted">—</span></td>
-    <td></td>
   </tr><tr>
     <td><code class="name">launch_url</code></td>
     <td><code class="type">String</code></td>
@@ -17454,15 +17460,24 @@ system_admin は default tenant 経路から全テナント横断的に参照で
     <td><span class="muted">—</span></td>
     <td></td>
   </tr><tr>
-    <td><code class="name">icon_url</code></td>
+    <td><code class="name">launch_url</code></td>
     <td><code class="type">String</code></td>
     <td><span class="badge badge-optional">optional</span></td>
     <td><span class="muted">—</span></td>
     <td></td>
-  </tr><tr>
-    <td><code class="name">launch_url</code></td>
-    <td><code class="type">String</code></td>
-    <td><span class="badge badge-optional">optional</span></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="context-application-model-applicationiconuploadresponse">
+    <header><h3>ApplicationIconUploadResponse</h3><span class="badge badge-kind-value_object">value object</span></header>
+    <p class="desc">Application icon アップロードまたは削除後の Application 表現。</p>
+
+    <table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">application</code></td>
+    <td><code class="type">AdminApplicationResponse</code></td>
+    <td><span class="badge badge-required">required</span></td>
     <td><span class="muted">—</span></td>
     <td></td>
   </tr></tbody>
@@ -17730,7 +17745,7 @@ categories は tenant のカテゴリ定義を position 昇順で含み、ポー
   </article></div>
     </div>
 <div class="group">
-      <h3 class="grp-title">event <span class="count">10</span></h3>
+      <h3 class="grp-title">event <span class="count">11</span></h3>
       <div class="cards"><article class="card" id="context-application-model-applicationcreated">
     <header><h3>ApplicationCreated</h3><span class="badge badge-kind-event">event</span></header>
     <p class="desc">Application を作成した。</p>
@@ -17797,6 +17812,45 @@ categories は tenant のカテゴリ定義を position 昇順で含み、ポー
   </tr><tr>
     <td><code class="name">changedFields</code></td>
     <td><code class="type">String[]</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr></tbody>
+  </table>
+  </article>
+<article class="card" id="context-application-model-applicationiconupdated">
+    <header><h3>ApplicationIconUpdated</h3><span class="badge badge-kind-event">event</span></header>
+    <p class="desc">Application の保存済みアイコンをアップロードまたは削除した。</p>
+
+    <div class="label">Payload</div><table class="fields">
+    <thead><tr><th>Field</th><th>Type</th><th>Presence</th><th>Constraints / Annotations</th><th>Description</th></tr></thead>
+    <tbody><tr>
+    <td><code class="name">occurredAt</code></td>
+    <td><code class="type">Timestamp</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">tenantId</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">actorSub</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">applicationId</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td><span class="muted">—</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">action</code></td>
+    <td><code class="type">String</code></td>
     <td><span class="badge badge-required">required</span></td>
     <td><span class="muted">—</span></td>
     <td></td>
@@ -18106,7 +18160,7 @@ categories は tenant のカテゴリ定義を position 昇順で含み、ポー
     </div>
   </section>
 <section id="context-application-interfaces">
-    <h2>Interfaces <span class="count">20</span></h2>
+    <h2>Interfaces <span class="count">23</span></h2>
     <p class="lead">外部との契約。入力・出力・エラー・発行イベントと、それを露出する複数のトランスポート (bindings)。</p>
     <div class="cards"><article class="card" id="context-application-iface-listadminapplications">
     <header><h3>ListAdminApplications</h3><span class="badge badge-readonly">read-only</span></header>
@@ -18237,6 +18291,120 @@ categories は tenant のカテゴリ定義を position 昇順で含み、ポー
 <div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
     <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
     <div class="binding-body"><div class="binding-head"><span class="badge badge-method-patch">PATCH</span> <code class="path">/api/admin/applications/{application_id}</code> <span class="chip chip-hint">form: body</span></div></div>
+  </div></div></div>
+  </article>
+<article class="card" id="context-application-iface-uploadapplicationicon">
+    <header><h3>UploadApplicationIcon</h3></header>
+    <p class="desc">管理者が Application のアイコン画像を multipart でアップロードする。受理形式は PNG / JPEG / WebP / GIF、最大 256KiB とし、magic byte で検証する。</p>
+
+    <div class="io">
+    <div class="label">Input</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">application_id</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">file</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io">
+    <div class="label">Output</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">response</code></td>
+    <td><code class="type">ApplicationIconUploadResponse</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io"><div class="label">Errors</div><div class="chip-row"><a class="chip chip-error-ref" href="#context-application-model-invalidrequesterror">InvalidRequestError</a> <a class="chip chip-error-ref" href="#context-application-model-accessdeniederror">AccessDeniedError</a></div></div>
+<div class="io"><div class="label">Emits</div><div class="chip-row"><a class="chip chip-event-ref" href="#context-application-model-applicationiconupdated">ApplicationIconUpdated</a></div></div>
+<div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
+    <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
+    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-post">POST</span> <code class="path">/api/admin/applications/{application_id}/icon</code> <span class="chip chip-hint">form: form</span></div></div>
+  </div></div></div>
+  </article>
+<article class="card" id="context-application-iface-deleteapplicationicon">
+    <header><h3>DeleteApplicationIcon</h3></header>
+    <p class="desc">管理者が Application の保存済みアイコンを削除する。削除後は icon_url を返さない。</p>
+
+    <div class="io">
+    <div class="label">Input</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">application_id</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io">
+    <div class="label">Output</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">response</code></td>
+    <td><code class="type">ApplicationIconUploadResponse</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io"><div class="label">Errors</div><div class="chip-row"><a class="chip chip-error-ref" href="#context-application-model-invalidrequesterror">InvalidRequestError</a> <a class="chip chip-error-ref" href="#context-application-model-accessdeniederror">AccessDeniedError</a></div></div>
+<div class="io"><div class="label">Emits</div><div class="chip-row"><a class="chip chip-event-ref" href="#context-application-model-applicationiconupdated">ApplicationIconUpdated</a></div></div>
+<div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
+    <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
+    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-delete">DELETE</span> <code class="path">/api/admin/applications/{application_id}/icon</code></div></div>
+  </div></div></div>
+  </article>
+<article class="card" id="context-application-iface-getapplicationicon">
+    <header><h3>GetApplicationIcon</h3><span class="badge badge-readonly">read-only</span></header>
+    <p class="desc">保存済み Application アイコンを配信する。Content-Type は検証済み形式に固定し、X-Content-Type-Options: nosniff を付ける。別テナントまたは削除済み object は未存在として扱う。</p>
+
+    <div class="io">
+    <div class="label">Input</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">application_id</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr><tr>
+    <td><code class="name">object_key</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io">
+    <div class="label">Output</div>
+    <table class="fields">
+      <thead><tr><th>Slot</th><th>Type</th><th>Presence</th><th>Description</th></tr></thead>
+      <tbody><tr>
+    <td><code class="name">file</code></td>
+    <td><code class="type">String</code></td>
+    <td><span class="badge badge-required">required</span></td>
+    <td></td>
+  </tr></tbody>
+    </table>
+  </div>
+<div class="io"><div class="label">Errors</div><div class="chip-row"><a class="chip chip-error-ref" href="#context-application-model-invalidrequesterror">InvalidRequestError</a></div></div>
+<div class="io"><div class="label">Bindings (1)</div><div class="bindings"><div class="binding binding-http">
+    <div class="binding-kind"><span class="badge badge-bkind-http">http</span></div>
+    <div class="binding-body"><div class="binding-head"><span class="badge badge-method-get">GET</span> <code class="path">/application-icons/{application_id}/{object_key}</code></div></div>
   </div></div></div>
   </article>
 <article class="card" id="context-application-iface-deleteadminapplication">
@@ -18736,7 +18904,7 @@ tenant のカテゴリ定義を position 昇順で含み、各アプリの categ
   </article></div>
   </section>
 <section id="context-application-invariants">
-    <h2>Invariants <span class="count">2</span></h2>
+    <h2>Invariants <span class="count">4</span></h2>
     <p class="lead">入力に依らず常に成り立つ不変条件、または決して起きてはならない事象。</p>
     <div class="cards"><article class="card" id="context-application-inv-assignmentgatesprotocol">
     <header><h3>AssignmentGatesProtocol</h3></header>
@@ -18752,10 +18920,22 @@ authorize / WS-Fed sign-in / 将来 SAML SSO は割当を fail-closed で確認�
 プロトコル利用は引き続き許可する。</p>
     <dl class="kv"><dt>target</dt><dd><code>ApplicationAssignment</code></dd></dl>
     <div class="clause clause-always"><div class="clause-label ok">always (invariant)</div><code class="expr">listed_in_portal implies (assigned and visibility == visible)</code></div>
+  </article>
+<article class="card" id="context-application-inv-applicationiconsafeserving">
+    <header><h3>ApplicationIconSafeServing</h3></header>
+    <p class="desc">Application icon は保存時に magic byte とサイズ上限を検証し、配信時は保存済み content-type と nosniff を強制する。SVG や実行可能コンテンツとして扱われる形式は受け付けない。</p>
+    <dl class="kv"><dt>target</dt><dd><code>Application</code></dd></dl>
+    <div class="clause clause-always"><div class="clause-label ok">always (invariant)</div><code class="expr">icon_uploaded implies (content_type in [&quot;image/png&quot;,&quot;image/jpeg&quot;,&quot;image/webp&quot;,&quot;image/gif&quot;] and size_bytes &lt;= 262144 and response_nosniff == true)</code></div>
+  </article>
+<article class="card" id="context-application-inv-applicationicontenantisolation">
+    <header><h3>ApplicationIconTenantIsolation</h3></header>
+    <p class="desc">Application icon は tenant_id + application_id + object_key で参照し、別テナントの object は同じ key でも取得できない。</p>
+    <dl class="kv"><dt>target</dt><dd><code>Application</code></dd></dl>
+    <div class="clause clause-always"><div class="clause-label ok">always (invariant)</div><code class="expr">icon_served implies request.tenant_id == icon.tenant_id</code></div>
   </article></div>
   </section>
 <section id="context-application-scenarios">
-    <h2>Scenarios <span class="count">4</span></h2>
+    <h2>Scenarios <span class="count">5</span></h2>
     <p class="lead">受け入れ例。自然文ステップで書かれた振る舞いの具体例。引用された既知の名前は定義へリンクする。</p>
     <div class="cards"><article class="card scenario" id="context-application-scn-client">
     <header><h3>管理者は所属テナントの client を作成・更新・削除できる</h3></header>
@@ -18799,6 +18979,21 @@ authorize / WS-Fed sign-in / 将来 SAML SSO は割当を fail-closed で確認�
 
 
   </article>
+<article class="card scenario" id="context-application-scn-application">
+    <header><h3>管理者は Application アイコンをアップロード・削除できる</h3></header>
+
+    <dl class="kv"><dt>goal</dt><dd>管理者が Application 編集画面で画像ファイルを選び、ポータルと管理画面に保存済みアイコンを表示する。</dd><dt>primary actor</dt><dd><span class="chip">Administrator</span></dd><dt>scope</dt><dd><span class="chip">Application</span></dd><dt>level</dt><dd><span class="chip">user_goal</span></dd></dl>
+
+    <div class="sub"><div class="label">Preconditions</div><ul class="vlist"><li>管理者が Application 編集画面を開いている</li></ul></div>
+
+    <div class="sub"><div class="label">Main success</div><ol class="scn-steps"><li class="scn-step">PNG / JPEG / WebP / GIF の 256KiB 以下の画像をアップロードする</li><li class="scn-step">Application は icon_object_key と内部 icon_url を持つ</li><li class="scn-step">管理一覧・詳細・利用者ポータルの icon_url は IdP の配信 URL を指す</li><li class="scn-step">管理者がアイコンを削除すると icon_object_key と icon_url は空になる</li></ol></div>
+
+    <div class="sub"><div class="label">Extensions</div><div class="requirements"><article class="requirement">
+        <header><code class="name">非画像または上限超過ファイルをアップロードする</code></header>
+        <ol class="scn-steps"><li class="scn-step">エラー <code class="step-arg">InvalidRequestError</code></li><li class="scn-step">既存アイコンは置き換わらない</li></ol>
+      </article></div></div>
+
+  </article>
 <article class="card scenario" id="context-application-scn-u-1ar3dk9">
     <header><h3>ダッシュボードは所属テナントの集計を表示する</h3></header>
 
@@ -18817,7 +19012,7 @@ authorize / WS-Fed sign-in / 将来 SAML SSO は割当を fail-closed で確認�
     <p class="lead">誰が、何に対して、どんな条件で何ができるかを宣言する認可ルール。</p>
     <div class="cards"><article class="card" id="context-application-perm-adminapplicationsmanage">
     <header><h3>AdminApplicationsManage</h3></header>
-    <p class="desc">所属テナント内の Application 一覧・取得・作成・更新・削除・binding 接続/解除。</p>
+    <p class="desc">所属テナント内の Application 一覧・取得・作成・更新・削除・binding 接続/解除・アイコンアップロード/削除。</p>
     <dl class="kv"><dt>actor</dt><dd><code class="name">User</code></dd><dt>operation</dt><dd><span class="muted">—</span></dd><dt>resource</dt><dd><code class="name">Application</code></dd></dl>
     <div class="clause"><div class="clause-label ok">allow when</div><div class="expr-op">
     <div class="expr-op-label">AND</div>
@@ -18898,7 +19093,7 @@ authorize / WS-Fed sign-in / 将来 SAML SSO は割当を fail-closed で確認�
 DPoP、作成時に確定する認証方式) もここで編集し、専用の低レベル client 画面は持たない。
 生成された client_secret は作成成功直後に一度だけ表示する。
 </p>
-        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-iface-ref" href="#context-application-iface-listadminapplications">ListAdminApplications</a> <a class="chip chip-iface-ref" href="#context-application-iface-getadminapplication">GetAdminApplication</a> <a class="chip chip-iface-ref" href="#context-application-iface-createadminapplication">CreateAdminApplication</a> <a class="chip chip-iface-ref" href="#context-application-iface-updateadminapplication">UpdateAdminApplication</a> <a class="chip chip-iface-ref" href="#context-application-iface-deleteadminapplication">DeleteAdminApplication</a> <a class="chip chip-iface-ref" href="#context-application-iface-attachprotocolbinding">AttachProtocolBinding</a> <a class="chip chip-iface-ref" href="#context-application-iface-detachprotocolbinding">DetachProtocolBinding</a> <a class="chip chip-iface-ref" href="#context-application-iface-updateapplicationoidcconfig">UpdateApplicationOidcConfig</a> <a class="chip chip-iface-ref" href="#context-application-iface-updateapplicationwsfedconfig">UpdateApplicationWsFedConfig</a> <a class="chip chip-iface-ref" href="#context-application-iface-listapplicationassignments">ListApplicationAssignments</a> <a class="chip chip-iface-ref" href="#context-application-iface-assignapplication">AssignApplication</a> <a class="chip chip-iface-ref" href="#context-application-iface-unassignapplication">UnassignApplication</a> <a class="chip chip-iface-ref" href="#context-application-iface-listapplicationcategories">ListApplicationCategories</a> <a class="chip chip-iface-ref" href="#context-application-iface-createapplicationcategory">CreateApplicationCategory</a> <a class="chip chip-iface-ref" href="#context-application-iface-updateapplicationcategory">UpdateApplicationCategory</a> <a class="chip chip-iface-ref" href="#context-application-iface-deleteapplicationcategory">DeleteApplicationCategory</a> <a class="chip chip-iface-ref" href="#context-application-iface-setapplicationcategories">SetApplicationCategories</a> <a class="chip chip-iface-ref" href="#context-application-iface-listadminusers">ListAdminUsers</a> <a class="chip chip-iface-ref" href="#context-application-iface-listgroups">ListGroups</a></div>
+        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-iface-ref" href="#context-application-iface-listadminapplications">ListAdminApplications</a> <a class="chip chip-iface-ref" href="#context-application-iface-getadminapplication">GetAdminApplication</a> <a class="chip chip-iface-ref" href="#context-application-iface-createadminapplication">CreateAdminApplication</a> <a class="chip chip-iface-ref" href="#context-application-iface-updateadminapplication">UpdateAdminApplication</a> <a class="chip chip-iface-ref" href="#context-application-iface-uploadapplicationicon">UploadApplicationIcon</a> <a class="chip chip-iface-ref" href="#context-application-iface-deleteapplicationicon">DeleteApplicationIcon</a> <a class="chip chip-iface-ref" href="#context-application-iface-deleteadminapplication">DeleteAdminApplication</a> <a class="chip chip-iface-ref" href="#context-application-iface-attachprotocolbinding">AttachProtocolBinding</a> <a class="chip chip-iface-ref" href="#context-application-iface-detachprotocolbinding">DetachProtocolBinding</a> <a class="chip chip-iface-ref" href="#context-application-iface-updateapplicationoidcconfig">UpdateApplicationOidcConfig</a> <a class="chip chip-iface-ref" href="#context-application-iface-updateapplicationwsfedconfig">UpdateApplicationWsFedConfig</a> <a class="chip chip-iface-ref" href="#context-application-iface-listapplicationassignments">ListApplicationAssignments</a> <a class="chip chip-iface-ref" href="#context-application-iface-assignapplication">AssignApplication</a> <a class="chip chip-iface-ref" href="#context-application-iface-unassignapplication">UnassignApplication</a> <a class="chip chip-iface-ref" href="#context-application-iface-listapplicationcategories">ListApplicationCategories</a> <a class="chip chip-iface-ref" href="#context-application-iface-createapplicationcategory">CreateApplicationCategory</a> <a class="chip chip-iface-ref" href="#context-application-iface-updateapplicationcategory">UpdateApplicationCategory</a> <a class="chip chip-iface-ref" href="#context-application-iface-deleteapplicationcategory">DeleteApplicationCategory</a> <a class="chip chip-iface-ref" href="#context-application-iface-setapplicationcategories">SetApplicationCategories</a> <a class="chip chip-iface-ref" href="#context-application-iface-listadminusers">ListAdminUsers</a> <a class="chip chip-iface-ref" href="#context-application-iface-listgroups">ListGroups</a></div>
         <div class="chip-row"><span class="chip">ready</span> <span class="chip">loading</span> <span class="chip">submitting</span> <span class="chip">empty</span> <span class="chip">secret_issued</span> <span class="chip">delete_confirmation</span> <span class="chip">access_denied</span> <span class="chip">service_error</span></div>
       </article><article class="card" id="context-application-screen-accountapps">
         <header><h3>AccountApps</h3><span class="chip chip-hint">/account/apps</span></header>
@@ -18914,7 +19109,7 @@ DPoP、作成時に確定する認証方式) もここで編集し、専用の�
         <td><a class="chip" href="#context-application-screen-adminusers">AdminUsers</a></td>
         <td></td>
       </tr></tbody></table></div>
-    <div class="group"><h3 class="grp-title">Requirements <span class="count">4</span></h3><div class="requirements"><article class="requirement" id="context-application-ux-ux-admin-client-secret">
+    <div class="group"><h3 class="grp-title">Requirements <span class="count">5</span></h3><div class="requirements"><article class="requirement" id="context-application-ux-ux-admin-client-secret">
         <header>
           <code class="name">UX-ADMIN-CLIENT-SECRET</code>
           <span class="badge badge-adoption-required">required</span>
@@ -18932,6 +19127,15 @@ DPoP、作成時に確定する認証方式) もここで編集し、専用の�
         <p>AdminApplicationsはアプリケーション削除前に対象を示す確認操作を要求する。</p>
         <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#context-application-screen-adminapplications">AdminApplications</a></div>
         <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#context-application-iface-deleteadminapplication">DeleteAdminApplication</a></div>
+      </article><article class="requirement" id="context-application-ux-ux-application-icon-upload">
+        <header>
+          <code class="name">UX-APPLICATION-ICON-UPLOAD</code>
+          <span class="badge badge-adoption-required">required</span>
+          <span class="badge badge-category">usability</span>
+        </header>
+        <p>AdminApplicationsはアイコンを URL 入力ではなくファイル選択またはドラッグ&amp;ドロップで受け取り、アップロード後のプレビューを保存済み配信 URL で表示する。不正形式・過大サイズは同じ画面で拒否理由を表示する。</p>
+        <div class="reference-row"><span class="reference-label">screens</span><a class="chip" href="#context-application-screen-adminapplications">AdminApplications</a></div>
+        <div class="reference-row"><span class="reference-label">interfaces</span><a class="chip chip-ref" href="#context-application-iface-uploadapplicationicon">UploadApplicationIcon</a> <a class="chip chip-ref" href="#context-application-iface-deleteapplicationicon">DeleteApplicationIcon</a> <a class="chip chip-ref" href="#context-application-iface-getapplicationicon">GetApplicationIcon</a></div>
       </article><article class="requirement" id="context-application-ux-ux-application-portal-direct-reorder">
         <header>
           <code class="name">UX-APPLICATION-PORTAL-DIRECT-REORDER</code>

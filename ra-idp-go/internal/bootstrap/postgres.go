@@ -71,6 +71,7 @@ func assemblePostgres(ctx context.Context) (*Dependencies, error) {
 		WsFedRPRepo:               &postgres.WsFedRelyingPartyRepository{Pool: pool},
 		SamlSPRepo:                &postgres.SamlServiceProviderRepository{Pool: pool},
 		ApplicationRepo:           &postgres.ApplicationRepository{Pool: pool},
+		ApplicationIconStore:      &postgres.ApplicationIconStore{Pool: pool},
 		ApplicationAssignmentRepo: &postgres.ApplicationAssignmentRepository{Pool: pool},
 		ApplicationOrderingRepo:   &postgres.ApplicationOrderingRepository{Pool: pool},
 		ApplicationCategoryRepo:   &postgres.ApplicationCategoryRepository{Pool: pool},

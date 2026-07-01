@@ -290,12 +290,26 @@ CREATE TABLE applications (
     kind TEXT NOT NULL,
     status TEXT NOT NULL,
     icon_url TEXT NOT NULL DEFAULT '',
+    icon_object_key TEXT NOT NULL DEFAULT '',
     launch_url TEXT NOT NULL DEFAULT '',
     bindings JSONB NOT NULL DEFAULT '[]'::jsonb,
     category_ids TEXT[] NOT NULL DEFAULT '{}',
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,
     PRIMARY KEY (tenant_id, application_id)
+);
+
+CREATE TABLE application_icons (
+    tenant_id TEXT NOT NULL DEFAULT 'default',
+    application_id UUID NOT NULL,
+    object_key TEXT NOT NULL,
+    content_type TEXT NOT NULL,
+    size_bytes INTEGER NOT NULL,
+    data BYTEA NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (tenant_id, application_id, object_key),
+    FOREIGN KEY (tenant_id, application_id)
+        REFERENCES applications (tenant_id, application_id) ON DELETE CASCADE
 );
 
 CREATE TABLE application_assignments (

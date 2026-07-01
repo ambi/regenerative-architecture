@@ -41,6 +41,7 @@ func assembleMemory() (*Dependencies, error) {
 		WsFedRPRepo:               memory.NewWsFedRelyingPartyRepository(),
 		SamlSPRepo:                memory.NewSamlServiceProviderRepository(),
 		ApplicationRepo:           memory.NewApplicationRepository(),
+		ApplicationIconStore:      memory.NewApplicationIconStore(),
 		ApplicationAssignmentRepo: memory.NewApplicationAssignmentRepository(),
 		ApplicationOrderingRepo:   memory.NewApplicationOrderingRepository(),
 		ApplicationCategoryRepo:   memory.NewApplicationCategoryRepository(),

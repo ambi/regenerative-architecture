@@ -29,7 +29,6 @@ const (
 type createApplicationRequest struct {
 	Name      string `json:"name"`
 	Type      string `json:"type"` // oidc | wsfed | weblink | service
-	IconURL   string `json:"icon_url"`
 	LaunchURL string `json:"launch_url"`
 	// OIDC
 	RedirectURIs []string `json:"redirect_uris"`
@@ -121,7 +120,7 @@ func (d Deps) handleCreateApplication(c *echo.Context) error {
 	case "weblink":
 		app, err := appusecases.CreateApplication(ctx, d.applicationDeps(), appusecases.CreateApplicationInput{
 			ActorSub: actor.Sub, Name: req.Name, Kind: spec.ApplicationWeblink,
-			IconURL: req.IconURL, LaunchURL: req.LaunchURL, Now: now,
+			LaunchURL: req.LaunchURL, Now: now,
 		})
 		if err != nil {
 			return d.writeApplicationError(c, err)
@@ -250,7 +249,7 @@ func (d Deps) handleCreateApplication(c *echo.Context) error {
 // createCatalogApp は指定 kind の Application を作成し、protocol binding を接続する。
 func (d Deps) createCatalogApp(ctx context.Context, actorSub string, req createApplicationRequest, now time.Time, kind spec.ApplicationKind, binding spec.ProtocolBinding) (*spec.Application, error) {
 	app, err := appusecases.CreateApplication(ctx, d.applicationDeps(), appusecases.CreateApplicationInput{
-		ActorSub: actorSub, Name: req.Name, Kind: kind, IconURL: req.IconURL, LaunchURL: req.LaunchURL, Now: now,
+		ActorSub: actorSub, Name: req.Name, Kind: kind, LaunchURL: req.LaunchURL, Now: now,
 	})
 	if err != nil {
 		return nil, err

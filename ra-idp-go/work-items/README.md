@@ -1,6 +1,6 @@
-# ワークアイテムの文脈取得
+# Retrieving Work Item Context
 
-ワークアイテム YAML は正本だが、AI はまず次だけを読む。
+While the Work Item YAML files are the canonical records, AI agents should initially read only the following fields:
 
 1. `motivation`
 2. `scope`
@@ -10,6 +10,5 @@
 6. `verification`
 7. `risk`
 
-大きな `completion` や証跡は、監査履歴や過去の検証結果が必要なときだけ辿る。
-`initial_context` では長いファイル列挙より `features` と feature ディレクトリを
-優先し、ファイルパスは feature に同居できていない例外的な入口に限る。
+Access large `completion` fields or validation evidence only when historical audits or past verification results are required.
+For `initial_context`, prioritize directory-based `features` and feature directories rather than long lists of individual files. List specific file paths only when they represent exceptional entry points located outside the feature directories.

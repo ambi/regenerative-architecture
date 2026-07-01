@@ -1,12 +1,10 @@
 # scl-to-html
 
-Regenerative Architecture (RA) ドキュメント群を 1 枚の HTML に束ねるツール。
-SCL (`spec/scl.yaml`) だけでなく、CONCEPTION / ADR (`decisions/*.md`) と
-work item (`work-items/*.yaml`) も同じページから辿れる。
+A utility to bundle Regenerative Architecture (RA) documentation into a single HTML file. In addition to SCL (`spec/scl.yaml`), it integrates CONCEPTION / ADR (`decisions/*.md`) and Work Items (`work-items/*.yaml`) into a single view.
 
-仕様は [`spec/scl.yaml`](spec/scl.yaml) を参照。
+For specifications, refer to [`spec/scl.yaml`](spec/scl.yaml).
 
-## 使い方
+## Usage
 
 ```bash
 bun scl-to-html \
@@ -15,72 +13,64 @@ bun scl-to-html \
   --out       out/ra-idp.html
 ```
 
-- `--scl` のみ必須。`--decisions` / `--work-items` 省略時はそのタブが空表示になる。
-- `--out` を省略すると HTML が標準出力に書き出される。
-- `--title` を省略すると `system` フィールド (SCL) がページタイトルになる。
-- 通常のレビュー用 HTML は SCL のみを出す。ADR / work item まで含む監査用の全部入り HTML
-  が必要な場合だけ `--decisions` / `--work-items` を指定する。
+- Only `--scl` is required. If `--decisions` or `--work-items` are omitted, their corresponding tabs will be empty.
+- If `--out` is omitted, the HTML is written directly to stdout.
+- If `--title` is omitted, the `system` field from the SCL is used as the page title.
+- For standard reviews, only `--scl` is used. Specify `--decisions` or `--work-items` when generating a full audit-ready bundle.
 
-`--help` で同じ案内が出る。
+Running with `--help` prints the CLI usage guide.
 
-## 出力
+## Output
 
-単一の HTML ファイル。CSS / JS / すべてのテキストは inline 同梱 (外部リソース 0)。
-ライト / ダーク両対応 (`prefers-color-scheme` に追従)。
+A single HTML file containing all CSS, JS, and text inline (zero external dependencies). Follows system dark/light preferences via `prefers-color-scheme`.
 
-タブ:
+Tabs:
 
-| タブ      | 内容                                                             |
-| --------- | ---------------------------------------------------------------- |
-| SCL       | SPECIFICATION_CORE_LANGUAGE.md §3 の 12 セクションをカード表示   |
-| Decisions | CONCEPTION + CONCEPTION_BASELINE + ADR-NNN-…md (指定時のみ)      |
-| Work Items | work-items/*.yaml + work-items/done/*.yaml (指定時のみ)         |
+| Tab | Contents |
+| --- | --- |
+| SCL | Card-based layout of the 12 sections defined in `SPECIFICATION_CORE_LANGUAGE.md` §3 |
+| Decisions | CONCEPTION, CONCEPTION_BASELINE, and ADR-NNN-...md (if specified) |
+| Work Items | work-items/*.yaml and work-items/done/*.yaml (if specified) |
 
-URL ハッシュは `#tab=<name>&sec=<section-id>` 形式でルーティング。JS 無効でも
-生成されたタブの内容が縦に並んで読める (degraded mode)。
+URL hashes route via `#tab=<name>&sec=<section-id>`. If JavaScript is disabled, the page falls back to a degraded mode where tab contents are listed vertically.
 
-## JSON Schema との関係
+## Relationship with JSON Schema
 
-- SCL は [`tools/yaml-check/schemas/scl.schema.json`](../yaml-check/schemas/scl.schema.json)
-- work-item は同 `yaml-check/schemas/`
-- `bun --cwd ../yaml-check yaml-check:all` で 3 形式まとめて検証できる
+- SCL Schema: [`tools/yaml-check/schemas/scl.schema.json`](../yaml-check/schemas/scl.schema.json)
+- Work-Item Schema: located under `yaml-check/schemas/`
+- Run `bun --cwd ../yaml-check yaml-check:all` to validate all three formats concurrently.
 
-スキーマで弾かれない (= 任意プロパティが許される) 部分は本ツールが受け流すので、
-SCL の側で未知フィールドを足しても壊れない。
+Properties not restricted by the schema are ignored and passed through by this tool, ensuring that adding custom/unknown fields to SCL will not break rendering.
 
-## 開発
+## Development
 
 ```bash
-bun test                  # ユニットテスト (Bun test runner)
-bun run lint              # Biome
-bun run typecheck         # tsc --noEmit
-bun scl-to-html --help    # CLI 確認
-bun run scl-to-html:ra-idp-go       # ra-idp-go の SCL HTML
-bun run scl-to-html:ra-idp-go:full  # ADR / work item も含む全部入り HTML
+bun test                  # Run unit tests (Bun test runner)
+bun run lint              # Lint code (Biome)
+bun run typecheck         # Type check (tsc --noEmit)
+bun scl-to-html --help    # Verify CLI help
+bun run scl-to-html:ra-idp-go       # Generate ra-idp-go SCL HTML
+bun run scl-to-html:ra-idp-go:full  # Generate full HTML bundle containing ADRs / Work Items
 ```
 
-ソース構成:
+Source Tree:
 
 ```
 src/
-  main.ts              # CLI shell (引数 → load → render → write)
-  args.ts              # CLI 引数パーサ (純関数)
-  load.ts              # SCL / decisions / work-items ローダ (file IO のみ)
-  types.ts             # SCL + Decision + Change の TS 型
-  html.ts              # esc / slug / chip / link / badge / renderValue
-  markdown.ts          # markdown-it ラッパ (html: false)
-  render-scl.ts        # SCL の 12 セクションを HTML 化
-  render-decisions.ts  # CONCEPTION + ADR の HTML 化
-  render-changes.ts    # work-item の HTML 化
-  page.ts              # トップシェル (タブバー / サイドバー / CSS / JS)
-spec/scl.yaml          # 本ツール自身の RA 仕様
-schemas/               # (なし — SCL スキーマは ../yaml-check/schemas/)
+  main.ts              # CLI entry point (Parse arguments -> load -> render -> write)
+  args.ts              # CLI argument parser (Pure functions)
+  load.ts              # File loader for SCL, Decisions, and Work Items
+  types.ts             # TypeScript definitions for SCL, Decisions, and Work Items
+  html.ts              # HTML utilities (escaping, slugification, chip/badge rendering)
+  markdown.ts          # markdown-it wrapper (html: false)
+  render-scl.ts        # Render SCL sections to HTML
+  render-decisions.ts  # Render conceptions and ADRs to HTML
+  render-changes.ts    # Render work items to HTML
+  page.ts              # Document wrapper containing layout shell, CSS, and JS
+spec/scl.yaml          # Specifications for this tool itself
+schemas/               # None (SCL schemas are stored in ../yaml-check/schemas/)
 ```
 
-## なぜリライトしたか
+## Why it was rewritten
 
-旧版は `render.ts` 1 ファイル ~1800 行で、SCL しか描画できなかった。Phase 4
-以降「SCL / ADR / ワークアイテム を一緒に読みたい」という運用上の要請が増え、
-モジュール分割と Decisions / Work Items タブを追加した。詳細は
-[CONCEPTION](../../ra-idp-go/decisions/CONCEPTION.md) 系の文書
-ではなく本ツールの SCL (`spec/scl.yaml`) を参照。
+The legacy version was a single `render.ts` file (~1800 lines) that could only render SCL. To meet operational requirements for inspecting SCL, ADRs, and Work Items side-by-side, the code was refactored into modules, and the Decisions and Work Items tabs were added. For details, refer to this tool's SCL spec at [`spec/scl.yaml`](spec/scl.yaml) instead of the `CONCEPTION.md` series in `ra-idp-go`.

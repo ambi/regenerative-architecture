@@ -1,71 +1,64 @@
 # yaml-check
 
-リポジトリ内の YAML を 3 段で検査する CLI:
+A three-tier YAML validation CLI for the repository:
 
-1. **Parse** — Bun 内蔵の YAML ローダで構文解析する。`scl-to-html` 等の他ツールが
-   使うのと同じエンジンなので、ここで通れば下流でも通る。
-2. **Lint** — 生テキストに対する形式チェック (タブインデント / 行末空白 /
-   末尾改行)。意味解釈は行わない。
-3. **Schema** (任意) — `--schema=<name>` を渡したときだけ、JSON Schema 2020-12
-   ベース (Ajv) で内容を検証する。スキーマはファイル名から推測しない —
-   偶然同名のファイルに無関係なスキーマが当たることを避けるため、常に明示する。
+1. **Parse**: Syntactic validation using Bun's built-in YAML loader. The same engine is used by downstream utilities like `scl-to-html`, ensuring that files passing this step are compatible elsewhere.
+2. **Lint**: Structural raw-text checks (checking for tab indentation, trailing spaces, and trailing newlines).
+3. **Schema (Optional)**: If `--schema=<name>` is passed, validates content using JSON Schema 2020-12 (via Ajv). Schema-to-file mappings are not auto-guessed from filenames; they must be explicitly declared to prevent applying mismatching schemas.
 
-仕様は [`spec/scl.yaml`](spec/scl.yaml) を参照。
+For specifications, refer to [`spec/scl.yaml`](spec/scl.yaml).
 
-## 使い方
+## Usage
 
 ```bash
-bun yaml-check <file-or-glob>...                          # parse + lint
-bun yaml-check --schema=<name> <file-or-glob>...          # parse + lint + schema
-bun yaml-check --list-schemas                             # スキーマ名を 1 行ずつ
+bun yaml-check <file-or-glob>...                          # Parse + Lint
+bun yaml-check --schema=<name> <file-or-glob>...          # Parse + Lint + Schema validation
+bun yaml-check --list-schemas                             # Print available schemas line-by-line
 bun yaml-check --help
 ```
 
-### 同梱スキーマ
+### Packaged Schemas
 
-| 名前        | 対象                          | 由来                                |
-| ----------- | ----------------------------- | ----------------------------------- |
-| `work-item` | `*/work-items/<id>.yaml`（完了は `done/` 配下）| `REGENERATIVE_ARCHITECTURE.md` §4.2 |
-| `scl`       | `*/spec/scl.yaml`             | `SPECIFICATION_CORE_LANGUAGE.md` §2–§3 |
+| Name | Targets | Origin |
+| --- | --- | --- |
+| `work-item` | `*/work-items/<id>.yaml` (completed items under `done/`) | `REGENERATIVE_ARCHITECTURE.md` §4.2 |
+| `scl` | `*/spec/scl.yaml` | `SPECIFICATION_CORE_LANGUAGE.md` §2–§3 |
 
-未知のスキーマ名を渡すと、ファイル検査を一切行わずに exit code 2 を返す。
+If an unknown schema name is supplied, the tool terminates with exit code 2 without running validations.
 
-### npm scripts (CI 用)
+### NPM Scripts (CI / Automation)
 
-`tools/package.json` から:
+Defined in `tools/package.json`:
 
 ```bash
-bun run yaml-check:work-items          # */work-items/*.yaml と */work-items/done/*.yaml
-bun run yaml-check:scl                 # ra-idp-go の context 分割 SCL 群 + tools SCL
-bun run yaml-check:all                 # 上 2 つを直列で
+bun run yaml-check:work-items          # Validates */work-items/*.yaml and */work-items/done/*.yaml
+bun run yaml-check:scl                 # Validates context SCLs in ra-idp-go and tool SCLs
+bun run yaml-check:all                 # Validates both scopes sequentially
 ```
 
-## Exit code
+## Exit Codes
 
-| code | 意味                                        |
-| ---- | ------------------------------------------- |
-| 0    | 全ファイルが ok                             |
-| 1    | 1 件以上の Finding (parse / lint / schema)  |
-| 2    | 使い方の誤り (未知フラグ / 未知スキーマ名)  |
+| Code | Meaning |
+| --- | --- |
+| 0 | All checked files are valid |
+| 1 | One or more findings detected (parsing, linting, or schema validation failure) |
+| 2 | Incorrect usage (unknown flags or unknown schema names) |
 
-## Finding の形式
+## Finding Format
 
 ```
 <path>:<line>:<column>: <message>
 ```
 
-スキーマ違反は Ajv の JSON Pointer (`/scope/ui/pages/0` など) をソース上の行に
-ヒューリスティックで解決して出力する。解決できないときは行 1 / 列 1 になる。
+Schema validation errors use heuristics to map Ajv JSON Pointers (e.g. `/scope/ui/pages/0`) to approximate source file lines. Fails back to line 1, column 1 if resolution fails.
 
-## 開発
+## Development
 
 ```bash
-bun test                  # lib.test.ts のユニットテスト (Bun test runner)
-bun run lint              # Biome
-bun run typecheck         # tsc --noEmit
-bun run yaml-check:all    # スキーマ込みの全件検査
+bun test                  # Run unit tests (Bun test runner)
+bun run lint              # Lint code (Biome)
+bun run typecheck         # Type check (tsc --noEmit)
+bun run yaml-check:all    # Validate all repository files against schemas
 ```
 
-純粋ロジックは [`src/lib.ts`](src/lib.ts) に集約され、CLI 副作用は
-[`src/main.ts`](src/main.ts) のみが持つ。テストは `src/lib.test.ts`。
-スキーマは [`schemas/`](schemas/) 配下の JSON。
+Core logic resides in [`src/lib.ts`](src/lib.ts), CLI side effects are limited to [`src/main.ts`](src/main.ts). Tests are implemented in `src/lib.test.ts`. JSON Schemas are stored in the [`schemas/`](schemas/) directory.

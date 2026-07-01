@@ -1,117 +1,106 @@
-# ra-idp-go — IdP の Go 実装
+# ra-idp-go — Go Implementation of IdP
 
-仕様核 `spec/scl.yaml` をもとに Regenerative Architecture に従って開発している IdP アプリケーション。
+An Identity Provider (IdP) application developed in Go following the Regenerative Architecture (RA) principles, based on the specification core defined in `spec/scl.yaml`.
 
-AI エージェントや新しい開発者が最初に読む実装索引は
-[`ARCHITECTURE.md`](ARCHITECTURE.md) に置く。詳細な規範仕様は `spec/`、判断理由は
-`decisions/`、変更履歴と検証記録は `work-items/` を正とする。
+For AI agents and new developers, the primary implementation index is located in [`ARCHITECTURE.md`](ARCHITECTURE.md). The canonical specification is in `spec/`, the architectural decisions are in `decisions/`, and change logs/verification records are in `work-items/`.
 
-## 範囲
+## Scope
 
-OAuth 2.0 / OpenID Connect の認可サーバー兼 IdP として次を備える。各機能の設計判断は
-`spec/scl.yaml` と `decisions/` の ADR・`work-items/` の各 work item に対応する。
+This application acts as an OAuth 2.0 / OpenID Connect authorization server and IdP with the following features. The design decisions for each feature correspond to `spec/scl.yaml`, ADRs in `decisions/`, and work items in `work-items/`.
 
-### プロトコルエンドポイント
+### Protocol Endpoints
 
-- 認可エンドポイント `/authorize`（OAuth 2.0 認可コードフロー RFC 6749 + PKCE RFC 7636、OpenID Connect Core 1.0）。ログイン / 同意画面と、RP 起点ログアウト `/end_session`（OpenID Connect RP-Initiated Logout 1.0）
-- トークンエンドポイント `/token`（OAuth 2.0 RFC 6749 の authorization_code / refresh_token / client_credentials、Device Authorization Grant RFC 8628 の device_code の各付与方式）
-- プッシュ型認可リクエスト `/par`（RFC 9126）
-- デバイス認可付与 `/device_authorization`・`/device`（RFC 8628）
-- トークンイントロスペクション `/introspect`（RFC 7662）
-- トークン失効 `/revoke`（RFC 7009）
-- トークン交換による委譲・代行と委譲チェーン（RFC 8693、`/token` の `urn:ietf:params:oauth:grant-type:token-exchange` 付与方式、Resource Indicators RFC 8707 を制約付きで併用、wi-50）
-- リッチ認可リクエスト `authorization_details`（RFC 9396、同意画面での表示・イントロスペクションでの開示・トークン交換時のスコープ縮小・管理用の型レジストリ、wi-51）
-- ユーザー情報エンドポイント `/userinfo`（OpenID Connect Core 1.0 §5.3）
-- 動的クライアント登録 `/register`（RFC 7591）
-- OpenID Connect Discovery `/.well-known/openid-configuration` と JWK Set `/jwks`（OpenID Connect Discovery 1.0、JWK Set RFC 7517）
-- DPoP による送信者制約トークン（RFC 9449）
-- private_key_jwt クライアント認証（RFC 7523、インライン JWKS / `jwks_uri`）
-- WS-Federation passive requestor profile による IdP（IP-STS）`/wsfed`（`wa=wsignin1.0` のブラウザ SSO と `wsignout1.0` / `wsignoutcleanup1.0` のサインアウト、署名済み SAML assertion を RSTR に包んで relying party へ自動 POST、wi-61）。token は既定で SAML 1.1（Entra / AD FS の WS-Fed 互換）、relying party 設定で SAML 2.0 も選択可。`wfresh`（再認証の最大経過分数）を尊重して古い認証は再ログインへ誘導し、`wauth`（要求された認証方式）を尊重して満たせない統合 Windows 認証等は fail-closed で拒否する（無音サインインは wi-65）。relying party は wtrealm で識別し、許可 wreply の閉集合・トークン種別・claim 発行ポリシーを `/api/admin/wsfed/relying-parties`（管理 UI: WS-Federation 連携先）で管理する。claim は宣言的マッピング（ADR-059）、XML 署名は goxmldsig（ADR-060）。AD FS 互換 federation metadata は `/{realm}/federationmetadata/2007-06/federationmetadata.xml`、WS-Trust MEX は `/{realm}/trust/mex` で公開し、issuer・passive/active endpoint・署名証明書を広告する（ADR-062、wi-63）
-- Microsoft Entra domain federation preset `/api/admin/wsfed/entra-federation`（wi-64）。検証済み domain、IssuerUri、sourceAnchor 属性を指定すると、UPN / ImmutableID / persistent NameID を必須 claim とする WS-Fed RP を作成し、Entra に登録する `PassiveLogOnUri` / `ActiveLogOnUri` / `MetadataExchangeUri` を返す。sourceAnchor は objectGUID の GUID 文字列または base64 ImmutableID として検証・正規化する。Hybrid Azure AD Join の device registration は `windowstransport` + コンピュータアカウント Kerberos を要するため現時点では未提供で、managed/PHS または AD FS 併存を回避策とする（ADR-065）
-- WS-Trust 1.3 active requestor STS `/trust/usernamemixed`（Issue binding のみ、WS-Security UsernameToken username/password 認証、Timestamp / MessageID replay / To / Action / RequestType / KeyType / AppliesTo を fail-closed 検証し、登録済み RP 向けに署名済み Bearer SAML assertion を SOAP RSTR で返す、ADR-063、wi-62）。`windowstransport` / Kerberos は範囲外
-- SAML 2.0 IdP `/{realm}/saml/sso`・`/{realm}/saml/slo`・`/{realm}/saml/metadata`（SAML 2.0 Web Browser SSO Profile、wi-29、ADR-067）。SP-initiated SSO は `/saml/sso` の `SAMLRequest`（HTTP-Redirect の deflate+base64、または HTTP-POST の base64）を受け、IdP-initiated SSO は `entityID` クエリで開始する。いずれも署名済み `<saml:Assertion>` を `<samlp:Response>` に包んで ACS へ自動 POST する。署名は既定でアサーション署名、relying party 設定でレスポンス署名（Okta / Entra の "Sign Response"）も選べる。Issuer は登録 SP の entityID と完全一致を要求し、Destination は現在 realm の SSO endpoint、AssertionConsumerServiceURL は SP ごとの許可集合に対して検証して open redirect を防ぎ、ForceAuthn は古い認証なら再ログインへ誘導し、audience は SP の entityID / Audience に限定する（fail-closed）。SP ごとに AuthnRequest / LogoutRequest 署名必須を設定でき、検証用 X.509 証明書で Redirect binding 署名または XML 署名を検証する。`/saml/slo` は LogoutRequest を処理し、ローカルセッションを破棄して署名済み LogoutResponse を登録済み SingleLogoutService へのみ返送する。IdP metadata は `/saml/metadata` で `IDPSSODescriptor`・SSO/SLO endpoint・署名証明書・NameID format を広告する。SP は entityID で識別し、許可 ACS の閉集合・SLO URL・NameID format・署名方針・claim 発行ポリシー・要求署名検証ポリシーを Application カタログの SAML binding（`/api/admin/applications`、管理 UI: アプリケーション）で管理する。claim は宣言的マッピング（ADR-059）、XML 署名は goxmldsig（ADR-060）。SAML ECP・encrypted assertion・SP として外部 IdP に繋ぐ inbound federation は範囲外
+- **Authorization Endpoint (`/authorize`)**: OAuth 2.0 Authorization Code Flow (RFC 6749) + PKCE (RFC 7636), OpenID Connect Core 1.0. Includes login/consent screens and RP-Initiated Logout (`/end_session`, OpenID Connect RP-Initiated Logout 1.0).
+- **Token Endpoint (`/token`)**: Support for `authorization_code`, `refresh_token`, and `client_credentials` grant types (OAuth 2.0 RFC 6749), as well as `device_code` (Device Authorization Grant RFC 8628).
+- **Pushed Authorization Requests (`/par`)**: Support for PAR (RFC 9126).
+- **Device Authorization Grant (`/device_authorization`, `/device`)**: Support for device-based flow (RFC 8628).
+- **Token Introspection (`/introspect`)**: Token introspection endpoint (RFC 7662).
+- **Token Revocation (`/revoke`)**: Token revocation endpoint (RFC 7009).
+- **Token Exchange**: Delegation and impersonation with delegation chains via RFC 8693 (`urn:ietf:params:oauth:grant-type:token-exchange` grant type at `/token`), with constrained use of Resource Indicators RFC 8707 (wi-50).
+- **Rich Authorization Requests (`authorization_details`)**: Display on consent screens, disclosure in introspection, scope downscaling during token exchange, and a type registry for management (RFC 9396, wi-51).
+- **Userinfo Endpoint (`/userinfo`)**: User information endpoint (OpenID Connect Core 1.0 §5.3).
+- **Dynamic Client Registration (`/register`)**: Support for client registration (RFC 7591).
+- **OpenID Connect Discovery (`/.well-known/openid-configuration`) & JWK Set (`/jwks`)**: OpenID Connect Discovery 1.0 and JWK Set (RFC 7517).
+- **DPoP**: Demonstrating Proof-of-Possession at the Application Layer (RFC 9449) for sender-constrained tokens.
+- **`private_key_jwt` Client Authentication**: Client authentication (RFC 7523) using inline JWKS or `jwks_uri`.
+- **WS-Federation**: Active IP-STS `/wsfed` supporting WS-Federation passive requestor profile (`wa=wsignin1.0` for browser SSO and `wsignout1.0` / `wsignoutcleanup1.0` for sign-out; signs SAML assertions and automatically POSTs them via RSTR to relying parties, wi-61). Tokens default to SAML 1.1 (compatibility with Entra / AD FS), with SAML 2.0 selectable in relying party settings. Respects `wfresh` (max authentication age in minutes) and `wauth` (requested authentication method; rejects unsupported methods like Integrated Windows Authentication via fail-closed behavior, silent sign-in is covered in wi-65). Relying parties are identified by `wtrealm`, managed under `/api/admin/wsfed/relying-parties` with constraints on allowed `wreply` URLs, token types, and claim issuance policies. Claims use declarative mappings (ADR-059) and XML signatures use `goxmldsig` (ADR-060). Publishes AD FS-compatible federation metadata at `/{realm}/federationmetadata/2007-06/federationmetadata.xml` and WS-Trust MEX at `/{realm}/trust/mex` to advertise issuer, endpoints, and signing certificates (ADR-062, wi-63).
+- **Microsoft Entra Domain Federation Preset**: Endpoint `/api/admin/wsfed/entra-federation` (wi-64). Given a verified domain, `IssuerUri`, and `sourceAnchor` attribute, it creates a WS-Fed RP requiring UPN, ImmutableID, and persistent NameID as claims, returning `PassiveLogOnUri`, `ActiveLogOnUri`, and `MetadataExchangeUri` for Microsoft Entra ID registration. The `sourceAnchor` is validated and normalized as a GUID string or base64 ImmutableID. Note: Hybrid Azure AD Join device registration requires `windowstransport` + computer account Kerberos, which is currently unsupported; use managed/PHS or AD FS coexistence as a workaround (ADR-065).
+- **WS-Trust 1.3 Active Requestor STS**: Endpoint `/trust/usernamemixed` (Issue binding only, WS-Security UsernameToken authentication, validates Timestamp / MessageID replay / To / Action / RequestType / KeyType / AppliesTo as fail-closed, returning signed SAML assertions inside a SOAP RSTR for registered RPs, ADR-063, wi-62). `windowstransport` / Kerberos is out of scope.
+- **SAML 2.0 IdP**: Endpoints `/{realm}/saml/sso`, `/{realm}/saml/slo`, and `/{realm}/saml/metadata` (SAML 2.0 Web Browser SSO Profile, wi-29, ADR-067). SP-initiated SSO accepts `SAMLRequest` (deflate+base64 for HTTP-Redirect, or base64 for HTTP-POST), and IdP-initiated SSO is initiated via the `entityID` query parameter. Both automatically POST signed `<saml:Assertion>` enclosed in `<samlp:Response>` to the ACS. Default signing is assertion-level, with response-level signing (similar to Okta / Entra "Sign Response") configurable. The Issuer must match the registered SP's entityID exactly, the Destination must be the current realm's SSO endpoint, and the `AssertionConsumerServiceURL` is validated against SP-specific allowed URLs to prevent open redirects. Respects `ForceAuthn`, prompting re-login if the authentication is stale, and limits the audience to the SP's entityID (fail-closed). SPs can require AuthnRequest/LogoutRequest signatures, verified with registered X.509 certificates. `/saml/slo` handles LogoutRequests, destroys the local session, and returns a signed LogoutResponse to SingleLogoutService endpoints. The IdP metadata endpoint advertises the `IDPSSODescriptor`, endpoints, signing certificates, and supported NameID formats. SPs are managed in the application catalog under SAML binding (`/api/admin/applications`). SAML ECP, encrypted assertions, and inbound federation as an SP are out of scope.
 
-### 認証・アカウント・管理
+### Authentication, Accounts, and Administration
 
-- ブラウザ認証 API `/api/auth/*`（セッション Cookie + CSRF 対策）
-- 管理コンソール `/admin/*` とアカウントポータル `/account/*` を、IdP 自身の OIDC RP（`authorization_code` + PKCE、ファーストパーティ public クライアント `ra-admin-console` / `ra-account-portal`）として認証する。`/api/{admin,account}/*` は RFC 9068 アクセストークンを検証する resource server（ADR-061、wi-66）。OIDC 設定破壊時のロックアウトを避けるため `POST /api/auth/login` のセッションログインを緊急経路として残す
-- メールによるパスワード再設定（単発・30 分 TTL のトークン、ADR-030）
-- ロールベースアクセス制御で保護した管理ユーザー API `/api/admin/users`、ユーザーの無効化（ADR-031）と、削除予約（soft-delete）→ 30 日以内の復元 → 完全削除（匿名化カスケード）の 3 段階削除（ADR-036 / ADR-072）
-- グループ集約・ユーザーとグループの所属関係・管理 CRUD `/admin/groups`（テナント内に閉じる、実効ロール `user.roles ∪ ⋃ group.roles`、ADR-038）
-- ロール・権限と関連 HTTP インターフェースを閲覧する管理 API / UI `/api/admin/policy/roles`・`/admin/roles`
-- テナント内の管理設定 UI `/api/admin/settings`・`/admin/settings`（表示名・パスワードポリシー上書きの閲覧と更新）
-- 管理クライアント CRUD `/admin/clients`（テナント内に閉じる）
-- 同意の参照・撤回 API `/admin/consents`（テナント内に閉じる）
-- AuthZEN によるポリシー評価（ローカル / リモート）
-- AI エージェントを第一級の非人間プリンシパルとして扱う土台（所有者・緊急停止、wi-49 / セキュリティ是正 wi-60）
+- **Browser Authentication API (`/api/auth/*`)**: Session Cookie + CSRF protection.
+- **Admin Console & Account Portal**: Authenticated via the IdP's own OIDC RP (`authorization_code` + PKCE, first-party public clients `ra-admin-console` / `ra-account-portal`). Endpoints under `/api/{admin,account}/*` act as resource servers validating RFC 9068 Access Tokens (ADR-061, wi-66). A session-based emergency login endpoint (`POST /api/auth/login`) is retained as a fallback in case of configuration failure.
+- **Password Reset via Email**: Single-use, 30-minute TTL tokens (ADR-030).
+- **Role-Based Access Control**: Admin user management API (`/api/admin/users`), user disabling (ADR-031), and a 3-step deletion process (soft-delete -> 30-day restoration window -> hard-delete/anonymization cascade, ADR-036 / ADR-072).
+- **Groups**: Group aggregation, membership management, and CRUD API/UI (`/admin/groups`) constrained within tenants. Effective roles are evaluated as `user.roles ∪ ⋃ group.roles` (ADR-038).
+- **Roles and Permissions**: Administration API/UI `/api/admin/policy/roles` and `/admin/roles` to inspect roles, permissions, and associated HTTP endpoints.
+- **Tenant Settings**: Admin settings API/UI `/api/admin/settings` and `/admin/settings` (viewing/updating display names and password policy overrides).
+- **Client Management**: Client CRUD UI (`/admin/clients`) isolated per tenant.
+- **Consent Management**: API/UI (`/admin/consents`) to view and revoke user consent.
+- **AuthZEN**: Policy evaluation (local/remote).
+- **Non-Human Principals**: Foundation for treating AI agents as first-class non-human principals (with owners and emergency-stop capabilities, wi-49 / security mitigation in wi-60).
 
-### テナント・基盤・運用
+### Tenant, Infrastructure, and Operations
 
-- `/realms/{tenant_id}` によるテナント分離、テナント管理 API、テナント単位の永続化（ADR-032〜034）
-- リフレッシュトークンのローテーションとファミリー失効（ADR-004）
-- PS256 による JWT 署名と JWK Set、メモリ / PostgreSQL の鍵ストア（RFC 7638 サムプリントの `kid`）
-- PostgreSQL の永続状態と Valkey の揮発状態
-- PostgreSQL アウトボックスと Kafka リレー（`ra-idp-relay`）
-- OpenTelemetry OTLP/HTTP によるトレース / メトリクス
-- ドメインイベントの発火（コンソール / アウトボックスのイベントシンク）
-- Zog スキーマによるモデル・HTTP 入力・パスワードポリシーの検証
+- **Tenant Isolation**: `/realms/{tenant_id}` tenancy structure, management APIs, and database/storage isolation (ADRs 032–034).
+- **Refresh Token Rotation (RTR)**: Rotation and family revocation (ADR-004).
+- **JWT Signing**: PS256 signature scheme, JWK Set, and memory/PostgreSQL keystores (using RFC 7638 thumbprints for `kid`).
+- **Persistence**: PostgreSQL for persistent state, Valkey for volatile state.
+- **Outbox Pattern**: PostgreSQL outbox tables processed by the Kafka relay (`ra-idp-relay`).
+- **Observability**: Traces and metrics via OpenTelemetry OTLP/HTTP.
+- **Domain Events**: Dispatched via Admin console and outbox event sinks.
+- **Validation**: Schema, HTTP input, and password strength validation via Zog.
 
-## 起動
+## Getting Started
 
-認証UIは TypeScript + Vite + React + Tailwind CSS + Radix UI + shadcn/ui +
-TanStack Router / Table で実装する。Go APIとは別成果物・別プロセスとして配信し、
-CaddyなどのGatewayから同一オリジンに統合する。
-デザインと実装の判断基準は [`ui/README.md`](ui/README.md) に記載する。
+The UI is built using TypeScript + Vite + React + Tailwind CSS + Radix UI + shadcn/ui + TanStack Router/Table. It is delivered as a separate artifact and runs in a separate process, integrated with the Go API under a single origin via Caddy (or similar gateway). See [`ui/README.md`](ui/README.md) for UI design decisions.
 
-開発時はGo APIとReact UIを別プロセスで起動する。
+For local development, start the Go API and React UI in separate processes:
 
 ```bash
-# terminal 1: Go API
+# Terminal 1: Go API
 ADDR=:8081 ISSUER=http://localhost:5173 go run ./cmd/ra-idp-go
 
-# terminal 2: React UI (API proxy included)
+# Terminal 2: React UI (includes API proxy configuration)
 cd ui
 bun install
 bun run dev
 ```
 
-`http://localhost:5173/` を開き、「ローカルデモ認証を開始」を選ぶ。
-ログイン画面は認可トランザクションを必要とするため、`/login` を直接開かない。
+Open `http://localhost:5173/` in your browser and select "Start Local Demo Authentication". Do not open `/login` directly, as the login flow requires an active authorization transaction.
 
-Docker ComposeではCaddyが `http://localhost:8080` でUIとAPIを公開する。
+### Docker Compose Stack
+
+In Docker Compose, Caddy exposes both the UI and the API under `http://localhost:8080`.
 
 ```bash
 docker compose -f deploy/docker/docker-compose.dev.yaml up --build
 ```
 
-開発用 compose では `schema` サービスが PostgreSQL 起動後に
-`deploy/schema/postgres.sql` を `psqldef` で適用し、成功後に `idp` が起動する。
-schema だけを再適用したい場合は次を実行する。
+In the dev compose stack, the `schema` service applies `deploy/schema/postgres.sql` using `psqldef` once PostgreSQL is ready. The `idp` service starts only after the schema is successfully applied. To re-apply the schema manually:
 
 ```bash
 docker compose -f deploy/docker/docker-compose.dev.yaml run --rm schema
 ```
 
-主要な OAuth 2.0 / OpenID Connect フローを実行する:
+To run a demonstration script covering the primary OAuth 2.0 / OpenID Connect flows:
 
 ```bash
-BASE=http://localhost:8080 \
-./demo.sh
+BASE=http://localhost:8080 ./demo.sh
 ```
 
-### メール配送をローカルで試す (mailpit)
+### Local Email Testing (Mailpit)
 
-`EMAIL_SENDER=console` の既定では reset リンクが stdout に出るだけだが、
-SMTP adapter (ADR-035) も手元で簡単に試せる。
-[mailpit](https://mailpit.axllent.org/) を「全宛先を捕まえる偽 inbox」として
-使う:
+By default, `EMAIL_SENDER=console` outputs reset links directly to stdout. However, you can easily test the SMTP adapter (ADR-035) locally using [Mailpit](https://mailpit.axllent.org/) as a catch-all mock inbox.
 
 ```bash
-# 1) mailpit を起動 (Homebrew の場合)
+# 1) Start Mailpit (example using Homebrew)
 brew install mailpit
 mailpit --smtp 127.0.0.1:1025 --listen 127.0.0.1:8025
 
-# 2) 別ターミナルで ra-idp-go を SMTP モードで起動
+# 2) In another terminal, start ra-idp-go with SMTP settings
 export EMAIL_SENDER=smtp
 export SMTP_HOST=127.0.0.1
 export SMTP_PORT=1025
@@ -120,34 +109,27 @@ export SMTP_FROM=noreply@ra-idp.test
 ./dev.sh
 ```
 
-起動直後のログに `email sender: smtp host=127.0.0.1 port=1025 tls=none from=...`
-が出れば adapter は正しく切り替わっている。
+Ensure the startup logs show `email sender: smtp host=127.0.0.1 port=1025 tls=none from=...`.
 
-UI の「パスワードを忘れた」から `alice@example.com` (demo seed) を入力すると、
-`http://127.0.0.1:8025` の mailpit Web UI に reset リンク付きのメールが届く。
-mailpit は宛先に関係なく全部内部に貯めるので、Gmail などの実 inbox には流れない。
+When you trigger "Forgot Password" in the UI for `alice@example.com` (from the demo seed), the reset email containing the link will appear in the Mailpit web UI at `http://127.0.0.1:8025`. Mailpit captures all outbound mails locally and will not send them to the actual recipient.
 
-`SMTP_TLS=none` は mailpit が TLS を喋らないためのローカル限定設定。
-本番では `starttls` / `implicit` のいずれかを使う。
+*Note: `SMTP_TLS=none` is only for local mock servers. Production environments must use `starttls` or `implicit`.*
 
-### 本番アダプタ構成
+### Production Adapter Configuration
 
-PostgreSQL の構造は `deploy/schema/postgres.sql` を現在形の正本とし、`psqldef`
-で dry-run を確認してからデプロイ前に適用する。
+The PostgreSQL schema uses `deploy/schema/postgres.sql` as its single source of truth. Schema migrations are applied using `psqldef` after verifying changes with a dry-run.
 
 ```bash
-psqldef -U "$PGUSER" -h "$PGHOST" -p "$PGPORT" "$PGDATABASE" \
-  --dry-run < deploy/schema/postgres.sql
-psqldef -U "$PGUSER" -h "$PGHOST" -p "$PGPORT" "$PGDATABASE" \
-  --apply < deploy/schema/postgres.sql
+# Verify schema difference
+psqldef -U "$PGUSER" -h "$PGHOST" -p "$PGPORT" "$PGDATABASE" --dry-run < deploy/schema/postgres.sql
+
+# Apply schema difference
+psqldef -U "$PGUSER" -h "$PGHOST" -p "$PGPORT" "$PGDATABASE" --apply < deploy/schema/postgres.sql
 ```
 
-新しい構造変更は `deploy/schema/postgres.sql` を先に更新し、backfill や値変換が必要な場合だけ
-WI の runbook または専用 SQL script を追加する。アプリ起動時の migration runner は持たない。
-`psqldef` は `psql` と同じ接続オプションを使うため、本番では `DATABASE_URL` と等価な
-`PGHOST` / `PGPORT` / `PGUSER` / `PGPASSWORD` / DB 名をデプロイジョブ側で渡す。
-初回も2回目以降も、デプロイジョブで `dry-run -> review -> apply -> check` を実行する。
-インストール、差分 SQL 生成、レビュー、適用の手順は `deploy/schema/README.md` に従う。
+For structure changes, update `deploy/schema/postgres.sql` first. If data migration/backfilling is required, add runbooks in the Work Item or a custom SQL migration script. This application does not use runtime code-based migration runners. For deployment, standard environment variables (`PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, etc.) are injected by the pipeline. Refer to `deploy/schema/README.md` for details on installation, diff generation, review, and application.
+
+To run the components with production adapter configs:
 
 ```bash
 PERSISTENCE=postgres \
@@ -165,178 +147,155 @@ KAFKA_BROKERS='localhost:9092' \
 go run ./cmd/ra-idp-relay
 ```
 
-### 設定
+### Configuration Environment Variables
 
-| 環境変数             | 値 / 既定値                                                                       |
-| -------------------- | --------------------------------------------------------------------------------- |
-| `PERSISTENCE`        | `memory` / `postgres` (`memory`)                                                  |
-| `DATABASE_URL`       | PostgreSQL 接続先。`postgres` 時に必須                                            |
-| `VALKEY_URL`         | Valkey 接続先。`postgres` 時に必須                                                |
-| `EVENT_SINK`         | `console` / `outbox` (`console`)                                                  |
-| `OBSERVABILITY`      | `noop` / `otel` (`noop`)                                                          |
-| `AUTHZEN`            | `local` / `remote` (`local`)                                                      |
-| `AUTHZEN_URL`        | リモート AuthZEN のベース URL                                                     |
-| `KAFKA_BROKERS`      | リレー用のカンマ区切りブローカー                                                  |
-| `SKIP_DEMO_SEED`     | 設定時はデモデータを保存しない                                                    |
-| `LEGACY_BARE_ISSUER` | `true` の場合だけ接頭辞なしルートの既定 issuer を旧 `{base}` 形式にする (`false`) |
-| `EMAIL_SENDER`       | `console` / `smtp` (`console`)。`smtp` 選択時は SMTP\_\* を読む                   |
-| `SMTP_HOST`          | SMTP リレーホスト。`smtp` 時に必須                                                |
-| `SMTP_PORT`          | ポート (`SMTP_TLS` 既定値: starttls→587 / implicit→465 / none→25)                 |
-| `SMTP_USERNAME`      | PLAIN auth ユーザ名 (空なら認証なし)                                              |
-| `SMTP_PASSWORD`      | PLAIN auth パスワード。ログには出さない (ADR-035 §10)                             |
-| `SMTP_FROM`          | RFC 5322 `From:` / SMTP `MAIL FROM`。`smtp` 時に必須 (bare address)               |
-| `SMTP_HELO`          | EHLO/HELO で使うローカル名 (`localhost`)                                          |
-| `SMTP_TLS`           | `starttls` / `implicit` / `none` (`starttls`)。`none` は開発専用                  |
-| `SMTP_TIMEOUT_SECONDS` | 接続とコマンドのタイムアウト (`10`)                                             |
-| `BREACHED_PASSWORD_CHECKER` | `noop` / `hibp` (`noop`)。`hibp` は `api.pwnedpasswords.com` への egress が要り、障害時は fail-open (検査を素通り) する (ADR-028) |
+| Variable | Values / Default | Description |
+| --- | --- | --- |
+| `PERSISTENCE` | `memory` / `postgres` (`memory`) | Storage adapter configuration |
+| `DATABASE_URL` | Connection string | Required if `PERSISTENCE=postgres` |
+| `VALKEY_URL` | Connection string | Required if `PERSISTENCE=postgres` |
+| `EVENT_SINK` | `console` / `outbox` (`console`) | Destination for emitted domain events |
+| `OBSERVABILITY` | `noop` / `otel` (`noop`) | Enables OpenTelemetry tracing and metrics |
+| `AUTHZEN` | `local` / `remote` (`local`) | AuthZEN authorization mode |
+| `AUTHZEN_URL` | URL string | Base URL for remote AuthZEN server |
+| `KAFKA_BROKERS` | Comma-separated list | Kafka brokers for the event relay |
+| `SKIP_DEMO_SEED` | `true` / `false` | If set, skips seeding demo data |
+| `LEGACY_BARE_ISSUER`| `true` / `false` (`false`) | If `true`, fallback default issuer is `{base}` |
+| `EMAIL_SENDER` | `console` / `smtp` (`console`) | Email sender adapter. `smtp` requires SMTP_* variables |
+| `SMTP_HOST` | Host string | Required if `EMAIL_SENDER=smtp` |
+| `SMTP_PORT` | Port number | Defaults based on `SMTP_TLS` (starttls: 587, implicit: 465, none: 25) |
+| `SMTP_USERNAME` | Username | Plain auth username (omit for no auth) |
+| `SMTP_PASSWORD` | Password | Plain auth password (hidden from logs, ADR-035 §10) |
+| `SMTP_FROM` | Email address | RFC 5322 From address / SMTP MAIL FROM (bare address) |
+| `SMTP_HELO` | Host string | Name used in SMTP EHLO/HELO (`localhost`) |
+| `SMTP_TLS` | `starttls` / `implicit` / `none` (`starttls`) | SMTP encryption method. `none` is for dev only |
+| `SMTP_TIMEOUT_SECONDS` | Number (`10`) | Connection and command timeout in seconds |
+| `BREACHED_PASSWORD_CHECKER` | `noop` / `hibp` (`noop`) | `hibp` queries `api.pwnedpasswords.com`. Fails open (ADR-028) |
 
-`jwks_uri` は HTTPS のみ許可し、プライベート / ループバック / リンクローカルアドレス、
-userinfo、フラグメントを拒否する。取得は 3 秒タイムアウト、1 MiB 上限、5 分キャッシュとする。
+- `jwks_uri` requests only permit HTTPS, rejecting loopback, link-local, private IP addresses, userinfo, and fragments. Requests have a 3-second timeout, 1 MiB limit, and a 5-minute cache TTL.
+- Model, HTTP inputs, and password strength validations are performed via [Zog](https://zog.dev/). Context-dependent validations (e.g. redirect URI matching, scope validation, state transitions, PKCE verification) reside in the Usecase/Domain layer.
 
-構造体の整合性と外部入力の型変換・形式検証には
-[Zog](https://zog.dev/) を使う。登録済みリダイレクト URI との一致、スコープ許可、
-状態遷移、PKCE など実行時コンテキストを必要とする検証はユースケース / ドメイン層に置く。
+### Configuring Microsoft Entra Domain Federation
 
-### Microsoft Entra domain federation を設定する
+Steps to federate a verified domain to Microsoft 365 for sign-in (wi-64, ADR-065):
 
-検証済みドメインを Microsoft 365 のサインインへ federation する手順（wi-64、ADR-065）。
+1. Save the verified domain, `sourceAnchor` attribute (defaults to `object_guid`), and `IssuerUri` in the Admin UI `/admin/federation/entra` (or via `POST /api/admin/wsfed/entra-federation`). The response displays the settings (`IssuerUri`, `PassiveLogOnUri`, `ActiveLogOnUri`, and `MetadataExchangeUri`) and the federation metadata URL for signing certificate retrieval.
+2. Register the federation settings via Microsoft Graph PowerShell. Pass the generated values to `Update-MgDomainFederationConfiguration` (or legacy `Set-MsolDomainAuthentication`):
 
-1. 管理 UI `/admin/federation/entra`（または `POST /api/admin/wsfed/entra-federation`）で
-   検証済み domain・sourceAnchor 属性（既定 `object_guid`）・IssuerUri を保存する。応答に
-   Entra へ登録する値（`IssuerUri` / `PassiveLogOnUri` / `ActiveLogOnUri` /
-   `MetadataExchangeUri`）と署名証明書の入手先（federation metadata）が表示される。
-2. Microsoft Graph PowerShell で federation を登録する。UI が示した値を
-   `Update-MgDomainFederationConfiguration`（旧 `Set-MsolDomainAuthentication`）へ渡す。
+   | UI Display Value | `Update-MgDomainFederationConfiguration` | Legacy `Set-MsolDomainAuthentication` |
+   | --- | --- | --- |
+   | `IssuerUri` | `-IssuerUri` | `-IssuerUri` |
+   | `PassiveLogOnUri` | `-PassiveSignInUri` | `-PassiveLogOnUri` |
+   | `ActiveLogOnUri` | `-ActiveSignInUri` | `-ActiveLogOnUri` |
+   | `MetadataExchangeUri` | `-MetadataExchangeUri` | `-MetadataExchangeUri` |
+   | X.509 from metadata | `-SigningCertificate` | `-SigningCertificate` |
 
-   | UI が示す値           | `Update-MgDomainFederationConfiguration` | 旧 `Set-MsolDomainAuthentication` |
-   | --------------------- | ---------------------------------------- | --------------------------------- |
-   | `IssuerUri`           | `-IssuerUri`                             | `-IssuerUri`                      |
-   | `PassiveLogOnUri`     | `-PassiveSignInUri`                      | `-PassiveLogOnUri`               |
-   | `ActiveLogOnUri`      | `-ActiveSignInUri`                       | `-ActiveLogOnUri`                |
-   | `MetadataExchangeUri` | `-MetadataExchangeUri`                   | `-MetadataExchangeUri`           |
-   | federation metadata の X.509 | `-SigningCertificate`             | `-SigningCertificate`            |
+   Apply `-PreferredAuthenticationProtocol wsFed` and `-FederatedIdpMfaBehavior` in accordance with your policies.
 
-   `-PreferredAuthenticationProtocol wsFed`、`-FederatedIdpMfaBehavior` は運用方針に合わせて指定する。
+Issued tokens must include UPN (`http://schemas.xmlsoap.org/claims/UPN`, by default resolved from `preferred_username`) and ImmutableID (base64-encoded `sourceAnchor`, populated in the persistent NameID and `http://schemas.xmlsoap.org/claims/nameidentifier`). The configuration preset enforces these as fail-closed checks. The `sourceAnchor` must map to an immutable attribute like AD's `objectGUID` (fed by Entra Connect or a similar process on the customer side).
 
-発行 token には UPN（`http://schemas.xmlsoap.org/claims/UPN`、既定で `preferred_username` から）と
-ImmutableID（sourceAnchor を base64 化、persistent NameID と
-`http://schemas.xmlsoap.org/claims/nameidentifier` に載る）が必須で、preset がこれを fail-closed で強制する。
-sourceAnchor はオンプレ AD の `objectGUID` 等の不変属性に束ねる（Entra Connect 等での供給はオンプレ側責務）。
+*Silent sign-in from domain-joined PCs requires Kerberos/SPNEGO inbound (wi-65). Hybrid Azure AD Join device registration (which requires `windowstransport` + computer account Kerberos) is out of scope. Use managed/PHS or AD FS coexistence as a workaround.*
 
-ドメイン参加 PC からの無音サインインは Kerberos/SPNEGO inbound（wi-65）を要する。
-Hybrid Azure AD Join の device registration は `windowstransport` + コンピュータアカウント Kerberos を
-要するため未提供で（Okta 同様の既知制約）、managed / PHS への切替または AD FS 併存を回避策とする。
-
-## 検証
+## Verification
 
 ```bash
 go test -race ./...
 golangci-lint run
 ```
 
-テストは認可コードのアトミックな引き換え、Valkey Lua、リフレッシュファミリー失効、デバイスフロー、クライアント認証、`jwks_uri` の SSRF 防御、AuthZEN のワイヤ契約、イベントのワイヤ形式を含む。
+Tests cover atomic authorization code redemption, Valkey Lua operations, refresh token family revocation, device flows, client authentication, SSRF mitigation on `jwks_uri`, AuthZEN integration contracts, and domain event formats.
 
-デモシード:
+### Demo Seeds
 
-| 種類          | 値                               |
-| ------------- | -------------------------------- |
-| client_id     | `demo-client`                    |
-| client_secret | `demo-client-secret`             |
-| redirect_uri  | `http://localhost:3000/callback` |
-| ユーザ名      | `alice`                          |
-| パスワード    | `demo-password-1234`             |
+| Resource | Value |
+| --- | --- |
+| `client_id` | `demo-client` |
+| `client_secret` | `demo-client-secret` |
+| `redirect_uri` | `http://localhost:3000/callback` |
+| Username | `alice` |
+| Password | `demo-password-1234` |
 
-## ディレクトリ構成
+## Directory Structure
 
 ```text
 ra-idp-go/
-├── spec/                                    Layer 1: 仕様核 (SCL)
-├── decisions/                               Layer 2: コンセプション / ADR
+├── spec/                                    Layer 1: Specification Core (SCL)
+├── decisions/                               Layer 2: Conceptions / ADRs
 ├── ui/                                      React SPA + Caddy reference configuration
-│   └── src/features/                       UI feature 境界
-├── cmd/ra-idp-go/main.go                   起動
-├── internal/shared/                        technical shared context
-│   ├── spec/                               Layer 1 バインディング: SCL 構造体 + 状態機械
-│   └── adapters/                           Layer 4: コンテキスト横断アダプタ実装
+│   └── src/features/                       UI feature boundaries
+├── cmd/ra-idp-go/main.go                   App entry point
+├── internal/shared/                        Technical shared context
+│   ├── spec/                               Layer 1 bindings: SCL structs & state machines
+│   └── adapters/                           Layer 4: Cross-context adapter implementations
 │       ├── crypto/                         Argon2id, PS256, DPoP, private_key_jwt
-│       ├── persistence/                    memory / PostgreSQL / Valkey（リソース別ファイル）
+│       ├── persistence/                    Memory / PostgreSQL / Valkey (per-resource files)
 │       ├── http/
-│       │   ├── support/                    HTTP 共有基盤（Deps / middleware / response helper）
-│       │   └── server/                     Echo v5 router（各 context の adapters/http を集約）
+│       │   ├── support/                    HTTP shared infrastructure (Deps, middlewares, response helpers)
+│       │   └── server/                     Echo v5 router (aggregates adapters/http from all contexts)
 │       ├── observability/                  OpenTelemetry
-│       ├── policy/                         local / remote AuthZEN
-│       ├── notification/                   メール送信
-│       └── eventsink/                      console / Kafka relay
-├── internal/tenancy/                       Layer 3+4: テナント (domain / ports / usecases / adapters/http)
-├── internal/oauth2/                        Layer 3+4: OAuth2 (domain / ports / usecases / adapters/http)
-├── internal/authentication/                Layer 3+4: 認証 (domain / ports / usecases / adapters/http)
-├── internal/bootstrap/                     Layer 5: 配線 (DI / seed / server)
-└── deploy/                                 Layer 5: declarative schema / Docker Compose / OTel Collector
+│       ├── policy/                         Local / remote AuthZEN
+│       ├── notification/                   Email sending
+│       └── eventsink/                      Console / Kafka relay
+├── internal/tenancy/                       Layer 3+4: Tenancy (domain, ports, usecases, adapters/http)
+├── internal/oauth2/                        Layer 3+4: OAuth2 (domain, ports, usecases, adapters/http)
+├── internal/authentication/                Layer 3+4: Authentication (domain, ports, usecases, adapters/http)
+├── internal/bootstrap/                     Layer 5: Composition / DI / server wiring
+└── deploy/                                 Layer 5: Declarative schema, Docker Compose, OTel Collector
 ```
 
-> 構造軸 (ADR-047, ADR-070): 水平の5層に加え、垂直の境界づけられたコンテキストで
-> 分割する (RA §3.6)。SCL Go binding と、複数コンテキストで共有する Layer 4 実装は
-> technical shared context である `internal/shared/` に置く。Layer 3 と
-> context-owned HTTP アダプタ (`adapters/http`) は各コンテキストが所有する。HTTP は循環依存を
-> 避けるため、各 context の HTTP adapter が使う `adapters/http/support` と、各 context の
-> `RegisterRoutes` を束ねる `adapters/http/server` に分ける。`internal/` は Go の import
-> 境界であり、外部 module からの利用を禁止する。`deploy/` は実行環境・配布資材を置く
-> Layer 5 で、Go 実装とは分ける。
+> **Structural Note (ADR-047, ADR-070)**: Along with the 5 horizontal layers, the codebase is split vertically into bounded contexts (RA §3.6). SCL Go bindings and shared Layer 4 adapter implementations are located in `internal/shared/` as a technical shared context. Layer 3 logic and context-owned HTTP adapters (`adapters/http`) reside within their respective context packages. To prevent circular dependencies, HTTP routers are split into context-independent support libraries (`adapters/http/support`) and a central route aggregator (`adapters/http/server`). The `internal/` directory enforces Go import visibility. `deploy/` contains declarative infrastructure manifests (Layer 5) isolated from the Go source files.
 
-## 実装ロードマップ
+## Implementation Roadmap
 
-RA の仕様核・派生物・ユースケース・アダプタ・運用面を備えた IdP だが、商用・社内共通基盤と
-して本番投入するにはまだ機能が不足している。ここには、まだ work item 化していない長期的な
-不足機能を領域ごとに挙げる。各領域はおおむね基盤に近い順に並べているが、ユーザー価値が
-大きい項目を優先してよい。
+While this implementation showcases RA principles, it lacks some production-ready features. The following table highlights planned but not yet implemented (non-work-item) backlog areas, ordered roughly from infrastructure to frontend.
 
-### 認証・MFA・アカウント復旧
+### Authentication, MFA, and Account Recovery
 
-| 領域       | 不足している機能                                                       |
-| ---------- | ---------------------------------------------------------------------- |
-| 認証手段   | マジックリンク / パスワードレスメール                                  |
-| 保証レベル | identity assurance (AAL / IAL) との対応                                |
-| 適応認証   | リスクベース / 適応認証の足場（再認証本体は wi-43 で実装済み）          |
-| 復旧       | アカウント復旧フローの統合導線（部品のリカバリコードは wi-26、リカバリメールは wi-41） |
+| Area | Planned Features |
+| --- | --- |
+| Authentication | Passwordless magic links via email |
+| Assurance Levels | Alignment with identity assurance standards (AAL / IAL) |
+| Adaptive Authentication | Foundation for risk-based/adaptive auth (re-authentication is implemented in wi-43) |
+| Account Recovery | Integrated recovery workflows (recovery code component implemented in wi-26, recovery email in wi-41) |
 
-### 管理・クライアント・委譲
+### Management, Clients, and Delegation
 
-| 領域                     | 不足している機能                                                                                       |
-| ------------------------ | ------------------------------------------------------------------------------------------------------ |
-| 動的クライアント登録拡張 | registration_access_token、software_statement、クライアントメタデータの更新・削除（client_secret ローテーション本体は wi-25） |
-| 委譲・代行               | impersonation、ゲストアクセス（委譲 / 委譲チェーンは wi-50 で実装済み）                                 |
+| Area | Planned Features |
+| --- | --- |
+| DCR Extensions | Support for `registration_access_token`, `software_statement`, and client metadata updates/deletions (secret rotation implemented in wi-25) |
+| Delegation / Impersonation | User impersonation and guest access (delegation chains implemented in wi-50) |
 
-### 同意・プライバシー
+### Consent and Privacy
 
-| 領域           | 不足している機能                                                       |
-| -------------- | ---------------------------------------------------------------------- |
-| 同意管理       | 取得目的（scope purpose）の表示、目的別の同意グルーピング              |
-| データ主体権利 | DSAR の非同期エクスポート / オブジェクトストレージ連携・完全削除の証跡 |
-| 保持           | 地域別保持ポリシー、データ最小化の体系化                               |
+| Area | Planned Features |
+| --- | --- |
+| Consent Management | Displaying scope purposes, consent grouping by purpose |
+| Subject Rights | Async DSAR export, Object Storage integration, hard-delete audit trail |
+| Retention | Region-specific retention policies, systematic data minimization |
 
-### フェデレーション・プロビジョニング
+### Federation and Provisioning
 
-| 領域                          | 不足している機能                              |
-| ----------------------------- | --------------------------------------------- |
-| IdP として振る舞う (outbound) | WS-Federation Passive Requestor（wi-61）、WS-Trust STS（wi-62）、federation metadata / claim mapping（wi-63）、Entra domain federation / Microsoft 365 SSO（wi-64、Hybrid Join デバイス登録は Okta 同様に範囲外）、SAML 2.0 IdP Web Browser SSO / SLO / metadata（wi-29、encrypted assertion・ECP は範囲外）|
-| エンタープライズ (inbound)    | Kerberos / SPNEGO inbound・無音 SSO（passive WIA / エージェントレス Desktop SSO）（wi-65）、LDAP / AD bind |
+| Area | Planned Features |
+| --- | --- |
+| Outbound Federation | SAML 2.0 Web Browser SSO/SLO/Metadata (wi-29; encrypted assertion/ECP out of scope), WS-Federation Passive (wi-61), WS-Trust active STS (wi-62), federation metadata & claim mapping (wi-63), Entra domain federation / M365 SSO (wi-64; Hybrid Join out of scope) |
+| Inbound Enterprise | Kerberos / SPNEGO inbound for desktop silent SSO (wi-65), LDAP / Active Directory bind integration |
 
-### プロトコル拡張・高保証プロファイル
+### Protocols and High-Assurance Profiles
 
-| 領域           | 不足している機能                                                                       |
-| -------------- | -------------------------------------------------------------------------------------- |
-| 認可リクエスト | JAR (RFC 9101)                                                                         |
-| 認可レスポンス | JARM、認可レスポンス署名、暗号化 ID Token (JWE)                                        |
-| トークン       | Resource Indicators (RFC 8707) の汎用化（現状はトークン交換内に制約付きで実装）、pairwise subject identifier |
-| 認証フロー     | Step-up Authentication Challenge Protocol (RFC 9470)                                   |
-| FAPI / IDA     | OpenID Connect for Identity Assurance（FAPI conformance suite 本体は wi-33）           |
-| 仕様追跡       | OAuth 2.0 Security BCP / OAuth 2.1 の継続追従                                          |
+| Area | Planned Features |
+| --- | --- |
+| Request Security | JWT Secured Authorization Request (JAR, RFC 9101) |
+| Response Security | JWT Secured Authorization Response Mode (JARM), response signing, encrypted ID Tokens (JWE) |
+| Tokens | Generalized Resource Indicators (RFC 8707; currently limited to token exchange), pairwise subject identifiers |
+| Auth Flows | Step-up Authentication Challenge Protocol (RFC 9470) |
+| FAPI / IDA | OpenID Connect for Identity Assurance (FAPI conformance suite alignment in wi-33) |
+| Spec Compliance | Continued alignment with OAuth 2.0 Security BCP / OAuth 2.1 |
 
-### 運用・可用性・セキュリティ運用・コンプライアンス
+### Operations, Availability, and Security
 
-| 領域             | 不足している機能                                                                            |
-| ---------------- | ------------------------------------------------------------------------------------------- |
-| 攻撃面           | WAF、異常検知（impossible travel 等）、侵害時のトークン失効プレイブック（`jwks_uri` の SSRF 防御は実装済み） |
-| 可用性           | マルチリージョン、無停止マイグレーション、バックアップ・リストア演習、DR、容量計画           |
-| セキュリティ運用 | ペネトレーションテスト、bug bounty / responsible disclosure、chaos engineering、改竄防止監査ログ |
-| コンプライアンス | OIDC / FAPI certification、SOC2 / ISO27001 証跡、監査レポート、データ処理契約用エクスポート  |
+| Area | Planned Features |
+| --- | --- |
+| Threat Mitigation | WAF, anomaly detection (impossible travel), token revocation playbooks for breaches (SSRF mitigation on `jwks_uri` is implemented) |
+| Availability | Multi-region support, zero-downtime migrations, DR exercises, capacity planning |
+| Security Ops | Penetration testing, vulnerability disclosure policy, chaos engineering, tamper-evident audit logs |
+| Compliance | OIDC/FAPI certification, SOC2/ISO27001 evidence, audit reports, DPA exports |

@@ -1,77 +1,78 @@
 # Regenerative Architecture
 
-このリポジトリは、**Regenerative Architecture (RA)** というソフトウェア設計・開発手法と、その実例をまとめた作業場です。
+This repository is a workspace containing the definition of **Regenerative Architecture (RA)**, a software design and development methodology, along with a concrete implementation showcasing its concepts.
 
-RA の中心にある考え方は、実装やランタイムを固定資産として守るのではなく、**仕様・決定・検証可能な変更記録を保存し、外側の実装や環境を再生成できるようにする**ことです。詳しい思想は [REGENERATIVE_ARCHITECTURE.md](REGENERATIVE_ARCHITECTURE.md) にあります。
+The core philosophy of RA is to avoid treating implementations and runtimes as fixed, precious assets. Instead, it prioritizes archiving **declarative specifications, architectural decisions, and verifiable change records**, allowing the actual code and environments to be regenerated when needed. For the detailed philosophy and theory, see [REGENERATIVE_ARCHITECTURE.md](REGENERATIVE_ARCHITECTURE.md).
 
-## このリポジトリにあるもの
+## Repository Overview
 
 ```text
-REGENERATIVE_ARCHITECTURE.md   RA の考え方と層構造
-SPECIFICATION_CORE_LANGUAGE.md 仕様核言語 SCL の定義
-CHANGE_RECORD_FORMAT.md        ワークアイテムと ADR の正本フォーマット
-ra-idp-go/                     RA に従って構成した IdP 実装
-tools/                         SCL/ワークアイテム検証と派生成果物のツール
-work-items/                    リポジトリ横断の変更管理レコード
-justfile                       ルートから実行するコマンド地図
+REGENERATIVE_ARCHITECTURE.md   Philosophy and the 5-layer structure of RA
+SPECIFICATION_CORE_LANGUAGE.md Definition of Specification Core Language (SCL)
+CHANGE_RECORD_FORMAT.md        Canonical formats for Work Items and ADRs
+ra-idp-go/                     An Identity Provider (IdP) implementation built using RA
+tools/                         Tools for SCL/Work Item verification and code generation
+work-items/                    Repository-wide change management records (Work Items)
+justfile                       Central command map executed from the repository root
 ```
 
-## 最初に読むもの
+## Recommended Reading Order
 
-RA の全体像を知りたい場合は、次の順で読むのが短いです。
+If you are new to this repository, read these documents in the following order:
 
-1. [REGENERATIVE_ARCHITECTURE.md](REGENERATIVE_ARCHITECTURE.md): 何を保存し、何を再生成可能にするか。
-2. [SPECIFICATION_CORE_LANGUAGE.md](SPECIFICATION_CORE_LANGUAGE.md): 仕様核をどう書き、どう検証対象にするか。
-3. [ra-idp-go/README.md](ra-idp-go/README.md): 実例の IdP がどのように構成されているか。
-4. [tools/README.md](tools/README.md): 仕様・変更記録・派生成果物を扱うツール群。
+1. [REGENERATIVE_ARCHITECTURE.md](REGENERATIVE_ARCHITECTURE.md): The core philosophy of what to archive and what to regenerate.
+2. [SPECIFICATION_CORE_LANGUAGE.md](SPECIFICATION_CORE_LANGUAGE.md): How to write the specification core (SCL) and make it verifiable.
+3. [ra-idp-go/README.md](ra-idp-go/README.md): Architecture and setup of the reference Identity Provider (IdP) implementation.
+4. [tools/README.md](tools/README.md): Tooling used to validate specifications, check change records, and generate downstream artifacts.
 
-新しいワークアイテムや ADR を作るときは、既存ファイルから書式を推測せず、[CHANGE_RECORD_FORMAT.md](CHANGE_RECORD_FORMAT.md) を正本として使います。
+> [!IMPORTANT]
+> When creating a new Work Item or Architecture Decision Record (ADR), do not copy or guess formats from existing files. Always refer to [CHANGE_RECORD_FORMAT.md](CHANGE_RECORD_FORMAT.md) as the single source of truth for formats.
 
-## 開発の入口
+## Development Entrypoints
 
-このリポジトリでは、モノレポ内の作業ディレクトリを間違えないように、ルートから `just ...` を実行します。各レシピは目的ベースの名前を持ち、内部で正しいディレクトリへ移動します。
+To avoid directory confusion in this monorepo, run `just` commands from the repository root. Each recipe is intent-based and navigates to the correct directory automatically.
 
-利用可能な入口を見る:
+### Setup and Verification
 
+Show available commands:
 ```bash
 just
 ```
 
-依存関係を入れる:
-
+Install all dependencies (requires Bun and Go):
 ```bash
 just setup
 ```
 
-標準検証を実行する:
-
+Run the complete verification suite (linters, tests, type-checks, YAML validations):
 ```bash
 just verify
 ```
 
-よく使う個別コマンド:
+### Specialized Commands
 
-```bash
-just verify-go     # ra-idp-go の lint + race test
-just verify-ui     # UI の format check + lint + typecheck + build
-just verify-tools  # RA tools と YAML/SCL 検証
-just yaml-check    # work item / SCL YAML 検証
-just scl-render    # SCL 由来の HTML / JSON Schema / OpenAPI を再生成
-just dev-api       # Go API 開発サーバー
-just dev-ui        # UI 開発サーバー
-just dev-compose   # Docker Compose 開発スタック
-```
+| Command | Description |
+| --- | --- |
+| `just verify-go` | Run linter and race-enabled tests for the Go backend |
+| `just verify-ui` | Check formatting, lint, type-check, and build the React UI |
+| `just verify-tools` | Run type-checks, linters, tests for tools, and validate YAML/SCL files |
+| `just yaml-check` | Validate all Work Item and SCL YAML files |
+| `just scl-render` | Regenerate HTML views, JSON Schema, and OpenAPI specs from SCL |
+| `just dev-api` | Start the Go API development server |
+| `just dev-ui` | Start the React UI development server |
+| `just dev-compose` | Start the local development stack via Docker Compose |
 
-## 変更するときの基本ルール
+## Workflow Rules for Changes
 
-- 機能や振る舞いを変える場合は、実装より先に SCL を見直します。
-- 重要な判断は ADR に残します。決定の理由や却下した代替案も保存対象です。
-- 一つの意味変更はワークアイテムとして扱い、根拠・範囲・検証・残リスクを記録します。
-- 生成物を更新した場合は、対応する生成コマンドと検証結果を残します。
-- 変更後は影響範囲に応じて最小の `just ...` 検証を実行します。迷う場合は `just verify` が標準入口です。
+- **SCL-First for Feature Work**: When changing features or behaviors, always review and update the Specification Core Language (SCL) in `spec/scl.yaml` first, before modifying the implementation.
+- **Record Decisions in ADRs**: Document important design decisions, including their rationale and rejected alternatives, in Architecture Decision Records (ADRs).
+- **Trace Changes via Work Items**: Treat every logical change as a "Work Item" and record its context, scope, verification steps, and residual risks in a dedicated work item file under `work-items/`.
+- **Regenerate Derived Artifacts**: If a change affects the specification, run `just scl-render` to regenerate downstream artifacts and include the regeneration commands and results in your commit.
+- **Verify Local Status**: After any modification, run the appropriate `just verify-*` command depending on the change scope. When in doubt, run `just verify`.
 
-## AI エージェント向けの最小コンテキスト
+## Context for AI Agents (LLM Instructions)
 
-作業前に [REGENERATIVE_ARCHITECTURE.md](REGENERATIVE_ARCHITECTURE.md) と [SPECIFICATION_CORE_LANGUAGE.md](SPECIFICATION_CORE_LANGUAGE.md) を読み、機能変更では SCL-first を守ってください。新規ワークアイテムと ADR の書式は [CHANGE_RECORD_FORMAT.md](CHANGE_RECORD_FORMAT.md) に従います。
+Before executing tasks in this repository, read [REGENERATIVE_ARCHITECTURE.md](REGENERATIVE_ARCHITECTURE.md) and [SPECIFICATION_CORE_LANGUAGE.md](SPECIFICATION_CORE_LANGUAGE.md). Keep feature modifications SCL-first. When creating new Work Items or ADRs, strictly follow the templates in [CHANGE_RECORD_FORMAT.md](CHANGE_RECORD_FORMAT.md).
 
-README は入口として小さく保ちます。詳細な仕様・判断・検証手順は、該当する SCL、ADR、ワークアイテム、各サブディレクトリの README に置いてください。
+Keep the root `README.md` minimal as an entry point. Detailed specifications, design decisions, verification runbooks, and context-specific implementation details must reside in the corresponding SCL files, ADRs, Work Items, or sub-directory READMEs.
+

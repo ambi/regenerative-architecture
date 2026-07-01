@@ -1,100 +1,81 @@
 # RA Identity UI
 
-`ra-idp-go` の認証 UI は、エンタープライズ向けの認証・ID 管理画面として、
-モダンで適切、使いやすく、視覚的にも高品質であることを目標とする。
+The authorization UI of `ra-idp-go` aims to provide a modern, compliant, easy-to-use, and high-visual-quality authentication and identity management experience suitable for enterprise environments.
 
-## デザイン指針
+## Design Guidelines
 
-- **信頼性を最優先する。** 落ち着いた配色、明確なサービス識別、現在の操作と
-  セキュリティ状態の説明により、利用者が安心して認証判断を行えるようにする。
-- **判断に必要な情報を先に示す。** 画面タイトル、要求元、共有情報、次に起きること、
-  取り消し方法を簡潔な情報階層で提示する。
-- **重要な操作を迷わせない。** 主操作は 1 画面につき原則 1 つとし、拒否・取消操作と
-  視覚的に区別する。OAuth/OIDC のフォーム名、送信値、遷移契約は UI 都合で変更しない。
-- **アクセシビリティを標準品質とする。** キーボード操作、可視フォーカス、十分な
-  コントラスト、明示的なラベル、適切な `aria-*`、モーション抑制設定に対応する。
-- **企業利用に耐える密度を保つ。** 過剰な装飾や消費者向けの演出を避け、余白、
-  タイポグラフィ、境界線、状態色を一貫して使う。
-- **レスポンシブでも内容を欠落させない。** デスクトップでは補足情報を活用し、
-  モバイルでは認証操作を優先しつつ、サービス識別と安全上の注意を維持する。
-- **共通部品で一貫性を保つ。** Tailwind CSS、Radix UI、shadcn/ui 形式のローカル部品を
-  基盤とし、色・角丸・フォーカス・disabled 状態を各画面で個別実装しない。
+- **Prioritize Trust**: Establish a secure experience through calm color palettes, clear service identification, and transparent descriptions of current operations and security states, reassuring users during authentication decisions.
+- **Present Critical Information First**: Clear information hierarchies display the page title, requesting party, shared information, next action, and cancellation procedures up-front.
+- **Simplify Critical Actions**: Limit screens to a single primary action, visually distinguishing it from reject/cancel operations. Avoid modifying OAuth/OIDC form names, submission values, and transition contracts for UI-specific reasons.
+- **Accessibility as Standard**: Support keyboard navigation, visible focus indicators, sufficient color contrast, explicit labels, appropriate `aria-*` attributes, and animations respecting reduced-motion preferences.
+- **Density for Enterprise Use**: Avoid excessive animations or consumer-focused decorations. Maintain a structured layout using consistent spacing, typography, borders, and state colors.
+- **Responsive Without Data Loss**: Display supplementary details on desktops while prioritizing authentication operations on mobile without omitting service identification or safety warnings.
+- **Consistency via Shared Components**: Utilize local components conforming to Tailwind CSS, Radix UI, and shadcn/ui. Avoid ad-hoc implementations of colors, border-radii, focus rings, or disabled states.
 
-## 管理コンソールの方針
+## Admin Console Policy
 
-管理コンソールは、Keycloak、Okta、Google Cloud IAM に共通するディレクトリ中心の
-情報設計を参考にする。左ナビゲーションで管理対象を明示し、一覧では検索・状態・
-主要な権限を高密度に比較でき、選択した主体の詳細と変更操作を同じコンテキスト内に
-表示する。作成や無効化など影響の大きい操作は通常の参照操作から視覚的に分離する。
+The Admin Console's information design is inspired by directory-centric systems like Keycloak, Okta, and Google Cloud IAM. It uses a left-hand navigation sidebar to identify management targets, displays search, status, and major permissions in a high-density table format, and presents detailed views and modification options within the same context. Destructive operations (such as deletion or disabling) are visually separated from standard read-only views.
 
-- 一覧を作業の起点とし、検索、フィルター、状態、MFA、ロールを一目で確認できること。
-- 詳細ペインで主体ID、認証状態、権限を確認してから変更できること。
-- ロールなどの権限変更はインライン編集にせず、専用画面で追加・削除差分を確認してから
-  確定すること。
-- 危険操作は明確な説明と状態色を使い、通常操作と取り違えないこと。
-- クライアント作成時の secret は一度だけ表示し、削除は client ID と影響を確認してから
-  確定すること。
-- 将来のグループ、アプリケーション、監査ログ追加を想定した一貫したナビゲーションを
-  提供するが、未実装機能を操作可能に見せないこと。
-- 管理画面は `AdminShell` でヘッダ、sidebar、breadcrumb、本文幅、操作位置を統一する。
-- 未認証で `/admin/*` を直リンクした場合は `/login` へ移動し、認証後に同じ管理画面へ
-  復帰する。戻り先は現在の realm の `/admin` 配下だけを許可する。
+- **Tables as Command Centers**: Use list views as the primary workspace, allowing users to search, filter, and review status, MFA config, and roles at a glance.
+- **Verify Before Modifying**: Enable users to inspect principal IDs, authentication status, and assigned permissions in detail panes before committing changes.
+- **Explicit Permission Modification**: Avoid inline editing for sensitive role changes. Use dedicated configuration screens displaying differences (additions/deletions) before confirmation.
+- **Visible Danger Actions**: Highlight dangerous actions with clear descriptions and appropriate warning colors to prevent accidental execution.
+- **Secure Credentials**: Display client secrets exactly once upon creation. Re-confirm client deletion only after reviewing affected systems.
+- **Scalable Architecture**: Structure navigation to accommodate future modules like groups, applications, and audit logs. Unimplemented features must not appear interactive.
+- **Consistent Layout**: Maintain a unified structure across the console using `AdminShell` (headers, sidebars, breadcrumbs, content widths, and action placements).
+- **Unauthorized Link Fallback**: Redirect unauthenticated direct requests to `/admin/*` to `/login`, returning to the original target destination upon successful login. Allowed redirection targets are constrained to the current realm's `/admin` path.
 
-参考:
-[Keycloak Server Administration Guide](https://www.keycloak.org/docs/latest/server_admin/),
-[Okta Manage users](https://help.okta.com/en-us/content/topics/users-groups-profiles/usgp-people.htm),
-[Google Cloud IAM access management](https://cloud.google.com/iam/docs/granting-changing-revoking-access)
+*References:*
+- [Keycloak Server Administration Guide](https://www.keycloak.org/docs/latest/server_admin/)
+- [Okta Manage users](https://help.okta.com/en-us/content/topics/users-groups-profiles/usgp-people.htm)
+- [Google Cloud IAM access management](https://cloud.google.com/iam/docs/granting-changing-revoking-access)
 
-## UI ライブラリ選定
+## UI Library Selection
 
-UI 基盤は、アクセシビリティとデザインの統制を両立し、特定の完成済みテーマへ
-過度に依存しない構成とする。
+The UI foundation balances accessibility and design consistency without relying on complex, pre-packaged themes.
 
-| ライブラリ | 役割 | 選定理由 |
+| Library | Role | Selection Rationale |
 | --- | --- | --- |
-| React + TypeScript | UI と型安全な画面実装 | 小さな認証画面から将来の管理画面まで、状態とコンポーネント境界を明確に保てる |
-| Vite | 開発サーバーと production build | GatewayやCDNから配信する独立した静的bundleを高速かつ単純に生成できる |
-| Tailwind CSS | デザイントークンとスタイリング | 独自の企業向けブランド表現を維持しながら、状態・レスポンシブ・アクセシビリティを一貫して実装できる |
-| Radix UI | アクセシブルな headless primitive | キーボード操作や ARIA を備えた振る舞いを、見た目と分離して利用できる |
-| shadcn/ui 形式のローカル部品 | Button、Input、Label、Card、Alert など | ソースをリポジトリで所有し、認証画面の要件に合わせて監査・変更できる。外部テーマへの実行時依存を増やさない |
-| TanStack Router | 画面ルーティング | Go から渡される page data と画面種別の対応を型安全に管理できる |
-| TanStack Table | 将来の管理データグリッド | 利用者・クライアント・セッション等の一覧で、sorting、filtering、pagination を UI 表現から分離できる。現在の認証 4 画面では未使用 |
-| Tabler Icons | アイコン | 一貫した線幅と十分な種類を持ち、装飾ではなく状態や操作の補助として使える |
-| class-variance-authority / clsx / tailwind-merge | variant と class の合成 | 共通部品の状態表現を型安全にし、Tailwind class の競合を局所的に解決できる |
-| Biome | lint と format | UI コードと CSS の品質基準を高速に自動検証できる |
+| React + TypeScript | UI and type-safe views | Maintains clear component boundaries and state management from simple login screens to the administrative console. |
+| Vite | Dev server and production build | Fast, straightforward generation of static bundles that can be served via API gateways or CDNs. |
+| Tailwind CSS | Design tokens and styling | Enables consistent styling (states, responsiveness, accessibility) while preserving enterprise branding controls. |
+| Radix UI | Accessible headless primitives | Accessible keyboard handling and ARIA compliance decoupled from visual presentation. |
+| Local Components (shadcn/ui layout) | Buttons, Inputs, Labels, Cards, Alerts | Maintained within the repository for easy audit and customization, minimizing runtime dependency overhead. |
+| TanStack Router | Type-safe routing | Safe translation of page metadata from the Go backend to target UI views. |
+| TanStack Table | Administrative data grid | Separates sorting, filtering, and pagination logic from UI presentation. (Reserved for user/client tables; currently unused in the 4 core login screens). |
+| Tabler Icons | Vector icons | Consistent line weights and extensive library to serve as visual aids for states and actions rather than mere decoration. |
+| Class Variance Authority / Clsx / Tailwind Merge | Class merging | Type-safe styling variants and runtime merging of conflicting Tailwind classes. |
+| Biome | Linter and formatter | Rapid automated enforcement of syntax, style, and code quality guidelines. |
 
-選定時は、アクセシビリティ、bundle サイズ、保守性、デザインの所有権、
-Go 側の HTTP 契約を壊さないことを優先する。新しい UI ライブラリは、既存基盤で
-解決できない具体的な要件がある場合に限って追加する。
+Priorities are accessibility, bundle size, maintainability, design ownership, and preserving API contracts. Introduce new libraries only when existing tools cannot satisfy specific requirements.
 
-フロントエンドとバックエンドの配信境界、認可トランザクション、Cookie、CSRF の設計は
-[`ARCHITECTURE.md`](ARCHITECTURE.md) を参照する。
+Refer to [`ARCHITECTURE.md`](ARCHITECTURE.md) for details on deployment boundaries, authorization transactions, cookies, and CSRF protection.
 
-## 実装上の確認事項
+## Implementation Guidelines
 
-UI 変更時は `bun run lint`、`bun run typecheck`、`bun run build` を実行する。
-認証APIを変更した場合は Go 側の HTTP E2E テストも実行し、Cookie、CSRF、
-OAuthリダイレクト、JSON契約が維持されていることを確認する。
+When modifying the UI, run the following verification checks:
+```bash
+bun run lint
+bun run typecheck
+bun run build
+```
 
-Vite CLI は `#!/usr/bin/env node` を持つが、開発・buildスクリプトではJSエントリを
-`bun` に直接渡して実行する。これによりNode.jsを別途要求せず、プロセス表示も
-`bun .../vite.js` に統一する。
+When API contracts are modified, run Go HTTP E2E tests to verify that cookies, CSRF protection, OAuth redirects, and JSON schemas remain correct.
 
-## E2E スモーク
+While the Vite CLI utilizes `#!/usr/bin/env node`, dev and build scripts execute JS entries directly via `bun`. This unifies running processes under `bun .../vite.js` without requiring a Node.js runtime.
 
-`bun run test:e2e` で SPA の golden path (`/authorize → login → consent → callback`)
-を 1 本のスモークとして検証する。ランナーは `bun test` + 組み込みの `Bun.WebView`
-(macOS は WKWebView、Linux/Windows はインストール済み Chrome を CDP 経由で駆動) で、
-外部のブラウザ自動化フレームワークや別ブラウザのダウンロードは不要。
+## E2E Smoke Tests
 
-テスト本体 (`tests/e2e/`) が以下を自動起動・停止する:
+Verify the SPA's golden path (`/authorize → login → consent → callback`) by running:
+```bash
+bun run test:e2e
+```
 
-- Go API を `memory` モードで `:8081` に (`ADDR=:8081 ISSUER=http://localhost:5173`、
-  ブラウザ origin と一致させて CSRF/origin 検査を通すため)。
-- Vite dev server を `:5173` に (`/authorize`・`/api` を 8081 にプロキシ)。
-- demo-client の登録済み redirect_uri (`http://localhost:3000/callback`) を受ける
-  最小コールバックサーバを `:3000` に。
+The runner uses `bun test` and the built-in `Bun.WebView` (using WKWebView on macOS and Chrome via CDP on Linux/Windows), eliminating the need for heavy browser automation frameworks or manual driver downloads.
 
-これにより、SPA dispatcher の画面分岐 (`meta[name="ra-idp:page"]`) と、cross-origin
-redirect で `code` / `iss` が落ちないこと (RFC 9207) の 2 領域の回帰を機械検知する。
-`go` と `bun` が PATH にあれば追加準備は不要。
+The test suite (`tests/e2e/`) automatically manages the lifecycle of:
+1. **Go API**: Starts in `memory` mode on port `:8081` (`ADDR=:8081 ISSUER=http://localhost:5173`) to match the browser origin and pass CSRF checks.
+2. **Vite Dev Server**: Starts on port `:5173`, proxying `/authorize` and `/api` requests to `8081`.
+3. **Mock Callback Server**: Starts on port `:3000` to receive the auth code at `demo-client`'s `redirect_uri` (`http://localhost:3000/callback`).
+
+This setup validates client routing (`meta[name="ra-idp:page"]`) and ensures that `code` and `iss` parameters are preserved during cross-origin redirects (RFC 9207). Requires only `go` and `bun` in your `PATH`.

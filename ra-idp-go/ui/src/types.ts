@@ -21,6 +21,9 @@ export type AdminUser = {
   last_login_at?: string
   password_changed_at?: string
   disabled_at?: string
+  // status === 'pending_deletion' のとき、soft-delete 時刻と自動 purge 予定時刻。
+  pending_deletion_at?: string
+  purge_after?: string
   created_at: string
   updated_at: string
 }

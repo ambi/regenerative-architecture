@@ -174,7 +174,9 @@ func TestAdminUserAPIDeletesUserWithCascade(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	del := adminJSONRequest(t, e, http.MethodDelete, "/api/admin/users/"+created.Sub, csrf, cookie,
+	// purge=true で完全削除 (anonymize cascade) パスを検証する。既定 DELETE は
+	// soft-delete で、その挙動は TestAdminUserAPISoftDeletesAndRestores が検証する。
+	del := adminJSONRequest(t, e, http.MethodDelete, "/api/admin/users/"+created.Sub+"?purge=true", csrf, cookie,
 		map[string]any{"reason": "leaving company"})
 	if del.Code != http.StatusNoContent {
 		t.Fatalf("delete status=%d body=%s", del.Code, del.Body.String())
@@ -205,9 +207,51 @@ func TestAdminUserAPIDeletesUserWithCascade(t *testing.T) {
 	}
 
 	// Idempotent.
-	again := adminJSONRequest(t, e, http.MethodDelete, "/api/admin/users/"+created.Sub, csrf, cookie, nil)
+	again := adminJSONRequest(t, e, http.MethodDelete, "/api/admin/users/"+created.Sub+"?purge=true", csrf, cookie, nil)
 	if again.Code != http.StatusNoContent {
 		t.Fatalf("idempotent delete status=%d body=%s", again.Code, again.Body.String())
+	}
+}
+
+func TestAdminUserAPISoftDeletesAndRestores(t *testing.T) {
+	e, repo := newAdminUserHandler(t)
+	csrf, cookie := adminCSRF(t, e)
+
+	create := adminJSONRequest(t, e, http.MethodPost, "/api/admin/users", csrf, cookie, map[string]any{
+		"preferred_username": "alice",
+		"password":           "initial-password-9182",
+		"email":              "alice@example.com",
+		"roles":              []string{"support"},
+	})
+	if create.Code != http.StatusCreated {
+		t.Fatalf("create status=%d body=%s", create.Code, create.Body.String())
+	}
+	var created struct {
+		Sub string `json:"sub"`
+	}
+	if err := json.Unmarshal(create.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+
+	// 既定 DELETE は soft-delete: PII は温存され status は pending_deletion。
+	del := adminJSONRequest(t, e, http.MethodDelete, "/api/admin/users/"+created.Sub, csrf, cookie,
+		map[string]any{"reason": "maybe leaving"})
+	if del.Code != http.StatusNoContent {
+		t.Fatalf("soft-delete status=%d body=%s", del.Code, del.Body.String())
+	}
+	user, _ := repo.FindBySub(context.Background(), created.Sub)
+	if user == nil || !user.IsSoftDeleted() || user.Email == nil {
+		t.Fatalf("expected visible soft-deleted user with PII, got %+v", user)
+	}
+
+	// 復元: status は Active に戻り、PII は温存されたまま。
+	restore := adminJSONRequest(t, e, http.MethodPost, "/api/admin/users/"+created.Sub+"/restore", csrf, cookie, nil)
+	if restore.Code != http.StatusOK {
+		t.Fatalf("restore status=%d body=%s", restore.Code, restore.Body.String())
+	}
+	restored, _ := repo.FindBySub(context.Background(), created.Sub)
+	if restored == nil || !restored.IsActive() || restored.Email == nil {
+		t.Fatalf("expected active restored user with PII, got %+v", restored)
 	}
 }
 

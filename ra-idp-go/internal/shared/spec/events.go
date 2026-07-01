@@ -419,6 +419,33 @@ type UserRequiredActionCleared struct {
 func (e *UserRequiredActionCleared) EventType() string     { return "UserRequiredActionCleared" }
 func (e *UserRequiredActionCleared) OccurredAt() time.Time { return e.At }
 
+// UserSoftDeleted は admin がユーザーを soft-delete (削除予約) した。status は
+// PendingDeletion に遷移し、PII / Consent / RefreshToken / Session は温存される。
+type UserSoftDeleted struct {
+	At        time.Time `json:"-"`
+	TenantID  string    `json:"tenantId"`
+	ActorSub  string    `json:"actorSub"`
+	TargetSub string    `json:"targetSub"`
+	Reason    string    `json:"reason,omitempty"`
+}
+
+func (e *UserSoftDeleted) EventType() string     { return "UserSoftDeleted" }
+func (e *UserSoftDeleted) OccurredAt() time.Time { return e.At }
+
+// UserRestored は admin が PendingDeletion のユーザーを Restore した。status は
+// Active に戻り、PII / credential は温存されたままログインが再開する。
+type UserRestored struct {
+	At        time.Time `json:"-"`
+	TenantID  string    `json:"tenantId"`
+	ActorSub  string    `json:"actorSub"`
+	TargetSub string    `json:"targetSub"`
+}
+
+func (e *UserRestored) EventType() string     { return "UserRestored" }
+func (e *UserRestored) OccurredAt() time.Time { return e.At }
+
+// UserDeleted は admin または猶予期間経過後の自動 purge がユーザーを Purge した。
+// PII は anonymize 済みで、関連 aggregate は cascade 削除されている。
 type UserDeleted struct {
 	At        time.Time `json:"-"`
 	TenantID  string    `json:"tenantId"`

@@ -36,6 +36,9 @@ type adminUserUpdateRequest struct {
 
 type adminUserDeleteRequest struct {
 	Reason string `json:"reason"`
+	// Force が true のとき soft-delete をスキップして即時完全削除 (purge) する。
+	// クエリ ?purge=true と同義。
+	Force bool `json:"force"`
 }
 
 type adminUserResponse struct {
@@ -55,8 +58,13 @@ type adminUserResponse struct {
 	PasswordChangedAt *time.Time                     `json:"password_changed_at,omitempty"`
 	// DisabledAt は status から導出した後方互換フィールド (現行 UI 用)。
 	DisabledAt *time.Time `json:"disabled_at,omitempty"`
-	CreatedAt  time.Time  `json:"created_at"`
-	UpdatedAt  time.Time  `json:"updated_at"`
+	// PendingDeletionAt は status == PendingDeletion のとき soft-delete された時刻
+	// (status_changed_at)。PurgeAfter は自動 purge される時刻 (soft-delete + 猶予期間)。
+	// UI が猶予残日数を表示するために使う。
+	PendingDeletionAt *time.Time `json:"pending_deletion_at,omitempty"`
+	PurgeAfter        *time.Time `json:"purge_after,omitempty"`
+	CreatedAt         time.Time  `json:"created_at"`
+	UpdatedAt         time.Time  `json:"updated_at"`
 }
 
 type adminRequiredActionRequest struct {
@@ -66,6 +74,11 @@ type adminRequiredActionRequest struct {
 func (d Deps) handleListAdminUsers(c *echo.Context) error {
 	if _, err := d.RequireAdmin(c); err != nil {
 		return d.WriteAdminAccessError(c, err)
+	}
+	// lazy-on-access: 猶予期間を過ぎた削除予約 user を一覧取得のついでに Purge する。
+	// 専用スケジューラは別 WI に切り出す。
+	if err := idmusecases.PurgeExpiredSoftDeleted(c.Request().Context(), d.adminUserDeps(), time.Now().UTC()); err != nil {
+		return err
 	}
 	users, err := d.UserRepo.FindAll(c.Request().Context(), support.RequestTenantID(c))
 	if err != nil {
@@ -173,14 +186,39 @@ func (d Deps) handleDeleteAdminUser(c *echo.Context) error {
 			return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 		}
 	}
-	err = idmusecases.DeleteUser(c.Request().Context(), d.adminUserDeps(), idmusecases.DeleteUserInput{
-		ActorSub: actor.Sub, Sub: c.Param("sub"), Reason: input.Reason, Now: time.Now().UTC(),
-	})
+	// 既定は soft-delete (削除予約)。?purge=true または body force=true で完全削除
+	// (ADR-036 の anonymize cascade) に分岐する。
+	if c.QueryParam("purge") == "true" || input.Force {
+		err = idmusecases.DeleteUser(c.Request().Context(), d.adminUserDeps(), idmusecases.DeleteUserInput{
+			ActorSub: actor.Sub, Sub: c.Param("sub"), Reason: input.Reason, Now: time.Now().UTC(),
+		})
+	} else {
+		err = idmusecases.SoftDeleteUser(c.Request().Context(), d.adminUserDeps(), idmusecases.SoftDeleteUserInput{
+			ActorSub: actor.Sub, Sub: c.Param("sub"), Reason: input.Reason, Now: time.Now().UTC(),
+		})
+	}
 	if err != nil {
 		return d.writeAdminUserError(c, err)
 	}
 	c.Response().Header().Set("Cache-Control", "no-store")
 	return c.NoContent(http.StatusNoContent)
+}
+
+func (d Deps) handleRestoreAdminUser(c *echo.Context) error {
+	if err := d.VerifyBrowserRequest(c); err != nil {
+		return err
+	}
+	actor, err := d.RequireAdmin(c)
+	if err != nil {
+		return d.WriteAdminAccessError(c, err)
+	}
+	user, err := idmusecases.RestoreUser(
+		c.Request().Context(), d.adminUserDeps(), actor.Sub, c.Param("sub"), time.Now().UTC(),
+	)
+	if err != nil {
+		return d.writeAdminUserError(c, err)
+	}
+	return support.NoStoreJSON(c, http.StatusOK, toAdminUserResponse(user))
 }
 
 func (d Deps) handleSetAdminUserDisabled(c *echo.Context, disabled bool) error {
@@ -227,6 +265,10 @@ func (d Deps) writeAdminUserError(c *echo.Context, err error) error {
 		return support.WriteBrowserError(c, http.StatusBadRequest, "self_delete_forbidden", "管理者は自身を削除できません")
 	case errors.Is(err, idmusecases.ErrSelfDisableForbidden):
 		return support.WriteBrowserError(c, http.StatusBadRequest, "self_disable_forbidden", "管理者は自身を無効化できません")
+	case errors.Is(err, idmusecases.ErrUserNotPendingDeletion):
+		return support.WriteBrowserError(c, http.StatusBadRequest, "not_pending_deletion", "削除予約中のユーザーではありません")
+	case errors.Is(err, idmusecases.ErrRestoreGracePeriodExpired):
+		return support.WriteBrowserError(c, http.StatusBadRequest, "restore_grace_expired", "復元可能期間を過ぎています")
 	case errors.Is(err, idmusecases.ErrInvalidAttribute):
 		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_attribute", "属性がスキーマに適合していません")
 	case errors.Is(err, idmusecases.ErrInvalidRequiredAction):
@@ -252,6 +294,14 @@ func toAdminUserResponse(user *spec.User) adminUserResponse {
 	if user.Lifecycle.Status == spec.UserStatusDisabled {
 		disabledAt = user.Lifecycle.StatusChangedAt
 	}
+	var pendingDeletionAt, purgeAfter *time.Time
+	if user.Lifecycle.EffectiveStatus() == spec.UserStatusPendingDeletion {
+		pendingDeletionAt = user.Lifecycle.StatusChangedAt
+		if pendingDeletionAt != nil {
+			deadline := pendingDeletionAt.Add(idmusecases.UserSoftDeleteGracePeriodSeconds * time.Second)
+			purgeAfter = &deadline
+		}
+	}
 	return adminUserResponse{
 		Sub: user.Sub, PreferredUsername: user.PreferredUsername, Name: user.Name,
 		GivenName: user.GivenName, FamilyName: user.FamilyName,
@@ -262,6 +312,8 @@ func toAdminUserResponse(user *spec.User) adminUserResponse {
 		LastLoginAt:       user.Lifecycle.LastLoginAt,
 		PasswordChangedAt: user.Lifecycle.PasswordChangedAt,
 		DisabledAt:        disabledAt,
+		PendingDeletionAt: pendingDeletionAt,
+		PurgeAfter:        purgeAfter,
 		CreatedAt:         user.CreatedAt, UpdatedAt: user.UpdatedAt,
 	}
 }

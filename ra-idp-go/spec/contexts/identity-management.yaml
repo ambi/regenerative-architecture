@@ -43,6 +43,24 @@ glossary:
     definition: User を Deleted に遷移させる管理操作。tombstone 化と cascade を 1 オペレーションで実施する。
     aliases:
       - delete
+  PendingDeletion:
+    definition: "User の削除予約状態。`status == PendingDeletion` で PII は温存されるが認証は Disabled と同じく拒否される。猶予期間 (UserSoftDeleteGracePeriod) 内なら Restore で Active に戻せ、経過すると Purge で Deleted (anonymize) に落ちる。"
+    aliases:
+      - pending_deletion
+      - 削除予約中
+  SoftDelete:
+    definition: User を Active / Disabled から PendingDeletion に遷移させる管理操作。PII / Consent / RefreshToken / Session を残したまま削除を予約し、誤操作を 猶予期間内で救済できる。
+    aliases:
+      - soft_delete
+      - soft-delete
+  Restore:
+    definition: PendingDeletion の User を Active に戻す管理操作。猶予期間内でのみ可能で、PII や credential は温存されているためログインは通常どおり再開する。
+    aliases:
+      - restore
+  Purge:
+    definition: User を Active / Disabled / PendingDeletion から Deleted に遷移させる確定削除操作。ADR-036 の anonymize cascade を実行し、猶予期間経過後の自動 purge と admin の明示的完全削除の双方から呼ばれる。
+    aliases:
+      - purge
   Group:
     definition: "tenant-scoped 集約。再利用可能なロール束 (roles[]) を持ち、所属する User にそのロールを一斉付与する。階層・deny ルール・属性自動所属は持たない (union のみ)。"
     aliases:
@@ -103,10 +121,11 @@ glossary:
 models:
   UserStatus:
     kind: enum
-    description: User の運用状態の唯一の真実。状態機械 UserLifecycle (Active / Disabled / Deleted) と一致し、Okta lifecycle_state / Keycloak 相当の Locked / Staged / Suspended を追加する。Active 以外は認証不可、Deleted は終端 (tombstone)。「いつ遷移したか」は監査イベントと status_changed_at が持つ。
+    description: User の運用状態の唯一の真実。状態機械 UserLifecycle (Active / Disabled / PendingDeletion / Deleted) と一致し、Okta lifecycle_state / Keycloak 相当の Locked / Staged / Suspended を追加する。Active 以外は認証不可、PendingDeletion は 猶予期間内に復元可能な削除予約、Deleted は終端 (tombstone)。「いつ遷移したか」は監査イベントと status_changed_at が持つ。
     values:
       - Active
       - Disabled
+      - PendingDeletion
       - Deleted
       - Locked
       - Staged
@@ -932,9 +951,38 @@ models:
         type: String
       targetSub:
         type: String
+  UserSoftDeleted:
+    kind: event
+    description: 管理者がユーザーを SoftDelete した。status は PendingDeletion に遷移し、PII / Consent / RefreshToken / Session は温存される。reason は admin が任意に残せる自由記述。
+    payload:
+      occurredAt:
+        type: Timestamp
+      tenantId:
+        type: String
+        description: 操作対象テナント ID。actor / target と一致する。
+      actorSub:
+        type: String
+      targetSub:
+        type: String
+      reason:
+        type: String
+        optional: true
+  UserRestored:
+    kind: event
+    description: 管理者が PendingDeletion のユーザーを Restore した。status は Active に戻り、PII / credential は温存されたままでログインが再開する。
+    payload:
+      occurredAt:
+        type: Timestamp
+      tenantId:
+        type: String
+        description: 操作対象テナント ID。actor / target と一致する。
+      actorSub:
+        type: String
+      targetSub:
+        type: String
   UserDeleted:
     kind: event
-    description: 管理者がユーザーを Delete した。PII は anonymize 済みで、関連 aggregate は cascade 削除されている。reason は admin が任意に残せる自由記述。
+    description: 管理者または 猶予期間経過後の自動 purge がユーザーを Purge した。PII は anonymize 済みで、関連 aggregate は cascade 削除されている。reason は admin が任意に残せる自由記述 (自動 purge では auto_purge)。
     payload:
       occurredAt:
         type: Timestamp
@@ -1175,7 +1223,7 @@ models:
         type: String
 states:
   UserLifecycle:
-    description: "User aggregate のライフサイクル。Active が通常稼働、\nDisable で復活可能な無効化、Delete で tombstone 化 (anonymize cascade) と\nなる。Deleted は終端で復元できない。\n"
+    description: "User aggregate のライフサイクル。Active が通常稼働、\nDisable で復活可能な無効化。SoftDelete で削除予約 (PendingDeletion) に入り、\n猶予期間内は Restore で Active に戻せる。Purge で tombstone 化\n(anonymize cascade) となる。Deleted は終端で復元できない。\n"
     target: User
     initial: Active
     terminal:
@@ -1184,14 +1232,26 @@ states:
       - from: Active
         event: Disable
         to: Disabled
-      - from: Active
-        event: Delete
-        to: Deleted
       - from: Disabled
         event: Enable
         to: Active
+      - from: Active
+        event: SoftDelete
+        to: PendingDeletion
       - from: Disabled
-        event: Delete
+        event: SoftDelete
+        to: PendingDeletion
+      - from: PendingDeletion
+        event: Restore
+        to: Active
+      - from: PendingDeletion
+        event: Purge
+        to: Deleted
+      - from: Active
+        event: Purge
+        to: Deleted
+      - from: Disabled
+        event: Purge
         to: Deleted
   GroupLifecycle:
     description: "Group aggregate のライフサイクル。単一状態 Active のみを持つ。\n無効化状態は持たず、削除は aggregate 自体の物理削除 (DeleteGroup) で表す。\n"
@@ -1408,10 +1468,14 @@ interfaces:
         successful_status_codes:
           - "204"
   DeleteAdminUser:
-    description: "管理者がユーザーを Delete する。tombstone 化と cascade 削除を\natomic に実施し、`sub` のみを audit 用に保持する。冪等で、既に削除済の\nuser に対する再呼び出しは no-op として 204 を返す。自分自身を削除する\nことはできない (admin / system_admin の自爆防止)。\n"
+    description: "管理者がユーザーを削除する。既定は SoftDelete で、status を\nPendingDeletion に遷移させ PII / Consent / RefreshToken / Session を温存する\n(猶予期間内は Restore 可能)。`purge=true` の場合は ADR-036 の anonymize\ncascade を即時実施し tombstone 化する。いずれも冪等で、既に同じ終着状態の\nuser への再呼び出しは no-op として 204 を返す。自分自身は削除できない\n(admin / system_admin の自爆防止)。\n"
     input:
       sub:
         type: String
+      purge:
+        type: Boolean
+        optional: true
+        description: true で即時 anonymize cascade (完全削除)。省略時は soft-delete。
       reason:
         type: String
         optional: true
@@ -1420,6 +1484,7 @@ interfaces:
       - InvalidRequestError
       - AccessDeniedError
     emits:
+      - UserSoftDeleted
       - UserDeleted
     bindings:
       - kind: http
@@ -1428,6 +1493,25 @@ interfaces:
         request_form: body
         successful_status_codes:
           - "204"
+  RestoreAdminUser:
+    description: "管理者が PendingDeletion のユーザーを Restore する。status を Active\nに戻し PII / credential を温存したまま復元する。猶予期間を過ぎている、または\nPendingDeletion でない user に対しては InvalidRequestError を返す。復元後の\nuser を返す。\n"
+    input:
+      sub:
+        type: String
+    output:
+      user:
+        type: AdminUserResponse
+    errors:
+      - InvalidRequestError
+      - AccessDeniedError
+    emits:
+      - UserRestored
+    bindings:
+      - kind: http
+        method: POST
+        path: "/api/admin/users/{sub}/restore"
+        successful_status_codes:
+          - "200"
   SetUserRequiredAction:
     description: "管理者が対象ユーザーに次回ログイン時の強制アクション (RequiredAction) を\n付与する。update_password を付与されたユーザーは次回ログイン時に\nchange-password 画面へ強制誘導される (本人の変更で自動解除)。冪等で、既に\n付与済みなら現状を返す。admin 専用。\n"
     input:
@@ -1785,6 +1869,10 @@ invariants:
     description: "グループのライフサイクル操作 (create / update / delete) とメンバーシップ操作\n(add / remove) は、状態を変化させた場合に必ず対応する domain event と\nAdminAuditEvent を emit しなければならない。冪等な no-op (既所属の add /\n非所属の remove) では emit しない。DeleteGroup の cascade では解除メンバー\nごとに GroupMemberRemoved を emit する。\n"
     target: Group
     always: (GroupCreate | GroupUpdate | GroupDelete | GroupMemberAdd | GroupMemberRemove) changes state => corresponding domain event and AdminAuditEvent are emitted
+  SoftDeletedUserBlockedFromAuth:
+    description: "PendingDeletion (soft-deleted) の User は Deleted と同じく認証系に対して\nfail-close でなければならない。login / authorize / token (refresh / exchange /\ndevice) / userinfo / introspect は Active でない限り成功してはならない。PII が\n温存されている点だけが Deleted との違いで、認証可否は変わらない。\n"
+    target: User
+    always: "user.status != Active => user is not authenticated and issues no new token"
 permissions:
   AdminUserRead:
     description: 管理ユーザー情報の一覧・取得。
@@ -1814,7 +1902,27 @@ permissions:
         - actor.disabled_at == null
         - context.authenticated == true
   AdminUserDelete:
-    description: "管理者によるユーザー削除。tombstone 化と cascade を伴う。\nactor.sub == resource.sub かつ admin / system_admin role を持つ場合は\nuse case 側で reject する (自爆防止)。\n"
+    description: "管理者によるユーザーの soft-delete (削除予約)。status を PendingDeletion\nに遷移させる。actor.sub == resource.sub かつ admin / system_admin role を持つ\n場合は use case 側で reject する (自爆防止)。\n"
+    actor: User
+    resource: User
+    allow_when:
+      and:
+        - admin in actor.roles
+        - actor.disabled_at == null
+        - context.authenticated == true
+        - actor.tenant_id == resource.tenant_id
+  AdminUserRestore:
+    description: "管理者による PendingDeletion ユーザーの復元。status を Active に戻す。\nactor.sub == resource.sub かつ admin / system_admin role を持つ場合は use case\n側で reject する (自爆防止)。\n"
+    actor: User
+    resource: User
+    allow_when:
+      and:
+        - admin in actor.roles
+        - actor.disabled_at == null
+        - context.authenticated == true
+        - actor.tenant_id == resource.tenant_id
+  AdminUserPurge:
+    description: "管理者によるユーザーの完全削除 (purge)。ADR-036 の anonymize cascade で\ntombstone 化する。actor.sub == resource.sub かつ admin / system_admin role を\n持つ場合は use case 側で reject する (自爆防止)。\n"
     actor: User
     resource: User
     allow_when:
@@ -1878,6 +1986,54 @@ scenarios:
       - "管理者がユーザー \"alice\" を再有効化する"
       - "ユーザー \"alice\" の disabled_at は空である"
       - "\"UserEnabled\" が発行される"
+  管理者はユーザーを soft-delete し 猶予期間内に復元できる:
+    goal: 管理者が誤って削除したユーザーを、PII を失わずに 猶予期間内で復元する。
+    primary_actor: Administrator
+    scope: IdentityManagement
+    level: user_goal
+    preconditions:
+      - "roles=[\"admin\"] のユーザー \"operator\" が管理画面のユーザー一覧を開いている"
+      - "ユーザー \"alice\" は Active である"
+    main_success:
+      - "管理者 \"operator\" がユーザー \"alice\" を削除する"
+      - "ユーザー \"alice\" の status は PendingDeletion である"
+      - "\"UserSoftDeleted\" が発行される"
+      - "管理者 \"operator\" がユーザー \"alice\" を復元する"
+      - "ユーザー \"alice\" の status は Active である"
+      - "\"UserRestored\" が発行される"
+  soft-delete されたユーザーはログインを拒否される:
+    goal: 削除予約中のユーザーが認証系に対して fail-close であることを確認する。
+    primary_actor: EndUser
+    scope: IdentityManagement
+    level: user_goal
+    preconditions:
+      - "ユーザー \"alice\" は PendingDeletion である"
+    main_success:
+      - "ユーザー \"alice\" が正しいパスワードでログインを試みる"
+      - "ログインは拒否される"
+  管理者はユーザーを完全削除できる:
+    goal: 管理者が削除予約中のユーザーを確定削除し PII を anonymize する。
+    primary_actor: Administrator
+    scope: IdentityManagement
+    level: user_goal
+    preconditions:
+      - "ユーザー \"alice\" は PendingDeletion である"
+    main_success:
+      - "管理者がユーザー \"alice\" を完全削除する"
+      - "ユーザー \"alice\" の status は Deleted である"
+      - "\"UserDeleted\" が発行される"
+    extensions:
+      - at: 1
+        condition: "対象が admin 自身である"
+        steps:
+          - "soft-delete / 復元 / 完全削除のいずれも拒否される"
+          - "エラー \"self_delete_forbidden\""
+objectives:
+  UserSoftDeleteGracePeriod:
+    kind: lifetime
+    target: User
+    ttl: 2592000s
+    description: "SoftDelete (PendingDeletion) から自動 Purge までの 猶予期間。\n業界標準 (Google / Microsoft / Apple) の 7〜30 日に合わせ 30 日を既定とする。\nこの期間内は Restore で Active に戻せる。経過後は lazy-on-access で Purge される。\n"
 user_experience:
   screens:
     AdminUsers:
@@ -1891,6 +2047,7 @@ user_experience:
         - DisableAdminUser
         - EnableAdminUser
         - DeleteAdminUser
+        - RestoreAdminUser
         - SetUserRequiredAction
         - ClearUserRequiredAction
         - ListUserGroups
@@ -1901,6 +2058,7 @@ user_experience:
         - submitting
         - empty
         - delete_confirmation
+        - purge_confirmation
         - access_denied
         - service_error
     AdminGroups:

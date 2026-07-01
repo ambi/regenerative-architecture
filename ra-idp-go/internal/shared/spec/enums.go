@@ -314,17 +314,18 @@ func (k AgentKind) Valid() bool {
 type UserStatus string
 
 const (
-	UserStatusActive    UserStatus = "active"
-	UserStatusDisabled  UserStatus = "disabled"
-	UserStatusDeleted   UserStatus = "deleted"
-	UserStatusLocked    UserStatus = "locked"
-	UserStatusStaged    UserStatus = "staged"
-	UserStatusSuspended UserStatus = "suspended"
+	UserStatusActive          UserStatus = "active"
+	UserStatusDisabled        UserStatus = "disabled"
+	UserStatusPendingDeletion UserStatus = "pending_deletion"
+	UserStatusDeleted         UserStatus = "deleted"
+	UserStatusLocked          UserStatus = "locked"
+	UserStatusStaged          UserStatus = "staged"
+	UserStatusSuspended       UserStatus = "suspended"
 )
 
 func (s UserStatus) Valid() bool {
 	switch s {
-	case UserStatusActive, UserStatusDisabled, UserStatusDeleted,
+	case UserStatusActive, UserStatusDisabled, UserStatusPendingDeletion, UserStatusDeleted,
 		UserStatusLocked, UserStatusStaged, UserStatusSuspended:
 		return true
 	}

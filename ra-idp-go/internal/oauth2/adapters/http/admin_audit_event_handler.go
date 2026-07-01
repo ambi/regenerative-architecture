@@ -60,6 +60,8 @@ var auditEventCategoryTypes = map[string][]string{
 		(&spec.UserUpdated{}).EventType(),
 		(&spec.UserDisabled{}).EventType(),
 		(&spec.UserEnabled{}).EventType(),
+		(&spec.UserSoftDeleted{}).EventType(),
+		(&spec.UserRestored{}).EventType(),
 		(&spec.UserDeleted{}).EventType(),
 		(&spec.UserRequiredActionSet{}).EventType(),
 		(&spec.UserRequiredActionCleared{}).EventType(),

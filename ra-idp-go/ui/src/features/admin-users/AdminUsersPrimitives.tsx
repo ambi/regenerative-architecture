@@ -71,23 +71,47 @@ export function RoleList({ roles }: { roles: string[] }) {
   )
 }
 
+export type UserLifecycleStatus = 'active' | 'disabled' | 'pending_deletion'
+
+// userLifecycleStatus は status を最優先で解釈し、旧 disabled_at にもフォールバックする。
+export function userLifecycleStatus(user: AdminUser): UserLifecycleStatus {
+  if (user.status === 'pending_deletion') return 'pending_deletion'
+  if (user.status === 'disabled' || user.disabled_at) return 'disabled'
+  return 'active'
+}
+
+// daysUntil は target 時刻までの残り日数 (切り上げ、下限 0) を返す。無効値は null。
+export function daysUntil(value?: string): number | null {
+  if (!value) return null
+  const target = new Date(value).getTime()
+  if (Number.isNaN(target)) return null
+  return Math.max(0, Math.ceil((target - Date.now()) / (1000 * 60 * 60 * 24)))
+}
+
+const STATUS_BADGE: Record<UserLifecycleStatus, { dot: string; badge: string; label: string }> = {
+  active: { dot: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-700', label: '有効' },
+  disabled: { dot: 'bg-red-500', badge: 'bg-red-50 text-red-700', label: '無効' },
+  pending_deletion: { dot: 'bg-amber-500', badge: 'bg-amber-50 text-amber-700', label: '削除予約' },
+}
+
 export function StatusBadge({
-  disabled,
+  status,
   compact = false,
 }: {
-  disabled: boolean
+  status: UserLifecycleStatus
   compact?: boolean
 }) {
+  const style = STATUS_BADGE[status]
   return (
     <span
       className={cn(
         'inline-flex items-center gap-1.5 rounded-full font-semibold',
         compact ? 'px-2 py-0.5 text-[0.65rem]' : 'px-2.5 py-1 text-xs',
-        disabled ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700',
+        style.badge,
       )}
     >
-      <span className={cn('size-1.5 rounded-full', disabled ? 'bg-red-500' : 'bg-emerald-500')} />
-      {disabled ? '無効' : '有効'}
+      <span className={cn('size-1.5 rounded-full', style.dot)} />
+      {style.label}
     </span>
   )
 }

@@ -1077,7 +1077,7 @@
       },
       "delete": {
         "operationId": "DeleteAdminUser",
-        "summary": "管理者がユーザーを Delete する。tombstone 化と cascade 削除を",
+        "summary": "管理者がユーザーを削除する。既定は SoftDelete で、status を",
         "requestBody": {
           "required": true,
           "content": {
@@ -1087,6 +1087,10 @@
                 "properties": {
                   "sub": {
                     "type": "string"
+                  },
+                  "purge": {
+                    "type": "boolean",
+                    "description": "true で即時 anonymize cascade (完全削除)。省略時は soft-delete。"
                   },
                   "reason": {
                     "type": "string",
@@ -1228,6 +1232,79 @@
         "responses": {
           "204": {
             "description": "Success"
+          },
+          "default": {
+            "description": "Errors: InvalidRequestError, AccessDeniedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/InvalidRequestError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/AccessDeniedError"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/users/{sub}/restore": {
+      "post": {
+        "operationId": "RestoreAdminUser",
+        "summary": "管理者が PendingDeletion のユーザーを Restore する。status を Active",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "sub": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "sub"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "sub",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "$ref": "#/components/schemas/AdminUserResponse"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "required": [
+                    "user"
+                  ]
+                }
+              }
+            }
           },
           "default": {
             "description": "Errors: InvalidRequestError, AccessDeniedError",
@@ -15407,7 +15484,7 @@
           "actorSub",
           "targetSub"
         ],
-        "description": "管理者がユーザーを Delete した。PII は anonymize 済みで、関連 aggregate は cascade 削除されている。reason は admin が任意に残せる自由記述。"
+        "description": "管理者または 猶予期間経過後の自動 purge がユーザーを Purge した。PII は anonymize 済みで、関連 aggregate は cascade 削除されている。reason は admin が任意に残せる自由記述 (自動 purge では auto_purge)。"
       },
       "UserDisabled": {
         "type": "object",
@@ -15605,6 +15682,33 @@
         ],
         "description": "管理者が次回ログイン時の強制アクション (RequiredAction) を付与した。action は enum 値で、監査に平文で残しても安全。"
       },
+      "UserRestored": {
+        "type": "object",
+        "properties": {
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "tenantId": {
+            "type": "string",
+            "description": "操作対象テナント ID。actor / target と一致する。"
+          },
+          "actorSub": {
+            "type": "string"
+          },
+          "targetSub": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "occurredAt",
+          "tenantId",
+          "actorSub",
+          "targetSub"
+        ],
+        "description": "管理者が PendingDeletion のユーザーを Restore した。status は Active に戻り、PII / credential は温存されたままでログインが再開する。"
+      },
       "UserSignInActivity": {
         "type": "object",
         "properties": {
@@ -15642,17 +15746,48 @@
         ],
         "description": "ListMySignInActivity / ListUserSignInActivity の返り値。発生時刻の降順 (新しい順) で\n直近 N 件を返す。\n"
       },
+      "UserSoftDeleted": {
+        "type": "object",
+        "properties": {
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "tenantId": {
+            "type": "string",
+            "description": "操作対象テナント ID。actor / target と一致する。"
+          },
+          "actorSub": {
+            "type": "string"
+          },
+          "targetSub": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "occurredAt",
+          "tenantId",
+          "actorSub",
+          "targetSub"
+        ],
+        "description": "管理者がユーザーを SoftDelete した。status は PendingDeletion に遷移し、PII / Consent / RefreshToken / Session は温存される。reason は admin が任意に残せる自由記述。"
+      },
       "UserStatus": {
         "type": "string",
         "enum": [
           "Active",
           "Disabled",
+          "PendingDeletion",
           "Deleted",
           "Locked",
           "Staged",
           "Suspended"
         ],
-        "description": "User の運用状態の唯一の真実。状態機械 UserLifecycle (Active / Disabled / Deleted) と一致し、Okta lifecycle_state / Keycloak 相当の Locked / Staged / Suspended を追加する。Active 以外は認証不可、Deleted は終端 (tombstone)。「いつ遷移したか」は監査イベントと status_changed_at が持つ。"
+        "description": "User の運用状態の唯一の真実。状態機械 UserLifecycle (Active / Disabled / PendingDeletion / Deleted) と一致し、Okta lifecycle_state / Keycloak 相当の Locked / Staged / Suspended を追加する。Active 以外は認証不可、PendingDeletion は 猶予期間内に復元可能な削除予約、Deleted は終端 (tombstone)。「いつ遷移したか」は監査イベントと status_changed_at が持つ。"
       },
       "UserUpdated": {
         "type": "object",

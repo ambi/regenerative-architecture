@@ -112,15 +112,27 @@ export async function setAdminUserDisabled(
   )
 }
 
+// deleteAdminUser は既定で soft-delete (削除予約) する。purge=true のとき
+// ?purge=true を付けて完全削除 (匿名化) に切り替える。
 export async function deleteAdminUser(
   csrfToken: string,
   sub: string,
-  reason?: string,
+  options?: { reason?: string; purge?: boolean },
 ): Promise<void> {
-  const body = reason?.trim() ? { reason: reason.trim() } : undefined
+  const reason = options?.reason?.trim()
+  const body = reason ? { reason } : undefined
+  const query = options?.purge ? '?purge=true' : ''
   await request(
-    `/api/admin/users/${encodeURIComponent(sub)}`,
+    `/api/admin/users/${encodeURIComponent(sub)}${query}`,
     adminRequest(csrfToken, 'DELETE', body),
+  )
+}
+
+// restoreAdminUser は削除予約中 (pending_deletion) のユーザーを復元する。
+export async function restoreAdminUser(csrfToken: string, sub: string): Promise<AdminUser> {
+  return request(
+    `/api/admin/users/${encodeURIComponent(sub)}/restore`,
+    adminRequest(csrfToken, 'POST'),
   )
 }
 

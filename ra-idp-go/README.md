@@ -36,7 +36,7 @@ OAuth 2.0 / OpenID Connect の認可サーバー兼 IdP として次を備える
 - ブラウザ認証 API `/api/auth/*`（セッション Cookie + CSRF 対策）
 - 管理コンソール `/admin/*` とアカウントポータル `/account/*` を、IdP 自身の OIDC RP（`authorization_code` + PKCE、ファーストパーティ public クライアント `ra-admin-console` / `ra-account-portal`）として認証する。`/api/{admin,account}/*` は RFC 9068 アクセストークンを検証する resource server（ADR-061、wi-66）。OIDC 設定破壊時のロックアウトを避けるため `POST /api/auth/login` のセッションログインを緊急経路として残す
 - メールによるパスワード再設定（単発・30 分 TTL のトークン、ADR-030）
-- ロールベースアクセス制御で保護した管理ユーザー API `/api/admin/users`、ユーザーの無効化（ADR-031）と削除（ADR-036、匿名化カスケード）
+- ロールベースアクセス制御で保護した管理ユーザー API `/api/admin/users`、ユーザーの無効化（ADR-031）と、削除予約（soft-delete）→ 30 日以内の復元 → 完全削除（匿名化カスケード）の 3 段階削除（ADR-036 / ADR-072）
 - グループ集約・ユーザーとグループの所属関係・管理 CRUD `/admin/groups`（テナント内に閉じる、実効ロール `user.roles ∪ ⋃ group.roles`、ADR-038）
 - ロール・権限と関連 HTTP インターフェースを閲覧する管理 API / UI `/api/admin/policy/roles`・`/admin/roles`
 - テナント内の管理設定 UI `/api/admin/settings`・`/admin/settings`（表示名・パスワードポリシー上書きの閲覧と更新）

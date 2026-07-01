@@ -48,6 +48,12 @@ func (u User) Validate() error {
 // IsDeleted は User が ADR-036 の tombstone 状態 (status == Deleted) かを返す。
 func (u User) IsDeleted() bool { return u.Lifecycle.EffectiveStatus() == UserStatusDeleted }
 
+// IsSoftDeleted は User が削除予約状態 (status == PendingDeletion) かを返す。PII は
+// 温存されるが認証は Disabled / Deleted と同じく拒否される (IsActive が false)。
+func (u User) IsSoftDeleted() bool {
+	return u.Lifecycle.EffectiveStatus() == UserStatusPendingDeletion
+}
+
 // IsActive は認証を許可してよい状態 (status == Active) かを返す。
 // Disabled / Locked / Staged / Suspended / Deleted はすべて非アクティブ。
 func (u User) IsActive() bool { return u.Lifecycle.EffectiveStatus() == UserStatusActive }

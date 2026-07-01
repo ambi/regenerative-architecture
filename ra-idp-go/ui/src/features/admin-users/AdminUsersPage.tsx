@@ -32,6 +32,7 @@ import {
   getAdminUserGroups,
   listAdminGroups,
   listAdminUsers,
+  restoreAdminUser,
   setAdminUserDisabled,
   setAdminUserRequiredAction,
   tenantURL,
@@ -64,6 +65,7 @@ import {
   type UserAttributeDef,
 } from '../../types'
 import {
+  daysUntil,
   DetailRow,
   Field,
   formatDateTime,
@@ -73,9 +75,10 @@ import {
   RoleList,
   StatusBadge,
   UserAvatar,
+  userLifecycleStatus,
 } from './AdminUsersPrimitives'
 
-type StatusFilter = 'all' | 'active' | 'disabled'
+type StatusFilter = 'all' | 'active' | 'disabled' | 'pending_deletion'
 
 export function AdminUsersPage({
   csrfToken,
@@ -97,22 +100,20 @@ export function AdminUsersPage({
   const [showCreate, setShowCreate] = useState(false)
   const [showUserEditor, setShowUserEditor] = useState(false)
   const [showDelete, setShowDelete] = useState(false)
+  const [showPurge, setShowPurge] = useState(false)
   const [showDisable, setShowDisable] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
   const selected = users.find((user) => user.sub === selectedSub)
-  const activeCount = users.filter((user) => !user.disabled_at).length
+  const activeCount = users.filter((user) => userLifecycleStatus(user) === 'active').length
   const adminCount = users.filter((user) => user.roles.includes('admin')).length
   const mfaCount = users.filter((user) => user.mfa_enrolled).length
   const filteredUsers = useMemo(() => {
     const needle = query.trim().toLowerCase()
     return users.filter((user) => {
-      const matchesStatus =
-        status === 'all' ||
-        (status === 'active' && !user.disabled_at) ||
-        (status === 'disabled' && Boolean(user.disabled_at))
+      const matchesStatus = status === 'all' || userLifecycleStatus(user) === status
       const matchesQuery =
         !needle ||
         [user.preferred_username, user.name, user.email, user.sub, ...user.roles]
@@ -213,10 +214,25 @@ export function AdminUsersPage({
 
   async function handleDelete(user: AdminUser, reason: string) {
     await run(async () => {
-      await deleteAdminUser(csrfToken, user.sub, reason)
+      await deleteAdminUser(csrfToken, user.sub, { reason })
       setShowDelete(false)
+      await refresh(user.sub)
+    }, 'ユーザーの削除を予約しました。30 日以内なら復元できます。')
+  }
+
+  async function handlePurge(user: AdminUser, reason: string) {
+    await run(async () => {
+      await deleteAdminUser(csrfToken, user.sub, { reason, purge: true })
+      setShowPurge(false)
       await refresh()
-    }, 'ユーザーを削除しました。')
+    }, 'ユーザーを完全に削除しました。')
+  }
+
+  async function handleRestore(user: AdminUser) {
+    await run(async () => {
+      await restoreAdminUser(csrfToken, user.sub)
+      await refresh(user.sub)
+    }, 'ユーザーを復元しました。')
   }
 
   function selectUser(user: AdminUser) {
@@ -279,7 +295,7 @@ export function AdminUsersPage({
             <div className="flex items-center gap-2">
               <IconAdjustments size={17} className="text-slate-400" aria-hidden="true" />
               <div className="flex rounded-lg border border-slate-200 bg-slate-50 p-0.5">
-                {(['all', 'active', 'disabled'] as const).map((value) => (
+                {(['all', 'active', 'disabled', 'pending_deletion'] as const).map((value) => (
                   <button
                     key={value}
                     type="button"
@@ -291,7 +307,14 @@ export function AdminUsersPage({
                         : 'text-slate-500 hover:text-slate-800',
                     )}
                   >
-                    {{ all: 'すべて', active: '有効', disabled: '無効' }[value]}
+                    {
+                      {
+                        all: 'すべて',
+                        active: '有効',
+                        disabled: '無効',
+                        pending_deletion: '削除予約',
+                      }[value]
+                    }
                   </button>
                 ))}
               </div>
@@ -360,7 +383,7 @@ export function AdminUsersPage({
                         </div>
                       </td>
                       <td className="px-5 py-4">
-                        <StatusBadge disabled={Boolean(user.disabled_at)} />
+                        <StatusBadge status={userLifecycleStatus(user)} />
                       </td>
                     </tr>
                   ))}
@@ -388,6 +411,8 @@ export function AdminUsersPage({
                   onEdit={() => setShowUserEditor(true)}
                   onDisabled={() => requestDisable(selected)}
                   onDelete={() => setShowDelete(true)}
+                  onRestore={() => void handleRestore(selected)}
+                  onPurge={() => setShowPurge(true)}
                   onRequiredAction={(action, present) =>
                     void handleRequiredAction(selected, action, present)
                   }
@@ -426,8 +451,18 @@ export function AdminUsersPage({
         <DeleteUserDialog
           user={selected}
           busy={busy}
+          mode="soft"
           onClose={() => setShowDelete(false)}
           onConfirm={(reason) => void handleDelete(selected, reason)}
+        />
+      )}
+      {showPurge && selected && (
+        <DeleteUserDialog
+          user={selected}
+          busy={busy}
+          mode="purge"
+          onClose={() => setShowPurge(false)}
+          onConfirm={(reason) => void handlePurge(selected, reason)}
         />
       )}
       {showDisable && selected && (
@@ -459,6 +494,7 @@ export function AdminUserDetailPage({
   const [user, setUser] = useState(initialUser)
   const [showEditor, setShowEditor] = useState(false)
   const [showDelete, setShowDelete] = useState(false)
+  const [showPurge, setShowPurge] = useState(false)
   const [showDisable, setShowDisable] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -519,9 +555,24 @@ export function AdminUserDetailPage({
 
   async function handleDelete(reason: string) {
     await run(async () => {
-      await deleteAdminUser(csrfToken, user.sub, reason)
+      await deleteAdminUser(csrfToken, user.sub, { reason })
+      setShowDelete(false)
+      await reload()
+    }, 'ユーザーの削除を予約しました。30 日以内なら復元できます。')
+  }
+
+  async function handlePurge(reason: string) {
+    await run(async () => {
+      await deleteAdminUser(csrfToken, user.sub, { reason, purge: true })
       window.location.assign(tenantURL('/admin/users'))
-    }, 'ユーザーを削除しました。')
+    }, 'ユーザーを完全に削除しました。')
+  }
+
+  async function handleRestore() {
+    await run(async () => {
+      await restoreAdminUser(csrfToken, user.sub)
+      await reload()
+    }, 'ユーザーを復元しました。')
   }
 
   async function handleRequiredAction(action: string, present: boolean) {
@@ -571,22 +622,38 @@ export function AdminUserDetailPage({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  className={user.disabled_at ? undefined : 'text-red-700'}
-                  onSelect={() => requestDisable()}
-                >
-                  {user.disabled_at ? (
-                    <IconCheck size={17} aria-hidden="true" />
-                  ) : (
-                    <IconBan size={17} aria-hidden="true" />
-                  )}
-                  {user.disabled_at ? 'アカウントを再有効化' : 'アカウントを無効化'}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator className="my-1 h-px bg-slate-200" />
-                <DropdownMenuItem className="text-red-700" onSelect={() => setShowDelete(true)}>
-                  <IconTrash size={17} aria-hidden="true" />
-                  アカウントを削除
-                </DropdownMenuItem>
+                {userLifecycleStatus(user) === 'pending_deletion' ? (
+                  <>
+                    <DropdownMenuItem onSelect={() => void handleRestore()}>
+                      <IconRefresh size={17} aria-hidden="true" />
+                      アカウントを復元
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator className="my-1 h-px bg-slate-200" />
+                    <DropdownMenuItem className="text-red-700" onSelect={() => setShowPurge(true)}>
+                      <IconTrash size={17} aria-hidden="true" />
+                      完全に削除する
+                    </DropdownMenuItem>
+                  </>
+                ) : (
+                  <>
+                    <DropdownMenuItem
+                      className={user.disabled_at ? undefined : 'text-red-700'}
+                      onSelect={() => requestDisable()}
+                    >
+                      {user.disabled_at ? (
+                        <IconCheck size={17} aria-hidden="true" />
+                      ) : (
+                        <IconBan size={17} aria-hidden="true" />
+                      )}
+                      {user.disabled_at ? 'アカウントを再有効化' : 'アカウントを無効化'}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator className="my-1 h-px bg-slate-200" />
+                    <DropdownMenuItem className="text-red-700" onSelect={() => setShowDelete(true)}>
+                      <IconTrash size={17} aria-hidden="true" />
+                      アカウントを削除
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -610,7 +677,7 @@ export function AdminUserDetailPage({
               <h2 className="truncate text-lg font-semibold text-slate-950">
                 {user.name || user.preferred_username}
               </h2>
-              <StatusBadge disabled={Boolean(user.disabled_at)} compact />
+              <StatusBadge status={userLifecycleStatus(user)} compact />
             </div>
             <p className="mt-0.5 text-sm text-slate-500">@{user.preferred_username}</p>
           </div>
@@ -674,8 +741,23 @@ export function AdminUserDetailPage({
                 <DetailRow
                   icon={IconCircleCheck}
                   label="状態"
-                  value={user.disabled_at ? '無効' : '有効'}
+                  value={
+                    { active: '有効', disabled: '無効', pending_deletion: '削除予約' }[
+                      userLifecycleStatus(user)
+                    ]
+                  }
                 />
+                {userLifecycleStatus(user) === 'pending_deletion' && user.purge_after && (
+                  <DetailRow
+                    icon={IconClock}
+                    label="完全削除予定"
+                    value={`${formatDateTime(user.purge_after)}${
+                      daysUntil(user.purge_after) !== null
+                        ? ` (あと ${daysUntil(user.purge_after)} 日)`
+                        : ''
+                    }`}
+                  />
+                )}
                 <DetailRow
                   icon={IconClock}
                   label="作成日時"
@@ -728,8 +810,18 @@ export function AdminUserDetailPage({
         <DeleteUserDialog
           user={user}
           busy={busy}
+          mode="soft"
           onClose={() => setShowDelete(false)}
           onConfirm={(reason) => void handleDelete(reason)}
+        />
+      )}
+      {showPurge && (
+        <DeleteUserDialog
+          user={user}
+          busy={busy}
+          mode="purge"
+          onClose={() => setShowPurge(false)}
+          onConfirm={(reason) => void handlePurge(reason)}
         />
       )}
       {showDisable && (
@@ -787,6 +879,8 @@ function UserDetails({
   onEdit,
   onDisabled,
   onDelete,
+  onRestore,
+  onPurge,
   onRequiredAction,
 }: {
   user: AdminUser
@@ -795,8 +889,11 @@ function UserDetails({
   onEdit: () => void
   onDisabled: () => void
   onDelete: () => void
+  onRestore: () => void
+  onPurge: () => void
   onRequiredAction: (action: string, present: boolean) => void
 }) {
+  const pending = userLifecycleStatus(user) === 'pending_deletion'
   return (
     <div className="flex h-full flex-col">
       <div className="border-b border-slate-200 bg-white p-5">
@@ -807,11 +904,13 @@ function UserDetails({
               <h2 className="truncate text-lg font-semibold text-slate-950">
                 {user.name || user.preferred_username}
               </h2>
-              <StatusBadge disabled={Boolean(user.disabled_at)} compact />
+              <StatusBadge status={userLifecycleStatus(user)} compact />
             </div>
             <p className="mt-0.5 text-sm text-slate-500">@{user.preferred_username}</p>
           </div>
         </div>
+
+        {pending && <PendingDeletionNotice user={user} />}
 
         <div className="mt-4">
           <AdminPaneActions
@@ -819,24 +918,38 @@ function UserDetails({
             busy={busy}
             onEdit={onEdit}
             menu={
-              <>
-                <DropdownMenuItem
-                  className={user.disabled_at ? undefined : 'text-red-700'}
-                  onSelect={onDisabled}
-                >
-                  {user.disabled_at ? (
-                    <IconCheck size={17} aria-hidden="true" />
-                  ) : (
-                    <IconBan size={17} aria-hidden="true" />
-                  )}
-                  {user.disabled_at ? 'アカウントを再有効化' : 'アカウントを無効化'}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator className="my-1 h-px bg-slate-200" />
-                <DropdownMenuItem className="text-red-700" onSelect={onDelete}>
-                  <IconTrash size={17} aria-hidden="true" />
-                  アカウントを削除
-                </DropdownMenuItem>
-              </>
+              pending ? (
+                <>
+                  <DropdownMenuItem onSelect={onRestore}>
+                    <IconRefresh size={17} aria-hidden="true" />
+                    アカウントを復元
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="my-1 h-px bg-slate-200" />
+                  <DropdownMenuItem className="text-red-700" onSelect={onPurge}>
+                    <IconTrash size={17} aria-hidden="true" />
+                    完全に削除する
+                  </DropdownMenuItem>
+                </>
+              ) : (
+                <>
+                  <DropdownMenuItem
+                    className={user.disabled_at ? undefined : 'text-red-700'}
+                    onSelect={onDisabled}
+                  >
+                    {user.disabled_at ? (
+                      <IconCheck size={17} aria-hidden="true" />
+                    ) : (
+                      <IconBan size={17} aria-hidden="true" />
+                    )}
+                    {user.disabled_at ? 'アカウントを再有効化' : 'アカウントを無効化'}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="my-1 h-px bg-slate-200" />
+                  <DropdownMenuItem className="text-red-700" onSelect={onDelete}>
+                    <IconTrash size={17} aria-hidden="true" />
+                    アカウントを削除
+                  </DropdownMenuItem>
+                </>
+              )
             }
           />
         </div>
@@ -880,6 +993,26 @@ function UserDetails({
 
         <UserGroupsSection user={user} csrfToken={csrfToken} />
       </div>
+    </div>
+  )
+}
+
+// PendingDeletionNotice は削除予約中のユーザーに、猶予残日数と自動完全削除の
+// 予定を伝える amber バナー。復元動線 (メニューの「アカウントを復元」) を促す。
+function PendingDeletionNotice({ user }: { user: AdminUser }) {
+  const remaining = daysUntil(user.purge_after)
+  return (
+    <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">
+      <p className="font-semibold">削除予約中</p>
+      <p className="mt-1">
+        {remaining !== null
+          ? `あと ${remaining} 日で自動的に完全削除 (匿名化) されます。`
+          : '猶予期間の経過後に自動的に完全削除 (匿名化) されます。'}
+        復元期間中もログインとトークン更新は拒否されます。
+      </p>
+      {user.purge_after && (
+        <p className="mt-1 text-amber-700">完全削除予定: {formatDateTime(user.purge_after)}</p>
+      )}
     </div>
   )
 }
@@ -1525,20 +1658,26 @@ function UserEditorDialog({
   )
 }
 
+// DeleteUserDialog は削除前の確認ダイアログ。mode='soft' は削除予約 (復元可能)、
+// mode='purge' は完全削除 (匿名化・不可逆)。どちらも誤操作の最終防御として
+// username typing を求める。
 function DeleteUserDialog({
   user,
   busy,
+  mode,
   onClose,
   onConfirm,
 }: {
   user: AdminUser
   busy: boolean
+  mode: 'soft' | 'purge'
   onClose: () => void
   onConfirm: (reason: string) => void
 }) {
   const [confirmName, setConfirmName] = useState('')
   const [reason, setReason] = useState('')
   const canConfirm = confirmName === user.preferred_username
+  const purge = mode === 'purge'
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -1562,15 +1701,25 @@ function DeleteUserDialog({
       <Card className="relative w-full max-w-lg overflow-hidden shadow-2xl">
         <div className="flex items-start justify-between border-b border-slate-200 px-6 py-5">
           <div className="flex gap-3">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-700">
+            <span
+              className={cn(
+                'flex size-9 shrink-0 items-center justify-center rounded-full',
+                purge ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700',
+              )}
+            >
               <IconAlertTriangle size={18} aria-hidden="true" />
             </span>
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.12em] text-red-700">
-                Irreversible action
+              <p
+                className={cn(
+                  'text-xs font-bold uppercase tracking-[0.12em]',
+                  purge ? 'text-red-700' : 'text-amber-700',
+                )}
+              >
+                {purge ? 'Irreversible action' : 'Reversible for 30 days'}
               </p>
               <h2 id="delete-user-title" className="mt-1 text-xl font-semibold">
-                ユーザーを削除
+                {purge ? 'ユーザーを完全に削除' : 'ユーザーを削除'}
               </h2>
               <p className="mt-1 text-sm text-slate-500">
                 {user.name || user.preferred_username} (@{user.preferred_username})
@@ -1584,19 +1733,30 @@ function DeleteUserDialog({
 
         <form onSubmit={handleSubmit}>
           <div className="grid gap-5 p-6">
-            <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-xs leading-5 text-red-900">
-              <p className="font-semibold">同時に消えるもの</p>
-              <ul className="mt-1.5 list-disc pl-5">
-                <li>付与済みの同意 (Consent)</li>
-                <li>リフレッシュトークンとアクティブなセッション</li>
-                <li>MFA factor とパスワード履歴</li>
-                <li>進行中の device authorization</li>
-              </ul>
-              <p className="mt-2">
-                ユーザーの <code>sub</code> は監査ログのために残りますが、
-                プロフィール情報は匿名化されます。
-              </p>
-            </div>
+            {purge ? (
+              <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-xs leading-5 text-red-900">
+                <p className="font-semibold">同時に消えるもの</p>
+                <ul className="mt-1.5 list-disc pl-5">
+                  <li>付与済みの同意 (Consent)</li>
+                  <li>リフレッシュトークンとアクティブなセッション</li>
+                  <li>MFA factor とパスワード履歴</li>
+                  <li>進行中の device authorization</li>
+                </ul>
+                <p className="mt-2">
+                  ユーザーの <code>sub</code> は監査ログのために残りますが、
+                  プロフィール情報は匿名化されます。<strong>元に戻せません。</strong>
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs leading-5 text-amber-900">
+                <p className="font-semibold">30 日以内なら復元できます。</p>
+                <p className="mt-1.5">
+                  削除予約中もログインとトークン更新は拒否されますが、プロフィール・同意・
+                  セッションなどは温存されます。30 日を過ぎると自動的に完全削除 (匿名化)
+                  され、元に戻せなくなります。
+                </p>
+              </div>
+            )}
 
             <div className="grid gap-2">
               <Label htmlFor="delete-user-confirm">
@@ -1614,7 +1774,9 @@ function DeleteUserDialog({
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="delete-user-reason">削除理由 (任意)</Label>
+              <Label htmlFor="delete-user-reason">
+                {purge ? '削除理由 (任意)' : '理由 (任意)'}
+              </Label>
               <Input
                 id="delete-user-reason"
                 value={reason}
@@ -1622,7 +1784,7 @@ function DeleteUserDialog({
                 placeholder="例: 退職処理 / 本人申請 (GDPR Art.17)"
               />
               <p className="text-xs leading-5 text-slate-500">
-                監査イベントに同梱されます。空欄でも削除は実行できます。
+                監査イベントに同梱されます。空欄でも実行できます。
               </p>
             </div>
           </div>
@@ -1633,7 +1795,7 @@ function DeleteUserDialog({
             </Button>
             <Button type="submit" variant="destructive" disabled={busy || !canConfirm}>
               <IconTrash size={16} aria-hidden="true" />
-              削除を確定
+              {purge ? '完全に削除' : '削除を確定'}
             </Button>
           </div>
         </form>

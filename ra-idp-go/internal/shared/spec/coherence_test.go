@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"ra-idp-go/internal/authentication/usecases"
+	idmusecases "ra-idp-go/internal/identitymanagement/usecases"
 	"ra-idp-go/internal/shared/spec"
 )
 
@@ -70,6 +71,30 @@ func TestPasswordResetTokenTTLMatchesSCL(t *testing.T) {
 	}
 	if got, want := int(ttl.Seconds()), usecases.PasswordResetTokenTTLSeconds; got != want {
 		t.Fatalf("objectives.PasswordResetTokenLifetime.ttl=%d, Go PasswordResetTokenTTLSeconds=%d", got, want)
+	}
+}
+
+func TestUserSoftDeleteGracePeriodMatchesSCL(t *testing.T) {
+	s, err := spec.LoadSCL()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ttl, err := time.ParseDuration(s.Objectives["UserSoftDeleteGracePeriod"].TTL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := int(ttl.Seconds()), idmusecases.UserSoftDeleteGracePeriodSeconds; got != want {
+		t.Fatalf("objectives.UserSoftDeleteGracePeriod.ttl=%d, Go UserSoftDeleteGracePeriodSeconds=%d", got, want)
+	}
+}
+
+func TestUserStatusPendingDeletionWireValue(t *testing.T) {
+	s, err := spec.LoadSCL()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := s.ToWire("PendingDeletion"); got != string(spec.UserStatusPendingDeletion) {
+		t.Fatalf("SCL PendingDeletion wire=%q, Go UserStatusPendingDeletion=%q", got, spec.UserStatusPendingDeletion)
 	}
 }
 

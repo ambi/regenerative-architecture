@@ -50,6 +50,17 @@ type AdminUserDeps struct {
 	PasswordHasher      authnports.PasswordHasher
 	PasswordHistoryRepo authnports.PasswordHistoryRepository
 	Emit                func(spec.DomainEvent)
+	// SoftDeleteGraceSeconds は soft-delete の猶予期間 (秒)。0 のとき
+	// UserSoftDeleteGracePeriodSeconds を既定として使う。テストで短縮するために注入する。
+	SoftDeleteGraceSeconds int
+}
+
+// graceSeconds は soft-delete の実効猶予期間 (秒) を返す。未指定 (0) なら既定値。
+func (d AdminUserDeps) graceSeconds() int {
+	if d.SoftDeleteGraceSeconds > 0 {
+		return d.SoftDeleteGraceSeconds
+	}
+	return UserSoftDeleteGracePeriodSeconds
 }
 
 type CreateUserInput struct {
@@ -446,6 +457,134 @@ func DeleteUser(ctx context.Context, deps AdminUserDeps, in DeleteUserInput) err
 
 func hasPrivilegedRole(roles []string) bool {
 	return slices.Contains(roles, "admin") || slices.Contains(roles, "system_admin")
+}
+
+// UserSoftDeleteGracePeriodSeconds は SoftDelete (PendingDeletion) から自動 Purge
+// までの既定猶予期間 (秒)。SCL objectives.UserSoftDeleteGracePeriod (30 日) と一致する。
+const UserSoftDeleteGracePeriodSeconds = 30 * 24 * 60 * 60
+
+// 自動 purge の audit 用 actor / reason。lazy-on-access で猶予期間経過後の
+// PendingDeletion user を Purge するときに UserDeleted へ記録する。
+const (
+	autoPurgeActor  = "system"
+	autoPurgeReason = "auto_purge"
+)
+
+var (
+	// ErrUserNotPendingDeletion は Restore 対象が PendingDeletion でない場合に返る。
+	ErrUserNotPendingDeletion = errors.New("user is not pending deletion")
+	// ErrRestoreGracePeriodExpired は猶予期間を過ぎた user の Restore で返る。
+	ErrRestoreGracePeriodExpired = errors.New("soft-delete grace period has expired")
+)
+
+// SoftDeleteUserInput は soft-delete (削除予約) の入力。
+type SoftDeleteUserInput struct {
+	ActorSub string
+	Sub      string
+	Reason   string
+	Now      time.Time
+}
+
+// SoftDeleteUser は user を PendingDeletion に遷移させ UserSoftDeleted を emit する。
+// PII / Consent / RefreshToken / Session は温存し (cascade しない)、猶予期間内は
+// RestoreUser で Active に復元できる。既に PendingDeletion なら冪等に no-op で返す。
+// actor.Sub == target.Sub かつ admin / system_admin role の場合は ErrSelfDeleteForbidden。
+func SoftDeleteUser(ctx context.Context, deps AdminUserDeps, in SoftDeleteUserInput) error {
+	user, err := loadTenantUser(ctx, deps, in.Sub)
+	if err != nil {
+		return err
+	}
+	if in.ActorSub == user.Sub && hasPrivilegedRole(user.Roles) {
+		return ErrSelfDeleteForbidden
+	}
+	if user.Lifecycle.EffectiveStatus() == spec.UserStatusPendingDeletion {
+		return nil
+	}
+	now := normalizedNow(in.Now)
+	updated := *user
+	updated.Lifecycle.Status = spec.UserStatusPendingDeletion
+	updated.Lifecycle.StatusChangedAt = &now
+	updated.UpdatedAt = now
+	if err := updated.Validate(); err != nil {
+		return err
+	}
+	if err := deps.UserRepo.Save(ctx, &updated); err != nil {
+		return err
+	}
+	adminEmit(deps.Emit, &spec.UserSoftDeleted{
+		At: now, TenantID: updated.TenantID, ActorSub: in.ActorSub, TargetSub: updated.Sub, Reason: in.Reason,
+	})
+	return nil
+}
+
+// RestoreUser は PendingDeletion の user を Active に戻し UserRestored を emit する。
+// PII / credential は温存されたままなのでログインは通常どおり再開する。PendingDeletion
+// でない場合は ErrUserNotPendingDeletion、猶予期間を過ぎている場合は
+// ErrRestoreGracePeriodExpired を返す。自分自身 (admin/system_admin) は reject する。
+func RestoreUser(
+	ctx context.Context, deps AdminUserDeps, actorSub, targetSub string, now time.Time,
+) (*spec.User, error) {
+	user, err := loadTenantUser(ctx, deps, targetSub)
+	if err != nil {
+		return nil, err
+	}
+	if actorSub == user.Sub && hasPrivilegedRole(user.Roles) {
+		return nil, ErrSelfDeleteForbidden
+	}
+	if user.Lifecycle.EffectiveStatus() != spec.UserStatusPendingDeletion {
+		return nil, ErrUserNotPendingDeletion
+	}
+	now = normalizedNow(now)
+	if softDeleteExpired(user, now, deps.graceSeconds()) {
+		return nil, ErrRestoreGracePeriodExpired
+	}
+	updated := *user
+	updated.Lifecycle.Status = spec.UserStatusActive
+	updated.Lifecycle.StatusChangedAt = &now
+	updated.UpdatedAt = now
+	if err := deps.UserRepo.Save(ctx, &updated); err != nil {
+		return nil, err
+	}
+	adminEmit(deps.Emit, &spec.UserRestored{
+		At: now, TenantID: updated.TenantID, ActorSub: actorSub, TargetSub: updated.Sub,
+	})
+	return &updated, nil
+}
+
+// PurgeExpiredSoftDeleted は猶予期間を過ぎた PendingDeletion user を lazy-on-access で
+// Purge する。admin のユーザー一覧取得時に呼ばれ、対象を DeleteUser (anonymize cascade)
+// にかけて UserDeleted (reason=auto_purge) を emit する。専用スケジューラは別 WI。
+func PurgeExpiredSoftDeleted(ctx context.Context, deps AdminUserDeps, now time.Time) error {
+	now = normalizedNow(now)
+	users, err := deps.UserRepo.FindAll(ctx, tenancy.TenantID(ctx))
+	if err != nil {
+		return err
+	}
+	grace := deps.graceSeconds()
+	for _, user := range users {
+		if user.Lifecycle.EffectiveStatus() != spec.UserStatusPendingDeletion {
+			continue
+		}
+		if !softDeleteExpired(user, now, grace) {
+			continue
+		}
+		if err := DeleteUser(ctx, deps, DeleteUserInput{
+			ActorSub: autoPurgeActor, Sub: user.Sub, Reason: autoPurgeReason, Now: now,
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// softDeleteExpired は PendingDeletion の user が猶予期間を過ぎたかを返す。
+// status_changed_at が無い場合は期限切れ扱いにしない (安全側)。
+func softDeleteExpired(user *spec.User, now time.Time, graceSeconds int) bool {
+	changed := user.Lifecycle.StatusChangedAt
+	if changed == nil {
+		return false
+	}
+	return now.After(changed.Add(time.Duration(graceSeconds) * time.Second))
 }
 
 // effectiveUserAttributeDefs は組み込み属性 + tenant 固有 schema を結合した実効定義を返す。

@@ -100,6 +100,8 @@ const (
 	ActionAdminUserCreate                     = "admin:user_create"
 	ActionAdminUserUpdate                     = "admin:user_update"
 	ActionAdminUserDelete                     = "admin:user_delete"
+	ActionAdminUserRestore                    = "admin:user_restore"
+	ActionAdminUserPurge                      = "admin:user_purge"
 	ActionAdminOAuth2ClientsManage            = "admin:clients_manage"
 	ActionAdminConsentsManage                 = "admin:consents_manage"
 	ActionAdminTenantsManage                  = "admin:tenants_manage"
@@ -134,6 +136,8 @@ var actionNameMapping = map[string]string{
 	"AdminUserCreate":                     ActionAdminUserCreate,
 	"AdminUserUpdate":                     ActionAdminUserUpdate,
 	"AdminUserDelete":                     ActionAdminUserDelete,
+	"AdminUserRestore":                    ActionAdminUserRestore,
+	"AdminUserPurge":                      ActionAdminUserPurge,
 	"AdminOAuth2ClientsManage":            ActionAdminOAuth2ClientsManage,
 	"AdminConsentsManage":                 ActionAdminConsentsManage,
 	"AdminTenantsManage":                  ActionAdminTenantsManage,
@@ -189,6 +193,12 @@ var actionRules = map[string][]string{
 	ActionAdminUserCreate: {"actor_is_admin", "actor_is_active", "actor_is_authenticated"},
 	ActionAdminUserUpdate: {"actor_is_admin", "actor_is_active", "actor_is_authenticated"},
 	ActionAdminUserDelete: {
+		"actor_is_admin", "actor_is_active", "actor_is_authenticated", "actor_and_resource_share_tenant",
+	},
+	ActionAdminUserRestore: {
+		"actor_is_admin", "actor_is_active", "actor_is_authenticated", "actor_and_resource_share_tenant",
+	},
+	ActionAdminUserPurge: {
 		"actor_is_admin", "actor_is_active", "actor_is_authenticated", "actor_and_resource_share_tenant",
 	},
 	ActionAdminOAuth2ClientsManage: {

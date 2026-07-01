@@ -243,3 +243,172 @@ func TestSetUserDisabledAllowsDisablingOtherAdmin(t *testing.T) {
 		t.Fatalf("status=%v, want disabled", user.Lifecycle.Status)
 	}
 }
+
+// softDeleteTestDeps は soft-delete 系テスト用に cascade 対象リポジトリを揃えた
+// deps と consent リポジトリ (cascade 温存の確認用) を返す。
+func softDeleteTestDeps(events *[]spec.DomainEvent) (idmusecases.AdminUserDeps, *memory.ConsentRepository, *memory.UserRepository) {
+	userRepo := memory.NewUserRepository()
+	consentRepo := memory.NewConsentRepository()
+	deps := idmusecases.AdminUserDeps{
+		UserRepo: userRepo, ConsentRepo: consentRepo,
+		RefreshStore: memory.NewRefreshTokenStore(), SessionStore: memory.NewSessionStore(),
+		MfaFactorRepo: memory.NewMfaFactorRepository(), PasswordHistoryRepo: memory.NewPasswordHistoryRepository(),
+		Emit: func(event spec.DomainEvent) { *events = append(*events, event) },
+	}
+	return deps, consentRepo, userRepo
+}
+
+func TestSoftDeleteUserSetsPendingDeletionWithoutCascade(t *testing.T) {
+	ctx := context.Background()
+	var events []spec.DomainEvent
+	deps, consentRepo, userRepo := softDeleteTestDeps(&events)
+	now := time.Date(2026, 6, 16, 12, 0, 0, 0, time.UTC)
+	userRepo.Seed(&spec.User{
+		Sub: "alice-1", PreferredUsername: "alice", PasswordHash: "hash",
+		Roles: []string{"support"}, CreatedAt: now, UpdatedAt: now,
+	})
+	_ = consentRepo.Save(ctx, &spec.Consent{
+		TenantID: spec.DefaultTenantID, Sub: "alice-1", ClientID: "client-a",
+		Scopes: []string{"openid"}, State: spec.ConsentGranted,
+		GrantedAt: now, ExpiresAt: now.AddDate(1, 0, 0),
+	})
+
+	if err := idmusecases.SoftDeleteUser(ctx, deps, idmusecases.SoftDeleteUserInput{
+		ActorSub: "admin", Sub: "alice-1", Reason: "maybe leaving", Now: now,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	last, ok := events[len(events)-1].(*spec.UserSoftDeleted)
+	if !ok || last.TargetSub != "alice-1" || last.Reason != "maybe leaving" {
+		t.Fatalf("expected UserSoftDeleted with target/reason, got %+v", events[len(events)-1])
+	}
+	// status は PendingDeletion で、FindBySub でまだ見える (tombstone と違い可視)。
+	user, _ := userRepo.FindBySub(ctx, "alice-1")
+	if user == nil || !user.IsSoftDeleted() || user.IsActive() || user.IsDeleted() {
+		t.Fatalf("expected visible soft-deleted user, got %+v", user)
+	}
+	// PII / cascade artifact は温存される。
+	if user.Email != nil && *user.Email == "deleted:alice-1" {
+		t.Fatal("PII was anonymized on soft-delete")
+	}
+	if remaining, _ := consentRepo.FindAll(ctx, spec.DefaultTenantID); len(remaining) != 1 {
+		t.Fatalf("consent must be preserved on soft-delete, got %+v", remaining)
+	}
+	// 冪等: 再 soft-delete は追加イベントを出さない。
+	prev := len(events)
+	if err := idmusecases.SoftDeleteUser(ctx, deps, idmusecases.SoftDeleteUserInput{
+		ActorSub: "admin", Sub: "alice-1", Now: now.Add(time.Minute),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if len(events) != prev {
+		t.Fatal("idempotent soft-delete emitted extra events")
+	}
+}
+
+func TestRestoreUserReturnsToActive(t *testing.T) {
+	ctx := context.Background()
+	var events []spec.DomainEvent
+	deps, _, userRepo := softDeleteTestDeps(&events)
+	now := time.Date(2026, 6, 16, 12, 0, 0, 0, time.UTC)
+	email := "alice@example.com"
+	userRepo.Seed(&spec.User{
+		Sub: "alice-1", PreferredUsername: "alice", PasswordHash: "hash", Email: &email,
+		Roles: []string{"support"}, CreatedAt: now, UpdatedAt: now,
+	})
+	if err := idmusecases.SoftDeleteUser(ctx, deps, idmusecases.SoftDeleteUserInput{
+		ActorSub: "admin", Sub: "alice-1", Now: now,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	restored, err := idmusecases.RestoreUser(ctx, deps, "admin", "alice-1", now.Add(time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !restored.IsActive() || restored.Email == nil || *restored.Email != email {
+		t.Fatalf("expected active restored user with PII intact, got %+v", restored)
+	}
+	if got := events[len(events)-1].EventType(); got != "UserRestored" {
+		t.Fatalf("last event=%s, want UserRestored", got)
+	}
+}
+
+func TestRestoreUserRejectsNonPendingAndExpired(t *testing.T) {
+	ctx := context.Background()
+	var events []spec.DomainEvent
+	deps, _, userRepo := softDeleteTestDeps(&events)
+	deps.SoftDeleteGraceSeconds = 60
+	now := time.Date(2026, 6, 16, 12, 0, 0, 0, time.UTC)
+	userRepo.Seed(&spec.User{
+		Sub: "alice-1", PreferredUsername: "alice", PasswordHash: "hash",
+		CreatedAt: now, UpdatedAt: now,
+	})
+	// Active user への restore は ErrUserNotPendingDeletion。
+	if _, err := idmusecases.RestoreUser(ctx, deps, "admin", "alice-1", now); !errors.Is(err, idmusecases.ErrUserNotPendingDeletion) {
+		t.Fatalf("error=%v, want ErrUserNotPendingDeletion", err)
+	}
+	if err := idmusecases.SoftDeleteUser(ctx, deps, idmusecases.SoftDeleteUserInput{
+		ActorSub: "admin", Sub: "alice-1", Now: now,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	// 猶予期間 (60s) 経過後の restore は ErrRestoreGracePeriodExpired。
+	if _, err := idmusecases.RestoreUser(ctx, deps, "admin", "alice-1", now.Add(2*time.Minute)); !errors.Is(err, idmusecases.ErrRestoreGracePeriodExpired) {
+		t.Fatalf("error=%v, want ErrRestoreGracePeriodExpired", err)
+	}
+}
+
+func TestSoftDeleteAndRestoreRejectSelf(t *testing.T) {
+	ctx := context.Background()
+	userRepo := memory.NewUserRepository()
+	now := time.Now().UTC()
+	userRepo.Seed(&spec.User{
+		Sub: "admin-1", PreferredUsername: "admin", PasswordHash: "hash",
+		Roles: []string{"admin"}, CreatedAt: now, UpdatedAt: now,
+	})
+	deps := idmusecases.AdminUserDeps{UserRepo: userRepo}
+	if err := idmusecases.SoftDeleteUser(ctx, deps, idmusecases.SoftDeleteUserInput{
+		ActorSub: "admin-1", Sub: "admin-1", Now: now,
+	}); !errors.Is(err, idmusecases.ErrSelfDeleteForbidden) {
+		t.Fatalf("soft-delete self error=%v, want ErrSelfDeleteForbidden", err)
+	}
+	if _, err := idmusecases.RestoreUser(ctx, deps, "admin-1", "admin-1", now); !errors.Is(err, idmusecases.ErrSelfDeleteForbidden) {
+		t.Fatalf("restore self error=%v, want ErrSelfDeleteForbidden", err)
+	}
+}
+
+func TestPurgeExpiredSoftDeletedAnonymizesAfterGrace(t *testing.T) {
+	ctx := context.Background()
+	var events []spec.DomainEvent
+	deps, _, userRepo := softDeleteTestDeps(&events)
+	deps.SoftDeleteGraceSeconds = 1
+	now := time.Date(2026, 6, 16, 12, 0, 0, 0, time.UTC)
+	userRepo.Seed(&spec.User{
+		Sub: "alice-1", PreferredUsername: "alice", PasswordHash: "hash",
+		CreatedAt: now, UpdatedAt: now,
+	})
+	if err := idmusecases.SoftDeleteUser(ctx, deps, idmusecases.SoftDeleteUserInput{
+		ActorSub: "admin", Sub: "alice-1", Now: now,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	// 猶予期間内 (grace=1s) の purge は no-op。
+	if err := idmusecases.PurgeExpiredSoftDeleted(ctx, deps, now); err != nil {
+		t.Fatal(err)
+	}
+	if user, _ := userRepo.FindBySub(ctx, "alice-1"); user == nil || !user.IsSoftDeleted() {
+		t.Fatal("user must remain pending within grace")
+	}
+	// 猶予期間経過後の purge は anonymize cascade を実行し UserDeleted(auto_purge) を emit。
+	if err := idmusecases.PurgeExpiredSoftDeleted(ctx, deps, now.Add(2*time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	tombstone, _ := userRepo.FindBySubIncludingDeleted(ctx, "alice-1")
+	if tombstone == nil || !tombstone.IsDeleted() {
+		t.Fatalf("expected tombstone after auto-purge, got %+v", tombstone)
+	}
+	last, ok := events[len(events)-1].(*spec.UserDeleted)
+	if !ok || last.Reason != "auto_purge" {
+		t.Fatalf("expected UserDeleted(auto_purge), got %+v", events[len(events)-1])
+	}
+}

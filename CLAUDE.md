@@ -16,31 +16,23 @@
 
 **Design and implement things according to Regenerative Architecture.**
 
-- Read `REGENERATIVE_ARCHITECTURE.md` and `SPECIFICATION_CORE_LANGUAGE.md`.
-- Follow them.
+- `REGENERATIVE_ARCHITECTURE.md` (the method: 5 layers + derivation rules) and
+  `SPECIFICATION_CORE_LANGUAGE.md` (the SCL meta-spec: notation) are
+  **section-addressable references, not required reading.** Do not load either in
+  full. Locate the section you need with `rg '^#{2,3} ' <file>` and read only that
+  line range.
+- The operational essentials are already distilled into the Skills
+  (`scl-change`, `implement-work-item`, `new-work-item`, `new-adr`, `scl-render`,
+  `commit`) and this file. Reach for a Skill first; open a meta-doc section only for a detail
+  a Skill does not cover.
+- Section map (jump here instead of scanning):
+  - RA: §2 derivation rules · §3 the 5 layers (1 Spec Core → 2 Decision Record →
+    3 App Logic → 4 Adapter → 5 Runtime) · §4 conception → work-item → dev flow.
+  - SCL: §3.1 glossary · 3.2 models · 3.3 interfaces · 3.4 states · 3.5 invariants ·
+    3.6 scenarios · 3.7 permissions · 3.8 objectives; §4 types · §5 expressions
+    (CEL subset).
 
-### 1.1 Authoring format (don't reverse-engineer it from existing files)
-
-When creating a new artifact, follow the canonical format doc instead of
-opening existing samples to infer it.
-
-- New work item → `CHANGE_RECORD_FORMAT.md` §1 (master). The JSON Schema at
-  `tools/yaml-check/schemas/work-item.schema.json` is derived from it.
-- New ADR → `CHANGE_RECORD_FORMAT.md` §2.
-- Feature work → update SCL first; section-coverage checklist is in
-  `SPECIFICATION_CORE_LANGUAGE.md` §3 intro.
-
-## 2. Commit Hygiene
-
-**Conventional Commits, English.**
-
-- Write commit messages in English following the Conventional Commits format:
-  `type(scope): summary` (e.g. `feat(ra-idp): add Argon2id password hasher`).
-- Use `type` from the standard set: `feat`, `fix`, `docs`, `refactor`, `chore`,
-  `test`, `perf`, `build`, `ci`, `style`. Append `!` for breaking changes.
-- Keep the subject line ≤ 72 chars. Use the body for the *why*, not the *what*.
-
-## 3. Default Tooling
+## 2. Default Tooling
 
 **Prefer the team's default stack; override only when a task or existing code demands it.**
 

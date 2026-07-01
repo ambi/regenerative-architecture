@@ -32,7 +32,7 @@ description: SCL-first workflow for feature work. Use before implementing any fe
 
 3. **scl.yaml に wi/ADR/commit 番号を書かない。** scl.yaml は全層の最内で、純粋な仕様文に保つ。
 
-4. **検証**: `cd tools && bun run yaml-check:scl`
+4. **検証**: `just yaml-check-scl`
 
 5. **派生物を再生成する**（drift を残さない）。`scl-render` Skill 参照、または:
    `just scl-render`

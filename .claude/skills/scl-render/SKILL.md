@@ -11,7 +11,7 @@ scl.yaml が「単一上流」、HTML / JSON Schema / OpenAPI はその「下流
 ## まず検証
 
 ```sh
-cd tools && bun run yaml-check:scl
+just yaml-check-scl
 ```
 
 ## 一括再生成（推奨）

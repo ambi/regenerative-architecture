@@ -19,7 +19,7 @@ description: Create a new Regenerative Architecture work item under work-items/ 
 3. **未着手・進行中は `work-items/` 直下に置く**。完了・中止になったら `done/` サブディレクトリへ移す（id は変えない）。
 4. 機能変更なら **触れる SCL セクションを `scope` に列挙する**。判定は SCL-first の網羅表に従う（`scl-change` Skill / `SPECIFICATION_CORE_LANGUAGE.md §3` 冒頭）。
 5. 下記スケルトンを埋める。`motivation` は **Why を書く（What ではない）**。
-6. **検証**: `cd tools && bun run yaml-check:work-items` を通す。
+6. **検証**: `just yaml-check-work-items` を通す。
 
 ## スケルトン
 

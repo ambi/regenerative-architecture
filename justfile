@@ -92,6 +92,14 @@ test-tools:
 yaml-check:
     cd tools && bun run yaml-check:all
 
+# Validate SCL YAML files only.
+yaml-check-scl:
+    cd tools && bun run yaml-check:scl
+
+# Validate work-item YAML files only.
+yaml-check-work-items:
+    cd tools && bun run yaml-check:work-items
+
 # Regenerate SCL-derived artifacts (HTML views + JSON Schema).
 scl-render:
     cd tools && bun run scl-to-html:ra-idp-go && bun run scl-to-html:self

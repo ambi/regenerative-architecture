@@ -1658,9 +1658,14 @@ function UserEditorDialog({
   )
 }
 
+// REQUIRE_USERNAME_CONFIRMATION は削除確認としてユーザー名の再入力を求める
+// オプション機能のスイッチ。既定では無効。誤操作の最終防御を強めたい運用では
+// true にすると、削除前に対象のユーザー名タイピングを要求する。
+const REQUIRE_USERNAME_CONFIRMATION: boolean = false
+
 // DeleteUserDialog は削除前の確認ダイアログ。mode='soft' は削除予約 (復元可能)、
-// mode='purge' は完全削除 (匿名化・不可逆)。どちらも誤操作の最終防御として
-// username typing を求める。
+// mode='purge' は完全削除 (匿名化・不可逆)。ユーザー名の再入力確認は
+// REQUIRE_USERNAME_CONFIRMATION が true のときだけ求める (既定は無効)。
 function DeleteUserDialog({
   user,
   busy,
@@ -1676,7 +1681,7 @@ function DeleteUserDialog({
 }) {
   const [confirmName, setConfirmName] = useState('')
   const [reason, setReason] = useState('')
-  const canConfirm = confirmName === user.preferred_username
+  const canConfirm = !REQUIRE_USERNAME_CONFIRMATION || confirmName === user.preferred_username
   const purge = mode === 'purge'
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -1758,20 +1763,22 @@ function DeleteUserDialog({
               </div>
             )}
 
-            <div className="grid gap-2">
-              <Label htmlFor="delete-user-confirm">
-                確認のためユーザー名{' '}
-                <span className="font-mono text-slate-700">{user.preferred_username}</span>{' '}
-                を入力してください
-              </Label>
-              <Input
-                id="delete-user-confirm"
-                value={confirmName}
-                onChange={(event) => setConfirmName(event.target.value)}
-                autoFocus
-                autoComplete="off"
-              />
-            </div>
+            {REQUIRE_USERNAME_CONFIRMATION && (
+              <div className="grid gap-2">
+                <Label htmlFor="delete-user-confirm">
+                  確認のためユーザー名{' '}
+                  <span className="font-mono text-slate-700">{user.preferred_username}</span>{' '}
+                  を入力してください
+                </Label>
+                <Input
+                  id="delete-user-confirm"
+                  value={confirmName}
+                  onChange={(event) => setConfirmName(event.target.value)}
+                  autoFocus
+                  autoComplete="off"
+                />
+              </div>
+            )}
 
             <div className="grid gap-2">
               <Label htmlFor="delete-user-reason">
@@ -1781,6 +1788,7 @@ function DeleteUserDialog({
                 id="delete-user-reason"
                 value={reason}
                 onChange={(event) => setReason(event.target.value)}
+                autoFocus={!REQUIRE_USERNAME_CONFIRMATION}
                 placeholder="例: 退職処理 / 本人申請 (GDPR Art.17)"
               />
               <p className="text-xs leading-5 text-slate-500">

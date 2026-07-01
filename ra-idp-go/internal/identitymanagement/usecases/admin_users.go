@@ -13,6 +13,7 @@ import (
 
 	authnports "ra-idp-go/internal/authentication/ports"
 	authusecases "ra-idp-go/internal/authentication/usecases"
+	idmports "ra-idp-go/internal/identitymanagement/ports"
 	oauthports "ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/shared/spec"
 	"ra-idp-go/internal/tenancy"
@@ -40,7 +41,7 @@ var (
 const deletedPasswordHashSentinel = "$deleted$"
 
 type AdminUserDeps struct {
-	UserRepo            oauthports.UserRepository
+	UserRepo            idmports.UserRepository
 	AttrSchemaRepo      tenantports.TenantUserAttributeSchemaRepository
 	ConsentRepo         oauthports.ConsentRepository
 	RefreshStore        oauthports.RefreshTokenStore

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	authnports "ra-idp-go/internal/authentication/ports"
-	oauthports "ra-idp-go/internal/oauth2/ports"
+	idmports "ra-idp-go/internal/identitymanagement/ports"
 	"ra-idp-go/internal/shared/spec"
 	"ra-idp-go/internal/tenancy"
 )
@@ -15,7 +15,7 @@ import (
 var ErrInvalidResetToken = errors.New("reset token is invalid or expired")
 
 type ResetPasswordWithTokenDeps struct {
-	UserRepo                oauthports.UserRepository
+	UserRepo                idmports.UserRepository
 	TokenStore              authnports.PasswordResetTokenStore
 	PasswordHasher          authnports.PasswordHasher
 	PasswordHistoryRepo     authnports.PasswordHistoryRepository

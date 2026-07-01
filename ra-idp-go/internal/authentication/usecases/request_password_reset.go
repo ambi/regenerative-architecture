@@ -12,7 +12,7 @@ import (
 	"time"
 
 	authnports "ra-idp-go/internal/authentication/ports"
-	oauthports "ra-idp-go/internal/oauth2/ports"
+	idmports "ra-idp-go/internal/identitymanagement/ports"
 	"ra-idp-go/internal/shared/spec"
 	"ra-idp-go/internal/tenancy"
 )
@@ -20,7 +20,7 @@ import (
 const PasswordResetTokenTTLSeconds = 1800
 
 type RequestPasswordResetDeps struct {
-	UserRepo    oauthports.UserRepository
+	UserRepo    idmports.UserRepository
 	TokenStore  authnports.PasswordResetTokenStore
 	EmailSender authnports.EmailSender
 	Emit        func(spec.DomainEvent)

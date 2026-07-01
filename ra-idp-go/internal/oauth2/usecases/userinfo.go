@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 
+	idmports "ra-idp-go/internal/identitymanagement/ports"
 	"ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/shared/spec"
 )
@@ -59,7 +60,7 @@ func (r UserInfoResponse) MarshalJSON() ([]byte, error) {
 
 func UserInfo(
 	ctx context.Context,
-	repo ports.UserRepository,
+	repo idmports.UserRepository,
 	authorizer ports.Authorizer,
 	in UserInfoInput,
 ) (*UserInfoResponse, error) {

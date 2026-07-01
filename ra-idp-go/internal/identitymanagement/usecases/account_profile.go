@@ -11,7 +11,7 @@ import (
 	"errors"
 	"time"
 
-	oauthports "ra-idp-go/internal/oauth2/ports"
+	idmports "ra-idp-go/internal/identitymanagement/ports"
 	"ra-idp-go/internal/shared/spec"
 	"ra-idp-go/internal/tenancy"
 	tenantports "ra-idp-go/internal/tenancy/ports"
@@ -22,7 +22,7 @@ import (
 var ErrAttributeNotEditable = errors.New("attribute is not user-editable")
 
 type AccountProfileDeps struct {
-	UserRepo       oauthports.UserRepository
+	UserRepo       idmports.UserRepository
 	AttrSchemaRepo tenantports.TenantUserAttributeSchemaRepository
 	Emit           func(spec.DomainEvent)
 }
@@ -108,7 +108,7 @@ func UpdateUserProfile(
 	return &updated, defs, nil
 }
 
-func loadSelf(ctx context.Context, repo oauthports.UserRepository, sub string) (*spec.User, error) {
+func loadSelf(ctx context.Context, repo idmports.UserRepository, sub string) (*spec.User, error) {
 	user, err := repo.FindBySub(ctx, sub)
 	if err != nil {
 		return nil, err

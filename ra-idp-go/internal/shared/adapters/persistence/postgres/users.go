@@ -11,7 +11,7 @@ import (
 	"ra-idp-go/internal/shared/spec"
 )
 
-// UserRepository (Authentication)
+// UserRepository (IdentityManagement)
 type UserRepository struct{ Pool *pgxpool.Pool }
 
 // notDeleted は削除済みユーザを除外する述語。削除状態は lifecycle.status に統合

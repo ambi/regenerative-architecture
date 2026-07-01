@@ -16,7 +16,6 @@ import (
 	"time"
 
 	idmports "ra-idp-go/internal/identitymanagement/ports"
-	oauthports "ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/shared/spec"
 	"ra-idp-go/internal/tenancy"
 )
@@ -29,7 +28,7 @@ var (
 
 type AdminGroupDeps struct {
 	GroupRepo idmports.GroupRepository
-	UserRepo  oauthports.UserRepository
+	UserRepo  idmports.UserRepository
 	Emit      func(spec.DomainEvent)
 }
 

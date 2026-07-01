@@ -7,7 +7,7 @@ import (
 	"time"
 
 	authnports "ra-idp-go/internal/authentication/ports"
-	oauthports "ra-idp-go/internal/oauth2/ports"
+	idmports "ra-idp-go/internal/identitymanagement/ports"
 	"ra-idp-go/internal/shared/spec"
 )
 
@@ -25,7 +25,7 @@ type ChangePasswordInput struct {
 }
 
 type ChangePasswordDeps struct {
-	UserRepo            oauthports.UserRepository
+	UserRepo            idmports.UserRepository
 	PasswordHasher      authnports.PasswordHasher
 	PasswordHistoryRepo authnports.PasswordHistoryRepository
 	Emit                func(spec.DomainEvent)

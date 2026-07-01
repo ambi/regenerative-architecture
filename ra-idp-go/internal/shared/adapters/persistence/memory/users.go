@@ -10,7 +10,7 @@ import (
 )
 
 // =====================================================================
-// UserRepository (Authentication)
+// UserRepository (IdentityManagement)
 // =====================================================================
 
 type UserRepository struct {

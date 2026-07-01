@@ -19,7 +19,7 @@ import (
 func seedDemoData(
 	ctx context.Context,
 	clients oauthports.OAuth2ClientRepository,
-	users oauthports.UserRepository,
+	users idmports.UserRepository,
 	mfaFactors authnports.MfaFactorRepository,
 	passwordHistory authnports.PasswordHistoryRepository,
 	groups idmports.GroupRepository,

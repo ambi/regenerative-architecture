@@ -30,7 +30,7 @@ type Deps struct {
 	AttrSchemaRepo             tenantports.TenantUserAttributeSchemaRepository
 	LegacyBareIssuer           bool
 	ClientRepo                 oauthports.OAuth2ClientRepository
-	UserRepo                   oauthports.UserRepository
+	UserRepo                   idmports.UserRepository
 	ConsentRepo                oauthports.ConsentRepository
 	AuthzDetailTypeRepo        oauthports.AuthorizationDetailTypeRepository
 	RequestStore               oauthports.AuthorizationRequestStore

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	authnports "ra-idp-go/internal/authentication/ports"
-	oauthports "ra-idp-go/internal/oauth2/ports"
+	idmports "ra-idp-go/internal/identitymanagement/ports"
 	"ra-idp-go/internal/shared/spec"
 	"ra-idp-go/internal/tenancy"
 )
@@ -18,7 +18,7 @@ var ErrInvalidEmailChangeToken = errors.New("email change token is invalid or ex
 // primary email を確定する (self-service, wi-21)。トークンが所有確認の証左なので
 // 認証済みセッションは要求しない (reset password と同方針)。
 type ConfirmEmailChangeDeps struct {
-	UserRepo   oauthports.UserRepository
+	UserRepo   idmports.UserRepository
 	TokenStore authnports.EmailChangeTokenStore
 	Emit       func(spec.DomainEvent)
 }

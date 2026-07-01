@@ -13,7 +13,7 @@ import (
 
 	"ra-idp-go/internal/authentication/domain"
 	authnports "ra-idp-go/internal/authentication/ports"
-	oauthports "ra-idp-go/internal/oauth2/ports"
+	idmports "ra-idp-go/internal/identitymanagement/ports"
 	"ra-idp-go/internal/shared/spec"
 	"ra-idp-go/internal/tenancy"
 )
@@ -65,7 +65,7 @@ func AvailableStepUpMethods(user *spec.User) []StepUpMethod {
 
 // StepUpDeps は CompleteStepUp の依存。SessionManager は step_up_at の刻印に使う。
 type StepUpDeps struct {
-	UserRepo       oauthports.UserRepository
+	UserRepo       idmports.UserRepository
 	PasswordHasher authnports.PasswordHasher
 	MfaFactorRepo  authnports.MfaFactorRepository
 	SessionManager *SessionManager

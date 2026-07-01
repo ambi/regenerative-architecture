@@ -18,7 +18,7 @@ import (
 	"time"
 
 	authnports "ra-idp-go/internal/authentication/ports"
-	oauthports "ra-idp-go/internal/oauth2/ports"
+	idmports "ra-idp-go/internal/identitymanagement/ports"
 	"ra-idp-go/internal/shared/spec"
 	"ra-idp-go/internal/tenancy"
 )
@@ -39,7 +39,7 @@ const totpFactorLabel = "Authenticator app"
 // AccountMfaDeps は self-service MFA use case の依存。Issuer は otpauth URI の issuer
 // ラベル導出に使う (authenticator アプリの表示名)。
 type AccountMfaDeps struct {
-	UserRepo      oauthports.UserRepository
+	UserRepo      idmports.UserRepository
 	MfaFactorRepo authnports.MfaFactorRepository
 	Emit          func(spec.DomainEvent)
 	Issuer        string
@@ -178,7 +178,7 @@ func RemoveTOTPFactor(ctx context.Context, deps AccountMfaDeps, in RemoveTOTPFac
 }
 
 // loadSelfUser は self 経路で対象 user を取得する。tenant 不一致は ErrUserNotFound に潰す。
-func loadSelfUser(ctx context.Context, repo oauthports.UserRepository, sub string) (*spec.User, error) {
+func loadSelfUser(ctx context.Context, repo idmports.UserRepository, sub string) (*spec.User, error) {
 	user, err := repo.FindBySub(ctx, sub)
 	if err != nil {
 		return nil, err

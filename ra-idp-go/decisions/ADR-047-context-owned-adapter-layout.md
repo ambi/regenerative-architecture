@@ -46,6 +46,17 @@ ra-idp-go は Layer 3（domain / ports / usecases）こそ `tenancy` / `authenti
    - per-context **パッケージ**分割は採らない。memory/postgres は ~50ファイル（横断テストを
      含む）から参照され、3パッケージに割るとエイリアス import とクロスコンテキストテスト依存が
      増え、純構造変更にしては回帰リスクが高いため。
+   - 2026-07-02 補足: この判断は実装上の利便性を優先した折衷であり、RA の
+     context-first 原則からは再検討余地がある。`UserRepository` のように所有
+     context が明確な port は `identitymanagement/ports` が所有すべきであり、実装も
+     `internal/<context>/adapters/persistence/{memory,postgres}` に置く方が所有境界は
+     明確になる。一方で、現状の cross-context handler / E2E test と bootstrap は
+     `memory.NewXxx` / `postgres.XxxRepository` の単一 namespace に依存しており、単純な
+     testsupport facade は shared 実装の「全 context を知る場所」を別名で残すだけになり得る。
+     そのため本 ADR は当面 shared persistence 実装を維持するが、context 固有
+     repository 実装の per-context 移設は要検討事項として扱う。移設する場合でも、
+     `shared/adapters/persistence` に残すべきものは DB 接続、pool、row scanner、
+     transaction helper、Valkey client などの技術的共通部品に限定する。
 
 4. **http アダプタもコンテキスト所有とする**。当初は移行コスト（共有 `Deps` God-struct の
    分解、約60個のヘルパの横断/固有の仕分け、未公開ヘルパを白box呼び出しするテストの移行）から

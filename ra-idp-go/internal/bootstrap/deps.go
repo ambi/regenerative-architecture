@@ -19,7 +19,7 @@ type Dependencies struct {
 	ClientRepo                oauthports.OAuth2ClientRepository
 	TenantRepo                tenantports.TenantRepository
 	AttrSchemaRepo            tenantports.TenantUserAttributeSchemaRepository
-	UserRepo                  oauthports.UserRepository
+	UserRepo                  idmports.UserRepository
 	GroupRepo                 idmports.GroupRepository
 	AgentRepo                 idmports.AgentRepository
 	MfaFactorRepo             authnports.MfaFactorRepository

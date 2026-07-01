@@ -14,7 +14,7 @@ import (
 	"time"
 
 	authnports "ra-idp-go/internal/authentication/ports"
-	oauthports "ra-idp-go/internal/oauth2/ports"
+	idmports "ra-idp-go/internal/identitymanagement/ports"
 	"ra-idp-go/internal/shared/spec"
 	"ra-idp-go/internal/tenancy"
 )
@@ -36,7 +36,7 @@ func sha256Hex(value string) string {
 // 新アドレスへワンタイムリンクを送り、確定は ConfirmEmailChange で行う。実際の
 // User.Email 更新は確定時まで起きない (新アドレスの所有確認を経るまで反映しない)。
 type RequestEmailChangeDeps struct {
-	UserRepo    oauthports.UserRepository
+	UserRepo    idmports.UserRepository
 	TokenStore  authnports.EmailChangeTokenStore
 	EmailSender authnports.EmailSender
 	Emit        func(spec.DomainEvent)

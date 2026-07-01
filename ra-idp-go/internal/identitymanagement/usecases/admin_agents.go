@@ -38,7 +38,7 @@ var (
 type AdminAgentDeps struct {
 	AgentRepo  idmports.AgentRepository
 	ClientRepo oauthports.OAuth2ClientRepository
-	UserRepo   oauthports.UserRepository
+	UserRepo   idmports.UserRepository
 	Emit       func(spec.DomainEvent)
 }
 

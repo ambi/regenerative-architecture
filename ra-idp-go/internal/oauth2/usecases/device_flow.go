@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	idmports "ra-idp-go/internal/identitymanagement/ports"
 	"ra-idp-go/internal/oauth2/domain"
 	"ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/shared/spec"
@@ -205,7 +206,7 @@ type ExchangeDeviceCodeResult struct {
 
 type ExchangeDeviceCodeDeps struct {
 	ClientRepo      ports.OAuth2ClientRepository
-	UserRepo        ports.UserRepository
+	UserRepo        idmports.UserRepository
 	DeviceCodeStore ports.DeviceCodeStore
 	RefreshStore    ports.RefreshTokenStore
 	TokenIssuer     ports.TokenIssuer

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	idmports "ra-idp-go/internal/identitymanagement/ports"
 	"ra-idp-go/internal/oauth2/domain"
 	"ra-idp-go/internal/oauth2/ports"
 	"ra-idp-go/internal/shared/spec"
@@ -29,7 +30,7 @@ type RefreshResult struct {
 
 type RefreshDeps struct {
 	ClientRepo   ports.OAuth2ClientRepository
-	UserRepo     ports.UserRepository
+	UserRepo     idmports.UserRepository
 	RefreshStore ports.RefreshTokenStore
 	TokenIssuer  ports.TokenIssuer
 	Authorizer   ports.Authorizer

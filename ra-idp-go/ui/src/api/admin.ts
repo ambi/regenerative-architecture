@@ -117,14 +117,12 @@ export async function setAdminUserDisabled(
 export async function deleteAdminUser(
   csrfToken: string,
   sub: string,
-  options?: { reason?: string; purge?: boolean },
+  options?: { purge?: boolean },
 ): Promise<void> {
-  const reason = options?.reason?.trim()
-  const body = reason ? { reason } : undefined
   const query = options?.purge ? '?purge=true' : ''
   await request(
     `/api/admin/users/${encodeURIComponent(sub)}${query}`,
-    adminRequest(csrfToken, 'DELETE', body),
+    adminRequest(csrfToken, 'DELETE'),
   )
 }
 

@@ -212,17 +212,17 @@ export function AdminUsersPage({
     )
   }
 
-  async function handleDelete(user: AdminUser, reason: string) {
+  async function handleDelete(user: AdminUser) {
     await run(async () => {
-      await deleteAdminUser(csrfToken, user.sub, { reason })
+      await deleteAdminUser(csrfToken, user.sub)
       setShowDelete(false)
       await refresh(user.sub)
     }, 'ユーザーの削除を予約しました。30 日以内なら復元できます。')
   }
 
-  async function handlePurge(user: AdminUser, reason: string) {
+  async function handlePurge(user: AdminUser) {
     await run(async () => {
-      await deleteAdminUser(csrfToken, user.sub, { reason, purge: true })
+      await deleteAdminUser(csrfToken, user.sub, { purge: true })
       setShowPurge(false)
       await refresh()
     }, 'ユーザーを完全に削除しました。')
@@ -453,7 +453,7 @@ export function AdminUsersPage({
           busy={busy}
           mode="soft"
           onClose={() => setShowDelete(false)}
-          onConfirm={(reason) => void handleDelete(selected, reason)}
+          onConfirm={() => void handleDelete(selected)}
         />
       )}
       {showPurge && selected && (
@@ -462,7 +462,7 @@ export function AdminUsersPage({
           busy={busy}
           mode="purge"
           onClose={() => setShowPurge(false)}
-          onConfirm={(reason) => void handlePurge(selected, reason)}
+          onConfirm={() => void handlePurge(selected)}
         />
       )}
       {showDisable && selected && (
@@ -553,17 +553,17 @@ export function AdminUserDetailPage({
     }
   }
 
-  async function handleDelete(reason: string) {
+  async function handleDelete() {
     await run(async () => {
-      await deleteAdminUser(csrfToken, user.sub, { reason })
+      await deleteAdminUser(csrfToken, user.sub)
       setShowDelete(false)
       await reload()
     }, 'ユーザーの削除を予約しました。30 日以内なら復元できます。')
   }
 
-  async function handlePurge(reason: string) {
+  async function handlePurge() {
     await run(async () => {
-      await deleteAdminUser(csrfToken, user.sub, { reason, purge: true })
+      await deleteAdminUser(csrfToken, user.sub, { purge: true })
       window.location.assign(tenantURL('/admin/users'))
     }, 'ユーザーを完全に削除しました。')
   }
@@ -812,7 +812,7 @@ export function AdminUserDetailPage({
           busy={busy}
           mode="soft"
           onClose={() => setShowDelete(false)}
-          onConfirm={(reason) => void handleDelete(reason)}
+          onConfirm={() => void handleDelete()}
         />
       )}
       {showPurge && (
@@ -821,7 +821,7 @@ export function AdminUserDetailPage({
           busy={busy}
           mode="purge"
           onClose={() => setShowPurge(false)}
-          onConfirm={(reason) => void handlePurge(reason)}
+          onConfirm={() => void handlePurge()}
         />
       )}
       {showDisable && (
@@ -1677,17 +1677,16 @@ function DeleteUserDialog({
   busy: boolean
   mode: 'soft' | 'purge'
   onClose: () => void
-  onConfirm: (reason: string) => void
+  onConfirm: () => void
 }) {
   const [confirmName, setConfirmName] = useState('')
-  const [reason, setReason] = useState('')
   const canConfirm = !REQUIRE_USERNAME_CONFIRMATION || confirmName === user.preferred_username
   const purge = mode === 'purge'
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!canConfirm) return
-    onConfirm(reason)
+    onConfirm()
   }
 
   return (
@@ -1779,22 +1778,6 @@ function DeleteUserDialog({
                 />
               </div>
             )}
-
-            <div className="grid gap-2">
-              <Label htmlFor="delete-user-reason">
-                {purge ? '削除理由 (任意)' : '理由 (任意)'}
-              </Label>
-              <Input
-                id="delete-user-reason"
-                value={reason}
-                onChange={(event) => setReason(event.target.value)}
-                autoFocus={!REQUIRE_USERNAME_CONFIRMATION}
-                placeholder="例: 退職処理 / 本人申請 (GDPR Art.17)"
-              />
-              <p className="text-xs leading-5 text-slate-500">
-                監査イベントに同梱されます。空欄でも実行できます。
-              </p>
-            </div>
           </div>
 
           <div className="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-6 py-4">

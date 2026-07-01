@@ -29,7 +29,9 @@ func (d Deps) handlePAR(c *echo.Context) error {
 			params[k] = v[0]
 		}
 	}
-	res, err := usecases.PushAuthorizationRequest(c.Request().Context(), usecases.PARDeps{
+	ctx, cancel := d.OperationContext(c.Request().Context())
+	defer cancel()
+	res, err := usecases.PushAuthorizationRequest(ctx, usecases.PARDeps{
 		ClientRepo: d.ClientRepo, Store: d.PARStore, AuthzDetailTypeRepo: d.AuthzDetailTypeRepo, Emit: d.Emit,
 	}, usecases.PARInput{ClientID: clientStub.ID, Parameters: params}, time.Now().UTC())
 	if err != nil {

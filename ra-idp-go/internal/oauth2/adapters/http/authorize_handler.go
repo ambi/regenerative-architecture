@@ -2,6 +2,7 @@
 package http
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -561,8 +562,10 @@ func (d Deps) handleConsentAPI(c *echo.Context) error {
 	if err := support.DecodeJSON(c.Request(), &input); err != nil {
 		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
+	ctx, cancel := d.OperationContext(c.Request().Context())
+	defer cancel()
 	if input.Action != "allow" {
-		_ = d.RequestStore.UpdateState(c.Request().Context(), req.ID, spec.AuthFlowRejected)
+		_ = d.RequestStore.UpdateState(ctx, req.ID, spec.AuthFlowRejected)
 		d.clearTransactionCookie(c)
 		return support.NoStoreJSON(c, http.StatusOK, browserFlowResponse{RedirectTo: authorizationErrorURL(req, support.RequestIssuer(c, d.Issuer), "access_denied", "")})
 	}
@@ -570,7 +573,7 @@ func (d Deps) handleConsentAPI(c *echo.Context) error {
 	scopes := strings.Fields(req.Scope)
 	if d.ConsentRepo != nil {
 		now := time.Now().UTC()
-		if err := d.ConsentRepo.Save(c.Request().Context(), &spec.Consent{
+		if err := d.ConsentRepo.Save(ctx, &spec.Consent{
 			TenantID: support.RequestTenantID(c), Sub: authn.Sub, ClientID: req.ClientID,
 			Scopes: scopes, State: spec.ConsentGranted,
 			GrantedAt: now, ExpiresAt: now.Add(365 * 24 * time.Hour),
@@ -588,7 +591,7 @@ func (d Deps) handleConsentAPI(c *echo.Context) error {
 			}
 		}
 	}
-	redirectTo, err := d.issueCodeURL(c, req, authn.Sub, time.Unix(authn.AuthTime, 0))
+	redirectTo, err := d.issueCodeURL(ctx, c, req, authn.Sub, time.Unix(authn.AuthTime, 0))
 	if err != nil {
 		return err
 	}
@@ -637,8 +640,10 @@ func (d Deps) completeAfterAuthn(
 			covered = false
 		}
 		if !covered {
+			ctx, cancel := d.OperationContext(c.Request().Context())
+			defer cancel()
 			if err := d.RequestStore.AttachAuthentication(
-				c.Request().Context(), req.ID, authn.Sub, authn.AuthTime, authn.AMR, authn.ACR,
+				ctx, req.ID, authn.Sub, authn.AuthTime, authn.AMR, authn.ACR,
 			); err != nil {
 				return authorizationNext{}, err
 			}
@@ -646,7 +651,9 @@ func (d Deps) completeAfterAuthn(
 			return authorizationNext{Path: support.TenantRoute(c, "/consent")}, nil
 		}
 	}
-	redirectTo, err := d.issueCodeURL(c, req, authn.Sub, time.Unix(authn.AuthTime, 0))
+	ctx, cancel := d.OperationContext(c.Request().Context())
+	defer cancel()
+	redirectTo, err := d.issueCodeURL(ctx, c, req, authn.Sub, time.Unix(authn.AuthTime, 0))
 	return authorizationNext{RedirectTo: redirectTo}, err
 }
 
@@ -669,6 +676,7 @@ func (d Deps) clientIsFirstParty(c *echo.Context, clientID string) bool {
 }
 
 func (d Deps) issueCodeURL(
+	ctx context.Context,
 	c *echo.Context,
 	req *spec.AuthorizationRequest,
 	sub string,
@@ -681,7 +689,7 @@ func (d Deps) issueCodeURL(
 	// resource owner が IdP 利用者自身であり、アプリ割当でログインをゲートしない (ADR-061)。
 	if !d.clientIsFirstParty(c, req.ClientID) {
 		allowed, err := d.ApplicationAccessAllowed(
-			c.Request().Context(), support.RequestTenantID(c), spec.ProtocolBindingOIDC, req.ClientID, sub,
+			ctx, support.RequestTenantID(c), spec.ProtocolBindingOIDC, req.ClientID, sub,
 		)
 		if err != nil {
 			return "", err
@@ -690,7 +698,7 @@ func (d Deps) issueCodeURL(
 			return authorizationErrorURL(req, iss, "access_denied", "この利用者はアプリケーションに割り当てられていません"), nil
 		}
 	}
-	out, err := usecases.CompleteLogin(c.Request().Context(), usecases.CompleteLoginDeps{
+	out, err := usecases.CompleteLogin(ctx, usecases.CompleteLoginDeps{
 		RequestStore: d.RequestStore,
 		CodeStore:    d.CodeStore,
 	}, usecases.CompleteLoginInput{

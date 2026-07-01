@@ -166,3 +166,59 @@ func TestPushAuthorizationRequestRejectsCrossTenantConsumption(t *testing.T) {
 		t.Fatalf("cross-tenant /authorize: status=%d body=%s", out.Code, out.Body.String())
 	}
 }
+
+func TestPushAuthorizationRequestUsesOperationContextAfterClientAbort(t *testing.T) {
+	clientRepo := memory.NewClientRepository()
+	secretHash := domain.HashClientSecret(parClientSecret)
+	clientRepo.Seed(&spec.OAuth2Client{
+		TenantID: spec.DefaultTenantID,
+		ClientID: parClientID, ClientSecretHash: &secretHash,
+		ClientType: spec.ClientConfidential, RedirectURIs: []string{parRedirectURI},
+		GrantTypes:    []spec.GrantType{spec.GrantAuthorizationCode},
+		ResponseTypes: []spec.ResponseType{spec.ResponseTypeCode}, FapiProfile: spec.FapiNone,
+		TokenEndpointAuthMethod: spec.AuthMethodClientSecretBasic, Scope: "openid",
+		CreatedAt: time.Now().UTC(),
+	})
+	store := &ctxCheckingPARStore{PARStore: memory.NewPARStore()}
+	e := echo.New()
+	httpadapter.Register(e, support.Deps{
+		Issuer:       "http://test",
+		ClientRepo:   clientRepo,
+		PARStore:     store,
+		RequestStore: memory.NewAuthorizationRequestStore(),
+		CodeStore:    memory.NewAuthorizationCodeStore(),
+	})
+
+	form := url.Values{
+		"client_id":             {parClientID},
+		"redirect_uri":          {parRedirectURI},
+		"response_type":         {"code"},
+		"scope":                 {"openid"},
+		"code_challenge":        {"abcdef0123456789abcdef0123456789abcdef0123ab"},
+		"code_challenge_method": {"S256"},
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	req := httptest.NewRequest(http.MethodPost, "/par", strings.NewReader(form.Encode())).WithContext(ctx)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth(parClientID, parClientSecret)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("/par with canceled request status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	if store.saveCtxErr != nil {
+		t.Fatalf("PAR Save received canceled request context: %v", store.saveCtxErr)
+	}
+}
+
+type ctxCheckingPARStore struct {
+	*memory.PARStore
+	saveCtxErr error
+}
+
+func (s *ctxCheckingPARStore) Save(ctx context.Context, rec *spec.PARRecord) error {
+	s.saveCtxErr = ctx.Err()
+	return s.PARStore.Save(ctx, rec)
+}

@@ -120,8 +120,10 @@ func (d Deps) handleCreateAdminUser(c *echo.Context) error {
 	if err := support.DecodeJSON(c.Request(), &input); err != nil {
 		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
+	ctx, cancel := d.OperationContext(c.Request().Context())
+	defer cancel()
 	user, err := idmusecases.CreateUser(
-		c.Request().Context(),
+		ctx,
 		d.adminUserDeps(),
 		idmusecases.CreateUserInput{
 			ActorSub: actor.Sub, PreferredUsername: input.PreferredUsername,
@@ -147,8 +149,10 @@ func (d Deps) handleUpdateAdminUser(c *echo.Context) error {
 	if err := support.DecodeJSON(c.Request(), &input); err != nil {
 		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
+	ctx, cancel := d.OperationContext(c.Request().Context())
+	defer cancel()
 	user, err := idmusecases.UpdateUser(
-		c.Request().Context(),
+		ctx,
 		d.adminUserDeps(),
 		idmusecases.UpdateUserInput{
 			ActorSub: actor.Sub, Sub: c.Param("sub"),
@@ -188,12 +192,14 @@ func (d Deps) handleDeleteAdminUser(c *echo.Context) error {
 	}
 	// 既定は soft-delete (削除予約)。?purge=true または body force=true で完全削除
 	// (ADR-036 の anonymize cascade) に分岐する。
+	ctx, cancel := d.OperationContext(c.Request().Context())
+	defer cancel()
 	if c.QueryParam("purge") == "true" || input.Force {
-		err = idmusecases.DeleteUser(c.Request().Context(), d.adminUserDeps(), idmusecases.DeleteUserInput{
+		err = idmusecases.DeleteUser(ctx, d.adminUserDeps(), idmusecases.DeleteUserInput{
 			ActorSub: actor.Sub, Sub: c.Param("sub"), Reason: input.Reason, Now: time.Now().UTC(),
 		})
 	} else {
-		err = idmusecases.SoftDeleteUser(c.Request().Context(), d.adminUserDeps(), idmusecases.SoftDeleteUserInput{
+		err = idmusecases.SoftDeleteUser(ctx, d.adminUserDeps(), idmusecases.SoftDeleteUserInput{
 			ActorSub: actor.Sub, Sub: c.Param("sub"), Reason: input.Reason, Now: time.Now().UTC(),
 		})
 	}
@@ -212,8 +218,10 @@ func (d Deps) handleRestoreAdminUser(c *echo.Context) error {
 	if err != nil {
 		return d.WriteAdminAccessError(c, err)
 	}
+	ctx, cancel := d.OperationContext(c.Request().Context())
+	defer cancel()
 	user, err := idmusecases.RestoreUser(
-		c.Request().Context(), d.adminUserDeps(), actor.Sub, c.Param("sub"), time.Now().UTC(),
+		ctx, d.adminUserDeps(), actor.Sub, c.Param("sub"), time.Now().UTC(),
 	)
 	if err != nil {
 		return d.writeAdminUserError(c, err)
@@ -229,8 +237,10 @@ func (d Deps) handleSetAdminUserDisabled(c *echo.Context, disabled bool) error {
 	if err != nil {
 		return d.WriteAdminAccessError(c, err)
 	}
+	ctx, cancel := d.OperationContext(c.Request().Context())
+	defer cancel()
 	_, err = idmusecases.SetUserDisabled(
-		c.Request().Context(), d.adminUserDeps(), actor.Sub, c.Param("sub"), disabled, time.Now().UTC(),
+		ctx, d.adminUserDeps(), actor.Sub, c.Param("sub"), disabled, time.Now().UTC(),
 	)
 	if err != nil {
 		return d.writeAdminUserError(c, err)
@@ -330,8 +340,10 @@ func (d Deps) handleSetUserRequiredAction(c *echo.Context) error {
 	if err := support.DecodeJSON(c.Request(), &input); err != nil {
 		return support.WriteBrowserError(c, http.StatusBadRequest, "invalid_request", "JSONリクエストが不正です")
 	}
+	ctx, cancel := d.OperationContext(c.Request().Context())
+	defer cancel()
 	user, err := idmusecases.SetUserRequiredAction(
-		c.Request().Context(), d.adminUserDeps(), actor.Sub, c.Param("sub"),
+		ctx, d.adminUserDeps(), actor.Sub, c.Param("sub"),
 		spec.RequiredAction(input.Action), time.Now().UTC(),
 	)
 	if err != nil {
@@ -348,8 +360,10 @@ func (d Deps) handleClearUserRequiredAction(c *echo.Context) error {
 	if err != nil {
 		return d.WriteAdminAccessError(c, err)
 	}
+	ctx, cancel := d.OperationContext(c.Request().Context())
+	defer cancel()
 	user, err := idmusecases.ClearUserRequiredAction(
-		c.Request().Context(), d.adminUserDeps(), actor.Sub, c.Param("sub"),
+		ctx, d.adminUserDeps(), actor.Sub, c.Param("sub"),
 		spec.RequiredAction(c.Param("action")), time.Now().UTC(),
 	)
 	if err != nil {

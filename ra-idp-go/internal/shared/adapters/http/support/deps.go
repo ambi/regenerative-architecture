@@ -8,6 +8,8 @@
 package support
 
 import (
+	"time"
+
 	appports "ra-idp-go/internal/application/ports"
 	authdomain "ra-idp-go/internal/authentication/domain"
 	authnports "ra-idp-go/internal/authentication/ports"
@@ -70,6 +72,9 @@ type Deps struct {
 	ApplicationAssignmentRepo  appports.AssignmentRepository
 	ApplicationOrderingRepo    appports.ApplicationOrderingRepository
 	ApplicationCategoryRepo    appports.ApplicationCategoryRepository
+	OperationTimeout           time.Duration
+	DetachedCompletionTimeout  time.Duration
+	AbortMetrics               HTTPAbortMetrics
 	Emit                       func(spec.DomainEvent)
 	HealthInfo                 HealthInfo
 }

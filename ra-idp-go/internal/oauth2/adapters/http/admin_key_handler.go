@@ -75,8 +75,10 @@ func (d Deps) handleRotateAdminKey(c *echo.Context) error {
 	if d.KeyStore == nil {
 		return support.WriteBrowserError(c, http.StatusServiceUnavailable, "key_store_unavailable", "署名鍵ストアが構成されていません")
 	}
-	prev, _ := d.KeyStore.GetActiveKey(c.Request().Context())
-	next, err := usecases.RotateSigningKey(c.Request().Context(), usecases.RotateSigningKeyDeps{
+	ctx, cancel := d.OperationContext(c.Request().Context())
+	defer cancel()
+	prev, _ := d.KeyStore.GetActiveKey(ctx)
+	next, err := usecases.RotateSigningKey(ctx, usecases.RotateSigningKeyDeps{
 		KeyStore: d.KeyStore,
 		Emit:     d.Emit,
 	}, time.Now().UTC())

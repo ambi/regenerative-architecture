@@ -55,7 +55,8 @@ func (d Deps) handleToken(c *echo.Context) error {
 		}
 	}
 
-	ctx := c.Request().Context()
+	ctx, cancel := d.OperationContext(c.Request().Context())
+	defer cancel()
 	now := time.Now().UTC()
 
 	switch grantType {
@@ -247,7 +248,9 @@ func (d Deps) handleRevoke(c *echo.Context) error {
 	if err != nil {
 		return writeOAuthError(c, err)
 	}
-	if err := usecases.RevokeToken(c.Request().Context(), usecases.RevokeDeps{
+	ctx, cancel := d.OperationContext(c.Request().Context())
+	defer cancel()
+	if err := usecases.RevokeToken(ctx, usecases.RevokeDeps{
 		RefreshStore: d.RefreshStore, Introspector: d.TokenIntrospector,
 		AccessTokenDenylist: d.AccessTokenDenylist, Emit: d.Emit,
 	}, client.ID, c.Request().PostFormValue("token"), time.Now().UTC()); err != nil {

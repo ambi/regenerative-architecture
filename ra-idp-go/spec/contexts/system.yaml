@@ -67,6 +67,32 @@ standards:
         relates_to:
           objectives:
             - AuditLogRetention
+objectives:
+  CancellationConsistency:
+    kind: security
+    description: "HTTP request context の client abort は、read-only endpoint では処理中断に使ってよい。一方で mutation endpoint は operation context policy を持ち、認可コード、refresh token family、consent、session、audit/outbox が観測不能な中間状態に残らないよう rollback / complete / detached completion のいずれかを明示する。"
+    policy: http_operation_context
+    target: HTTPMutationOperation
+    value:
+      read_only_context: request
+      mutation_context: without_cancel_with_timeout
+      completion_modes:
+        - rollback
+        - complete
+        - detached_completion
+      inconsistent_completion_rate: "0"
+  ClientAbortLogClassification:
+    kind: security
+    description: "client abort 由来の context.Canceled は server error として記録・集計せず、server timeout / upstream timeout と別 label で観測する。"
+    policy: http_cancel_classification
+    target: HTTPErrorHandling
+    value:
+      metric: http_request_aborts_total
+      labels:
+        - client_aborted
+        - server_timeout
+        - upstream_timeout
+      client_aborted_counts_as_server_error: false
 user_experience:
   accessibility:
     standard: WCAG22
